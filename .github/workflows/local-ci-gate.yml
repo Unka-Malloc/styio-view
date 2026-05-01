@@ -79,10 +79,11 @@ jobs:
           flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
 
       - name: Install standardized Chromium
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium
-          test "$(chromium --product-version)" = "${STYIO_CHROMIUM_VERSION}"
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: ${{ env.STYIO_CHROMIUM_VERSION }}
+          install-dependencies: true
 
       - name: Verify standardized toolchain
         run: |
@@ -90,7 +91,8 @@ jobs:
           node --version | grep -F "v${STYIO_NODE_VERSION}"
           npm --version
           flutter --version | head -n1 | grep -F "${STYIO_FLUTTER_VERSION}"
-          chromium --product-version | grep -F "${STYIO_CHROMIUM_VERSION}"
+          test "${{ steps.setup-chrome.outputs.chrome-version }}" = "${STYIO_CHROMIUM_VERSION}"
+          "${{ steps.setup-chrome.outputs.chrome-path }}" --version
 
       - name: Restore repository dependencies
         working-directory: styio-view
@@ -133,7 +135,7 @@ jobs:
       - name: Run styio-view local CI gate
         working-directory: styio-view
         env:
-          STYIO_CHROME_PATH: /usr/bin/chromium
+          STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
         run: >
           ./scripts/delivery-gate.sh
           --mode push

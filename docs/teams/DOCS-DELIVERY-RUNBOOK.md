@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `styio-view` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-04-28
+**Last updated:** 2026-05-02
 
 ## Mission
 
@@ -57,7 +57,7 @@ Key SSOTs:
 2. 任何结构性文档变更，都要同步更新对应目录的 `README.md` 和 `INDEX.md`。
 3. 若一次变更改变了团队边界、review 路由或 handoff 路径，同批更新 `docs/teams/`。
 4. 中断时把恢复信息写入 `docs/history/YYYY-MM-DD.md`，不要只留在聊天或注释里。
-5. docs tree 变化时，同批运行 `docs-lifecycle.py`、`docs-index.py`、`docs-audit.py`，而不是只靠 `README/INDEX` 手工刷新。
+5. docs tree 变化时，同批运行 `docs-lifecycle.py`、`docs-index.py`、`docs-audit.py`，而不是只靠 `README/INDEX` 手工刷新；生成式 `INDEX.md` 必须保持跨本地和 GitHub Actions 可复现，空 collection 继承本目录 `README.md` 的 `Last updated`，不得回退到执行当天日期。
 6. 根 `.gitignore` 若新增 temp/build/log/cache 类忽略规则，同批补 `docs/**` 与 `frontend/styio_view_app/test/**` 的显式 negate 规则，并让 `scripts/repo-hygiene-gate.py` 通过。
 7. 仓库级 build/dev-env 文档必须保持固定版本基线显式一致：Debian 13、Python 3.13.5、Node.js v24.15.0 LTS、Flutter 3.41.7 / Dart 3.11.5、Chromium 147.0.7727.116；不得把这类版本描述回退成浮动 `stable`。
 8. 容器和宿主机开发环境入口必须一起维护：`Dockerfile`、`.devcontainer/`、Linux/macOS/Windows 一键安装脚本，以及可选 `+android` / `+ios` 组合矩阵，都要在仓库级 build/dev-env 入口里保持同一套说明。

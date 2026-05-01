@@ -2,7 +2,7 @@
 
 **Purpose:** External audit report for the 2026-04-22 `styio-view` review using `styio-audit` project `styio-view` and module `for-styio-view`.
 
-**Last updated:** 2026-04-22
+**Last updated:** 2026-05-02
 
 **Date:** 2026-04-22
 **Scope:** `styio-view`, audited through the external `styio-audit` framework with `project=styio-view` and module `for-styio-view`.
@@ -14,12 +14,12 @@ This report records the code audit outcome for the Flutter workspace, adapter, m
 
 The repo has a strong amount of surface-area coverage already. During the parallel remediation pass, the original critical/high findings were narrowed substantially:
 
-1. The prototype dev server now has Host/Origin checks, per-process API credentials, and mutations disabled by default.
+1. The prototype dev server now has Host/Origin checks, per-process API credentials, workspace-limited file-content reads, and mutations disabled by default.
 2. The hosted control-plane IO client now requires a bearer token, validates endpoint URIs, uses request timeouts, and bounds response reads.
 3. The execution overlay now snapshots files instead of symlinking back to the source workspace and uses resolved path containment.
 4. Shell-level command gating, web hosted-client hardening, route text precision, and live product gates remain open follow-up areas.
 
-I also added a small CI reinforcement lane for core Flutter lifecycle tests so the default quality signal now includes the main workspace, module, runtime, shell, execution, and document-store state machines.
+The downstream `nightly` delivery line now uses a repository-local `local-ci-gate` workflow so the default quality signal includes repository hygiene, docs governance, Flutter analyze/test, and the prototype editor selftest.
 
 ## Parallel Remediation Shards
 
@@ -73,8 +73,8 @@ I also added a small CI reinforcement lane for core Flutter lifecycle tests so t
 
 ### Low
 
-10. Product workflow tests are gated by `STYIO_VIEW_PRODUCT_GATE=1`, so the default green path does not prove live product closure by itself. Before this audit, CI also did not run any Flutter tests.
-    - Evidence: `frontend/styio_view_app/test/local_product_workflow_test.dart:27`, `frontend/styio_view_app/test/hosted_product_workflow_test.dart:29`, `.github/workflows/ci.yml:1`
+10. Product workflow tests are gated by `STYIO_VIEW_PRODUCT_GATE=1`, so the default green path does not prove live product closure by itself. The repository-local CI gate covers Flutter analyze/test and prototype health; the live product workflow remains an explicit release-relevant extension lane.
+    - Evidence: `frontend/styio_view_app/test/local_product_workflow_test.dart:27`, `frontend/styio_view_app/test/hosted_product_workflow_test.dart:29`, `.github/workflows/local-ci-gate.yml:1`
     - Principles: 6 Evidence Must Match The Claim, 7 Recoverable Evolution
 
 ## Lifecycle State Machines
@@ -145,9 +145,9 @@ Coverage gaps:
 
 ## Gate Strictness
 
-Before this audit, `styio-audit` validated the framework and project module, but the full gate was blocked by the open defect queue record in `docs/audit/defects/STYIO-VIEW-2026-04-22.md`. The default repository CI also did not include Flutter tests, so it could go green without exercising the workspace/module/runtime state machines.
+Before this audit, `styio-audit` validated the framework and project module, but the full gate was blocked by an ignored open defect queue record in `docs/audit/defects/STYIO-VIEW-2026-04-22.md`. That scratch record has been migrated into this tracked audit report and [NEXT-STAGE-GAP-LEDGER.md](../rollups/NEXT-STAGE-GAP-LEDGER.md), and the ignored scratch file is removed before submission.
 
-I added a Flutter lifecycle unit-test step to `.github/workflows/ci.yml` so the default CI path now checks the main local state machines instead of only docs and hygiene.
+The downstream delivery workflow now exposes `local-ci-gate` as the required repository-local CI status for `nightly`, instead of the older `styio-ci` / `build-and-test` naming. It runs the composed delivery gate with external `styio-audit` skipped because the released policy gate runs separately in `.github/workflows/styio-audit.yml`.
 
 The product workflow tests remain environment-gated, so they should continue to be treated as a release-relevant lane rather than proof from the default test run.
 
@@ -164,7 +164,7 @@ The product workflow tests remain environment-gated, so they should continue to 
 
 ## Remaining Risks
 
-1. The open defect queue record still blocks the external audit gate until it is closed or removed.
-2. Web hosted-control-plane hardening still needs parity with the IO client.
-3. Product workflow coverage still depends on an env-gated lane, so the full execution matrix is not yet default.
-4. Shell run-route gating, route text precision, and stale async document-load rejection remain follow-up work.
+1. Web hosted-control-plane hardening still needs parity with the IO client.
+2. Product workflow coverage still depends on an env-gated lane, so the full execution matrix is not yet default.
+3. Shell run-route gating, route text precision, and stale async document-load rejection remain follow-up work.
+4. `nightly` merge governance depends on GitHub Rulesets requiring `audit`, `styio-audit`, and `local-ci-gate` checks.

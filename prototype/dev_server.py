@@ -277,6 +277,14 @@ def resolve_browser_path(raw_path: str | None) -> Path:
     return candidate.resolve()
 
 
+def path_is_within_root(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+    except ValueError:
+        return False
+    return True
+
+
 def browser_entry_snapshot(raw_path: str | None, *, include_files: bool = False) -> dict:
     target = resolve_browser_path(raw_path)
     selected_file = target if target.is_file() else None
@@ -476,6 +484,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 target = resolve_browser_path(raw_path)
                 if not target.is_file():
                     raise ValueError("path must point to a file")
+                if not path_is_within_root(target, current_workspace()):
+                    self.end_json({"error": "file reads are limited to the current workspace"}, HTTPStatus.FORBIDDEN)
+                    return
                 content = target.read_text(encoding="utf-8")
             except ValueError as error:
                 self.end_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)

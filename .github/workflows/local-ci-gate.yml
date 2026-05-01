@@ -1,15 +1,19 @@
-name: styio-ci
+name: local-ci-gate
 
 on:
   pull_request:
   push:
     branches:
-      - main
-      - master
-      - agent-dev
+      - nightly
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-test:
+  local-ci-gate:
+    name: local-ci-gate
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -22,6 +26,7 @@ jobs:
       - name: Checkout styio-view
         uses: actions/checkout@v5
         with:
+          fetch-depth: 0
           path: styio-view
 
       - name: Resolve sibling checkout ref
@@ -93,23 +98,45 @@ jobs:
           cd prototype && npm ci
           cd ../frontend/styio_view_app && flutter pub get
 
-      - name: Flutter lifecycle unit tests
-        working-directory: styio-view/frontend/styio_view_app
-        run: >
-          flutter test
-          test/module_lifecycle_test.dart
-          test/runtime_surfaces_test.dart
-          test/hosted_control_plane_client_test.dart
-          test/shell_model_test.dart
-          test/execution_adapter_test.dart
-          test/workspace_document_store_test.dart
-
-      - name: Docs gate
+      - name: Resolve CI refs
+        id: ci_refs
+        shell: bash
         working-directory: styio-view
-        run: ./scripts/docs-gate.sh
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --no-tags origin "+refs/heads/${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}"
+            BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          elif [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+              BASE_REF="HEAD^"
+              RANGE="HEAD^..HEAD"
+            else
+              BASE_REF="HEAD"
+              RANGE="HEAD"
+            fi
+          elif [[ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
+            if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+              BASE_REF="HEAD^"
+            else
+              BASE_REF="HEAD"
+            fi
+            RANGE="HEAD"
+          else
+            BASE_REF="${{ github.event.before }}"
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
 
-      - name: Checkpoint health
+          echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
+          echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Run styio-view local CI gate
         working-directory: styio-view
         env:
           STYIO_CHROME_PATH: /usr/bin/chromium
-        run: ./scripts/checkpoint-health.sh
+        run: >
+          ./scripts/delivery-gate.sh
+          --mode push
+          --base "${{ steps.ci_refs.outputs.base_ref }}"
+          --range "${{ steps.ci_refs.outputs.range }}"
+          --skip-audit

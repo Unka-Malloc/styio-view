@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `styio-view` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-04-24
+**Last updated:** 2026-04-28
 
 ## Mission
 
@@ -71,6 +71,7 @@ Key SSOTs:
 16. 外部上游 handoff 统一收在 `docs/external/for-*`，不要在 docs 根目录重新创建 `for-*` collection。
 17. Keep [../specs/TECHNOLOGY-COMPONENT-INVENTORY.md](../specs/TECHNOLOGY-COMPONENT-INVENTORY.md) aligned with `styio-audit` whenever the technology stack, internal components, open-source components, dependency manifests, Apache-2.0 evidence, commercial-risk boundaries, or UI asset-source evidence changes.
 18. Maintain GitHub merge gates through Rulesets rather than legacy classic branch protection; audit effective branch rules when required status-check governance changes.
+19. External audit shard updates must name the remediated finding, the changed security boundary, and the exact validation command; if code and audit evidence move together, update the owning team runbook in the same change.
 
 ## Change Classes
 

@@ -11,6 +11,7 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import quote
 
 
 MODULE_PATH = Path(__file__).with_name("dev_server.py")
@@ -120,6 +121,20 @@ class DevServerSecurityBoundaryTest(unittest.TestCase):
         self.assertEqual(status, 200)
         payload = json.loads(body.decode("utf-8"))
         self.assertEqual(payload["files"], ["main.styio"])
+
+    def test_browser_file_reads_are_limited_to_current_workspace(self) -> None:
+        outside_file = Path(self.temp_dir.name) / "outside.txt"
+        outside_file.write_text("outside secret\n", encoding="utf-8")
+
+        status, _, body = self.request(
+            "GET",
+            f"/api/browser/file?path={quote(str(outside_file))}",
+            headers=self.authenticated_headers(),
+        )
+
+        self.assertEqual(status, 403)
+        self.assertIn(b"limited to the current workspace", body)
+        self.assertNotIn(b"outside secret", body)
 
     def test_rejects_non_local_host_header(self) -> None:
         status, _, body = self.request(

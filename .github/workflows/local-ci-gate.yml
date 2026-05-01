@@ -20,7 +20,6 @@ jobs:
       STYIO_PYTHON_VERSION: "3.13.5"
       STYIO_NODE_VERSION: "24.15.0"
       STYIO_FLUTTER_VERSION: "3.41.7"
-      STYIO_CHROMIUM_VERSION: "147.0.7727.116"
 
     steps:
       - name: Checkout styio-view
@@ -78,11 +77,11 @@ jobs:
         with:
           flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
 
-      - name: Install standardized Chromium
+      - name: Install CI Chrome
         id: setup-chrome
         uses: browser-actions/setup-chrome@v2
         with:
-          chrome-version: ${{ env.STYIO_CHROMIUM_VERSION }}
+          chrome-version: stable
           install-dependencies: true
 
       - name: Verify standardized toolchain
@@ -91,7 +90,6 @@ jobs:
           node --version | grep -F "v${STYIO_NODE_VERSION}"
           npm --version
           flutter --version | head -n1 | grep -F "${STYIO_FLUTTER_VERSION}"
-          test "${{ steps.setup-chrome.outputs.chrome-version }}" = "${STYIO_CHROMIUM_VERSION}"
           "${{ steps.setup-chrome.outputs.chrome-path }}" --version
 
       - name: Restore repository dependencies

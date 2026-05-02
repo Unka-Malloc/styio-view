@@ -58,6 +58,9 @@ log "flutter analyze"
 log "flutter test"
 (cd "$FLUTTER_DIR" && flutter test)
 
+log "prototype governance"
+(cd "$PROTOTYPE_DIR" && npm run governance)
+
 log "prototype selftest"
 (cd "$PROTOTYPE_DIR" && STYIO_EDITOR_URL="$EDITOR_URL" npm run selftest:editor)
 

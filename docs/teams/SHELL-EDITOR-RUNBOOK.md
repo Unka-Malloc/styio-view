@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。
 
-**Last updated:** 2026-04-28
+**Last updated:** 2026-05-02
 
 ## Mission
 
@@ -24,6 +24,9 @@ Primary paths:
 10. `prototype/dev_server.py`
 11. `prototype/test_dev_server_security.py`
 12. `frontend/styio_view_app/lib/src/frontend_shell/`
+13. `prototype/PROTOTYPE-GOVERNANCE.md`
+14. `prototype/prototype-manifest.json`
+15. `prototype/scripts/check-prototype-governance.mjs`
 
 Key SSOTs:
 
@@ -44,6 +47,7 @@ Key SSOTs:
 9. product gate 测试若需要 `STYIO_VIEW_PRODUCT_GATE=1`，在本轮最小闭环中保持显式跳过策略，不把 gated workflow 写成默认 shell 验证要求。
 10. 手写 prototype selftest 的布局几何断言必须等待 grid/sidebar CSS transition 收敛后再采样；容差只能覆盖 headless Chromium 子像素取整，不得掩盖实际 drawer 宽度或 inset 漂移。
 11. Prototype dev-server API 变更必须保持 Host allowlist、same-origin mutation、session credential、default-off mutation 和 workspace-limited file-content reads，并同步运行 `python3 prototype/test_dev_server_security.py`。
+12. Top-level `prototype/*.html` 只能通过 `prototype/prototype-manifest.json` 增删改名；`editor.html` 是唯一 canonical 产品行为入口，gallery 和 style experiment 页面不得定义 workspace mutation、adapter contract 或 dev-server API 语义。
 
 ## Change Classes
 
@@ -56,6 +60,7 @@ Key SSOTs:
 Minimum:
 
 ```bash
+cd prototype && npm run governance
 cd prototype && npm run selftest:editor
 cd frontend/styio_view_app && flutter analyze && flutter test
 ```

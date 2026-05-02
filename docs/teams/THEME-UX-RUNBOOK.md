@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 theme、视觉系统、样式层和 UX guardrail 的日常维护入口。
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-02
 
 ## Mission
 
@@ -19,6 +19,7 @@ Primary paths:
 5. `docs/specs/UX-MAINTENANCE-GUIDELINES.md`
 6. `docs/specs/OPEN-SOURCE-UI-ASSET-POLICY.md`
 7. `docs/specs/STYIO-THEME-CONFIG.md`
+8. `prototype/styio-*.html`
 
 Key SSOTs:
 
@@ -34,6 +35,7 @@ Key SSOTs:
 4. 视觉变更不应绕过产品语义或 adapter 边界；必要时拉对应消费团队一起 review。
 5. `StyioThemeOverride` 只冻结最小 theme token override、JSON round-trip 和 Material color binding；本轮不新增完整主题编辑器、远程 profile sync 或用户市场主题。
 6. 默认 palette、font size、chip/button/card constraints 变化必须通过 Flutter widget tests 或明确的视觉验收说明确认，不把产品 gate 截图测试写成默认必过项。
+7. `prototype/styio-*.html` 只作为 `style-experiment` 视觉参考存在；新增或删除这些页面时，必须同步 `prototype/prototype-manifest.json`，并且不得在样式实验里新增产品语义、workspace mutation 或 dev-server API 合同。
 
 ## Change Classes
 
@@ -46,6 +48,7 @@ Key SSOTs:
 Minimum:
 
 ```bash
+cd prototype && npm run governance
 cd prototype && npm run selftest:editor
 cd frontend/styio_view_app && flutter analyze && flutter test
 ```

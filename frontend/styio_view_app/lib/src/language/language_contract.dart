@@ -14,6 +14,7 @@ enum SemanticKind {
   function,
   pipeline,
   state,
+  resource,
   variable,
   parameter,
   typeName,

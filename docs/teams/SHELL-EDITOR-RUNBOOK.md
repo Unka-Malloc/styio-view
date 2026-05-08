@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-09
 
 ## Mission
 
@@ -48,6 +48,7 @@ Key SSOTs:
 10. 手写 prototype selftest 的布局几何断言必须等待 grid/sidebar CSS transition 收敛后再采样；容差只能覆盖 headless Chromium 子像素取整，不得掩盖实际 drawer 宽度或 inset 漂移。
 11. Prototype dev-server API 变更必须保持 Host allowlist、same-origin mutation、session credential、default-off mutation 和 workspace-limited file-content reads，并同步运行 `python3 prototype/test_dev_server_security.py`。
 12. Top-level `prototype/*.html` 只能通过 `prototype/prototype-manifest.json` 增删改名；`editor.html` 是唯一 canonical 产品行为入口，gallery 和 style experiment 页面不得定义 workspace mutation、adapter contract 或 dev-server API 语义。
+13. 当上游 `styio` 语法仍在实现中时，`frontend/styio_view_app/lib/src/language/styio_syntax_highlighter.dart` 只能提前提供宽容 token、semantic 和 block-range 支持；language service 可以复用这些结果提供 completion 和 hover，但不得把 mock 支持描述成编译器已可执行能力，compile/run 仍必须通过 adapter capability gap 或真实 handoff 表达。
 
 ## Change Classes
 

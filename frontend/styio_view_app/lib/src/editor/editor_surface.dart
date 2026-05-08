@@ -2230,6 +2230,10 @@ TextStyle _textStyleForToken(
       color = const Color(0xFF847A22);
       weight = FontWeight.w700;
       break;
+    case SemanticKind.resource:
+      color = const Color(0xFF8B5E28);
+      weight = FontWeight.w700;
+      break;
     case SemanticKind.variable:
       color = const Color(0xFF6A4C33);
       weight = FontWeight.w600;

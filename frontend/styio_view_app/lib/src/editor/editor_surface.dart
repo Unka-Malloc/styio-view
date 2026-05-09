@@ -342,6 +342,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   bool _usagesPanelOpen = false;
   bool _quickDocumentationOpen = false;
   bool _parameterInfoOpen = false;
+  bool _symbolLookupOpen = false;
+  int _symbolLookupIndex = 0;
+  String _symbolLookupQuery = '';
   bool _completionLookupOpen = false;
   bool _surroundLookupOpen = false;
   int _completionLookupIndex = 0;
@@ -410,6 +413,45 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _closeParameterInfo();
       return KeyEventResult.handled;
     }
+    if (_symbolLookupOpen) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          _closeSymbolLookup();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowDown:
+          _moveSymbolLookupSelection(1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowUp:
+          _moveSymbolLookupSelection(-1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+        case LogicalKeyboardKey.tab:
+          return _applySelectedSymbol()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        case LogicalKeyboardKey.backspace:
+          if (_symbolLookupQuery.isEmpty) {
+            return KeyEventResult.handled;
+          }
+          setState(() {
+            _symbolLookupQuery = _symbolLookupQuery.substring(
+              0,
+              _symbolLookupQuery.length - 1,
+            );
+            _symbolLookupIndex = 0;
+          });
+          return KeyEventResult.handled;
+        default:
+          if (!commandPressed && _isPlainTextCharacter(event.character)) {
+            setState(() {
+              _symbolLookupQuery += event.character!;
+              _symbolLookupIndex = 0;
+            });
+            return KeyEventResult.handled;
+          }
+      }
+    }
     if (_surroundLookupOpen) {
       switch (event.logicalKey) {
         case LogicalKeyboardKey.escape:
@@ -475,6 +517,15 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         altPressed &&
         event.logicalKey == LogicalKeyboardKey.keyT) {
       return _openSurroundLookup()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+
+    if (commandPressed &&
+        altPressed &&
+        shiftPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyN) {
+      return _openSymbolLookup()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -842,6 +893,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     setState(() {
       _completionLookupOpen = true;
       _completionLookupIndex = 0;
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
     });
     return true;
   }
@@ -900,6 +954,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     setState(() {
       _surroundLookupOpen = true;
       _surroundLookupIndex = 0;
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
     });
     return true;
   }
@@ -943,6 +1000,112 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     });
     _focusNode.requestFocus();
     return true;
+  }
+
+  bool _openSymbolLookup() {
+    if (widget.analysis.documentSymbols.isEmpty) {
+      return false;
+    }
+    setState(() {
+      _symbolLookupOpen = true;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+      _completionLookupOpen = false;
+      _completionLookupIndex = 0;
+      _surroundLookupOpen = false;
+      _surroundLookupIndex = 0;
+    });
+    return true;
+  }
+
+  void _closeSymbolLookup() {
+    setState(() {
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+    });
+    _focusNode.requestFocus();
+  }
+
+  List<DocumentSymbol> _symbolLookupMatches() {
+    final query = _symbolLookupQuery.trim();
+    if (query.isEmpty) {
+      return widget.analysis.documentSymbols;
+    }
+    return widget.analysis.documentSymbols
+        .where((symbol) => _matchesSymbolLookupQuery(symbol, query))
+        .toList(growable: false);
+  }
+
+  bool _matchesSymbolLookupQuery(DocumentSymbol symbol, String query) {
+    final normalizedQuery = query.toLowerCase();
+    final normalizedName = symbol.name.toLowerCase();
+    return normalizedName.contains(normalizedQuery) ||
+        _charactersAppearInOrder(normalizedQuery, normalizedName);
+  }
+
+  bool _charactersAppearInOrder(String needle, String haystack) {
+    if (needle.isEmpty) {
+      return true;
+    }
+    var needleIndex = 0;
+    for (var index = 0; index < haystack.length; index += 1) {
+      if (haystack.codeUnitAt(index) == needle.codeUnitAt(needleIndex)) {
+        needleIndex += 1;
+        if (needleIndex == needle.length) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void _moveSymbolLookupSelection(int delta) {
+    final symbols = _symbolLookupMatches();
+    if (symbols.isEmpty) {
+      return;
+    }
+    setState(() {
+      _symbolLookupIndex = (_symbolLookupIndex + delta) % symbols.length;
+      if (_symbolLookupIndex < 0) {
+        _symbolLookupIndex += symbols.length;
+      }
+    });
+  }
+
+  bool _applySelectedSymbol() {
+    final symbols = _symbolLookupMatches();
+    if (symbols.isEmpty) {
+      return false;
+    }
+    final selectedIndex = _symbolLookupIndex
+        .clamp(0, symbols.length - 1)
+        .toInt();
+    final applied = widget.controller.selectDocumentSymbol(
+      symbols[selectedIndex],
+    );
+    if (!applied) {
+      return false;
+    }
+    setState(() {
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+    });
+    _focusNode.requestFocus();
+    return true;
+  }
+
+  void _selectSymbolFromLookup(DocumentSymbol symbol) {
+    if (!widget.controller.selectDocumentSymbol(symbol)) {
+      return;
+    }
+    setState(() {
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+    });
+    _focusNode.requestFocus();
   }
 
   void _applySurroundTemplateFromLookup(SurroundTemplate template) {
@@ -1101,6 +1264,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           _buildCompletionLookupPanel(context),
                           const SizedBox(height: 12),
                         ],
+                        if (_symbolLookupOpen) ...[
+                          _buildSymbolLookupPanel(context),
+                          const SizedBox(height: 12),
+                        ],
                         if (_quickDocumentationOpen) ...[
                           _buildQuickDocumentationPanel(context),
                           const SizedBox(height: 12),
@@ -1145,6 +1312,105 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSymbolLookupPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final symbols = _symbolLookupMatches();
+    final selectedIndex = symbols.isEmpty
+        ? -1
+        : _symbolLookupIndex.clamp(0, symbols.length - 1).toInt();
+    final queryLabel = _symbolLookupQuery.isEmpty
+        ? 'All current-file symbols'
+        : _symbolLookupQuery;
+
+    return Material(
+      key: const ValueKey('source-symbol-lookup'),
+      color: const Color(0xFFFDF8EE),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.manage_search_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Go to Symbol',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _InlineActionChip(
+                  key: const ValueKey('source-symbol-lookup-close'),
+                  icon: Icons.close_rounded,
+                  label: 'Close',
+                  onTap: _closeSymbolLookup,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              key: const ValueKey('source-symbol-lookup-query'),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F2E9),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFD8D0C2)),
+              ),
+              child: Text(
+                queryLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall!.copyWith(
+                  fontWeight: _symbolLookupQuery.isEmpty
+                      ? FontWeight.w500
+                      : FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (symbols.isEmpty)
+              Text(
+                'No current-file symbols match.',
+                style: theme.textTheme.bodySmall,
+              )
+            else ...[
+              Text(
+                '${symbols.length} current-file symbol'
+                '${symbols.length == 1 ? '' : 's'}',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              for (var index = 0; index < symbols.length; index += 1) ...[
+                _SymbolLookupTile(
+                  key: ValueKey('source-symbol-lookup-item-$index'),
+                  symbol: symbols[index],
+                  selected: index == selectedIndex,
+                  location: _formatUsageLocationForRange(
+                    symbols[index].nameRange,
+                  ),
+                  onTap: () => _selectSymbolFromLookup(symbols[index]),
+                ),
+                if (index < symbols.length - 1) const SizedBox(height: 6),
+              ],
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -1732,6 +1998,95 @@ class _UsageResultTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SymbolLookupTile extends StatelessWidget {
+  const _SymbolLookupTile({
+    super.key,
+    required this.symbol,
+    required this.selected,
+    required this.location,
+    required this.onTap,
+  });
+
+  final DocumentSymbol symbol;
+  final bool selected;
+  final String location;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: selected ? const Color(0xFFE6E0F5) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                selected
+                    ? Icons.keyboard_return_rounded
+                    : _symbolLookupIcon(symbol.kind),
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${symbol.name} · ${symbol.kind.name} · $location',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    if (symbol.detail.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        symbol.detail,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+IconData _symbolLookupIcon(SymbolKind kind) {
+  switch (kind) {
+    case SymbolKind.function:
+      return Icons.functions_rounded;
+    case SymbolKind.pipeline:
+      return Icons.account_tree_rounded;
+    case SymbolKind.state:
+      return Icons.flag_rounded;
+    case SymbolKind.resource:
+      return Icons.storage_rounded;
+    case SymbolKind.variable:
+      return Icons.label_rounded;
+    case SymbolKind.parameter:
+      return Icons.input_rounded;
+    case SymbolKind.task:
+      return Icons.task_alt_rounded;
   }
 }
 

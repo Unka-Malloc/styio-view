@@ -1770,6 +1770,71 @@ value = blend(price, tax)
     expect(bootstrap.editorController.canUndo, isFalse);
   });
 
+  testWidgets('opens symbol lookup from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text =
+        'fn buildPipe(user) {\n'
+        '  value = user\n'
+        '}\n'
+        'fn renderPipe() {\n'
+        '}\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'symbol-lookup-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsOneWidget);
+    expect(find.text('Go to Symbol'), findsOneWidget);
+    expect(find.text('buildPipe · function · 1:4'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    await tester.pump();
+
+    expect(find.text('renderPipe · function · 4:4'), findsOneWidget);
+    expect(find.text('buildPipe · function · 1:4'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.selection.start,
+      text.indexOf('renderPipe'),
+    );
+    expect(
+      bootstrap.editorController.selection.end,
+      text.indexOf('renderPipe') + 'renderPipe'.length,
+    );
+    expect(bootstrap.editorController.document.text, text);
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsNothing);
+  });
+
   testWidgets('cycles resolved usages from editor keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

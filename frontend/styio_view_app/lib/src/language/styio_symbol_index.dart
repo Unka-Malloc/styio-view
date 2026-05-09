@@ -688,7 +688,8 @@ class StyioSymbolIndex {
     Map<String, List<DocumentSymbol>> symbolsByName,
   ) {
     final references = <ReferenceSpan>[];
-    for (final token in tokens) {
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
       if (token.kind != TokenKind.identifier) {
         continue;
       }
@@ -716,10 +717,35 @@ class StyioSymbolIndex {
           range: token.range,
           targetRange: target.nameRange,
           isDeclaration: exactDeclaration != null,
+          access: exactDeclaration != null
+              ? ReferenceAccess.declaration
+              : _referenceAccess(tokens, index, target.kind),
         ),
       );
     }
     return references;
+  }
+
+  ReferenceAccess _referenceAccess(
+    List<TokenSpan> tokens,
+    int tokenIndex,
+    SymbolKind targetKind,
+  ) {
+    if (targetKind == SymbolKind.resource) {
+      final previousIndex = _previousSignificantIndex(tokens, tokenIndex - 1);
+      if (previousIndex != null && tokens[previousIndex].lexeme == '@') {
+        final beforeAtIndex = _previousSignificantIndex(
+          tokens,
+          previousIndex - 1,
+        );
+        final beforeAt = beforeAtIndex == null ? null : tokens[beforeAtIndex];
+        if (beforeAt?.lexeme == '->' || beforeAt?.lexeme == '>>') {
+          return ReferenceAccess.write;
+        }
+      }
+    }
+
+    return ReferenceAccess.read;
   }
 
   DocumentSymbol? _nearestDeclaration(

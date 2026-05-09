@@ -2398,6 +2398,7 @@ class _UsageResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final accessLabel = _referenceAccessLabel(reference);
     return Material(
       color: selected ? const Color(0xFFE6E0F5) : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
@@ -2410,9 +2411,7 @@ class _UsageResultTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
-                reference.isDeclaration
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_unchecked_rounded,
+                _referenceAccessIcon(reference),
                 size: 16,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -2422,8 +2421,7 @@ class _UsageResultTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${reference.isDeclaration ? 'declaration' : 'usage'} · '
-                      '${reference.kind.name} · $location',
+                      '$accessLabel · ${reference.kind.name} · $location',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall!.copyWith(
@@ -2446,6 +2444,28 @@ class _UsageResultTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _referenceAccessLabel(ReferenceSpan reference) {
+  if (reference.isDeclaration) {
+    return 'declaration';
+  }
+  return switch (reference.access) {
+    ReferenceAccess.declaration => 'declaration',
+    ReferenceAccess.read => 'read',
+    ReferenceAccess.write => 'write',
+  };
+}
+
+IconData _referenceAccessIcon(ReferenceSpan reference) {
+  if (reference.isDeclaration) {
+    return Icons.radio_button_checked_rounded;
+  }
+  return switch (reference.access) {
+    ReferenceAccess.declaration => Icons.radio_button_checked_rounded,
+    ReferenceAccess.read => Icons.radio_button_unchecked_rounded,
+    ReferenceAccess.write => Icons.output_rounded,
+  };
 }
 
 class _QuickFixLookupTile extends StatelessWidget {
@@ -3868,7 +3888,7 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
               (reference) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
-                  '${reference.isDeclaration ? 'decl' : 'use'} · '
+                  '${_referenceAccessLabel(reference)} · '
                   '${_formatRange(reference.range)}',
                   style: theme.textTheme.bodySmall,
                 ),
@@ -4511,9 +4531,14 @@ Color? _referenceHighlightColor(ReferenceSpan? reference) {
   if (reference == null) {
     return null;
   }
-  return reference.isDeclaration
-      ? const Color(0xFFF5DA91)
-      : const Color(0xFFDDEACB);
+  if (reference.isDeclaration) {
+    return const Color(0xFFF5DA91);
+  }
+  return switch (reference.access) {
+    ReferenceAccess.declaration => const Color(0xFFF5DA91),
+    ReferenceAccess.read => const Color(0xFFDDEACB),
+    ReferenceAccess.write => const Color(0xFFD8EAF6),
+  };
 }
 
 bool _selectionTouchesRange(

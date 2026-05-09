@@ -1887,7 +1887,7 @@ value = blend(price, tax)
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final bootstrap = await createBootstrap(PlatformTarget.macos);
-    const text = 'value = value\nvalue -> @stdout\n';
+    const text = '@sink : i64|..1| := {}\nvalue -> @sink\n';
     bootstrap.editorController.loadDocument(
       const DocumentState(
         documentId: 'find-usages-keymap.styio',
@@ -1895,7 +1895,7 @@ value = blend(price, tax)
         revision: 0,
       ),
     );
-    bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
+    bootstrap.editorController.selectCollapsed(text.lastIndexOf('sink') + 2);
 
     await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
     await tester.tap(
@@ -1912,24 +1912,25 @@ value = blend(price, tax)
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('source-usages-panel')), findsOneWidget);
-    expect(find.text('3 current-file usages'), findsOneWidget);
+    expect(find.text('2 current-file usages'), findsOneWidget);
+    expect(find.text('write · resource · 2:11'), findsOneWidget);
 
     final sourceScrollable = find.descendant(
       of: find.byKey(const ValueKey('source-buffer-surface')),
       matching: find.byType(Scrollable),
     );
     await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('source-usage-2')),
+      find.byKey(const ValueKey('source-usage-1')),
       80,
       scrollable: sourceScrollable,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('source-usage-2')));
+    await tester.tap(find.byKey(const ValueKey('source-usage-1')));
     await tester.pump();
 
     expect(
       bootstrap.editorController.selection.start,
-      text.lastIndexOf('value'),
+      text.lastIndexOf('sink'),
     );
     expect(bootstrap.editorController.canUndo, isFalse);
 

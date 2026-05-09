@@ -34,6 +34,8 @@ enum SymbolKind {
   task,
 }
 
+enum ReferenceAccess { declaration, read, write }
+
 class SourceRange {
   const SourceRange({required this.start, required this.end});
 
@@ -185,6 +187,7 @@ class ReferenceSpan {
     required this.range,
     required this.targetRange,
     this.isDeclaration = false,
+    this.access = ReferenceAccess.read,
   });
 
   final String name;
@@ -192,6 +195,7 @@ class ReferenceSpan {
   final SourceRange range;
   final SourceRange targetRange;
   final bool isDeclaration;
+  final ReferenceAccess access;
 }
 
 class DefinitionTarget {

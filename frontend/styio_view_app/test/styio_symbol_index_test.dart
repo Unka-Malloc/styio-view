@@ -36,6 +36,22 @@ answer -> @stdout
     expect(ma5References.length, 2);
     expect(ma5References.any((reference) => reference.isDeclaration), isTrue);
     expect(ma5References.any((reference) => !reference.isDeclaration), isTrue);
+    expect(
+      ma5References.any(
+        (reference) => reference.access == ReferenceAccess.write,
+      ),
+      isTrue,
+    );
+
+    final jobReferences = snapshot.references
+        .where((reference) => reference.name == 'job')
+        .toList(growable: false);
+    expect(
+      jobReferences.any(
+        (reference) => reference.access == ReferenceAccess.read,
+      ),
+      isTrue,
+    );
   });
 
   test('resolves definitions and references from usage tokens', () {

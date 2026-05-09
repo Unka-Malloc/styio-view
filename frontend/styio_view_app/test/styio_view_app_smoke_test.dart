@@ -961,6 +961,135 @@ void main() {
     expect(bootstrap.editorController.selection.end, 'value'.length);
   });
 
+  testWidgets('extends and shrinks structural selection from editor keymap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'fn main(user) {\n  value = user\n}\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'selection-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(bootstrap.editorController.selection.start, text.indexOf('value'));
+    expect(
+      bootstrap.editorController.selection.end,
+      text.indexOf('value') + 'value'.length,
+    );
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(bootstrap.editorController.selection.isCollapsed, isTrue);
+    expect(bootstrap.editorController.selection.end, text.indexOf('value') + 2);
+    expect(bootstrap.editorController.canUndo, isFalse);
+  });
+
+  testWidgets('opens quick documentation from editor keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\nvalue -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'quick-doc-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-quick-doc-panel')),
+      findsOneWidget,
+    );
+    expect(find.text('Quick Documentation: value'), findsOneWidget);
+    expect(find.text('Identifier `value`.'), findsOneWidget);
+    expect(find.text('3 current-file usages'), findsOneWidget);
+
+    final sourceScrollable = find.descendant(
+      of: find.byKey(const ValueKey('source-buffer-surface')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('source-quick-doc-definition')),
+      80,
+      scrollable: sourceScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('source-quick-doc-definition')));
+    await tester.pump();
+
+    expect(bootstrap.editorController.selection.start, 0);
+    expect(bootstrap.editorController.canUndo, isFalse);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('source-quick-doc-usages')),
+      80,
+      scrollable: sourceScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('source-quick-doc-usages')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('source-usages-panel')), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('source-quick-doc-close')),
+      -80,
+      scrollable: sourceScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('source-quick-doc-close')));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('source-quick-doc-panel')), findsNothing);
+  });
+
   testWidgets('selects document symbol from language pane', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
@@ -1044,6 +1173,71 @@ void main() {
       bootstrap.editorController.selection.start,
       text.indexOf('= value') + 2,
     );
+  });
+
+  testWidgets('opens find usages panel from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\nvalue -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'find-usages-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f7);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('source-usages-panel')), findsOneWidget);
+    expect(find.text('3 current-file usages'), findsOneWidget);
+
+    final sourceScrollable = find.descendant(
+      of: find.byKey(const ValueKey('source-buffer-surface')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('source-usage-2')),
+      80,
+      scrollable: sourceScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('source-usage-2')));
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.selection.start,
+      text.lastIndexOf('value'),
+    );
+    expect(bootstrap.editorController.canUndo, isFalse);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('source-usages-close')),
+      -80,
+      scrollable: sourceScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('source-usages-close')));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('source-usages-panel')), findsNothing);
   });
 
   testWidgets('cycles resolved usages from language pane', (tester) async {
@@ -1196,6 +1390,97 @@ void main() {
     await tester.pump();
 
     expect(bootstrap.editorController.document.text, 'price = price\n');
+  });
+
+  testWidgets('opens inline rename from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'inline-rename.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f6);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
+    final renameField = tester.widget<TextField>(
+      find.byKey(const ValueKey('source-inline-rename-input')),
+    );
+    expect(renameField.controller!.text, 'value');
+
+    await tester.enterText(
+      find.byKey(const ValueKey('source-inline-rename-input')),
+      'price',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text, 'price = price\n');
+    expect(
+      find.byKey(const ValueKey('source-inline-rename-panel')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('keeps inline rename open for invalid identifiers', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'inline-rename-invalid.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f6);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('source-inline-rename-input')),
+      '1bad',
+    );
+    await tester.tap(find.byKey(const ValueKey('source-inline-rename-apply')));
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text, text);
+    expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
+    expect(find.text('Invalid rename target.'), findsOne);
   });
 
   testWidgets('applies inline diagnostic quick fix from the active line', (

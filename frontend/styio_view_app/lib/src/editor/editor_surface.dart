@@ -335,13 +335,21 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   static const double _estimatedLineHeight = 34;
 
   late final FocusNode _focusNode;
+  late final FocusNode _inlineRenameFocusNode;
+  late final TextEditingController _inlineRenameController;
   int? _dragBaseOffset;
+  bool _inlineRenameOpen = false;
+  bool _usagesPanelOpen = false;
+  bool _quickDocumentationOpen = false;
+  String? _inlineRenameError;
 
   @override
   void initState() {
     super.initState();
     _focusNode = FocusNode(debugLabel: 'editor-source-pane');
     _focusNode.addListener(_handleFocusChanged);
+    _inlineRenameFocusNode = FocusNode(debugLabel: 'editor-inline-rename');
+    _inlineRenameController = TextEditingController();
   }
 
   @override
@@ -349,6 +357,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _focusNode
       ..removeListener(_handleFocusChanged)
       ..dispose();
+    _inlineRenameFocusNode.dispose();
+    _inlineRenameController.dispose();
     super.dispose();
   }
 
@@ -368,6 +378,29 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         HardwareKeyboard.instance.isControlPressed;
     final shiftPressed = HardwareKeyboard.instance.isShiftPressed;
     final altPressed = HardwareKeyboard.instance.isAltPressed;
+    if (_inlineRenameFocusNode.hasFocus) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+          return _applyInlineRename()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        case LogicalKeyboardKey.escape:
+          _closeInlineRename();
+          return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    if (_usagesPanelOpen && event.logicalKey == LogicalKeyboardKey.escape) {
+      _closeUsagesPanel();
+      return KeyEventResult.handled;
+    }
+    if (_quickDocumentationOpen &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      _closeQuickDocumentation();
+      return KeyEventResult.handled;
+    }
+
     if (commandPressed) {
       switch (event.logicalKey) {
         case LogicalKeyboardKey.keyB:
@@ -379,12 +412,22 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           return widget.controller.applyBestCompletionAtSelection()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
+        case LogicalKeyboardKey.keyQ:
+          return _openQuickDocumentation()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        case LogicalKeyboardKey.keyW:
+          return (shiftPressed
+                  ? widget.controller.shrinkSelectionStructurally()
+                  : widget.controller.extendSelectionStructurally())
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
       }
       return KeyEventResult.ignored;
     }
 
     if (altPressed && event.logicalKey == LogicalKeyboardKey.f7) {
-      return widget.controller.selectNextReferenceAtSelection()
+      return _openUsagesPanel()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -392,6 +435,11 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         (event.logicalKey == LogicalKeyboardKey.enter ||
             event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
       return widget.controller.applyFirstQuickFixAtSelection()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+    if (shiftPressed && event.logicalKey == LogicalKeyboardKey.f6) {
+      return _openInlineRename()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -480,6 +528,94 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
 
     return character != '\n' && character != '\r';
+  }
+
+  bool _openInlineRename() {
+    final definition = widget.controller.definitionAtSelection;
+    if (definition == null) {
+      return false;
+    }
+
+    setState(() {
+      _inlineRenameOpen = true;
+      _inlineRenameError = null;
+      _inlineRenameController.text = definition.symbol.name;
+      _inlineRenameController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: definition.symbol.name.length,
+      );
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _inlineRenameOpen) {
+        _inlineRenameFocusNode.requestFocus();
+      }
+    });
+    return true;
+  }
+
+  void _closeInlineRename() {
+    setState(() {
+      _inlineRenameOpen = false;
+      _inlineRenameError = null;
+    });
+    _focusNode.requestFocus();
+  }
+
+  bool _applyInlineRename() {
+    final newName = _inlineRenameController.text.trim();
+    final applied = widget.controller.applyRename(newName);
+    if (applied) {
+      setState(() {
+        _inlineRenameOpen = false;
+        _inlineRenameError = null;
+      });
+      _focusNode.requestFocus();
+      return true;
+    }
+
+    setState(() {
+      _inlineRenameError = newName.isEmpty
+          ? 'Enter a Styio identifier.'
+          : 'Invalid rename target.';
+    });
+    return false;
+  }
+
+  bool _openUsagesPanel() {
+    if (widget.controller.definitionAtSelection == null ||
+        widget.controller.referencesAtSelection.isEmpty) {
+      return false;
+    }
+    setState(() {
+      _usagesPanelOpen = true;
+    });
+    return true;
+  }
+
+  void _closeUsagesPanel() {
+    setState(() {
+      _usagesPanelOpen = false;
+    });
+    _focusNode.requestFocus();
+  }
+
+  bool _openQuickDocumentation() {
+    if (widget.hover == null &&
+        widget.controller.definitionAtSelection == null &&
+        widget.activeToken == null) {
+      return false;
+    }
+    setState(() {
+      _quickDocumentationOpen = true;
+    });
+    return true;
+  }
+
+  void _closeQuickDocumentation() {
+    setState(() {
+      _quickDocumentationOpen = false;
+    });
+    _focusNode.requestFocus();
   }
 
   void _handleLineTapDown(int lineIndex, TapDownDetails details) {
@@ -616,26 +752,40 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                   const SizedBox(height: 14),
                   Expanded(
                     child: ListView(
-                      children: _buildPreviewChildren(
-                        context,
-                        controller: widget.controller,
-                        viewportProfile: widget.viewportProfile,
-                        hover: widget.hover,
-                        completions: widget.completions,
-                        activeReferences: widget.activeReferences,
-                        activeToken: widget.activeToken,
-                        activeSemanticKind: widget.activeSemanticKind,
-                        document: widget.document,
-                        selection: widget.selection,
-                        analysis: widget.analysis,
-                        renderPlan: widget.renderPlan,
-                        lineStarts: lineStarts,
-                        semanticBlocks: semanticBlocks,
-                        onTapLine: _handleLineTapDown,
-                        onPanStartLine: _handleLinePanStart,
-                        onPanUpdateLine: _handleLinePanUpdate,
-                        onPanEnd: _handleLinePanEnd,
-                      ),
+                      children: [
+                        if (_inlineRenameOpen) ...[
+                          _buildInlineRenamePanel(context),
+                          const SizedBox(height: 12),
+                        ],
+                        if (_quickDocumentationOpen) ...[
+                          _buildQuickDocumentationPanel(context),
+                          const SizedBox(height: 12),
+                        ],
+                        if (_usagesPanelOpen) ...[
+                          _buildUsagesPanel(context),
+                          const SizedBox(height: 12),
+                        ],
+                        ..._buildPreviewChildren(
+                          context,
+                          controller: widget.controller,
+                          viewportProfile: widget.viewportProfile,
+                          hover: widget.hover,
+                          completions: widget.completions,
+                          activeReferences: widget.activeReferences,
+                          activeToken: widget.activeToken,
+                          activeSemanticKind: widget.activeSemanticKind,
+                          document: widget.document,
+                          selection: widget.selection,
+                          analysis: widget.analysis,
+                          renderPlan: widget.renderPlan,
+                          lineStarts: lineStarts,
+                          semanticBlocks: semanticBlocks,
+                          onTapLine: _handleLineTapDown,
+                          onPanStartLine: _handleLinePanStart,
+                          onPanUpdateLine: _handleLinePanUpdate,
+                          onPanEnd: _handleLinePanEnd,
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -644,6 +794,361 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildInlineRenamePanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final renameText = _inlineRenameController.text.trim();
+    final renamePreview = widget.controller.renamePlanAtSelection(renameText);
+    final definition = widget.controller.definitionAtSelection;
+    final usageCount = widget.controller.referencesAtSelection.length;
+    final helperText = renamePreview == null
+        ? _inlineRenameError
+        : 'Preview ${renamePreview.edits.length} edit'
+              '${renamePreview.edits.length == 1 ? '' : 's'} across '
+              '$usageCount current-file usage'
+              '${usageCount == 1 ? '' : 's'}';
+
+    return Material(
+      key: const ValueKey('source-inline-rename-panel'),
+      color: const Color(0xFFFDF8EE),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.drive_file_rename_outline_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    definition == null
+                        ? 'Rename symbol'
+                        : 'Rename ${definition.symbol.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('source-inline-rename-input'),
+              focusNode: _inlineRenameFocusNode,
+              controller: _inlineRenameController,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                labelText: 'New name',
+                helperText: renamePreview == null ? null : helperText,
+                errorText: renamePreview == null ? helperText : null,
+              ),
+              onChanged: (_) {
+                setState(() {
+                  _inlineRenameError = null;
+                });
+              },
+              onSubmitted: (_) => _applyInlineRename(),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InlineActionChip(
+                  key: const ValueKey('source-inline-rename-apply'),
+                  icon: Icons.check_rounded,
+                  label: 'Refactor',
+                  onTap: _applyInlineRename,
+                ),
+                _InlineActionChip(
+                  key: const ValueKey('source-inline-rename-cancel'),
+                  icon: Icons.close_rounded,
+                  label: 'Cancel',
+                  onTap: _closeInlineRename,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUsagesPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final definition = widget.controller.definitionAtSelection;
+    final references = widget.controller.referencesAtSelection;
+    return Material(
+      key: const ValueKey('source-usages-panel'),
+      color: const Color(0xFFFDF8EE),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.manage_search_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    definition == null
+                        ? 'Find Usages'
+                        : 'Find Usages: ${definition.symbol.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _InlineActionChip(
+                  key: const ValueKey('source-usages-close'),
+                  icon: Icons.close_rounded,
+                  label: 'Close',
+                  onTap: _closeUsagesPanel,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${references.length} current-file usage'
+              '${references.length == 1 ? '' : 's'}',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            for (var index = 0; index < references.length; index += 1) ...[
+              _UsageResultTile(
+                key: ValueKey('source-usage-$index'),
+                reference: references[index],
+                selected: _isRangeSelected(references[index].range),
+                location: _formatUsageLocation(references[index]),
+                preview: _usageLinePreview(references[index]),
+                onTap: () =>
+                    widget.controller.selectReference(references[index]),
+              ),
+              if (index < references.length - 1) const SizedBox(height: 6),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickDocumentationPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final hover = widget.hover;
+    final token = widget.activeToken;
+    final definition = widget.controller.definitionAtSelection;
+    final references = widget.controller.referencesAtSelection;
+    final title = definition == null
+        ? token == null
+              ? 'Quick Documentation'
+              : 'Quick Documentation: ${token.lexeme}'
+        : 'Quick Documentation: ${definition.symbol.name}';
+    final body = hover?.markdown ?? 'No documentation payload at the caret.';
+
+    return Material(
+      key: const ValueKey('source-quick-doc-panel'),
+      color: const Color(0xFFFDF8EE),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.article_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _InlineActionChip(
+                  key: const ValueKey('source-quick-doc-close'),
+                  icon: Icons.close_rounded,
+                  label: 'Close',
+                  onTap: _closeQuickDocumentation,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(body, style: theme.textTheme.bodySmall),
+            if (token != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Token ${token.kind.name} · ${_formatRange(token.range)}',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+            if (definition != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Definition ${_formatUsageLocationForRange(definition.symbol.nameRange)} '
+                '· ${definition.symbol.kind.name}',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${references.length} current-file usage'
+                '${references.length == 1 ? '' : 's'}',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _InlineActionChip(
+                    key: const ValueKey('source-quick-doc-definition'),
+                    icon: Icons.subdirectory_arrow_left_rounded,
+                    label: 'Go to definition',
+                    onTap: widget.controller.selectDefinitionAtSelection,
+                  ),
+                  _InlineActionChip(
+                    key: const ValueKey('source-quick-doc-usages'),
+                    icon: Icons.manage_search_rounded,
+                    label: 'Find usages',
+                    onTap: _openUsagesPanel,
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatUsageLocation(ReferenceSpan reference) {
+    return _formatUsageLocationForRange(reference.range);
+  }
+
+  String _formatUsageLocationForRange(SourceRange range) {
+    final position = widget.document.positionForOffset(range.start);
+    return '${position.line + 1}:${position.column + 1}';
+  }
+
+  String _formatRange(SourceRange range) {
+    return '${range.start}-${range.end}';
+  }
+
+  String _usageLinePreview(ReferenceSpan reference) {
+    final position = widget.document.positionForOffset(reference.range.start);
+    if (position.line < 0 || position.line >= widget.document.lines.length) {
+      return '';
+    }
+    return widget.document.lines[position.line].trim();
+  }
+
+  bool _isRangeSelected(SourceRange range) {
+    final selection = widget.selection;
+    if (selection.isCollapsed) {
+      return range.contains(selection.end) || range.end == selection.end;
+    }
+    final selectionRange = SourceRange(
+      start: selection.start,
+      end: selection.end,
+    );
+    return range.intersects(selectionRange);
+  }
+}
+
+class _UsageResultTile extends StatelessWidget {
+  const _UsageResultTile({
+    super.key,
+    required this.reference,
+    required this.selected,
+    required this.location,
+    required this.preview,
+    required this.onTap,
+  });
+
+  final ReferenceSpan reference;
+  final bool selected;
+  final String location;
+  final String preview;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: selected ? const Color(0xFFE6E0F5) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                reference.isDeclaration
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${reference.isDeclaration ? 'declaration' : 'usage'} · '
+                      '${reference.kind.name} · $location',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

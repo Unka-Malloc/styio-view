@@ -21,6 +21,7 @@ class EditorSessionController extends ChangeNotifier {
 
   final List<_EditorSnapshot> _undoStack = <_EditorSnapshot>[];
   final List<_EditorSnapshot> _redoStack = <_EditorSnapshot>[];
+  final List<SelectionState> _structuredSelectionStack = <SelectionState>[];
 
   DocumentState _document;
   final StyioLanguageService _languageService;
@@ -123,10 +124,12 @@ class EditorSessionController extends ChangeNotifier {
     _refreshAnalysis();
     _undoStack.clear();
     _redoStack.clear();
+    _structuredSelectionStack.clear();
     notifyListeners();
   }
 
   void selectCollapsed(int offset) {
+    _structuredSelectionStack.clear();
     final clamped = offset.clamp(0, _document.length);
     _selection = SelectionState.collapsed(clamped);
     _refreshAnalysis();
@@ -134,6 +137,7 @@ class EditorSessionController extends ChangeNotifier {
   }
 
   void selectRange({required int baseOffset, required int extentOffset}) {
+    _structuredSelectionStack.clear();
     _selection = SelectionState(
       baseOffset: baseOffset.clamp(0, _document.length),
       extentOffset: extentOffset.clamp(0, _document.length),
@@ -147,6 +151,7 @@ class EditorSessionController extends ChangeNotifier {
   }
 
   void insertText(String value) {
+    _structuredSelectionStack.clear();
     _pushUndoSnapshot();
     _replaceSelection(value);
     _redoStack.clear();
@@ -162,6 +167,7 @@ class EditorSessionController extends ChangeNotifier {
       return;
     }
 
+    _structuredSelectionStack.clear();
     _pushUndoSnapshot();
 
     if (_selection.isCollapsed) {
@@ -185,6 +191,7 @@ class EditorSessionController extends ChangeNotifier {
       return;
     }
 
+    _structuredSelectionStack.clear();
     _pushUndoSnapshot();
 
     if (_selection.isCollapsed) {
@@ -206,6 +213,7 @@ class EditorSessionController extends ChangeNotifier {
     if (delta == 0) {
       return;
     }
+    _structuredSelectionStack.clear();
     final nextOffset = (_selection.extentOffset + delta).clamp(
       0,
       _document.length,
@@ -222,6 +230,7 @@ class EditorSessionController extends ChangeNotifier {
       return;
     }
 
+    _structuredSelectionStack.clear();
     final position = _document.positionForOffset(_selection.extentOffset);
     final nextOffset = _document.offsetForLineColumn(
       line: position.line + deltaLines,
@@ -238,6 +247,7 @@ class EditorSessionController extends ChangeNotifier {
     required bool end,
     bool expandSelection = false,
   }) {
+    _structuredSelectionStack.clear();
     final position = _document.positionForOffset(_selection.extentOffset);
     final nextOffset = _document.offsetForLineColumn(
       line: position.line,
@@ -251,6 +261,7 @@ class EditorSessionController extends ChangeNotifier {
   }
 
   void applyCompletionItem(CompletionItem item) {
+    _structuredSelectionStack.clear();
     _pushUndoSnapshot();
     final replacementRange = _completionReplacementRange();
     _replaceRange(
@@ -294,6 +305,7 @@ class EditorSessionController extends ChangeNotifier {
       return;
     }
 
+    _structuredSelectionStack.clear();
     final editsAscending = normalizedEdits.toList(growable: false)
       ..sort((left, right) => left.range.start.compareTo(right.range.start));
     final editsDescending = editsAscending.reversed.toList(growable: false);
@@ -340,15 +352,43 @@ class EditorSessionController extends ChangeNotifier {
     return true;
   }
 
-  void applyRename(String newName) {
+  bool applyRename(String newName) {
     final plan = renamePlanAtSelection(newName);
     if (plan == null) {
-      return;
+      return false;
     }
     applyFormattingEdits(plan.edits);
+    return true;
+  }
+
+  bool extendSelectionStructurally() {
+    final current = SourceRange(start: _selection.start, end: _selection.end);
+    final candidates = _structuredSelectionCandidates(current);
+    if (candidates.isEmpty) {
+      return false;
+    }
+
+    _structuredSelectionStack.add(_selection);
+    final next = candidates.first;
+    _selection = SelectionState(baseOffset: next.start, extentOffset: next.end);
+    _refreshAnalysis();
+    notifyListeners();
+    return true;
+  }
+
+  bool shrinkSelectionStructurally() {
+    if (_structuredSelectionStack.isEmpty) {
+      return false;
+    }
+
+    _selection = _structuredSelectionStack.removeLast();
+    _refreshAnalysis();
+    notifyListeners();
+    return true;
   }
 
   bool selectDefinitionAtSelection() {
+    _structuredSelectionStack.clear();
     final definition = definitionAtSelection;
     if (definition == null) {
       return false;
@@ -357,6 +397,7 @@ class EditorSessionController extends ChangeNotifier {
   }
 
   bool selectDocumentSymbol(DocumentSymbol symbol) {
+    _structuredSelectionStack.clear();
     final range = symbol.nameRange;
     if (range.start < 0 ||
         range.end < range.start ||
@@ -373,7 +414,25 @@ class EditorSessionController extends ChangeNotifier {
   }
 
   bool selectDiagnostic(Diagnostic diagnostic) {
+    _structuredSelectionStack.clear();
     final range = diagnostic.range;
+    if (range.start < 0 ||
+        range.end < range.start ||
+        range.end > _document.length) {
+      return false;
+    }
+    _selection = SelectionState(
+      baseOffset: range.start,
+      extentOffset: range.end,
+    );
+    _refreshAnalysis();
+    notifyListeners();
+    return true;
+  }
+
+  bool selectReference(ReferenceSpan reference) {
+    _structuredSelectionStack.clear();
+    final range = reference.range;
     if (range.start < 0 ||
         range.end < range.start ||
         range.end > _document.length) {
@@ -433,6 +492,7 @@ class EditorSessionController extends ChangeNotifier {
     if (!canUndo) {
       return;
     }
+    _structuredSelectionStack.clear();
     _redoStack.add(_captureSnapshot());
     final snapshot = _undoStack.removeLast();
     _document = snapshot.document;
@@ -445,6 +505,7 @@ class EditorSessionController extends ChangeNotifier {
     if (!canRedo) {
       return;
     }
+    _structuredSelectionStack.clear();
     _undoStack.add(_captureSnapshot());
     final snapshot = _redoStack.removeLast();
     _document = snapshot.document;
@@ -553,6 +614,77 @@ class EditorSessionController extends ChangeNotifier {
     return trailingToken ?? leadingToken;
   }
 
+  List<SourceRange> _structuredSelectionCandidates(SourceRange current) {
+    final candidates = <SourceRange>[];
+    final token = tokenAtSelection;
+    if (token != null) {
+      candidates.add(token.range);
+    }
+
+    candidates.add(_lineRangeForSelection(current));
+
+    for (final symbol in _analysis.documentSymbols) {
+      candidates
+        ..add(symbol.nameRange)
+        ..add(symbol.declarationRange);
+    }
+    for (final block in _analysis.semanticBlocks) {
+      candidates.add(block.range);
+    }
+
+    candidates.add(SourceRange(start: 0, end: _document.length));
+
+    final seen = <String>{};
+    final normalized = <SourceRange>[];
+    for (final candidate in candidates) {
+      final start = candidate.clampStart(0, _document.length);
+      final end = candidate.clampEnd(start, _document.length);
+      if (start == end) {
+        continue;
+      }
+      final normalizedCandidate = SourceRange(start: start, end: end);
+      if (!_strictlyContainsSelection(normalizedCandidate, current)) {
+        continue;
+      }
+      final key = '$start:$end';
+      if (seen.add(key)) {
+        normalized.add(normalizedCandidate);
+      }
+    }
+
+    normalized.sort((left, right) {
+      final leftLength = left.end - left.start;
+      final rightLength = right.end - right.start;
+      final byLength = leftLength.compareTo(rightLength);
+      if (byLength != 0) {
+        return byLength;
+      }
+      return left.start.compareTo(right.start);
+    });
+    return normalized;
+  }
+
+  SourceRange _lineRangeForSelection(SourceRange current) {
+    final startPosition = _document.positionForOffset(current.start);
+    final endPosition = _document.positionForOffset(current.end);
+    final start = _document.offsetForLineColumn(
+      line: startPosition.line,
+      column: 0,
+    );
+    final endLine = endPosition.line.clamp(0, _document.lines.length - 1);
+    final end = _document.offsetForLineColumn(
+      line: endLine,
+      column: _document.lines[endLine].length,
+    );
+    return SourceRange(start: start, end: end);
+  }
+
+  bool _strictlyContainsSelection(SourceRange candidate, SourceRange current) {
+    return candidate.start <= current.start &&
+        candidate.end >= current.end &&
+        (candidate.start < current.start || candidate.end > current.end);
+  }
+
   bool _selectReferenceAtSelection({required bool forward}) {
     final references = referencesAtSelection.toList(growable: false)
       ..sort((left, right) => left.range.start.compareTo(right.range.start));
@@ -574,6 +706,7 @@ class EditorSessionController extends ChangeNotifier {
       );
     }
 
+    _structuredSelectionStack.clear();
     _selection = SelectionState(
       baseOffset: target.range.start,
       extentOffset: target.range.end,

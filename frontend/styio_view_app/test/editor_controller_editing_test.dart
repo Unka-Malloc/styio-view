@@ -86,6 +86,39 @@ void main() {
     expect(controller.selection.isCollapsed, isTrue);
   });
 
+  test('extends and shrinks structural selection without document history', () {
+    const text = 'fn main(user) {\n  value = user\n}\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('value') + 2),
+    );
+
+    expect(controller.extendSelectionStructurally(), isTrue);
+    expect(controller.selection.start, text.indexOf('value'));
+    expect(controller.selection.end, text.indexOf('value') + 'value'.length);
+
+    expect(controller.extendSelectionStructurally(), isTrue);
+    expect(
+      text.substring(controller.selection.start, controller.selection.end),
+      contains('value = user'),
+    );
+    expect(controller.canUndo, isFalse);
+
+    expect(controller.shrinkSelectionStructurally(), isTrue);
+    expect(controller.selection.start, text.indexOf('value'));
+    expect(controller.selection.end, text.indexOf('value') + 'value'.length);
+
+    expect(controller.shrinkSelectionStructurally(), isTrue);
+    expect(controller.selection.isCollapsed, isTrue);
+    expect(controller.selection.end, text.indexOf('value') + 2);
+    expect(controller.document.text, text);
+  });
+
   test(
     'applies completion item by replacing the active token at caret edge',
     () {
@@ -278,12 +311,29 @@ value -> @stdout
     final plan = controller.renamePlanAtSelection('price');
     expect(plan?.edits.length, 2);
 
-    controller.applyRename('price');
+    expect(controller.applyRename('price'), isTrue);
 
     expect(controller.document.text, contains('price = 10'));
     expect(controller.document.text, contains('price -> @resource'));
     expect(controller.document.text, isNot(contains('value')));
     expect(controller.canUndo, isTrue);
+  });
+
+  test('rejects invalid rename edits without changing document history', () {
+    const text = 'value = value\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.lastIndexOf('value')),
+    );
+
+    expect(controller.applyRename('1bad'), isFalse);
+    expect(controller.document.text, text);
+    expect(controller.canUndo, isFalse);
   });
 
   test('selects the resolved definition without changing document history', () {
@@ -352,6 +402,31 @@ value -> @stdout
 
     expect(controller.selectPreviousReferenceAtSelection(), isTrue);
     expect(controller.selection.start, text.lastIndexOf('value'));
+  });
+
+  test('selects a resolved reference without changing document history', () {
+    const text = 'value = value\nvalue -> @stdout\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('= value') + 3),
+    );
+
+    final reference = controller.referencesAtSelection.last;
+    final selected = controller.selectReference(reference);
+
+    expect(selected, isTrue);
+    expect(controller.selection.start, text.lastIndexOf('value'));
+    expect(
+      controller.selection.end,
+      text.lastIndexOf('value') + 'value'.length,
+    );
+    expect(controller.canUndo, isFalse);
+    expect(controller.document.text, text);
   });
 
   test('cycles between diagnostics without changing document history', () {

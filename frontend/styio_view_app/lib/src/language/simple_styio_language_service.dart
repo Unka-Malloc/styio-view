@@ -155,10 +155,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     }
 
     return items
-        .where(
-          (item) =>
-              item.label.startsWith(seed) || item.insertText.startsWith(seed),
-        )
+        .where((item) => _matchesCompletionSeed(item, seed))
         .toList(growable: false);
   }
 
@@ -626,6 +623,47 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       }
     }
     return deduped;
+  }
+
+  bool _matchesCompletionSeed(CompletionItem item, String rawSeed) {
+    final seed = rawSeed.toLowerCase();
+    if (seed.isEmpty) {
+      return true;
+    }
+    return _matchesCompletionText(item.label, seed) ||
+        _matchesCompletionText(item.insertText, seed);
+  }
+
+  bool _matchesCompletionText(String text, String seed) {
+    final searchable = text.toLowerCase();
+    if (searchable.startsWith(seed) || searchable.contains(seed)) {
+      return true;
+    }
+    return _completionInitials(text).startsWith(seed);
+  }
+
+  String _completionInitials(String text) {
+    final buffer = StringBuffer();
+    var wordBoundary = true;
+    var previousLowerOrDigit = false;
+    for (var index = 0; index < text.length; index += 1) {
+      final code = text.codeUnitAt(index);
+      final isUpper = code >= 0x41 && code <= 0x5A;
+      final isLower = code >= 0x61 && code <= 0x7A;
+      final isDigit = code >= 0x30 && code <= 0x39;
+      final isAsciiWord = isUpper || isLower || isDigit || code == 0x5F;
+      if (!isAsciiWord || code == 0x5F) {
+        wordBoundary = true;
+        previousLowerOrDigit = false;
+        continue;
+      }
+      if (wordBoundary || (isUpper && previousLowerOrDigit)) {
+        buffer.writeCharCode(isUpper ? code + 0x20 : code);
+      }
+      wordBoundary = false;
+      previousLowerOrDigit = isLower || isDigit;
+    }
+    return buffer.toString();
   }
 
   CompletionItem _completionItemForSymbol(DocumentSymbol symbol) {

@@ -233,4 +233,44 @@ used -> @stdout
     expect(jobCompletion.kind, CompletionItemKind.variable);
     expect(jobCompletion.insertText, 'job');
   });
+
+  test('matches completion items by contained text and symbol initials', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'completion-matching.styio',
+      text: '''
+movingAverage = source |> normalize
+resource_sink = movingAverage
+av
+''',
+      revision: 0,
+    );
+
+    final containedLabels = service
+        .completeAt(document, document.text.lastIndexOf('av') + 2)
+        .map((item) => item.label)
+        .toSet();
+
+    expect(containedLabels, contains('movingAverage'));
+
+    const initialsDocument = DocumentState(
+      documentId: 'completion-initials.styio',
+      text: '''
+movingAverage = source |> normalize
+resource_sink = movingAverage
+rs
+''',
+      revision: 0,
+    );
+
+    final initialsLabels = service
+        .completeAt(
+          initialsDocument,
+          initialsDocument.text.lastIndexOf('rs') + 2,
+        )
+        .map((item) => item.label)
+        .toSet();
+
+    expect(initialsLabels, contains('resource_sink'));
+  });
 }

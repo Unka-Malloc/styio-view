@@ -143,6 +143,45 @@ used -> @stdout
     expect(usedPlan?.conflicts.single.message, contains('still used'));
   });
 
+  test('builds inline variable edits from declaration initializers', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+seed = 40 + 2
+value = seed
+seed -> @stdout
+''';
+
+    final plan = index.inlineVariableAt(source, source.indexOf('seed'));
+
+    expect(plan?.target.name, 'seed');
+    expect(plan?.initializerText, '40 + 2');
+    expect(plan?.references.length, 2);
+    expect(plan?.hasConflicts, isFalse);
+    expect(plan?.edits.length, 3);
+    expect(
+      source.substring(plan!.edits.last.range.start, plan.edits.last.range.end),
+      'seed = 40 + 2\n',
+    );
+    expect(
+      plan.edits.take(2).every((edit) => edit.newText == '40 + 2'),
+      isTrue,
+    );
+  });
+
+  test('blocks inline variable when no initializer is available', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+let pending
+pending -> @stdout
+''';
+
+    final plan = index.inlineVariableAt(source, source.indexOf('pending'));
+
+    expect(plan?.hasConflicts, isTrue);
+    expect(plan?.edits, isEmpty);
+    expect(plan?.conflicts.single.message, contains('initializer'));
+  });
+
   test('resolves parameter info from a function call argument list', () {
     const index = StyioSymbolIndex();
     const source = '''

@@ -23,6 +23,8 @@ abstract class StyioLanguageService {
 
   SafeDeletePlan? safeDeleteAt(DocumentState document, int offset);
 
+  InlineVariablePlan? inlineVariableAt(DocumentState document, int offset);
+
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset);
 
   List<DiagnosticQuickFix> quickFixesForDiagnostic(

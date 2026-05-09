@@ -341,6 +341,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   bool _inlineRenameOpen = false;
   bool _usagesPanelOpen = false;
   bool _safeDeletePanelOpen = false;
+  bool _inlineVariablePanelOpen = false;
   bool _quickDocumentationOpen = false;
   bool _quickDocumentationForCompletion = false;
   bool _parameterInfoOpen = false;
@@ -416,6 +417,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         case LogicalKeyboardKey.enter:
         case LogicalKeyboardKey.numpadEnter:
           return _applySafeDelete()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+      }
+    }
+    if (_inlineVariablePanelOpen) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          _closeInlineVariablePanel();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+          return _applyInlineVariable()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
       }
@@ -565,6 +578,15 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         altPressed &&
         event.logicalKey == LogicalKeyboardKey.keyT) {
       return _openSurroundLookup()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+
+    if (commandPressed &&
+        altPressed &&
+        !shiftPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyN) {
+      return _openInlineVariablePanel()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -977,6 +999,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
     setState(() {
       _safeDeletePanelOpen = true;
+      _inlineVariablePanelOpen = false;
       _completionLookupOpen = false;
       _completionLookupIndex = 0;
       _quickFixLookupOpen = false;
@@ -1004,6 +1027,45 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
     setState(() {
       _safeDeletePanelOpen = false;
+    });
+    _focusNode.requestFocus();
+    return true;
+  }
+
+  bool _openInlineVariablePanel() {
+    if (widget.controller.inlineVariablePlanAtSelection == null) {
+      return false;
+    }
+    setState(() {
+      _inlineVariablePanelOpen = true;
+      _safeDeletePanelOpen = false;
+      _completionLookupOpen = false;
+      _completionLookupIndex = 0;
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+      _surroundLookupOpen = false;
+      _surroundLookupIndex = 0;
+    });
+    return true;
+  }
+
+  void _closeInlineVariablePanel() {
+    setState(() {
+      _inlineVariablePanelOpen = false;
+    });
+    _focusNode.requestFocus();
+  }
+
+  bool _applyInlineVariable() {
+    final applied = widget.controller.applyInlineVariableAtSelection();
+    if (!applied) {
+      return false;
+    }
+    setState(() {
+      _inlineVariablePanelOpen = false;
     });
     _focusNode.requestFocus();
     return true;
@@ -1551,6 +1613,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           _buildSafeDeletePanel(context),
                           const SizedBox(height: 12),
                         ],
+                        if (_inlineVariablePanelOpen) ...[
+                          _buildInlineVariablePanel(context),
+                          const SizedBox(height: 12),
+                        ],
                         ..._buildPreviewChildren(
                           context,
                           controller: widget.controller,
@@ -2091,6 +2157,104 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     );
   }
 
+  Widget _buildInlineVariablePanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final plan = widget.controller.inlineVariablePlanAtSelection;
+    final conflicts = plan?.conflicts ?? const <InlineVariableConflict>[];
+    return Material(
+      key: const ValueKey('source-inline-variable-panel'),
+      color: const Color(0xFFF0F7F4),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.call_merge_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    plan == null
+                        ? 'Inline Variable'
+                        : 'Inline Variable: ${plan.target.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _InlineActionChip(
+                  key: const ValueKey('source-inline-variable-close'),
+                  icon: Icons.close_rounded,
+                  label: 'Close',
+                  onTap: _closeInlineVariablePanel,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (plan == null)
+              Text(
+                'No variable target at the current caret.',
+                style: theme.textTheme.bodySmall,
+              )
+            else if (conflicts.isNotEmpty) ...[
+              Text(
+                '${conflicts.length} blocker'
+                '${conflicts.length == 1 ? '' : 's'} found',
+                key: const ValueKey('source-inline-variable-blockers'),
+                style: theme.textTheme.bodySmall!.copyWith(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (var index = 0; index < conflicts.length; index += 1) ...[
+                _InlineVariableConflictTile(
+                  key: ValueKey('source-inline-variable-conflict-$index'),
+                  conflict: conflicts[index],
+                  location: _formatUsageLocationForRange(
+                    conflicts[index].range,
+                  ),
+                  preview: _linePreviewForRange(conflicts[index].range),
+                  onTap: () => widget.controller.selectRange(
+                    baseOffset: conflicts[index].range.start,
+                    extentOffset: conflicts[index].range.end,
+                  ),
+                ),
+                if (index < conflicts.length - 1) const SizedBox(height: 6),
+              ],
+            ] else ...[
+              Text(
+                'Replace ${plan.references.length} usage'
+                '${plan.references.length == 1 ? '' : 's'} with '
+                '` ${plan.initializerText} ` and delete the declaration',
+                key: const ValueKey('source-inline-variable-preview'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              _InlineActionChip(
+                key: const ValueKey('source-inline-variable-apply'),
+                icon: Icons.check_rounded,
+                label: 'Inline all',
+                onTap: _applyInlineVariable,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickDocumentationPanel(BuildContext context) {
     final theme = Theme.of(context);
     final completionItem = _quickDocumentationForCompletion
@@ -2619,6 +2783,71 @@ class _SafeDeleteConflictTile extends StatelessWidget {
   });
 
   final SafeDeleteConflict conflict;
+  final String location;
+  final String preview;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 16,
+                color: theme.colorScheme.error,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${conflict.message} · $location',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        color: theme.colorScheme.error,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineVariableConflictTile extends StatelessWidget {
+  const _InlineVariableConflictTile({
+    super.key,
+    required this.conflict,
+    required this.location,
+    required this.preview,
+    required this.onTap,
+  });
+
+  final InlineVariableConflict conflict;
   final String location;
   final String preview;
   final VoidCallback onTap;

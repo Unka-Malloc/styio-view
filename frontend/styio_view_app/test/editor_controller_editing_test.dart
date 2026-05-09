@@ -1207,6 +1207,44 @@ value -> @stdout
     expect(controller.canUndo, isFalse);
   });
 
+  test('applies inline variable edits and removes the declaration', () {
+    const text = 'seed = 40 + 2\nvalue = seed\nseed -> @stdout\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('seed')),
+    );
+
+    final plan = controller.inlineVariablePlanAtSelection;
+    expect(plan?.hasConflicts, isFalse);
+    expect(plan?.references.length, 2);
+    expect(controller.applyInlineVariableAtSelection(), isTrue);
+    expect(controller.document.text, 'value = 40 + 2\n40 + 2 -> @stdout\n');
+    expect(controller.canUndo, isTrue);
+  });
+
+  test('rejects inline variable when the declaration has no initializer', () {
+    const text = 'let pending\npending -> @stdout\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('pending')),
+    );
+
+    expect(controller.inlineVariablePlanAtSelection?.hasConflicts, isTrue);
+    expect(controller.applyInlineVariableAtSelection(), isFalse);
+    expect(controller.document.text, text);
+    expect(controller.canUndo, isFalse);
+  });
+
   test('selects the resolved definition without changing document history', () {
     const text = 'value = value\n';
     final controller = EditorSessionController(

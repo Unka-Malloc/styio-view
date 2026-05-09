@@ -316,6 +316,63 @@ class StyioSymbolIndex {
     );
   }
 
+  InlineVariablePlan? inlineVariableAt(String source, int offset) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final snapshot = build(tokens);
+    final token = _tokenAroundOffset(tokens, offset);
+    if (token == null) {
+      return null;
+    }
+
+    final reference = snapshot.referenceAt(token.range);
+    if (reference == null) {
+      return null;
+    }
+
+    final target = snapshot.symbolForTarget(reference.targetRange);
+    if (target == null) {
+      return null;
+    }
+
+    final references = snapshot.referencesForTarget(reference.targetRange);
+    if (references.isEmpty) {
+      return null;
+    }
+
+    final initializer = _variableInitializer(source, tokens, target);
+    final conflicts = _inlineVariableConflicts(
+      target: target,
+      initializer: initializer,
+      references: references,
+    );
+    final referencesToInline = conflicts.isEmpty
+        ? references
+              .where((reference) => !reference.isDeclaration)
+              .toList(growable: false)
+        : const <ReferenceSpan>[];
+    final initializerText = initializer?.text ?? '';
+    return InlineVariablePlan(
+      target: target,
+      initializerRange: initializer?.range ?? target.nameRange,
+      initializerText: initializerText,
+      references: referencesToInline,
+      edits: conflicts.isEmpty
+          ? [
+              for (final reference in referencesToInline)
+                FormattingEdit(
+                  range: reference.range,
+                  newText: initializerText,
+                ),
+              FormattingEdit(
+                range: _lineRemovalRange(source, target.declarationRange),
+                newText: '',
+              ),
+            ]
+          : const <FormattingEdit>[],
+      conflicts: conflicts,
+    );
+  }
+
   ParameterInfoPayload? parameterInfoAt(String source, int offset) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -954,6 +1011,117 @@ class StyioSymbolIndex {
         .toList(growable: false);
   }
 
+  List<InlineVariableConflict> _inlineVariableConflicts({
+    required DocumentSymbol target,
+    required _InlineVariableInitializer? initializer,
+    required List<ReferenceSpan> references,
+  }) {
+    if (target.kind != SymbolKind.variable) {
+      return [
+        InlineVariableConflict(
+          message:
+              'Inline variable currently supports current-file variable '
+              'declarations.',
+          range: target.nameRange,
+        ),
+      ];
+    }
+    if (initializer == null) {
+      return [
+        InlineVariableConflict(
+          message: 'Inline variable requires a declaration initializer.',
+          range: target.nameRange,
+        ),
+      ];
+    }
+
+    final usageReferences = references
+        .where((reference) => !reference.isDeclaration)
+        .toList(growable: false);
+    if (usageReferences.isEmpty) {
+      return [
+        InlineVariableConflict(
+          message: 'Symbol `${target.name}` is never used in this file.',
+          range: target.nameRange,
+        ),
+      ];
+    }
+
+    final conflicts = <InlineVariableConflict>[];
+    for (final reference in usageReferences) {
+      if (reference.range.intersects(target.declarationRange)) {
+        conflicts.add(
+          InlineVariableConflict(
+            message:
+                'Symbol `${target.name}` is referenced inside its '
+                'initializer.',
+            range: reference.range,
+          ),
+        );
+        continue;
+      }
+      if (reference.access != ReferenceAccess.read) {
+        conflicts.add(
+          InlineVariableConflict(
+            message:
+                'Symbol `${target.name}` has a non-read usage in this file.',
+            range: reference.range,
+          ),
+        );
+      }
+    }
+    return conflicts;
+  }
+
+  _InlineVariableInitializer? _variableInitializer(
+    String source,
+    List<TokenSpan> tokens,
+    DocumentSymbol target,
+  ) {
+    final nameIndex = tokens.indexWhere(
+      (token) =>
+          token.range.start == target.nameRange.start &&
+          token.range.end == target.nameRange.end,
+    );
+    if (nameIndex < 0) {
+      return null;
+    }
+
+    for (var index = nameIndex + 1; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.range.start >= target.declarationRange.end ||
+          token.lexeme.contains('\n')) {
+        break;
+      }
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      if (token.lexeme != '=' && token.lexeme != ':=') {
+        continue;
+      }
+
+      var initializerStart = token.range.end;
+      var initializerEnd = target.declarationRange.end;
+      while (initializerStart < initializerEnd &&
+          source.codeUnitAt(initializerStart) <= 0x20) {
+        initializerStart += 1;
+      }
+      while (initializerEnd > initializerStart &&
+          source.codeUnitAt(initializerEnd - 1) <= 0x20) {
+        initializerEnd -= 1;
+      }
+      if (initializerStart >= initializerEnd) {
+        return null;
+      }
+      return _InlineVariableInitializer(
+        range: SourceRange(start: initializerStart, end: initializerEnd),
+        text: source.substring(initializerStart, initializerEnd),
+      );
+    }
+    return null;
+  }
+
   SourceRange _lineRemovalRange(String source, SourceRange range) {
     final normalizedStart = range.start.clamp(0, source.length);
     final normalizedEnd = range.end.clamp(normalizedStart, source.length);
@@ -1006,6 +1174,13 @@ class _CallArgumentList {
   final TokenSpan callable;
   final int openingIndex;
   final int closingIndex;
+}
+
+class _InlineVariableInitializer {
+  const _InlineVariableInitializer({required this.range, required this.text});
+
+  final SourceRange range;
+  final String text;
 }
 
 class StyioSymbolSnapshot {

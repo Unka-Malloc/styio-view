@@ -253,6 +253,33 @@ class SafeDeletePlan {
   bool get hasConflicts => conflicts.isNotEmpty;
 }
 
+class InlineVariableConflict {
+  const InlineVariableConflict({required this.message, required this.range});
+
+  final String message;
+  final SourceRange range;
+}
+
+class InlineVariablePlan {
+  const InlineVariablePlan({
+    required this.target,
+    required this.initializerRange,
+    required this.initializerText,
+    required this.references,
+    required this.edits,
+    this.conflicts = const <InlineVariableConflict>[],
+  });
+
+  final DocumentSymbol target;
+  final SourceRange initializerRange;
+  final String initializerText;
+  final List<ReferenceSpan> references;
+  final List<FormattingEdit> edits;
+  final List<InlineVariableConflict> conflicts;
+
+  bool get hasConflicts => conflicts.isNotEmpty;
+}
+
 class ParameterInfoParameter {
   const ParameterInfoParameter({
     required this.name,

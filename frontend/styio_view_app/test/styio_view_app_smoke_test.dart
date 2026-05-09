@@ -2457,6 +2457,116 @@ value = blend(price, tax)
     );
   });
 
+  testWidgets('opens inline variable blockers from source keymap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'let pending\npending -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'inline-variable-blocked.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('pending'));
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-panel')),
+      findsOne,
+    );
+    expect(find.text('Inline Variable: pending'), findsOne);
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-blockers')),
+      findsOne,
+    );
+    expect(
+      find.textContaining(
+        'Inline variable requires a declaration initializer.',
+      ),
+      findsOne,
+    );
+    expect(bootstrap.editorController.document.text, text);
+  });
+
+  testWidgets('applies inline variable from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'seed = 40 + 2\nvalue = seed\nseed -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'inline-variable.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('seed'));
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-panel')),
+      findsOne,
+    );
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-preview')),
+      findsOne,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('source-inline-variable-apply')),
+    );
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      'value = 40 + 2\n40 + 2 -> @stdout\n',
+    );
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-panel')),
+      findsNothing,
+    );
+  });
+
   testWidgets('applies rename edits from language pane', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

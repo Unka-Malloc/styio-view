@@ -262,6 +262,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   @override
+  InlineVariablePlan? inlineVariableAt(DocumentState document, int offset) {
+    return _symbolIndex.inlineVariableAt(document.text, offset);
+  }
+
+  @override
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset) {
     return _symbolIndex.parameterInfoAt(document.text, offset);
   }

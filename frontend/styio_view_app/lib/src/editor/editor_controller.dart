@@ -55,6 +55,8 @@ class EditorSessionController extends ChangeNotifier {
       _languageService.renameAt(_document, inspectionOffset, newName);
   SafeDeletePlan? get safeDeletePlanAtSelection =>
       _languageService.safeDeleteAt(_document, inspectionOffset);
+  InlineVariablePlan? get inlineVariablePlanAtSelection =>
+      _languageService.inlineVariableAt(_document, inspectionOffset);
   ParameterInfoPayload? get parameterInfoAtSelection =>
       _languageService.parameterInfoAt(_document, inspectionOffset);
   TokenSpan? get tokenAtSelection => _tokenAroundOffset(inspectionOffset);
@@ -762,6 +764,15 @@ class EditorSessionController extends ChangeNotifier {
 
   bool applySafeDeleteAtSelection() {
     final plan = safeDeletePlanAtSelection;
+    if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
+      return false;
+    }
+    applyFormattingEdits(plan.edits);
+    return true;
+  }
+
+  bool applyInlineVariableAtSelection() {
+    final plan = inlineVariablePlanAtSelection;
     if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
       return false;
     }

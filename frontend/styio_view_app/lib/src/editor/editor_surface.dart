@@ -738,6 +738,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         final character = event.character;
         if (_isPlainTextCharacter(character)) {
           widget.controller.insertTypedCharacter(character!);
+          _openCompletionLookupAfterTyping(character);
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -755,6 +756,44 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
 
     return character != '\n' && character != '\r';
+  }
+
+  void _openCompletionLookupAfterTyping(String character) {
+    if (!_shouldAutoPopupCompletion(character)) {
+      return;
+    }
+    final completions = widget.controller.completionsAtSelection;
+    if (completions.isEmpty) {
+      return;
+    }
+    final activeSpan = widget.controller.tokenAtSelection;
+    if (activeSpan == null ||
+        activeSpan.kind == TokenKind.comment ||
+        activeSpan.kind == TokenKind.string ||
+        activeSpan.kind == TokenKind.number ||
+        activeSpan.kind == TokenKind.whitespace) {
+      return;
+    }
+    setState(() {
+      _completionLookupOpen = true;
+      _completionLookupIndex = 0;
+      _surroundLookupOpen = false;
+      _symbolLookupOpen = false;
+      _quickFixLookupOpen = false;
+    });
+  }
+
+  bool _shouldAutoPopupCompletion(String character) {
+    if (character.length != 1) {
+      return false;
+    }
+    final codeUnit = character.codeUnitAt(0);
+    return (codeUnit >= 0x30 && codeUnit <= 0x39) ||
+        (codeUnit >= 0x41 && codeUnit <= 0x5A) ||
+        (codeUnit >= 0x61 && codeUnit <= 0x7A) ||
+        character == '_' ||
+        character == '@' ||
+        character == '#';
   }
 
   bool _toggleSemanticBlockAtSelection() {

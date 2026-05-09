@@ -2027,6 +2027,89 @@ value = blend(price, tax)
     );
   });
 
+  testWidgets('opens completion lookup while typing source identifiers', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'job = ||> { <| 42 }\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'completion-auto-popup.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ, character: 'j');
+    await tester.pumpAndSettle();
+
+    expect(bootstrap.editorController.document.text, '${text}j');
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsOneWidget,
+    );
+    expect(find.text('job · variable'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('source-completion-preview-insert')),
+          )
+          .data,
+      'Insert `job`',
+    );
+  });
+
+  testWidgets('skips completion auto-popup while typing comments', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = '// comment ';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'completion-auto-popup-comment.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ, character: 'j');
+    await tester.pumpAndSettle();
+
+    expect(bootstrap.editorController.document.text, '${text}j');
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsNothing,
+    );
+  });
+
   testWidgets('opens completion lookup from editor keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

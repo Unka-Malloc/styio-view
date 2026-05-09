@@ -342,6 +342,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   bool _usagesPanelOpen = false;
   bool _quickDocumentationOpen = false;
   bool _parameterInfoOpen = false;
+  bool _quickFixLookupOpen = false;
+  int _quickFixLookupIndex = 0;
   bool _symbolLookupOpen = false;
   int _symbolLookupIndex = 0;
   String _symbolLookupQuery = '';
@@ -412,6 +414,32 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     if (_parameterInfoOpen && event.logicalKey == LogicalKeyboardKey.escape) {
       _closeParameterInfo();
       return KeyEventResult.handled;
+    }
+    if (_quickFixLookupOpen) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          _closeQuickFixLookup();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowDown:
+          _moveQuickFixLookupSelection(1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowUp:
+          _moveQuickFixLookupSelection(-1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+        case LogicalKeyboardKey.tab:
+          return _applySelectedQuickFix()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        default:
+          if (!commandPressed && _isPlainTextCharacter(event.character)) {
+            setState(() {
+              _quickFixLookupOpen = false;
+              _quickFixLookupIndex = 0;
+            });
+          }
+      }
     }
     if (_symbolLookupOpen) {
       switch (event.logicalKey) {
@@ -613,7 +641,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     if (altPressed &&
         (event.logicalKey == LogicalKeyboardKey.enter ||
             event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-      return widget.controller.applyFirstQuickFixAtSelection()
+      return _openQuickFixLookup()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -896,6 +924,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _symbolLookupOpen = false;
       _symbolLookupIndex = 0;
       _symbolLookupQuery = '';
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
     });
     return true;
   }
@@ -957,6 +987,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _symbolLookupOpen = false;
       _symbolLookupIndex = 0;
       _symbolLookupQuery = '';
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
     });
     return true;
   }
@@ -1014,6 +1046,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _completionLookupIndex = 0;
       _surroundLookupOpen = false;
       _surroundLookupIndex = 0;
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
     });
     return true;
   }
@@ -1104,6 +1138,79 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _symbolLookupOpen = false;
       _symbolLookupIndex = 0;
       _symbolLookupQuery = '';
+    });
+    _focusNode.requestFocus();
+  }
+
+  List<DiagnosticQuickFix> _quickFixLookupItems() {
+    return widget.controller.quickFixesForDiagnostics(
+      widget.controller.diagnosticsAtSelection,
+    );
+  }
+
+  bool _openQuickFixLookup() {
+    if (_quickFixLookupItems().isEmpty) {
+      return false;
+    }
+    setState(() {
+      _quickFixLookupOpen = true;
+      _quickFixLookupIndex = 0;
+      _completionLookupOpen = false;
+      _completionLookupIndex = 0;
+      _surroundLookupOpen = false;
+      _surroundLookupIndex = 0;
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+    });
+    return true;
+  }
+
+  void _closeQuickFixLookup() {
+    setState(() {
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _moveQuickFixLookupSelection(int delta) {
+    final quickFixes = _quickFixLookupItems();
+    if (quickFixes.isEmpty) {
+      _closeQuickFixLookup();
+      return;
+    }
+    setState(() {
+      _quickFixLookupIndex = (_quickFixLookupIndex + delta) % quickFixes.length;
+      if (_quickFixLookupIndex < 0) {
+        _quickFixLookupIndex += quickFixes.length;
+      }
+    });
+  }
+
+  bool _applySelectedQuickFix() {
+    final quickFixes = _quickFixLookupItems();
+    if (quickFixes.isEmpty) {
+      _closeQuickFixLookup();
+      return false;
+    }
+    final selectedIndex = _quickFixLookupIndex
+        .clamp(0, quickFixes.length - 1)
+        .toInt();
+    widget.controller.applyDiagnosticQuickFix(quickFixes[selectedIndex]);
+    setState(() {
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
+    });
+    _focusNode.requestFocus();
+    return true;
+  }
+
+  void _applyQuickFixFromLookup(DiagnosticQuickFix quickFix) {
+    widget.controller.applyDiagnosticQuickFix(quickFix);
+    setState(() {
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
     });
     _focusNode.requestFocus();
   }
@@ -1268,6 +1375,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           _buildSymbolLookupPanel(context),
                           const SizedBox(height: 12),
                         ],
+                        if (_quickFixLookupOpen) ...[
+                          _buildQuickFixLookupPanel(context),
+                          const SizedBox(height: 12),
+                        ],
                         if (_quickDocumentationOpen) ...[
                           _buildQuickDocumentationPanel(context),
                           const SizedBox(height: 12),
@@ -1312,6 +1423,78 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildQuickFixLookupPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final quickFixes = _quickFixLookupItems();
+    final diagnostics = widget.controller.diagnosticsAtSelection;
+    final selectedIndex = quickFixes.isEmpty
+        ? -1
+        : _quickFixLookupIndex.clamp(0, quickFixes.length - 1).toInt();
+
+    return Material(
+      key: const ValueKey('source-quick-fix-lookup'),
+      color: const Color(0xFFFDF8EE),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.tips_and_updates_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Context Actions',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _InlineActionChip(
+                  key: const ValueKey('source-quick-fix-close'),
+                  icon: Icons.close_rounded,
+                  label: 'Close',
+                  onTap: _closeQuickFixLookup,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${diagnostics.length} diagnostic'
+              '${diagnostics.length == 1 ? '' : 's'} at caret',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            if (quickFixes.isEmpty)
+              Text(
+                'No context actions at the current caret.',
+                style: theme.textTheme.bodySmall,
+              )
+            else
+              for (var index = 0; index < quickFixes.length; index += 1) ...[
+                _QuickFixLookupTile(
+                  key: ValueKey('source-quick-fix-item-$index'),
+                  quickFix: quickFixes[index],
+                  selected: index == selectedIndex,
+                  onTap: () => _applyQuickFixFromLookup(quickFixes[index]),
+                ),
+                if (index < quickFixes.length - 1) const SizedBox(height: 6),
+              ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -1990,6 +2173,74 @@ class _UsageResultTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,
                     ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickFixLookupTile extends StatelessWidget {
+  const _QuickFixLookupTile({
+    super.key,
+    required this.quickFix,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final DiagnosticQuickFix quickFix;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: selected ? const Color(0xFFE6E0F5) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                selected
+                    ? Icons.keyboard_return_rounded
+                    : Icons.tips_and_updates_rounded,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      quickFix.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    if (quickFix.detail.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        quickFix.detail,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -2078,7 +2078,7 @@ value = blend(price, tax)
     );
   });
 
-  testWidgets('applies quick fix from editor keymap', (tester) async {
+  testWidgets('opens quick fix lookup from editor keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -2107,9 +2107,21 @@ value = blend(price, tax)
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsOneWidget,
+    );
+    expect(find.text('Context Actions'), findsOneWidget);
+    expect(find.text('Insert assignment'), findsOneWidget);
+    expect(bootstrap.editorController.document.text, text);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
 
     expect(bootstrap.editorController.document.text, 'let stream = value\n');
+    expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsNothing);
   });
 
   testWidgets('applies rename edits from language pane', (tester) async {

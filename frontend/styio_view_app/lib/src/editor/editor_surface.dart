@@ -448,7 +448,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
         case LogicalKeyboardKey.keyJ:
-          return widget.controller.applyBestCompletionAtSelection()
+          return (shiftPressed
+                  ? widget.controller.joinLinesAtSelection()
+                  : widget.controller.applyBestCompletionAtSelection())
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
         case LogicalKeyboardKey.keyQ:

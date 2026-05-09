@@ -363,6 +363,61 @@ class EditorSessionController extends ChangeNotifier {
     return true;
   }
 
+  bool joinLinesAtSelection() {
+    final logicalLines = _logicalLinesForDocument(_document);
+    if (logicalLines.length <= 1) {
+      return false;
+    }
+
+    final lineRange = _lineRangeForJoinAction(logicalLines.length);
+    final startLine = lineRange.startLine;
+    final endLine = lineRange.startLine == lineRange.endLine
+        ? lineRange.endLine + 1
+        : lineRange.endLine;
+    if (endLine >= logicalLines.length) {
+      return false;
+    }
+
+    final joinedText = _joinLineFragments(
+      logicalLines.sublist(startLine, endLine + 1),
+    );
+    final replacementKeepsNewline =
+        endLine < logicalLines.length - 1 || _document.text.endsWith('\n');
+    final replacement = joinedText + (replacementKeepsNewline ? '\n' : '');
+    final startOffset = _offsetForLogicalLineStart(_document, startLine);
+    final endOffset = _offsetAfterLogicalLine(
+      _document,
+      endLine,
+      logicalLines.length,
+    );
+    if (replacement == _document.text.substring(startOffset, endOffset)) {
+      return false;
+    }
+
+    final caretOffset = _selection.isCollapsed
+        ? startOffset +
+              _firstJoinCaretOffset(logicalLines[startLine], joinedText)
+        : null;
+
+    _structuredSelectionStack.clear();
+    _pushUndoSnapshot();
+    _document = _document.replaceRange(
+      start: startOffset,
+      end: endOffset,
+      replacement: replacement,
+    );
+    _selection = caretOffset == null
+        ? SelectionState(
+            baseOffset: startOffset,
+            extentOffset: startOffset + joinedText.length,
+          )
+        : SelectionState.collapsed(caretOffset);
+    _refreshAnalysis();
+    _redoStack.clear();
+    notifyListeners();
+    return true;
+  }
+
   void moveCaretHorizontally(int delta, {bool expandSelection = false}) {
     if (delta == 0) {
       return;
@@ -944,6 +999,70 @@ class EditorSessionController extends ChangeNotifier {
     );
   }
 
+  _LineMoveRange _lineRangeForJoinAction(int logicalLineCount) {
+    final startPosition = _document.positionForOffset(_selection.start);
+    var endOffset = _selection.end;
+    if (!_selection.isCollapsed && endOffset > _selection.start) {
+      final endPosition = _document.positionForOffset(endOffset);
+      if (endPosition.column == 0 && endPosition.line > startPosition.line) {
+        endOffset -= 1;
+      }
+    }
+
+    final endPosition = _document.positionForOffset(endOffset);
+    return _LineMoveRange(
+      startLine: startPosition.line.clamp(0, logicalLineCount - 1).toInt(),
+      endLine: endPosition.line.clamp(0, logicalLineCount - 1).toInt(),
+    );
+  }
+
+  String _joinLineFragments(List<String> lines) {
+    if (lines.isEmpty) {
+      return '';
+    }
+
+    var joined = _trimTrailingHorizontalWhitespace(lines.first);
+    for (final rawLine in lines.skip(1)) {
+      final next = rawLine.substring(
+        _leadingHorizontalWhitespaceLength(rawLine),
+      );
+      final separator = _joinSeparator(joined, next);
+      joined = _trimTrailingHorizontalWhitespace('$joined$separator$next');
+    }
+    return joined;
+  }
+
+  int _firstJoinCaretOffset(String firstLine, String joinedText) {
+    final trimmedFirst = _trimTrailingHorizontalWhitespace(firstLine);
+    final offset = trimmedFirst.length;
+    if (offset >= joinedText.length) {
+      return offset;
+    }
+    if (_isHorizontalWhitespace(joinedText.codeUnitAt(offset))) {
+      return offset + 1;
+    }
+    return offset;
+  }
+
+  String _joinSeparator(String left, String right) {
+    if (left.isEmpty || right.isEmpty) {
+      return '';
+    }
+    final leftUnit = left.codeUnitAt(left.length - 1);
+    final rightUnit = right.codeUnitAt(0);
+    if (_isHorizontalWhitespace(leftUnit) ||
+        _isHorizontalWhitespace(rightUnit)) {
+      return '';
+    }
+    if ('([{'.contains(left[left.length - 1]) ||
+        ')]},.;:'.contains(right[0]) ||
+        left[left.length - 1] == '.' ||
+        right[0] == '.') {
+      return '';
+    }
+    return ' ';
+  }
+
   List<String> _logicalLinesForDocument(DocumentState document) {
     final lines = document.lines;
     if (document.text.endsWith('\n') && lines.length > 1) {
@@ -1040,12 +1159,36 @@ class EditorSessionController extends ChangeNotifier {
     var index = 0;
     while (index < lineText.length) {
       final codeUnit = lineText.codeUnitAt(index);
-      if (codeUnit != 0x20 && codeUnit != 0x09) {
+      if (!_isHorizontalWhitespace(codeUnit)) {
         break;
       }
       index += 1;
     }
     return index;
+  }
+
+  int _trailingHorizontalWhitespaceLength(String lineText) {
+    var index = lineText.length;
+    while (index > 0) {
+      final codeUnit = lineText.codeUnitAt(index - 1);
+      if (!_isHorizontalWhitespace(codeUnit)) {
+        break;
+      }
+      index -= 1;
+    }
+    return lineText.length - index;
+  }
+
+  String _trimTrailingHorizontalWhitespace(String lineText) {
+    final trailingLength = _trailingHorizontalWhitespaceLength(lineText);
+    if (trailingLength == 0) {
+      return lineText;
+    }
+    return lineText.substring(0, lineText.length - trailingLength);
+  }
+
+  bool _isHorizontalWhitespace(int codeUnit) {
+    return codeUnit == 0x20 || codeUnit == 0x09;
   }
 
   bool _strictlyContainsSelection(SourceRange candidate, SourceRange current) {

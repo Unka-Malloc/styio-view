@@ -282,6 +282,65 @@ void main() {
     expect(controller.canUndo, isFalse);
   });
 
+  test('joins the current line with the next line', () {
+    const text = 'value =\n  source\nnext\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(2),
+    );
+
+    expect(controller.joinLinesAtSelection(), isTrue);
+    expect(controller.document.text, 'value = source\nnext\n');
+    expect(controller.selection.end, 'value = '.length);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, text);
+  });
+
+  test('joins selected lines into one selected line', () {
+    const text = 'one\n  two\n  three\nfour\n';
+    final end = text.indexOf('three') + 'three'.length;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(baseOffset: 0, extentOffset: end),
+    );
+
+    expect(controller.joinLinesAtSelection(), isTrue);
+    expect(controller.document.text, 'one two three\nfour\n');
+    expect(controller.selection.start, 0);
+    expect(controller.selection.end, 'one two three'.length);
+  });
+
+  test('joins lines without adding a trailing newline', () {
+    const text = 'alpha\n  beta';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(0),
+    );
+
+    expect(controller.joinLinesAtSelection(), isTrue);
+    expect(controller.document.text, 'alpha beta');
+
+    expect(controller.joinLinesAtSelection(), isFalse);
+    expect(controller.document.text, 'alpha beta');
+  });
+
   test(
     'toggles line comments across selected lines preserving indentation',
     () {

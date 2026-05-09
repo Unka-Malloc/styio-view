@@ -39,6 +39,14 @@ class EditorSessionController extends ChangeNotifier {
       _languageService.hoverAt(_document, inspectionOffset);
   List<CompletionItem> get completionsAtSelection =>
       _languageService.completeAt(_document, inspectionOffset);
+  List<SurroundTemplate> get surroundTemplatesAtSelection {
+    final range = _surroundRangeForSelection();
+    if (range == null) {
+      return const <SurroundTemplate>[];
+    }
+    return _languageService.surroundTemplatesAt(_document, range);
+  }
+
   DefinitionTarget? get definitionAtSelection =>
       _languageService.definitionAt(_document, inspectionOffset);
   List<ReferenceSpan> get referencesAtSelection =>
@@ -544,6 +552,41 @@ class EditorSessionController extends ChangeNotifier {
     return true;
   }
 
+  bool applySurroundTemplateAtSelection(SurroundTemplate template) {
+    final range = _surroundRangeForSelection();
+    if (range == null) {
+      return false;
+    }
+    final selectedText = _document.text.substring(range.start, range.end);
+    if (selectedText.trim().isEmpty) {
+      return false;
+    }
+
+    final replacement = _surroundReplacement(
+      template: template,
+      selectedText: selectedText,
+    );
+    if (replacement.text == selectedText) {
+      return false;
+    }
+
+    _structuredSelectionStack.clear();
+    _pushUndoSnapshot();
+    _document = _document.replaceRange(
+      start: range.start,
+      end: range.end,
+      replacement: replacement.text,
+    );
+    _selection = SelectionState(
+      baseOffset: range.start + replacement.bodyStart,
+      extentOffset: range.start + replacement.bodyEnd,
+    );
+    _refreshAnalysis();
+    _redoStack.clear();
+    notifyListeners();
+    return true;
+  }
+
   void applyFormattingEdits(Iterable<FormattingEdit> edits) {
     final normalizedEdits = edits.toList(growable: false);
     if (normalizedEdits.isEmpty) {
@@ -1000,6 +1043,69 @@ class EditorSessionController extends ChangeNotifier {
     return SourceRange(start: start, end: end);
   }
 
+  SourceRange? _surroundRangeForSelection() {
+    final logicalLines = _logicalLinesForDocument(_document);
+    if (logicalLines.isEmpty) {
+      return null;
+    }
+
+    final lineRange = _lineRangeForSelectionAction(logicalLines.length);
+    final lines = _document.lines;
+    if (lines.isEmpty) {
+      return null;
+    }
+    final startLine = lineRange.startLine.clamp(0, lines.length - 1).toInt();
+    final endLine = lineRange.endLine
+        .clamp(startLine, lines.length - 1)
+        .toInt();
+    final start = _document.offsetForLineColumn(line: startLine, column: 0);
+    final end = _document.offsetForLineColumn(
+      line: endLine,
+      column: lines[endLine].length,
+    );
+    if (start > end) {
+      return null;
+    }
+    return SourceRange(start: start, end: end);
+  }
+
+  _SurroundReplacement _surroundReplacement({
+    required SurroundTemplate template,
+    required String selectedText,
+  }) {
+    final baseIndent = _baseIndentForSurround(selectedText);
+    final bodyLines = selectedText.split('\n');
+    final bodyText = bodyLines
+        .map((line) {
+          if (line.isEmpty) {
+            return '';
+          }
+          final unindented = line.startsWith(baseIndent)
+              ? line.substring(baseIndent.length)
+              : line.substring(_leadingHorizontalWhitespaceLength(line));
+          return '$baseIndent${template.bodyIndent}$unindented';
+        })
+        .join('\n');
+
+    final openingText = '$baseIndent${template.openingLine}\n';
+    final closingText = '\n$baseIndent${template.closingLine}';
+    return _SurroundReplacement(
+      text: '$openingText$bodyText$closingText',
+      bodyStart: openingText.length,
+      bodyEnd: openingText.length + bodyText.length,
+    );
+  }
+
+  String _baseIndentForSurround(String selectedText) {
+    for (final line in selectedText.split('\n')) {
+      if (line.trim().isEmpty) {
+        continue;
+      }
+      return line.substring(0, _leadingHorizontalWhitespaceLength(line));
+    }
+    return '';
+  }
+
   _CommentLineRange _lineRangeForCommentToggle() {
     final lineCount = _document.lines.length;
     final startPosition = _document.positionForOffset(_selection.start);
@@ -1356,4 +1462,16 @@ class _LineMoveRange {
 
   final int startLine;
   final int endLine;
+}
+
+class _SurroundReplacement {
+  const _SurroundReplacement({
+    required this.text,
+    required this.bodyStart,
+    required this.bodyEnd,
+  });
+
+  final String text;
+  final int bodyStart;
+  final int bodyEnd;
 }

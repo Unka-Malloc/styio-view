@@ -163,6 +163,39 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   @override
+  List<SurroundTemplate> surroundTemplatesAt(
+    DocumentState document,
+    SourceRange range,
+  ) {
+    final normalizedStart = range.start.clamp(0, document.length);
+    final normalizedEnd = range.end.clamp(normalizedStart, document.length);
+    final selectedText = document.text.substring(
+      normalizedStart,
+      normalizedEnd,
+    );
+    if (selectedText.trim().isEmpty) {
+      return const <SurroundTemplate>[];
+    }
+
+    return const <SurroundTemplate>[
+      SurroundTemplate(
+        id: 'styio.task-block',
+        label: 'task block',
+        openingLine: '||> {',
+        closingLine: '}',
+        detail: 'Surround selected Styio statements with a task block.',
+      ),
+      SurroundTemplate(
+        id: 'styio.function-literal',
+        label: 'function literal',
+        openingLine: '#() => {',
+        closingLine: '}',
+        detail: 'Wrap selected statements in a Styio function literal.',
+      ),
+    ];
+  }
+
+  @override
   HoverPayload? hoverAt(DocumentState document, int offset) {
     final token = _syntaxHighlighter.tokenAt(document.text, offset);
     if (token == null) {

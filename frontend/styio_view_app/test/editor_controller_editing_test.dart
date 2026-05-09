@@ -183,6 +183,87 @@ void main() {
     expect(controller.document.text, text);
   });
 
+  test('surrounds the current statement with a Styio task block', () {
+    const text = 'fn main() {\n  value = 1\n  next = 2\n}\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('value') + 2),
+    );
+
+    final taskTemplate = controller.surroundTemplatesAtSelection.firstWhere(
+      (template) => template.id == 'styio.task-block',
+    );
+
+    expect(controller.applySurroundTemplateAtSelection(taskTemplate), isTrue);
+    expect(
+      controller.document.text,
+      'fn main() {\n  ||> {\n    value = 1\n  }\n  next = 2\n}\n',
+    );
+    expect(
+      controller.document.text.substring(
+        controller.selection.start,
+        controller.selection.end,
+      ),
+      '    value = 1',
+    );
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, text);
+  });
+
+  test('surrounds selected statements as an indented block', () {
+    const text = 'fn main() {\n  value = 1\n  next = 2\n}\n';
+    final start = text.indexOf('value');
+    final end = text.indexOf('next') + 'next = 2'.length;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(baseOffset: start, extentOffset: end),
+    );
+
+    final taskTemplate = controller.surroundTemplatesAtSelection.firstWhere(
+      (template) => template.id == 'styio.task-block',
+    );
+
+    expect(controller.applySurroundTemplateAtSelection(taskTemplate), isTrue);
+    expect(
+      controller.document.text,
+      'fn main() {\n  ||> {\n    value = 1\n    next = 2\n  }\n}\n',
+    );
+    expect(
+      controller.document.text.substring(
+        controller.selection.start,
+        controller.selection.end,
+      ),
+      '    value = 1\n    next = 2',
+    );
+  });
+
+  test('does not offer surround templates for blank statements', () {
+    const text = 'fn main() {\n  \n}\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('\n  \n') + 3),
+    );
+
+    expect(controller.surroundTemplatesAtSelection, isEmpty);
+  });
+
   test('toggles line comments for the current line', () {
     const text = 'value = 1\nnext = 2\n';
     final controller = EditorSessionController(

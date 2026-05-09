@@ -8,6 +8,11 @@ abstract class StyioLanguageService {
 
   List<CompletionItem> completeAt(DocumentState document, int offset);
 
+  List<SurroundTemplate> surroundTemplatesAt(
+    DocumentState document,
+    SourceRange range,
+  );
+
   HoverPayload? hoverAt(DocumentState document, int offset);
 
   DefinitionTarget? definitionAt(DocumentState document, int offset);

@@ -130,6 +130,24 @@ class CompletionItem {
   final String detail;
 }
 
+class SurroundTemplate {
+  const SurroundTemplate({
+    required this.id,
+    required this.label,
+    required this.openingLine,
+    required this.closingLine,
+    this.bodyIndent = '  ',
+    this.detail = '',
+  });
+
+  final String id;
+  final String label;
+  final String openingLine;
+  final String closingLine;
+  final String bodyIndent;
+  final String detail;
+}
+
 class HoverPayload {
   const HoverPayload({required this.range, required this.markdown});
 

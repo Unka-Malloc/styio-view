@@ -343,7 +343,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   bool _quickDocumentationOpen = false;
   bool _parameterInfoOpen = false;
   bool _completionLookupOpen = false;
+  bool _surroundLookupOpen = false;
   int _completionLookupIndex = 0;
+  int _surroundLookupIndex = 0;
   String? _inlineRenameError;
 
   @override
@@ -407,6 +409,31 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _closeParameterInfo();
       return KeyEventResult.handled;
     }
+    if (_surroundLookupOpen) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          _closeSurroundLookup();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowDown:
+          _moveSurroundLookupSelection(1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowUp:
+          _moveSurroundLookupSelection(-1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+        case LogicalKeyboardKey.tab:
+          return _applySelectedSurroundTemplate()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        default:
+          if (!commandPressed && _isPlainTextCharacter(event.character)) {
+            setState(() {
+              _surroundLookupOpen = false;
+            });
+          }
+      }
+    }
     if (_completionLookupOpen) {
       switch (event.logicalKey) {
         case LogicalKeyboardKey.escape:
@@ -431,6 +458,14 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
             });
           }
       }
+    }
+
+    if (commandPressed &&
+        altPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyT) {
+      return _openSurroundLookup()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
     }
 
     if (commandPressed) {
@@ -762,6 +797,67 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _focusNode.requestFocus();
   }
 
+  bool _openSurroundLookup() {
+    if (widget.controller.surroundTemplatesAtSelection.isEmpty) {
+      return false;
+    }
+    setState(() {
+      _surroundLookupOpen = true;
+      _surroundLookupIndex = 0;
+    });
+    return true;
+  }
+
+  void _closeSurroundLookup() {
+    setState(() {
+      _surroundLookupOpen = false;
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _moveSurroundLookupSelection(int delta) {
+    final templates = widget.controller.surroundTemplatesAtSelection;
+    if (templates.isEmpty) {
+      _closeSurroundLookup();
+      return;
+    }
+    setState(() {
+      _surroundLookupIndex = (_surroundLookupIndex + delta) % templates.length;
+      if (_surroundLookupIndex < 0) {
+        _surroundLookupIndex += templates.length;
+      }
+    });
+  }
+
+  bool _applySelectedSurroundTemplate() {
+    final templates = widget.controller.surroundTemplatesAtSelection;
+    if (templates.isEmpty) {
+      _closeSurroundLookup();
+      return false;
+    }
+    final selectedIndex = _surroundLookupIndex
+        .clamp(0, templates.length - 1)
+        .toInt();
+    widget.controller.applySurroundTemplateAtSelection(
+      templates[selectedIndex],
+    );
+    setState(() {
+      _surroundLookupOpen = false;
+      _surroundLookupIndex = 0;
+    });
+    _focusNode.requestFocus();
+    return true;
+  }
+
+  void _applySurroundTemplateFromLookup(SurroundTemplate template) {
+    widget.controller.applySurroundTemplateAtSelection(template);
+    setState(() {
+      _surroundLookupOpen = false;
+      _surroundLookupIndex = 0;
+    });
+    _focusNode.requestFocus();
+  }
+
   void _handleLineTapDown(int lineIndex, TapDownDetails details) {
     _focusNode.requestFocus();
     _dragBaseOffset = null;
@@ -899,6 +995,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                       children: [
                         if (_inlineRenameOpen) ...[
                           _buildInlineRenamePanel(context),
+                          const SizedBox(height: 12),
+                        ],
+                        if (_surroundLookupOpen) ...[
+                          _buildSurroundLookupPanel(context),
                           const SizedBox(height: 12),
                         ],
                         if (_completionLookupOpen) ...[
@@ -1274,6 +1374,79 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     );
   }
 
+  Widget _buildSurroundLookupPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final templates = widget.controller.surroundTemplatesAtSelection;
+    final selectedIndex = templates.isEmpty
+        ? -1
+        : _surroundLookupIndex.clamp(0, templates.length - 1).toInt();
+
+    return Material(
+      key: const ValueKey('source-surround-lookup'),
+      color: const Color(0xFFFDF8EE),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.data_object_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Surround With',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _InlineActionChip(
+                  key: const ValueKey('source-surround-close'),
+                  icon: Icons.close_rounded,
+                  label: 'Close',
+                  onTap: _closeSurroundLookup,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (templates.isEmpty)
+              Text(
+                'No surround templates at the current selection.',
+                style: theme.textTheme.bodySmall,
+              )
+            else ...[
+              Text(
+                '${templates.length} Styio surround template'
+                '${templates.length == 1 ? '' : 's'}',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              for (var index = 0; index < templates.length; index += 1) ...[
+                _SurroundTemplateTile(
+                  key: ValueKey('source-surround-template-$index'),
+                  template: templates[index],
+                  selected: index == selectedIndex,
+                  onTap: () =>
+                      _applySurroundTemplateFromLookup(templates[index]),
+                ),
+                if (index < templates.length - 1) const SizedBox(height: 6),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildParameterInfoPanel(BuildContext context) {
     final theme = Theme.of(context);
     final parameterInfo = widget.controller.parameterInfoAtSelection;
@@ -1515,6 +1688,74 @@ class _CompletionLookupTile extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         item.detail,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SurroundTemplateTile extends StatelessWidget {
+  const _SurroundTemplateTile({
+    super.key,
+    required this.template,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final SurroundTemplate template;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: selected ? const Color(0xFFE6E0F5) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                selected
+                    ? Icons.keyboard_return_rounded
+                    : Icons.data_object_rounded,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      template.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    if (template.detail.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        template.detail,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall,

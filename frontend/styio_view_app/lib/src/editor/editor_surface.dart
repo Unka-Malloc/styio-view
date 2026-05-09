@@ -619,6 +619,15 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         widget.controller.insertNewline();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.tab:
+        if (shiftPressed) {
+          return widget.controller.outdentLineOrSelection()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        }
+        if (widget.controller.shouldIndentLineAtSelection &&
+            widget.controller.indentLineOrSelection()) {
+          return KeyEventResult.handled;
+        }
         if (!shiftPressed &&
             widget.controller.applyTokenCompletionAtSelection()) {
           return KeyEventResult.handled;

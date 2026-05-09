@@ -127,6 +127,8 @@ class EditorSessionController extends ChangeNotifier {
 
   bool get canUndo => _undoStack.isNotEmpty;
   bool get canRedo => _redoStack.isNotEmpty;
+  bool get shouldIndentLineAtSelection =>
+      !_selection.isCollapsed || _isCaretWithinLeadingIndent();
 
   void loadDocument(DocumentState document) {
     _document = document;
@@ -268,6 +270,14 @@ class EditorSessionController extends ChangeNotifier {
     _redoStack.clear();
     notifyListeners();
     return true;
+  }
+
+  bool indentLineOrSelection() {
+    return _shiftIndentLineOrSelection(indent: true);
+  }
+
+  bool outdentLineOrSelection() {
+    return _shiftIndentLineOrSelection(indent: false);
   }
 
   bool deleteLineAtSelection() {
@@ -1063,6 +1073,156 @@ class EditorSessionController extends ChangeNotifier {
       return _isBlockOpeningPair(_document.text[index]);
     }
     return false;
+  }
+
+  bool _isCaretWithinLeadingIndent() {
+    if (!_selection.isCollapsed) {
+      return false;
+    }
+
+    final position = _document.positionForOffset(_selection.end);
+    final lineText = _document.lines[position.line];
+    return position.column <= _leadingHorizontalWhitespaceLength(lineText);
+  }
+
+  bool _shiftIndentLineOrSelection({required bool indent}) {
+    final logicalLines = _logicalLinesForDocument(_document);
+    if (logicalLines.isEmpty) {
+      return false;
+    }
+
+    final lineRange = _lineRangeForSelectionAction(logicalLines.length);
+    final edits = <FormattingEdit>[];
+    for (
+      var lineIndex = lineRange.startLine;
+      lineIndex <= lineRange.endLine;
+      lineIndex += 1
+    ) {
+      final lineStart = _offsetForLogicalLineStart(_document, lineIndex);
+      if (indent) {
+        edits.add(
+          FormattingEdit(
+            range: SourceRange(start: lineStart, end: lineStart),
+            newText: '  ',
+          ),
+        );
+        continue;
+      }
+
+      final removeLength = _lineOutdentLength(_document.lines[lineIndex]);
+      if (removeLength > 0) {
+        edits.add(
+          FormattingEdit(
+            range: SourceRange(start: lineStart, end: lineStart + removeLength),
+            newText: '',
+          ),
+        );
+      }
+    }
+
+    if (edits.isEmpty) {
+      return false;
+    }
+
+    _applyLineIndentEdits(edits);
+    return true;
+  }
+
+  void _applyLineIndentEdits(List<FormattingEdit> edits) {
+    final editsAscending = edits.toList(growable: false)
+      ..sort((left, right) => left.range.start.compareTo(right.range.start));
+    final editsDescending = editsAscending.reversed.toList(growable: false);
+    final moveAtInsertion = _selection.isCollapsed;
+    final nextBaseOffset = _transformLineIndentOffset(
+      _selection.baseOffset,
+      editsAscending,
+      moveAtInsertion: moveAtInsertion,
+    );
+    final nextExtentOffset = _transformLineIndentOffset(
+      _selection.extentOffset,
+      editsAscending,
+      moveAtInsertion: moveAtInsertion,
+    );
+
+    _structuredSelectionStack.clear();
+    _pushUndoSnapshot();
+
+    var nextDocument = _document;
+    for (final edit in editsDescending) {
+      nextDocument = nextDocument.replaceRange(
+        start: edit.range.start,
+        end: edit.range.end,
+        replacement: edit.newText,
+      );
+    }
+
+    _document = nextDocument;
+    _selection = SelectionState(
+      baseOffset: nextBaseOffset.clamp(0, _document.length),
+      extentOffset: nextExtentOffset.clamp(0, _document.length),
+    );
+    _refreshAnalysis();
+    _redoStack.clear();
+    notifyListeners();
+  }
+
+  int _transformLineIndentOffset(
+    int offset,
+    List<FormattingEdit> editsAscending, {
+    required bool moveAtInsertion,
+  }) {
+    var delta = 0;
+    for (final edit in editsAscending) {
+      final start = edit.range.start;
+      final end = edit.range.end;
+      final replacementLength = edit.newText.length;
+      final originalLength = end - start;
+
+      if (offset < start) {
+        break;
+      }
+
+      if (originalLength == 0) {
+        if (offset == start) {
+          if (moveAtInsertion) {
+            delta += replacementLength;
+          }
+          continue;
+        }
+        delta += replacementLength;
+        continue;
+      }
+
+      if (offset <= end) {
+        final relativeOffset = offset - start;
+        final clampedRelativeOffset = relativeOffset.clamp(
+          0,
+          replacementLength,
+        );
+        return start + delta + clampedRelativeOffset;
+      }
+
+      delta += replacementLength - originalLength;
+    }
+
+    return offset + delta;
+  }
+
+  int _lineOutdentLength(String lineText) {
+    if (lineText.isEmpty) {
+      return 0;
+    }
+    if (lineText.codeUnitAt(0) == 0x09) {
+      return 1;
+    }
+
+    var spaces = 0;
+    while (spaces < lineText.length &&
+        spaces < 2 &&
+        lineText.codeUnitAt(spaces) == 0x20) {
+      spaces += 1;
+    }
+    return spaces;
   }
 
   void undo() {

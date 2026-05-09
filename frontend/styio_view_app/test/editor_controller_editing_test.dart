@@ -313,6 +313,70 @@ void main() {
     expect(controller.selection.end, '  ||> {\n    '.length);
   });
 
+  test('indents and outdents the current line preserving caret column', () {
+    const text = 'alpha\nbeta\n';
+    final caretOffset = text.indexOf('beta') + 2;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(caretOffset),
+    );
+
+    expect(controller.indentLineOrSelection(), isTrue);
+    expect(controller.document.text, 'alpha\n  beta\n');
+    expect(controller.selection.end, caretOffset + 2);
+    expect(controller.canUndo, isTrue);
+
+    expect(controller.outdentLineOrSelection(), isTrue);
+    expect(controller.document.text, text);
+    expect(controller.selection.end, caretOffset);
+  });
+
+  test('indents and outdents selected lines as a block', () {
+    const text = 'one\ntwo\nthree\n';
+    final start = text.indexOf('two');
+    final end = text.indexOf('three') + 'three'.length;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(baseOffset: start, extentOffset: end),
+    );
+
+    expect(controller.indentLineOrSelection(), isTrue);
+    expect(controller.document.text, 'one\n  two\n  three\n');
+    expect(controller.selection.start, start);
+    expect(controller.selection.end, 'one\n  two\n  three'.length);
+
+    expect(controller.outdentLineOrSelection(), isTrue);
+    expect(controller.document.text, text);
+    expect(controller.selection.start, start);
+    expect(controller.selection.end, end);
+  });
+
+  test('does not create undo entries when outdent has no line indent', () {
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: 'alpha',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(2),
+    );
+
+    expect(controller.outdentLineOrSelection(), isFalse);
+    expect(controller.document.text, 'alpha');
+    expect(controller.canUndo, isFalse);
+  });
+
   test('inserts paired braces with the caret between them', () {
     const text = 'fn main() ';
     final controller = EditorSessionController(

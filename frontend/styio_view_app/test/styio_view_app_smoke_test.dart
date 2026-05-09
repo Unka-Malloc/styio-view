@@ -1469,6 +1469,51 @@ void main() {
     expect(bootstrap.editorController.canUndo, isTrue);
   });
 
+  testWidgets('indents and outdents current line from source keymap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'alpha\nbeta\n';
+    final lineStart = text.indexOf('beta');
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'indent-line-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(lineStart);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text, 'alpha\n  beta\n');
+    expect(bootstrap.editorController.selection.end, lineStart + 2);
+    expect(bootstrap.editorController.canUndo, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text, text);
+    expect(bootstrap.editorController.selection.end, lineStart);
+  });
+
   testWidgets('applies best completion from source keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

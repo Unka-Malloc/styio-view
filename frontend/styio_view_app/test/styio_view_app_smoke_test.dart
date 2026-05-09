@@ -1094,6 +1094,44 @@ void main() {
     expect(bootstrap.editorController.canUndo, isTrue);
   });
 
+  testWidgets('moves current line from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'alpha\nbeta\ngamma\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'move-line-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('beta') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text, 'alpha\ngamma\nbeta\n');
+    expect(bootstrap.editorController.selection.end, 14);
+    expect(bootstrap.editorController.canUndo, isTrue);
+  });
+
   testWidgets('opens parameter info from editor keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

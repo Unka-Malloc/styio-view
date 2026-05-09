@@ -186,6 +186,102 @@ void main() {
     expect(controller.selection.end, start + 8);
   });
 
+  test('moves the current line while preserving caret column', () {
+    const text = 'alpha\nbeta\ngamma\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('beta') + 2),
+    );
+
+    expect(controller.moveLineOrSelection(down: false), isTrue);
+    expect(controller.document.text, 'beta\nalpha\ngamma\n');
+    expect(controller.selection.end, 2);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, text);
+    expect(controller.selection.end, text.indexOf('beta') + 2);
+
+    expect(controller.moveLineOrSelection(down: true), isTrue);
+    expect(controller.document.text, 'alpha\ngamma\nbeta\n');
+    expect(
+      controller.selection.end,
+      controller.document.text.indexOf('beta') + 2,
+    );
+  });
+
+  test('moves selected lines as a block', () {
+    const text = 'one\ntwo\nthree\nfour\n';
+    final start = text.indexOf('two');
+    final end = text.indexOf('three') + 'three'.length;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(baseOffset: start, extentOffset: end),
+    );
+
+    expect(controller.moveLineOrSelection(down: false), isTrue);
+    expect(controller.document.text, 'two\nthree\none\nfour\n');
+    expect(controller.selection.start, 0);
+    expect(controller.selection.end, 'two\nthree'.length);
+  });
+
+  test('moves lines without adding a trailing newline', () {
+    const text = 'alpha\nbeta';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('beta') + 1),
+    );
+
+    expect(controller.moveLineOrSelection(down: false), isTrue);
+    expect(controller.document.text, 'beta\nalpha');
+    expect(controller.selection.end, 1);
+
+    controller.undo();
+    controller.selectCollapsed(1);
+    expect(controller.moveLineOrSelection(down: true), isTrue);
+    expect(controller.document.text, 'beta\nalpha');
+    expect(
+      controller.selection.end,
+      controller.document.text.indexOf('alpha') + 1,
+    );
+  });
+
+  test('does not move lines beyond document boundaries', () {
+    const text = 'alpha\nbeta\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(0),
+    );
+
+    expect(controller.moveLineOrSelection(down: false), isFalse);
+    expect(controller.document.text, text);
+
+    controller.selectCollapsed(text.indexOf('beta') + 1);
+    expect(controller.moveLineOrSelection(down: true), isFalse);
+    expect(controller.document.text, text);
+    expect(controller.canUndo, isFalse);
+  });
+
   test(
     'toggles line comments across selected lines preserving indentation',
     () {

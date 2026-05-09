@@ -274,6 +274,95 @@ class EditorSessionController extends ChangeNotifier {
     return true;
   }
 
+  bool moveLineOrSelection({required bool down}) {
+    final logicalLines = _logicalLinesForDocument(_document);
+    if (logicalLines.length <= 1) {
+      return false;
+    }
+
+    final lineRange = _lineRangeForMoveAction(logicalLines.length);
+    final canMove = down
+        ? lineRange.endLine < logicalLines.length - 1
+        : lineRange.startLine > 0;
+    if (!canMove) {
+      return false;
+    }
+
+    final nextLines = <String>[];
+    if (down) {
+      nextLines
+        ..addAll(logicalLines.take(lineRange.startLine))
+        ..add(logicalLines[lineRange.endLine + 1])
+        ..addAll(
+          logicalLines.sublist(lineRange.startLine, lineRange.endLine + 1),
+        )
+        ..addAll(logicalLines.skip(lineRange.endLine + 2));
+    } else {
+      nextLines
+        ..addAll(logicalLines.take(lineRange.startLine - 1))
+        ..addAll(
+          logicalLines.sublist(lineRange.startLine, lineRange.endLine + 1),
+        )
+        ..add(logicalLines[lineRange.startLine - 1])
+        ..addAll(logicalLines.skip(lineRange.endLine + 1));
+    }
+
+    final nextText =
+        nextLines.join('\n') + (_document.text.endsWith('\n') ? '\n' : '');
+    if (nextText == _document.text) {
+      return false;
+    }
+
+    final oldDocument = _document;
+    final oldBlockStart = _offsetForLogicalLineStart(
+      oldDocument,
+      lineRange.startLine,
+    );
+    final oldBlockEnd = _offsetAfterLogicalLine(
+      oldDocument,
+      lineRange.endLine,
+      logicalLines.length,
+    );
+
+    _structuredSelectionStack.clear();
+    _pushUndoSnapshot();
+    _document = _document.replaceRange(
+      start: 0,
+      end: _document.length,
+      replacement: nextText,
+    );
+
+    final nextLogicalLineCount = _logicalLinesForDocument(_document).length;
+    _selection = SelectionState(
+      baseOffset: _transformLineMoveOffset(
+        _selection.baseOffset,
+        oldDocument: oldDocument,
+        nextDocument: _document,
+        lineRange: lineRange,
+        oldLogicalLineCount: logicalLines.length,
+        nextLogicalLineCount: nextLogicalLineCount,
+        oldBlockStart: oldBlockStart,
+        oldBlockEnd: oldBlockEnd,
+        down: down,
+      ),
+      extentOffset: _transformLineMoveOffset(
+        _selection.extentOffset,
+        oldDocument: oldDocument,
+        nextDocument: _document,
+        lineRange: lineRange,
+        oldLogicalLineCount: logicalLines.length,
+        nextLogicalLineCount: nextLogicalLineCount,
+        oldBlockStart: oldBlockStart,
+        oldBlockEnd: oldBlockEnd,
+        down: down,
+      ),
+    );
+    _refreshAnalysis();
+    _redoStack.clear();
+    notifyListeners();
+    return true;
+  }
+
   void moveCaretHorizontally(int delta, {bool expandSelection = false}) {
     if (delta == 0) {
       return;
@@ -838,6 +927,101 @@ class EditorSessionController extends ChangeNotifier {
     );
   }
 
+  _LineMoveRange _lineRangeForMoveAction(int logicalLineCount) {
+    final startPosition = _document.positionForOffset(_selection.start);
+    var endOffset = _selection.end;
+    if (!_selection.isCollapsed && endOffset > _selection.start) {
+      final endPosition = _document.positionForOffset(endOffset);
+      if (endPosition.column == 0 && endPosition.line > startPosition.line) {
+        endOffset -= 1;
+      }
+    }
+
+    final endPosition = _document.positionForOffset(endOffset);
+    return _LineMoveRange(
+      startLine: startPosition.line.clamp(0, logicalLineCount - 1).toInt(),
+      endLine: endPosition.line.clamp(0, logicalLineCount - 1).toInt(),
+    );
+  }
+
+  List<String> _logicalLinesForDocument(DocumentState document) {
+    final lines = document.lines;
+    if (document.text.endsWith('\n') && lines.length > 1) {
+      return lines.sublist(0, lines.length - 1);
+    }
+    return lines;
+  }
+
+  int _offsetForLogicalLineStart(DocumentState document, int line) {
+    return document.lineStarts[line.clamp(0, document.lineStarts.length - 1)];
+  }
+
+  int _offsetAfterLogicalLine(
+    DocumentState document,
+    int line,
+    int logicalLineCount,
+  ) {
+    if (line < logicalLineCount - 1) {
+      return _offsetForLogicalLineStart(document, line + 1);
+    }
+    return document.length;
+  }
+
+  int _transformLineMoveOffset(
+    int offset, {
+    required DocumentState oldDocument,
+    required DocumentState nextDocument,
+    required _LineMoveRange lineRange,
+    required int oldLogicalLineCount,
+    required int nextLogicalLineCount,
+    required int oldBlockStart,
+    required int oldBlockEnd,
+    required bool down,
+  }) {
+    final safeOffset = offset.clamp(0, oldDocument.length).toInt();
+    final newBlockStartLine = lineRange.startLine + (down ? 1 : -1);
+    final newBlockEndLine = lineRange.endLine + (down ? 1 : -1);
+    final newBlockStart = _offsetForLogicalLineStart(
+      nextDocument,
+      newBlockStartLine,
+    );
+    final newBlockEnd = _offsetAfterLogicalLine(
+      nextDocument,
+      newBlockEndLine,
+      nextLogicalLineCount,
+    );
+
+    if (safeOffset >= oldBlockStart && safeOffset <= oldBlockEnd) {
+      return (newBlockStart + safeOffset - oldBlockStart)
+          .clamp(newBlockStart, newBlockEnd)
+          .toInt();
+    }
+
+    final oldPosition = oldDocument.positionForOffset(safeOffset);
+    final oldLine = oldPosition.line.clamp(0, oldLogicalLineCount - 1).toInt();
+    var newLine = oldLine;
+    if (down) {
+      if (oldLine == lineRange.endLine + 1) {
+        newLine = lineRange.startLine;
+      } else if (oldLine >= lineRange.startLine &&
+          oldLine <= lineRange.endLine) {
+        newLine = oldLine + 1;
+      }
+    } else {
+      if (oldLine == lineRange.startLine - 1) {
+        newLine = lineRange.endLine;
+      } else if (oldLine >= lineRange.startLine &&
+          oldLine <= lineRange.endLine) {
+        newLine = oldLine - 1;
+      }
+    }
+
+    return nextDocument
+        .offsetForLineColumn(line: newLine, column: oldPosition.column)
+        .clamp(0, nextDocument.length)
+        .toInt();
+  }
+
   int? _lineCommentPrefixOffset({
     required String lineText,
     required int lineStart,
@@ -1000,6 +1184,13 @@ class _EditorSnapshot {
 
 class _CommentLineRange {
   const _CommentLineRange({required this.startLine, required this.endLine});
+
+  final int startLine;
+  final int endLine;
+}
+
+class _LineMoveRange {
+  const _LineMoveRange({required this.startLine, required this.endLine});
 
   final int startLine;
   final int endLine;

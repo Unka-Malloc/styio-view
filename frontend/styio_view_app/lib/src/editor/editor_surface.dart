@@ -491,6 +491,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
+    if (altPressed && shiftPressed) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.arrowUp:
+          return widget.controller.moveLineOrSelection(down: false)
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        case LogicalKeyboardKey.arrowDown:
+          return widget.controller.moveLineOrSelection(down: true)
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+      }
+    }
 
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowLeft:

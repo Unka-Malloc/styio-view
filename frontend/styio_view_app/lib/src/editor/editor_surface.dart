@@ -1933,6 +1933,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     final selectedIndex = completions.isEmpty
         ? -1
         : _completionLookupIndex.clamp(0, completions.length - 1).toInt();
+    final selectedCompletion = selectedIndex < 0
+        ? null
+        : completions[selectedIndex];
 
     return Material(
       key: const ValueKey('source-completion-lookup'),
@@ -1992,9 +1995,62 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                 ),
                 if (index < completions.length - 1) const SizedBox(height: 6),
               ],
+              if (selectedCompletion != null) ...[
+                const SizedBox(height: 10),
+                _buildCompletionPreviewPanel(context, selectedCompletion),
+              ],
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCompletionPreviewPanel(
+    BuildContext context,
+    CompletionItem item,
+  ) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('source-completion-preview'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F2E9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFD8D0C2)),
+      ),
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            item.label,
+            key: const ValueKey('source-completion-preview-title'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall!.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            item.detail.isEmpty ? '${item.kind.name} completion' : item.detail,
+            key: const ValueKey('source-completion-preview-detail'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Insert ${_formatPreviewText(item.insertText)}',
+            key: const ValueKey('source-completion-preview-insert'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall!.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

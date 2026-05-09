@@ -2063,6 +2063,26 @@ value = blend(price, tax)
     );
     expect(find.text('Code Completion'), findsOneWidget);
     expect(find.text('job · variable'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('source-completion-preview')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('source-completion-preview-detail')),
+          )
+          .data,
+      'Current file variable symbol.',
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('source-completion-preview-insert')),
+          )
+          .data,
+      'Insert `job`',
+    );
     expect(bootstrap.editorController.document.text, text);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -2075,6 +2095,75 @@ value = blend(price, tax)
     expect(
       find.byKey(const ValueKey('source-completion-lookup')),
       findsNothing,
+    );
+  });
+
+  testWidgets('updates completion preview from keyboard selection', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'completion-preview-keymap.styio',
+        text: '',
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('source-completion-preview-title')),
+          )
+          .data,
+      '@import',
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('source-completion-preview-detail')),
+          )
+          .data,
+      'Declare a top-level Styio import.',
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('source-completion-preview-title')),
+          )
+          .data,
+      '#function',
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('source-completion-preview-insert')),
+          )
+          .data,
+      'Insert `#main := () => {\\n  <| 0\\n}`',
     );
   });
 

@@ -342,6 +342,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   bool _usagesPanelOpen = false;
   bool _quickDocumentationOpen = false;
   bool _parameterInfoOpen = false;
+  bool _completionLookupOpen = false;
+  int _completionLookupIndex = 0;
   String? _inlineRenameError;
 
   @override
@@ -405,6 +407,31 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _closeParameterInfo();
       return KeyEventResult.handled;
     }
+    if (_completionLookupOpen) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          _closeCompletionLookup();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowDown:
+          _moveCompletionLookupSelection(1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowUp:
+          _moveCompletionLookupSelection(-1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+        case LogicalKeyboardKey.tab:
+          return _applySelectedCompletion()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        default:
+          if (!commandPressed && _isPlainTextCharacter(event.character)) {
+            setState(() {
+              _completionLookupOpen = false;
+            });
+          }
+      }
+    }
 
     if (commandPressed) {
       switch (event.logicalKey) {
@@ -413,6 +440,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
         case LogicalKeyboardKey.space:
+          return _openCompletionLookup()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
         case LogicalKeyboardKey.keyJ:
           return widget.controller.applyBestCompletionAtSelection()
               ? KeyEventResult.handled
@@ -649,6 +679,64 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _focusNode.requestFocus();
   }
 
+  bool _openCompletionLookup() {
+    if (widget.completions.isEmpty) {
+      return false;
+    }
+    setState(() {
+      _completionLookupOpen = true;
+      _completionLookupIndex = 0;
+    });
+    return true;
+  }
+
+  void _closeCompletionLookup() {
+    setState(() {
+      _completionLookupOpen = false;
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _moveCompletionLookupSelection(int delta) {
+    if (widget.completions.isEmpty) {
+      _closeCompletionLookup();
+      return;
+    }
+    setState(() {
+      _completionLookupIndex =
+          (_completionLookupIndex + delta) % widget.completions.length;
+      if (_completionLookupIndex < 0) {
+        _completionLookupIndex += widget.completions.length;
+      }
+    });
+  }
+
+  bool _applySelectedCompletion() {
+    if (widget.completions.isEmpty) {
+      _closeCompletionLookup();
+      return false;
+    }
+    final selectedIndex = _completionLookupIndex
+        .clamp(0, widget.completions.length - 1)
+        .toInt();
+    widget.controller.applyCompletionItem(widget.completions[selectedIndex]);
+    setState(() {
+      _completionLookupOpen = false;
+      _completionLookupIndex = 0;
+    });
+    _focusNode.requestFocus();
+    return true;
+  }
+
+  void _applyCompletionFromLookup(CompletionItem item) {
+    widget.controller.applyCompletionItem(item);
+    setState(() {
+      _completionLookupOpen = false;
+      _completionLookupIndex = 0;
+    });
+    _focusNode.requestFocus();
+  }
+
   void _handleLineTapDown(int lineIndex, TapDownDetails details) {
     _focusNode.requestFocus();
     _dragBaseOffset = null;
@@ -786,6 +874,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                       children: [
                         if (_inlineRenameOpen) ...[
                           _buildInlineRenamePanel(context),
+                          const SizedBox(height: 12),
+                        ],
+                        if (_completionLookupOpen) ...[
+                          _buildCompletionLookupPanel(context),
                           const SizedBox(height: 12),
                         ],
                         if (_quickDocumentationOpen) ...[
@@ -1085,6 +1177,78 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     );
   }
 
+  Widget _buildCompletionLookupPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final completions = widget.completions;
+    final selectedIndex = completions.isEmpty
+        ? -1
+        : _completionLookupIndex.clamp(0, completions.length - 1).toInt();
+
+    return Material(
+      key: const ValueKey('source-completion-lookup'),
+      color: const Color(0xFFFDF8EE),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Code Completion',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _InlineActionChip(
+                  key: const ValueKey('source-completion-close'),
+                  icon: Icons.close_rounded,
+                  label: 'Close',
+                  onTap: _closeCompletionLookup,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (completions.isEmpty)
+              Text(
+                'No completion items at the current caret.',
+                style: theme.textTheme.bodySmall,
+              )
+            else ...[
+              Text(
+                '${completions.length} current-file suggestion'
+                '${completions.length == 1 ? '' : 's'}',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              for (var index = 0; index < completions.length; index += 1) ...[
+                _CompletionLookupTile(
+                  key: ValueKey('source-completion-item-$index'),
+                  item: completions[index],
+                  selected: index == selectedIndex,
+                  onTap: () => _applyCompletionFromLookup(completions[index]),
+                ),
+                if (index < completions.length - 1) const SizedBox(height: 6),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildParameterInfoPanel(BuildContext context) {
     final theme = Theme.of(context);
     final parameterInfo = widget.controller.parameterInfoAtSelection;
@@ -1263,6 +1427,74 @@ class _UsageResultTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,
                     ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompletionLookupTile extends StatelessWidget {
+  const _CompletionLookupTile({
+    super.key,
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final CompletionItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: selected ? const Color(0xFFE6E0F5) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                selected
+                    ? Icons.keyboard_return_rounded
+                    : Icons.auto_awesome_rounded,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${item.label} · ${item.kind.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    if (item.detail.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        item.detail,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
               ),

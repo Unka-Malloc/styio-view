@@ -264,6 +264,42 @@ void main() {
     expect(controller.surroundTemplatesAtSelection, isEmpty);
   });
 
+  test('moves caret between matching braces', () {
+    const text = 'fn main() {\n  ||> {\n    value = [1]\n  }\n}\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('[')),
+    );
+
+    expect(controller.moveCaretToMatchingBrace(), isTrue);
+    expect(controller.selection.end, text.indexOf(']') + 1);
+
+    expect(controller.moveCaretToMatchingBrace(), isTrue);
+    expect(controller.selection.end, text.indexOf('['));
+  });
+
+  test('moves from nested content to the previous unclosed brace', () {
+    const text = 'fn main() {\n  ||> {\n    value = 1\n  }\n}\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('value')),
+    );
+
+    expect(controller.moveCaretToMatchingBrace(), isTrue);
+    expect(controller.selection.end, text.indexOf('{', text.indexOf('||>')));
+    expect(controller.canUndo, isFalse);
+  });
+
   test('toggles line comments for the current line', () {
     const text = 'value = 1\nnext = 2\n';
     final controller = EditorSessionController(

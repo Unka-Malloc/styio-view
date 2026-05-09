@@ -587,6 +587,15 @@ class EditorSessionController extends ChangeNotifier {
     return true;
   }
 
+  bool moveCaretToMatchingBrace() {
+    final targetOffset = _matchingBraceTargetOffset();
+    if (targetOffset == null) {
+      return false;
+    }
+    selectCollapsed(targetOffset);
+    return true;
+  }
+
   void applyFormattingEdits(Iterable<FormattingEdit> edits) {
     final normalizedEdits = edits.toList(growable: false);
     if (normalizedEdits.isEmpty) {
@@ -1104,6 +1113,144 @@ class EditorSessionController extends ChangeNotifier {
       return line.substring(0, _leadingHorizontalWhitespaceLength(line));
     }
     return '';
+  }
+
+  int? _matchingBraceTargetOffset() {
+    final token = _braceTokenAroundOffset(_selection.extentOffset);
+    if (token != null) {
+      return _matchingBraceOffsetForToken(token);
+    }
+    return _previousUnclosedOpeningBraceOffset(_selection.extentOffset);
+  }
+
+  TokenSpan? _braceTokenAroundOffset(int offset) {
+    final safeOffset = offset.clamp(0, _document.length);
+    TokenSpan? trailingBrace;
+    TokenSpan? leadingBrace;
+
+    for (final token in _analysis.tokenSpans) {
+      if (!_isBraceToken(token)) {
+        continue;
+      }
+      if (token.range.contains(safeOffset)) {
+        return token;
+      }
+      if (token.range.end == safeOffset) {
+        trailingBrace = token;
+      }
+      if (leadingBrace == null && token.range.start == safeOffset) {
+        leadingBrace = token;
+      }
+    }
+
+    return trailingBrace ?? leadingBrace;
+  }
+
+  int? _matchingBraceOffsetForToken(TokenSpan token) {
+    final lexeme = token.lexeme;
+    if (_isOpeningBrace(lexeme)) {
+      final closeLexeme = _matchingCloseBrace(lexeme);
+      var depth = 0;
+      for (final candidate in _analysis.tokenSpans) {
+        if (candidate.range.start < token.range.start ||
+            !_isBraceToken(candidate)) {
+          continue;
+        }
+        if (candidate.lexeme == lexeme) {
+          depth += 1;
+        } else if (candidate.lexeme == closeLexeme) {
+          depth -= 1;
+          if (depth == 0) {
+            return candidate.range.end;
+          }
+        }
+      }
+      return null;
+    }
+
+    if (_isClosingBrace(lexeme)) {
+      final openLexeme = _matchingOpenBrace(lexeme);
+      var depth = 0;
+      for (final candidate in _analysis.tokenSpans.reversed) {
+        if (candidate.range.end > token.range.end ||
+            !_isBraceToken(candidate)) {
+          continue;
+        }
+        if (candidate.lexeme == lexeme) {
+          depth += 1;
+        } else if (candidate.lexeme == openLexeme) {
+          depth -= 1;
+          if (depth == 0) {
+            return candidate.range.start;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  int? _previousUnclosedOpeningBraceOffset(int offset) {
+    final safeOffset = offset.clamp(0, _document.length);
+    final stack = <TokenSpan>[];
+
+    for (final token in _analysis.tokenSpans) {
+      if (token.range.start >= safeOffset) {
+        break;
+      }
+      if (!_isBraceToken(token)) {
+        continue;
+      }
+      if (_isOpeningBrace(token.lexeme)) {
+        stack.add(token);
+        continue;
+      }
+      if (stack.isEmpty) {
+        continue;
+      }
+      final last = stack.last;
+      if (_matchingCloseBrace(last.lexeme) == token.lexeme) {
+        stack.removeLast();
+      }
+    }
+
+    return stack.isEmpty ? null : stack.last.range.start;
+  }
+
+  bool _isBraceToken(TokenSpan token) {
+    return token.kind == TokenKind.punctuation &&
+        (token.lexeme == '{' ||
+            token.lexeme == '}' ||
+            token.lexeme == '(' ||
+            token.lexeme == ')' ||
+            token.lexeme == '[' ||
+            token.lexeme == ']');
+  }
+
+  bool _isOpeningBrace(String lexeme) {
+    return lexeme == '{' || lexeme == '(' || lexeme == '[';
+  }
+
+  bool _isClosingBrace(String lexeme) {
+    return lexeme == '}' || lexeme == ')' || lexeme == ']';
+  }
+
+  String? _matchingCloseBrace(String lexeme) {
+    return switch (lexeme) {
+      '{' => '}',
+      '(' => ')',
+      '[' => ']',
+      _ => null,
+    };
+  }
+
+  String? _matchingOpenBrace(String lexeme) {
+    return switch (lexeme) {
+      '}' => '{',
+      ')' => '(',
+      ']' => '[',
+      _ => null,
+    };
   }
 
   _CommentLineRange _lineRangeForCommentToggle() {

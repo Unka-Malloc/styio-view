@@ -488,6 +488,13 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                   : widget.controller.applyBestCompletionAtSelection())
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
+        case LogicalKeyboardKey.keyM:
+          if (!shiftPressed) {
+            return KeyEventResult.ignored;
+          }
+          return widget.controller.moveCaretToMatchingBrace()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
         case LogicalKeyboardKey.keyQ:
           return _openQuickDocumentation()
               ? KeyEventResult.handled

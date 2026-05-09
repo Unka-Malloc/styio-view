@@ -229,6 +229,36 @@ class EditorSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool deleteToWordBoundary({required bool forward}) {
+    if (_selection.isCollapsed) {
+      final boundary = forward
+          ? _nextCaretStopOffset(_selection.end)
+          : _previousCaretStopOffset(_selection.end);
+      if (boundary == _selection.end) {
+        return false;
+      }
+
+      _structuredSelectionStack.clear();
+      _pushUndoSnapshot();
+      _replaceRange(
+        start: forward ? _selection.end : boundary,
+        end: forward ? boundary : _selection.end,
+        replacement: '',
+        selectionOffset: forward ? _selection.end : boundary,
+      );
+      _redoStack.clear();
+      notifyListeners();
+      return true;
+    }
+
+    _structuredSelectionStack.clear();
+    _pushUndoSnapshot();
+    _replaceSelection('');
+    _redoStack.clear();
+    notifyListeners();
+    return true;
+  }
+
   bool deleteLineAtSelection() {
     final logicalLines = _logicalLinesForDocument(_document);
     if (logicalLines.isEmpty) {

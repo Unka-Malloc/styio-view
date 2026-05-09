@@ -478,6 +478,16 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           : KeyEventResult.ignored;
     }
 
+    if ((commandPressed || altPressed) &&
+        (event.logicalKey == LogicalKeyboardKey.backspace ||
+            event.logicalKey == LogicalKeyboardKey.delete)) {
+      return widget.controller.deleteToWordBoundary(
+            forward: event.logicalKey == LogicalKeyboardKey.delete,
+          )
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+
     if (commandPressed) {
       switch (event.logicalKey) {
         case LogicalKeyboardKey.keyB:

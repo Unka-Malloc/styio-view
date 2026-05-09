@@ -102,6 +102,73 @@ void main() {
     expect(controller.canUndo, isFalse);
   });
 
+  test('deletes to token-aware word boundaries', () {
+    const text = 'alpha beta';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(text.length),
+    );
+
+    expect(controller.deleteToWordBoundary(forward: false), isTrue);
+    expect(controller.document.text, 'alpha ');
+    expect(controller.selection.end, 'alpha '.length);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    controller.selectCollapsed(text.indexOf('beta'));
+
+    expect(controller.deleteToWordBoundary(forward: true), isTrue);
+    expect(controller.document.text, 'alpha ');
+    expect(controller.selection.end, text.indexOf('beta'));
+  });
+
+  test('deletes active selection through word-boundary delete action', () {
+    const text = 'alpha beta';
+    final start = text.indexOf('beta');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(
+        baseOffset: start,
+        extentOffset: text.length,
+      ),
+    );
+
+    expect(controller.deleteToWordBoundary(forward: false), isTrue);
+    expect(controller.document.text, 'alpha ');
+    expect(controller.selection.end, start);
+  });
+
+  test('does not create undo entries for word delete at document boundary', () {
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: 'alpha',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(0),
+    );
+
+    expect(controller.deleteToWordBoundary(forward: false), isFalse);
+    expect(controller.document.text, 'alpha');
+    expect(controller.canUndo, isFalse);
+
+    controller.selectCollapsed(controller.document.length);
+    expect(controller.deleteToWordBoundary(forward: true), isFalse);
+    expect(controller.document.text, 'alpha');
+    expect(controller.canUndo, isFalse);
+  });
+
   test('inserts and deletes forward at the caret', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(

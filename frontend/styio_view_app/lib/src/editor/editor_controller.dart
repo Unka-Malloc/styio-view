@@ -168,12 +168,22 @@ class EditorSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void insertTypedCharacter(String value) {
+    if (value.length == 1 && _insertSmartPairCharacter(value)) {
+      return;
+    }
+    insertText(value);
+  }
+
   void insertNewline() {
     insertText('\n');
   }
 
   void backspace() {
     if (_selection.isCollapsed && _selection.end == 0) {
+      return;
+    }
+    if (_deleteEmptyPairBeforeCaret()) {
       return;
     }
 
@@ -861,6 +871,75 @@ class EditorSessionController extends ChangeNotifier {
     _refreshAnalysis();
   }
 
+  bool _insertSmartPairCharacter(String character) {
+    final close = _pairedCloseForOpening(character);
+    if (close != null) {
+      _structuredSelectionStack.clear();
+      _pushUndoSnapshot();
+      final selectedText = _document.text.substring(
+        _selection.start,
+        _selection.end,
+      );
+      final replacement = '$character$selectedText$close';
+      final selectionOffset = _selection.isCollapsed
+          ? _selection.start + 1
+          : _selection.start + replacement.length;
+      _document = _document.replaceRange(
+        start: _selection.start,
+        end: _selection.end,
+        replacement: replacement,
+      );
+      _selection = SelectionState.collapsed(
+        selectionOffset.clamp(0, _document.length).toInt(),
+      );
+      _refreshAnalysis();
+      _redoStack.clear();
+      notifyListeners();
+      return true;
+    }
+
+    if (_selection.isCollapsed &&
+        _isPairedClosing(character) &&
+        _selection.end < _document.length &&
+        _document.text[_selection.end] == character) {
+      _structuredSelectionStack.clear();
+      _selection = SelectionState.collapsed(_selection.end + 1);
+      _refreshAnalysis();
+      notifyListeners();
+      return true;
+    }
+
+    return false;
+  }
+
+  bool _deleteEmptyPairBeforeCaret() {
+    if (!_selection.isCollapsed ||
+        _selection.end == 0 ||
+        _selection.end >= _document.length) {
+      return false;
+    }
+
+    final opening = _document.text[_selection.end - 1];
+    final closing = _document.text[_selection.end];
+    if (_pairedCloseForOpening(opening) != closing) {
+      return false;
+    }
+
+    _structuredSelectionStack.clear();
+    _pushUndoSnapshot();
+    final selectionOffset = _selection.end - 1;
+    _document = _document.replaceRange(
+      start: selectionOffset,
+      end: _selection.end + 1,
+      replacement: '',
+    );
+    _selection = SelectionState.collapsed(selectionOffset);
+    _refreshAnalysis();
+    _redoStack.clear();
+    notifyListeners();
+    return true;
+  }
+
   void undo() {
     if (!canUndo) {
       return;
@@ -1251,6 +1330,20 @@ class EditorSessionController extends ChangeNotifier {
       ']' => '[',
       _ => null,
     };
+  }
+
+  String? _pairedCloseForOpening(String lexeme) {
+    return switch (lexeme) {
+      '{' => '}',
+      '(' => ')',
+      '[' => ']',
+      '"' => '"',
+      _ => null,
+    };
+  }
+
+  bool _isPairedClosing(String lexeme) {
+    return lexeme == '}' || lexeme == ')' || lexeme == ']' || lexeme == '"';
   }
 
   _CommentLineRange _lineRangeForCommentToggle() {

@@ -621,7 +621,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       default:
         final character = event.character;
         if (_isPlainTextCharacter(character)) {
-          widget.controller.insertText(character!);
+          widget.controller.insertTypedCharacter(character!);
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;

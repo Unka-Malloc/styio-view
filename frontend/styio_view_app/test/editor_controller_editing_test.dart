@@ -65,6 +65,75 @@ void main() {
     expect(controller.selection.end, 2);
   });
 
+  test('inserts paired braces with the caret between them', () {
+    const text = 'fn main() ';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(text.length),
+    );
+
+    controller.insertTypedCharacter('{');
+
+    expect(controller.document.text, 'fn main() {}');
+    expect(controller.selection.end, text.length + 1);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, text);
+  });
+
+  test('surrounds selected text when typing a quote or brace', () {
+    const text = 'value';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState(
+        baseOffset: 0,
+        extentOffset: text.length,
+      ),
+    );
+
+    controller.insertTypedCharacter('"');
+
+    expect(controller.document.text, '"value"');
+    expect(controller.selection.end, '"value"'.length);
+    expect(controller.canUndo, isTrue);
+  });
+
+  test('skips closing paired characters and backspaces empty pairs', () {
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: '[]',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(1),
+    );
+
+    controller.insertTypedCharacter(']');
+
+    expect(controller.document.text, '[]');
+    expect(controller.selection.end, 2);
+    expect(controller.canUndo, isFalse);
+
+    controller.selectCollapsed(1);
+    controller.backspace();
+
+    expect(controller.document.text, '');
+    expect(controller.selection.end, 0);
+    expect(controller.canUndo, isTrue);
+  });
+
   test('deletes the current line and places caret at next line start', () {
     const text = 'alpha\nbeta\ngamma\n';
     final controller = EditorSessionController(

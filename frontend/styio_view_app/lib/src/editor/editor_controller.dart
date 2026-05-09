@@ -211,6 +211,42 @@ class EditorSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool deleteLineAtSelection() {
+    final logicalLines = _logicalLinesForDocument(_document);
+    if (logicalLines.isEmpty) {
+      return false;
+    }
+
+    final lineRange = _lineRangeForSelectionAction(logicalLines.length);
+    final startOffset = _offsetForLogicalLineStart(
+      _document,
+      lineRange.startLine,
+    );
+    final endOffset = _offsetAfterLogicalLine(
+      _document,
+      lineRange.endLine,
+      logicalLines.length,
+    );
+    if (startOffset == endOffset) {
+      return false;
+    }
+
+    _structuredSelectionStack.clear();
+    _pushUndoSnapshot();
+    _document = _document.replaceRange(
+      start: startOffset,
+      end: endOffset,
+      replacement: '',
+    );
+    _selection = SelectionState.collapsed(
+      startOffset.clamp(0, _document.length).toInt(),
+    );
+    _refreshAnalysis();
+    _redoStack.clear();
+    notifyListeners();
+    return true;
+  }
+
   bool duplicateLineOrSelection() {
     _structuredSelectionStack.clear();
 
@@ -280,7 +316,7 @@ class EditorSessionController extends ChangeNotifier {
       return false;
     }
 
-    final lineRange = _lineRangeForMoveAction(logicalLines.length);
+    final lineRange = _lineRangeForSelectionAction(logicalLines.length);
     final canMove = down
         ? lineRange.endLine < logicalLines.length - 1
         : lineRange.startLine > 0;
@@ -369,7 +405,7 @@ class EditorSessionController extends ChangeNotifier {
       return false;
     }
 
-    final lineRange = _lineRangeForJoinAction(logicalLines.length);
+    final lineRange = _lineRangeForSelectionAction(logicalLines.length);
     final startLine = lineRange.startLine;
     final endLine = lineRange.startLine == lineRange.endLine
         ? lineRange.endLine + 1
@@ -982,24 +1018,7 @@ class EditorSessionController extends ChangeNotifier {
     );
   }
 
-  _LineMoveRange _lineRangeForMoveAction(int logicalLineCount) {
-    final startPosition = _document.positionForOffset(_selection.start);
-    var endOffset = _selection.end;
-    if (!_selection.isCollapsed && endOffset > _selection.start) {
-      final endPosition = _document.positionForOffset(endOffset);
-      if (endPosition.column == 0 && endPosition.line > startPosition.line) {
-        endOffset -= 1;
-      }
-    }
-
-    final endPosition = _document.positionForOffset(endOffset);
-    return _LineMoveRange(
-      startLine: startPosition.line.clamp(0, logicalLineCount - 1).toInt(),
-      endLine: endPosition.line.clamp(0, logicalLineCount - 1).toInt(),
-    );
-  }
-
-  _LineMoveRange _lineRangeForJoinAction(int logicalLineCount) {
+  _LineMoveRange _lineRangeForSelectionAction(int logicalLineCount) {
     final startPosition = _document.positionForOffset(_selection.start);
     var endOffset = _selection.end;
     if (!_selection.isCollapsed && endOffset > _selection.start) {

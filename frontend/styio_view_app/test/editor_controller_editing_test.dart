@@ -65,6 +65,70 @@ void main() {
     expect(controller.selection.end, 2);
   });
 
+  test('deletes the current line and places caret at next line start', () {
+    const text = 'alpha\nbeta\ngamma\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('beta') + 2),
+    );
+
+    expect(controller.deleteLineAtSelection(), isTrue);
+    expect(controller.document.text, 'alpha\ngamma\n');
+    expect(controller.selection.end, 'alpha\n'.length);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, text);
+    expect(controller.selection.end, text.indexOf('beta') + 2);
+  });
+
+  test('deletes selected lines as a block', () {
+    const text = 'one\ntwo\nthree\nfour\n';
+    final start = text.indexOf('two');
+    final end = text.indexOf('three') + 'three'.length;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(baseOffset: start, extentOffset: end),
+    );
+
+    expect(controller.deleteLineAtSelection(), isTrue);
+    expect(controller.document.text, 'one\nfour\n');
+    expect(controller.selection.end, start);
+  });
+
+  test('deletes the final line without inventing extra text', () {
+    const text = 'alpha\nbeta';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('beta') + 2),
+    );
+
+    expect(controller.deleteLineAtSelection(), isTrue);
+    expect(controller.document.text, 'alpha\n');
+    expect(controller.selection.end, controller.document.length);
+
+    expect(controller.deleteLineAtSelection(), isTrue);
+    expect(controller.document.text, '');
+    expect(controller.selection.end, 0);
+
+    expect(controller.deleteLineAtSelection(), isFalse);
+  });
+
   test('expands selection with shifted caret movement', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(

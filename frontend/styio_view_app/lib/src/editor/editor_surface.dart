@@ -472,6 +472,13 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                   : widget.controller.extendSelectionStructurally())
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
+        case LogicalKeyboardKey.keyY:
+          if (shiftPressed) {
+            return KeyEventResult.ignored;
+          }
+          return widget.controller.deleteLineAtSelection()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
       }
       return KeyEventResult.ignored;
     }

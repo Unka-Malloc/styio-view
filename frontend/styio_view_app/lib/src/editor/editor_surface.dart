@@ -1433,6 +1433,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     final selectedIndex = quickFixes.isEmpty
         ? -1
         : _quickFixLookupIndex.clamp(0, quickFixes.length - 1).toInt();
+    final selectedQuickFix = selectedIndex < 0
+        ? null
+        : quickFixes[selectedIndex];
 
     return Material(
       key: const ValueKey('source-quick-fix-lookup'),
@@ -1492,10 +1495,84 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                 ),
                 if (index < quickFixes.length - 1) const SizedBox(height: 6),
               ],
+            if (selectedQuickFix != null) ...[
+              const SizedBox(height: 10),
+              _buildQuickFixPreviewPanel(context, selectedQuickFix),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildQuickFixPreviewPanel(
+    BuildContext context,
+    DiagnosticQuickFix quickFix,
+  ) {
+    final theme = Theme.of(context);
+    final edits = quickFix.edits;
+    return Container(
+      key: const ValueKey('source-quick-fix-preview'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F2E9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFD8D0C2)),
+      ),
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Preview ${edits.length} edit${edits.length == 1 ? '' : 's'}',
+            style: theme.textTheme.bodySmall!.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (var index = 0; index < edits.length; index += 1) ...[
+            Text(
+              _formatQuickFixEditPreview(edits[index]),
+              key: ValueKey('source-quick-fix-preview-edit-$index'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall,
+            ),
+            if (index < edits.length - 1) const SizedBox(height: 4),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatQuickFixEditPreview(FormattingEdit edit) {
+    final start = edit.range.start.clamp(0, widget.document.length);
+    final end = edit.range.end.clamp(start, widget.document.length);
+    final range = SourceRange(start: start, end: end);
+    final location = _formatUsageLocationForRange(range);
+    final newText = _formatPreviewText(edit.newText);
+    if (range.isCollapsed) {
+      return 'Insert $newText at $location';
+    }
+    final oldText = _formatPreviewText(
+      widget.document.text.substring(start, end),
+    );
+    if (edit.newText.isEmpty) {
+      return 'Delete $oldText at $location';
+    }
+    return 'Replace $oldText with $newText at $location';
+  }
+
+  String _formatPreviewText(String text) {
+    final escaped = text.replaceAll('\n', r'\n');
+    if (escaped.isEmpty) {
+      return 'empty text';
+    }
+    const maxLength = 40;
+    final compact = escaped.length <= maxLength
+        ? escaped
+        : '${escaped.substring(0, maxLength - 1)}...';
+    return '`$compact`';
   }
 
   Widget _buildSymbolLookupPanel(BuildContext context) {

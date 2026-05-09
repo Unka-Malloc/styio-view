@@ -2115,6 +2115,12 @@ value = blend(price, tax)
     );
     expect(find.text('Context Actions'), findsOneWidget);
     expect(find.text('Insert assignment'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-preview')),
+      findsOneWidget,
+    );
+    expect(find.text('Preview 1 edit'), findsOneWidget);
+    expect(find.text('Insert ` = value` at 1:11'), findsOneWidget);
     expect(bootstrap.editorController.document.text, text);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);

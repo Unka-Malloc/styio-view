@@ -460,6 +460,16 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       }
     }
 
+    if ((commandPressed || altPressed) &&
+        (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+            event.logicalKey == LogicalKeyboardKey.arrowRight)) {
+      widget.controller.moveCaretByWord(
+        forward: event.logicalKey == LogicalKeyboardKey.arrowRight,
+        expandSelection: shiftPressed,
+      );
+      return KeyEventResult.handled;
+    }
+
     if (commandPressed &&
         altPressed &&
         event.logicalKey == LogicalKeyboardKey.keyT) {

@@ -45,6 +45,63 @@ void main() {
     expect(controller.selection.end, 3);
   });
 
+  test('moves caret by token-aware word stops without document history', () {
+    const text = 'alpha beta\nnext_state renderFlow';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(1),
+    );
+
+    controller.moveCaretByWord(forward: true);
+    expect(controller.selection.end, text.indexOf('alpha') + 'alpha'.length);
+
+    controller.moveCaretByWord(forward: true);
+    expect(controller.selection.end, text.indexOf('beta'));
+
+    controller.moveCaretByWord(forward: true);
+    expect(controller.selection.end, text.indexOf('beta') + 'beta'.length);
+
+    controller.moveCaretByWord(forward: false);
+    expect(controller.selection.end, text.indexOf('beta'));
+
+    controller.selectCollapsed(text.indexOf('next_state'));
+    controller.moveCaretByWord(forward: true);
+    expect(controller.selection.end, text.indexOf('_'));
+
+    controller.moveCaretByWord(forward: true);
+    expect(controller.selection.end, text.indexOf('state'));
+
+    controller.selectCollapsed(text.indexOf('renderFlow'));
+    controller.moveCaretByWord(forward: true);
+    expect(controller.selection.end, text.indexOf('Flow'));
+    expect(controller.canUndo, isFalse);
+  });
+
+  test('extends selection by token-aware word stops', () {
+    const text = 'alpha beta';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(0),
+    );
+
+    controller.moveCaretByWord(forward: true, expandSelection: true);
+
+    expect(controller.selection.start, 0);
+    expect(controller.selection.end, 'alpha'.length);
+    expect(controller.document.text, text);
+    expect(controller.canUndo, isFalse);
+  });
+
   test('inserts and deletes forward at the caret', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(

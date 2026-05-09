@@ -488,6 +488,22 @@ class EditorSessionController extends ChangeNotifier {
     selectCollapsed(nextOffset);
   }
 
+  void moveCaretByWord({required bool forward, bool expandSelection = false}) {
+    final nextOffset = forward
+        ? _nextCaretStopOffset(_selection.extentOffset)
+        : _previousCaretStopOffset(_selection.extentOffset);
+    if (nextOffset == _selection.extentOffset) {
+      return;
+    }
+
+    _structuredSelectionStack.clear();
+    if (expandSelection) {
+      selectRange(baseOffset: _selection.baseOffset, extentOffset: nextOffset);
+      return;
+    }
+    selectCollapsed(nextOffset);
+  }
+
   void moveCaretVertically(int deltaLines, {bool expandSelection = false}) {
     if (deltaLines == 0) {
       return;
@@ -1010,6 +1026,80 @@ class EditorSessionController extends ChangeNotifier {
     }
 
     return SourceRange(start: _selection.end, end: _selection.end);
+  }
+
+  int _nextCaretStopOffset(int offset) {
+    final safeOffset = offset.clamp(0, _document.length).toInt();
+    if (safeOffset >= _document.length) {
+      return _document.length;
+    }
+
+    for (final stop in _caretStopOffsets()) {
+      if (stop > safeOffset) {
+        return stop;
+      }
+    }
+    return _document.length;
+  }
+
+  int _previousCaretStopOffset(int offset) {
+    final safeOffset = offset.clamp(0, _document.length).toInt();
+    if (safeOffset <= 0) {
+      return 0;
+    }
+
+    var previous = 0;
+    for (final stop in _caretStopOffsets()) {
+      if (stop >= safeOffset) {
+        return previous;
+      }
+      previous = stop;
+    }
+    return previous;
+  }
+
+  List<int> _caretStopOffsets() {
+    final stops = <int>{0, _document.length};
+
+    final lines = _document.lines;
+    final lineStarts = _document.lineStarts;
+    for (var index = 0; index < lines.length; index += 1) {
+      final lineStart = lineStarts[index];
+      stops
+        ..add(lineStart)
+        ..add(lineStart + lines[index].length);
+    }
+
+    for (final token in _analysis.tokenSpans) {
+      if (token.kind == TokenKind.whitespace) {
+        continue;
+      }
+      stops
+        ..add(token.range.start)
+        ..add(token.range.end);
+      if (token.kind == TokenKind.identifier ||
+          token.kind == TokenKind.keyword) {
+        for (final offset in _identifierCaretStops(token)) {
+          stops.add(offset);
+        }
+      }
+    }
+
+    return stops.where((stop) => stop >= 0 && stop <= _document.length).toList()
+      ..sort();
+  }
+
+  Iterable<int> _identifierCaretStops(TokenSpan token) sync* {
+    final lexeme = token.lexeme;
+    for (var index = 1; index < lexeme.length; index += 1) {
+      final previous = lexeme.codeUnitAt(index - 1);
+      final current = lexeme.codeUnitAt(index);
+      if (previous == 0x5F ||
+          current == 0x5F ||
+          (_isLowerAscii(previous) && _isUpperAscii(current))) {
+        yield token.range.start + index;
+      }
+    }
   }
 
   int _transformOffsetWithEdits(
@@ -1554,6 +1644,14 @@ class EditorSessionController extends ChangeNotifier {
 
   bool _isHorizontalWhitespace(int codeUnit) {
     return codeUnit == 0x20 || codeUnit == 0x09;
+  }
+
+  bool _isLowerAscii(int codeUnit) {
+    return codeUnit >= 0x61 && codeUnit <= 0x7A;
+  }
+
+  bool _isUpperAscii(int codeUnit) {
+    return codeUnit >= 0x41 && codeUnit <= 0x5A;
   }
 
   bool _strictlyContainsSelection(SourceRange candidate, SourceRange current) {

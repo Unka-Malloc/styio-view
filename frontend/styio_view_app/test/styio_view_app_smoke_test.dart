@@ -1364,6 +1364,55 @@ void main() {
     expect(bootstrap.editorController.canUndo, isFalse);
   });
 
+  testWidgets('folds and expands semantic blocks from source keymap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'fn main() {\n  value = 1\n  next = 2\n}\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'semantic-fold-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('source-fold-toggle-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('source-line-2')), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('source-fold-summary-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('source-line-2')), findsNothing);
+    expect(bootstrap.editorController.document.text, text);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('source-fold-summary-0')), findsNothing);
+    expect(find.byKey(const ValueKey('source-line-2')), findsOneWidget);
+  });
+
   testWidgets('moves by word from source keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

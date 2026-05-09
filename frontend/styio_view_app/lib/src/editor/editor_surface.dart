@@ -346,6 +346,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   bool _surroundLookupOpen = false;
   int _completionLookupIndex = 0;
   int _surroundLookupIndex = 0;
+  final Set<String> _collapsedSemanticBlockKeys = <String>{};
   String? _inlineRenameError;
 
   @override
@@ -484,6 +485,14 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       return widget.controller.deleteToWordBoundary(
             forward: event.logicalKey == LogicalKeyboardKey.delete,
           )
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+
+    if (commandPressed &&
+        (event.logicalKey == LogicalKeyboardKey.minus ||
+            event.logicalKey == LogicalKeyboardKey.numpadSubtract)) {
+      return _toggleSemanticBlockAtSelection()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -667,6 +676,58 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
 
     return character != '\n' && character != '\r';
+  }
+
+  bool _toggleSemanticBlockAtSelection() {
+    final semanticBlock = _semanticBlockAtSelection();
+    if (semanticBlock == null) {
+      return false;
+    }
+    _toggleSemanticBlock(semanticBlock);
+    return true;
+  }
+
+  _SemanticLineBlock? _semanticBlockAtSelection() {
+    if (!widget.renderPlan.activeLayers.contains(EditorRenderLayer.overlay)) {
+      return null;
+    }
+
+    final lineStarts = widget.document.lineStarts;
+    final selectionLine = widget.document
+        .positionForOffset(widget.selection.extentOffset)
+        .line;
+    final candidates =
+        _resolveLineBlocks(
+              document: widget.document,
+              lineStarts: lineStarts,
+              blocks: widget.analysis.semanticBlocks,
+            )
+            .where(
+              (block) =>
+                  block.startLine <= selectionLine &&
+                  selectionLine <= block.endLine &&
+                  block.endLine > block.startLine,
+            )
+            .toList(growable: false);
+    if (candidates.isEmpty) {
+      return null;
+    }
+
+    candidates.sort((left, right) {
+      final leftSpan = left.endLine - left.startLine;
+      final rightSpan = right.endLine - right.startLine;
+      return leftSpan.compareTo(rightSpan);
+    });
+    return candidates.first;
+  }
+
+  void _toggleSemanticBlock(_SemanticLineBlock block) {
+    final key = _semanticBlockKey(block);
+    setState(() {
+      if (!_collapsedSemanticBlockKeys.add(key)) {
+        _collapsedSemanticBlockKeys.remove(key);
+      }
+    });
   }
 
   bool _openInlineRename() {
@@ -1067,6 +1128,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           renderPlan: widget.renderPlan,
                           lineStarts: lineStarts,
                           semanticBlocks: semanticBlocks,
+                          collapsedSemanticBlockKeys:
+                              _collapsedSemanticBlockKeys,
+                          onToggleSemanticBlock: _toggleSemanticBlock,
                           onTapLine: _handleLineTapDown,
                           onPanStartLine: _handleLinePanStart,
                           onPanUpdateLine: _handleLinePanUpdate,
@@ -3152,6 +3216,8 @@ List<Widget> _buildPreviewChildren(
   required EditorRenderPlan renderPlan,
   required List<int> lineStarts,
   required List<_SemanticLineBlock> semanticBlocks,
+  required Set<String> collapsedSemanticBlockKeys,
+  required ValueChanged<_SemanticLineBlock> onToggleSemanticBlock,
   required void Function(int lineIndex, TapDownDetails details) onTapLine,
   required void Function(int lineIndex, DragStartDetails details)
   onPanStartLine,
@@ -3171,16 +3237,23 @@ List<Widget> _buildPreviewChildren(
   while (lineIndex < document.lines.length) {
     final block = blockByStart[lineIndex];
     if (block != null) {
+      final collapsed = collapsedSemanticBlockKeys.contains(
+        _semanticBlockKey(block),
+      );
+      final visibleBlockEnd = collapsed ? block.startLine : block.endLine;
       children.add(
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: _SemanticBlockCard(
+            block: block,
             label: block.label,
+            collapsed: collapsed,
+            onToggle: () => onToggleSemanticBlock(block),
             child: Column(
               children: [
                 for (
                   var blockLine = block.startLine;
-                  blockLine <= block.endLine;
+                  blockLine <= visibleBlockEnd;
                   blockLine += 1
                 )
                   ..._buildLineWithInlineFeedback(
@@ -3203,6 +3276,11 @@ List<Widget> _buildPreviewChildren(
                     onPanStartLine: onPanStartLine,
                     onPanUpdateLine: onPanUpdateLine,
                     onPanEnd: onPanEnd,
+                  ),
+                if (collapsed)
+                  _CollapsedBlockSummary(
+                    key: ValueKey('source-fold-summary-${block.startLine}'),
+                    hiddenLineCount: block.endLine - block.startLine,
                   ),
               ],
             ),
@@ -3860,9 +3938,18 @@ int _lineIndexForOffset(List<int> lineStarts, int offset) {
 }
 
 class _SemanticBlockCard extends StatelessWidget {
-  const _SemanticBlockCard({required this.label, required this.child});
+  const _SemanticBlockCard({
+    required this.block,
+    required this.label,
+    required this.collapsed,
+    required this.onToggle,
+    required this.child,
+  });
 
+  final _SemanticLineBlock block;
   final String label;
+  final bool collapsed;
+  final VoidCallback onToggle;
   final Widget child;
 
   @override
@@ -3888,7 +3975,20 @@ class _SemanticBlockCard extends StatelessWidget {
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.68),
               ),
               const SizedBox(width: 8),
-              Text(label, style: theme.textTheme.labelLarge),
+              Expanded(child: Text(label, style: theme.textTheme.labelLarge)),
+              Tooltip(
+                message: collapsed ? 'Expand block' : 'Collapse block',
+                child: IconButton(
+                  key: ValueKey('source-fold-toggle-${block.startLine}'),
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    collapsed
+                        ? Icons.unfold_more_rounded
+                        : Icons.unfold_less_rounded,
+                  ),
+                  onPressed: onToggle,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -3897,6 +3997,37 @@ class _SemanticBlockCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CollapsedBlockSummary extends StatelessWidget {
+  const _CollapsedBlockSummary({super.key, required this.hiddenLineCount});
+
+  final int hiddenLineCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(left: 62, top: 2, bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F2E9),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFFD8D0C2)),
+        ),
+        child: Text(
+          '$hiddenLineCount folded ${hiddenLineCount == 1 ? 'line' : 'lines'}',
+          style: theme.textTheme.bodySmall,
+        ),
+      ),
+    );
+  }
+}
+
+String _semanticBlockKey(_SemanticLineBlock block) {
+  return '${block.startLine}:${block.endLine}:${block.label}';
 }
 
 class _SemanticLineBlock {

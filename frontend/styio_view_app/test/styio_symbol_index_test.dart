@@ -68,12 +68,37 @@ answer -> @stdout
     expect(plan?.target.name, 'ma5');
     expect(plan?.newName, 'movingAverage');
     expect(plan?.edits.length, 2);
+    expect(plan?.hasConflicts, isFalse);
     expect(
       plan?.edits.every((edit) => edit.newText == 'movingAverage'),
       isTrue,
     );
     expect(index.renameAt(source, resourceUseOffset, 'f64'), isNull);
+    expect(index.renameAt(source, resourceUseOffset, 'fn'), isNull);
     expect(index.renameAt(source, resourceUseOffset, 'not-valid'), isNull);
+  });
+
+  test('reports current-file rename conflicts before applying edits', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+price = 1
+total = price
+total -> @stdout
+''';
+
+    final plan = index.renameAt(source, source.indexOf('price'), 'total');
+
+    expect(plan?.target.name, 'price');
+    expect(plan?.edits.length, 2);
+    expect(plan?.hasConflicts, isTrue);
+    expect(plan?.conflicts.single.message, contains('already declares'));
+    expect(
+      source.substring(
+        plan!.conflicts.single.range.start,
+        plan.conflicts.single.range.end,
+      ),
+      'total',
+    );
   });
 
   test('resolves parameter info from a function call argument list', () {

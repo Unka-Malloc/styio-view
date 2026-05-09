@@ -234,18 +234,30 @@ class StyioSymbolIndex {
       return null;
     }
 
-    final definition = definitionAt(source, offset);
-    if (definition == null) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final snapshot = build(tokens);
+    final token = _tokenAroundOffset(tokens, offset);
+    if (token == null) {
       return null;
     }
 
-    final references = referencesAt(source, offset);
+    final reference = snapshot.referenceAt(token.range);
+    if (reference == null) {
+      return null;
+    }
+
+    final target = snapshot.symbolForTarget(reference.targetRange);
+    if (target == null) {
+      return null;
+    }
+
+    final references = snapshot.referencesForTarget(reference.targetRange);
     if (references.isEmpty) {
       return null;
     }
 
     return RenamePlan(
-      target: definition.symbol,
+      target: target,
       newName: newName,
       references: references,
       edits: references
@@ -254,6 +266,11 @@ class StyioSymbolIndex {
                 FormattingEdit(range: reference.range, newText: newName),
           )
           .toList(growable: false),
+      conflicts: _renameConflicts(
+        snapshot: snapshot,
+        target: target,
+        newName: newName,
+      ),
     );
   }
 
@@ -813,8 +830,40 @@ class StyioSymbolIndex {
     return trailingToken ?? leadingToken;
   }
 
+  List<RenameConflict> _renameConflicts({
+    required StyioSymbolSnapshot snapshot,
+    required DocumentSymbol target,
+    required String newName,
+  }) {
+    if (newName == target.name) {
+      return const <RenameConflict>[];
+    }
+
+    return snapshot.symbols
+        .where(
+          (symbol) =>
+              symbol.name == newName &&
+              !_sameRange(symbol.nameRange, target.nameRange),
+        )
+        .map(
+          (symbol) => RenameConflict(
+            message:
+                'Name `$newName` already declares a current-file '
+                '${symbol.kind.name}.',
+            range: symbol.nameRange,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  bool _sameRange(SourceRange left, SourceRange right) {
+    return left.start == right.start && left.end == right.end;
+  }
+
   bool _isValidIdentifier(String value) {
-    if (value.isEmpty || _syntaxHighlighter.isTypeName(value)) {
+    if (value.isEmpty ||
+        _syntaxHighlighter.isKeyword(value) ||
+        _syntaxHighlighter.isTypeName(value)) {
       return false;
     }
     final identifierPattern = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');

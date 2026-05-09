@@ -201,18 +201,29 @@ class DefinitionTarget {
   final SourceRange originRange;
 }
 
+class RenameConflict {
+  const RenameConflict({required this.message, required this.range});
+
+  final String message;
+  final SourceRange range;
+}
+
 class RenamePlan {
   const RenamePlan({
     required this.target,
     required this.newName,
     required this.references,
     required this.edits,
+    this.conflicts = const <RenameConflict>[],
   });
 
   final DocumentSymbol target;
   final String newName;
   final List<ReferenceSpan> references;
   final List<FormattingEdit> edits;
+  final List<RenameConflict> conflicts;
+
+  bool get hasConflicts => conflicts.isNotEmpty;
 }
 
 class ParameterInfoParameter {

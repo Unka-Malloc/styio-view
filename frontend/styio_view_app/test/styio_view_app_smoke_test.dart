@@ -2495,6 +2495,52 @@ value = blend(price, tax)
     expect(find.text('Invalid rename target.'), findsOne);
   });
 
+  testWidgets('keeps inline rename open for conflicting identifiers', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'price = 1\ntotal = price\ntotal -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'inline-rename-conflict.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('price'));
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f6);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('source-inline-rename-input')),
+      'total',
+    );
+    await tester.tap(find.byKey(const ValueKey('source-inline-rename-apply')));
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text, text);
+    expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
+    expect(
+      find.text(
+        'Name `total` already declares a current-file variable. '
+        'Conflict at 2:1.',
+      ),
+      findsOne,
+    );
+  });
+
   testWidgets('applies inline diagnostic quick fix from the active line', (
     tester,
   ) async {

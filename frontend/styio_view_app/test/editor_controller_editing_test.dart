@@ -1149,6 +1149,28 @@ value -> @stdout
     expect(controller.canUndo, isFalse);
   });
 
+  test(
+    'rejects conflicting rename edits without changing document history',
+    () {
+      const text = 'price = 1\ntotal = price\ntotal -> @stdout\n';
+      final controller = EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: 'sample.styio',
+          text: text,
+          revision: 0,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+        initialSelection: SelectionState.collapsed(text.indexOf('price')),
+      );
+
+      final plan = controller.renamePlanAtSelection('total');
+      expect(plan?.hasConflicts, isTrue);
+      expect(controller.applyRename('total'), isFalse);
+      expect(controller.document.text, text);
+      expect(controller.canUndo, isFalse);
+    },
+  );
+
   test('selects the resolved definition without changing document history', () {
     const text = 'value = value\n';
     final controller = EditorSessionController(

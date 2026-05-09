@@ -898,8 +898,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
 
   bool _applyInlineRename() {
     final newName = _inlineRenameController.text.trim();
-    final applied = widget.controller.applyRename(newName);
-    if (applied) {
+    final renamePlan = widget.controller.renamePlanAtSelection(newName);
+    if (renamePlan != null &&
+        !renamePlan.hasConflicts &&
+        widget.controller.applyRename(newName)) {
       setState(() {
         _inlineRenameOpen = false;
         _inlineRenameError = null;
@@ -909,11 +911,24 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
 
     setState(() {
-      _inlineRenameError = newName.isEmpty
-          ? 'Enter a Styio identifier.'
-          : 'Invalid rename target.';
+      _inlineRenameError = _renameUnavailableMessage(newName, renamePlan);
     });
     return false;
+  }
+
+  String _renameUnavailableMessage(String newName, RenamePlan? renamePlan) {
+    if (newName.isEmpty) {
+      return 'Enter a Styio identifier.';
+    }
+    if (renamePlan != null && renamePlan.hasConflicts) {
+      return _formatRenameConflict(renamePlan.conflicts.first);
+    }
+    return 'Invalid rename target.';
+  }
+
+  String _formatRenameConflict(RenameConflict conflict) {
+    return '${conflict.message} Conflict at '
+        '${_formatUsageLocationForRange(conflict.range)}.';
   }
 
   bool _openUsagesPanel() {
@@ -1763,6 +1778,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     final usageCount = widget.controller.referencesAtSelection.length;
     final helperText = renamePreview == null
         ? _inlineRenameError
+        : renamePreview.hasConflicts
+        ? _formatRenameConflict(renamePreview.conflicts.first)
         : 'Preview ${renamePreview.edits.length} edit'
               '${renamePreview.edits.length == 1 ? '' : 's'} across '
               '$usageCount current-file usage'
@@ -1809,8 +1826,12 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                 isDense: true,
                 border: const OutlineInputBorder(),
                 labelText: 'New name',
-                helperText: renamePreview == null ? null : helperText,
-                errorText: renamePreview == null ? helperText : null,
+                helperText: renamePreview == null || renamePreview.hasConflicts
+                    ? null
+                    : helperText,
+                errorText: renamePreview == null || renamePreview.hasConflicts
+                    ? helperText
+                    : null,
               ),
               onChanged: (_) {
                 setState(() {
@@ -3817,7 +3838,16 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 8),
-        if (renamePreview != null) ...[
+        if (renamePreview != null && renamePreview.hasConflicts) ...[
+          Text(
+            _formatRenameConflict(renamePreview.conflicts.first),
+            key: const ValueKey('language-rename-conflict'),
+            style: theme.textTheme.bodySmall!.copyWith(
+              color: theme.colorScheme.error,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ] else if (renamePreview != null) ...[
           Text(
             'Rename preview ${renamePreview.edits.length} edit'
             '${renamePreview.edits.length == 1 ? '' : 's'}',
@@ -3846,6 +3876,14 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
             ),
       ],
     );
+  }
+
+  String _formatRenameConflict(RenameConflict conflict) {
+    final position = widget.controller.document.positionForOffset(
+      conflict.range.start,
+    );
+    return '${conflict.message} Conflict at '
+        '${position.line + 1}:${position.column + 1}.';
   }
 
   Widget _buildHoverContent(BuildContext context) {

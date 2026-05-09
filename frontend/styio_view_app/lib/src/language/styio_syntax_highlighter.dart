@@ -488,6 +488,8 @@ class StyioSyntaxHighlighter {
 
   String? hoverForOperator(String lexeme) => operatorHover[lexeme];
 
+  bool isKeyword(String lexeme) => keywords.contains(lexeme);
+
   bool isTypeName(String lexeme) => typeNames.contains(lexeme);
 
   bool isStandardResource(String lexeme) => standardResources.contains(lexeme);

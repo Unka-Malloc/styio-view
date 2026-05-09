@@ -751,7 +751,7 @@ class EditorSessionController extends ChangeNotifier {
 
   bool applyRename(String newName) {
     final plan = renamePlanAtSelection(newName);
-    if (plan == null) {
+    if (plan == null || plan.hasConflicts) {
       return false;
     }
     applyFormattingEdits(plan.edits);

@@ -1242,6 +1242,44 @@ void main() {
     expect(bootstrap.editorController.canUndo, isTrue);
   });
 
+  testWidgets('moves to smart line start from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'fn main() {\n  value = 1\n}\n';
+    final valueStart = text.indexOf('value');
+    final lineStart = text.lastIndexOf('\n', valueStart) + 1;
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'smart-home-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(valueStart + 3);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.pump();
+    expect(bootstrap.editorController.selection.end, valueStart);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.pump();
+    expect(bootstrap.editorController.selection.end, lineStart);
+    expect(bootstrap.editorController.canUndo, isFalse);
+  });
+
   testWidgets('opens surround with lookup from source keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

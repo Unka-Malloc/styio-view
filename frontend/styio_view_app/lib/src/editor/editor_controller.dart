@@ -569,6 +569,29 @@ class EditorSessionController extends ChangeNotifier {
     selectCollapsed(nextOffset);
   }
 
+  void moveCaretToSmartLineStart({bool expandSelection = false}) {
+    _structuredSelectionStack.clear();
+    final position = _document.positionForOffset(_selection.extentOffset);
+    final lineText = _document.lines[position.line];
+    final lineStart = _document.lineStarts[position.line];
+    final indentLength = _leadingHorizontalWhitespaceLength(lineText);
+    final firstCodeOffset = indentLength >= lineText.length
+        ? lineStart
+        : lineStart + indentLength;
+    final lineStartOffset = lineStart;
+    final currentOffset = _selection.extentOffset;
+    var nextOffset = lineStartOffset;
+    if (currentOffset == lineStartOffset || firstCodeOffset < currentOffset) {
+      nextOffset = firstCodeOffset;
+    }
+
+    if (expandSelection) {
+      selectRange(baseOffset: _selection.baseOffset, extentOffset: nextOffset);
+      return;
+    }
+    selectCollapsed(nextOffset);
+  }
+
   void applyCompletionItem(CompletionItem item) {
     _structuredSelectionStack.clear();
     _pushUndoSnapshot();

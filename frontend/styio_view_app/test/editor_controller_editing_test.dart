@@ -45,6 +45,71 @@ void main() {
     expect(controller.selection.end, 3);
   });
 
+  test('moves caret to smart line start without document history', () {
+    const text = 'fn main() {\n  value = 1\n}\n';
+    final valueStart = text.indexOf('value');
+    final lineStart = text.lastIndexOf('\n', valueStart) + 1;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(valueStart + 3),
+    );
+
+    controller.moveCaretToSmartLineStart();
+    expect(controller.selection.end, valueStart);
+
+    controller.moveCaretToSmartLineStart();
+    expect(controller.selection.end, lineStart);
+
+    controller.moveCaretToSmartLineStart();
+    expect(controller.selection.end, valueStart);
+    expect(controller.canUndo, isFalse);
+  });
+
+  test('extends selection to smart line start', () {
+    const text = 'fn main() {\n  value = 1\n}\n';
+    final valueStart = text.indexOf('value');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(valueStart + 3),
+    );
+
+    controller.moveCaretToSmartLineStart(expandSelection: true);
+
+    expect(controller.selection.baseOffset, valueStart + 3);
+    expect(controller.selection.extentOffset, valueStart);
+    expect(controller.document.text, text);
+    expect(controller.canUndo, isFalse);
+  });
+
+  test('moves smart line start on blank indented lines to column zero', () {
+    const text = 'alpha\n  \nomega';
+    final blankLineStart = text.indexOf('\n') + 1;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(blankLineStart + 2),
+    );
+
+    controller.moveCaretToSmartLineStart();
+
+    expect(controller.selection.end, blankLineStart);
+    expect(controller.canUndo, isFalse);
+  });
+
   test('moves caret by token-aware word stops without document history', () {
     const text = 'alpha beta\nnext_state renderFlow';
     final controller = EditorSessionController(

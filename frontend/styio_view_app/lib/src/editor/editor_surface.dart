@@ -598,8 +598,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         widget.controller.moveCaretVertically(1, expandSelection: shiftPressed);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.home:
-        widget.controller.moveCaretToLineBoundary(
-          end: false,
+        widget.controller.moveCaretToSmartLineStart(
           expandSelection: shiftPressed,
         );
         return KeyEventResult.handled;

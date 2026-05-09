@@ -227,6 +227,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   @override
+  ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset) {
+    return _symbolIndex.parameterInfoAt(document.text, offset);
+  }
+
+  @override
   List<DiagnosticQuickFix> quickFixesForDiagnostic(
     DocumentState document,
     Diagnostic diagnostic,

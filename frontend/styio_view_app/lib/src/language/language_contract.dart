@@ -197,6 +197,45 @@ class RenamePlan {
   final List<FormattingEdit> edits;
 }
 
+class ParameterInfoParameter {
+  const ParameterInfoParameter({
+    required this.name,
+    required this.range,
+    this.type = '',
+  });
+
+  final String name;
+  final SourceRange range;
+  final String type;
+
+  String get displayText => type.isEmpty ? name : '$name: $type';
+}
+
+class ParameterInfoPayload {
+  const ParameterInfoPayload({
+    required this.callableName,
+    required this.signature,
+    required this.parameters,
+    required this.activeParameterIndex,
+    required this.invocationRange,
+    required this.callableRange,
+  });
+
+  final String callableName;
+  final String signature;
+  final List<ParameterInfoParameter> parameters;
+  final int activeParameterIndex;
+  final SourceRange invocationRange;
+  final SourceRange callableRange;
+
+  ParameterInfoParameter? get activeParameter {
+    if (activeParameterIndex < 0 || activeParameterIndex >= parameters.length) {
+      return null;
+    }
+    return parameters[activeParameterIndex];
+  }
+}
+
 class StyioDocumentAnalysis {
   const StyioDocumentAnalysis({
     required this.tokenSpans,

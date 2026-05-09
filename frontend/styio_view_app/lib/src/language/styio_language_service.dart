@@ -16,6 +16,8 @@ abstract class StyioLanguageService {
 
   RenamePlan? renameAt(DocumentState document, int offset, String newName);
 
+  ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset);
+
   List<DiagnosticQuickFix> quickFixesForDiagnostic(
     DocumentState document,
     Diagnostic diagnostic,

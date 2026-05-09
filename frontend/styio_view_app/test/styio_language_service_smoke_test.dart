@@ -117,6 +117,30 @@ answer -> @stdout
     expect(renamePlan?.target.kind, SymbolKind.resource);
   });
 
+  test('returns parameter info for current-file function calls', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'parameter-info.styio',
+      text: '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+value = blend(price, tax)
+''',
+      revision: 0,
+    );
+
+    final info = service.parameterInfoAt(
+      document,
+      document.text.indexOf('tax') + 1,
+    );
+
+    expect(info?.callableName, 'blend');
+    expect(info?.signature, 'fn blend(left: f64, right: f64)');
+    expect(info?.activeParameterIndex, 1);
+    expect(info?.activeParameter?.name, 'right');
+  });
+
   test('reports unresolved identifiers from the local symbol index', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

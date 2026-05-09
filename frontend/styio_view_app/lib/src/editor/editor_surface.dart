@@ -341,6 +341,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   bool _inlineRenameOpen = false;
   bool _usagesPanelOpen = false;
   bool _quickDocumentationOpen = false;
+  bool _parameterInfoOpen = false;
   String? _inlineRenameError;
 
   @override
@@ -400,6 +401,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _closeQuickDocumentation();
       return KeyEventResult.handled;
     }
+    if (_parameterInfoOpen && event.logicalKey == LogicalKeyboardKey.escape) {
+      _closeParameterInfo();
+      return KeyEventResult.handled;
+    }
 
     if (commandPressed) {
       switch (event.logicalKey) {
@@ -414,6 +419,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
               : KeyEventResult.ignored;
         case LogicalKeyboardKey.keyQ:
           return _openQuickDocumentation()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        case LogicalKeyboardKey.keyP:
+          return _openParameterInfo()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
         case LogicalKeyboardKey.slash:
@@ -623,6 +632,23 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _focusNode.requestFocus();
   }
 
+  bool _openParameterInfo() {
+    if (widget.controller.parameterInfoAtSelection == null) {
+      return false;
+    }
+    setState(() {
+      _parameterInfoOpen = true;
+    });
+    return true;
+  }
+
+  void _closeParameterInfo() {
+    setState(() {
+      _parameterInfoOpen = false;
+    });
+    _focusNode.requestFocus();
+  }
+
   void _handleLineTapDown(int lineIndex, TapDownDetails details) {
     _focusNode.requestFocus();
     _dragBaseOffset = null;
@@ -764,6 +790,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                         ],
                         if (_quickDocumentationOpen) ...[
                           _buildQuickDocumentationPanel(context),
+                          const SizedBox(height: 12),
+                        ],
+                        if (_parameterInfoOpen) ...[
+                          _buildParameterInfoPanel(context),
                           const SizedBox(height: 12),
                         ],
                         if (_usagesPanelOpen) ...[
@@ -1055,6 +1085,92 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     );
   }
 
+  Widget _buildParameterInfoPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final parameterInfo = widget.controller.parameterInfoAtSelection;
+    final activeParameter = parameterInfo?.activeParameter;
+
+    return Material(
+      key: const ValueKey('source-parameter-info-panel'),
+      color: const Color(0xFFFDF8EE),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.functions_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    parameterInfo == null
+                        ? 'Parameter Info'
+                        : 'Parameter Info: ${parameterInfo.callableName}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _InlineActionChip(
+                  key: const ValueKey('source-parameter-info-close'),
+                  icon: Icons.close_rounded,
+                  label: 'Close',
+                  onTap: _closeParameterInfo,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (parameterInfo == null)
+              Text(
+                'No parameter info at the current caret.',
+                style: theme.textTheme.bodySmall,
+              )
+            else ...[
+              Text(
+                parameterInfo.signature,
+                style: theme.textTheme.bodySmall!.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                activeParameter == null
+                    ? 'No active parameter'
+                    : 'Argument ${parameterInfo.activeParameterIndex + 1} of '
+                          '${parameterInfo.parameters.length}: '
+                          '${activeParameter.displayText}',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              for (
+                var index = 0;
+                index < parameterInfo.parameters.length;
+                index += 1
+              ) ...[
+                _ParameterInfoParameterTile(
+                  key: ValueKey('source-parameter-info-param-$index'),
+                  parameter: parameterInfo.parameters[index],
+                  active: index == parameterInfo.activeParameterIndex,
+                ),
+                if (index < parameterInfo.parameters.length - 1)
+                  const SizedBox(height: 6),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   String _formatUsageLocation(ReferenceSpan reference) {
     return _formatUsageLocationForRange(reference.range);
   }
@@ -1153,6 +1269,49 @@ class _UsageResultTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ParameterInfoParameterTile extends StatelessWidget {
+  const _ParameterInfoParameterTile({
+    super.key,
+    required this.parameter,
+    required this.active,
+  });
+
+  final ParameterInfoParameter parameter;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFFE6E0F5) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      child: Row(
+        children: [
+          Icon(
+            active ? Icons.chevron_right_rounded : Icons.input_rounded,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              parameter.displayText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall!.copyWith(
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

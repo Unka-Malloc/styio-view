@@ -1056,6 +1056,59 @@ void main() {
     expect(bootstrap.editorController.document.text, text);
   });
 
+  testWidgets('opens parameter info from editor keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+value = blend(price, tax)
+''';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'parameter-info-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('tax') + 1);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-parameter-info-panel')),
+      findsOneWidget,
+    );
+    expect(find.text('Parameter Info: blend'), findsOneWidget);
+    expect(find.text('fn blend(left: f64, right: f64)'), findsOneWidget);
+    expect(find.text('Argument 2 of 2: right: f64'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('source-parameter-info-close')));
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('source-parameter-info-panel')),
+      findsNothing,
+    );
+  });
+
   testWidgets('opens quick documentation from editor keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

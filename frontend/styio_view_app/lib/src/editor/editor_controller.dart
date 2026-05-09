@@ -45,6 +45,8 @@ class EditorSessionController extends ChangeNotifier {
       _languageService.referencesAt(_document, inspectionOffset);
   RenamePlan? renamePlanAtSelection(String newName) =>
       _languageService.renameAt(_document, inspectionOffset, newName);
+  ParameterInfoPayload? get parameterInfoAtSelection =>
+      _languageService.parameterInfoAt(_document, inspectionOffset);
   TokenSpan? get tokenAtSelection => _tokenAroundOffset(inspectionOffset);
   SemanticKind? get semanticKindAtSelection {
     final token = tokenAtSelection;

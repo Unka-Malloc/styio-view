@@ -341,6 +341,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   bool _inlineRenameOpen = false;
   bool _usagesPanelOpen = false;
   bool _quickDocumentationOpen = false;
+  bool _quickDocumentationForCompletion = false;
   bool _parameterInfoOpen = false;
   bool _quickFixLookupOpen = false;
   int _quickFixLookupIndex = 0;
@@ -506,6 +507,12 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       }
     }
     if (_completionLookupOpen) {
+      if (event.logicalKey == LogicalKeyboardKey.keyQ &&
+          (commandPressed || !_isPlainTextCharacter(event.character))) {
+        return _openCompletionQuickDocumentation()
+            ? KeyEventResult.handled
+            : KeyEventResult.ignored;
+      }
       switch (event.logicalKey) {
         case LogicalKeyboardKey.escape:
           _closeCompletionLookup();
@@ -783,6 +790,16 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     });
   }
 
+  CompletionItem? _selectedCompletionItem() {
+    if (widget.completions.isEmpty) {
+      return null;
+    }
+    final selectedIndex = _completionLookupIndex
+        .clamp(0, widget.completions.length - 1)
+        .toInt();
+    return widget.completions[selectedIndex];
+  }
+
   bool _shouldAutoPopupCompletion(String character) {
     if (character.length != 1) {
       return false;
@@ -925,6 +942,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
     setState(() {
       _quickDocumentationOpen = true;
+      _quickDocumentationForCompletion = false;
+    });
+    return true;
+  }
+
+  bool _openCompletionQuickDocumentation() {
+    if (_selectedCompletionItem() == null) {
+      return false;
+    }
+    setState(() {
+      _quickDocumentationOpen = true;
+      _quickDocumentationForCompletion = true;
     });
     return true;
   }
@@ -932,6 +961,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   void _closeQuickDocumentation() {
     setState(() {
       _quickDocumentationOpen = false;
+      _quickDocumentationForCompletion = false;
     });
     _focusNode.requestFocus();
   }
@@ -972,6 +1002,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   void _closeCompletionLookup() {
     setState(() {
       _completionLookupOpen = false;
+      if (_quickDocumentationForCompletion) {
+        _quickDocumentationOpen = false;
+        _quickDocumentationForCompletion = false;
+      }
     });
     _focusNode.requestFocus();
   }
@@ -1002,6 +1036,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     setState(() {
       _completionLookupOpen = false;
       _completionLookupIndex = 0;
+      if (_quickDocumentationForCompletion) {
+        _quickDocumentationOpen = false;
+        _quickDocumentationForCompletion = false;
+      }
     });
     _focusNode.requestFocus();
     return true;
@@ -1012,6 +1050,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     setState(() {
       _completionLookupOpen = false;
       _completionLookupIndex = 0;
+      if (_quickDocumentationForCompletion) {
+        _quickDocumentationOpen = false;
+        _quickDocumentationForCompletion = false;
+      }
     });
     _focusNode.requestFocus();
   }
@@ -1871,16 +1913,25 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
 
   Widget _buildQuickDocumentationPanel(BuildContext context) {
     final theme = Theme.of(context);
+    final completionItem = _quickDocumentationForCompletion
+        ? _selectedCompletionItem()
+        : null;
     final hover = widget.hover;
     final token = widget.activeToken;
     final definition = widget.controller.definitionAtSelection;
     final references = widget.controller.referencesAtSelection;
-    final title = definition == null
+    final title = completionItem != null
+        ? 'Quick Documentation: ${completionItem.label}'
+        : definition == null
         ? token == null
               ? 'Quick Documentation'
               : 'Quick Documentation: ${token.lexeme}'
         : 'Quick Documentation: ${definition.symbol.name}';
-    final body = hover?.markdown ?? 'No documentation payload at the caret.';
+    final body = completionItem == null
+        ? hover?.markdown ?? 'No documentation payload at the caret.'
+        : completionItem.detail.isEmpty
+        ? '${completionItem.kind.name} completion'
+        : completionItem.detail;
 
     return Material(
       key: const ValueKey('source-quick-doc-panel'),
@@ -1919,15 +1970,28 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(body, style: theme.textTheme.bodySmall),
-            if (token != null) ...[
+            Text(
+              body,
+              key: const ValueKey('source-quick-doc-body'),
+              style: theme.textTheme.bodySmall,
+            ),
+            if (completionItem != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Completion ${completionItem.kind.name} · '
+                'insert ${_formatPreviewText(completionItem.insertText)}',
+                key: const ValueKey('source-quick-doc-completion-insert'),
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+            if (completionItem == null && token != null) ...[
               const SizedBox(height: 8),
               Text(
                 'Token ${token.kind.name} · ${_formatRange(token.range)}',
                 style: theme.textTheme.bodySmall,
               ),
             ],
-            if (definition != null) ...[
+            if (completionItem == null && definition != null) ...[
               const SizedBox(height: 8),
               Text(
                 'Definition ${_formatUsageLocationForRange(definition.symbol.nameRange)} '
@@ -2088,6 +2152,13 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
             style: theme.textTheme.bodySmall!.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
+          ),
+          const SizedBox(height: 8),
+          _InlineActionChip(
+            key: const ValueKey('source-completion-preview-doc'),
+            icon: Icons.article_rounded,
+            label: 'Documentation',
+            onTap: _openCompletionQuickDocumentation,
           ),
         ],
       ),

@@ -2181,6 +2181,72 @@ value = blend(price, tax)
     );
   });
 
+  testWidgets('opens completion documentation from lookup action', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'job = ||> { <| 42 }\njo';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'completion-doc-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('source-completion-preview-doc')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('source-completion-preview-doc')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('source-quick-doc-panel')), findsOne);
+    expect(find.text('Quick Documentation: job'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('source-quick-doc-body')))
+          .data,
+      'Current file variable symbol.',
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('source-quick-doc-completion-insert')),
+          )
+          .data,
+      'Completion variable · insert `job`',
+    );
+  });
+
   testWidgets('updates completion preview from keyboard selection', (
     tester,
   ) async {

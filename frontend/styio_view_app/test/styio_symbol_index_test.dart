@@ -117,6 +117,32 @@ total -> @stdout
     );
   });
 
+  test('builds safe delete edits only when a variable has no usages', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+used = 1
+unused = 2
+used -> @stdout
+''';
+
+    final unusedPlan = index.safeDeleteAt(source, source.indexOf('unused'));
+    expect(unusedPlan?.target.name, 'unused');
+    expect(unusedPlan?.hasConflicts, isFalse);
+    expect(unusedPlan?.edits.single.newText, '');
+    expect(
+      source.substring(
+        unusedPlan!.edits.single.range.start,
+        unusedPlan.edits.single.range.end,
+      ),
+      'unused = 2\n',
+    );
+
+    final usedPlan = index.safeDeleteAt(source, source.indexOf('used'));
+    expect(usedPlan?.hasConflicts, isTrue);
+    expect(usedPlan?.edits, isEmpty);
+    expect(usedPlan?.conflicts.single.message, contains('still used'));
+  });
+
   test('resolves parameter info from a function call argument list', () {
     const index = StyioSymbolIndex();
     const source = '''

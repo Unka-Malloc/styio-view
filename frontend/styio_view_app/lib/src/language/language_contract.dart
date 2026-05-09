@@ -230,6 +230,29 @@ class RenamePlan {
   bool get hasConflicts => conflicts.isNotEmpty;
 }
 
+class SafeDeleteConflict {
+  const SafeDeleteConflict({required this.message, required this.range});
+
+  final String message;
+  final SourceRange range;
+}
+
+class SafeDeletePlan {
+  const SafeDeletePlan({
+    required this.target,
+    required this.references,
+    required this.edits,
+    this.conflicts = const <SafeDeleteConflict>[],
+  });
+
+  final DocumentSymbol target;
+  final List<ReferenceSpan> references;
+  final List<FormattingEdit> edits;
+  final List<SafeDeleteConflict> conflicts;
+
+  bool get hasConflicts => conflicts.isNotEmpty;
+}
+
 class ParameterInfoParameter {
   const ParameterInfoParameter({
     required this.name,

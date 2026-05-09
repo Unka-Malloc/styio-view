@@ -2369,6 +2369,94 @@ value = blend(price, tax)
     expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsNothing);
   });
 
+  testWidgets('opens safe delete blockers from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'used = 1\nused -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'safe-delete-blocked.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('used'));
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsOne);
+    expect(find.text('Safe Delete: used'), findsOne);
+    expect(find.byKey(const ValueKey('source-safe-delete-blockers')), findsOne);
+    expect(
+      find.textContaining('Symbol `used` is still used in this file.'),
+      findsOne,
+    );
+    expect(bootstrap.editorController.document.text, text);
+  });
+
+  testWidgets('applies safe delete from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'used = 1\nunused = 2\nused -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'safe-delete-unused.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('unused'));
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsOne);
+    expect(find.byKey(const ValueKey('source-safe-delete-preview')), findsOne);
+
+    await tester.tap(find.byKey(const ValueKey('source-safe-delete-apply')));
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      'used = 1\nused -> @stdout\n',
+    );
+    expect(
+      find.byKey(const ValueKey('source-safe-delete-panel')),
+      findsNothing,
+    );
+  });
+
   testWidgets('applies rename edits from language pane', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

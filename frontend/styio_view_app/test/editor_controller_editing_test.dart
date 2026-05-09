@@ -1171,6 +1171,42 @@ value -> @stdout
     },
   );
 
+  test('applies safe delete only for unused current-file variables', () {
+    const text = 'used = 1\nunused = 2\nused -> @stdout\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('unused')),
+    );
+
+    expect(controller.safeDeletePlanAtSelection?.hasConflicts, isFalse);
+    expect(controller.applySafeDeleteAtSelection(), isTrue);
+    expect(controller.document.text, 'used = 1\nused -> @stdout\n');
+    expect(controller.canUndo, isTrue);
+  });
+
+  test('rejects safe delete when current-file usages remain', () {
+    const text = 'used = 1\nused -> @stdout\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('used')),
+    );
+
+    expect(controller.safeDeletePlanAtSelection?.hasConflicts, isTrue);
+    expect(controller.applySafeDeleteAtSelection(), isFalse);
+    expect(controller.document.text, text);
+    expect(controller.canUndo, isFalse);
+  });
+
   test('selects the resolved definition without changing document history', () {
     const text = 'value = value\n';
     final controller = EditorSessionController(

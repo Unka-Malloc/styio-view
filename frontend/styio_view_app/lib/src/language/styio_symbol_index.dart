@@ -274,6 +274,48 @@ class StyioSymbolIndex {
     );
   }
 
+  SafeDeletePlan? safeDeleteAt(String source, int offset) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final snapshot = build(tokens);
+    final token = _tokenAroundOffset(tokens, offset);
+    if (token == null) {
+      return null;
+    }
+
+    final reference = snapshot.referenceAt(token.range);
+    if (reference == null) {
+      return null;
+    }
+
+    final target = snapshot.symbolForTarget(reference.targetRange);
+    if (target == null) {
+      return null;
+    }
+
+    final references = snapshot.referencesForTarget(reference.targetRange);
+    if (references.isEmpty) {
+      return null;
+    }
+
+    final conflicts = _safeDeleteConflicts(
+      target: target,
+      references: references,
+    );
+    return SafeDeletePlan(
+      target: target,
+      references: references,
+      edits: conflicts.isEmpty
+          ? [
+              FormattingEdit(
+                range: _lineRemovalRange(source, target.declarationRange),
+                newText: '',
+              ),
+            ]
+          : const <FormattingEdit>[],
+      conflicts: conflicts,
+    );
+  }
+
   ParameterInfoPayload? parameterInfoAt(String source, int offset) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -884,6 +926,49 @@ class StyioSymbolIndex {
 
   bool _sameRange(SourceRange left, SourceRange right) {
     return left.start == right.start && left.end == right.end;
+  }
+
+  List<SafeDeleteConflict> _safeDeleteConflicts({
+    required DocumentSymbol target,
+    required List<ReferenceSpan> references,
+  }) {
+    if (target.kind != SymbolKind.variable) {
+      return [
+        SafeDeleteConflict(
+          message:
+              'Safe delete currently supports current-file variable '
+              'declarations.',
+          range: target.nameRange,
+        ),
+      ];
+    }
+
+    return references
+        .where((reference) => !reference.isDeclaration)
+        .map(
+          (reference) => SafeDeleteConflict(
+            message: 'Symbol `${target.name}` is still used in this file.',
+            range: reference.range,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  SourceRange _lineRemovalRange(String source, SourceRange range) {
+    final normalizedStart = range.start.clamp(0, source.length);
+    final normalizedEnd = range.end.clamp(normalizedStart, source.length);
+    final previousNewline = normalizedStart <= 0
+        ? -1
+        : source.lastIndexOf('\n', normalizedStart - 1);
+    final lineStart = previousNewline + 1;
+    final nextNewline = source.indexOf('\n', normalizedEnd);
+    if (nextNewline >= 0) {
+      return SourceRange(start: lineStart, end: nextNewline + 1);
+    }
+    if (lineStart > 0) {
+      return SourceRange(start: lineStart - 1, end: source.length);
+    }
+    return SourceRange(start: 0, end: source.length);
   }
 
   bool _isValidIdentifier(String value) {

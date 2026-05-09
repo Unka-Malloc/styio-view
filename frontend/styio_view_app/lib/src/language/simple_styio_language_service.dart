@@ -257,6 +257,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   @override
+  SafeDeletePlan? safeDeleteAt(DocumentState document, int offset) {
+    return _symbolIndex.safeDeleteAt(document.text, offset);
+  }
+
+  @override
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset) {
     return _symbolIndex.parameterInfoAt(document.text, offset);
   }

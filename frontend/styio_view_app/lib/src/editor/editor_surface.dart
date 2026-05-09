@@ -340,6 +340,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   int? _dragBaseOffset;
   bool _inlineRenameOpen = false;
   bool _usagesPanelOpen = false;
+  bool _safeDeletePanelOpen = false;
   bool _quickDocumentationOpen = false;
   bool _quickDocumentationForCompletion = false;
   bool _parameterInfoOpen = false;
@@ -406,6 +407,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     if (_usagesPanelOpen && event.logicalKey == LogicalKeyboardKey.escape) {
       _closeUsagesPanel();
       return KeyEventResult.handled;
+    }
+    if (_safeDeletePanelOpen) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          _closeSafeDeletePanel();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+          return _applySafeDelete()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+      }
     }
     if (_quickDocumentationOpen &&
         event.logicalKey == LogicalKeyboardKey.escape) {
@@ -563,6 +576,15 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       return _openSymbolLookup()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
+    }
+
+    if (!commandPressed &&
+        altPressed &&
+        event.logicalKey == LogicalKeyboardKey.delete) {
+      final opened = _openSafeDeletePanel();
+      if (opened) {
+        return KeyEventResult.handled;
+      }
     }
 
     if ((commandPressed || altPressed) &&
@@ -947,6 +969,44 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _usagesPanelOpen = false;
     });
     _focusNode.requestFocus();
+  }
+
+  bool _openSafeDeletePanel() {
+    if (widget.controller.safeDeletePlanAtSelection == null) {
+      return false;
+    }
+    setState(() {
+      _safeDeletePanelOpen = true;
+      _completionLookupOpen = false;
+      _completionLookupIndex = 0;
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+      _surroundLookupOpen = false;
+      _surroundLookupIndex = 0;
+    });
+    return true;
+  }
+
+  void _closeSafeDeletePanel() {
+    setState(() {
+      _safeDeletePanelOpen = false;
+    });
+    _focusNode.requestFocus();
+  }
+
+  bool _applySafeDelete() {
+    final applied = widget.controller.applySafeDeleteAtSelection();
+    if (!applied) {
+      return false;
+    }
+    setState(() {
+      _safeDeletePanelOpen = false;
+    });
+    _focusNode.requestFocus();
+    return true;
   }
 
   bool _openQuickDocumentation() {
@@ -1487,6 +1547,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           _buildUsagesPanel(context),
                           const SizedBox(height: 12),
                         ],
+                        if (_safeDeletePanelOpen) ...[
+                          _buildSafeDeletePanel(context),
+                          const SizedBox(height: 12),
+                        ],
                         ..._buildPreviewChildren(
                           context,
                           controller: widget.controller,
@@ -1932,6 +1996,101 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     );
   }
 
+  Widget _buildSafeDeletePanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final plan = widget.controller.safeDeletePlanAtSelection;
+    final conflicts = plan?.conflicts ?? const <SafeDeleteConflict>[];
+    return Material(
+      key: const ValueKey('source-safe-delete-panel'),
+      color: const Color(0xFFFDF8EE),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.delete_sweep_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    plan == null
+                        ? 'Safe Delete'
+                        : 'Safe Delete: ${plan.target.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _InlineActionChip(
+                  key: const ValueKey('source-safe-delete-close'),
+                  icon: Icons.close_rounded,
+                  label: 'Close',
+                  onTap: _closeSafeDeletePanel,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (plan == null)
+              Text(
+                'No symbol target at the current caret.',
+                style: theme.textTheme.bodySmall,
+              )
+            else if (conflicts.isNotEmpty) ...[
+              Text(
+                '${conflicts.length} blocker'
+                '${conflicts.length == 1 ? '' : 's'} found',
+                key: const ValueKey('source-safe-delete-blockers'),
+                style: theme.textTheme.bodySmall!.copyWith(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (var index = 0; index < conflicts.length; index += 1) ...[
+                _SafeDeleteConflictTile(
+                  key: ValueKey('source-safe-delete-conflict-$index'),
+                  conflict: conflicts[index],
+                  location: _formatUsageLocationForRange(
+                    conflicts[index].range,
+                  ),
+                  preview: _linePreviewForRange(conflicts[index].range),
+                  onTap: () => widget.controller.selectRange(
+                    baseOffset: conflicts[index].range.start,
+                    extentOffset: conflicts[index].range.end,
+                  ),
+                ),
+                if (index < conflicts.length - 1) const SizedBox(height: 6),
+              ],
+            ] else ...[
+              Text(
+                'Delete declaration with ${plan.edits.length} edit'
+                '${plan.edits.length == 1 ? '' : 's'}',
+                key: const ValueKey('source-safe-delete-preview'),
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              _InlineActionChip(
+                key: const ValueKey('source-safe-delete-apply'),
+                icon: Icons.check_rounded,
+                label: 'Delete safely',
+                onTap: _applySafeDelete,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickDocumentationPanel(BuildContext context) {
     final theme = Theme.of(context);
     final completionItem = _quickDocumentationForCompletion
@@ -2359,7 +2518,11 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   }
 
   String _usageLinePreview(ReferenceSpan reference) {
-    final position = widget.document.positionForOffset(reference.range.start);
+    return _linePreviewForRange(reference.range);
+  }
+
+  String _linePreviewForRange(SourceRange range) {
+    final position = widget.document.positionForOffset(range.start);
     if (position.line < 0 || position.line >= widget.document.lines.length) {
       return '';
     }
@@ -2425,6 +2588,71 @@ class _UsageResultTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall!.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SafeDeleteConflictTile extends StatelessWidget {
+  const _SafeDeleteConflictTile({
+    super.key,
+    required this.conflict,
+    required this.location,
+    required this.preview,
+    required this.onTap,
+  });
+
+  final SafeDeleteConflict conflict;
+  final String location;
+  final String preview;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 16,
+                color: theme.colorScheme.error,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${conflict.message} · $location',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        color: theme.colorScheme.error,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

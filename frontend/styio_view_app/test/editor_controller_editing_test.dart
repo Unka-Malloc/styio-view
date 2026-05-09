@@ -119,6 +119,59 @@ void main() {
     expect(controller.document.text, text);
   });
 
+  test('toggles line comments for the current line', () {
+    const text = 'value = 1\nnext = 2\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('value') + 2),
+    );
+
+    expect(controller.toggleLineComment(), isTrue);
+    expect(controller.document.text, '// value = 1\nnext = 2\n');
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, text);
+
+    expect(controller.toggleLineComment(), isTrue);
+    expect(controller.toggleLineComment(), isTrue);
+    expect(controller.document.text, text);
+  });
+
+  test(
+    'toggles line comments across selected lines preserving indentation',
+    () {
+      const text = '  value = 1\n\n  next = 2\nfinal = 3\n';
+      final finalLineStart = text.indexOf('final');
+      final controller = EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: 'sample.styio',
+          text: text,
+          revision: 0,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+        initialSelection: SelectionState(
+          baseOffset: 0,
+          extentOffset: finalLineStart,
+        ),
+      );
+
+      expect(controller.toggleLineComment(), isTrue);
+      expect(
+        controller.document.text,
+        '  // value = 1\n\n  // next = 2\nfinal = 3\n',
+      );
+
+      expect(controller.toggleLineComment(), isTrue);
+      expect(controller.document.text, text);
+    },
+  );
+
   test(
     'applies completion item by replacing the active token at caret edge',
     () {

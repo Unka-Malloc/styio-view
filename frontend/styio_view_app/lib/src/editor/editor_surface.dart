@@ -416,6 +416,11 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           return _openQuickDocumentation()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
+        case LogicalKeyboardKey.slash:
+        case LogicalKeyboardKey.numpadDivide:
+          return widget.controller.toggleLineComment()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
         case LogicalKeyboardKey.keyW:
           return (shiftPressed
                   ? widget.controller.shrinkSelectionStructurally()

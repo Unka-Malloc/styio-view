@@ -361,6 +361,82 @@ class EditorSessionController extends ChangeNotifier {
     return true;
   }
 
+  bool toggleLineComment() {
+    final lineRange = _lineRangeForCommentToggle();
+    final lines = _document.lines;
+    final lineStarts = _document.lineStarts;
+    final singleLine = lineRange.startLine == lineRange.endLine;
+    final targetLines = <int>[];
+
+    for (
+      var lineIndex = lineRange.startLine;
+      lineIndex <= lineRange.endLine;
+      lineIndex += 1
+    ) {
+      final lineText = lines[lineIndex];
+      if (!singleLine && lineText.trim().isEmpty) {
+        continue;
+      }
+      targetLines.add(lineIndex);
+    }
+
+    if (targetLines.isEmpty) {
+      return false;
+    }
+
+    final shouldUncomment = targetLines.every(
+      (lineIndex) =>
+          _lineCommentPrefixOffset(
+            lineText: lines[lineIndex],
+            lineStart: lineStarts[lineIndex],
+          ) !=
+          null,
+    );
+    final edits = <FormattingEdit>[];
+
+    for (final lineIndex in targetLines) {
+      final lineText = lines[lineIndex];
+      final lineStart = lineStarts[lineIndex];
+      if (shouldUncomment) {
+        final prefixOffset = _lineCommentPrefixOffset(
+          lineText: lineText,
+          lineStart: lineStart,
+        );
+        if (prefixOffset == null) {
+          continue;
+        }
+        final localPrefixOffset = prefixOffset - lineStart;
+        var removeEnd = prefixOffset + 2;
+        if (localPrefixOffset + 2 < lineText.length &&
+            lineText[localPrefixOffset + 2] == ' ') {
+          removeEnd += 1;
+        }
+        edits.add(
+          FormattingEdit(
+            range: SourceRange(start: prefixOffset, end: removeEnd),
+            newText: '',
+          ),
+        );
+      } else {
+        final insertOffset =
+            lineStart + _leadingHorizontalWhitespaceLength(lineText);
+        edits.add(
+          FormattingEdit(
+            range: SourceRange(start: insertOffset, end: insertOffset),
+            newText: '// ',
+          ),
+        );
+      }
+    }
+
+    if (edits.isEmpty) {
+      return false;
+    }
+
+    applyFormattingEdits(edits);
+    return true;
+  }
+
   bool extendSelectionStructurally() {
     final current = SourceRange(start: _selection.start, end: _selection.end);
     final candidates = _structuredSelectionCandidates(current);
@@ -679,6 +755,50 @@ class EditorSessionController extends ChangeNotifier {
     return SourceRange(start: start, end: end);
   }
 
+  _CommentLineRange _lineRangeForCommentToggle() {
+    final lineCount = _document.lines.length;
+    final startPosition = _document.positionForOffset(_selection.start);
+    var endOffset = _selection.end;
+    if (!_selection.isCollapsed && endOffset > _selection.start) {
+      final endPosition = _document.positionForOffset(endOffset);
+      if (endPosition.column == 0 && endPosition.line > startPosition.line) {
+        endOffset -= 1;
+      }
+    }
+
+    final endPosition = _document.positionForOffset(endOffset);
+    return _CommentLineRange(
+      startLine: startPosition.line.clamp(0, lineCount - 1),
+      endLine: endPosition.line.clamp(0, lineCount - 1),
+    );
+  }
+
+  int? _lineCommentPrefixOffset({
+    required String lineText,
+    required int lineStart,
+  }) {
+    final indentLength = _leadingHorizontalWhitespaceLength(lineText);
+    if (indentLength + 1 >= lineText.length) {
+      return null;
+    }
+    if (lineText[indentLength] != '/' || lineText[indentLength + 1] != '/') {
+      return null;
+    }
+    return lineStart + indentLength;
+  }
+
+  int _leadingHorizontalWhitespaceLength(String lineText) {
+    var index = 0;
+    while (index < lineText.length) {
+      final codeUnit = lineText.codeUnitAt(index);
+      if (codeUnit != 0x20 && codeUnit != 0x09) {
+        break;
+      }
+      index += 1;
+    }
+    return index;
+  }
+
   bool _strictlyContainsSelection(SourceRange candidate, SourceRange current) {
     return candidate.start <= current.start &&
         candidate.end >= current.end &&
@@ -811,4 +931,11 @@ class _EditorSnapshot {
 
   final DocumentState document;
   final SelectionState selection;
+}
+
+class _CommentLineRange {
+  const _CommentLineRange({required this.startLine, required this.endLine});
+
+  final int startLine;
+  final int endLine;
 }

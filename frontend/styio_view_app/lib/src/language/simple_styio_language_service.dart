@@ -2,19 +2,32 @@ import '../editor/document_state.dart';
 import 'language_contract.dart';
 import 'styio_language_service.dart';
 import 'styio_syntax_highlighter.dart';
+import 'styio_symbol_index.dart';
 
 class SimpleStyioLanguageService implements StyioLanguageService {
   const SimpleStyioLanguageService({
     StyioSyntaxHighlighter syntaxHighlighter = const StyioSyntaxHighlighter(),
-  }) : _syntaxHighlighter = syntaxHighlighter;
+    StyioSymbolIndex symbolIndex = const StyioSymbolIndex(),
+  }) : _syntaxHighlighter = syntaxHighlighter,
+       _symbolIndex = symbolIndex;
+
+  static const Set<String> _implicitIdentifierAllowlist = {
+    'condition',
+    'normalize',
+    'sink',
+    'source',
+    'value',
+  };
 
   final StyioSyntaxHighlighter _syntaxHighlighter;
+  final StyioSymbolIndex _symbolIndex;
 
   @override
   StyioDocumentAnalysis analyzeDocument(DocumentState document) {
     final tokenSpans = _syntaxHighlighter.tokenize(document.text);
     final semanticSpans = _syntaxHighlighter.resolveSemanticSpans(tokenSpans);
-    final diagnostics = _lintDocument(tokenSpans);
+    final symbolSnapshot = _symbolIndex.build(tokenSpans);
+    final diagnostics = _lintDocument(tokenSpans, symbolSnapshot);
     final formattingEdits = formatDocument(document);
     final semanticBlocks = _syntaxHighlighter.resolveSemanticBlocks(tokenSpans);
 
@@ -24,6 +37,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       diagnostics: diagnostics,
       formattingEdits: formattingEdits,
       semanticBlocks: semanticBlocks,
+      documentSymbols: symbolSnapshot.symbols,
+      referenceSpans: symbolSnapshot.references,
     );
   }
 
@@ -50,10 +65,12 @@ class SimpleStyioLanguageService implements StyioLanguageService {
 
   @override
   List<CompletionItem> completeAt(DocumentState document, int offset) {
-    final token = _syntaxHighlighter.tokenAt(document.text, offset);
+    final tokenSpans = _syntaxHighlighter.tokenize(document.text);
+    final token = _tokenAroundOffset(tokenSpans, offset);
     final seed = token?.lexeme ?? '';
+    final symbolSnapshot = _symbolIndex.build(tokenSpans);
 
-    final items = <CompletionItem>[
+    final staticItems = <CompletionItem>[
       const CompletionItem(
         label: '@import',
         kind: CompletionItemKind.snippet,
@@ -128,6 +145,10 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         detail: 'State transition snippet.',
       ),
     ];
+    final items = _dedupeCompletionItems([
+      ...staticItems,
+      ...symbolSnapshot.symbols.map(_completionItemForSymbol),
+    ]);
 
     if (seed.isEmpty || token == null || token.kind == TokenKind.keyword) {
       return items;
@@ -191,6 +212,21 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   @override
+  DefinitionTarget? definitionAt(DocumentState document, int offset) {
+    return _symbolIndex.definitionAt(document.text, offset);
+  }
+
+  @override
+  List<ReferenceSpan> referencesAt(DocumentState document, int offset) {
+    return _symbolIndex.referencesAt(document.text, offset);
+  }
+
+  @override
+  RenamePlan? renameAt(DocumentState document, int offset, String newName) {
+    return _symbolIndex.renameAt(document.text, offset, newName);
+  }
+
+  @override
   List<DiagnosticQuickFix> quickFixesForDiagnostic(
     DocumentState document,
     Diagnostic diagnostic,
@@ -248,7 +284,10 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     return const <DiagnosticQuickFix>[];
   }
 
-  List<Diagnostic> _lintDocument(List<TokenSpan> tokens) {
+  List<Diagnostic> _lintDocument(
+    List<TokenSpan> tokens,
+    StyioSymbolSnapshot symbolSnapshot,
+  ) {
     final diagnostics = <Diagnostic>[];
     final blockStack = <TokenSpan>[];
 
@@ -303,6 +342,28 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       }
     }
 
+    final resolvedRanges = {
+      for (final reference in symbolSnapshot.references)
+        '${reference.range.start}:${reference.range.end}',
+    };
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind != TokenKind.identifier ||
+          resolvedRanges.contains('${token.range.start}:${token.range.end}') ||
+          _shouldIgnoreUnresolvedCandidate(tokens, index)) {
+        continue;
+      }
+
+      diagnostics.add(
+        Diagnostic(
+          severity: DiagnosticSeverity.warning,
+          code: 'unresolved-reference',
+          message: 'Identifier is not resolved by the current symbol index.',
+          range: token.range,
+        ),
+      );
+    }
+
     return diagnostics;
   }
 
@@ -338,6 +399,135 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   ) {
     return tokens.any(
       (token) => token.range.intersects(lineRange) && token.lexeme == lexeme,
+    );
+  }
+
+  bool _shouldIgnoreUnresolvedCandidate(
+    List<TokenSpan> tokens,
+    int tokenIndex,
+  ) {
+    final token = tokens[tokenIndex];
+    if (_syntaxHighlighter.isTypeName(token.lexeme) ||
+        _syntaxHighlighter.isStandardResource(token.lexeme) ||
+        _implicitIdentifierAllowlist.contains(token.lexeme) ||
+        _isInsideImportDeclaration(tokens, tokenIndex) ||
+        _isInsideBracketSelector(tokens, tokenIndex)) {
+      return true;
+    }
+
+    final previous = _previousSignificant(tokens, tokenIndex - 1);
+    final next = _nextSignificant(tokens, tokenIndex + 1);
+    if (previous?.lexeme == '.' || next?.lexeme == ':') {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isInsideImportDeclaration(List<TokenSpan> tokens, int tokenIndex) {
+    var sawImport = false;
+    for (var index = tokenIndex - 1; index >= 0; index -= 1) {
+      final token = tokens[index];
+      if (token.lexeme.contains('\n')) {
+        return false;
+      }
+      if (token.kind == TokenKind.keyword && token.lexeme == 'import') {
+        sawImport = true;
+      } else if (sawImport && token.lexeme == '@') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isInsideBracketSelector(List<TokenSpan> tokens, int tokenIndex) {
+    for (var index = tokenIndex - 1; index >= 0; index -= 1) {
+      final token = tokens[index];
+      if (token.lexeme.contains('\n')) {
+        return false;
+      }
+      if (token.lexeme == ']') {
+        return false;
+      }
+      if (token.lexeme == '[') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  TokenSpan? _nextSignificant(List<TokenSpan> tokens, int startIndex) {
+    for (var index = startIndex; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      return token;
+    }
+    return null;
+  }
+
+  TokenSpan? _previousSignificant(List<TokenSpan> tokens, int startIndex) {
+    for (var index = startIndex; index >= 0; index -= 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      return token;
+    }
+    return null;
+  }
+
+  TokenSpan? _tokenAroundOffset(List<TokenSpan> tokens, int offset) {
+    TokenSpan? trailingToken;
+    TokenSpan? leadingToken;
+
+    for (final token in tokens) {
+      if (token.kind == TokenKind.whitespace) {
+        continue;
+      }
+
+      if (token.range.contains(offset)) {
+        return token;
+      }
+      if (token.range.end == offset) {
+        trailingToken = token;
+      }
+      if (leadingToken == null && token.range.start == offset) {
+        leadingToken = token;
+      }
+    }
+
+    return trailingToken ?? leadingToken;
+  }
+
+  List<CompletionItem> _dedupeCompletionItems(Iterable<CompletionItem> items) {
+    final deduped = <CompletionItem>[];
+    final seen = <String>{};
+    for (final item in items) {
+      final signature = '${item.label}:${item.insertText}';
+      if (seen.add(signature)) {
+        deduped.add(item);
+      }
+    }
+    return deduped;
+  }
+
+  CompletionItem _completionItemForSymbol(DocumentSymbol symbol) {
+    return CompletionItem(
+      label: symbol.name,
+      kind: switch (symbol.kind) {
+        SymbolKind.function => CompletionItemKind.function,
+        SymbolKind.pipeline ||
+        SymbolKind.state ||
+        SymbolKind.resource ||
+        SymbolKind.variable ||
+        SymbolKind.parameter ||
+        SymbolKind.task => CompletionItemKind.variable,
+      },
+      insertText: symbol.name,
+      detail: 'Current file ${symbol.kind.name} symbol.',
     );
   }
 }

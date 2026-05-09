@@ -6,15 +6,15 @@ abstract class StyioLanguageService {
 
   List<FormattingEdit> formatDocument(DocumentState document);
 
-  List<CompletionItem> completeAt(
-    DocumentState document,
-    int offset,
-  );
+  List<CompletionItem> completeAt(DocumentState document, int offset);
 
-  HoverPayload? hoverAt(
-    DocumentState document,
-    int offset,
-  );
+  HoverPayload? hoverAt(DocumentState document, int offset);
+
+  DefinitionTarget? definitionAt(DocumentState document, int offset);
+
+  List<ReferenceSpan> referencesAt(DocumentState document, int offset);
+
+  RenamePlan? renameAt(DocumentState document, int offset, String newName);
 
   List<DiagnosticQuickFix> quickFixesForDiagnostic(
     DocumentState document,

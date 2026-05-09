@@ -114,6 +114,46 @@ void main() {
     },
   );
 
+  test('applies best completion item at the caret', () {
+    const text = 'job = ||> { <| 42 }\njo';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(text.length),
+    );
+
+    final applied = controller.applyBestCompletionAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, 'job = ||> { <| 42 }\njob');
+    expect(controller.canUndo, isTrue);
+  });
+
+  test('applies token completion only when an identifier is active', () {
+    const text = 'job = ||> { <| 42 }\njo';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(text.length),
+    );
+
+    expect(controller.applyTokenCompletionAtSelection(), isTrue);
+    expect(controller.document.text, 'job = ||> { <| 42 }\njob');
+
+    controller.loadDocument(
+      const DocumentState(documentId: 'sample.styio', text: '', revision: 0),
+    );
+    expect(controller.applyTokenCompletionAtSelection(), isFalse);
+  });
+
   test('applies formatting edits and preserves collapsed caret position', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(
@@ -154,6 +194,25 @@ void main() {
     expect(controller.analysis.diagnostics, isEmpty);
   });
 
+  test('applies first diagnostic quick fix at the caret', () {
+    const text = 'let stream\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('stream') + 2),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, 'let stream = value\n');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('resolves active token when caret lands on token boundary', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(
@@ -171,5 +230,176 @@ void main() {
     controller.selectCollapsed(18);
     expect(controller.tokenAtSelection?.lexeme, 'renderFlow');
     expect(controller.semanticKindAtSelection, SemanticKind.pipeline);
+  });
+
+  test('resolves definition and current-file usages at the caret', () {
+    const text = '''
+@resource : f64|..2| := {
+  value = 10
+  value -> @resource
+}
+value -> @stdout
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.lastIndexOf('value')),
+    );
+
+    expect(controller.definitionAtSelection?.symbol.name, 'value');
+    expect(controller.referencesAtSelection.length, 3);
+
+    controller.selectCollapsed(text.lastIndexOf('resource'));
+    expect(controller.definitionAtSelection?.symbol.kind, SymbolKind.resource);
+    expect(controller.referencesAtSelection.length, 2);
+  });
+
+  test('applies rename edits from the resolved symbol at caret', () {
+    const text = '''
+@resource : f64|..2| := {
+  value = 10
+  value -> @resource
+}
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.lastIndexOf('value')),
+    );
+
+    final plan = controller.renamePlanAtSelection('price');
+    expect(plan?.edits.length, 2);
+
+    controller.applyRename('price');
+
+    expect(controller.document.text, contains('price = 10'));
+    expect(controller.document.text, contains('price -> @resource'));
+    expect(controller.document.text, isNot(contains('value')));
+    expect(controller.canUndo, isTrue);
+  });
+
+  test('selects the resolved definition without changing document history', () {
+    const text = 'value = value\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.lastIndexOf('value')),
+    );
+
+    final navigated = controller.selectDefinitionAtSelection();
+
+    expect(navigated, isTrue);
+    expect(controller.selection.start, 0);
+    expect(controller.selection.end, 'value'.length);
+    expect(controller.canUndo, isFalse);
+    expect(controller.document.text, text);
+  });
+
+  test('selects a document symbol without changing document history', () {
+    const text = 'fn main(user) {\n  value = user\n}\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+
+    final symbol = controller.analysis.documentSymbols.singleWhere(
+      (candidate) => candidate.name == 'main',
+    );
+    final selected = controller.selectDocumentSymbol(symbol);
+
+    expect(selected, isTrue);
+    expect(controller.selection.start, text.indexOf('main'));
+    expect(controller.selection.end, text.indexOf('main') + 'main'.length);
+    expect(controller.canUndo, isFalse);
+    expect(controller.document.text, text);
+  });
+
+  test('cycles between resolved current-file usages', () {
+    const text = 'value = value\nvalue -> @stdout\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('= value') + 3),
+    );
+
+    expect(controller.referencesAtSelection.length, 3);
+
+    expect(controller.selectNextReferenceAtSelection(), isTrue);
+    expect(controller.selection.start, text.lastIndexOf('value'));
+
+    expect(controller.selectNextReferenceAtSelection(), isTrue);
+    expect(controller.selection.start, 0);
+
+    expect(controller.selectPreviousReferenceAtSelection(), isTrue);
+    expect(controller.selection.start, text.lastIndexOf('value'));
+  });
+
+  test('cycles between diagnostics without changing document history', () {
+    const text = 'let stream\nmissingPrice -> @stdout\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(0),
+    );
+
+    expect(controller.analysis.diagnostics.length, 2);
+
+    expect(controller.selectNextDiagnosticAtSelection(), isTrue);
+    expect(controller.selection.start, 0);
+    expect(controller.selection.end, text.indexOf('\n'));
+
+    expect(controller.selectNextDiagnosticAtSelection(), isTrue);
+    expect(controller.selection.start, text.indexOf('missingPrice'));
+    expect(controller.canUndo, isFalse);
+
+    expect(controller.selectPreviousDiagnosticAtSelection(), isTrue);
+    expect(controller.selection.start, 0);
+  });
+
+  test('selects a diagnostic without changing document history', () {
+    const text = 'let stream\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+
+    final diagnostic = controller.analysis.diagnostics.singleWhere(
+      (item) => item.code == 'missing-assignment',
+    );
+    final selected = controller.selectDiagnostic(diagnostic);
+
+    expect(selected, isTrue);
+    expect(controller.selection.start, 0);
+    expect(controller.selection.end, text.indexOf('\n'));
+    expect(controller.canUndo, isFalse);
+    expect(controller.document.text, text);
   });
 }

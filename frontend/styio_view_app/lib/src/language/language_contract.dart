@@ -20,24 +20,22 @@ enum SemanticKind {
   typeName,
 }
 
-enum DiagnosticSeverity {
-  error,
-  warning,
-  hint,
-}
+enum DiagnosticSeverity { error, warning, hint }
 
-enum CompletionItemKind {
-  keyword,
+enum CompletionItemKind { keyword, function, variable, snippet }
+
+enum SymbolKind {
   function,
+  pipeline,
+  state,
+  resource,
   variable,
-  snippet,
+  parameter,
+  task,
 }
 
 class SourceRange {
-  const SourceRange({
-    required this.start,
-    required this.end,
-  });
+  const SourceRange({required this.start, required this.end});
 
   final int start;
   final int end;
@@ -100,10 +98,7 @@ class Diagnostic {
 }
 
 class FormattingEdit {
-  const FormattingEdit({
-    required this.range,
-    required this.newText,
-  });
+  const FormattingEdit({required this.range, required this.newText});
 
   final SourceRange range;
   final String newText;
@@ -136,23 +131,70 @@ class CompletionItem {
 }
 
 class HoverPayload {
-  const HoverPayload({
-    required this.range,
-    required this.markdown,
-  });
+  const HoverPayload({required this.range, required this.markdown});
 
   final SourceRange range;
   final String markdown;
 }
 
 class SemanticBlockRange {
-  const SemanticBlockRange({
-    required this.range,
-    required this.label,
-  });
+  const SemanticBlockRange({required this.range, required this.label});
 
   final SourceRange range;
   final String label;
+}
+
+class DocumentSymbol {
+  const DocumentSymbol({
+    required this.name,
+    required this.kind,
+    required this.nameRange,
+    required this.declarationRange,
+    this.detail = '',
+  });
+
+  final String name;
+  final SymbolKind kind;
+  final SourceRange nameRange;
+  final SourceRange declarationRange;
+  final String detail;
+}
+
+class ReferenceSpan {
+  const ReferenceSpan({
+    required this.name,
+    required this.kind,
+    required this.range,
+    required this.targetRange,
+    this.isDeclaration = false,
+  });
+
+  final String name;
+  final SymbolKind kind;
+  final SourceRange range;
+  final SourceRange targetRange;
+  final bool isDeclaration;
+}
+
+class DefinitionTarget {
+  const DefinitionTarget({required this.symbol, required this.originRange});
+
+  final DocumentSymbol symbol;
+  final SourceRange originRange;
+}
+
+class RenamePlan {
+  const RenamePlan({
+    required this.target,
+    required this.newName,
+    required this.references,
+    required this.edits,
+  });
+
+  final DocumentSymbol target;
+  final String newName;
+  final List<ReferenceSpan> references;
+  final List<FormattingEdit> edits;
 }
 
 class StyioDocumentAnalysis {
@@ -162,6 +204,8 @@ class StyioDocumentAnalysis {
     required this.diagnostics,
     required this.formattingEdits,
     required this.semanticBlocks,
+    required this.documentSymbols,
+    required this.referenceSpans,
   });
 
   final List<TokenSpan> tokenSpans;
@@ -169,8 +213,12 @@ class StyioDocumentAnalysis {
   final List<Diagnostic> diagnostics;
   final List<FormattingEdit> formattingEdits;
   final List<SemanticBlockRange> semanticBlocks;
+  final List<DocumentSymbol> documentSymbols;
+  final List<ReferenceSpan> referenceSpans;
 
   int get tokenCount => tokenSpans.length;
   int get semanticCount => semanticSpans.length;
   int get diagnosticCount => diagnostics.length;
+  int get symbolCount => documentSymbols.length;
+  int get referenceCount => referenceSpans.length;
 }

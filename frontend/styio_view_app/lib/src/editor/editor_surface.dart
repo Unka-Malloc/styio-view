@@ -30,6 +30,7 @@ class EditorSurface extends StatelessWidget {
         final analysis = controller.analysis;
         final hover = controller.hoverAtSelection;
         final completions = controller.completionsAtSelection;
+        final activeReferences = controller.referencesAtSelection;
         final activeToken = controller.tokenAtSelection;
         final activeSemanticKind = controller.semanticKindAtSelection;
         final summaryPills = <String>[
@@ -37,6 +38,7 @@ class EditorSurface extends StatelessWidget {
           'chars ${document.length}',
           'tokens ${analysis.tokenCount}',
           'semantic ${analysis.semanticCount}',
+          'symbols ${analysis.symbolCount}',
           'diagnostics ${analysis.diagnosticCount}',
           selection.isCollapsed
               ? 'caret ${selection.end}'
@@ -47,13 +49,14 @@ class EditorSurface extends StatelessWidget {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final compact = viewportProfile.isMobile ||
+            final compact =
+                viewportProfile.isMobile ||
                 constraints.maxWidth < 780 ||
                 constraints.maxHeight < 560;
             final dense =
                 (viewportProfile.isMobile && constraints.maxWidth < 640) ||
-                    constraints.maxWidth < 560 ||
-                    constraints.maxHeight < 430;
+                constraints.maxWidth < 560 ||
+                constraints.maxHeight < 430;
             final outerPadding = dense ? 16.0 : 24.0;
             final innerPadding = dense ? 14.0 : 18.0;
             final visibleSummaryPills = dense
@@ -129,14 +132,15 @@ class EditorSurface extends StatelessWidget {
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
                                   final mobileFamily = viewportProfile.isMobile;
-                                  final scrollStackedPane = mobileFamily &&
+                                  final scrollStackedPane =
+                                      mobileFamily &&
                                       constraints.maxHeight < 460;
                                   final inspectorHeight =
                                       constraints.maxHeight >= 720
-                                          ? 240.0
-                                          : constraints.maxHeight >= 560
-                                              ? 200.0
-                                              : 160.0;
+                                      ? 240.0
+                                      : constraints.maxHeight >= 560
+                                      ? 200.0
+                                      : 160.0;
 
                                   if (scrollStackedPane) {
                                     return KeyedSubtree(
@@ -155,6 +159,8 @@ class EditorSurface extends StatelessWidget {
                                               viewportProfile: viewportProfile,
                                               hover: hover,
                                               completions: completions,
+                                              activeReferences:
+                                                  activeReferences,
                                               activeToken: activeToken,
                                               activeSemanticKind:
                                                   activeSemanticKind,
@@ -199,6 +205,8 @@ class EditorSurface extends StatelessWidget {
                                               viewportProfile: viewportProfile,
                                               hover: hover,
                                               completions: completions,
+                                              activeReferences:
+                                                  activeReferences,
                                               activeToken: activeToken,
                                               activeSemanticKind:
                                                   activeSemanticKind,
@@ -243,6 +251,7 @@ class EditorSurface extends StatelessWidget {
                                             viewportProfile: viewportProfile,
                                             hover: hover,
                                             completions: completions,
+                                            activeReferences: activeReferences,
                                             activeToken: activeToken,
                                             activeSemanticKind:
                                                 activeSemanticKind,
@@ -295,6 +304,7 @@ class _SourcePreviewPane extends StatefulWidget {
     required this.viewportProfile,
     required this.hover,
     required this.completions,
+    required this.activeReferences,
     required this.activeToken,
     required this.activeSemanticKind,
     required this.document,
@@ -307,6 +317,7 @@ class _SourcePreviewPane extends StatefulWidget {
   final ViewportProfile viewportProfile;
   final HoverPayload? hover;
   final List<CompletionItem> completions;
+  final List<ReferenceSpan> activeReferences;
   final TokenSpan? activeToken;
   final SemanticKind? activeSemanticKind;
   final DocumentState document;
@@ -352,11 +363,37 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       return KeyEventResult.ignored;
     }
 
-    final commandPressed = HardwareKeyboard.instance.isMetaPressed ||
+    final commandPressed =
+        HardwareKeyboard.instance.isMetaPressed ||
         HardwareKeyboard.instance.isControlPressed;
     final shiftPressed = HardwareKeyboard.instance.isShiftPressed;
+    final altPressed = HardwareKeyboard.instance.isAltPressed;
     if (commandPressed) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.keyB:
+          return widget.controller.selectDefinitionAtSelection()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        case LogicalKeyboardKey.space:
+        case LogicalKeyboardKey.keyJ:
+          return widget.controller.applyBestCompletionAtSelection()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+      }
       return KeyEventResult.ignored;
+    }
+
+    if (altPressed && event.logicalKey == LogicalKeyboardKey.f7) {
+      return widget.controller.selectNextReferenceAtSelection()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+    if (altPressed &&
+        (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+      return widget.controller.applyFirstQuickFixAtSelection()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
     }
 
     switch (event.logicalKey) {
@@ -379,10 +416,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowDown:
-        widget.controller.moveCaretVertically(
-          1,
-          expandSelection: shiftPressed,
-        );
+        widget.controller.moveCaretVertically(1, expandSelection: shiftPressed);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.home:
         widget.controller.moveCaretToLineBoundary(
@@ -407,8 +441,24 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         widget.controller.insertNewline();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.tab:
+        if (!shiftPressed &&
+            widget.controller.applyTokenCompletionAtSelection()) {
+          return KeyEventResult.handled;
+        }
         widget.controller.insertText('  ');
         return KeyEventResult.handled;
+      case LogicalKeyboardKey.f2:
+        return (shiftPressed
+                ? widget.controller.selectPreviousDiagnosticAtSelection()
+                : widget.controller.selectNextDiagnosticAtSelection())
+            ? KeyEventResult.handled
+            : KeyEventResult.ignored;
+      case LogicalKeyboardKey.f3:
+        return (shiftPressed
+                ? widget.controller.selectPreviousReferenceAtSelection()
+                : widget.controller.selectNextReferenceAtSelection())
+            ? KeyEventResult.handled
+            : KeyEventResult.ignored;
       default:
         final character = event.character;
         if (_isPlainTextCharacter(character)) {
@@ -450,10 +500,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       localPosition: details.localPosition,
     );
     _dragBaseOffset = offset;
-    widget.controller.selectRange(
-      baseOffset: offset,
-      extentOffset: offset,
-    );
+    widget.controller.selectRange(baseOffset: offset, extentOffset: offset);
   }
 
   void _handleLinePanUpdate(int lineIndex, DragUpdateDetails details) {
@@ -484,11 +531,14 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       widget.document.lines.length - 1,
     );
     final lineText = widget.document.lines[targetLine];
-    final relativeDx =
-        (localPosition.dx - _gutterWidth).clamp(0.0, double.infinity);
-    final column = (relativeDx / _estimatedCharacterWidth)
-        .round()
-        .clamp(0, lineText.length);
+    final relativeDx = (localPosition.dx - _gutterWidth).clamp(
+      0.0,
+      double.infinity,
+    );
+    final column = (relativeDx / _estimatedCharacterWidth).round().clamp(
+      0,
+      lineText.length,
+    );
     return widget.document.offsetForLineColumn(
       line: targetLine,
       column: column,
@@ -499,9 +549,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final lineStarts = widget.document.lineStarts;
-    final semanticBlocks = widget.renderPlan.activeLayers.contains(
-      EditorRenderLayer.overlay,
-    )
+    final semanticBlocks =
+        widget.renderPlan.activeLayers.contains(EditorRenderLayer.overlay)
         ? _resolveLineBlocks(
             document: widget.document,
             lineStarts: lineStarts,
@@ -510,13 +559,14 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         : const <_SemanticLineBlock>[];
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = widget.viewportProfile.isMobile ||
+        final compact =
+            widget.viewportProfile.isMobile ||
             constraints.maxWidth < 480 ||
             constraints.maxHeight < 300;
         final dense =
             (widget.viewportProfile.isMobile && constraints.maxWidth < 520) ||
-                constraints.maxWidth < 380 ||
-                constraints.maxHeight < 240;
+            constraints.maxWidth < 380 ||
+            constraints.maxHeight < 240;
         final contentPadding = dense ? 12.0 : 18.0;
 
         return Focus(
@@ -546,13 +596,11 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                     runSpacing: 8,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(
-                        'Source Buffer',
-                        style: theme.textTheme.titleMedium,
-                      ),
+                      Text('Source Buffer', style: theme.textTheme.titleMedium),
                       _CapabilityPill(
-                        label:
-                            _focusNode.hasFocus ? 'editing' : 'click to focus',
+                        label: _focusNode.hasFocus
+                            ? 'editing'
+                            : 'click to focus',
                       ),
                     ],
                   ),
@@ -574,6 +622,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                         viewportProfile: widget.viewportProfile,
                         hover: widget.hover,
                         completions: widget.completions,
+                        activeReferences: widget.activeReferences,
                         activeToken: widget.activeToken,
                         activeSemanticKind: widget.activeSemanticKind,
                         document: widget.document,
@@ -605,6 +654,7 @@ class _HighlightedLineRow extends StatelessWidget {
     required this.document,
     required this.selection,
     required this.analysis,
+    required this.activeReferences,
     required this.activeTokenRange,
     required this.lineIndex,
     required this.lineStarts,
@@ -618,6 +668,7 @@ class _HighlightedLineRow extends StatelessWidget {
   final DocumentState document;
   final SelectionState selection;
   final StyioDocumentAnalysis analysis;
+  final List<ReferenceSpan> activeReferences;
   final SourceRange? activeTokenRange;
   final int lineIndex;
   final List<int> lineStarts;
@@ -634,7 +685,8 @@ class _HighlightedLineRow extends StatelessWidget {
     final lineStart = lineStarts[lineIndex];
     final lineEnd = lineStart + lineText.length;
     final lineRange = SourceRange(start: lineStart, end: lineEnd);
-    final caretOnLine = selection.isCollapsed &&
+    final caretOnLine =
+        selection.isCollapsed &&
         selection.end >= lineStart &&
         selection.end <= lineEnd;
     final lineDiagnostics = analysis.diagnostics
@@ -655,10 +707,7 @@ class _HighlightedLineRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 6,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -674,10 +723,7 @@ class _HighlightedLineRow extends StatelessWidget {
                   height: 22,
                   margin: const EdgeInsets.only(top: 1, right: 12),
                   decoration: BoxDecoration(
-                    color: _diagnosticStripeColor(
-                      context,
-                      lineDiagnostics,
-                    ),
+                    color: _diagnosticStripeColor(context, lineDiagnostics),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -689,6 +735,7 @@ class _HighlightedLineRow extends StatelessWidget {
                         document.text,
                         lineRange,
                         analysis,
+                        activeReferences: activeReferences,
                         activeTokenRange: activeTokenRange,
                         selection: selection,
                         renderPlan: renderPlan,
@@ -776,10 +823,7 @@ class _InlineLanguageFeedback extends StatelessWidget {
                   ],
                   if (hover != null) ...[
                     if (diagnostics.isNotEmpty) const SizedBox(height: 10),
-                    Text(
-                      hover!.markdown,
-                      style: theme.textTheme.bodySmall,
-                    ),
+                    Text(hover!.markdown, style: theme.textTheme.bodySmall),
                   ],
                   if (compactCompletions.isNotEmpty ||
                       formattingEdits.isNotEmpty ||
@@ -789,9 +833,11 @@ class _InlineLanguageFeedback extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (var index = 0;
-                            index < quickFixes.length;
-                            index += 1)
+                        for (
+                          var index = 0;
+                          index < quickFixes.length;
+                          index += 1
+                        )
                           _InlineActionChip(
                             key: ValueKey('inline-diagnostic-fix-$index'),
                             icon: Icons.build_circle_rounded,
@@ -823,10 +869,7 @@ class _InlineLanguageFeedback extends StatelessWidget {
                     ),
                   ] else if (diagnostics.isEmpty && hover == null) ...[
                     const SizedBox(height: 10),
-                    Text(
-                      fallbackMessage,
-                      style: theme.textTheme.bodySmall,
-                    ),
+                    Text(fallbackMessage, style: theme.textTheme.bodySmall),
                   ],
                 ],
               )
@@ -890,19 +933,19 @@ class _InlineLanguageFeedback extends StatelessWidget {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              for (var index = 0;
-                                  index < quickFixes.length;
-                                  index += 1)
+                              for (
+                                var index = 0;
+                                index < quickFixes.length;
+                                index += 1
+                              )
                                 _InlineActionChip(
-                                  key: ValueKey(
-                                    'inline-diagnostic-fix-$index',
-                                  ),
+                                  key: ValueKey('inline-diagnostic-fix-$index'),
                                   icon: Icons.build_circle_rounded,
                                   label: quickFixes[index].label,
                                   onTap: () =>
                                       controller.applyDiagnosticQuickFix(
-                                    quickFixes[index],
-                                  ),
+                                        quickFixes[index],
+                                      ),
                                 ),
                               ...compactCompletions.map(
                                 (item) => _InlineActionChip(
@@ -969,10 +1012,7 @@ class _InlineFeedbackHeader extends StatelessWidget {
 
     if (hover != null) {
       pills.add(
-        const _InlineFeedbackBadge(
-          label: 'hover',
-          color: Color(0xFF6A85B6),
-        ),
+        const _InlineFeedbackBadge(label: 'hover', color: Color(0xFF6A85B6)),
       );
     }
 
@@ -1021,11 +1061,7 @@ class _InlineFeedbackHeader extends StatelessWidget {
       );
     }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: pills,
-    );
+    return Wrap(spacing: 8, runSpacing: 8, children: pills);
   }
 }
 
@@ -1052,10 +1088,7 @@ class _InlineActionChip extends StatelessWidget {
           color: const Color(0xFFEDE6D9),
           borderRadius: BorderRadius.circular(999),
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 220),
           child: Row(
@@ -1080,10 +1113,7 @@ class _InlineActionChip extends StatelessWidget {
 }
 
 class _InlineFeedbackBadge extends StatelessWidget {
-  const _InlineFeedbackBadge({
-    required this.label,
-    required this.color,
-  });
+  const _InlineFeedbackBadge({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -1096,16 +1126,13 @@ class _InlineFeedbackBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 6,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(
           label,
           style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -1115,6 +1142,8 @@ class _InlineFeedbackBadge extends StatelessWidget {
 enum _LanguageInspectorSection {
   diagnostics,
   blocks,
+  symbols,
+  resolve,
   token,
   hover,
   completions,
@@ -1128,6 +1157,10 @@ extension on _LanguageInspectorSection {
         return 'Diagnostics';
       case _LanguageInspectorSection.blocks:
         return 'Blocks';
+      case _LanguageInspectorSection.symbols:
+        return 'Symbols';
+      case _LanguageInspectorSection.resolve:
+        return 'Resolve';
       case _LanguageInspectorSection.token:
         return 'Token';
       case _LanguageInspectorSection.hover:
@@ -1166,6 +1199,14 @@ class _LanguageServicePane extends StatefulWidget {
 class _LanguageServicePaneState extends State<_LanguageServicePane> {
   _LanguageInspectorSection _selectedSection =
       _LanguageInspectorSection.diagnostics;
+  final TextEditingController _renameController = TextEditingController();
+  String? _renameSeedKey;
+
+  @override
+  void dispose() {
+    _renameController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1186,6 +1227,7 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
                 _CapabilityPill(
                   label: 'blocks ${analysis.semanticBlocks.length}',
                 ),
+                _CapabilityPill(label: 'symbols ${analysis.symbolCount}'),
               ],
             ),
             const SizedBox(height: 12),
@@ -1193,13 +1235,16 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  for (var index = 0;
-                      index < _LanguageInspectorSection.values.length;
-                      index += 1) ...[
+                  for (
+                    var index = 0;
+                    index < _LanguageInspectorSection.values.length;
+                    index += 1
+                  ) ...[
                     if (index > 0) const SizedBox(width: 8),
                     _InspectorTabChip(
                       label: _LanguageInspectorSection.values[index].label,
-                      active: _selectedSection ==
+                      active:
+                          _selectedSection ==
                           _LanguageInspectorSection.values[index],
                       onTap: () {
                         setState(() {
@@ -1246,6 +1291,8 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
               children: [
                 _CapabilityPill(label: 'token ${analysis.tokenCount}'),
                 _CapabilityPill(label: 'semantic ${analysis.semanticCount}'),
+                _CapabilityPill(label: 'symbols ${analysis.symbolCount}'),
+                _CapabilityPill(label: 'refs ${analysis.referenceCount}'),
                 _CapabilityPill(label: 'diag ${analysis.diagnosticCount}'),
                 _CapabilityPill(
                   label: 'format ${analysis.formattingEdits.length}',
@@ -1267,6 +1314,18 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
             key: const ValueKey('language-desktop-section-blocks'),
             title: 'Semantic Blocks',
             child: _buildSemanticBlocksContent(context),
+          ),
+          const SizedBox(height: 12),
+          _InspectorCard(
+            key: const ValueKey('language-desktop-section-symbols'),
+            title: 'Document Symbols',
+            child: _buildDocumentSymbolsContent(context),
+          ),
+          const SizedBox(height: 12),
+          _InspectorCard(
+            key: const ValueKey('language-desktop-section-resolve'),
+            title: 'Resolve @ Caret',
+            child: _buildResolveContent(context),
           ),
           const SizedBox(height: 12),
           _InspectorCard(
@@ -1306,6 +1365,10 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
         return _buildDiagnosticsContent(context);
       case _LanguageInspectorSection.blocks:
         return _buildSemanticBlocksContent(context);
+      case _LanguageInspectorSection.symbols:
+        return _buildDocumentSymbolsContent(context);
+      case _LanguageInspectorSection.resolve:
+        return _buildResolveContent(context);
       case _LanguageInspectorSection.token:
         return _buildTokenContent(context);
       case _LanguageInspectorSection.hover:
@@ -1327,49 +1390,87 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
     }
 
     return Column(
+      key: const ValueKey('language-problems-list'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var index = 0;
-            index < widget.analysis.diagnostics.take(4).length;
-            index += 1) ...[
+        for (
+          var index = 0;
+          index < widget.analysis.diagnostics.length;
+          index += 1
+        ) ...[
           Builder(
             builder: (context) {
               final diagnostic = widget.analysis.diagnostics[index];
-              final quickFixes =
-                  widget.controller.quickFixesForDiagnostics([diagnostic]);
+              final quickFixes = widget.controller.quickFixesForDiagnostics([
+                diagnostic,
+              ]);
               return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '[${diagnostic.severity.name}] ${diagnostic.message} · ${_formatRange(diagnostic.range)}',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    if (quickFixes.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
+                  color: _isRangeSelected(diagnostic.range)
+                      ? const Color(0xFFE6E0F5)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    key: ValueKey('language-diagnostic-$index'),
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => widget.controller.selectDiagnostic(diagnostic),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (var fixIndex = 0;
-                              fixIndex < quickFixes.length;
-                              fixIndex += 1)
-                            _InlineActionChip(
-                              key: ValueKey(
-                                'language-diagnostic-fix-$index-$fixIndex',
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                _diagnosticIcon(diagnostic.severity),
+                                size: 16,
+                                color: _diagnosticColor(diagnostic.severity),
                               ),
-                              icon: Icons.build_circle_rounded,
-                              label: quickFixes[fixIndex].label,
-                              onTap: () =>
-                                  widget.controller.applyDiagnosticQuickFix(
-                                quickFixes[fixIndex],
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '[${diagnostic.severity.name}] '
+                                  '${diagnostic.message} · '
+                                  '${_formatRange(diagnostic.range)}',
+                                  style: theme.textTheme.bodySmall,
+                                ),
                               ),
+                            ],
+                          ),
+                          if (quickFixes.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (
+                                  var fixIndex = 0;
+                                  fixIndex < quickFixes.length;
+                                  fixIndex += 1
+                                )
+                                  _InlineActionChip(
+                                    key: ValueKey(
+                                      'language-diagnostic-fix-$index-$fixIndex',
+                                    ),
+                                    icon: Icons.build_circle_rounded,
+                                    label: quickFixes[fixIndex].label,
+                                    onTap: () => widget.controller
+                                        .applyDiagnosticQuickFix(
+                                          quickFixes[fixIndex],
+                                        ),
+                                  ),
+                              ],
                             ),
+                          ],
                         ],
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
               );
             },
@@ -1377,6 +1478,28 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
         ],
       ],
     );
+  }
+
+  IconData _diagnosticIcon(DiagnosticSeverity severity) {
+    switch (severity) {
+      case DiagnosticSeverity.error:
+        return Icons.error_rounded;
+      case DiagnosticSeverity.warning:
+        return Icons.warning_rounded;
+      case DiagnosticSeverity.hint:
+        return Icons.info_rounded;
+    }
+  }
+
+  Color _diagnosticColor(DiagnosticSeverity severity) {
+    switch (severity) {
+      case DiagnosticSeverity.error:
+        return const Color(0xFFB3261E);
+      case DiagnosticSeverity.warning:
+        return const Color(0xFF8A5A00);
+      case DiagnosticSeverity.hint:
+        return const Color(0xFF496184);
+    }
   }
 
   Widget _buildSemanticBlocksContent(BuildContext context) {
@@ -1405,6 +1528,211 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
     );
   }
 
+  Widget _buildDocumentSymbolsContent(BuildContext context) {
+    final theme = Theme.of(context);
+    if (widget.analysis.documentSymbols.isEmpty) {
+      return Text(
+        'No document symbols resolved yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    return Column(
+      key: const ValueKey('language-document-symbols-tree'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widget.analysis.documentSymbols
+          .map(
+            (symbol) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Material(
+                color: _isSymbolSelected(symbol)
+                    ? const Color(0xFFE6E0F5)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                child: InkWell(
+                  key: ValueKey(
+                    'language-document-symbol-${symbol.kind.name}-'
+                    '${symbol.name}-${symbol.nameRange.start}',
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => widget.controller.selectDocumentSymbol(symbol),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 7,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _symbolIcon(symbol.kind),
+                          size: 16,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${symbol.name} · ${symbol.kind.name} · '
+                            '${_formatRange(symbol.nameRange)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  bool _isSymbolSelected(DocumentSymbol symbol) {
+    return _isRangeSelected(symbol.nameRange);
+  }
+
+  bool _isRangeSelected(SourceRange range) {
+    final selection = widget.controller.selection;
+    if (selection.isCollapsed) {
+      return range.contains(selection.end) || range.end == selection.end;
+    }
+    final selectionRange = SourceRange(
+      start: selection.start,
+      end: selection.end,
+    );
+    return range.intersects(selectionRange);
+  }
+
+  IconData _symbolIcon(SymbolKind kind) {
+    switch (kind) {
+      case SymbolKind.function:
+        return Icons.functions_rounded;
+      case SymbolKind.pipeline:
+        return Icons.account_tree_rounded;
+      case SymbolKind.state:
+        return Icons.flag_rounded;
+      case SymbolKind.resource:
+        return Icons.storage_rounded;
+      case SymbolKind.variable:
+        return Icons.label_rounded;
+      case SymbolKind.parameter:
+        return Icons.input_rounded;
+      case SymbolKind.task:
+        return Icons.task_alt_rounded;
+    }
+  }
+
+  Widget _buildResolveContent(BuildContext context) {
+    final theme = Theme.of(context);
+    final definition = widget.controller.definitionAtSelection;
+    final references = widget.controller.referencesAtSelection;
+    if (definition == null) {
+      return Text(
+        'No definition target at the current caret.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+    final renameSeedKey =
+        '${definition.symbol.name}:${definition.symbol.nameRange.start}:'
+        '${definition.symbol.nameRange.end}';
+    if (_renameSeedKey != renameSeedKey) {
+      _renameSeedKey = renameSeedKey;
+      _renameController.text = '${definition.symbol.name}_next';
+    }
+    final renameText = _renameController.text.trim();
+    final renamePreview = widget.controller.renamePlanAtSelection(renameText);
+
+    return Column(
+      key: const ValueKey('language-resolve-context'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${definition.symbol.name} · ${definition.symbol.kind.name}',
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Definition ${_formatRange(definition.symbol.nameRange)} · '
+          'origin ${_formatRange(definition.originRange)}',
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        _InlineActionChip(
+          key: const ValueKey('language-go-to-definition'),
+          icon: Icons.subdirectory_arrow_left_rounded,
+          label: 'Go to definition',
+          onTap: widget.controller.selectDefinitionAtSelection,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _InlineActionChip(
+              key: const ValueKey('language-previous-usage'),
+              icon: Icons.keyboard_arrow_up_rounded,
+              label: 'Previous usage',
+              onTap: widget.controller.selectPreviousReferenceAtSelection,
+            ),
+            _InlineActionChip(
+              key: const ValueKey('language-next-usage'),
+              icon: Icons.keyboard_arrow_down_rounded,
+              label: 'Next usage',
+              onTap: widget.controller.selectNextReferenceAtSelection,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${references.length} current-file usage'
+          '${references.length == 1 ? '' : 's'}',
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          key: const ValueKey('language-rename-input'),
+          controller: _renameController,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: OutlineInputBorder(),
+            labelText: 'Rename',
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 8),
+        if (renamePreview != null) ...[
+          Text(
+            'Rename preview ${renamePreview.edits.length} edit'
+            '${renamePreview.edits.length == 1 ? '' : 's'}',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          _InlineActionChip(
+            key: const ValueKey('language-apply-rename'),
+            icon: Icons.drive_file_rename_outline_rounded,
+            label: 'Apply rename',
+            onTap: () => widget.controller.applyRename(renameText),
+          ),
+        ],
+        const SizedBox(height: 8),
+        ...references
+            .take(4)
+            .map(
+              (reference) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '${reference.isDeclaration ? 'decl' : 'use'} · '
+                  '${_formatRange(reference.range)}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            ),
+      ],
+    );
+  }
+
   Widget _buildHoverContent(BuildContext context) {
     return Text(
       widget.hover?.markdown ?? 'No hover payload at the current caret.',
@@ -1426,15 +1754,9 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
       key: const ValueKey('language-token-context'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Lexeme `${token.lexeme}`',
-          style: theme.textTheme.bodySmall,
-        ),
+        Text('Lexeme `${token.lexeme}`', style: theme.textTheme.bodySmall),
         const SizedBox(height: 8),
-        Text(
-          'Kind ${token.kind.name}',
-          style: theme.textTheme.bodySmall,
-        ),
+        Text('Kind ${token.kind.name}', style: theme.textTheme.bodySmall),
         if (widget.activeSemanticKind != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -1478,9 +1800,7 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
                   ),
                   const SizedBox(width: 8),
                   _InlineActionChip(
-                    key: ValueKey(
-                      'language-apply-completion-${item.label}',
-                    ),
+                    key: ValueKey('language-apply-completion-${item.label}'),
                     icon: Icons.auto_awesome_rounded,
                     label: 'Apply',
                     onTap: () => widget.controller.applyCompletionItem(item),
@@ -1511,7 +1831,9 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: 8),
-        ...edits.take(3).map(
+        ...edits
+            .take(3)
+            .map(
               (edit) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
@@ -1536,11 +1858,7 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
 }
 
 class _InspectorCard extends StatelessWidget {
-  const _InspectorCard({
-    super.key,
-    required this.title,
-    required this.child,
-  });
+  const _InspectorCard({super.key, required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -1590,10 +1908,7 @@ class _InspectorTabChip extends StatelessWidget {
           color: active ? const Color(0xFFEFE7DA) : const Color(0xFFF7F2E9),
           borderRadius: BorderRadius.circular(999),
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Text(label),
       ),
     );
@@ -1601,9 +1916,7 @@ class _InspectorTabChip extends StatelessWidget {
 }
 
 class _CapabilityPill extends StatelessWidget {
-  const _CapabilityPill({
-    required this.label,
-  });
+  const _CapabilityPill({required this.label});
 
   final String label;
 
@@ -1615,10 +1928,7 @@ class _CapabilityPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Text(label),
       ),
     );
@@ -1631,6 +1941,7 @@ List<Widget> _buildPreviewChildren(
   required ViewportProfile viewportProfile,
   required HoverPayload? hover,
   required List<CompletionItem> completions,
+  required List<ReferenceSpan> activeReferences,
   required TokenSpan? activeToken,
   required SemanticKind? activeSemanticKind,
   required DocumentState document,
@@ -1641,17 +1952,18 @@ List<Widget> _buildPreviewChildren(
   required List<_SemanticLineBlock> semanticBlocks,
   required void Function(int lineIndex, TapDownDetails details) onTapLine,
   required void Function(int lineIndex, DragStartDetails details)
-      onPanStartLine,
+  onPanStartLine,
   required void Function(int lineIndex, DragUpdateDetails details)
-      onPanUpdateLine,
+  onPanUpdateLine,
   required ValueChanged<DragEndDetails> onPanEnd,
 }) {
   final children = <Widget>[];
   final blockByStart = <int, _SemanticLineBlock>{
     for (final block in semanticBlocks) block.startLine: block,
   };
-  final activeLineIndex =
-      document.positionForOffset(selection.extentOffset).line;
+  final activeLineIndex = document
+      .positionForOffset(selection.extentOffset)
+      .line;
   var lineIndex = 0;
 
   while (lineIndex < document.lines.length) {
@@ -1664,15 +1976,18 @@ List<Widget> _buildPreviewChildren(
             label: block.label,
             child: Column(
               children: [
-                for (var blockLine = block.startLine;
-                    blockLine <= block.endLine;
-                    blockLine += 1)
+                for (
+                  var blockLine = block.startLine;
+                  blockLine <= block.endLine;
+                  blockLine += 1
+                )
                   ..._buildLineWithInlineFeedback(
                     context,
                     controller: controller,
                     viewportProfile: viewportProfile,
                     hover: hover,
                     completions: completions,
+                    activeReferences: activeReferences,
                     activeToken: activeToken,
                     activeSemanticKind: activeSemanticKind,
                     document: document,
@@ -1703,6 +2018,7 @@ List<Widget> _buildPreviewChildren(
         viewportProfile: viewportProfile,
         hover: hover,
         completions: completions,
+        activeReferences: activeReferences,
         activeToken: activeToken,
         activeSemanticKind: activeSemanticKind,
         document: document,
@@ -1730,6 +2046,7 @@ List<Widget> _buildLineWithInlineFeedback(
   required ViewportProfile viewportProfile,
   required HoverPayload? hover,
   required List<CompletionItem> completions,
+  required List<ReferenceSpan> activeReferences,
   required TokenSpan? activeToken,
   required SemanticKind? activeSemanticKind,
   required DocumentState document,
@@ -1741,9 +2058,9 @@ List<Widget> _buildLineWithInlineFeedback(
   required EditorRenderPlan renderPlan,
   required void Function(int lineIndex, TapDownDetails details) onTapLine,
   required void Function(int lineIndex, DragStartDetails details)
-      onPanStartLine,
+  onPanStartLine,
   required void Function(int lineIndex, DragUpdateDetails details)
-      onPanUpdateLine,
+  onPanUpdateLine,
   required ValueChanged<DragEndDetails> onPanEnd,
 }) {
   final widgets = <Widget>[
@@ -1752,6 +2069,7 @@ List<Widget> _buildLineWithInlineFeedback(
       document: document,
       selection: selection,
       analysis: analysis,
+      activeReferences: activeReferences,
       activeTokenRange: activeToken?.range,
       lineIndex: lineIndex,
       lineStarts: lineStarts,
@@ -1800,6 +2118,7 @@ List<InlineSpan> _buildLineSpans(
   String source,
   SourceRange lineRange,
   StyioDocumentAnalysis analysis, {
+  required List<ReferenceSpan> activeReferences,
   required SourceRange? activeTokenRange,
   required SelectionState selection,
   required EditorRenderPlan renderPlan,
@@ -1895,16 +2214,13 @@ List<InlineSpan> _buildLineSpans(
             analysis.diagnostics,
             tokenRange,
           ),
-          activeToken: activeTokenRange != null &&
+          activeReference: _referenceForRange(activeReferences, tokenRange),
+          activeToken:
+              activeTokenRange != null &&
               _sameRange(activeTokenRange, tokenRange),
-          enableGlyphSubstitution: renderPlan.activeLayers.contains(
-                EditorRenderLayer.decoration,
-              ) &&
-              !_selectionTouchesRange(
-                selectionRange,
-                caretOffset,
-                tokenRange,
-              ),
+          enableGlyphSubstitution:
+              renderPlan.activeLayers.contains(EditorRenderLayer.decoration) &&
+              !_selectionTouchesRange(selectionRange, caretOffset, tokenRange),
         ),
       );
       cursor = end;
@@ -1954,6 +2270,7 @@ List<InlineSpan> _inlineSpansForToken(
   required SourceRange? selectionRange,
   required SemanticKind? semanticKind,
   required DiagnosticSeverity? diagnosticSeverity,
+  required ReferenceSpan? activeReference,
   required bool activeToken,
   required bool enableGlyphSubstitution,
 }) {
@@ -1963,6 +2280,7 @@ List<InlineSpan> _inlineSpansForToken(
     semanticKind: semanticKind,
     diagnosticSeverity: diagnosticSeverity,
   );
+  final referenceHighlightColor = _referenceHighlightColor(activeReference);
 
   if (enableGlyphSubstitution && token.kind == TokenKind.operator) {
     final glyph = _glyphForOperator(token.lexeme);
@@ -1972,19 +2290,14 @@ List<InlineSpan> _inlineSpansForToken(
           alignment: PlaceholderAlignment.middle,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: activeToken ? const Color(0xFFE6E0F5) : Colors.transparent,
+              color: activeToken
+                  ? const Color(0xFFE6E0F5)
+                  : referenceHighlightColor ?? Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 2,
-                vertical: 1,
-              ),
-              child: Icon(
-                glyph,
-                size: 16,
-                color: style.color,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+              child: Icon(glyph, size: 16, color: style.color),
             ),
           ),
         ),
@@ -1998,8 +2311,12 @@ List<InlineSpan> _inlineSpansForToken(
     context,
     text: lineSlice,
     start: segmentStart,
-    style: activeToken && selectionRange == null
-        ? style.copyWith(backgroundColor: const Color(0xFFE6E0F5))
+    style: selectionRange == null
+        ? style.copyWith(
+            backgroundColor: activeToken
+                ? const Color(0xFFE6E0F5)
+                : referenceHighlightColor,
+          )
         : style,
     caretOffset: caretOffset,
     selectionRange: selectionRange,
@@ -2009,6 +2326,27 @@ List<InlineSpan> _inlineSpansForToken(
 
 bool _sameRange(SourceRange left, SourceRange right) {
   return left.start == right.start && left.end == right.end;
+}
+
+ReferenceSpan? _referenceForRange(
+  List<ReferenceSpan> references,
+  SourceRange range,
+) {
+  for (final reference in references) {
+    if (_sameRange(reference.range, range)) {
+      return reference;
+    }
+  }
+  return null;
+}
+
+Color? _referenceHighlightColor(ReferenceSpan? reference) {
+  if (reference == null) {
+    return null;
+  }
+  return reference.isDeclaration
+      ? const Color(0xFFF5DA91)
+      : const Color(0xFFDDEACB);
 }
 
 bool _selectionTouchesRange(
@@ -2091,7 +2429,8 @@ void _appendCaretAwareText(
 
     final absoluteStart = start + segmentStart;
     final absoluteEnd = start + segmentEnd;
-    final selected = selectionRange != null &&
+    final selected =
+        selectionRange != null &&
         absoluteStart < selectionRange.end &&
         selectionRange.start < absoluteEnd;
 
@@ -2099,9 +2438,7 @@ void _appendCaretAwareText(
       TextSpan(
         text: text.substring(segmentStart, segmentEnd),
         style: selected
-            ? style.copyWith(
-                backgroundColor: const Color(0xFFCFD8F8),
-              )
+            ? style.copyWith(backgroundColor: const Color(0xFFCFD8F8))
             : style,
       ),
     );
@@ -2271,13 +2608,13 @@ TextStyle _textStyleForToken(
   }
 
   return Theme.of(context).textTheme.bodyMedium!.copyWith(
-        fontFamily: 'monospace',
-        color: color,
-        fontWeight: weight,
-        decoration: decoration,
-        decorationColor: decorationColor,
-        decorationStyle: decorationStyle,
-      );
+    fontFamily: 'monospace',
+    color: color,
+    fontWeight: weight,
+    decoration: decoration,
+    decorationColor: decorationColor,
+    decorationStyle: decorationStyle,
+  );
 }
 
 List<_SemanticLineBlock> _resolveLineBlocks({
@@ -2321,10 +2658,7 @@ int _lineIndexForOffset(List<int> lineStarts, int offset) {
 }
 
 class _SemanticBlockCard extends StatelessWidget {
-  const _SemanticBlockCard({
-    required this.label,
-    required this.child,
-  });
+  const _SemanticBlockCard({required this.label, required this.child});
 
   final String label;
   final Widget child;
@@ -2338,14 +2672,9 @@ class _SemanticBlockCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFE9E2D7),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: const Color(0xFFD8D0C2),
-        ),
+        border: Border.all(color: const Color(0xFFD8D0C2)),
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 14,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2357,10 +2686,7 @@ class _SemanticBlockCard extends StatelessWidget {
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.68),
               ),
               const SizedBox(width: 8),
-              Text(
-                label,
-                style: theme.textTheme.labelLarge,
-              ),
+              Text(label, style: theme.textTheme.labelLarge),
             ],
           ),
           const SizedBox(height: 10),

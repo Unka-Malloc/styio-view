@@ -32,6 +32,36 @@ void main() {
     }
   }
 
+  List<Color?> backgroundsForTextOnLine(
+    WidgetTester tester, {
+    required int lineIndex,
+    required String text,
+  }) {
+    final colors = <Color?>[];
+
+    void visit(InlineSpan span) {
+      if (span is TextSpan) {
+        if (span.text == text) {
+          colors.add(span.style?.backgroundColor);
+        }
+        for (final child in span.children ?? const <InlineSpan>[]) {
+          visit(child);
+        }
+      }
+    }
+
+    final richTexts = tester.widgetList<RichText>(
+      find.descendant(
+        of: find.byKey(ValueKey('source-line-$lineIndex')),
+        matching: find.byType(RichText),
+      ),
+    );
+    for (final richText in richTexts) {
+      visit(richText.text);
+    }
+    return colors;
+  }
+
   ProjectGraphSnapshot createProjectSnapshot(PlatformTarget target) {
     final root = target == PlatformTarget.ios
         ? '/workspace/cloud-preview'
@@ -720,6 +750,452 @@ void main() {
 
     expect(find.byKey(const ValueKey('active-token-context')), findsOneWidget);
     expect(find.textContaining('Token `source`'), findsOneWidget);
+  });
+
+  testWidgets('highlights resolved current-file usages at caret', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(documentId: 'usages.styio', text: text, revision: 0),
+    );
+    bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
+    expect(bootstrap.editorController.referencesAtSelection.length, 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+
+    expect(
+      backgroundsForTextOnLine(tester, lineIndex: 0, text: 'value'),
+      contains(const Color(0xFFF5DA91)),
+    );
+    bootstrap.editorController.selectCollapsed(2);
+    await tester.pump();
+    expect(
+      backgroundsForTextOnLine(tester, lineIndex: 0, text: 'value'),
+      contains(const Color(0xFFDDEACB)),
+    );
+  });
+
+  testWidgets('shows unresolved reference diagnostics from symbol index', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'unresolved.styio',
+        text: 'known = 1\nmissingPrice -> @stdout\n',
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+
+    expect(
+      find.textContaining(
+        'Identifier is not resolved by the current symbol index.',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('navigates diagnostics from editor keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'let stream\nmissingPrice -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'diagnostic-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(0);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    expect(bootstrap.editorController.selection.start, 0);
+    expect(bootstrap.editorController.selection.end, text.indexOf('\n'));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.selection.start,
+      text.indexOf('missingPrice'),
+    );
+  });
+
+  testWidgets('selects diagnostics from problems list', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'let stream\nmissingPrice -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'problems-list.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-diagnostic-1')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-diagnostic-1')));
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.selection.start,
+      text.indexOf('missingPrice'),
+    );
+    expect(bootstrap.editorController.canUndo, isFalse);
+  });
+
+  testWidgets('navigates to resolved definition from language pane', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'definition.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-go-to-definition')),
+      120,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('language-pane-desktop')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-go-to-definition')));
+    await tester.pump();
+
+    expect(bootstrap.editorController.selection.start, 0);
+    expect(bootstrap.editorController.selection.end, 'value'.length);
+  });
+
+  testWidgets('navigates to definition from editor keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'definition-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(bootstrap.editorController.selection.start, 0);
+    expect(bootstrap.editorController.selection.end, 'value'.length);
+  });
+
+  testWidgets('selects document symbol from language pane', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'fn main(user) {\n  value = user\n}\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'structure.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    const mainSymbolKey = ValueKey('language-document-symbol-function-main-3');
+    await tester.scrollUntilVisible(
+      find.byKey(mainSymbolKey),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(mainSymbolKey));
+    await tester.pump();
+
+    expect(bootstrap.editorController.selection.start, text.indexOf('main'));
+    expect(
+      bootstrap.editorController.selection.end,
+      text.indexOf('main') + 'main'.length,
+    );
+    expect(bootstrap.editorController.canUndo, isFalse);
+  });
+
+  testWidgets('cycles resolved usages from editor keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\nvalue -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'usage-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f3);
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.selection.start,
+      text.lastIndexOf('value'),
+    );
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f3);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.selection.start,
+      text.indexOf('= value') + 2,
+    );
+  });
+
+  testWidgets('cycles resolved usages from language pane', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\nvalue -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(documentId: 'usages.styio', text: text, revision: 0),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-next-usage')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-next-usage')));
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.selection.start,
+      text.lastIndexOf('value'),
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey('language-previous-usage'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('applies completion from editor keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'job = ||> { <| 42 }\njo';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'completion-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+    expect(
+      bootstrap.editorController.completionsAtSelection.map(
+        (item) => item.label,
+      ),
+      contains('job'),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      'job = ||> { <| 42 }\njob',
+    );
+  });
+
+  testWidgets('applies quick fix from editor keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'let stream\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'quickfix-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('stream') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text, 'let stream = value\n');
+  });
+
+  testWidgets('applies rename edits from language pane', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = value\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(documentId: 'rename.styio', text: text, revision: 0),
+    );
+    bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-rename-input')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('language-rename-input')),
+      'price',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-apply-rename')));
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text, 'price = price\n');
   });
 
   testWidgets('applies inline diagnostic quick fix from the active line', (

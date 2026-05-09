@@ -69,9 +69,16 @@ answer -> @stdout
     final lexemes = analysis.tokenSpans.map((span) => span.lexeme).toSet();
     String semanticText(SemanticSpan span) =>
         document.text.substring(span.range.start, span.range.end);
+    final symbols = {
+      for (final symbol in analysis.documentSymbols) symbol.name: symbol.kind,
+    };
 
     expect(lexemes, containsAll(['@', ':=', '..', '>>', '#', '||>', '?|']));
     expect(analysis.diagnostics, isEmpty);
+    expect(symbols['ma5'], SymbolKind.resource);
+    expect(symbols['job'], SymbolKind.variable);
+    expect(symbols['answer'], SymbolKind.variable);
+    expect(symbols['p'], SymbolKind.parameter);
     expect(
       analysis.semanticSpans
           .where((span) => span.kind == SemanticKind.resource)
@@ -87,6 +94,51 @@ answer -> @stdout
 
     final taskHover = service.hoverAt(document, document.text.indexOf('||>'));
     expect(taskHover?.markdown, contains('task'));
+
+    final answerDefinition = service.definitionAt(
+      document,
+      document.text.lastIndexOf('answer'),
+    );
+    expect(answerDefinition?.symbol.name, 'answer');
+    expect(answerDefinition?.symbol.kind, SymbolKind.variable);
+
+    final resourceReferences = service.referencesAt(
+      document,
+      document.text.lastIndexOf('ma5'),
+    );
+    expect(resourceReferences.length, 2);
+
+    final renamePlan = service.renameAt(
+      document,
+      document.text.lastIndexOf('ma5'),
+      'movingAverage',
+    );
+    expect(renamePlan?.edits.length, 2);
+    expect(renamePlan?.target.kind, SymbolKind.resource);
+  });
+
+  test('reports unresolved identifiers from the local symbol index', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'unresolved.styio',
+      text: '''
+@import { styio/core }
+known = 1
+known -> @stdout
+missingPrice -> @stdout
+''',
+      revision: 0,
+    );
+
+    final analysis = service.analyzeDocument(document);
+    final unresolved = analysis.diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'unresolved-reference',
+    );
+
+    expect(
+      document.text.substring(unresolved.range.start, unresolved.range.end),
+      'missingPrice',
+    );
   });
 
   test('offers resource and task completions for target syntax', () {
@@ -103,5 +155,21 @@ answer -> @stdout
         .toSet();
 
     expect(labels, containsAll(['@import', '@resource', '@stdout', '@stdin']));
+  });
+
+  test('offers current-file symbols as completion items', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'completion.styio',
+      text: 'job = ||> { <| 42 }\njo',
+      revision: 0,
+    );
+
+    final jobCompletion = service
+        .completeAt(document, document.text.length)
+        .singleWhere((item) => item.label == 'job');
+
+    expect(jobCompletion.kind, CompletionItemKind.variable);
+    expect(jobCompletion.insertText, 'job');
   });
 }

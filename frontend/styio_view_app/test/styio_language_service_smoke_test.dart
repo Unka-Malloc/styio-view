@@ -165,6 +165,43 @@ missingPrice -> @stdout
     );
   });
 
+  test(
+    'reports and fixes unused local symbols from the current file index',
+    () {
+      const service = SimpleStyioLanguageService();
+      const document = DocumentState(
+        documentId: 'unused-local.styio',
+        text: '''
+used = 1
+unused = 2
+_ignored = 3
+used -> @stdout
+''',
+        revision: 0,
+      );
+
+      final analysis = service.analyzeDocument(document);
+      final unused = analysis.diagnostics.singleWhere(
+        (diagnostic) => diagnostic.code == 'unused-local-symbol',
+      );
+
+      expect(
+        document.text.substring(unused.range.start, unused.range.end),
+        'unused = 2',
+      );
+
+      final quickFix = service.quickFixesForDiagnostic(document, unused).single;
+      expect(quickFix.label, 'Remove unused declaration');
+      expect(
+        document.text.substring(
+          quickFix.edits.single.range.start,
+          quickFix.edits.single.range.end,
+        ),
+        'unused = 2\n',
+      );
+    },
+  );
+
   test('offers resource and task completions for target syntax', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

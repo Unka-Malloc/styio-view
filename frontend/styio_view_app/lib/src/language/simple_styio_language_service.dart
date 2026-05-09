@@ -317,6 +317,19 @@ class SimpleStyioLanguageService implements StyioLanguageService {
             ],
           ),
         ];
+      case 'unused-local-symbol':
+        return [
+          DiagnosticQuickFix(
+            label: 'Remove unused declaration',
+            detail: 'Delete the unused local binding line.',
+            edits: [
+              FormattingEdit(
+                range: _lineRemovalRange(document.text, diagnostic.range),
+                newText: '',
+              ),
+            ],
+          ),
+        ];
     }
 
     return const <DiagnosticQuickFix>[];
@@ -380,6 +393,25 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       }
     }
 
+    for (final symbol in symbolSnapshot.symbols) {
+      if (!_shouldReportUnusedLocalSymbol(tokens, symbol) ||
+          _diagnosticsIntersectRange(diagnostics, symbol.declarationRange)) {
+        continue;
+      }
+      final references = symbolSnapshot.referencesForTarget(symbol.nameRange);
+      if (references.any((reference) => !reference.isDeclaration)) {
+        continue;
+      }
+      diagnostics.add(
+        Diagnostic(
+          severity: DiagnosticSeverity.warning,
+          code: 'unused-local-symbol',
+          message: 'Local symbol `${symbol.name}` is never used.',
+          range: symbol.declarationRange,
+        ),
+      );
+    }
+
     final resolvedRanges = {
       for (final reference in symbolSnapshot.references)
         '${reference.range.start}:${reference.range.end}',
@@ -403,6 +435,50 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     }
 
     return diagnostics;
+  }
+
+  SourceRange _lineRemovalRange(String source, SourceRange range) {
+    final normalizedStart = range.start.clamp(0, source.length);
+    final normalizedEnd = range.end.clamp(normalizedStart, source.length);
+    final previousNewline = normalizedStart <= 0
+        ? -1
+        : source.lastIndexOf('\n', normalizedStart - 1);
+    final lineStart = previousNewline + 1;
+    final nextNewline = source.indexOf('\n', normalizedEnd);
+    if (nextNewline >= 0) {
+      return SourceRange(start: lineStart, end: nextNewline + 1);
+    }
+    if (lineStart > 0) {
+      return SourceRange(start: lineStart - 1, end: source.length);
+    }
+    return SourceRange(start: 0, end: source.length);
+  }
+
+  bool _shouldReportUnusedLocalSymbol(
+    List<TokenSpan> tokens,
+    DocumentSymbol symbol,
+  ) {
+    if (symbol.kind != SymbolKind.variable || symbol.name.startsWith('_')) {
+      return false;
+    }
+
+    final nameIndex = tokens.indexWhere(
+      (token) =>
+          token.range.start == symbol.nameRange.start &&
+          token.range.end == symbol.nameRange.end,
+    );
+    if (nameIndex < 0) {
+      return false;
+    }
+    final previous = _previousSignificant(tokens, nameIndex - 1);
+    return previous?.lexeme != 'let';
+  }
+
+  bool _diagnosticsIntersectRange(
+    List<Diagnostic> diagnostics,
+    SourceRange range,
+  ) {
+    return diagnostics.any((diagnostic) => diagnostic.range.intersects(range));
   }
 
   SourceRange _lineRangeForToken(List<TokenSpan> tokens, int tokenIndex) {

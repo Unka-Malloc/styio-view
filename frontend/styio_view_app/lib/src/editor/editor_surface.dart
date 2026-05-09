@@ -439,6 +439,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           return widget.controller.selectDefinitionAtSelection()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
+        case LogicalKeyboardKey.keyD:
+          return widget.controller.duplicateLineOrSelection()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
         case LogicalKeyboardKey.space:
           return _openCompletionLookup()
               ? KeyEventResult.handled

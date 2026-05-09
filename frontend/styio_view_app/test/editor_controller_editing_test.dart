@@ -143,6 +143,49 @@ void main() {
     expect(controller.document.text, text);
   });
 
+  test('duplicates the current line and preserves caret column', () {
+    const text = 'alpha\nbeta\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(2),
+    );
+
+    expect(controller.duplicateLineOrSelection(), isTrue);
+    expect(controller.document.text, 'alpha\nalpha\nbeta\n');
+    expect(controller.selection.end, 8);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, text);
+  });
+
+  test('duplicates the active selection and selects the duplicate', () {
+    const text = 'alpha beta';
+    final start = text.indexOf('beta');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(
+        baseOffset: start,
+        extentOffset: start + 4,
+      ),
+    );
+
+    expect(controller.duplicateLineOrSelection(), isTrue);
+    expect(controller.document.text, 'alpha betabeta');
+    expect(controller.selection.start, start + 4);
+    expect(controller.selection.end, start + 8);
+  });
+
   test(
     'toggles line comments across selected lines preserving indentation',
     () {

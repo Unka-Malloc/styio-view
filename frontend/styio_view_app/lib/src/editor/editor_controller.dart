@@ -211,6 +211,69 @@ class EditorSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool duplicateLineOrSelection() {
+    _structuredSelectionStack.clear();
+
+    if (!_selection.isCollapsed) {
+      final selectedText = _document.text.substring(
+        _selection.start,
+        _selection.end,
+      );
+      if (selectedText.isEmpty) {
+        return false;
+      }
+
+      _pushUndoSnapshot();
+      final insertOffset = _selection.end;
+      _document = _document.replaceRange(
+        start: insertOffset,
+        end: insertOffset,
+        replacement: selectedText,
+      );
+      _selection = SelectionState(
+        baseOffset: insertOffset,
+        extentOffset: insertOffset + selectedText.length,
+      );
+      _refreshAnalysis();
+      _redoStack.clear();
+      notifyListeners();
+      return true;
+    }
+
+    final lines = _document.lines;
+    if (lines.isEmpty) {
+      return false;
+    }
+
+    final position = _document.positionForOffset(_selection.end);
+    final lineIndex = position.line.clamp(0, lines.length - 1).toInt();
+    final lineText = lines[lineIndex];
+    final lineStart = _document.lineStarts[lineIndex];
+    final lineEnd = lineStart + lineText.length;
+    final hasTrailingNewline =
+        lineEnd < _document.length && _document.text[lineEnd] == '\n';
+    final insertOffset = hasTrailingNewline ? lineEnd + 1 : lineEnd;
+    final duplicateText = hasTrailingNewline
+        ? _document.text.substring(lineStart, lineEnd + 1)
+        : '\n$lineText';
+    final duplicateStart = hasTrailingNewline ? insertOffset : insertOffset + 1;
+    final duplicateColumn = position.column.clamp(0, lineText.length).toInt();
+
+    _pushUndoSnapshot();
+    _document = _document.replaceRange(
+      start: insertOffset,
+      end: insertOffset,
+      replacement: duplicateText,
+    );
+    _selection = SelectionState.collapsed(
+      (duplicateStart + duplicateColumn).clamp(0, _document.length).toInt(),
+    );
+    _refreshAnalysis();
+    _redoStack.clear();
+    notifyListeners();
+    return true;
+  }
+
   void moveCaretHorizontally(int delta, {bool expandSelection = false}) {
     if (delta == 0) {
       return;

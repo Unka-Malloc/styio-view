@@ -254,6 +254,65 @@ void main() {
     expect(controller.selection.end, 2);
   });
 
+  test('inserts newline with inherited indentation', () {
+    const text = 'fn main() {\n  value = 1';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(text.length),
+    );
+
+    controller.insertNewline();
+
+    expect(controller.document.text, 'fn main() {\n  value = 1\n  ');
+    expect(controller.selection.end, controller.document.length);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, text);
+  });
+
+  test('inserts newline with one extra indent after opening pairs', () {
+    const text = 'fn main() {';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(text.length),
+    );
+
+    controller.insertNewline();
+
+    expect(controller.document.text, 'fn main() {\n  ');
+    expect(controller.selection.end, controller.document.length);
+  });
+
+  test('splits empty paired braces with inner and closing indentation', () {
+    const text = '  ||> {}';
+    final caretOffset = text.indexOf('{') + 1;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(caretOffset),
+    );
+
+    controller.insertNewline();
+
+    expect(controller.document.text, '  ||> {\n    \n  }');
+    expect(controller.selection.end, '  ||> {\n    '.length);
+  });
+
   test('inserts paired braces with the caret between them', () {
     const text = 'fn main() ';
     final controller = EditorSessionController(

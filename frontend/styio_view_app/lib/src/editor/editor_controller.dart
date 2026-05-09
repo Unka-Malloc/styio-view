@@ -176,7 +176,18 @@ class EditorSessionController extends ChangeNotifier {
   }
 
   void insertNewline() {
-    insertText('\n');
+    _structuredSelectionStack.clear();
+    final insertion = _newlineInsertion();
+    final replacementStart = _selection.start;
+    _pushUndoSnapshot();
+    _replaceRange(
+      start: replacementStart,
+      end: _selection.end,
+      replacement: insertion.text,
+      selectionOffset: replacementStart + insertion.caretDelta,
+    );
+    _redoStack.clear();
+    notifyListeners();
   }
 
   void backspace() {
@@ -1009,6 +1020,51 @@ class EditorSessionController extends ChangeNotifier {
     return true;
   }
 
+  _NewlineInsertion _newlineInsertion() {
+    final offset = (_selection.isCollapsed ? _selection.end : _selection.start)
+        .clamp(0, _document.length)
+        .toInt();
+    final position = _document.positionForOffset(offset);
+    final lineText = _document.lines[position.line];
+    final baseIndentLength = _leadingHorizontalWhitespaceLength(lineText);
+    final baseIndent = lineText.substring(0, baseIndentLength);
+
+    if (_selection.isCollapsed && _hasImmediatePairAroundOffset(offset)) {
+      final innerIndent = '$baseIndent  ';
+      return _NewlineInsertion(
+        text: '\n$innerIndent\n$baseIndent',
+        caretDelta: 1 + innerIndent.length,
+      );
+    }
+
+    final indent = _selection.isCollapsed && _hasOpeningPairBeforeOffset(offset)
+        ? '$baseIndent  '
+        : baseIndent;
+    return _NewlineInsertion(text: '\n$indent', caretDelta: 1 + indent.length);
+  }
+
+  bool _hasImmediatePairAroundOffset(int offset) {
+    if (offset <= 0 || offset >= _document.length) {
+      return false;
+    }
+
+    final opening = _document.text[offset - 1];
+    final closing = _document.text[offset];
+    return _isBlockOpeningPair(opening) &&
+        _pairedCloseForOpening(opening) == closing;
+  }
+
+  bool _hasOpeningPairBeforeOffset(int offset) {
+    for (var index = offset - 1; index >= 0; index -= 1) {
+      final codeUnit = _document.text.codeUnitAt(index);
+      if (_isHorizontalWhitespace(codeUnit)) {
+        continue;
+      }
+      return _isBlockOpeningPair(_document.text[index]);
+    }
+    return false;
+  }
+
   void undo() {
     if (!canUndo) {
       return;
@@ -1489,6 +1545,10 @@ class EditorSessionController extends ChangeNotifier {
     return lexeme == '}' || lexeme == ')' || lexeme == ']' || lexeme == '"';
   }
 
+  bool _isBlockOpeningPair(String lexeme) {
+    return lexeme == '{' || lexeme == '(' || lexeme == '[';
+  }
+
   _CommentLineRange _lineRangeForCommentToggle() {
     final lineCount = _document.lines.length;
     final startPosition = _document.positionForOffset(_selection.start);
@@ -1839,6 +1899,13 @@ class _EditorSnapshot {
 
   final DocumentState document;
   final SelectionState selection;
+}
+
+class _NewlineInsertion {
+  const _NewlineInsertion({required this.text, required this.caretDelta});
+
+  final String text;
+  final int caretDelta;
 }
 
 class _CommentLineRange {

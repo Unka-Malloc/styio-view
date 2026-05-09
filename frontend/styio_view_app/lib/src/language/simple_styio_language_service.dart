@@ -267,6 +267,15 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   @override
+  IntroduceVariablePlan? introduceVariable(
+    DocumentState document,
+    SourceRange range,
+    String name,
+  ) {
+    return _symbolIndex.introduceVariable(document.text, range, name);
+  }
+
+  @override
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset) {
     return _symbolIndex.parameterInfoAt(document.text, offset);
   }

@@ -1245,6 +1245,52 @@ value -> @stdout
     expect(controller.canUndo, isFalse);
   });
 
+  test('introduces a variable for the selected expression', () {
+    const text = 'value = 40 + 2\n';
+    final start = text.indexOf('40 + 2');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(
+        baseOffset: start,
+        extentOffset: start + '40 + 2'.length,
+      ),
+    );
+
+    final plan = controller.introduceVariablePlanAtSelection('answer');
+    expect(plan?.hasConflicts, isFalse);
+    expect(controller.applyIntroduceVariableAtSelection('answer'), isTrue);
+    expect(controller.document.text, 'answer = 40 + 2\nvalue = answer\n');
+    expect(controller.canUndo, isTrue);
+  });
+
+  test('rejects introduce variable name conflicts without history', () {
+    const text = 'answer = 1\nvalue = 40 + 2\n';
+    final start = text.indexOf('40 + 2');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(
+        baseOffset: start,
+        extentOffset: start + '40 + 2'.length,
+      ),
+    );
+
+    final plan = controller.introduceVariablePlanAtSelection('answer');
+    expect(plan?.hasConflicts, isTrue);
+    expect(controller.applyIntroduceVariableAtSelection('answer'), isFalse);
+    expect(controller.document.text, text);
+    expect(controller.canUndo, isFalse);
+  });
+
   test('selects the resolved definition without changing document history', () {
     const text = 'value = value\n';
     final controller = EditorSessionController(

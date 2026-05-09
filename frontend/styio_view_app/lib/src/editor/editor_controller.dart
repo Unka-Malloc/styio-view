@@ -57,6 +57,17 @@ class EditorSessionController extends ChangeNotifier {
       _languageService.safeDeleteAt(_document, inspectionOffset);
   InlineVariablePlan? get inlineVariablePlanAtSelection =>
       _languageService.inlineVariableAt(_document, inspectionOffset);
+  IntroduceVariablePlan? introduceVariablePlanAtSelection(String name) {
+    if (_selection.isCollapsed) {
+      return null;
+    }
+    return _languageService.introduceVariable(
+      _document,
+      SourceRange(start: _selection.start, end: _selection.end),
+      name,
+    );
+  }
+
   ParameterInfoPayload? get parameterInfoAtSelection =>
       _languageService.parameterInfoAt(_document, inspectionOffset);
   TokenSpan? get tokenAtSelection => _tokenAroundOffset(inspectionOffset);
@@ -773,6 +784,15 @@ class EditorSessionController extends ChangeNotifier {
 
   bool applyInlineVariableAtSelection() {
     final plan = inlineVariablePlanAtSelection;
+    if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
+      return false;
+    }
+    applyFormattingEdits(plan.edits);
+    return true;
+  }
+
+  bool applyIntroduceVariableAtSelection(String name) {
+    final plan = introduceVariablePlanAtSelection(name);
     if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
       return false;
     }

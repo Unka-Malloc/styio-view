@@ -336,9 +336,12 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
 
   late final FocusNode _focusNode;
   late final FocusNode _inlineRenameFocusNode;
+  late final FocusNode _introduceVariableFocusNode;
   late final TextEditingController _inlineRenameController;
+  late final TextEditingController _introduceVariableController;
   int? _dragBaseOffset;
   bool _inlineRenameOpen = false;
+  bool _introduceVariablePanelOpen = false;
   bool _usagesPanelOpen = false;
   bool _safeDeletePanelOpen = false;
   bool _inlineVariablePanelOpen = false;
@@ -356,6 +359,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   int _surroundLookupIndex = 0;
   final Set<String> _collapsedSemanticBlockKeys = <String>{};
   String? _inlineRenameError;
+  String? _introduceVariableError;
 
   @override
   void initState() {
@@ -363,7 +367,11 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _focusNode = FocusNode(debugLabel: 'editor-source-pane');
     _focusNode.addListener(_handleFocusChanged);
     _inlineRenameFocusNode = FocusNode(debugLabel: 'editor-inline-rename');
+    _introduceVariableFocusNode = FocusNode(
+      debugLabel: 'editor-introduce-variable',
+    );
     _inlineRenameController = TextEditingController();
+    _introduceVariableController = TextEditingController();
   }
 
   @override
@@ -372,7 +380,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       ..removeListener(_handleFocusChanged)
       ..dispose();
     _inlineRenameFocusNode.dispose();
+    _introduceVariableFocusNode.dispose();
     _inlineRenameController.dispose();
+    _introduceVariableController.dispose();
     super.dispose();
   }
 
@@ -405,6 +415,19 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       }
       return KeyEventResult.ignored;
     }
+    if (_introduceVariableFocusNode.hasFocus) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+          return _applyIntroduceVariable()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        case LogicalKeyboardKey.escape:
+          _closeIntroduceVariablePanel();
+          return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
     if (_usagesPanelOpen && event.logicalKey == LogicalKeyboardKey.escape) {
       _closeUsagesPanel();
       return KeyEventResult.handled;
@@ -429,6 +452,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         case LogicalKeyboardKey.enter:
         case LogicalKeyboardKey.numpadEnter:
           return _applyInlineVariable()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+      }
+    }
+    if (_introduceVariablePanelOpen) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          _closeIntroduceVariablePanel();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+          return _applyIntroduceVariable()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
       }
@@ -578,6 +613,15 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         altPressed &&
         event.logicalKey == LogicalKeyboardKey.keyT) {
       return _openSurroundLookup()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+
+    if (commandPressed &&
+        altPressed &&
+        !shiftPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyV) {
+      return _openIntroduceVariablePanel()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -968,6 +1012,100 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       return _formatRenameConflict(renamePlan.conflicts.first);
     }
     return 'Invalid rename target.';
+  }
+
+  bool _openIntroduceVariablePanel() {
+    if (widget.selection.isCollapsed) {
+      return false;
+    }
+    final initialName = _availableIntroduceVariableName();
+    if (widget.controller.introduceVariablePlanAtSelection(initialName) ==
+        null) {
+      return false;
+    }
+    setState(() {
+      _introduceVariablePanelOpen = true;
+      _introduceVariableError = null;
+      _introduceVariableController.text = initialName;
+      _introduceVariableController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: initialName.length,
+      );
+      _inlineVariablePanelOpen = false;
+      _safeDeletePanelOpen = false;
+      _completionLookupOpen = false;
+      _completionLookupIndex = 0;
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+      _surroundLookupOpen = false;
+      _surroundLookupIndex = 0;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _introduceVariablePanelOpen) {
+        _introduceVariableFocusNode.requestFocus();
+      }
+    });
+    return true;
+  }
+
+  void _closeIntroduceVariablePanel() {
+    setState(() {
+      _introduceVariablePanelOpen = false;
+      _introduceVariableError = null;
+    });
+    _focusNode.requestFocus();
+  }
+
+  bool _applyIntroduceVariable() {
+    final name = _introduceVariableController.text.trim();
+    final plan = widget.controller.introduceVariablePlanAtSelection(name);
+    if (plan != null &&
+        !plan.hasConflicts &&
+        widget.controller.applyIntroduceVariableAtSelection(name)) {
+      setState(() {
+        _introduceVariablePanelOpen = false;
+        _introduceVariableError = null;
+      });
+      _focusNode.requestFocus();
+      return true;
+    }
+
+    setState(() {
+      _introduceVariableError = _introduceVariableUnavailableMessage(plan);
+    });
+    return false;
+  }
+
+  String _introduceVariableUnavailableMessage(IntroduceVariablePlan? plan) {
+    if (plan != null && plan.hasConflicts) {
+      return _formatIntroduceVariableConflict(plan.conflicts.first);
+    }
+    return 'Select a Styio expression.';
+  }
+
+  String _formatIntroduceVariableConflict(IntroduceVariableConflict conflict) {
+    return '${conflict.message} Conflict at '
+        '${_formatUsageLocationForRange(conflict.range)}.';
+  }
+
+  String _availableIntroduceVariableName() {
+    const baseName = 'extractedValue';
+    final existingNames = {
+      for (final symbol in widget.analysis.documentSymbols) symbol.name,
+    };
+    if (!existingNames.contains(baseName)) {
+      return baseName;
+    }
+    for (var suffix = 2; suffix < 100; suffix += 1) {
+      final candidate = '$baseName$suffix';
+      if (!existingNames.contains(candidate)) {
+        return candidate;
+      }
+    }
+    return '${baseName}100';
   }
 
   String _formatRenameConflict(RenameConflict conflict) {
@@ -1581,6 +1719,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           _buildInlineRenamePanel(context),
                           const SizedBox(height: 12),
                         ],
+                        if (_introduceVariablePanelOpen) ...[
+                          _buildIntroduceVariablePanel(context),
+                          const SizedBox(height: 12),
+                        ],
                         if (_surroundLookupOpen) ...[
                           _buildSurroundLookupPanel(context),
                           const SizedBox(height: 12),
@@ -1986,6 +2128,98 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                   icon: Icons.close_rounded,
                   label: 'Cancel',
                   onTap: _closeInlineRename,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIntroduceVariablePanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final variableName = _introduceVariableController.text.trim();
+    final plan = widget.controller.introduceVariablePlanAtSelection(
+      variableName,
+    );
+    final helperText = plan == null
+        ? _introduceVariableError
+        : plan.hasConflicts
+        ? _formatIntroduceVariableConflict(plan.conflicts.first)
+        : 'Preview ${plan.edits.length} edit'
+              '${plan.edits.length == 1 ? '' : 's'} for '
+              '` ${plan.expressionText} `';
+
+    return Material(
+      key: const ValueKey('source-introduce-variable-panel'),
+      color: const Color(0xFFF0F7F4),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.add_box_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Introduce Variable',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('source-introduce-variable-input'),
+              focusNode: _introduceVariableFocusNode,
+              controller: _introduceVariableController,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                labelText: 'Variable name',
+                helperText: plan == null || plan.hasConflicts
+                    ? null
+                    : helperText,
+                errorText: plan == null || plan.hasConflicts
+                    ? helperText
+                    : null,
+              ),
+              onChanged: (_) {
+                setState(() {
+                  _introduceVariableError = null;
+                });
+              },
+              onSubmitted: (_) => _applyIntroduceVariable(),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InlineActionChip(
+                  key: const ValueKey('source-introduce-variable-apply'),
+                  icon: Icons.check_rounded,
+                  label: 'Introduce',
+                  onTap: _applyIntroduceVariable,
+                ),
+                _InlineActionChip(
+                  key: const ValueKey('source-introduce-variable-cancel'),
+                  icon: Icons.close_rounded,
+                  label: 'Cancel',
+                  onTap: _closeIntroduceVariablePanel,
                 ),
               ],
             ),

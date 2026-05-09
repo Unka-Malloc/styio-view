@@ -182,6 +182,39 @@ pending -> @stdout
     expect(plan?.conflicts.single.message, contains('initializer'));
   });
 
+  test('builds introduce variable edits from a selected expression', () {
+    const index = StyioSymbolIndex();
+    const source = 'value = 40 + 2\n';
+    final start = source.indexOf('40 + 2');
+    final plan = index.introduceVariable(
+      source,
+      SourceRange(start: start, end: start + '40 + 2'.length),
+      'answer',
+    );
+
+    expect(plan?.variableName, 'answer');
+    expect(plan?.expressionText, '40 + 2');
+    expect(plan?.hasConflicts, isFalse);
+    expect(plan?.edits.length, 2);
+    expect(plan?.edits.first.newText, 'answer = 40 + 2\n');
+    expect(plan?.edits.last.newText, 'answer');
+  });
+
+  test('reports introduce variable conflicts before applying edits', () {
+    const index = StyioSymbolIndex();
+    const source = 'answer = 1\nvalue = 40 + 2\n';
+    final start = source.indexOf('40 + 2');
+    final plan = index.introduceVariable(
+      source,
+      SourceRange(start: start, end: start + '40 + 2'.length),
+      'answer',
+    );
+
+    expect(plan?.hasConflicts, isTrue);
+    expect(plan?.edits, isEmpty);
+    expect(plan?.conflicts.single.message, contains('already declares'));
+  });
+
   test('resolves parameter info from a function call argument list', () {
     const index = StyioSymbolIndex();
     const source = '''

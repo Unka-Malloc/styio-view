@@ -25,6 +25,12 @@ abstract class StyioLanguageService {
 
   InlineVariablePlan? inlineVariableAt(DocumentState document, int offset);
 
+  IntroduceVariablePlan? introduceVariable(
+    DocumentState document,
+    SourceRange range,
+    String name,
+  );
+
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset);
 
   List<DiagnosticQuickFix> quickFixesForDiagnostic(

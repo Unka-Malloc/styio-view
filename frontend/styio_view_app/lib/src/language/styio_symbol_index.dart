@@ -373,6 +373,49 @@ class StyioSymbolIndex {
     );
   }
 
+  IntroduceVariablePlan? introduceVariable(
+    String source,
+    SourceRange range,
+    String name,
+  ) {
+    final expressionRange = _trimmedRange(source, range);
+    if (expressionRange.isCollapsed) {
+      return null;
+    }
+
+    final expressionText = source.substring(
+      expressionRange.start,
+      expressionRange.end,
+    );
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final snapshot = build(tokens);
+    final conflicts = _introduceVariableConflicts(
+      source: source,
+      tokens: tokens,
+      snapshot: snapshot,
+      expressionRange: expressionRange,
+      expressionText: expressionText,
+      name: name,
+    );
+    return IntroduceVariablePlan(
+      variableName: name,
+      expressionRange: expressionRange,
+      expressionText: expressionText,
+      edits: conflicts.isEmpty
+          ? [
+              FormattingEdit(
+                range: _lineInsertionRange(source, expressionRange.start),
+                newText:
+                    '${_lineIndentAt(source, expressionRange.start)}$name = '
+                    '$expressionText\n',
+              ),
+              FormattingEdit(range: expressionRange, newText: name),
+            ]
+          : const <FormattingEdit>[],
+      conflicts: conflicts,
+    );
+  }
+
   ParameterInfoPayload? parameterInfoAt(String source, int offset) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -1073,6 +1116,100 @@ class StyioSymbolIndex {
     return conflicts;
   }
 
+  List<IntroduceVariableConflict> _introduceVariableConflicts({
+    required String source,
+    required List<TokenSpan> tokens,
+    required StyioSymbolSnapshot snapshot,
+    required SourceRange expressionRange,
+    required String expressionText,
+    required String name,
+  }) {
+    final conflicts = <IntroduceVariableConflict>[];
+    if (!_isValidIdentifier(name)) {
+      conflicts.add(
+        IntroduceVariableConflict(
+          message: 'Enter a valid Styio identifier.',
+          range: expressionRange,
+        ),
+      );
+    }
+
+    for (final symbol in snapshot.symbols) {
+      if (symbol.name == name) {
+        conflicts.add(
+          IntroduceVariableConflict(
+            message: 'Name `$name` already declares a current-file symbol.',
+            range: symbol.nameRange,
+          ),
+        );
+      }
+    }
+
+    if (expressionText.contains('\n')) {
+      conflicts.add(
+        IntroduceVariableConflict(
+          message: 'Introduce Variable currently requires one expression line.',
+          range: expressionRange,
+        ),
+      );
+    }
+
+    final selectedTokens = tokens
+        .where((token) => token.range.intersects(expressionRange))
+        .toList(growable: false);
+    final significantTokens = selectedTokens
+        .where(
+          (token) =>
+              token.kind != TokenKind.whitespace &&
+              token.kind != TokenKind.comment,
+        )
+        .toList(growable: false);
+    if (significantTokens.isEmpty) {
+      conflicts.add(
+        IntroduceVariableConflict(
+          message: 'Select a Styio expression before introducing a variable.',
+          range: expressionRange,
+        ),
+      );
+    }
+    if (selectedTokens.any((token) => token.kind == TokenKind.comment)) {
+      conflicts.add(
+        IntroduceVariableConflict(
+          message: 'Cannot introduce a variable from a comment range.',
+          range: expressionRange,
+        ),
+      );
+    }
+    if (_looksLikeAssignmentTarget(tokens, expressionRange)) {
+      conflicts.add(
+        IntroduceVariableConflict(
+          message: 'Cannot introduce a variable from an assignment target.',
+          range: expressionRange,
+        ),
+      );
+    }
+    if (expressionText.contains('=') ||
+        expressionText.contains('->') ||
+        expressionText.contains('>>')) {
+      conflicts.add(
+        IntroduceVariableConflict(
+          message: 'Select an expression, not a binding or pipeline statement.',
+          range: expressionRange,
+        ),
+      );
+    }
+    if (_lineInsertionRange(source, expressionRange.start).start >
+        expressionRange.start) {
+      conflicts.add(
+        IntroduceVariableConflict(
+          message: 'Cannot find a declaration anchor before the expression.',
+          range: expressionRange,
+        ),
+      );
+    }
+    return conflicts;
+  }
+
   _InlineVariableInitializer? _variableInitializer(
     String source,
     List<TokenSpan> tokens,
@@ -1137,6 +1274,68 @@ class StyioSymbolIndex {
       return SourceRange(start: lineStart - 1, end: source.length);
     }
     return SourceRange(start: 0, end: source.length);
+  }
+
+  SourceRange _trimmedRange(String source, SourceRange range) {
+    var start = range.start.clamp(0, source.length).toInt();
+    var end = range.end.clamp(start, source.length).toInt();
+    while (start < end && source.codeUnitAt(start) <= 0x20) {
+      start += 1;
+    }
+    while (end > start && source.codeUnitAt(end - 1) <= 0x20) {
+      end -= 1;
+    }
+    return SourceRange(start: start, end: end);
+  }
+
+  SourceRange _lineInsertionRange(String source, int offset) {
+    final normalizedOffset = offset.clamp(0, source.length).toInt();
+    final previousNewline = normalizedOffset <= 0
+        ? -1
+        : source.lastIndexOf('\n', normalizedOffset - 1);
+    final lineStart = previousNewline + 1;
+    return SourceRange(start: lineStart, end: lineStart);
+  }
+
+  String _lineIndentAt(String source, int offset) {
+    final lineStart = _lineInsertionRange(source, offset).start;
+    var cursor = lineStart;
+    while (cursor < source.length) {
+      final codeUnit = source.codeUnitAt(cursor);
+      if (codeUnit != 0x20 && codeUnit != 0x09) {
+        break;
+      }
+      cursor += 1;
+    }
+    return source.substring(lineStart, cursor);
+  }
+
+  bool _looksLikeAssignmentTarget(
+    List<TokenSpan> tokens,
+    SourceRange expressionRange,
+  ) {
+    final selectedIndexes = <int>[];
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      if (token.range.intersects(expressionRange)) {
+        selectedIndexes.add(index);
+      }
+    }
+    if (selectedIndexes.isEmpty) {
+      return false;
+    }
+
+    final firstIndex = selectedIndexes.first;
+    final lastIndex = selectedIndexes.last;
+    final next = _nextSignificant(tokens, lastIndex + 1);
+    final previous = _previousSignificant(tokens, firstIndex - 1);
+    return next?.lexeme == '=' ||
+        next?.lexeme == ':=' ||
+        previous?.lexeme == '->';
   }
 
   bool _isValidIdentifier(String value) {

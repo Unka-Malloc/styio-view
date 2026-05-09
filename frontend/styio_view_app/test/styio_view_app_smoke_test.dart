@@ -2567,6 +2567,119 @@ value = blend(price, tax)
     );
   });
 
+  testWidgets('opens introduce variable blockers from source keymap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = 40 + 2\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'introduce-variable-blocked.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectRange(
+      baseOffset: text.indexOf('value'),
+      extentOffset: text.indexOf('value') + 'value'.length,
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-panel')),
+      findsOne,
+    );
+    expect(find.text('Introduce Variable'), findsOne);
+    expect(
+      find.textContaining(
+        'Cannot introduce a variable from an assignment target.',
+      ),
+      findsOne,
+    );
+    expect(bootstrap.editorController.document.text, text);
+  });
+
+  testWidgets('applies introduce variable from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = 40 + 2\n';
+    final start = text.indexOf('40 + 2');
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'introduce-variable.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectRange(
+      baseOffset: start,
+      extentOffset: start + '40 + 2'.length,
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-panel')),
+      findsOne,
+    );
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-input')),
+      findsOne,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('source-introduce-variable-apply')),
+    );
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      'extractedValue = 40 + 2\nvalue = extractedValue\n',
+    );
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-panel')),
+      findsNothing,
+    );
+  });
+
   testWidgets('applies rename edits from language pane', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

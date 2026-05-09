@@ -280,6 +280,31 @@ class InlineVariablePlan {
   bool get hasConflicts => conflicts.isNotEmpty;
 }
 
+class IntroduceVariableConflict {
+  const IntroduceVariableConflict({required this.message, required this.range});
+
+  final String message;
+  final SourceRange range;
+}
+
+class IntroduceVariablePlan {
+  const IntroduceVariablePlan({
+    required this.variableName,
+    required this.expressionRange,
+    required this.expressionText,
+    required this.edits,
+    this.conflicts = const <IntroduceVariableConflict>[],
+  });
+
+  final String variableName;
+  final SourceRange expressionRange;
+  final String expressionText;
+  final List<FormattingEdit> edits;
+  final List<IntroduceVariableConflict> conflicts;
+
+  bool get hasConflicts => conflicts.isNotEmpty;
+}
+
 class ParameterInfoParameter {
   const ParameterInfoParameter({
     required this.name,

@@ -546,6 +546,89 @@ when limit <= price + tax -> state taxed
 ''');
   });
 
+  test('offers apply-demorgans-law as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'apply-demorgans-law.styio',
+      text: '''
+ready = true
+priced = true
+blocked = false
+price = 12.5
+when !(ready && priced) -> state active
+when !(price > 0 || blocked) -> state safe
+when !(!ready || blocked) -> state pending
+when !(ready && priced || blocked) -> state mixed
+''',
+      revision: 0,
+    );
+
+    final conjunctionAction = service
+        .intentionsAt(document, document.text.indexOf('ready && priced') + 2)
+        .singleWhere((item) => item.label == "Apply De Morgan's law");
+    final disjunctionAction = service
+        .intentionsAt(document, document.text.indexOf('price > 0') + 2)
+        .singleWhere((item) => item.label == "Apply De Morgan's law");
+    final doubleNegationAction = service
+        .intentionsAt(document, document.text.indexOf('!ready') + 1)
+        .singleWhere((item) => item.label == "Apply De Morgan's law");
+
+    expect(conjunctionAction.detail, contains('negation'));
+    expect(applyEdits(document.text, conjunctionAction.edits), '''
+ready = true
+priced = true
+blocked = false
+price = 12.5
+when !ready || !priced -> state active
+when !(price > 0 || blocked) -> state safe
+when !(!ready || blocked) -> state pending
+when !(ready && priced || blocked) -> state mixed
+''');
+    expect(applyEdits(document.text, disjunctionAction.edits), '''
+ready = true
+priced = true
+blocked = false
+price = 12.5
+when !(ready && priced) -> state active
+when !(price > 0) && !blocked -> state safe
+when !(!ready || blocked) -> state pending
+when !(ready && priced || blocked) -> state mixed
+''');
+    expect(applyEdits(document.text, doubleNegationAction.edits), '''
+ready = true
+priced = true
+blocked = false
+price = 12.5
+when !(ready && priced) -> state active
+when !(price > 0 || blocked) -> state safe
+when ready && !blocked -> state pending
+when !(ready && priced || blocked) -> state mixed
+''');
+    expect(
+      service.intentionsAt(document, document.text.indexOf('ready =')),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == "Apply De Morgan's law",
+          ),
+        ),
+      ),
+    );
+    expect(
+      service.intentionsAt(
+        document,
+        document.text.indexOf('priced || blocked') + 2,
+      ),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == "Apply De Morgan's law",
+          ),
+        ),
+      ),
+    );
+  });
+
   test('reports and fixes typed local initializer type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

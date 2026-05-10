@@ -460,6 +460,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       intentions.add(negateConditionFix);
     }
 
+    final deMorganFix = _deMorganAt(document, offset);
+    if (deMorganFix != null) {
+      intentions.add(deMorganFix);
+    }
+
     final flipComparisonFix = _flipComparisonAt(document, offset);
     if (flipComparisonFix != null) {
       intentions.add(flipComparisonFix);
@@ -2152,6 +2157,133 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       }
     }
     return false;
+  }
+
+  DiagnosticQuickFix? _deMorganAt(DocumentState document, int offset) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final notToken = tokens[index];
+      if (notToken.lexeme != '!') {
+        continue;
+      }
+      final openingIndex = _nextSignificantIndex(tokens, index + 1);
+      if (openingIndex == null ||
+          tokens[openingIndex].lexeme != '(' ||
+          _hasLineBreakBetween(tokens, index + 1, openingIndex)) {
+        continue;
+      }
+      final closingIndex = _matchingParenthesisIndex(tokens, openingIndex);
+      if (closingIndex == null) {
+        continue;
+      }
+      final expressionRange = SourceRange(
+        start: notToken.range.start,
+        end: tokens[closingIndex].range.end,
+      );
+      if (offset < expressionRange.start || offset > expressionRange.end) {
+        continue;
+      }
+      if (source
+          .substring(expressionRange.start, expressionRange.end)
+          .contains('\n')) {
+        continue;
+      }
+
+      final operatorIndex = _topLevelBooleanOperatorIndex(
+        tokens: tokens,
+        startIndex: openingIndex + 1,
+        endIndex: closingIndex,
+      );
+      if (operatorIndex == null) {
+        continue;
+      }
+      final operatorToken = tokens[operatorIndex];
+      final replacementOperator = switch (operatorToken.lexeme) {
+        '&&' => '||',
+        '||' => '&&',
+        _ => null,
+      };
+      if (replacementOperator == null) {
+        continue;
+      }
+
+      final leftRange = _trimmedRange(
+        source,
+        SourceRange(
+          start: tokens[openingIndex].range.end,
+          end: operatorToken.range.start,
+        ),
+      );
+      final rightRange = _trimmedRange(
+        source,
+        SourceRange(
+          start: operatorToken.range.end,
+          end: tokens[closingIndex].range.start,
+        ),
+      );
+      if (leftRange.isCollapsed || rightRange.isCollapsed) {
+        continue;
+      }
+
+      final leftText = source.substring(leftRange.start, leftRange.end);
+      final rightText = source.substring(rightRange.start, rightRange.end);
+      return DiagnosticQuickFix(
+        label: "Apply De Morgan's law",
+        detail: 'Distribute negation over the boolean expression.',
+        edits: [
+          FormattingEdit(
+            range: expressionRange,
+            newText:
+                '${_negatedBooleanTerm(leftText)} '
+                '$replacementOperator '
+                '${_negatedBooleanTerm(rightText)}',
+          ),
+        ],
+      );
+    }
+    return null;
+  }
+
+  int? _topLevelBooleanOperatorIndex({
+    required List<TokenSpan> tokens,
+    required int startIndex,
+    required int endIndex,
+  }) {
+    int? operatorIndex;
+    var nestedDepth = 0;
+    for (var index = startIndex; index < endIndex; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      if (nestedDepth == 0 && (token.lexeme == '&&' || token.lexeme == '||')) {
+        if (operatorIndex != null) {
+          return null;
+        }
+        operatorIndex = index;
+      }
+      if (token.lexeme == '(' || token.lexeme == '[' || token.lexeme == '{') {
+        nestedDepth += 1;
+      } else if (token.lexeme == ')' ||
+          token.lexeme == ']' ||
+          token.lexeme == '}') {
+        nestedDepth -= 1;
+      }
+    }
+    return operatorIndex;
+  }
+
+  String _negatedBooleanTerm(String expression) {
+    final trimmed = expression.trim();
+    if (trimmed.startsWith('!')) {
+      return trimmed.substring(1).trimLeft();
+    }
+    if (_isSimplePostfixOperand(trimmed)) {
+      return '!$trimmed';
+    }
+    return '!($trimmed)';
   }
 
   DiagnosticQuickFix? _flipComparisonAt(DocumentState document, int offset) {

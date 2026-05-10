@@ -1419,6 +1419,37 @@ when limit < price -> state expensive
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies demorgans-law context intention', () {
+    const text = '''
+ready = true
+priced = true
+when !(ready && priced) -> state active
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'apply-demorgans-law.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(
+        text.indexOf('ready && priced') + 2,
+      ),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == "Apply De Morgan's law",
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+ready = true
+priced = true
+when !ready || !priced -> state active
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies create function quick fix from unresolved call', () {
     const text = 'price = 1\ntax = 2\ncalculate(price, tax) -> @stdout\n';
     final controller = EditorSessionController(

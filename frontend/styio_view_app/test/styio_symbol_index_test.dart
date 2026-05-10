@@ -660,6 +660,67 @@ already = blend(left: price, right: tax, scale: factor)
     );
   });
 
+  test('builds add-argument-name edit for the current argument', () {
+    String applyEdits(String text, Iterable<FormattingEdit> edits) {
+      var nextText = text;
+      final ordered = edits.toList(growable: false)
+        ..sort((left, right) => right.range.start.compareTo(left.range.start));
+      for (final edit in ordered) {
+        nextText = nextText.replaceRange(
+          edit.range.start,
+          edit.range.end,
+          edit.newText,
+        );
+      }
+      return nextText;
+    }
+
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(price, right: tax, factor)
+duplicate = blend(price, left: tax)
+''';
+
+    final firstPlan = index.addArgumentNameAt(
+      source,
+      source.indexOf('price, right') + 1,
+    );
+    final factorPlan = index.addArgumentNameAt(
+      source,
+      source.indexOf('factor)') + 1,
+    );
+
+    expect(firstPlan?.callableName, 'blend');
+    expect(firstPlan?.parameterName, 'left');
+    expect(firstPlan?.edit.newText, 'left: price');
+    expect(factorPlan?.parameterName, 'scale');
+    expect(factorPlan?.edit.newText, 'scale: factor');
+    expect(applyEdits(source, [firstPlan!.edit, factorPlan!.edit]), '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(left: price, right: tax, scale: factor)
+duplicate = blend(price, left: tax)
+''');
+    expect(
+      index.addArgumentNameAt(source, source.indexOf('right: tax') + 1),
+      isNull,
+    );
+    expect(
+      index.addArgumentNameAt(source, source.indexOf('duplicate = blend') + 20),
+      isNull,
+    );
+  });
+
   test('resolves KDoc-style block comments for parameter info', () {
     const index = StyioSymbolIndex();
     const source = '''

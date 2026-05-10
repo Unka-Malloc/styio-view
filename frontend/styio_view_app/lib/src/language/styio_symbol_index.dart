@@ -765,6 +765,62 @@ class StyioSymbolIndex {
     );
   }
 
+  AddArgumentNamePlan? addArgumentNameAt(String source, int offset) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    if (signaturesByName.isEmpty) {
+      return null;
+    }
+
+    final call = _callArgumentListAt(tokens, offset);
+    if (call == null) {
+      return null;
+    }
+    if (offset < call.callable.range.start ||
+        offset > tokens[call.closingIndex].range.end) {
+      return null;
+    }
+
+    final signature = _signatureForCall(signaturesByName, call.callable);
+    if (signature == null || signature.parameters.isEmpty) {
+      return null;
+    }
+
+    final arguments = _parseCallArguments(
+      source: source,
+      tokens: tokens,
+      openingIndex: call.openingIndex,
+      closingIndex: call.closingIndex,
+    );
+    final activeArgument = _argumentAtOffset(arguments, offset);
+    if (activeArgument == null || activeArgument.name != null) {
+      return null;
+    }
+
+    final parameter = _parameterForPositionalArgument(
+      signature: signature,
+      arguments: arguments,
+      targetArgument: activeArgument,
+    );
+    if (parameter == null) {
+      return null;
+    }
+
+    return AddArgumentNamePlan(
+      callableName: signature.name,
+      parameterName: parameter.name,
+      argumentRange: activeArgument.range,
+      invocationRange: SourceRange(
+        start: call.callable.range.start,
+        end: tokens[call.closingIndex].range.end,
+      ),
+      edit: FormattingEdit(
+        range: activeArgument.range,
+        newText: '${parameter.name}: ${activeArgument.text}',
+      ),
+    );
+  }
+
   List<InlayHint> inlayHints(String source) {
     return <InlayHint>[...parameterNameHints(source), ...typeNameHints(source)]
       ..sort((left, right) {
@@ -1581,6 +1637,59 @@ class StyioSymbolIndex {
       }
     }
     return providedNames;
+  }
+
+  ParameterInfoParameter? _parameterForPositionalArgument({
+    required _FunctionSignature signature,
+    required List<_ArgumentSegment> arguments,
+    required _ArgumentSegment targetArgument,
+  }) {
+    final parameterNames = signature.parameters
+        .map((parameter) => parameter.name)
+        .toSet();
+    final namedArgumentCounts = <String, int>{};
+    for (final argument in arguments) {
+      final name = argument.name;
+      if (name == null) {
+        continue;
+      }
+      if (!parameterNames.contains(name)) {
+        return null;
+      }
+      namedArgumentCounts[name] = (namedArgumentCounts[name] ?? 0) + 1;
+      if (namedArgumentCounts[name]! > 1) {
+        return null;
+      }
+    }
+
+    final providedNames = <String>{};
+    var positionalIndex = 0;
+    for (final argument in arguments) {
+      final name = argument.name;
+      if (name != null) {
+        providedNames.add(name);
+        continue;
+      }
+
+      while (positionalIndex < signature.parameters.length &&
+          providedNames.contains(signature.parameters[positionalIndex].name)) {
+        positionalIndex += 1;
+      }
+      if (positionalIndex >= signature.parameters.length) {
+        return null;
+      }
+
+      final parameter = signature.parameters[positionalIndex];
+      positionalIndex += 1;
+      if (!identical(argument, targetArgument)) {
+        continue;
+      }
+      if ((namedArgumentCounts[parameter.name] ?? 0) > 0) {
+        return null;
+      }
+      return parameter;
+    }
+    return null;
   }
 
   _ArgumentSegment? _argumentAtOffset(
@@ -3486,6 +3595,22 @@ class AddArgumentNamesPlan {
   final String callableName;
   final SourceRange invocationRange;
   final List<FormattingEdit> edits;
+}
+
+class AddArgumentNamePlan {
+  const AddArgumentNamePlan({
+    required this.callableName,
+    required this.parameterName,
+    required this.argumentRange,
+    required this.invocationRange,
+    required this.edit,
+  });
+
+  final String callableName;
+  final String parameterName;
+  final SourceRange argumentRange;
+  final SourceRange invocationRange;
+  final FormattingEdit edit;
 }
 
 class StyioSymbolSnapshot {

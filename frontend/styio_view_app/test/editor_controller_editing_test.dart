@@ -1138,8 +1138,12 @@ blend(price, tax) -> @stdout
 
     expect(controller.diagnosticsAtSelection, isEmpty);
     expect(
-      controller.contextActionsAtSelection.single.label,
+      controller.contextActionsAtSelection.first.label,
       'Add argument names',
+    );
+    expect(
+      controller.contextActionsAtSelection.map((item) => item.label),
+      contains('Add left: to argument'),
     );
 
     final applied = controller.applyFirstQuickFixAtSelection();
@@ -1152,6 +1156,41 @@ fn blend(left: f64, right: f64) {
 price = 1.0
 tax = 0.5
 blend(left: price, right: tax) -> @stdout
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
+  test('applies add-name-to-current-argument context intention', () {
+    const text = '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+blend(price, tax) -> @stdout
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'add-current-argument-name.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.lastIndexOf('tax)')),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Add right: to argument',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+blend(price, right: tax) -> @stdout
 ''');
     expect(controller.canUndo, isTrue);
   });

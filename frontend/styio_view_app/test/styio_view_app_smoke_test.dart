@@ -2584,6 +2584,7 @@ blend(price, tax) -> @stdout
       findsOneWidget,
     );
     expect(find.text('Add argument names'), findsOneWidget);
+    expect(find.text('Add left: to argument'), findsOneWidget);
     expect(find.text('Preview 2 edits'), findsOneWidget);
     expect(bootstrap.editorController.document.text, text);
 

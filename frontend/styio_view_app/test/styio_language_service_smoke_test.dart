@@ -904,9 +904,16 @@ value = blend(price, tax)
       revision: 0,
     );
 
-    final action = service
-        .intentionsAt(document, document.text.lastIndexOf('price, tax') + 1)
-        .single;
+    final actions = service.intentionsAt(
+      document,
+      document.text.lastIndexOf('price, tax') + 1,
+    );
+    final action = actions.singleWhere(
+      (item) => item.label == 'Add argument names',
+    );
+    final singleArgumentAction = actions.singleWhere(
+      (item) => item.label == 'Add left: to argument',
+    );
 
     expect(action.label, 'Add argument names');
     expect(action.detail, contains('blend'));
@@ -917,6 +924,15 @@ fn blend(left: f64, right: f64) {
 price = 1.0
 tax = 0.5
 value = blend(left: price, right: tax)
+''');
+    expect(singleArgumentAction.detail, contains('current `blend` argument'));
+    expect(applyEdits(document.text, singleArgumentAction.edits), '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+value = blend(left: price, tax)
 ''');
   });
 

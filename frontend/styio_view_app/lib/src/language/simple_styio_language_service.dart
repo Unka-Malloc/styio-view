@@ -363,20 +363,34 @@ class SimpleStyioLanguageService implements StyioLanguageService {
 
   @override
   List<DiagnosticQuickFix> intentionsAt(DocumentState document, int offset) {
+    final intentions = <DiagnosticQuickFix>[];
     final addNamesPlan = _symbolIndex.addArgumentNamesAt(document.text, offset);
-    if (addNamesPlan == null || addNamesPlan.edits.isEmpty) {
-      return const <DiagnosticQuickFix>[];
+    if (addNamesPlan != null && addNamesPlan.edits.isNotEmpty) {
+      intentions.add(
+        DiagnosticQuickFix(
+          label: 'Add argument names',
+          detail:
+              'Name positional arguments in `${addNamesPlan.callableName}` '
+              'using the current signature.',
+          edits: addNamesPlan.edits,
+        ),
+      );
     }
 
-    return [
-      DiagnosticQuickFix(
-        label: 'Add argument names',
-        detail:
-            'Name positional arguments in `${addNamesPlan.callableName}` using '
-            'the current signature.',
-        edits: addNamesPlan.edits,
-      ),
-    ];
+    final addNamePlan = _symbolIndex.addArgumentNameAt(document.text, offset);
+    if (addNamePlan != null) {
+      intentions.add(
+        DiagnosticQuickFix(
+          label: 'Add ${addNamePlan.parameterName}: to argument',
+          detail:
+              'Name the current `${addNamePlan.callableName}` argument without '
+              'rewriting the rest of the call.',
+          edits: [addNamePlan.edit],
+        ),
+      );
+    }
+
+    return intentions;
   }
 
   @override

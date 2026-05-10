@@ -148,14 +148,22 @@ class StyioSyntaxHighlighter {
 
       if (_startsWith(source, index, '/*')) {
         final start = index;
+        var depth = 1;
         index += 2;
-        while (index + 1 < source.length &&
-            !(source[index] == '*' && source[index + 1] == '/')) {
+        while (index + 1 < source.length && depth > 0) {
+          if (_startsWith(source, index, '/*')) {
+            depth += 1;
+            index += 2;
+            continue;
+          }
+          if (_startsWith(source, index, '*/')) {
+            depth -= 1;
+            index += 2;
+            continue;
+          }
           index += 1;
         }
-        if (index + 1 < source.length) {
-          index += 2;
-        } else {
+        if (depth > 0) {
           index = source.length;
         }
         tokens.add(

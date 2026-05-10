@@ -46,6 +46,29 @@ fn blend(left: f64, right: f64) {
     expect(tokenLexemes, containsAll(['fn', 'blend', 'emit']));
   });
 
+  test('tokenizes nested block comments as one comment span', () {
+    const highlighter = StyioSyntaxHighlighter();
+    const source = '''
+/*
+ * Outer comment.
+ * /* Nested note that should not terminate the outer comment. */
+ */
+value = 42
+''';
+
+    final tokens = highlighter.tokenize(source);
+    final comments = tokens
+        .where((token) => token.kind == TokenKind.comment)
+        .map((token) => token.lexeme)
+        .toList();
+    final lexemes = tokens.map((token) => token.lexeme).toList();
+
+    expect(comments, hasLength(1));
+    expect(comments.single, contains('Nested note'));
+    expect(comments.single.trimRight(), endsWith('*/'));
+    expect(lexemes, containsAll(['value', '=', '42']));
+  });
+
   test('tokenizes char and extended numeric literals', () {
     const highlighter = StyioSyntaxHighlighter();
     const source = r'''

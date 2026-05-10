@@ -982,6 +982,50 @@ later = count
     },
   );
 
+  test('reports typed local initializer type mismatches', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn amount(): i64 {
+  emit 1
+}
+price = 12.5
+wide: f64 = 3
+count: i64 = price
+fromCall: f64 = amount()
+ok: f64 = price
+''';
+
+    final issues = index.typedLocalInitializerIssues(source);
+
+    expect(issues.map((issue) => issue.variableName), [
+      'wide',
+      'count',
+      'fromCall',
+    ]);
+    expect(issues.map((issue) => issue.expectedTypeName), [
+      'f64',
+      'i64',
+      'f64',
+    ]);
+    expect(issues.map((issue) => issue.actualTypeName), ['i64', 'f64', 'i64']);
+    expect(
+      issues.map(
+        (issue) => source.substring(
+          issue.diagnostic.range.start,
+          issue.diagnostic.range.end,
+        ),
+      ),
+      ['3', 'price', 'amount()'],
+    );
+    expect(issues.first.replacementInitializerText, '3.0');
+    expect(
+      issues.map(
+        (issue) => source.substring(issue.typeRange.start, issue.typeRange.end),
+      ),
+      ['f64', 'i64', 'f64'],
+    );
+  });
+
   test('resolves KDoc-style block comments for parameter info', () {
     const index = StyioSymbolIndex();
     const source = '''

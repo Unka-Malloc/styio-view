@@ -1507,6 +1507,36 @@ emitPrice(3.0) -> @stdout
     );
   });
 
+  test('applies initializer type quick fix at the caret', () {
+    const text = '''
+wide: f64 = 3
+wide -> @stdout
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'initializer-type-mismatch.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('3')),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+wide: f64 = 3.0
+wide -> @stdout
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'initializer-type-mismatch',
+      ),
+      isEmpty,
+    );
+  });
+
   test('applies optimize imports quick fix at the caret', () {
     const text = '''
 @import { styio/io }

@@ -530,6 +530,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         return _quickFixesForUnresolvedReference(document, diagnostic);
       case 'duplicate-declaration':
         return _quickFixesForDuplicateDeclaration(document, diagnostic);
+      case 'initializer-type-mismatch':
+        return _quickFixesForTypeMismatchIssue(document, diagnostic);
       case 'unknown-named-argument':
       case 'duplicate-named-argument':
       case 'missing-call-argument':
@@ -588,6 +590,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
 
     diagnostics.addAll(
       _symbolIndex.callArgumentIssues(source).map((issue) => issue.diagnostic),
+    );
+    diagnostics.addAll(
+      _symbolIndex
+          .typedLocalInitializerIssues(source)
+          .map((issue) => issue.diagnostic),
     );
     diagnostics.addAll(
       _symbolIndex
@@ -1156,6 +1163,69 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         ],
       ),
     ];
+  }
+
+  List<DiagnosticQuickFix> _quickFixesForTypeMismatchIssue(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final issue = _symbolIndex
+        .typedLocalInitializerIssues(document.text)
+        .firstWhere(
+          (item) =>
+              item.diagnostic.code == diagnostic.code &&
+              item.diagnostic.range.start == diagnostic.range.start &&
+              item.diagnostic.range.end == diagnostic.range.end,
+          orElse: () => const StyioTypeMismatchIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: '',
+              message: '',
+              range: SourceRange(start: 0, end: 0),
+            ),
+            variableName: '',
+            expectedTypeName: '',
+            actualTypeName: '',
+            initializerRange: SourceRange(start: 0, end: 0),
+            typeRange: SourceRange(start: 0, end: 0),
+            replacementInitializerText: '',
+          ),
+        );
+    if (issue.variableName.isEmpty) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    final fixes = <DiagnosticQuickFix>[];
+    if (issue.replacementInitializerText.isNotEmpty) {
+      fixes.add(
+        DiagnosticQuickFix(
+          label: 'Change initializer to ${issue.expectedTypeName} literal',
+          detail:
+              'Rewrite `${issue.variableName}` initializer from '
+              '`${issue.actualTypeName}` to `${issue.expectedTypeName}`.',
+          edits: [
+            FormattingEdit(
+              range: issue.initializerRange,
+              newText: issue.replacementInitializerText,
+            ),
+          ],
+        ),
+      );
+    }
+    fixes.add(
+      DiagnosticQuickFix(
+        label:
+            'Change local `${issue.variableName}` type to '
+            '${issue.actualTypeName}',
+        detail:
+            'Update `${issue.variableName}` explicit type to match the '
+            'initializer type.',
+        edits: [
+          FormattingEdit(range: issue.typeRange, newText: issue.actualTypeName),
+        ],
+      ),
+    );
+    return fixes;
   }
 
   List<DiagnosticQuickFix> _quickFixesForUnusedParameter(

@@ -1386,6 +1386,97 @@ class StyioSymbolIndex {
     return inferredTypedLocalTypes;
   }
 
+  List<StyioTypeMismatchIssue> typedLocalInitializerIssues(String source) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    final inferredTypesByName = <String, String>{};
+    final issues = <StyioTypeMismatchIssue>[];
+
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind != TokenKind.identifier ||
+          _syntaxHighlighter.isTypeName(token.lexeme)) {
+        continue;
+      }
+
+      final typedBinding = _typedLocalBindingAtName(tokens, index);
+      if (typedBinding != null) {
+        final expressionStartIndex = _nextSignificantIndex(
+          tokens,
+          typedBinding.assignmentIndex + 1,
+        );
+        final initializerRange = expressionStartIndex == null
+            ? null
+            : _initializerRangeForBinding(
+                source: source,
+                tokens: tokens,
+                expressionStartIndex: expressionStartIndex,
+              );
+        if (expressionStartIndex != null && initializerRange != null) {
+          final actualType = _inferExpressionType(
+            tokens: tokens,
+            expressionStartIndex: expressionStartIndex,
+            signaturesByName: signaturesByName,
+            inferredTypesByName: inferredTypesByName,
+          );
+          if (actualType != null &&
+              actualType.isNotEmpty &&
+              actualType != typedBinding.typeName) {
+            issues.add(
+              StyioTypeMismatchIssue(
+                diagnostic: Diagnostic(
+                  severity: DiagnosticSeverity.warning,
+                  code: 'initializer-type-mismatch',
+                  message:
+                      'Initializer for `${token.lexeme}` expects '
+                      '`${typedBinding.typeName}`, got `$actualType`.',
+                  range: initializerRange,
+                ),
+                variableName: token.lexeme,
+                expectedTypeName: typedBinding.typeName,
+                actualTypeName: actualType,
+                initializerRange: initializerRange,
+                typeRange: tokens[typedBinding.typeIndex].range,
+                replacementInitializerText: _argumentTypeReplacementText(
+                  tokens: tokens,
+                  expressionStartIndex: expressionStartIndex,
+                  argumentRange: initializerRange,
+                  expectedType: typedBinding.typeName,
+                  actualType: actualType,
+                ),
+              ),
+            );
+          }
+        }
+        inferredTypesByName[token.lexeme] = typedBinding.typeName;
+        continue;
+      }
+
+      final assignmentIndex = _bindingAssignmentIndex(tokens, index);
+      if (assignmentIndex == null) {
+        continue;
+      }
+      final expressionStartIndex = _nextSignificantIndex(
+        tokens,
+        assignmentIndex + 1,
+      );
+      if (expressionStartIndex == null) {
+        continue;
+      }
+      final inferredType = _inferExpressionType(
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (inferredType != null && inferredType.isNotEmpty) {
+        inferredTypesByName[token.lexeme] = inferredType;
+      }
+    }
+
+    return issues;
+  }
+
   Map<String, String> _inferLocalBindingTypes(
     List<TokenSpan> tokens,
     Map<String, List<_FunctionSignature>> signaturesByName,
@@ -1748,6 +1839,29 @@ class StyioSymbolIndex {
       return '';
     }
     return '${token.lexeme}.0';
+  }
+
+  SourceRange? _initializerRangeForBinding({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int expressionStartIndex,
+  }) {
+    var end = tokens[expressionStartIndex].range.end;
+    for (
+      var index = expressionStartIndex + 1;
+      index < tokens.length;
+      index += 1
+    ) {
+      final token = tokens[index];
+      if (token.lexeme.contains('\n') || token.kind == TokenKind.comment) {
+        break;
+      }
+      end = token.range.end;
+    }
+    return _trimmedRange(
+      source,
+      SourceRange(start: tokens[expressionStartIndex].range.start, end: end),
+    );
   }
 
   String? _closestParameterName(
@@ -4461,6 +4575,26 @@ class StyioCallArgumentIssue {
       parameterName.isNotEmpty &&
       expectedTypeName.isNotEmpty &&
       actualTypeName.isNotEmpty;
+}
+
+class StyioTypeMismatchIssue {
+  const StyioTypeMismatchIssue({
+    required this.diagnostic,
+    required this.variableName,
+    required this.expectedTypeName,
+    required this.actualTypeName,
+    required this.initializerRange,
+    required this.typeRange,
+    required this.replacementInitializerText,
+  });
+
+  final Diagnostic diagnostic;
+  final String variableName;
+  final String expectedTypeName;
+  final String actualTypeName;
+  final SourceRange initializerRange;
+  final SourceRange typeRange;
+  final String replacementInitializerText;
 }
 
 class StyioUnusedParameterIssue {

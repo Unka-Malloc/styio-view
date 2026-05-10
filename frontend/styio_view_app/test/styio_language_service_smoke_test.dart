@@ -446,6 +446,42 @@ copy -> @stdout
     );
   });
 
+  test('reports and fixes typed local initializer type mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'initializer-type-mismatch.styio',
+      text: '''
+wide: f64 = 3
+wide -> @stdout
+''',
+      revision: 0,
+    );
+
+    final mismatch = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere(
+          (diagnostic) => diagnostic.code == 'initializer-type-mismatch',
+        );
+    final fixes = service.quickFixesForDiagnostic(document, mismatch);
+    final literalFix = fixes.singleWhere(
+      (fix) => fix.label == 'Change initializer to f64 literal',
+    );
+    final localTypeFix = fixes.singleWhere(
+      (fix) => fix.label == 'Change local `wide` type to i64',
+    );
+
+    expect(mismatch.message, contains('expects `f64`, got `i64`'));
+    expect(applyEdits(document.text, literalFix.edits), '''
+wide: f64 = 3.0
+wide -> @stdout
+''');
+    expect(applyEdits(document.text, localTypeFix.edits), '''
+wide: i64 = 3
+wide -> @stdout
+''');
+  });
+
   test('removes unused parameters through change signature', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

@@ -188,13 +188,16 @@ class StyioSyntaxHighlighter {
         final quote = char;
         index += 1;
         while (index < source.length && source[index] != quote) {
+          if (_isLineBreak(source[index])) {
+            break;
+          }
           if (source[index] == '\\' && index + 1 < source.length) {
             index += 2;
           } else {
             index += 1;
           }
         }
-        if (index < source.length) {
+        if (index < source.length && source[index] == quote) {
           index += 1;
         }
         tokens.add(
@@ -838,6 +841,10 @@ class StyioSyntaxHighlighter {
 
   bool _isWhitespace(String char) {
     return char == ' ' || char == '\n' || char == '\t' || char == '\r';
+  }
+
+  bool _isLineBreak(String char) {
+    return char == '\n' || char == '\r';
   }
 
   bool _isIdentifierStart(String char) {

@@ -71,6 +71,26 @@ octal = 0o755
     );
   });
 
+  test('keeps unterminated quoted literals on their source line', () {
+    const highlighter = StyioSyntaxHighlighter();
+    const source = '''
+first = 'unterminated
+next = 42
+text = "also unterminated
+value -> @stdout
+''';
+
+    final tokens = highlighter.tokenize(source);
+    final strings = tokens
+        .where((token) => token.kind == TokenKind.string)
+        .map((token) => token.lexeme);
+    final lexemes = tokens.map((token) => token.lexeme).toList();
+
+    expect(strings, contains("'unterminated"));
+    expect(strings, contains('"also unterminated'));
+    expect(lexemes, containsAll(['next', '42', 'value', '@', 'stdout']));
+  });
+
   test('resolves resource and type semantic spans independently', () {
     const highlighter = StyioSyntaxHighlighter();
     const source = '@ma5 : f64|..2| := { value: i64 = source }';

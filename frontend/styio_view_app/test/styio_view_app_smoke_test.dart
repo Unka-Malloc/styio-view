@@ -2145,6 +2145,46 @@ value = blend(price, price)
     );
   });
 
+  testWidgets('applies postfix completion from editor keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = '  blend(price, tax).em';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'postfix-completion-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+    expect(
+      bootstrap.editorController.completionsAtSelection.map(
+        (item) => item.label,
+      ),
+      contains('.emit'),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      '  emit blend(price, tax)',
+    );
+  });
+
   testWidgets('opens completion lookup while typing source identifiers', (
     tester,
   ) async {

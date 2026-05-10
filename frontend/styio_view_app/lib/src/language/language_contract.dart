@@ -126,12 +126,14 @@ class CompletionItem {
     required this.kind,
     required this.insertText,
     this.detail = '',
+    this.replacementRange,
   });
 
   final String label;
   final CompletionItemKind kind;
   final String insertText;
   final String detail;
+  final SourceRange? replacementRange;
 }
 
 class SurroundTemplate {

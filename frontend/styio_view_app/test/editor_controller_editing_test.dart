@@ -960,6 +960,29 @@ void main() {
     },
   );
 
+  test('applies postfix completion by replacing the target expression', () {
+    const text = '  blend(price, tax).em';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'postfix-completion.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(text.length),
+    );
+
+    final completion = controller.completionsAtSelection.firstWhere(
+      (item) => item.label == '.emit',
+    );
+
+    controller.applyCompletionItem(completion);
+
+    expect(controller.document.text, '  emit blend(price, tax)');
+    expect(controller.selection.end, '  emit blend(price, tax)'.length);
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies best completion item at the caret', () {
     const text = 'job = ||> { <| 42 }\njo';
     final controller = EditorSessionController(

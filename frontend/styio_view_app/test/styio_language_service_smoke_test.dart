@@ -665,6 +665,44 @@ value -> @stdout
     expect(jobCompletion.insertText, 'job');
   });
 
+  test('offers postfix completions that replace the target expression', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'postfix-completion.styio',
+      text: '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+blend(price, tax).em
+''',
+      revision: 0,
+    );
+
+    final completion = service
+        .completeAt(document, document.text.lastIndexOf('em') + 2)
+        .firstWhere((item) => item.label == '.emit');
+    final range = completion.replacementRange;
+
+    expect(completion.kind, CompletionItemKind.snippet);
+    expect(completion.insertText, 'emit blend(price, tax)');
+    expect(range, isNotNull);
+    expect(
+      document.text.substring(range!.start, range.end),
+      'blend(price, tax).em',
+    );
+    expect(
+      applyEdits(document.text, [
+        FormattingEdit(range: range, newText: completion.insertText),
+      ]),
+      '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+emit blend(price, tax)
+''',
+    );
+  });
+
   test('matches completion items by contained text and symbol initials', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

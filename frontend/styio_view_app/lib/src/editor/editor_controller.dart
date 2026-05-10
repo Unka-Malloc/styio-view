@@ -652,12 +652,18 @@ class EditorSessionController extends ChangeNotifier {
   void applyCompletionItem(CompletionItem item) {
     _structuredSelectionStack.clear();
     _pushUndoSnapshot();
-    final replacementRange = _completionReplacementRange();
+    final replacementRange =
+        item.replacementRange ?? _completionReplacementRange();
+    final replacementStart = replacementRange.start.clamp(0, _document.length);
+    final replacementEnd = replacementRange.end.clamp(
+      replacementStart,
+      _document.length,
+    );
     _replaceRange(
-      start: replacementRange.start,
-      end: replacementRange.end,
+      start: replacementStart,
+      end: replacementEnd,
       replacement: item.insertText,
-      selectionOffset: replacementRange.start + item.insertText.length,
+      selectionOffset: replacementStart + item.insertText.length,
     );
     _redoStack.clear();
     notifyListeners();

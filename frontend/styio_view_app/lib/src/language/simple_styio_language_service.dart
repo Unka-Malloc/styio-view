@@ -79,6 +79,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     final token = _tokenAroundOffset(tokenSpans, offset);
     final seed = token?.lexeme ?? '';
     final symbolSnapshot = _symbolIndex.build(tokenSpans);
+    final postfixItems = _postfixCompletionItems(
+      document.text,
+      offset,
+      tokenSpans,
+    );
 
     final staticItems = <CompletionItem>[
       const CompletionItem(
@@ -156,11 +161,14 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       ),
     ];
     final items = _dedupeCompletionItems([
+      ...postfixItems,
       ...staticItems,
       ...symbolSnapshot.symbols.map(_completionItemForSymbol),
     ]);
 
-    if (seed.isEmpty || token == null || token.kind == TokenKind.keyword) {
+    if (seed.isEmpty ||
+        token == null ||
+        (token.kind == TokenKind.keyword && postfixItems.isEmpty)) {
       return items;
     }
 
@@ -1467,6 +1475,194 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     return trailingToken ?? leadingToken;
   }
 
+  List<CompletionItem> _postfixCompletionItems(
+    String source,
+    int offset,
+    List<TokenSpan> tokens,
+  ) {
+    final context = _postfixCompletionContext(source, offset, tokens);
+    if (context == null) {
+      return const <CompletionItem>[];
+    }
+
+    final expression = source.substring(
+      context.expressionRange.start,
+      context.expressionRange.end,
+    );
+    final baseIndent = _lineIndentBefore(source, context.expressionRange.start);
+    final taskText = '||> {\n$baseIndent  <| $expression\n$baseIndent}';
+
+    return [
+      CompletionItem(
+        label: '.emit',
+        kind: CompletionItemKind.snippet,
+        insertText: 'emit $expression',
+        detail: 'Postfix completion: emit the expression.',
+        replacementRange: context.replacementRange,
+      ),
+      CompletionItem(
+        label: '.task',
+        kind: CompletionItemKind.snippet,
+        insertText: taskText,
+        detail: 'Postfix completion: return the expression from a task block.',
+        replacementRange: context.replacementRange,
+      ),
+      CompletionItem(
+        label: '.await',
+        kind: CompletionItemKind.snippet,
+        insertText: '?| $expression -> value: i64',
+        detail: 'Postfix completion: await a task-like expression.',
+        replacementRange: context.replacementRange,
+      ),
+      CompletionItem(
+        label: '.stdout',
+        kind: CompletionItemKind.snippet,
+        insertText: '$expression -> @stdout',
+        detail: 'Postfix completion: send the expression to stdout.',
+        replacementRange: context.replacementRange,
+      ),
+    ];
+  }
+
+  _PostfixCompletionContext? _postfixCompletionContext(
+    String source,
+    int offset,
+    List<TokenSpan> tokens,
+  ) {
+    final normalizedOffset = offset.clamp(0, source.length).toInt();
+    final token = _tokenAroundOffset(tokens, normalizedOffset);
+    int? dotOffset;
+    var suffixEnd = normalizedOffset;
+
+    if (token != null &&
+        (token.kind == TokenKind.identifier ||
+            token.kind == TokenKind.keyword) &&
+        token.range.start <= normalizedOffset &&
+        normalizedOffset <= token.range.end) {
+      final possibleDot = token.range.start - 1;
+      if (possibleDot >= 0 && source[possibleDot] == '.') {
+        dotOffset = possibleDot;
+        suffixEnd = token.range.end;
+      }
+    }
+
+    if (dotOffset == null &&
+        normalizedOffset > 0 &&
+        source[normalizedOffset - 1] == '.') {
+      dotOffset = normalizedOffset - 1;
+      suffixEnd = normalizedOffset;
+    }
+
+    if (dotOffset == null) {
+      return null;
+    }
+
+    final expressionRange = _postfixExpressionRange(source, dotOffset);
+    if (expressionRange == null) {
+      return null;
+    }
+
+    return _PostfixCompletionContext(
+      expressionRange: expressionRange,
+      replacementRange: SourceRange(
+        start: expressionRange.start,
+        end: suffixEnd,
+      ),
+    );
+  }
+
+  SourceRange? _postfixExpressionRange(String source, int dotOffset) {
+    var targetEnd = dotOffset;
+    while (targetEnd > 0 && _isHorizontalWhitespace(source[targetEnd - 1])) {
+      targetEnd -= 1;
+    }
+    if (targetEnd <= 0) {
+      return null;
+    }
+
+    var index = targetEnd - 1;
+    var parenDepth = 0;
+    var bracketDepth = 0;
+    while (index >= 0) {
+      final char = source[index];
+      if (char == '\n' || char == '\r') {
+        break;
+      }
+      if (char == '"') {
+        index -= 1;
+        while (index >= 0) {
+          final quoteCandidate =
+              source[index] == '"' && (index == 0 || source[index - 1] != '\\');
+          index -= 1;
+          if (quoteCandidate) {
+            break;
+          }
+        }
+        continue;
+      }
+      if (char == ')') {
+        parenDepth += 1;
+        index -= 1;
+        continue;
+      }
+      if (char == ']') {
+        bracketDepth += 1;
+        index -= 1;
+        continue;
+      }
+      if (char == '(') {
+        if (parenDepth == 0) {
+          break;
+        }
+        parenDepth -= 1;
+        index -= 1;
+        continue;
+      }
+      if (char == '[') {
+        if (bracketDepth == 0) {
+          break;
+        }
+        bracketDepth -= 1;
+        index -= 1;
+        continue;
+      }
+      if (parenDepth == 0 && bracketDepth == 0) {
+        if (_isHorizontalWhitespace(char) || '{};,='.contains(char)) {
+          break;
+        }
+      }
+      index -= 1;
+    }
+
+    var start = index + 1;
+    while (start < targetEnd && _isHorizontalWhitespace(source[start])) {
+      start += 1;
+    }
+    if (start >= targetEnd) {
+      return null;
+    }
+    return SourceRange(start: start, end: targetEnd);
+  }
+
+  String _lineIndentBefore(String source, int offset) {
+    final lineStart = offset <= 0
+        ? 0
+        : source.lastIndexOf('\n', offset - 1) + 1;
+    final buffer = StringBuffer();
+    for (var index = lineStart; index < offset; index += 1) {
+      final char = source[index];
+      if (!_isHorizontalWhitespace(char)) {
+        return '';
+      }
+      buffer.write(char);
+    }
+    return buffer.toString();
+  }
+
+  bool _isHorizontalWhitespace(String char) {
+    return char == ' ' || char == '\t';
+  }
+
   List<CompletionItem> _dedupeCompletionItems(Iterable<CompletionItem> items) {
     final deduped = <CompletionItem>[];
     final seen = <String>{};
@@ -1564,6 +1760,16 @@ class _StyioImportOptimization {
   final List<_StyioImportLine> duplicateImports;
   final bool needsOptimization;
   final List<FormattingEdit> edits;
+}
+
+class _PostfixCompletionContext {
+  const _PostfixCompletionContext({
+    required this.expressionRange,
+    required this.replacementRange,
+  });
+
+  final SourceRange expressionRange;
+  final SourceRange replacementRange;
 }
 
 class _DuplicateDeclarationEntry {

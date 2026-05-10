@@ -1085,6 +1085,47 @@ fn broken(value: f64): bool {
     });
   });
 
+  test('reports unary operator operand type mismatches', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+price = 12.5
+ready = true
+bad = !price
+also = -ready
+fn broken(value: f64): bool {
+  emit !value
+}
+''';
+
+    final issues = index.unaryOperatorTypeIssues(source);
+
+    expect(issues.map((issue) => issue.operatorLexeme), ['!', '-', '!']);
+    expect(issues.map((issue) => issue.operandTypeName), [
+      'f64',
+      'bool',
+      'f64',
+    ]);
+    expect(
+      issues.map(
+        (issue) => source.substring(
+          issue.operatorRange.start,
+          issue.operatorRange.end,
+        ),
+      ),
+      ['!', '-', '!'],
+    );
+    expect(
+      issues.map(
+        (issue) =>
+            source.substring(issue.operandRange.start, issue.operandRange.end),
+      ),
+      ['price', 'ready', 'value'],
+    );
+    expect(issues.map((issue) => issue.diagnostic.code).toSet(), {
+      'unary-operator-type-mismatch',
+    });
+  });
+
   test('infers parenthesized and unary expression types', () {
     const index = StyioSymbolIndex();
     const source = '''

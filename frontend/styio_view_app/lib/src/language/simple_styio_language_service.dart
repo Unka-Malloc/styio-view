@@ -536,6 +536,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         return _quickFixesForAssignmentTypeMismatchIssue(document, diagnostic);
       case 'binary-operator-type-mismatch':
         return _quickFixesForBinaryOperatorTypeIssue(document, diagnostic);
+      case 'unary-operator-type-mismatch':
+        return _quickFixesForUnaryOperatorTypeIssue(document, diagnostic);
       case 'condition-type-mismatch':
         return _quickFixesForConditionTypeMismatchIssue(document, diagnostic);
       case 'return-type-mismatch':
@@ -612,6 +614,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     diagnostics.addAll(
       _symbolIndex
           .binaryOperatorTypeIssues(source)
+          .map((issue) => issue.diagnostic),
+    );
+    diagnostics.addAll(
+      _symbolIndex
+          .unaryOperatorTypeIssues(source)
           .map((issue) => issue.diagnostic),
     );
     diagnostics.addAll(
@@ -1411,6 +1418,57 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     return fixes;
   }
 
+  List<DiagnosticQuickFix> _quickFixesForUnaryOperatorTypeIssue(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final issue = _symbolIndex
+        .unaryOperatorTypeIssues(document.text)
+        .firstWhere(
+          (item) =>
+              item.diagnostic.code == diagnostic.code &&
+              item.diagnostic.range.start == diagnostic.range.start &&
+              item.diagnostic.range.end == diagnostic.range.end,
+          orElse: () => const StyioUnaryOperatorTypeIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: '',
+              message: '',
+              range: SourceRange(start: 0, end: 0),
+            ),
+            operatorLexeme: '',
+            operandTypeName: '',
+            operatorRange: SourceRange(start: 0, end: 0),
+            operandRange: SourceRange(start: 0, end: 0),
+          ),
+        );
+    if (issue.operatorLexeme != '!' ||
+        !_isNumericTypeName(issue.operandTypeName)) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    return [
+      DiagnosticQuickFix(
+        label: 'Compare operand with zero',
+        detail:
+            'Rewrite `!` operand from `${issue.operandTypeName}` to `bool`.',
+        edits: [
+          FormattingEdit(
+            range: SourceRange(
+              start: issue.operatorRange.start,
+              end: issue.operandRange.end,
+            ),
+            newText: _compareOperandEqualToZero(
+              source: document.text,
+              range: issue.operandRange,
+              typeName: issue.operandTypeName,
+            ),
+          ),
+        ],
+      ),
+    ];
+  }
+
   bool _isNumericTypeName(String typeName) {
     return const {
       'i8',
@@ -1431,6 +1489,16 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     final operandText = source.substring(range.start, range.end).trim();
     final zeroLiteral = typeName == 'f32' || typeName == 'f64' ? '0.0' : '0';
     return '$operandText != $zeroLiteral';
+  }
+
+  String _compareOperandEqualToZero({
+    required String source,
+    required SourceRange range,
+    required String typeName,
+  }) {
+    final operandText = source.substring(range.start, range.end).trim();
+    final zeroLiteral = typeName == 'f32' || typeName == 'f64' ? '0.0' : '0';
+    return '$operandText == $zeroLiteral';
   }
 
   List<DiagnosticQuickFix> _quickFixesForConditionTypeMismatchIssue(

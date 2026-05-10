@@ -666,6 +666,74 @@ fn broken(value: f64): bool {
 ''');
   });
 
+  test('reports and fixes unary operator operand type mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'unary-operator-type-mismatch.styio',
+      text: '''
+price = 12.5
+ready = true
+bad = !price
+also = -ready
+fn broken(value: f64): bool {
+  emit !value
+}
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service
+        .analyzeDocument(document)
+        .diagnostics
+        .where(
+          (diagnostic) => diagnostic.code == 'unary-operator-type-mismatch',
+        )
+        .toList(growable: false);
+    final notPriceMismatch = diagnostics.singleWhere(
+      (diagnostic) =>
+          diagnostic.message == 'Operator `!` cannot be applied to `f64`.' &&
+          diagnostic.range.start == document.text.indexOf('!price'),
+    );
+    final minusReadyMismatch = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.message.contains('`-`'),
+    );
+    final notValueMismatch = diagnostics.singleWhere(
+      (diagnostic) =>
+          diagnostic.message == 'Operator `!` cannot be applied to `f64`.' &&
+          diagnostic.range.start == document.text.indexOf('!value'),
+    );
+    final priceFix = service
+        .quickFixesForDiagnostic(document, notPriceMismatch)
+        .singleWhere((fix) => fix.label == 'Compare operand with zero');
+    final valueFix = service
+        .quickFixesForDiagnostic(document, notValueMismatch)
+        .singleWhere((fix) => fix.label == 'Compare operand with zero');
+
+    expect(diagnostics, hasLength(3));
+    expect(
+      service.quickFixesForDiagnostic(document, minusReadyMismatch),
+      isEmpty,
+    );
+    expect(applyEdits(document.text, priceFix.edits), '''
+price = 12.5
+ready = true
+bad = price == 0.0
+also = -ready
+fn broken(value: f64): bool {
+  emit !value
+}
+''');
+    expect(applyEdits(document.text, valueFix.edits), '''
+price = 12.5
+ready = true
+bad = !price
+also = -ready
+fn broken(value: f64): bool {
+  emit value == 0.0
+}
+''');
+  });
+
   test('reports unary and parenthesized expression type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

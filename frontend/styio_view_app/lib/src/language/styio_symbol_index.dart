@@ -1298,6 +1298,7 @@ class StyioSymbolIndex {
     required Map<String, List<_FunctionSignature>> signaturesByName,
     required Map<String, String> inferredTypesByName,
     List<StyioBinaryOperatorTypeIssue>? binaryOperatorIssues,
+    List<StyioUnaryOperatorTypeIssue>? unaryOperatorIssues,
   }) {
     final expression = _inferExpressionTypeSpan(
       tokens: tokens,
@@ -1305,6 +1306,7 @@ class StyioSymbolIndex {
       signaturesByName: signaturesByName,
       inferredTypesByName: inferredTypesByName,
       binaryOperatorIssues: binaryOperatorIssues,
+      unaryOperatorIssues: unaryOperatorIssues,
     );
     return expression?.typeName;
   }
@@ -1315,6 +1317,7 @@ class StyioSymbolIndex {
     required Map<String, List<_FunctionSignature>> signaturesByName,
     required Map<String, String> inferredTypesByName,
     List<StyioBinaryOperatorTypeIssue>? binaryOperatorIssues,
+    List<StyioUnaryOperatorTypeIssue>? unaryOperatorIssues,
     int minPrecedence = 0,
   }) {
     final primary = _inferPrimaryExpressionType(
@@ -1323,6 +1326,7 @@ class StyioSymbolIndex {
       signaturesByName: signaturesByName,
       inferredTypesByName: inferredTypesByName,
       binaryOperatorIssues: binaryOperatorIssues,
+      unaryOperatorIssues: unaryOperatorIssues,
     );
     if (primary == null) {
       return null;
@@ -1352,6 +1356,7 @@ class StyioSymbolIndex {
         signaturesByName: signaturesByName,
         inferredTypesByName: inferredTypesByName,
         binaryOperatorIssues: binaryOperatorIssues,
+        unaryOperatorIssues: unaryOperatorIssues,
         minPrecedence:
             _isRightAssociativeBinaryExpressionOperator(operatorLexeme)
             ? precedence
@@ -1406,6 +1411,7 @@ class StyioSymbolIndex {
     required Map<String, List<_FunctionSignature>> signaturesByName,
     required Map<String, String> inferredTypesByName,
     List<StyioBinaryOperatorTypeIssue>? binaryOperatorIssues,
+    List<StyioUnaryOperatorTypeIssue>? unaryOperatorIssues,
   }) {
     final token = tokens[expressionStartIndex];
     if (token.lexeme == '(') {
@@ -1428,6 +1434,7 @@ class StyioSymbolIndex {
         signaturesByName: signaturesByName,
         inferredTypesByName: inferredTypesByName,
         binaryOperatorIssues: binaryOperatorIssues,
+        unaryOperatorIssues: unaryOperatorIssues,
       );
       if (innerType == null || innerType.isEmpty) {
         return null;
@@ -1457,6 +1464,7 @@ class StyioSymbolIndex {
         signaturesByName: signaturesByName,
         inferredTypesByName: inferredTypesByName,
         binaryOperatorIssues: binaryOperatorIssues,
+        unaryOperatorIssues: unaryOperatorIssues,
       );
       if (operand == null) {
         return null;
@@ -1466,6 +1474,25 @@ class StyioSymbolIndex {
         operandType: operand.typeName,
       );
       if (typeName == null || typeName.isEmpty) {
+        unaryOperatorIssues?.add(
+          StyioUnaryOperatorTypeIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.warning,
+              code: 'unary-operator-type-mismatch',
+              message:
+                  'Operator `${token.lexeme}` cannot be applied to '
+                  '`${operand.typeName}`.',
+              range: token.range,
+            ),
+            operatorLexeme: token.lexeme,
+            operandTypeName: operand.typeName,
+            operatorRange: token.range,
+            operandRange: SourceRange(
+              start: tokens[operand.startIndex].range.start,
+              end: tokens[operand.endIndex].range.end,
+            ),
+          ),
+        );
         return null;
       }
       return _ExpressionTypeSpan(
@@ -2089,6 +2116,182 @@ class StyioSymbolIndex {
       final key =
           '${issue.operatorRange.start}:${issue.operatorRange.end}:'
           '${issue.leftTypeName}:${issue.rightTypeName}';
+      dedupedIssues.putIfAbsent(key, () => issue);
+    }
+    return dedupedIssues.values.toList(growable: false)..sort(
+      (left, right) =>
+          left.operatorRange.start.compareTo(right.operatorRange.start),
+    );
+  }
+
+  List<StyioUnaryOperatorTypeIssue> unaryOperatorTypeIssues(String source) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    final signatures = signaturesByName.values.expand((items) => items);
+    final issues = <StyioUnaryOperatorTypeIssue>[];
+    final inferredTypesByName = <String, String>{};
+
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.keyword && token.lexeme == 'when') {
+        final expressionStartIndex = _nextSignificantIndex(tokens, index + 1);
+        if (expressionStartIndex != null &&
+            !_hasLineBreakBetween(tokens, index + 1, expressionStartIndex)) {
+          _inferExpressionType(
+            tokens: tokens,
+            expressionStartIndex: expressionStartIndex,
+            signaturesByName: signaturesByName,
+            inferredTypesByName: inferredTypesByName,
+            unaryOperatorIssues: issues,
+          );
+        }
+        continue;
+      }
+
+      if (token.kind != TokenKind.identifier ||
+          _syntaxHighlighter.isTypeName(token.lexeme)) {
+        continue;
+      }
+
+      final typedBinding = _typedLocalBindingAtName(tokens, index);
+      if (typedBinding != null) {
+        final expressionStartIndex = _nextSignificantIndex(
+          tokens,
+          typedBinding.assignmentIndex + 1,
+        );
+        if (expressionStartIndex != null) {
+          _inferExpressionType(
+            tokens: tokens,
+            expressionStartIndex: expressionStartIndex,
+            signaturesByName: signaturesByName,
+            inferredTypesByName: inferredTypesByName,
+            unaryOperatorIssues: issues,
+          );
+        }
+        inferredTypesByName[token.lexeme] = typedBinding.typeName;
+        continue;
+      }
+
+      final assignmentIndex = _bindingAssignmentIndex(tokens, index);
+      if (assignmentIndex == null) {
+        continue;
+      }
+      final expressionStartIndex = _nextSignificantIndex(
+        tokens,
+        assignmentIndex + 1,
+      );
+      if (expressionStartIndex == null) {
+        continue;
+      }
+      final inferredType = _inferExpressionType(
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+        unaryOperatorIssues: issues,
+      );
+      if (inferredType != null && inferredType.isNotEmpty) {
+        inferredTypesByName[token.lexeme] = inferredType;
+      }
+    }
+
+    for (final signature in signatures) {
+      final bodySpan = _functionBodySpan(tokens, signature);
+      if (bodySpan == null) {
+        continue;
+      }
+      final localTypesByName = <String, String>{
+        for (final parameter in signature.parameters)
+          if (parameter.type.isNotEmpty) parameter.name: parameter.type,
+      };
+      var nestedBraceDepth = 0;
+      for (
+        var index = bodySpan.openingIndex + 1;
+        index < bodySpan.closingIndex;
+        index += 1
+      ) {
+        final token = tokens[index];
+        if (token.kind == TokenKind.punctuation && token.lexeme == '{') {
+          nestedBraceDepth += 1;
+          continue;
+        }
+        if (token.kind == TokenKind.punctuation && token.lexeme == '}') {
+          nestedBraceDepth -= 1;
+          continue;
+        }
+        if (nestedBraceDepth > 0) {
+          continue;
+        }
+
+        if (token.kind == TokenKind.identifier &&
+            !_syntaxHighlighter.isTypeName(token.lexeme)) {
+          final typedBinding = _typedLocalBindingAtName(tokens, index);
+          if (typedBinding != null &&
+              typedBinding.assignmentIndex < bodySpan.closingIndex) {
+            final expressionStartIndex = _nextSignificantIndex(
+              tokens,
+              typedBinding.assignmentIndex + 1,
+            );
+            if (expressionStartIndex != null &&
+                expressionStartIndex < bodySpan.closingIndex) {
+              _inferExpressionType(
+                tokens: tokens,
+                expressionStartIndex: expressionStartIndex,
+                signaturesByName: signaturesByName,
+                inferredTypesByName: localTypesByName,
+                unaryOperatorIssues: issues,
+              );
+            }
+            localTypesByName[token.lexeme] = typedBinding.typeName;
+            continue;
+          }
+
+          final assignmentIndex = _bindingAssignmentIndex(tokens, index);
+          if (assignmentIndex != null &&
+              assignmentIndex < bodySpan.closingIndex) {
+            final expressionStartIndex = _nextSignificantIndex(
+              tokens,
+              assignmentIndex + 1,
+            );
+            if (expressionStartIndex != null &&
+                expressionStartIndex < bodySpan.closingIndex) {
+              final inferredType = _inferExpressionType(
+                tokens: tokens,
+                expressionStartIndex: expressionStartIndex,
+                signaturesByName: signaturesByName,
+                inferredTypesByName: localTypesByName,
+                unaryOperatorIssues: issues,
+              );
+              if (inferredType != null && inferredType.isNotEmpty) {
+                localTypesByName[token.lexeme] = inferredType;
+              }
+            }
+          }
+        }
+
+        if (!_isReturnExpressionMarker(token)) {
+          continue;
+        }
+        final expressionStartIndex = _nextSignificantIndex(tokens, index + 1);
+        if (expressionStartIndex == null ||
+            expressionStartIndex >= bodySpan.closingIndex) {
+          continue;
+        }
+        _inferExpressionType(
+          tokens: tokens,
+          expressionStartIndex: expressionStartIndex,
+          signaturesByName: signaturesByName,
+          inferredTypesByName: localTypesByName,
+          unaryOperatorIssues: issues,
+        );
+      }
+    }
+
+    final dedupedIssues = <String, StyioUnaryOperatorTypeIssue>{};
+    for (final issue in issues) {
+      final key =
+          '${issue.operatorRange.start}:${issue.operatorRange.end}:'
+          '${issue.operandTypeName}';
       dedupedIssues.putIfAbsent(key, () => issue);
     }
     return dedupedIssues.values.toList(growable: false)..sort(
@@ -5704,6 +5907,22 @@ class StyioBinaryOperatorTypeIssue {
   final SourceRange operatorRange;
   final SourceRange leftOperandRange;
   final SourceRange rightOperandRange;
+}
+
+class StyioUnaryOperatorTypeIssue {
+  const StyioUnaryOperatorTypeIssue({
+    required this.diagnostic,
+    required this.operatorLexeme,
+    required this.operandTypeName,
+    required this.operatorRange,
+    required this.operandRange,
+  });
+
+  final Diagnostic diagnostic;
+  final String operatorLexeme;
+  final String operandTypeName;
+  final SourceRange operatorRange;
+  final SourceRange operandRange;
 }
 
 class StyioFunctionReturnTypeIssue {

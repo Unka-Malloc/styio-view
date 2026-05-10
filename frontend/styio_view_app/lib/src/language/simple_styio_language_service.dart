@@ -460,6 +460,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       intentions.add(negateConditionFix);
     }
 
+    final doubleNegationFix = _simplifyDoubleNegationAt(document, offset);
+    if (doubleNegationFix != null) {
+      intentions.add(doubleNegationFix);
+    }
+
     final deMorganFix = _deMorganAt(document, offset);
     if (deMorganFix != null) {
       intentions.add(deMorganFix);
@@ -2157,6 +2162,115 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       }
     }
     return false;
+  }
+
+  DiagnosticQuickFix? _simplifyDoubleNegationAt(
+    DocumentState document,
+    int offset,
+  ) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final firstNot = tokens[index];
+      if (firstNot.lexeme != '!') {
+        continue;
+      }
+      final secondNotIndex = _nextSignificantIndex(tokens, index + 1);
+      if (secondNotIndex == null ||
+          tokens[secondNotIndex].lexeme != '!' ||
+          _hasLineBreakBetween(tokens, index + 1, secondNotIndex)) {
+        continue;
+      }
+      final operandRange = _negationOperandRange(
+        source: source,
+        tokens: tokens,
+        operatorIndex: secondNotIndex,
+      );
+      if (operandRange == null || operandRange.isCollapsed) {
+        continue;
+      }
+      final expressionRange = SourceRange(
+        start: firstNot.range.start,
+        end: operandRange.end,
+      );
+      if (offset < expressionRange.start || offset > expressionRange.end) {
+        continue;
+      }
+      if (source
+          .substring(expressionRange.start, expressionRange.end)
+          .contains('\n')) {
+        continue;
+      }
+      return DiagnosticQuickFix(
+        label: 'Simplify double negation',
+        detail: 'Replace the double-negated boolean expression with its value.',
+        edits: [
+          FormattingEdit(
+            range: expressionRange,
+            newText: source.substring(operandRange.start, operandRange.end),
+          ),
+        ],
+      );
+    }
+    return null;
+  }
+
+  SourceRange? _negationOperandRange({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int operatorIndex,
+  }) {
+    final operandIndex = _nextSignificantIndex(tokens, operatorIndex + 1);
+    if (operandIndex == null ||
+        _hasLineBreakBetween(tokens, operatorIndex + 1, operandIndex)) {
+      return null;
+    }
+
+    final operand = tokens[operandIndex];
+    if (operand.lexeme == '(') {
+      final closingIndex = _matchingParenthesisIndex(tokens, operandIndex);
+      if (closingIndex == null) {
+        return null;
+      }
+      final range = SourceRange(
+        start: operand.range.start,
+        end: tokens[closingIndex].range.end,
+      );
+      return source.substring(range.start, range.end).contains('\n')
+          ? null
+          : range;
+    }
+
+    if (!_isUnaryOperandToken(operand)) {
+      return null;
+    }
+
+    var end = operand.range.end;
+    final nextIndex = _nextSignificantIndex(tokens, operandIndex + 1);
+    if (nextIndex != null &&
+        tokens[nextIndex].lexeme == '(' &&
+        !_hasLineBreakBetween(tokens, operandIndex + 1, nextIndex)) {
+      final closingIndex = _matchingParenthesisIndex(tokens, nextIndex);
+      if (closingIndex == null) {
+        return null;
+      }
+      end = tokens[closingIndex].range.end;
+    }
+    return SourceRange(start: operand.range.start, end: end);
+  }
+
+  bool _isUnaryOperandToken(TokenSpan token) {
+    return switch (token.kind) {
+      TokenKind.identifier ||
+      TokenKind.keyword ||
+      TokenKind.number ||
+      TokenKind.string => true,
+      TokenKind.operator ||
+      TokenKind.punctuation ||
+      TokenKind.whitespace ||
+      TokenKind.comment ||
+      TokenKind.unknown => false,
+    };
   }
 
   DiagnosticQuickFix? _deMorganAt(DocumentState document, int offset) {

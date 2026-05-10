@@ -629,6 +629,68 @@ when !(ready && priced || blocked) -> state mixed
     );
   });
 
+  test('offers simplify-double-negation as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'simplify-double-negation.styio',
+      text: '''
+ready = true
+blocked = false
+when !!ready -> state active
+when !!(ready && !blocked) -> state complex
+when ! !blocked -> state spaced
+when !ready -> state negated
+''',
+      revision: 0,
+    );
+
+    final simpleAction = service
+        .intentionsAt(document, document.text.indexOf('!!ready') + 2)
+        .singleWhere((item) => item.label == 'Simplify double negation');
+    final parenthesizedAction = service
+        .intentionsAt(document, document.text.indexOf('ready && !blocked') + 2)
+        .singleWhere((item) => item.label == 'Simplify double negation');
+    final spacedAction = service
+        .intentionsAt(document, document.text.indexOf('! !blocked') + 2)
+        .singleWhere((item) => item.label == 'Simplify double negation');
+
+    expect(simpleAction.detail, contains('double-negated'));
+    expect(applyEdits(document.text, simpleAction.edits), '''
+ready = true
+blocked = false
+when ready -> state active
+when !!(ready && !blocked) -> state complex
+when ! !blocked -> state spaced
+when !ready -> state negated
+''');
+    expect(applyEdits(document.text, parenthesizedAction.edits), '''
+ready = true
+blocked = false
+when !!ready -> state active
+when (ready && !blocked) -> state complex
+when ! !blocked -> state spaced
+when !ready -> state negated
+''');
+    expect(applyEdits(document.text, spacedAction.edits), '''
+ready = true
+blocked = false
+when !!ready -> state active
+when !!(ready && !blocked) -> state complex
+when blocked -> state spaced
+when !ready -> state negated
+''');
+    expect(
+      service.intentionsAt(document, document.text.lastIndexOf('!ready')),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Simplify double negation',
+          ),
+        ),
+      ),
+    );
+  });
+
   test('reports and fixes typed local initializer type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

@@ -721,6 +721,77 @@ duplicate = blend(price, left: tax)
     );
   });
 
+  test('builds remove-argument-name edits when the position stays safe', () {
+    String applyEdits(String text, Iterable<FormattingEdit> edits) {
+      var nextText = text;
+      final ordered = edits.toList(growable: false)
+        ..sort((left, right) => right.range.start.compareTo(left.range.start));
+      for (final edit in ordered) {
+        nextText = nextText.replaceRange(
+          edit.range.start,
+          edit.range.end,
+          edit.newText,
+        );
+      }
+      return nextText;
+    }
+
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(price, right: tax, scale: factor)
+wrongSlot = blend(price, scale: factor)
+outOfOrder = blend(scale: factor, price, right: tax)
+''';
+
+    final rightPlan = index.removeArgumentNameAt(
+      source,
+      source.indexOf('right: tax') + 1,
+    );
+    final scalePlan = index.removeArgumentNameAt(
+      source,
+      source.indexOf('scale: factor') + 1,
+    );
+
+    expect(rightPlan?.callableName, 'blend');
+    expect(rightPlan?.parameterName, 'right');
+    expect(rightPlan?.edit.newText, 'tax');
+    expect(scalePlan?.parameterName, 'scale');
+    expect(scalePlan?.edit.newText, 'factor');
+    expect(applyEdits(source, [rightPlan!.edit, scalePlan!.edit]), '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(price, tax, factor)
+wrongSlot = blend(price, scale: factor)
+outOfOrder = blend(scale: factor, price, right: tax)
+''');
+    expect(
+      index.removeArgumentNameAt(
+        source,
+        source.indexOf('wrongSlot = blend(price, scale:') +
+            'wrongSlot = blend(price, '.length,
+      ),
+      isNull,
+    );
+    expect(
+      index.removeArgumentNameAt(
+        source,
+        source.indexOf('outOfOrder = blend(scale:') +
+            'outOfOrder = blend('.length,
+      ),
+      isNull,
+    );
+  });
+
   test('builds specify-type-explicitly edits for inferred local bindings', () {
     const index = StyioSymbolIndex();
     const source = '''

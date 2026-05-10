@@ -1195,6 +1195,41 @@ blend(price, right: tax) -> @stdout
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies remove-name-from-current-argument context intention', () {
+    const text = '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+blend(price, right: tax) -> @stdout
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'remove-current-argument-name.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.lastIndexOf('right:')),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Remove right: from argument',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+blend(price, tax) -> @stdout
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies specify-type-explicitly context intention', () {
     const text = '''
 price = 12.5

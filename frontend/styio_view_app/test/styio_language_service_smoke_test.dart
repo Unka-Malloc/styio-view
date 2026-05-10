@@ -994,6 +994,54 @@ value = blend(left: price, tax)
 ''');
   });
 
+  test('offers remove-argument-name as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'remove-argument-name.styio',
+      text: '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(price, right: tax, scale: factor)
+wrongSlot = blend(price, scale: factor)
+''',
+      revision: 0,
+    );
+
+    final action = service
+        .intentionsAt(document, document.text.indexOf('right: tax') + 1)
+        .singleWhere((item) => item.label == 'Remove right: from argument');
+
+    expect(action.detail, contains('positionally'));
+    expect(applyEdits(document.text, action.edits), '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(price, tax, scale: factor)
+wrongSlot = blend(price, scale: factor)
+''');
+    expect(
+      service.intentionsAt(
+        document,
+        document.text.indexOf('wrongSlot = blend(price, scale:') +
+            'wrongSlot = blend(price, '.length,
+      ),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Remove scale: from argument',
+          ),
+        ),
+      ),
+    );
+  });
+
   test('offers postfix completions that replace the target expression', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

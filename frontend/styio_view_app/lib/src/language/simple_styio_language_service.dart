@@ -390,6 +390,23 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       );
     }
 
+    final removeNamePlan = _symbolIndex.removeArgumentNameAt(
+      document.text,
+      offset,
+    );
+    if (removeNamePlan != null) {
+      intentions.add(
+        DiagnosticQuickFix(
+          label: 'Remove ${removeNamePlan.parameterName}: from argument',
+          detail:
+              'Use the current `${removeNamePlan.callableName}` argument '
+              'positionally when it still maps to '
+              '`${removeNamePlan.parameterName}`.',
+          edits: [removeNamePlan.edit],
+        ),
+      );
+    }
+
     final specifyTypePlan = _symbolIndex.specifyTypeExplicitlyAt(
       document.text,
       offset,

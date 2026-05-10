@@ -846,6 +846,84 @@ class StyioSymbolIndex {
     );
   }
 
+  RemoveArgumentNamePlan? removeArgumentNameAt(String source, int offset) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    if (signaturesByName.isEmpty) {
+      return null;
+    }
+
+    final call = _callArgumentListAt(tokens, offset);
+    if (call == null) {
+      return null;
+    }
+    if (offset < call.callable.range.start ||
+        offset > tokens[call.closingIndex].range.end) {
+      return null;
+    }
+
+    final signature = _signatureForCall(signaturesByName, call.callable);
+    if (signature == null || signature.parameters.isEmpty) {
+      return null;
+    }
+
+    final arguments = _parseCallArguments(
+      source: source,
+      tokens: tokens,
+      openingIndex: call.openingIndex,
+      closingIndex: call.closingIndex,
+    );
+    final activeArgument = _argumentAtOffset(arguments, offset);
+    final activeName = activeArgument?.name;
+    if (activeArgument == null || activeName == null) {
+      return null;
+    }
+
+    final valueRange = _argumentValueRange(
+      source: source,
+      tokens: tokens,
+      argument: activeArgument,
+    );
+    if (valueRange == null || valueRange.isCollapsed) {
+      return null;
+    }
+
+    _ArgumentSegment? simulatedActiveArgument;
+    final simulatedArguments = [
+      for (final argument in arguments)
+        if (identical(argument, activeArgument))
+          simulatedActiveArgument = _ArgumentSegment(
+            range: argument.range,
+            text: source.substring(valueRange.start, valueRange.end),
+          )
+        else
+          argument,
+    ];
+
+    final simulatedParameter = _parameterForPositionalArgument(
+      signature: signature,
+      arguments: simulatedArguments,
+      targetArgument: simulatedActiveArgument!,
+    );
+    if (simulatedParameter == null || simulatedParameter.name != activeName) {
+      return null;
+    }
+
+    return RemoveArgumentNamePlan(
+      callableName: signature.name,
+      parameterName: activeName,
+      argumentRange: activeArgument.range,
+      invocationRange: SourceRange(
+        start: call.callable.range.start,
+        end: tokens[call.closingIndex].range.end,
+      ),
+      edit: FormattingEdit(
+        range: activeArgument.range,
+        newText: source.substring(valueRange.start, valueRange.end),
+      ),
+    );
+  }
+
   SpecifyTypeExplicitlyPlan? specifyTypeExplicitlyAt(
     String source,
     int offset,
@@ -1922,6 +2000,34 @@ class StyioSymbolIndex {
       }
     }
     return null;
+  }
+
+  SourceRange? _argumentValueRange({
+    required String source,
+    required List<TokenSpan> tokens,
+    required _ArgumentSegment argument,
+  }) {
+    final nameToken = argument.nameToken;
+    if (nameToken == null) {
+      return null;
+    }
+    final nameIndex = tokens.indexWhere(
+      (token) => _sameRange(token.range, nameToken.range),
+    );
+    if (nameIndex < 0) {
+      return null;
+    }
+    final separatorIndex = _nextSignificantIndex(tokens, nameIndex + 1);
+    if (separatorIndex == null || tokens[separatorIndex].lexeme != ':') {
+      return null;
+    }
+
+    var valueStart = tokens[separatorIndex].range.end;
+    while (valueStart < argument.range.end &&
+        source.codeUnitAt(valueStart) <= 0x20) {
+      valueStart += 1;
+    }
+    return SourceRange(start: valueStart, end: argument.range.end);
   }
 
   _NamedArgumentCompletionContext? _namedArgumentCompletionContext({
@@ -3835,6 +3941,22 @@ class AddArgumentNamesPlan {
 
 class AddArgumentNamePlan {
   const AddArgumentNamePlan({
+    required this.callableName,
+    required this.parameterName,
+    required this.argumentRange,
+    required this.invocationRange,
+    required this.edit,
+  });
+
+  final String callableName;
+  final String parameterName;
+  final SourceRange argumentRange;
+  final SourceRange invocationRange;
+  final FormattingEdit edit;
+}
+
+class RemoveArgumentNamePlan {
+  const RemoveArgumentNamePlan({
     required this.callableName,
     required this.parameterName,
     required this.argumentRange,

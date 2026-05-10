@@ -160,6 +160,45 @@ value = blend(price, tax)
     expect(info?.activeParameter?.documentation, 'Tax component to add.');
   });
 
+  test('attaches block documentation comments to function assistance', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'kdoc-style-docs.styio',
+      text: '''
+/**
+ * Blends price and tax inputs.
+ *
+ * @param[left] Base price before tax.
+ * @param right Tax component to add.
+ */
+fn blend(left: f64, right: f64) {
+  emit left
+}
+value = blend(price, tax)
+''',
+      revision: 0,
+    );
+
+    final analysis = service.analyzeDocument(document);
+    final symbol = analysis.documentSymbols.singleWhere(
+      (item) => item.name == 'blend',
+    );
+    final hover = service.hoverAt(document, document.text.lastIndexOf('blend'));
+    final info = service.parameterInfoAt(
+      document,
+      document.text.lastIndexOf('tax') + 1,
+    );
+    final completion = service
+        .completeAt(document, document.text.lastIndexOf('blend') + 2)
+        .singleWhere((item) => item.label == 'blend');
+
+    expect(symbol.documentation, contains('Blends price and tax inputs.'));
+    expect(hover?.markdown, contains('Blends price and tax inputs.'));
+    expect(info?.documentation, 'Blends price and tax inputs.');
+    expect(info?.activeParameter?.documentation, 'Tax component to add.');
+    expect(completion.documentation, contains('Blends price and tax inputs.'));
+  });
+
   test('returns symbol-aware hover documentation for current-file symbols', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

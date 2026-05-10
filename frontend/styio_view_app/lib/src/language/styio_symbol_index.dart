@@ -1635,7 +1635,7 @@ class StyioSymbolIndex {
         index -= 1;
         continue;
       }
-      if (token.kind != TokenKind.comment || !token.lexeme.startsWith('///')) {
+      if (token.kind != TokenKind.comment || !_isDocumentationComment(token)) {
         break;
       }
       lines.add(_documentationTextForComment(token.lexeme));
@@ -1656,8 +1656,36 @@ class StyioSymbolIndex {
   }
 
   String _documentationTextForComment(String lexeme) {
+    if (lexeme.startsWith('/**')) {
+      return _documentationTextForBlockComment(lexeme);
+    }
     final text = lexeme.substring(3);
     return text.startsWith(' ') ? text.substring(1) : text;
+  }
+
+  bool _isDocumentationComment(TokenSpan token) {
+    return token.lexeme.startsWith('///') || token.lexeme.startsWith('/**');
+  }
+
+  String _documentationTextForBlockComment(String lexeme) {
+    var text = lexeme.substring(3);
+    if (text.endsWith('*/')) {
+      text = text.substring(0, text.length - 2);
+    }
+    final lines = text
+        .split('\n')
+        .map((line) {
+          var trimmed = line.trimLeft();
+          if (trimmed.startsWith('*')) {
+            trimmed = trimmed.substring(1);
+            if (trimmed.startsWith(' ')) {
+              trimmed = trimmed.substring(1);
+            }
+          }
+          return trimmed.trimRight();
+        })
+        .toList(growable: false);
+    return lines.join('\n').trim();
   }
 
   String _documentationSummaryText(String documentation) {
@@ -1670,7 +1698,9 @@ class StyioSymbolIndex {
 
   Map<String, String> _parameterDocumentationByName(String documentation) {
     final docsByName = <String, String>{};
-    final tagPattern = RegExp(r'^@param\s+([A-Za-z_][A-Za-z0-9_]*)\s*(.*)$');
+    final tagPattern = RegExp(
+      r'^@param(?:\s+|\[)([A-Za-z_][A-Za-z0-9_]*)(?:\])?\s*(.*)$',
+    );
     for (final line in documentation.split('\n')) {
       final match = tagPattern.firstMatch(line.trim());
       if (match == null) {
@@ -1686,7 +1716,8 @@ class StyioSymbolIndex {
   }
 
   bool _isParameterDocumentationLine(String line) {
-    return line.trimLeft().startsWith('@param ');
+    return line.trimLeft().startsWith('@param ') ||
+        line.trimLeft().startsWith('@param[');
   }
 
   TokenSpan? _nextIdentifier(List<TokenSpan> tokens, int startIndex) {

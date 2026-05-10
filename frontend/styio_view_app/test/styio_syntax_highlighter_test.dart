@@ -24,6 +24,28 @@ job = ||> { <| 42 }
     );
   });
 
+  test('tokenizes block documentation comments as comments', () {
+    const highlighter = StyioSyntaxHighlighter();
+    const source = '''
+/**
+ * Blends price and tax inputs.
+ */
+fn blend(left: f64, right: f64) {
+  emit left
+}
+''';
+
+    final tokens = highlighter.tokenize(source);
+    final comment = tokens.singleWhere(
+      (token) => token.kind == TokenKind.comment,
+    );
+    final tokenLexemes = tokens.map((token) => token.lexeme).toList();
+
+    expect(comment.lexeme, startsWith('/**'));
+    expect(comment.lexeme, contains('Blends price and tax inputs.'));
+    expect(tokenLexemes, containsAll(['fn', 'blend', 'emit']));
+  });
+
   test('resolves resource and type semantic spans independently', () {
     const highlighter = StyioSyntaxHighlighter();
     const source = '@ma5 : f64|..2| := { value -> @stdout }';

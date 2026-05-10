@@ -1781,7 +1781,13 @@ value = blend(price, price)
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final bootstrap = await createBootstrap(PlatformTarget.macos);
-    const text = '/// Primary value binding\nvalue = value\nvalue -> @stdout\n';
+    const text = '''
+/**
+ * Primary value binding
+ */
+value = value
+value -> @stdout
+''';
     bootstrap.editorController.loadDocument(
       const DocumentState(
         documentId: 'quick-doc-keymap.styio',
@@ -1812,7 +1818,7 @@ value = blend(price, price)
     expect(find.text('Quick Documentation: value'), findsOneWidget);
     expect(find.textContaining('Styio variable `value`'), findsOneWidget);
     expect(find.textContaining('Primary value binding'), findsOneWidget);
-    expect(find.textContaining('Declared at 2:1'), findsOneWidget);
+    expect(find.textContaining('Declared at 4:1'), findsOneWidget);
     expect(find.text('3 current-file usages'), findsOneWidget);
 
     final sourceScrollable = find.descendant(

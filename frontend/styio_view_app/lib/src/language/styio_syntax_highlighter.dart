@@ -146,6 +146,28 @@ class StyioSyntaxHighlighter {
         continue;
       }
 
+      if (_startsWith(source, index, '/*')) {
+        final start = index;
+        index += 2;
+        while (index + 1 < source.length &&
+            !(source[index] == '*' && source[index + 1] == '/')) {
+          index += 1;
+        }
+        if (index + 1 < source.length) {
+          index += 2;
+        } else {
+          index = source.length;
+        }
+        tokens.add(
+          TokenSpan(
+            range: SourceRange(start: start, end: index),
+            kind: TokenKind.comment,
+            lexeme: source.substring(start, index),
+          ),
+        );
+        continue;
+      }
+
       if (_startsWith(source, index, '//')) {
         final start = index;
         while (index < source.length && source[index] != '\n') {

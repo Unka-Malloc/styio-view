@@ -285,6 +285,21 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   @override
+  ChangeSignaturePlan? changeSignatureAt(
+    DocumentState document,
+    int offset, {
+    required String newName,
+    required List<ChangeSignatureParameterUpdate> parameters,
+  }) {
+    return _symbolIndex.changeSignature(
+      document.text,
+      offset,
+      newName: newName,
+      parameters: parameters,
+    );
+  }
+
+  @override
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset) {
     return _symbolIndex.parameterInfoAt(document.text, offset);
   }

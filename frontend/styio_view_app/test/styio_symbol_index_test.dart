@@ -302,6 +302,97 @@ fn main(user) {
     expect(plan?.conflicts.single.message, contains('already declares'));
   });
 
+  test(
+    'builds change signature edits for function rename and parameter reorder',
+    () {
+      const index = StyioSymbolIndex();
+      const source = '''
+fn blend(left: f64, right: f64) {
+  result = left + right
+}
+value = blend(price, tax)
+again = blend(total, fee)
+''';
+
+      final plan = index.changeSignature(
+        source,
+        source.indexOf('blend'),
+        newName: 'combine',
+        parameters: const [
+          ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+          ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+        ],
+      );
+
+      expect(plan?.hasConflicts, isFalse);
+      expect(plan?.originalName, 'blend');
+      expect(plan?.originalParameters.map((parameter) => parameter.name), [
+        'left',
+        'right',
+      ]);
+      expect(plan?.edits.map((edit) => edit.newText), contains('combine'));
+      expect(
+        plan?.edits.map((edit) => edit.newText),
+        contains('right: f64, left: f64'),
+      );
+      expect(plan?.edits.map((edit) => edit.newText), contains('tax, price'));
+      expect(plan?.edits.map((edit) => edit.newText), contains('fee, total'));
+    },
+  );
+
+  test(
+    'builds change signature edits for parameter rename in function body',
+    () {
+      const index = StyioSymbolIndex();
+      const source = '''
+fn blend(left: f64, right: f64) {
+  result = left + right
+}
+''';
+
+      final plan = index.changeSignature(
+        source,
+        source.indexOf('blend'),
+        newName: 'blend',
+        parameters: const [
+          ChangeSignatureParameterUpdate(originalName: 'left', name: 'lhs'),
+          ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+        ],
+      );
+
+      expect(plan?.hasConflicts, isFalse);
+      expect(
+        plan?.edits.map((edit) => edit.newText),
+        contains('lhs: f64, right: f64'),
+      );
+      expect(plan?.edits.map((edit) => edit.newText), contains('lhs'));
+    },
+  );
+
+  test('reports change signature conflicts for call arity mismatch', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64) {
+  result = left + right
+}
+value = blend(price)
+''';
+
+    final plan = index.changeSignature(
+      source,
+      source.indexOf('blend'),
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+      ],
+    );
+
+    expect(plan?.hasConflicts, isTrue);
+    expect(plan?.edits, isEmpty);
+    expect(plan?.conflicts.single.message, contains('expected 2'));
+  });
+
   test('resolves parameter info from a function call argument list', () {
     const index = StyioSymbolIndex();
     const source = '''

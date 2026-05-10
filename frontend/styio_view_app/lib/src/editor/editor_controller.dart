@@ -79,6 +79,16 @@ class EditorSessionController extends ChangeNotifier {
     );
   }
 
+  ChangeSignaturePlan? changeSignaturePlanAtSelection({
+    required String newName,
+    required List<ChangeSignatureParameterUpdate> parameters,
+  }) => _languageService.changeSignatureAt(
+    _document,
+    inspectionOffset,
+    newName: newName,
+    parameters: parameters,
+  );
+
   ParameterInfoPayload? get parameterInfoAtSelection =>
       _languageService.parameterInfoAt(_document, inspectionOffset);
   TokenSpan? get tokenAtSelection => _tokenAroundOffset(inspectionOffset);
@@ -813,6 +823,21 @@ class EditorSessionController extends ChangeNotifier {
 
   bool applyExtractFunctionAtSelection(String name) {
     final plan = extractFunctionPlanAtSelection(name);
+    if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
+      return false;
+    }
+    applyFormattingEdits(plan.edits);
+    return true;
+  }
+
+  bool applyChangeSignatureAtSelection({
+    required String newName,
+    required List<ChangeSignatureParameterUpdate> parameters,
+  }) {
+    final plan = changeSignaturePlanAtSelection(
+      newName: newName,
+      parameters: parameters,
+    );
     if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
       return false;
     }

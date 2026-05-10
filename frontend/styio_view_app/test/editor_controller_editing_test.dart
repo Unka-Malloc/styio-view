@@ -1382,6 +1382,52 @@ value -> @stdout
     expect(controller.canUndo, isFalse);
   });
 
+  test('applies change signature edits to declaration and calls', () {
+    const text =
+        'fn blend(left: f64, right: f64) {\n'
+        '  result = left + right\n'
+        '}\n'
+        'value = blend(price, tax)\n'
+        'again = blend(total, fee)\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('blend')),
+    );
+
+    final plan = controller.changeSignaturePlanAtSelection(
+      newName: 'combine',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+      ],
+    );
+    expect(plan?.hasConflicts, isFalse);
+    expect(
+      controller.applyChangeSignatureAtSelection(
+        newName: 'combine',
+        parameters: const [
+          ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+          ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+        ],
+      ),
+      isTrue,
+    );
+    expect(
+      controller.document.text,
+      'fn combine(right: f64, left: f64) {\n'
+      '  result = left + right\n'
+      '}\n'
+      'value = combine(tax, price)\n'
+      'again = combine(fee, total)\n',
+    );
+    expect(controller.canUndo, isTrue);
+  });
+
   test('selects the resolved definition without changing document history', () {
     const text = 'value = value\n';
     final controller = EditorSessionController(

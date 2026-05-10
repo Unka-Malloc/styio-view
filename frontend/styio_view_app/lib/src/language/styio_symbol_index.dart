@@ -487,6 +487,73 @@ class StyioSymbolIndex {
     );
   }
 
+  ChangeSignaturePlan? changeSignature(
+    String source,
+    int offset, {
+    required String newName,
+    required List<ChangeSignatureParameterUpdate> parameters,
+  }) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final snapshot = build(tokens);
+    final token = _tokenAroundOffset(tokens, offset);
+    if (token == null) {
+      return null;
+    }
+
+    final reference = snapshot.referenceAt(token.range);
+    if (reference == null) {
+      return null;
+    }
+
+    final target = snapshot.symbolForTarget(reference.targetRange);
+    if (target == null || target.kind != SymbolKind.function) {
+      return null;
+    }
+
+    final signature = _functionSignatureForTarget(tokens, target);
+    if (signature == null) {
+      return null;
+    }
+
+    final references = snapshot.referencesForTarget(reference.targetRange);
+    if (references.isEmpty) {
+      return null;
+    }
+
+    final conflicts = _changeSignatureConflicts(
+      source: source,
+      tokens: tokens,
+      snapshot: snapshot,
+      target: target,
+      signature: signature,
+      newName: newName,
+      parameters: parameters,
+      references: references,
+    );
+
+    return ChangeSignaturePlan(
+      target: target,
+      originalName: target.name,
+      newName: newName,
+      originalParameters: signature.parameters,
+      newParameters: parameters,
+      references: references,
+      edits: conflicts.isEmpty
+          ? _changeSignatureEdits(
+              source: source,
+              tokens: tokens,
+              snapshot: snapshot,
+              target: target,
+              signature: signature,
+              newName: newName,
+              parameters: parameters,
+              references: references,
+            )
+          : const <FormattingEdit>[],
+      conflicts: conflicts,
+    );
+  }
+
   ParameterInfoPayload? parameterInfoAt(String source, int offset) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -558,6 +625,9 @@ class StyioSymbolIndex {
       final signature = _FunctionSignature(
         name: nameToken.lexeme,
         nameRange: nameToken.range,
+        prefix: prefix,
+        openingIndex: openingIndex,
+        closingIndex: closingIndex,
         parameters: parameters,
         displayText:
             '${prefix == '#' ? '#' : '$prefix '}${nameToken.lexeme}'
@@ -611,6 +681,20 @@ class StyioSymbolIndex {
     }
 
     return signaturesByName;
+  }
+
+  _FunctionSignature? _functionSignatureForTarget(
+    List<TokenSpan> tokens,
+    DocumentSymbol target,
+  ) {
+    for (final signatures in _collectFunctionSignatures(tokens).values) {
+      for (final signature in signatures) {
+        if (_sameRange(signature.nameRange, target.nameRange)) {
+          return signature;
+        }
+      }
+    }
+    return null;
   }
 
   List<ParameterInfoParameter> _parseParameters({
@@ -776,6 +860,71 @@ class StyioSymbolIndex {
     return best;
   }
 
+  _CallArgumentList? _callArgumentListAfter(
+    List<TokenSpan> tokens,
+    int callableIndex,
+  ) {
+    final openingIndex = _nextSignificantIndex(tokens, callableIndex + 1);
+    if (openingIndex == null || tokens[openingIndex].lexeme != '(') {
+      return null;
+    }
+    final closingIndex = _matchingParenthesisIndex(tokens, openingIndex);
+    if (closingIndex == null) {
+      return null;
+    }
+    return _CallArgumentList(
+      callable: tokens[callableIndex],
+      openingIndex: openingIndex,
+      closingIndex: closingIndex,
+    );
+  }
+
+  List<_ArgumentSegment> _parseCallArguments({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int openingIndex,
+    required int closingIndex,
+  }) {
+    final arguments = <_ArgumentSegment>[];
+    var segmentStart = tokens[openingIndex].range.end;
+    var nestedDepth = 0;
+
+    void parseSegment(int segmentEnd) {
+      final range = _trimmedRange(
+        source,
+        SourceRange(start: segmentStart, end: segmentEnd),
+      );
+      if (range.isCollapsed) {
+        return;
+      }
+      arguments.add(
+        _ArgumentSegment(
+          range: range,
+          text: source.substring(range.start, range.end),
+        ),
+      );
+    }
+
+    for (var index = openingIndex + 1; index < closingIndex; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.punctuation && token.lexeme == '(') {
+        nestedDepth += 1;
+        continue;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == ')') {
+        nestedDepth -= 1;
+        continue;
+      }
+      if (nestedDepth == 0 && token.lexeme == ',') {
+        parseSegment(token.range.start);
+        segmentStart = token.range.end;
+      }
+    }
+
+    parseSegment(tokens[closingIndex].range.start);
+    return arguments;
+  }
+
   int _activeParameterIndex({
     required List<TokenSpan> tokens,
     required int openingIndex,
@@ -806,6 +955,15 @@ class StyioSymbolIndex {
     return activeParameterIndex;
   }
 
+  int? _tokenIndexForRange(List<TokenSpan> tokens, SourceRange range) {
+    for (var index = 0; index < tokens.length; index += 1) {
+      if (_sameRange(tokens[index].range, range)) {
+        return index;
+      }
+    }
+    return null;
+  }
+
   int? _matchingParenthesisIndex(List<TokenSpan> tokens, int openingIndex) {
     var depth = 0;
     for (var index = openingIndex; index < tokens.length; index += 1) {
@@ -815,6 +973,24 @@ class StyioSymbolIndex {
         continue;
       }
       if (token.kind == TokenKind.punctuation && token.lexeme == ')') {
+        depth -= 1;
+        if (depth == 0) {
+          return index;
+        }
+      }
+    }
+    return null;
+  }
+
+  int? _matchingBraceIndex(List<TokenSpan> tokens, int openingIndex) {
+    var depth = 0;
+    for (var index = openingIndex; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.punctuation && token.lexeme == '{') {
+        depth += 1;
+        continue;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == '}') {
         depth -= 1;
         if (depth == 0) {
           return index;
@@ -1112,6 +1288,108 @@ class StyioSymbolIndex {
     return left.start == right.start && left.end == right.end;
   }
 
+  bool _sameParameterOrder(
+    List<String> originalNames,
+    List<ChangeSignatureParameterUpdate> parameters,
+  ) {
+    if (originalNames.length != parameters.length) {
+      return false;
+    }
+    for (var index = 0; index < originalNames.length; index += 1) {
+      if (originalNames[index] != parameters[index].originalName) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  SourceRange? _parameterRange(
+    _FunctionSignature signature,
+    String parameterName,
+  ) {
+    for (final parameter in signature.parameters) {
+      if (parameter.name == parameterName) {
+        return parameter.range;
+      }
+    }
+    return null;
+  }
+
+  String _changeSignatureParameterText(
+    _FunctionSignature signature,
+    ChangeSignatureParameterUpdate parameter,
+  ) {
+    final original = signature.parameters.firstWhere(
+      (item) => item.name == parameter.originalName,
+    );
+    return original.type.isEmpty
+        ? parameter.name
+        : '${parameter.name}: ${original.type}';
+  }
+
+  bool _parameterHasDefaultValue(
+    List<TokenSpan> tokens,
+    _FunctionSignature signature,
+    String parameterName,
+  ) {
+    final parameterRange = _parameterRange(signature, parameterName);
+    if (parameterRange == null) {
+      return false;
+    }
+    final parameterIndex = _tokenIndexForRange(tokens, parameterRange);
+    if (parameterIndex == null) {
+      return false;
+    }
+    var nestedDepth = 0;
+    for (
+      var index = parameterIndex + 1;
+      index < signature.closingIndex;
+      index += 1
+    ) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.punctuation && token.lexeme == '(') {
+        nestedDepth += 1;
+        continue;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == ')') {
+        nestedDepth -= 1;
+        continue;
+      }
+      if (nestedDepth == 0 && token.lexeme == ',') {
+        return false;
+      }
+      if (nestedDepth == 0 && token.lexeme == '=') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  SourceRange? _functionBodyRange(
+    List<TokenSpan> tokens,
+    _FunctionSignature signature,
+  ) {
+    var index = _nextSignificantIndex(tokens, signature.closingIndex + 1);
+    while (index != null && index < tokens.length) {
+      final token = tokens[index];
+      if (token.lexeme == '{') {
+        final closingIndex = _matchingBraceIndex(tokens, index);
+        if (closingIndex == null) {
+          return null;
+        }
+        return SourceRange(
+          start: token.range.end,
+          end: tokens[closingIndex].range.start,
+        );
+      }
+      if (token.lexeme != '=>' && token.lexeme != ':=' && token.lexeme != '=') {
+        return null;
+      }
+      index = _nextSignificantIndex(tokens, index + 1);
+    }
+    return null;
+  }
+
   List<SafeDeleteConflict> _safeDeleteConflicts({
     required DocumentSymbol target,
     required List<ReferenceSpan> references,
@@ -1404,6 +1682,279 @@ class StyioSymbolIndex {
     }
 
     return conflicts;
+  }
+
+  List<ChangeSignatureConflict> _changeSignatureConflicts({
+    required String source,
+    required List<TokenSpan> tokens,
+    required StyioSymbolSnapshot snapshot,
+    required DocumentSymbol target,
+    required _FunctionSignature signature,
+    required String newName,
+    required List<ChangeSignatureParameterUpdate> parameters,
+    required List<ReferenceSpan> references,
+  }) {
+    final conflicts = <ChangeSignatureConflict>[];
+    if (!_isValidIdentifier(newName)) {
+      conflicts.add(
+        ChangeSignatureConflict(
+          message: 'Enter a valid Styio function identifier.',
+          range: target.nameRange,
+        ),
+      );
+    }
+
+    if (newName != target.name) {
+      for (final symbol in snapshot.symbols) {
+        if (symbol.name == newName &&
+            !_sameRange(symbol.nameRange, target.nameRange)) {
+          conflicts.add(
+            ChangeSignatureConflict(
+              message:
+                  'Name `$newName` already declares a current-file '
+                  '${symbol.kind.name}.',
+              range: symbol.nameRange,
+            ),
+          );
+        }
+      }
+    }
+
+    final originalNames = signature.parameters
+        .map((parameter) => parameter.name)
+        .toList(growable: false);
+    final originalNameSet = originalNames.toSet();
+    final requestedOriginals = <String>{};
+    final requestedNames = <String>{};
+    for (final parameter in parameters) {
+      if (!originalNameSet.contains(parameter.originalName)) {
+        conflicts.add(
+          ChangeSignatureConflict(
+            message:
+                'Parameter `${parameter.originalName}` is not in the current '
+                'function signature.',
+            range: target.nameRange,
+          ),
+        );
+        continue;
+      }
+      if (!requestedOriginals.add(parameter.originalName)) {
+        conflicts.add(
+          ChangeSignatureConflict(
+            message:
+                'Parameter `${parameter.originalName}` appears more than once '
+                'in the requested signature.',
+            range:
+                _parameterRange(signature, parameter.originalName) ??
+                target.nameRange,
+          ),
+        );
+      }
+      if (!_isValidIdentifier(parameter.name)) {
+        conflicts.add(
+          ChangeSignatureConflict(
+            message: 'Enter valid Styio parameter identifiers.',
+            range:
+                _parameterRange(signature, parameter.originalName) ??
+                target.nameRange,
+          ),
+        );
+      } else if (!requestedNames.add(parameter.name)) {
+        conflicts.add(
+          ChangeSignatureConflict(
+            message:
+                'Parameter `${parameter.name}` appears more than once in the '
+                'requested signature.',
+            range:
+                _parameterRange(signature, parameter.originalName) ??
+                target.nameRange,
+          ),
+        );
+      }
+      if (_parameterHasDefaultValue(
+        tokens,
+        signature,
+        parameter.originalName,
+      )) {
+        conflicts.add(
+          ChangeSignatureConflict(
+            message:
+                'Change Signature currently does not rewrite default '
+                'parameter values.',
+            range:
+                _parameterRange(signature, parameter.originalName) ??
+                target.nameRange,
+          ),
+        );
+      }
+    }
+
+    if (parameters.length != originalNames.length ||
+        requestedOriginals.length != originalNames.length) {
+      conflicts.add(
+        ChangeSignatureConflict(
+          message:
+              'Change Signature currently requires the same existing '
+              'parameter set.',
+          range: target.nameRange,
+        ),
+      );
+    }
+
+    final hasParameterRenames = parameters.any(
+      (parameter) => parameter.name != parameter.originalName,
+    );
+    final hasParameterReorder = !_sameParameterOrder(originalNames, parameters);
+    if (hasParameterRenames && hasParameterReorder) {
+      conflicts.add(
+        ChangeSignatureConflict(
+          message:
+              'Change Signature currently applies parameter rename and '
+              'parameter reorder as separate safe steps.',
+          range: target.nameRange,
+        ),
+      );
+    }
+
+    if (hasParameterReorder) {
+      for (final reference in references.where((item) => !item.isDeclaration)) {
+        final referenceIndex = _tokenIndexForRange(tokens, reference.range);
+        final call = referenceIndex == null
+            ? null
+            : _callArgumentListAfter(tokens, referenceIndex);
+        if (call == null) {
+          conflicts.add(
+            ChangeSignatureConflict(
+              message:
+                  'Cannot update non-call usage of `${target.name}` for '
+                  'parameter reordering.',
+              range: reference.range,
+            ),
+          );
+          continue;
+        }
+
+        final arguments = _parseCallArguments(
+          source: source,
+          tokens: tokens,
+          openingIndex: call.openingIndex,
+          closingIndex: call.closingIndex,
+        );
+        if (arguments.length != originalNames.length) {
+          conflicts.add(
+            ChangeSignatureConflict(
+              message:
+                  'Call to `${target.name}` has ${arguments.length} '
+                  'argument${arguments.length == 1 ? '' : 's'}, expected '
+                  '${originalNames.length}.',
+              range: SourceRange(
+                start: call.callable.range.start,
+                end: tokens[call.closingIndex].range.end,
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    return conflicts;
+  }
+
+  List<FormattingEdit> _changeSignatureEdits({
+    required String source,
+    required List<TokenSpan> tokens,
+    required StyioSymbolSnapshot snapshot,
+    required DocumentSymbol target,
+    required _FunctionSignature signature,
+    required String newName,
+    required List<ChangeSignatureParameterUpdate> parameters,
+    required List<ReferenceSpan> references,
+  }) {
+    final edits = <FormattingEdit>[];
+    final originalNames = signature.parameters
+        .map((parameter) => parameter.name)
+        .toList(growable: false);
+    final hasParameterReorder = !_sameParameterOrder(originalNames, parameters);
+
+    if (newName != target.name) {
+      for (final reference in references) {
+        edits.add(FormattingEdit(range: reference.range, newText: newName));
+      }
+    }
+
+    final parameterListRange = SourceRange(
+      start: tokens[signature.openingIndex].range.end,
+      end: tokens[signature.closingIndex].range.start,
+    );
+    final nextParameterText = parameters
+        .map((parameter) => _changeSignatureParameterText(signature, parameter))
+        .join(', ');
+    if (source.substring(parameterListRange.start, parameterListRange.end) !=
+        nextParameterText) {
+      edits.add(
+        FormattingEdit(range: parameterListRange, newText: nextParameterText),
+      );
+    }
+
+    final bodyRange = _functionBodyRange(tokens, signature);
+    for (final parameter in parameters) {
+      if (parameter.name == parameter.originalName) {
+        continue;
+      }
+      final originalRange = _parameterRange(signature, parameter.originalName);
+      if (originalRange == null) {
+        continue;
+      }
+      for (final reference in snapshot.referencesForTarget(originalRange)) {
+        if (reference.isDeclaration ||
+            bodyRange == null ||
+            !bodyRange.intersects(reference.range)) {
+          continue;
+        }
+        edits.add(
+          FormattingEdit(range: reference.range, newText: parameter.name),
+        );
+      }
+    }
+
+    if (hasParameterReorder) {
+      for (final reference in references.where((item) => !item.isDeclaration)) {
+        final referenceIndex = _tokenIndexForRange(tokens, reference.range);
+        final call = referenceIndex == null
+            ? null
+            : _callArgumentListAfter(tokens, referenceIndex);
+        if (call == null) {
+          continue;
+        }
+        final arguments = _parseCallArguments(
+          source: source,
+          tokens: tokens,
+          openingIndex: call.openingIndex,
+          closingIndex: call.closingIndex,
+        );
+        if (arguments.length != originalNames.length) {
+          continue;
+        }
+        final nextArgumentText = parameters
+            .map(
+              (parameter) =>
+                  arguments[originalNames.indexOf(parameter.originalName)].text,
+            )
+            .join(', ');
+        final argumentListRange = SourceRange(
+          start: tokens[call.openingIndex].range.end,
+          end: tokens[call.closingIndex].range.start,
+        );
+        if (source.substring(argumentListRange.start, argumentListRange.end) !=
+            nextArgumentText) {
+          edits.add(
+            FormattingEdit(range: argumentListRange, newText: nextArgumentText),
+          );
+        }
+      }
+    }
+
+    return edits;
   }
 
   ExtractFunctionConflict? _braceConflictForSelection(List<TokenSpan> tokens) {
@@ -1749,12 +2300,18 @@ class _FunctionSignature {
   const _FunctionSignature({
     required this.name,
     required this.nameRange,
+    required this.prefix,
+    required this.openingIndex,
+    required this.closingIndex,
     required this.parameters,
     required this.displayText,
   });
 
   final String name;
   final SourceRange nameRange;
+  final String prefix;
+  final int openingIndex;
+  final int closingIndex;
   final List<ParameterInfoParameter> parameters;
   final String displayText;
 }
@@ -1769,6 +2326,13 @@ class _CallArgumentList {
   final TokenSpan callable;
   final int openingIndex;
   final int closingIndex;
+}
+
+class _ArgumentSegment {
+  const _ArgumentSegment({required this.range, required this.text});
+
+  final SourceRange range;
+  final String text;
 }
 
 class _InlineVariableInitializer {

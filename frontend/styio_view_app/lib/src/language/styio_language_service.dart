@@ -37,6 +37,13 @@ abstract class StyioLanguageService {
     String name,
   );
 
+  ChangeSignaturePlan? changeSignatureAt(
+    DocumentState document,
+    int offset, {
+    required String newName,
+    required List<ChangeSignatureParameterUpdate> parameters,
+  });
+
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset);
 
   List<DiagnosticQuickFix> quickFixesForDiagnostic(

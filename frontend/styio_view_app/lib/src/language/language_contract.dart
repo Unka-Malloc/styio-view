@@ -338,6 +338,47 @@ class ExtractFunctionPlan {
   bool get hasConflicts => conflicts.isNotEmpty;
 }
 
+class ChangeSignatureParameterUpdate {
+  const ChangeSignatureParameterUpdate({
+    required this.originalName,
+    required this.name,
+  });
+
+  final String originalName;
+  final String name;
+}
+
+class ChangeSignatureConflict {
+  const ChangeSignatureConflict({required this.message, required this.range});
+
+  final String message;
+  final SourceRange range;
+}
+
+class ChangeSignaturePlan {
+  const ChangeSignaturePlan({
+    required this.target,
+    required this.originalName,
+    required this.newName,
+    required this.originalParameters,
+    required this.newParameters,
+    required this.references,
+    required this.edits,
+    this.conflicts = const <ChangeSignatureConflict>[],
+  });
+
+  final DocumentSymbol target;
+  final String originalName;
+  final String newName;
+  final List<ParameterInfoParameter> originalParameters;
+  final List<ChangeSignatureParameterUpdate> newParameters;
+  final List<ReferenceSpan> references;
+  final List<FormattingEdit> edits;
+  final List<ChangeSignatureConflict> conflicts;
+
+  bool get hasConflicts => conflicts.isNotEmpty;
+}
+
 class ParameterInfoParameter {
   const ParameterInfoParameter({
     required this.name,

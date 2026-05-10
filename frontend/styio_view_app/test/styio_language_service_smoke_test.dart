@@ -639,6 +639,37 @@ duplicate = blend(left: price, scale: factor)
 ''');
   });
 
+  test('reports and fixes literal call argument type mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'argument-type-mismatch.styio',
+      text: '''
+fn emitPrice(value: f64) {
+  emit value
+}
+emitPrice(3) -> @stdout
+''',
+      revision: 0,
+    );
+
+    final mismatch = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere(
+          (diagnostic) => diagnostic.code == 'argument-type-mismatch',
+        );
+    final fix = service.quickFixesForDiagnostic(document, mismatch).single;
+
+    expect(mismatch.message, contains('expects `f64`, got `i64`'));
+    expect(fix.label, 'Change argument to f64 literal');
+    expect(applyEdits(document.text, fix.edits), '''
+fn emitPrice(value: f64) {
+  emit value
+}
+emitPrice(3.0) -> @stdout
+''');
+  });
+
   test('reports and optimizes duplicate or unsorted imports', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

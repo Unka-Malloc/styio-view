@@ -1473,6 +1473,40 @@ blend(left: price, right: tax) -> @stdout
     );
   });
 
+  test('applies argument type quick fix at the caret', () {
+    const text = '''
+fn emitPrice(value: f64) {
+  emit value
+}
+emitPrice(3) -> @stdout
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'argument-type-mismatch.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('3')),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+fn emitPrice(value: f64) {
+  emit value
+}
+emitPrice(3.0) -> @stdout
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'argument-type-mismatch',
+      ),
+      isEmpty,
+    );
+  });
+
   test('applies optimize imports quick fix at the caret', () {
     const text = '''
 @import { styio/io }

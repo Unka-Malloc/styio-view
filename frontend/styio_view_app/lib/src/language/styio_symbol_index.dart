@@ -1386,6 +1386,50 @@ class StyioSymbolIndex {
     return inferredTypedLocalTypes;
   }
 
+  Map<String, String> _inferLocalBindingTypes(
+    List<TokenSpan> tokens,
+    Map<String, List<_FunctionSignature>> signaturesByName,
+  ) {
+    final inferredTypesByName = <String, String>{};
+
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind != TokenKind.identifier ||
+          _syntaxHighlighter.isTypeName(token.lexeme)) {
+        continue;
+      }
+
+      final typedBinding = _typedLocalBindingAtName(tokens, index);
+      if (typedBinding != null) {
+        inferredTypesByName[token.lexeme] = typedBinding.typeName;
+        continue;
+      }
+
+      final assignmentIndex = _bindingAssignmentIndex(tokens, index);
+      if (assignmentIndex == null) {
+        continue;
+      }
+      final expressionStartIndex = _nextSignificantIndex(
+        tokens,
+        assignmentIndex + 1,
+      );
+      if (expressionStartIndex == null) {
+        continue;
+      }
+      final inferredType = _inferExpressionType(
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (inferredType != null && inferredType.isNotEmpty) {
+        inferredTypesByName[token.lexeme] = inferredType;
+      }
+    }
+
+    return inferredTypesByName;
+  }
+
   _FunctionSignature? _signatureForCall(
     Map<String, List<_FunctionSignature>> signaturesByName,
     TokenSpan callable,
@@ -1408,6 +1452,10 @@ class StyioSymbolIndex {
     }
 
     final issues = <StyioCallArgumentIssue>[];
+    final inferredTypesByName = _inferLocalBindingTypes(
+      tokens,
+      signaturesByName,
+    );
     for (final call in _callArgumentLists(tokens)) {
       final candidates = signaturesByName[call.callable.lexeme];
       if (candidates == null || candidates.isEmpty) {
@@ -1445,6 +1493,7 @@ class StyioSymbolIndex {
           .map((parameter) => parameter.name)
           .toSet();
       final argumentNameCounts = <String, int>{};
+      var hasNamedArgumentIssue = false;
 
       for (final argument in arguments) {
         final argumentName = argument.name;
@@ -1476,6 +1525,7 @@ class StyioSymbolIndex {
               argumentNameRange: argument.nameRange,
             ),
           );
+          hasNamedArgumentIssue = true;
           continue;
         }
 
@@ -1504,6 +1554,7 @@ class StyioSymbolIndex {
               argumentNameRange: argument.nameRange,
             ),
           );
+          hasNamedArgumentIssue = true;
           continue;
         }
       }
@@ -1571,10 +1622,127 @@ class StyioSymbolIndex {
             extraArgumentCount: extraCount,
           ),
         );
+        continue;
+      }
+
+      if (!hasNamedArgumentIssue) {
+        issues.addAll(
+          _callArgumentTypeIssues(
+            source: source,
+            tokens: tokens,
+            signature: signature,
+            arguments: arguments,
+            signaturesByName: signaturesByName,
+            inferredTypesByName: inferredTypesByName,
+            argumentListRange: argumentListRange,
+          ),
+        );
       }
     }
 
     return issues;
+  }
+
+  List<StyioCallArgumentIssue> _callArgumentTypeIssues({
+    required String source,
+    required List<TokenSpan> tokens,
+    required _FunctionSignature signature,
+    required List<_ArgumentSegment> arguments,
+    required Map<String, List<_FunctionSignature>> signaturesByName,
+    required Map<String, String> inferredTypesByName,
+    required SourceRange argumentListRange,
+  }) {
+    final issues = <StyioCallArgumentIssue>[];
+    for (final argument in arguments) {
+      final parameter = _parameterForCallArgument(
+        signature: signature,
+        arguments: arguments,
+        argument: argument,
+      );
+      if (parameter == null || parameter.type.isEmpty) {
+        continue;
+      }
+
+      final argumentRange = argument.name == null
+          ? argument.range
+          : _argumentValueRange(
+              source: source,
+              tokens: tokens,
+              argument: argument,
+            );
+      if (argumentRange == null || argumentRange.isCollapsed) {
+        continue;
+      }
+
+      final expressionStartIndex = _firstSignificantIndexInRange(
+        tokens,
+        argumentRange,
+      );
+      if (expressionStartIndex == null) {
+        continue;
+      }
+
+      final actualType = _inferExpressionType(
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (actualType == null ||
+          actualType.isEmpty ||
+          actualType == parameter.type) {
+        continue;
+      }
+
+      issues.add(
+        StyioCallArgumentIssue(
+          diagnostic: Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'argument-type-mismatch',
+            message:
+                'Argument `${parameter.name}` for `${signature.name}` expects '
+                '`${parameter.type}`, got `$actualType`.',
+            range: argumentRange,
+          ),
+          callableName: signature.name,
+          expectedArgumentCount: signature.parameters.length,
+          actualArgumentCount: arguments.length,
+          argumentListRange: argumentListRange,
+          replacementArgumentText: _argumentTypeReplacementText(
+            tokens: tokens,
+            expressionStartIndex: expressionStartIndex,
+            argumentRange: argumentRange,
+            expectedType: parameter.type,
+            actualType: actualType,
+          ),
+          parameterName: parameter.name,
+          expectedTypeName: parameter.type,
+          actualTypeName: actualType,
+          argumentRange: argumentRange,
+        ),
+      );
+    }
+    return issues;
+  }
+
+  String _argumentTypeReplacementText({
+    required List<TokenSpan> tokens,
+    required int expressionStartIndex,
+    required SourceRange argumentRange,
+    required String expectedType,
+    required String actualType,
+  }) {
+    if (expectedType != 'f64' || actualType != 'i64') {
+      return '';
+    }
+    final token = tokens[expressionStartIndex];
+    if (token.kind != TokenKind.number ||
+        token.lexeme.contains('.') ||
+        token.range.start != argumentRange.start ||
+        token.range.end != argumentRange.end) {
+      return '';
+    }
+    return '${token.lexeme}.0';
   }
 
   String? _closestParameterName(
@@ -2232,6 +2400,28 @@ class StyioSymbolIndex {
     return null;
   }
 
+  ParameterInfoParameter? _parameterForCallArgument({
+    required _FunctionSignature signature,
+    required List<_ArgumentSegment> arguments,
+    required _ArgumentSegment argument,
+  }) {
+    final argumentName = argument.name;
+    if (argumentName != null) {
+      for (final parameter in signature.parameters) {
+        if (parameter.name == argumentName) {
+          return parameter;
+        }
+      }
+      return null;
+    }
+
+    return _parameterForPositionalArgument(
+      signature: signature,
+      arguments: arguments,
+      targetArgument: argument,
+    );
+  }
+
   _ArgumentSegment? _argumentAtOffset(
     List<_ArgumentSegment> arguments,
     int offset,
@@ -2836,6 +3026,27 @@ class StyioSymbolIndex {
   TokenSpan? _nextSignificant(List<TokenSpan> tokens, int startIndex) {
     final index = _nextSignificantIndex(tokens, startIndex);
     return index == null ? null : tokens[index];
+  }
+
+  int? _firstSignificantIndexInRange(
+    List<TokenSpan> tokens,
+    SourceRange range,
+  ) {
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.range.end <= range.start) {
+        continue;
+      }
+      if (token.range.start >= range.end) {
+        break;
+      }
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      return index;
+    }
+    return null;
   }
 
   int? _nextSignificantIndex(List<TokenSpan> tokens, int startIndex) {
@@ -4150,6 +4361,10 @@ class StyioCallArgumentIssue {
     this.namedArgumentName = '',
     this.suggestedParameterName,
     this.argumentNameRange,
+    this.parameterName = '',
+    this.expectedTypeName = '',
+    this.actualTypeName = '',
+    this.argumentRange,
   });
 
   final Diagnostic diagnostic;
@@ -4163,6 +4378,10 @@ class StyioCallArgumentIssue {
   final String namedArgumentName;
   final String? suggestedParameterName;
   final SourceRange? argumentNameRange;
+  final String parameterName;
+  final String expectedTypeName;
+  final String actualTypeName;
+  final SourceRange? argumentRange;
 
   bool get hasMissingArguments => missingParameterNames.isNotEmpty;
   bool get hasExtraArguments => extraArgumentCount > 0;
@@ -4172,6 +4391,11 @@ class StyioCallArgumentIssue {
   bool get hasDuplicateNamedArgument =>
       diagnostic.code == 'duplicate-named-argument' &&
       namedArgumentName.isNotEmpty;
+  bool get hasArgumentTypeMismatch =>
+      diagnostic.code == 'argument-type-mismatch' &&
+      parameterName.isNotEmpty &&
+      expectedTypeName.isNotEmpty &&
+      actualTypeName.isNotEmpty;
 }
 
 class StyioUnusedParameterIssue {

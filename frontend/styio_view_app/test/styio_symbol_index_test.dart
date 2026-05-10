@@ -1091,6 +1091,53 @@ blend(left: price, left: tax, scale: factor) -> @stdout
     expect(duplicate.replacementArgumentText, 'left: price, scale: factor');
   });
 
+  test('reports call argument type mismatches for current-file functions', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, count: i64) {
+  emit left
+}
+price = 1.5
+count = 3
+blend(count, price) -> @stdout
+blend(left: count, count: price) -> @stdout
+''';
+
+    final issues = index.callArgumentIssues(source);
+    final mismatches = issues
+        .where((issue) => issue.diagnostic.code == 'argument-type-mismatch')
+        .toList(growable: false);
+
+    expect(mismatches.map((issue) => issue.parameterName), [
+      'left',
+      'count',
+      'left',
+      'count',
+    ]);
+    expect(mismatches.map((issue) => issue.expectedTypeName), [
+      'f64',
+      'i64',
+      'f64',
+      'i64',
+    ]);
+    expect(mismatches.map((issue) => issue.actualTypeName), [
+      'i64',
+      'f64',
+      'i64',
+      'f64',
+    ]);
+    expect(
+      mismatches.map(
+        (issue) => source.substring(
+          issue.diagnostic.range.start,
+          issue.diagnostic.range.end,
+        ),
+      ),
+      ['count', 'price', 'count', 'price'],
+    );
+    expect(mismatches.first.diagnostic.message, contains('expects `f64`'));
+  });
+
   test('resolves parameter info from current hash function declarations', () {
     const index = StyioSymbolIndex();
     const source = '''

@@ -534,6 +534,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       case 'duplicate-named-argument':
       case 'missing-call-argument':
       case 'too-many-call-arguments':
+      case 'argument-type-mismatch':
         return _quickFixesForCallArgumentIssue(document, diagnostic);
       case 'duplicate-import':
       case 'import-block-not-optimized':
@@ -1081,6 +1082,28 @@ class SimpleStyioLanguageService implements StyioLanguageService {
           edits: [
             FormattingEdit(
               range: issue.argumentListRange,
+              newText: issue.replacementArgumentText,
+            ),
+          ],
+        ),
+      ];
+    }
+
+    if (issue.hasArgumentTypeMismatch) {
+      final argumentRange = issue.argumentRange;
+      if (argumentRange == null || issue.replacementArgumentText.isEmpty) {
+        return const <DiagnosticQuickFix>[];
+      }
+      return [
+        DiagnosticQuickFix(
+          label: 'Change argument to ${issue.expectedTypeName} literal',
+          detail:
+              'Rewrite `${issue.parameterName}` argument for '
+              '`${issue.callableName}` from `${issue.actualTypeName}` to '
+              '`${issue.expectedTypeName}`.',
+          edits: [
+            FormattingEdit(
+              range: argumentRange,
               newText: issue.replacementArgumentText,
             ),
           ],

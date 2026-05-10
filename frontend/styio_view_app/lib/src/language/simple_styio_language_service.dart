@@ -76,13 +76,17 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   @override
   List<CompletionItem> completeAt(DocumentState document, int offset) {
     final tokenSpans = _syntaxHighlighter.tokenize(document.text);
-    final token = _tokenAroundOffset(tokenSpans, offset);
+    final token = _completionSeedToken(tokenSpans, offset);
     final seed = token?.lexeme ?? '';
     final symbolSnapshot = _symbolIndex.build(tokenSpans);
     final postfixItems = _postfixCompletionItems(
       document.text,
       offset,
       tokenSpans,
+    );
+    final namedArgumentItems = _symbolIndex.namedArgumentCompletionsAt(
+      document.text,
+      offset,
     );
 
     final staticItems = <CompletionItem>[
@@ -162,6 +166,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     ];
     final items = _dedupeCompletionItems([
       ...postfixItems,
+      ...namedArgumentItems,
       ...staticItems,
       ...symbolSnapshot.symbols.map(_completionItemForSymbol),
     ]);
@@ -1507,6 +1512,44 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     }
 
     return trailingToken ?? leadingToken;
+  }
+
+  TokenSpan? _completionSeedToken(List<TokenSpan> tokens, int offset) {
+    TokenSpan? trailingEditableToken;
+    TokenSpan? containingEditableToken;
+
+    for (final token in tokens) {
+      if (token.kind == TokenKind.whitespace) {
+        continue;
+      }
+      if (!_isCompletionSeedKind(token)) {
+        continue;
+      }
+      if (token.range.end == offset) {
+        trailingEditableToken = token;
+      }
+      if (containingEditableToken == null && token.range.contains(offset)) {
+        containingEditableToken = token;
+      }
+    }
+
+    return trailingEditableToken ??
+        containingEditableToken ??
+        _tokenAroundOffset(tokens, offset);
+  }
+
+  bool _isCompletionSeedKind(TokenSpan token) {
+    return switch (token.kind) {
+      TokenKind.identifier ||
+      TokenKind.keyword ||
+      TokenKind.operator ||
+      TokenKind.unknown => true,
+      TokenKind.number ||
+      TokenKind.string ||
+      TokenKind.comment ||
+      TokenKind.punctuation ||
+      TokenKind.whitespace => false,
+    };
   }
 
   List<CompletionItem> _postfixCompletionItems(

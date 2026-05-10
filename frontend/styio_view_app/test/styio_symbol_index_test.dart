@@ -557,6 +557,59 @@ value = blend(right: tax, left: price)
     expect(index.callArgumentIssues(source), isEmpty);
   });
 
+  test('offers named argument completions for current function calls', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+/// Blends price and tax inputs.
+/// @param left Base price before tax.
+/// @param right Tax component to add.
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+value = blend(le)
+again = blend(left: price, ri)
+empty = blend(price, )
+''';
+
+    final leftCompletion = index
+        .namedArgumentCompletionsAt(source, source.indexOf('le)') + 2)
+        .singleWhere((item) => item.label == 'left:');
+    final rightLabels = index
+        .namedArgumentCompletionsAt(source, source.indexOf('ri)') + 2)
+        .map((item) => item.label)
+        .toList(growable: false);
+    final emptyLabels = index
+        .namedArgumentCompletionsAt(
+          source,
+          source.indexOf('empty = blend(price, ') +
+              'empty = blend(price, '.length,
+        )
+        .map((item) => item.label)
+        .toList(growable: false);
+
+    expect(leftCompletion.insertText, 'left: ');
+    expect(leftCompletion.detail, contains('blend'));
+    expect(leftCompletion.detail, contains('f64'));
+    expect(leftCompletion.documentation, 'Base price before tax.');
+    expect(
+      source.substring(
+        leftCompletion.replacementRange!.start,
+        leftCompletion.replacementRange!.end,
+      ),
+      'le',
+    );
+    expect(rightLabels, ['right:']);
+    expect(emptyLabels, ['right:']);
+    expect(
+      index.namedArgumentCompletionsAt(
+        source,
+        source.indexOf('left: price') + 'left:'.length,
+      ),
+      isEmpty,
+    );
+  });
+
   test('resolves KDoc-style block comments for parameter info', () {
     const index = StyioSymbolIndex();
     const source = '''

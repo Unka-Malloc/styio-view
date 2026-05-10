@@ -983,6 +983,39 @@ void main() {
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies named argument completion at a call argument boundary', () {
+    const text = '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+value = blend(le)
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'named-argument-completion.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('le)') + 2),
+    );
+
+    final completion = controller.completionsAtSelection.firstWhere(
+      (item) => item.label == 'left:',
+    );
+
+    controller.applyCompletionItem(completion);
+
+    expect(controller.document.text, '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+value = blend(left: )
+''');
+    expect(controller.selection.end, controller.document.text.lastIndexOf(')'));
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies best completion item at the caret', () {
     const text = 'job = ||> { <| 42 }\njo';
     final controller = EditorSessionController(

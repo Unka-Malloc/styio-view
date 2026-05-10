@@ -623,6 +623,67 @@ class StyioSymbolIndex {
     );
   }
 
+  List<CompletionItem> namedArgumentCompletionsAt(String source, int offset) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    if (signaturesByName.isEmpty) {
+      return const <CompletionItem>[];
+    }
+
+    final call = _callArgumentListAt(tokens, offset);
+    if (call == null) {
+      return const <CompletionItem>[];
+    }
+    final openingToken = tokens[call.openingIndex];
+    final closingToken = tokens[call.closingIndex];
+    if (offset < openingToken.range.end || offset > closingToken.range.start) {
+      return const <CompletionItem>[];
+    }
+
+    final signature = _signatureForCall(signaturesByName, call.callable);
+    if (signature == null || signature.parameters.isEmpty) {
+      return const <CompletionItem>[];
+    }
+
+    final context = _namedArgumentCompletionContext(
+      source: source,
+      tokens: tokens,
+      call: call,
+      offset: offset,
+    );
+    if (context == null) {
+      return const <CompletionItem>[];
+    }
+
+    final currentArguments = _parseCallArguments(
+      source: source,
+      tokens: tokens,
+      openingIndex: call.openingIndex,
+      closingIndex: call.closingIndex,
+    );
+    final providedNames = _providedCallParameterNames(
+      signature,
+      currentArguments
+          .where((argument) => !argument.range.intersects(context.segmentRange))
+          .toList(growable: false),
+    );
+
+    return [
+      for (final parameter in signature.parameters)
+        if (!providedNames.contains(parameter.name))
+          CompletionItem(
+            label: '${parameter.name}:',
+            kind: CompletionItemKind.snippet,
+            insertText: '${parameter.name}: ',
+            detail:
+                'Named argument for `${signature.name}`'
+                '${parameter.type.isEmpty ? '' : ' · ${parameter.type}'}',
+            documentation: parameter.documentation,
+            replacementRange: context.replacementRange,
+          ),
+    ];
+  }
+
   List<InlayHint> inlayHints(String source) {
     return <InlayHint>[...parameterNameHints(source), ...typeNameHints(source)]
       ..sort((left, right) {
@@ -1451,6 +1512,155 @@ class StyioSymbolIndex {
       }
     }
     return null;
+  }
+
+  _NamedArgumentCompletionContext? _namedArgumentCompletionContext({
+    required String source,
+    required List<TokenSpan> tokens,
+    required _CallArgumentList call,
+    required int offset,
+  }) {
+    final openingToken = tokens[call.openingIndex];
+    final closingToken = tokens[call.closingIndex];
+    final normalizedOffset = offset
+        .clamp(openingToken.range.end, closingToken.range.start)
+        .toInt();
+    var segmentStart = openingToken.range.end;
+    var segmentEnd = closingToken.range.start;
+    var nestedDepth = 0;
+
+    for (
+      var index = call.openingIndex + 1;
+      index < call.closingIndex;
+      index += 1
+    ) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.punctuation && token.lexeme == '(') {
+        nestedDepth += 1;
+        continue;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == ')') {
+        nestedDepth -= 1;
+        continue;
+      }
+      if (nestedDepth == 0 && token.lexeme == ',') {
+        if (normalizedOffset <= token.range.start) {
+          segmentEnd = token.range.start;
+          break;
+        }
+        segmentStart = token.range.end;
+      }
+    }
+
+    if (_hasTopLevelLexemeInRange(
+      tokens: tokens,
+      lexeme: ':',
+      start: segmentStart,
+      end: segmentEnd,
+    )) {
+      return null;
+    }
+
+    final candidateToken = _completionSeedTokenInSegment(
+      tokens: tokens,
+      offset: normalizedOffset,
+      start: segmentStart,
+      end: segmentEnd,
+    );
+
+    if (candidateToken == null) {
+      final prefixRange = _trimmedRange(
+        source,
+        SourceRange(start: segmentStart, end: normalizedOffset),
+      );
+      if (!prefixRange.isCollapsed) {
+        return null;
+      }
+      return _NamedArgumentCompletionContext(
+        segmentRange: SourceRange(start: segmentStart, end: segmentEnd),
+        replacementRange: SourceRange(
+          start: normalizedOffset,
+          end: normalizedOffset,
+        ),
+      );
+    }
+
+    final beforeCandidate = source
+        .substring(segmentStart, candidateToken.range.start)
+        .trim();
+    if (beforeCandidate.isNotEmpty) {
+      return null;
+    }
+
+    return _NamedArgumentCompletionContext(
+      segmentRange: SourceRange(start: segmentStart, end: segmentEnd),
+      replacementRange: candidateToken.range,
+    );
+  }
+
+  TokenSpan? _completionSeedTokenInSegment({
+    required List<TokenSpan> tokens,
+    required int offset,
+    required int start,
+    required int end,
+  }) {
+    for (final token in tokens) {
+      if (token.range.end < start) {
+        continue;
+      }
+      if (token.range.start > end) {
+        break;
+      }
+      if (token.kind != TokenKind.identifier &&
+          token.kind != TokenKind.keyword) {
+        continue;
+      }
+      if (token.range.start < start || token.range.end > end) {
+        continue;
+      }
+      if (token.range.contains(offset) || token.range.end == offset) {
+        return token;
+      }
+    }
+    return null;
+  }
+
+  bool _hasTopLevelLexemeInRange({
+    required List<TokenSpan> tokens,
+    required String lexeme,
+    required int start,
+    required int end,
+  }) {
+    var parenDepth = 0;
+    var bracketDepth = 0;
+    for (final token in tokens) {
+      if (token.range.end <= start) {
+        continue;
+      }
+      if (token.range.start >= end) {
+        break;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == '(') {
+        parenDepth += 1;
+        continue;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == ')') {
+        parenDepth -= 1;
+        continue;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == '[') {
+        bracketDepth += 1;
+        continue;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == ']') {
+        bracketDepth -= 1;
+        continue;
+      }
+      if (parenDepth == 0 && bracketDepth == 0 && token.lexeme == lexeme) {
+        return true;
+      }
+    }
+    return false;
   }
 
   TokenSpan? _namedArgumentTokenForRange(
@@ -3125,6 +3335,16 @@ class _ArgumentSegment {
   String? get name => nameToken?.lexeme;
 
   SourceRange? get nameRange => nameToken?.range;
+}
+
+class _NamedArgumentCompletionContext {
+  const _NamedArgumentCompletionContext({
+    required this.segmentRange,
+    required this.replacementRange,
+  });
+
+  final SourceRange segmentRange;
+  final SourceRange replacementRange;
 }
 
 class _InlineVariableInitializer {

@@ -833,6 +833,62 @@ jo''',
     expect(jobCompletion.documentation, 'Runs async price work.');
   });
 
+  test('offers named argument completions inside function calls', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'named-argument-completion.styio',
+      text: '''
+/// Blends price and tax inputs.
+/// @param left Base price before tax.
+/// @param right Tax component to add.
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+value = blend(le)
+again = blend(left: price, ri)
+''',
+      revision: 0,
+    );
+
+    final leftCompletion = service
+        .completeAt(document, document.text.indexOf('le)') + 2)
+        .singleWhere((item) => item.label == 'left:');
+    final rightLabels = service
+        .completeAt(document, document.text.indexOf('ri)') + 2)
+        .map((item) => item.label)
+        .toList(growable: false);
+    final rightNamedArgumentLabels = rightLabels
+        .where((label) => label.endsWith(':'))
+        .toList(growable: false);
+
+    expect(leftCompletion.kind, CompletionItemKind.snippet);
+    expect(leftCompletion.insertText, 'left: ');
+    expect(leftCompletion.detail, contains('f64'));
+    expect(leftCompletion.documentation, 'Base price before tax.');
+    expect(
+      applyEdits(document.text, [
+        FormattingEdit(
+          range: leftCompletion.replacementRange!,
+          newText: leftCompletion.insertText,
+        ),
+      ]),
+      '''
+/// Blends price and tax inputs.
+/// @param left Base price before tax.
+/// @param right Tax component to add.
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+value = blend(left: )
+again = blend(left: price, ri)
+''',
+    );
+    expect(rightLabels.first, 'right:');
+    expect(rightNamedArgumentLabels, ['right:']);
+  });
+
   test('offers postfix completions that replace the target expression', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

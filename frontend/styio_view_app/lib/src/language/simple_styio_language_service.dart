@@ -370,6 +370,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
             ],
           ),
         ];
+      case 'unresolved-reference':
+        return _quickFixesForUnresolvedReference(document, diagnostic);
     }
 
     return const <DiagnosticQuickFix>[];
@@ -494,6 +496,244 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     return SourceRange(start: 0, end: source.length);
   }
 
+  List<DiagnosticQuickFix> _quickFixesForUnresolvedReference(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    if (diagnostic.range.start < 0 ||
+        diagnostic.range.end > document.length ||
+        diagnostic.range.start >= diagnostic.range.end) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    final name = document.text.substring(
+      diagnostic.range.start,
+      diagnostic.range.end,
+    );
+    if (!_isValidIdentifier(name)) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    final tokens = _syntaxHighlighter.tokenize(document.text);
+    final tokenIndex = _tokenIndexForRange(tokens, diagnostic.range);
+    final fixes = <DiagnosticQuickFix>[];
+    final functionFix = tokenIndex == null
+        ? null
+        : _createFunctionFromUsageFix(
+            source: document.text,
+            tokens: tokens,
+            callableIndex: tokenIndex,
+            name: name,
+          );
+    if (functionFix != null) {
+      fixes.add(functionFix);
+    }
+
+    fixes.add(
+      DiagnosticQuickFix(
+        label: 'Create local binding `$name`',
+        detail: 'Insert a local Styio binding before the unresolved usage.',
+        edits: [
+          FormattingEdit(
+            range: _lineInsertionRange(document.text, diagnostic.range.start),
+            newText:
+                '${_lineIndentAt(document.text, diagnostic.range.start)}'
+                '$name = value\n',
+          ),
+        ],
+      ),
+    );
+    return fixes;
+  }
+
+  DiagnosticQuickFix? _createFunctionFromUsageFix({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int callableIndex,
+    required String name,
+  }) {
+    final openingIndex = _nextSignificantIndex(tokens, callableIndex + 1);
+    if (openingIndex == null || tokens[openingIndex].lexeme != '(') {
+      return null;
+    }
+    final closingIndex = _matchingParenthesisIndex(tokens, openingIndex);
+    if (closingIndex == null) {
+      return null;
+    }
+
+    final parameters = _parameterNamesForCallArguments(
+      source: source,
+      tokens: tokens,
+      openingIndex: openingIndex,
+      closingIndex: closingIndex,
+    );
+    final declaration = StringBuffer()
+      ..write('#')
+      ..write(name)
+      ..write(' := (')
+      ..write(parameters.join(', '))
+      ..writeln(') => {')
+      ..writeln('  <| value')
+      ..writeln('}')
+      ..writeln();
+
+    return DiagnosticQuickFix(
+      label: 'Create function `$name`',
+      detail:
+          'Insert a current-file Styio function stub from the unresolved call.',
+      edits: [
+        FormattingEdit(
+          range: _topLevelInsertionRangeAfterImports(source),
+          newText: declaration.toString(),
+        ),
+      ],
+    );
+  }
+
+  List<String> _parameterNamesForCallArguments({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int openingIndex,
+    required int closingIndex,
+  }) {
+    final parameters = <String>[];
+    final seen = <String>{};
+    var segmentStart = tokens[openingIndex].range.end;
+    var nestedDepth = 0;
+
+    String nextFallbackName() {
+      var ordinal = parameters.length + 1;
+      var candidate = 'arg$ordinal';
+      while (seen.contains(candidate) || !_isValidIdentifier(candidate)) {
+        ordinal += 1;
+        candidate = 'arg$ordinal';
+      }
+      return candidate;
+    }
+
+    void addArgument(int segmentEnd) {
+      final range = _trimmedRange(
+        source,
+        SourceRange(start: segmentStart, end: segmentEnd),
+      );
+      if (range.isCollapsed) {
+        return;
+      }
+      var candidate = source.substring(range.start, range.end);
+      if (!_isValidIdentifier(candidate) || seen.contains(candidate)) {
+        candidate = nextFallbackName();
+      }
+      seen.add(candidate);
+      parameters.add(candidate);
+    }
+
+    for (var index = openingIndex + 1; index < closingIndex; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.punctuation && token.lexeme == '(') {
+        nestedDepth += 1;
+        continue;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == ')') {
+        nestedDepth -= 1;
+        continue;
+      }
+      if (nestedDepth == 0 && token.lexeme == ',') {
+        addArgument(token.range.start);
+        segmentStart = token.range.end;
+      }
+    }
+
+    addArgument(tokens[closingIndex].range.start);
+    return parameters;
+  }
+
+  SourceRange _topLevelInsertionRangeAfterImports(String source) {
+    var insertionOffset = 0;
+    var cursor = 0;
+    while (cursor < source.length) {
+      final lineEnd = source.indexOf('\n', cursor);
+      final end = lineEnd < 0 ? source.length : lineEnd;
+      final line = source.substring(cursor, end).trimLeft();
+      if (!line.startsWith('@import')) {
+        break;
+      }
+      insertionOffset = lineEnd < 0 ? source.length : lineEnd + 1;
+      cursor = insertionOffset;
+    }
+    return SourceRange(start: insertionOffset, end: insertionOffset);
+  }
+
+  SourceRange _lineInsertionRange(String source, int offset) {
+    final normalizedOffset = offset.clamp(0, source.length).toInt();
+    final previousNewline = normalizedOffset <= 0
+        ? -1
+        : source.lastIndexOf('\n', normalizedOffset - 1);
+    final lineStart = previousNewline + 1;
+    return SourceRange(start: lineStart, end: lineStart);
+  }
+
+  String _lineIndentAt(String source, int offset) {
+    final lineStart = _lineInsertionRange(source, offset).start;
+    var cursor = lineStart;
+    while (cursor < source.length) {
+      final codeUnit = source.codeUnitAt(cursor);
+      if (codeUnit != 0x20 && codeUnit != 0x09) {
+        break;
+      }
+      cursor += 1;
+    }
+    return source.substring(lineStart, cursor);
+  }
+
+  SourceRange _trimmedRange(String source, SourceRange range) {
+    var start = range.start.clamp(0, source.length).toInt();
+    var end = range.end.clamp(start, source.length).toInt();
+    while (start < end && source.codeUnitAt(start) <= 0x20) {
+      start += 1;
+    }
+    while (end > start && source.codeUnitAt(end - 1) <= 0x20) {
+      end -= 1;
+    }
+    return SourceRange(start: start, end: end);
+  }
+
+  int? _tokenIndexForRange(List<TokenSpan> tokens, SourceRange range) {
+    for (var index = 0; index < tokens.length; index += 1) {
+      if (tokens[index].range.start == range.start &&
+          tokens[index].range.end == range.end) {
+        return index;
+      }
+    }
+    return null;
+  }
+
+  int? _matchingParenthesisIndex(List<TokenSpan> tokens, int openingIndex) {
+    var depth = 0;
+    for (var index = openingIndex; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.punctuation && token.lexeme == '(') {
+        depth += 1;
+        continue;
+      }
+      if (token.kind == TokenKind.punctuation && token.lexeme == ')') {
+        depth -= 1;
+        if (depth == 0) {
+          return index;
+        }
+      }
+    }
+    return null;
+  }
+
+  bool _isValidIdentifier(String value) {
+    if (value.isEmpty ||
+        _syntaxHighlighter.isKeyword(value) ||
+        _syntaxHighlighter.isTypeName(value)) {
+      return false;
+    }
+    return RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(value);
+  }
+
   bool _shouldReportUnusedLocalSymbol(
     List<TokenSpan> tokens,
     DocumentSymbol symbol,
@@ -610,13 +850,18 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   TokenSpan? _nextSignificant(List<TokenSpan> tokens, int startIndex) {
+    final index = _nextSignificantIndex(tokens, startIndex);
+    return index == null ? null : tokens[index];
+  }
+
+  int? _nextSignificantIndex(List<TokenSpan> tokens, int startIndex) {
     for (var index = startIndex; index < tokens.length; index += 1) {
       final token = tokens[index];
       if (token.kind == TokenKind.whitespace ||
           token.kind == TokenKind.comment) {
         continue;
       }
-      return token;
+      return index;
     }
     return null;
   }

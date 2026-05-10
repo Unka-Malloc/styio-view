@@ -1059,6 +1059,39 @@ void main() {
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies create function quick fix from unresolved call', () {
+    const text = 'price = 1\ntax = 2\ncalculate(price, tax) -> @stdout\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'unresolved-call.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('calculate') + 2),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(
+      controller.document.text,
+      '#calculate := (price, tax) => {\n'
+      '  <| value\n'
+      '}\n'
+      '\n'
+      'price = 1\n'
+      'tax = 2\n'
+      'calculate(price, tax) -> @stdout\n',
+    );
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'unresolved-reference',
+      ),
+      isEmpty,
+    );
+  });
+
   test('resolves active token when caret lands on token boundary', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(

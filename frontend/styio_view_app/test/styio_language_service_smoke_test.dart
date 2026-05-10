@@ -165,6 +165,62 @@ missingPrice -> @stdout
     );
   });
 
+  test('offers create-from-usage quick fixes for unresolved locals', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'unresolved-local.styio',
+      text: 'fn main() {\n  emit stream\n}\n',
+      revision: 0,
+    );
+
+    final unresolved = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere((diagnostic) => diagnostic.code == 'unresolved-reference');
+    final fixes = service.quickFixesForDiagnostic(document, unresolved);
+
+    expect(fixes.map((fix) => fix.label), ['Create local binding `stream`']);
+    expect(fixes.single.detail, contains('local Styio binding'));
+    expect(fixes.single.edits.single.newText, '  stream = value\n');
+    expect(
+      fixes.single.edits.single.range.start,
+      document.text.indexOf('  emit'),
+    );
+  });
+
+  test('offers create function quick fix from unresolved calls', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'unresolved-call.styio',
+      text: '''
+@import { styio/core }
+price = 1
+tax = 2
+total = calculate(price, tax)
+''',
+      revision: 0,
+    );
+
+    final unresolved = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere((diagnostic) => diagnostic.code == 'unresolved-reference');
+    final fixes = service.quickFixesForDiagnostic(document, unresolved);
+
+    expect(fixes.map((fix) => fix.label), [
+      'Create function `calculate`',
+      'Create local binding `calculate`',
+    ]);
+    expect(
+      fixes.first.edits.single.newText,
+      '#calculate := (price, tax) => {\n  <| value\n}\n\n',
+    );
+    expect(
+      fixes.first.edits.single.range.start,
+      document.text.indexOf('price = 1'),
+    );
+  });
+
   test(
     'reports and fixes unused local symbols from the current file index',
     () {

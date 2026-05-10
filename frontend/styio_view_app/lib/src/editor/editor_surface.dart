@@ -2378,6 +2378,14 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     final theme = Theme.of(context);
     final functionName = _extractFunctionController.text.trim();
     final plan = widget.controller.extractFunctionPlanAtSelection(functionName);
+    final duplicateCount = plan?.duplicateOccurrences.length ?? 0;
+    final duplicateLabel = duplicateCount == 1 ? 'duplicate' : 'duplicates';
+    final duplicateHelperSuffix = duplicateCount == 0
+        ? ''
+        : ', $duplicateCount $duplicateLabel';
+    final duplicatePreviewSuffix = duplicateCount == 0
+        ? ''
+        : ' and $duplicateCount $duplicateLabel';
     final helperText = plan == null
         ? _extractFunctionError
         : plan.hasConflicts
@@ -2385,7 +2393,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         : 'Preview ${plan.edits.length} edit'
               '${plan.edits.length == 1 ? '' : 's'} and '
               '${plan.parameters.length} parameter'
-              '${plan.parameters.length == 1 ? '' : 's'}';
+              '${plan.parameters.length == 1 ? '' : 's'}'
+              '$duplicateHelperSuffix';
 
     return Material(
       key: const ValueKey('source-extract-function-panel'),
@@ -2443,7 +2452,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
             if (plan != null && !plan.hasConflicts) ...[
               const SizedBox(height: 8),
               Text(
-                'Replace selection with `${plan.callText}`',
+                'Replace selection'
+                '$duplicatePreviewSuffix '
+                'with `${plan.callText}`',
                 key: const ValueKey('source-extract-function-preview'),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

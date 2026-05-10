@@ -1324,6 +1324,41 @@ value -> @stdout
     expect(controller.canUndo, isTrue);
   });
 
+  test('extracts a function and replaces duplicate expressions', () {
+    const text =
+        'fn main(user) {\n  first = user + 1\n  second = user + 1\n}\n';
+    final start = text.indexOf('user + 1');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(
+        baseOffset: start,
+        extentOffset: start + 'user + 1'.length,
+      ),
+    );
+
+    final plan = controller.extractFunctionPlanAtSelection('computeValue');
+    expect(plan?.hasConflicts, isFalse);
+    expect(plan?.duplicateOccurrences.length, 1);
+    expect(controller.applyExtractFunctionAtSelection('computeValue'), isTrue);
+    expect(
+      controller.document.text,
+      '#computeValue := (user) => {\n'
+      '  <| user + 1\n'
+      '}\n'
+      '\n'
+      'fn main(user) {\n'
+      '  first = computeValue(user)\n'
+      '  second = computeValue(user)\n'
+      '}\n',
+    );
+    expect(controller.canUndo, isTrue);
+  });
+
   test('rejects extract function name conflicts without history', () {
     const text = 'fn computeValue() {}\nvalue = user + 1\n';
     final start = text.indexOf('user + 1');

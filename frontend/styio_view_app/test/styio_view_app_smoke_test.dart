@@ -2739,7 +2739,8 @@ value = blend(price, tax)
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final bootstrap = await createBootstrap(PlatformTarget.macos);
-    const text = 'fn main(user) {\n  value = user + 1\n}\n';
+    const text =
+        'fn main(user) {\n  first = user + 1\n  second = user + 1\n}\n';
     final start = text.indexOf('user + 1');
     bootstrap.editorController.loadDocument(
       const DocumentState(
@@ -2777,6 +2778,12 @@ value = blend(price, tax)
       find.byKey(const ValueKey('source-extract-function-preview')),
       findsOne,
     );
+    expect(
+      find.text(
+        'Replace selection and 1 duplicate with `extractedFunction(user)`',
+      ),
+      findsOne,
+    );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
@@ -2788,7 +2795,8 @@ value = blend(price, tax)
       '}\n'
       '\n'
       'fn main(user) {\n'
-      '  value = extractedFunction(user)\n'
+      '  first = extractedFunction(user)\n'
+      '  second = extractedFunction(user)\n'
       '}\n',
     );
     expect(

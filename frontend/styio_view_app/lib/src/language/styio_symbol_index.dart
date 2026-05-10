@@ -456,6 +456,14 @@ class StyioSymbolIndex {
       name: name,
       selectionKind: selectionKind,
     );
+    final duplicateOccurrences = conflicts.isEmpty
+        ? _extractFunctionDuplicateOccurrences(
+            source: source,
+            tokens: tokens,
+            selectionRange: selectionRange,
+            selectedText: selectedText,
+          )
+        : const <SourceRange>[];
     return ExtractFunctionPlan(
       functionName: name,
       selectionRange: selectionRange,
@@ -470,8 +478,11 @@ class StyioSymbolIndex {
                 newText: functionText,
               ),
               FormattingEdit(range: selectionRange, newText: callText),
+              for (final occurrence in duplicateOccurrences)
+                FormattingEdit(range: occurrence, newText: callText),
             ]
           : const <FormattingEdit>[],
+      duplicateOccurrences: duplicateOccurrences,
       conflicts: conflicts,
     );
   }
@@ -1441,6 +1452,64 @@ class StyioSymbolIndex {
       }
     }
     return parameters;
+  }
+
+  List<SourceRange> _extractFunctionDuplicateOccurrences({
+    required String source,
+    required List<TokenSpan> tokens,
+    required SourceRange selectionRange,
+    required String selectedText,
+  }) {
+    if (selectedText.isEmpty) {
+      return const <SourceRange>[];
+    }
+
+    final occurrences = <SourceRange>[];
+    var cursor = 0;
+    while (cursor < source.length) {
+      final index = source.indexOf(selectedText, cursor);
+      if (index < 0) {
+        break;
+      }
+      final range = SourceRange(start: index, end: index + selectedText.length);
+      cursor = range.end;
+      if (_sameRange(range, selectionRange) ||
+          range.intersects(selectionRange) ||
+          !_rangeCoversCompleteSignificantTokens(tokens, range) ||
+          _rangeIntersectsTokenKind(tokens, range, TokenKind.comment)) {
+        continue;
+      }
+      occurrences.add(range);
+    }
+    return occurrences;
+  }
+
+  bool _rangeCoversCompleteSignificantTokens(
+    List<TokenSpan> tokens,
+    SourceRange range,
+  ) {
+    var hasSignificantToken = false;
+    for (final token in tokens) {
+      if (!token.range.intersects(range) ||
+          token.kind == TokenKind.whitespace) {
+        continue;
+      }
+      hasSignificantToken = true;
+      if (token.range.start < range.start || token.range.end > range.end) {
+        return false;
+      }
+    }
+    return hasSignificantToken;
+  }
+
+  bool _rangeIntersectsTokenKind(
+    List<TokenSpan> tokens,
+    SourceRange range,
+    TokenKind kind,
+  ) {
+    return tokens.any(
+      (token) => token.kind == kind && token.range.intersects(range),
+    );
   }
 
   String _extractFunctionCallText({

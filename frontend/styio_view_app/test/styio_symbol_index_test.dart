@@ -237,6 +237,37 @@ pending -> @stdout
     expect(plan?.edits.last.newText, 'computeValue(user)');
   });
 
+  test('builds extract function duplicate occurrence replacements', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn main(user) {
+  first = user + 1
+  second = user + 1
+}
+''';
+    final start = source.indexOf('user + 1');
+    final plan = index.extractFunction(
+      source,
+      SourceRange(start: start, end: start + 'user + 1'.length),
+      'computeValue',
+    );
+
+    expect(plan?.hasConflicts, isFalse);
+    expect(plan?.duplicateOccurrences.length, 1);
+    expect(
+      source.substring(
+        plan!.duplicateOccurrences.single.start,
+        plan.duplicateOccurrences.single.end,
+      ),
+      'user + 1',
+    );
+    expect(plan.edits.length, 3);
+    expect(
+      plan.edits.skip(1).every((edit) => edit.newText == plan.callText),
+      isTrue,
+    );
+  });
+
   test('builds extract function edits from selected statements', () {
     const index = StyioSymbolIndex();
     const source = 'fn main(user) {\n  value = user\n}\n';

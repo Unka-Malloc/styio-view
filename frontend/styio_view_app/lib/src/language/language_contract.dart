@@ -321,6 +321,7 @@ class ExtractFunctionPlan {
     required this.callText,
     required this.functionText,
     required this.edits,
+    this.duplicateOccurrences = const <SourceRange>[],
     this.conflicts = const <ExtractFunctionConflict>[],
   });
 
@@ -331,6 +332,7 @@ class ExtractFunctionPlan {
   final String callText;
   final String functionText;
   final List<FormattingEdit> edits;
+  final List<SourceRange> duplicateOccurrences;
   final List<ExtractFunctionConflict> conflicts;
 
   bool get hasConflicts => conflicts.isNotEmpty;

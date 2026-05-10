@@ -603,6 +603,111 @@ class StyioSymbolIndex {
     );
   }
 
+  List<StyioCallArgumentIssue> callArgumentIssues(String source) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    if (signaturesByName.isEmpty) {
+      return const <StyioCallArgumentIssue>[];
+    }
+
+    final issues = <StyioCallArgumentIssue>[];
+    for (final call in _callArgumentLists(tokens)) {
+      final candidates = signaturesByName[call.callable.lexeme];
+      if (candidates == null || candidates.isEmpty) {
+        continue;
+      }
+      final signature = candidates.lastWhere(
+        (candidate) => candidate.nameRange.start <= call.callable.range.start,
+        orElse: () => candidates.first,
+      );
+      final arguments = _parseCallArguments(
+        source: source,
+        tokens: tokens,
+        openingIndex: call.openingIndex,
+        closingIndex: call.closingIndex,
+      );
+      final requiredParameters = signature.parameters
+          .where(
+            (parameter) =>
+                !_parameterHasDefaultValue(tokens, signature, parameter.name),
+          )
+          .toList(growable: false);
+      final argumentListRange = SourceRange(
+        start: tokens[call.openingIndex].range.end,
+        end: tokens[call.closingIndex].range.start,
+      );
+      final invocationRange = SourceRange(
+        start: call.callable.range.start,
+        end: tokens[call.closingIndex].range.end,
+      );
+
+      if (arguments.length < requiredParameters.length) {
+        final missingParameters = requiredParameters
+            .skip(arguments.length)
+            .toList(growable: false);
+        issues.add(
+          StyioCallArgumentIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.warning,
+              code: 'missing-call-argument',
+              message:
+                  'Call to `${signature.name}` is missing '
+                  '${missingParameters.length} argument'
+                  '${missingParameters.length == 1 ? '' : 's'}: '
+                  '${missingParameters.map((item) => item.name).join(', ')}.',
+              range: invocationRange,
+            ),
+            callableName: signature.name,
+            expectedArgumentCount: requiredParameters.length,
+            actualArgumentCount: arguments.length,
+            argumentListRange: argumentListRange,
+            replacementArgumentText: [
+              ...arguments.map((argument) => argument.text),
+              for (
+                var index = arguments.length;
+                index < requiredParameters.length;
+                index += 1
+              )
+                'value',
+            ].join(', '),
+            missingParameterNames: missingParameters
+                .map((parameter) => parameter.name)
+                .toList(growable: false),
+          ),
+        );
+        continue;
+      }
+
+      if (arguments.length > signature.parameters.length) {
+        final extraCount = arguments.length - signature.parameters.length;
+        issues.add(
+          StyioCallArgumentIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.warning,
+              code: 'too-many-call-arguments',
+              message:
+                  'Call to `${signature.name}` has ${arguments.length} '
+                  'argument${arguments.length == 1 ? '' : 's'}, expected '
+                  '${signature.parameters.length}.',
+              range: invocationRange,
+            ),
+            callableName: signature.name,
+            expectedArgumentCount: signature.parameters.length,
+            actualArgumentCount: arguments.length,
+            argumentListRange: argumentListRange,
+            replacementArgumentText: arguments
+                .take(signature.parameters.length)
+                .map((argument) => argument.text)
+                .join(', '),
+            extraArgumentCount: extraCount,
+          ),
+        );
+      }
+    }
+
+    return issues;
+  }
+
   Map<String, List<_FunctionSignature>> _collectFunctionSignatures(
     List<TokenSpan> tokens,
   ) {
@@ -816,6 +921,25 @@ class StyioSymbolIndex {
 
   _CallArgumentList? _callArgumentListAt(List<TokenSpan> tokens, int offset) {
     _CallArgumentList? best;
+    for (final call in _callArgumentLists(tokens)) {
+      final openingToken = tokens[call.openingIndex];
+      final closingToken = tokens[call.closingIndex];
+      if (offset < openingToken.range.start ||
+          offset > closingToken.range.end) {
+        continue;
+      }
+
+      if (best == null ||
+          tokens[call.openingIndex].range.start >
+              tokens[best.openingIndex].range.start) {
+        best = call;
+      }
+    }
+    return best;
+  }
+
+  List<_CallArgumentList> _callArgumentLists(List<TokenSpan> tokens) {
+    final calls = <_CallArgumentList>[];
     for (var index = 0; index < tokens.length; index += 1) {
       final token = tokens[index];
       if (token.lexeme != '(') {
@@ -823,10 +947,6 @@ class StyioSymbolIndex {
       }
       final closingIndex = _matchingParenthesisIndex(tokens, index);
       if (closingIndex == null) {
-        continue;
-      }
-      final closingToken = tokens[closingIndex];
-      if (offset < token.range.start || offset > closingToken.range.end) {
         continue;
       }
 
@@ -846,18 +966,15 @@ class StyioSymbolIndex {
         continue;
       }
 
-      final candidate = _CallArgumentList(
-        callable: tokens[callableIndex],
-        openingIndex: index,
-        closingIndex: closingIndex,
+      calls.add(
+        _CallArgumentList(
+          callable: tokens[callableIndex],
+          openingIndex: index,
+          closingIndex: closingIndex,
+        ),
       );
-      if (best == null ||
-          tokens[candidate.openingIndex].range.start >
-              tokens[best.openingIndex].range.start) {
-        best = candidate;
-      }
     }
-    return best;
+    return calls;
   }
 
   _CallArgumentList? _callArgumentListAfter(
@@ -2343,6 +2460,31 @@ class _InlineVariableInitializer {
 }
 
 enum _ExtractFunctionSelectionKind { expression, statements }
+
+class StyioCallArgumentIssue {
+  const StyioCallArgumentIssue({
+    required this.diagnostic,
+    required this.callableName,
+    required this.expectedArgumentCount,
+    required this.actualArgumentCount,
+    required this.argumentListRange,
+    required this.replacementArgumentText,
+    this.missingParameterNames = const <String>[],
+    this.extraArgumentCount = 0,
+  });
+
+  final Diagnostic diagnostic;
+  final String callableName;
+  final int expectedArgumentCount;
+  final int actualArgumentCount;
+  final SourceRange argumentListRange;
+  final String replacementArgumentText;
+  final List<String> missingParameterNames;
+  final int extraArgumentCount;
+
+  bool get hasMissingArguments => missingParameterNames.isNotEmpty;
+  bool get hasExtraArguments => extraArgumentCount > 0;
+}
 
 class StyioSymbolSnapshot {
   const StyioSymbolSnapshot({required this.symbols, required this.references});

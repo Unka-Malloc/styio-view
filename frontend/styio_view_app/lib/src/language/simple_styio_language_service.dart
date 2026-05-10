@@ -27,7 +27,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     final tokenSpans = _syntaxHighlighter.tokenize(document.text);
     final semanticSpans = _syntaxHighlighter.resolveSemanticSpans(tokenSpans);
     final symbolSnapshot = _symbolIndex.build(tokenSpans);
-    final diagnostics = _lintDocument(tokenSpans, symbolSnapshot);
+    final diagnostics = _lintDocument(
+      document.text,
+      tokenSpans,
+      symbolSnapshot,
+    );
     final formattingEdits = formatDocument(document);
     final semanticBlocks = _syntaxHighlighter.resolveSemanticBlocks(tokenSpans);
 
@@ -372,12 +376,16 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         ];
       case 'unresolved-reference':
         return _quickFixesForUnresolvedReference(document, diagnostic);
+      case 'missing-call-argument':
+      case 'too-many-call-arguments':
+        return _quickFixesForCallArgumentIssue(document, diagnostic);
     }
 
     return const <DiagnosticQuickFix>[];
   }
 
   List<Diagnostic> _lintDocument(
+    String source,
     List<TokenSpan> tokens,
     StyioSymbolSnapshot symbolSnapshot,
   ) {
@@ -417,6 +425,10 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         ),
       );
     }
+
+    diagnostics.addAll(
+      _symbolIndex.callArgumentIssues(source).map((issue) => issue.diagnostic),
+    );
 
     for (var index = 0; index < tokens.length; index += 1) {
       final token = tokens[index];
@@ -544,6 +556,61 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       ),
     );
     return fixes;
+  }
+
+  List<DiagnosticQuickFix> _quickFixesForCallArgumentIssue(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final issue = _symbolIndex
+        .callArgumentIssues(document.text)
+        .firstWhere(
+          (item) =>
+              item.diagnostic.code == diagnostic.code &&
+              item.diagnostic.range.start == diagnostic.range.start &&
+              item.diagnostic.range.end == diagnostic.range.end,
+          orElse: () => const StyioCallArgumentIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: '',
+              message: '',
+              range: SourceRange(start: 0, end: 0),
+            ),
+            callableName: '',
+            expectedArgumentCount: 0,
+            actualArgumentCount: 0,
+            argumentListRange: SourceRange(start: 0, end: 0),
+            replacementArgumentText: '',
+          ),
+        );
+    if (issue.callableName.isEmpty) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    final isMissing = issue.hasMissingArguments;
+    final count = isMissing
+        ? issue.missingParameterNames.length
+        : issue.extraArgumentCount;
+    return [
+      DiagnosticQuickFix(
+        label: isMissing
+            ? 'Insert missing argument${count == 1 ? '' : 's'}'
+            : 'Remove extra argument${count == 1 ? '' : 's'}',
+        detail: isMissing
+            ? 'Append placeholder value${count == 1 ? '' : 's'} for '
+                  '`${issue.callableName}` parameter'
+                  '${count == 1 ? '' : 's'} '
+                  '${issue.missingParameterNames.join(', ')}.'
+            : 'Rewrite `${issue.callableName}` call arguments to match the '
+                  'current signature.',
+        edits: [
+          FormattingEdit(
+            range: issue.argumentListRange,
+            newText: issue.replacementArgumentText,
+          ),
+        ],
+      ),
+    ];
   }
 
   DiagnosticQuickFix? _createFunctionFromUsageFix({

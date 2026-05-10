@@ -1092,6 +1092,42 @@ void main() {
     );
   });
 
+  test('applies call argument arity quick fix at the caret', () {
+    const text = '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+price = 1
+blend(price) -> @stdout
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'call-arity.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('price)') + 2),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+price = 1
+blend(price, value) -> @stdout
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'missing-call-argument',
+      ),
+      isEmpty,
+    );
+  });
+
   test('resolves active token when caret lands on token boundary', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(

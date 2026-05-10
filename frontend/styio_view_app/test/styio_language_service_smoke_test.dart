@@ -141,6 +141,44 @@ value = blend(price, tax)
     expect(info?.activeParameter?.name, 'right');
   });
 
+  test('reports and fixes call argument arity mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'call-arity.styio',
+      text: '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+price = 1
+tax = 2
+blend(price) -> @stdout
+blend(price, tax, price) -> @stdout
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service.analyzeDocument(document).diagnostics;
+    final missing = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'missing-call-argument',
+    );
+    final extra = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'too-many-call-arguments',
+    );
+
+    expect(missing.message, contains('right'));
+    expect(extra.message, contains('expected 2'));
+
+    final missingFix = service
+        .quickFixesForDiagnostic(document, missing)
+        .single;
+    final extraFix = service.quickFixesForDiagnostic(document, extra).single;
+
+    expect(missingFix.label, 'Insert missing argument');
+    expect(missingFix.edits.single.newText, 'price, value');
+    expect(extraFix.label, 'Remove extra argument');
+    expect(extraFix.edits.single.newText, 'price, tax');
+  });
+
   test('reports unresolved identifiers from the local symbol index', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

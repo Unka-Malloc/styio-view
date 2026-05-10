@@ -415,6 +415,46 @@ value = blend(price, tax)
     expect(index.parameterInfoAt(source, source.indexOf('left:')), isNull);
   });
 
+  test('reports call argument arity issues for current-file functions', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+price = 1
+tax = 2
+blend(price) -> @stdout
+blend(price, tax, price) -> @stdout
+''';
+
+    final issues = index.callArgumentIssues(source);
+    final missing = issues.singleWhere(
+      (issue) => issue.diagnostic.code == 'missing-call-argument',
+    );
+    final extra = issues.singleWhere(
+      (issue) => issue.diagnostic.code == 'too-many-call-arguments',
+    );
+
+    expect(missing.callableName, 'blend');
+    expect(missing.actualArgumentCount, 1);
+    expect(missing.expectedArgumentCount, 2);
+    expect(missing.missingParameterNames, ['right']);
+    expect(missing.replacementArgumentText, 'price, value');
+    expect(missing.diagnostic.message, contains('right'));
+    expect(
+      source.substring(
+        missing.diagnostic.range.start,
+        missing.diagnostic.range.end,
+      ),
+      'blend(price)',
+    );
+
+    expect(extra.actualArgumentCount, 3);
+    expect(extra.expectedArgumentCount, 2);
+    expect(extra.extraArgumentCount, 1);
+    expect(extra.replacementArgumentText, 'price, tax');
+  });
+
   test('resolves parameter info from current hash function declarations', () {
     const index = StyioSymbolIndex();
     const source = '''

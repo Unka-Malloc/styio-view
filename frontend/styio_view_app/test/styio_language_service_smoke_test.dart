@@ -494,6 +494,58 @@ when !(price > 0) -> state priced
 ''');
   });
 
+  test('offers flip-comparison-operands as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'flip-comparison-operands.styio',
+      text: '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+when price > limit -> state expensive
+when price == limit -> state exact
+when price + tax >= limit -> state taxed
+''',
+      revision: 0,
+    );
+
+    final greaterAction = service
+        .intentionsAt(document, document.text.indexOf('price > limit') + 2)
+        .singleWhere((item) => item.label == 'Flip comparison operands');
+    final equalityAction = service
+        .intentionsAt(document, document.text.indexOf('price == limit') + 8)
+        .singleWhere((item) => item.label == 'Flip comparison operands');
+    final arithmeticAction = service
+        .intentionsAt(document, document.text.indexOf('price + tax') + 8)
+        .singleWhere((item) => item.label == 'Flip comparison operands');
+
+    expect(greaterAction.detail, contains('Swap'));
+    expect(applyEdits(document.text, greaterAction.edits), '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+when limit < price -> state expensive
+when price == limit -> state exact
+when price + tax >= limit -> state taxed
+''');
+    expect(applyEdits(document.text, equalityAction.edits), '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+when price > limit -> state expensive
+when limit == price -> state exact
+when price + tax >= limit -> state taxed
+''');
+    expect(applyEdits(document.text, arithmeticAction.edits), '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+when price > limit -> state expensive
+when price == limit -> state exact
+when limit <= price + tax -> state taxed
+''');
+  });
+
   test('reports and fixes typed local initializer type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

@@ -1388,6 +1388,37 @@ when !ready -> state ready
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies flip-comparison-operands context intention', () {
+    const text = '''
+price = 12.5
+limit = 10.0
+when price > limit -> state expensive
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'flip-comparison-operands.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(
+        text.indexOf('price > limit') + 2,
+      ),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Flip comparison operands',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+price = 12.5
+limit = 10.0
+when limit < price -> state expensive
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies create function quick fix from unresolved call', () {
     const text = 'price = 1\ntax = 2\ncalculate(price, tax) -> @stdout\n';
     final controller = EditorSessionController(

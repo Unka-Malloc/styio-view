@@ -460,6 +460,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       intentions.add(negateConditionFix);
     }
 
+    final flipComparisonFix = _flipComparisonAt(document, offset);
+    if (flipComparisonFix != null) {
+      intentions.add(flipComparisonFix);
+    }
+
     return intentions;
   }
 
@@ -2147,6 +2152,163 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       }
     }
     return false;
+  }
+
+  DiagnosticQuickFix? _flipComparisonAt(DocumentState document, int offset) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final operatorToken = tokens[index];
+      final flippedOperator = _flippedComparisonOperator(operatorToken.lexeme);
+      if (flippedOperator == null) {
+        continue;
+      }
+      final leftRange = _comparisonLeftOperandRange(
+        source: source,
+        tokens: tokens,
+        operatorIndex: index,
+      );
+      final rightRange = _comparisonRightOperandRange(
+        source: source,
+        tokens: tokens,
+        operatorIndex: index,
+      );
+      if (leftRange == null ||
+          rightRange == null ||
+          leftRange.isCollapsed ||
+          rightRange.isCollapsed) {
+        continue;
+      }
+      final expressionRange = SourceRange(
+        start: leftRange.start,
+        end: rightRange.end,
+      );
+      if (offset < expressionRange.start || offset > expressionRange.end) {
+        continue;
+      }
+      final leftText = source.substring(leftRange.start, leftRange.end).trim();
+      final rightText = source
+          .substring(rightRange.start, rightRange.end)
+          .trim();
+      return DiagnosticQuickFix(
+        label: 'Flip comparison operands',
+        detail: 'Swap comparison operands and preserve the expression meaning.',
+        edits: [
+          FormattingEdit(
+            range: expressionRange,
+            newText: '$rightText $flippedOperator $leftText',
+          ),
+        ],
+      );
+    }
+    return null;
+  }
+
+  String? _flippedComparisonOperator(String lexeme) {
+    return const {
+      '<': '>',
+      '<=': '>=',
+      '>': '<',
+      '>=': '<=',
+      '==': '==',
+      '!=': '!=',
+    }[lexeme];
+  }
+
+  SourceRange? _comparisonLeftOperandRange({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int operatorIndex,
+  }) {
+    var start = tokens[operatorIndex].range.start;
+    var end = start;
+    var nestedDepth = 0;
+    var sawOperand = false;
+    for (var index = operatorIndex - 1; index >= 0; index -= 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace) {
+        if (token.lexeme.contains('\n')) {
+          break;
+        }
+        continue;
+      }
+      if (token.kind == TokenKind.comment ||
+          _isComparisonOperandBoundary(token, nestedDepth) ||
+          (token.kind == TokenKind.keyword && token.lexeme == 'when')) {
+        break;
+      }
+      sawOperand = true;
+      start = token.range.start;
+      if (token.lexeme == ')' || token.lexeme == ']' || token.lexeme == '}') {
+        nestedDepth += 1;
+      } else if (token.lexeme == '(' ||
+          token.lexeme == '[' ||
+          token.lexeme == '{') {
+        nestedDepth -= 1;
+      }
+    }
+    if (!sawOperand) {
+      return null;
+    }
+    return _trimmedRange(source, SourceRange(start: start, end: end));
+  }
+
+  SourceRange? _comparisonRightOperandRange({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int operatorIndex,
+  }) {
+    final firstIndex = _nextSignificantIndex(tokens, operatorIndex + 1);
+    if (firstIndex == null ||
+        _hasLineBreakBetween(tokens, operatorIndex + 1, firstIndex)) {
+      return null;
+    }
+    var start = tokens[firstIndex].range.start;
+    var end = tokens[firstIndex].range.end;
+    var nestedDepth = 0;
+    var sawOperand = false;
+    for (var index = firstIndex; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace) {
+        if (token.lexeme.contains('\n')) {
+          break;
+        }
+        continue;
+      }
+      if (token.kind == TokenKind.comment ||
+          _isComparisonOperandBoundary(token, nestedDepth)) {
+        break;
+      }
+      sawOperand = true;
+      end = token.range.end;
+      if (token.lexeme == '(' || token.lexeme == '[' || token.lexeme == '{') {
+        nestedDepth += 1;
+      } else if (token.lexeme == ')' ||
+          token.lexeme == ']' ||
+          token.lexeme == '}') {
+        nestedDepth -= 1;
+      }
+    }
+    if (!sawOperand) {
+      return null;
+    }
+    return _trimmedRange(source, SourceRange(start: start, end: end));
+  }
+
+  bool _isComparisonOperandBoundary(TokenSpan token, int nestedDepth) {
+    if (nestedDepth != 0) {
+      return false;
+    }
+    return const {
+      '->',
+      '&&',
+      '||',
+      ',',
+      ';',
+      '=',
+      '{',
+      '}',
+    }.contains(token.lexeme);
   }
 
   DiagnosticQuickFix? _negateWhenConditionAt(

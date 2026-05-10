@@ -1008,6 +1008,33 @@ ready = spread && true
     );
   });
 
+  test('respects binary operator precedence for expression types', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+price = 12.5
+tax = 2
+threshold = 10.0
+ready = true || price + tax > threshold
+spread = price + tax * 2 > threshold && true
+total = price + tax * 2
+''';
+
+    final hints = index.typeNameHints(source);
+
+    expect(
+      hints.singleWhere((hint) => hint.range.start == source.indexOf('ready')),
+      isA<InlayHint>().having((hint) => hint.label, 'label', ': bool'),
+    );
+    expect(
+      hints.singleWhere((hint) => hint.range.start == source.indexOf('spread')),
+      isA<InlayHint>().having((hint) => hint.label, 'label', ': bool'),
+    );
+    expect(
+      hints.singleWhere((hint) => hint.range.start == source.indexOf('total')),
+      isA<InlayHint>().having((hint) => hint.label, 'label', ': f64'),
+    );
+  });
+
   test('infers parenthesized and unary expression types', () {
     const index = StyioSymbolIndex();
     const source = '''
@@ -1088,6 +1115,7 @@ fromCall: f64 = amount()
 ok: f64 = price
 flag: i64 = price > 1
 blocked: i64 = !true
+condition: i64 = true || price > 0
 ''';
 
     final issues = index.typedLocalInitializerIssues(source);
@@ -1098,6 +1126,7 @@ blocked: i64 = !true
       'fromCall',
       'flag',
       'blocked',
+      'condition',
     ]);
     expect(issues.map((issue) => issue.expectedTypeName), [
       'f64',
@@ -1105,11 +1134,13 @@ blocked: i64 = !true
       'f64',
       'i64',
       'i64',
+      'i64',
     ]);
     expect(issues.map((issue) => issue.actualTypeName), [
       'i64',
       'f64',
       'i64',
+      'bool',
       'bool',
       'bool',
     ]);
@@ -1120,14 +1151,14 @@ blocked: i64 = !true
           issue.diagnostic.range.end,
         ),
       ),
-      ['3', 'price', 'amount()', 'price > 1', '!true'],
+      ['3', 'price', 'amount()', 'price > 1', '!true', 'true || price > 0'],
     );
     expect(issues.first.replacementInitializerText, '3.0');
     expect(
       issues.map(
         (issue) => source.substring(issue.typeRange.start, issue.typeRange.end),
       ),
-      ['f64', 'i64', 'f64', 'i64', 'i64'],
+      ['f64', 'i64', 'f64', 'i64', 'i64', 'i64'],
     );
   });
 

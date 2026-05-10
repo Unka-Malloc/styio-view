@@ -1298,6 +1298,22 @@ class StyioSymbolIndex {
     required Map<String, List<_FunctionSignature>> signaturesByName,
     required Map<String, String> inferredTypesByName,
   }) {
+    final expression = _inferExpressionTypeSpan(
+      tokens: tokens,
+      expressionStartIndex: expressionStartIndex,
+      signaturesByName: signaturesByName,
+      inferredTypesByName: inferredTypesByName,
+    );
+    return expression?.typeName;
+  }
+
+  _ExpressionTypeSpan? _inferExpressionTypeSpan({
+    required List<TokenSpan> tokens,
+    required int expressionStartIndex,
+    required Map<String, List<_FunctionSignature>> signaturesByName,
+    required Map<String, String> inferredTypesByName,
+    int minPrecedence = 0,
+  }) {
     final primary = _inferPrimaryExpressionType(
       tokens: tokens,
       expressionStartIndex: expressionStartIndex,
@@ -1307,40 +1323,50 @@ class StyioSymbolIndex {
     if (primary == null) {
       return null;
     }
+    var left = primary;
 
-    var currentType = primary.typeName;
-    var cursor = primary.endIndex;
     while (true) {
-      final operatorIndex = _nextSignificantIndex(tokens, cursor + 1);
+      final operatorIndex = _nextSignificantIndex(tokens, left.endIndex + 1);
       if (operatorIndex == null ||
-          _hasLineBreakBetween(tokens, cursor + 1, operatorIndex) ||
+          _hasLineBreakBetween(tokens, left.endIndex + 1, operatorIndex) ||
           !_isBinaryExpressionOperator(tokens[operatorIndex].lexeme)) {
-        return currentType;
+        return left;
+      }
+      final operatorLexeme = tokens[operatorIndex].lexeme;
+      final precedence = _binaryExpressionPrecedence(operatorLexeme);
+      if (precedence == null || precedence < minPrecedence) {
+        return left;
       }
       final rightIndex = _nextSignificantIndex(tokens, operatorIndex + 1);
       if (rightIndex == null ||
           _hasLineBreakBetween(tokens, operatorIndex + 1, rightIndex)) {
-        return currentType;
+        return left;
       }
-      final right = _inferPrimaryExpressionType(
+      final right = _inferExpressionTypeSpan(
         tokens: tokens,
         expressionStartIndex: rightIndex,
         signaturesByName: signaturesByName,
         inferredTypesByName: inferredTypesByName,
+        minPrecedence:
+            _isRightAssociativeBinaryExpressionOperator(operatorLexeme)
+            ? precedence
+            : precedence + 1,
       );
       if (right == null) {
         return null;
       }
       final combinedType = _inferBinaryExpressionType(
-        operatorLexeme: tokens[operatorIndex].lexeme,
-        leftType: currentType,
+        operatorLexeme: operatorLexeme,
+        leftType: left.typeName,
         rightType: right.typeName,
       );
       if (combinedType == null || combinedType.isEmpty) {
         return null;
       }
-      currentType = combinedType;
-      cursor = right.endIndex;
+      left = _ExpressionTypeSpan(
+        typeName: combinedType,
+        endIndex: right.endIndex,
+      );
     }
   }
 
@@ -1492,6 +1518,35 @@ class StyioSymbolIndex {
       '&&',
       '||',
     }.contains(lexeme);
+  }
+
+  int? _binaryExpressionPrecedence(String lexeme) {
+    if (lexeme == '||') {
+      return 1;
+    }
+    if (lexeme == '&&') {
+      return 2;
+    }
+    if (lexeme == '==' || lexeme == '!=') {
+      return 3;
+    }
+    if (const {'<', '<=', '>', '>='}.contains(lexeme)) {
+      return 4;
+    }
+    if (lexeme == '+' || lexeme == '-') {
+      return 5;
+    }
+    if (lexeme == '*' || lexeme == '/' || lexeme == '%') {
+      return 6;
+    }
+    if (lexeme == '**') {
+      return 7;
+    }
+    return null;
+  }
+
+  bool _isRightAssociativeBinaryExpressionOperator(String lexeme) {
+    return lexeme == '**';
   }
 
   String? _inferBinaryExpressionType({

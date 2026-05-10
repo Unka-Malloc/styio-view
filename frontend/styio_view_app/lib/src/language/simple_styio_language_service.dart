@@ -534,6 +534,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         return _quickFixesForTypeMismatchIssue(document, diagnostic);
       case 'assignment-type-mismatch':
         return _quickFixesForAssignmentTypeMismatchIssue(document, diagnostic);
+      case 'binary-operator-type-mismatch':
+        return _quickFixesForBinaryOperatorTypeIssue(document, diagnostic);
       case 'condition-type-mismatch':
         return _quickFixesForConditionTypeMismatchIssue(document, diagnostic);
       case 'return-type-mismatch':
@@ -1332,6 +1334,103 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       );
     }
     return fixes;
+  }
+
+  List<DiagnosticQuickFix> _quickFixesForBinaryOperatorTypeIssue(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final issue = _symbolIndex
+        .binaryOperatorTypeIssues(document.text)
+        .firstWhere(
+          (item) =>
+              item.diagnostic.code == diagnostic.code &&
+              item.diagnostic.range.start == diagnostic.range.start &&
+              item.diagnostic.range.end == diagnostic.range.end,
+          orElse: () => const StyioBinaryOperatorTypeIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: '',
+              message: '',
+              range: SourceRange(start: 0, end: 0),
+            ),
+            operatorLexeme: '',
+            leftTypeName: '',
+            rightTypeName: '',
+            operatorRange: SourceRange(start: 0, end: 0),
+            leftOperandRange: SourceRange(start: 0, end: 0),
+            rightOperandRange: SourceRange(start: 0, end: 0),
+          ),
+        );
+    if (issue.operatorLexeme.isEmpty ||
+        (issue.operatorLexeme != '&&' && issue.operatorLexeme != '||')) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    final fixes = <DiagnosticQuickFix>[];
+    if (_isNumericTypeName(issue.leftTypeName)) {
+      fixes.add(
+        DiagnosticQuickFix(
+          label: 'Compare left operand with zero',
+          detail:
+              'Rewrite the left `${issue.operatorLexeme}` operand from '
+              '`${issue.leftTypeName}` to `bool`.',
+          edits: [
+            FormattingEdit(
+              range: issue.leftOperandRange,
+              newText: _compareOperandWithZero(
+                source: document.text,
+                range: issue.leftOperandRange,
+                typeName: issue.leftTypeName,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_isNumericTypeName(issue.rightTypeName)) {
+      fixes.add(
+        DiagnosticQuickFix(
+          label: 'Compare right operand with zero',
+          detail:
+              'Rewrite the right `${issue.operatorLexeme}` operand from '
+              '`${issue.rightTypeName}` to `bool`.',
+          edits: [
+            FormattingEdit(
+              range: issue.rightOperandRange,
+              newText: _compareOperandWithZero(
+                source: document.text,
+                range: issue.rightOperandRange,
+                typeName: issue.rightTypeName,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return fixes;
+  }
+
+  bool _isNumericTypeName(String typeName) {
+    return const {
+      'i8',
+      'i16',
+      'i32',
+      'i64',
+      'i128',
+      'f32',
+      'f64',
+    }.contains(typeName);
+  }
+
+  String _compareOperandWithZero({
+    required String source,
+    required SourceRange range,
+    required String typeName,
+  }) {
+    final operandText = source.substring(range.start, range.end).trim();
+    final zeroLiteral = typeName == 'f32' || typeName == 'f64' ? '0.0' : '0';
+    return '$operandText != $zeroLiteral';
   }
 
   List<DiagnosticQuickFix> _quickFixesForConditionTypeMismatchIssue(

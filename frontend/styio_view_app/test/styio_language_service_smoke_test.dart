@@ -628,6 +628,19 @@ fn broken(value: f64): bool {
         .toList(growable: false);
 
     expect(diagnostics, hasLength(2));
+    final logicalAndMismatch = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.message.contains('`&&`'),
+    );
+    final logicalOrMismatch = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.message.contains('`||`'),
+    );
+    final leftOperandFix = service
+        .quickFixesForDiagnostic(document, logicalAndMismatch)
+        .singleWhere((fix) => fix.label == 'Compare left operand with zero');
+    final rightOperandFix = service
+        .quickFixesForDiagnostic(document, logicalOrMismatch)
+        .singleWhere((fix) => fix.label == 'Compare right operand with zero');
+
     expect(
       diagnostics.map((diagnostic) => diagnostic.message),
       containsAll([
@@ -635,6 +648,22 @@ fn broken(value: f64): bool {
         'Operator `||` cannot be applied to `bool` and `f64`.',
       ]),
     );
+    expect(applyEdits(document.text, leftOperandFix.edits), '''
+price = 12.5
+ready = true
+bad = price != 0.0 && ready
+fn broken(value: f64): bool {
+  emit true || value + 1
+}
+''');
+    expect(applyEdits(document.text, rightOperandFix.edits), '''
+price = 12.5
+ready = true
+bad = price && ready
+fn broken(value: f64): bool {
+  emit true || value + 1 != 0.0
+}
+''');
   });
 
   test('reports unary and parenthesized expression type mismatches', () {

@@ -1062,6 +1062,24 @@ fn broken(value: f64): bool {
       ),
       ['&&', '+', '||'],
     );
+    expect(
+      issues.map(
+        (issue) => source.substring(
+          issue.leftOperandRange.start,
+          issue.leftOperandRange.end,
+        ),
+      ),
+      ['price', 'ready', 'true'],
+    );
+    expect(
+      issues.map(
+        (issue) => source.substring(
+          issue.rightOperandRange.start,
+          issue.rightOperandRange.end,
+        ),
+      ),
+      ['ready', '1', 'value + 1'],
+    );
     expect(issues.map((issue) => issue.diagnostic.code).toSet(), {
       'binary-operator-type-mismatch',
     });

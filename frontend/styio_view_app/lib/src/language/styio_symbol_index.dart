@@ -1380,11 +1380,20 @@ class StyioSymbolIndex {
             leftTypeName: left.typeName,
             rightTypeName: right.typeName,
             operatorRange: tokens[operatorIndex].range,
+            leftOperandRange: SourceRange(
+              start: tokens[left.startIndex].range.start,
+              end: tokens[left.endIndex].range.end,
+            ),
+            rightOperandRange: SourceRange(
+              start: tokens[right.startIndex].range.start,
+              end: tokens[right.endIndex].range.end,
+            ),
           ),
         );
         return null;
       }
       left = _ExpressionTypeSpan(
+        startIndex: left.startIndex,
         typeName: combinedType,
         endIndex: right.endIndex,
       );
@@ -1423,7 +1432,11 @@ class StyioSymbolIndex {
       if (innerType == null || innerType.isEmpty) {
         return null;
       }
-      return _ExpressionTypeSpan(typeName: innerType, endIndex: closingIndex);
+      return _ExpressionTypeSpan(
+        startIndex: expressionStartIndex,
+        typeName: innerType,
+        endIndex: closingIndex,
+      );
     }
     if (_isUnaryPrefixExpressionOperator(token.lexeme)) {
       final operandIndex = _nextSignificantIndex(
@@ -1456,18 +1469,21 @@ class StyioSymbolIndex {
         return null;
       }
       return _ExpressionTypeSpan(
+        startIndex: expressionStartIndex,
         typeName: typeName,
         endIndex: operand.endIndex,
       );
     }
     if (token.kind == TokenKind.number) {
       return _ExpressionTypeSpan(
+        startIndex: expressionStartIndex,
         typeName: token.lexeme.contains('.') ? 'f64' : 'i64',
         endIndex: expressionStartIndex,
       );
     }
     if (token.kind == TokenKind.string) {
       return _ExpressionTypeSpan(
+        startIndex: expressionStartIndex,
         typeName: 'string',
         endIndex: expressionStartIndex,
       );
@@ -1475,6 +1491,7 @@ class StyioSymbolIndex {
     if (token.kind == TokenKind.keyword) {
       if (token.lexeme == 'true' || token.lexeme == 'false') {
         return _ExpressionTypeSpan(
+          startIndex: expressionStartIndex,
           typeName: 'bool',
           endIndex: expressionStartIndex,
         );
@@ -1493,6 +1510,7 @@ class StyioSymbolIndex {
         return null;
       }
       return _ExpressionTypeSpan(
+        startIndex: expressionStartIndex,
         typeName: signature.returnType,
         endIndex: call.closingIndex,
       );
@@ -1503,6 +1521,7 @@ class StyioSymbolIndex {
       return null;
     }
     return _ExpressionTypeSpan(
+      startIndex: expressionStartIndex,
       typeName: inferredType,
       endIndex: expressionStartIndex,
     );
@@ -5451,8 +5470,13 @@ class _FunctionBodySpan {
 }
 
 class _ExpressionTypeSpan {
-  const _ExpressionTypeSpan({required this.typeName, required this.endIndex});
+  const _ExpressionTypeSpan({
+    required this.startIndex,
+    required this.typeName,
+    required this.endIndex,
+  });
 
+  final int startIndex;
   final String typeName;
   final int endIndex;
 }
@@ -5669,6 +5693,8 @@ class StyioBinaryOperatorTypeIssue {
     required this.leftTypeName,
     required this.rightTypeName,
     required this.operatorRange,
+    required this.leftOperandRange,
+    required this.rightOperandRange,
   });
 
   final Diagnostic diagnostic;
@@ -5676,6 +5702,8 @@ class StyioBinaryOperatorTypeIssue {
   final String leftTypeName;
   final String rightTypeName;
   final SourceRange operatorRange;
+  final SourceRange leftOperandRange;
+  final SourceRange rightOperandRange;
 }
 
 class StyioFunctionReturnTypeIssue {

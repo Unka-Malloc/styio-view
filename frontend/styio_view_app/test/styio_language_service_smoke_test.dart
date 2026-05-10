@@ -155,6 +155,25 @@ value = blend(price, tax)
     expect(info?.activeParameter?.name, 'right');
   });
 
+  test('returns symbol-aware hover documentation for current-file symbols', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'symbol-hover.styio',
+      text: 'value = value\nvalue -> @stdout\n',
+      revision: 0,
+    );
+
+    final hover = service.hoverAt(
+      document,
+      document.text.indexOf('= value') + 3,
+    );
+
+    expect(hover?.markdown, contains('Styio variable `value`'));
+    expect(hover?.markdown, contains('Styio value binding'));
+    expect(hover?.markdown, contains('Declared at 1:1'));
+    expect(hover?.markdown, contains('3 current-file usages'));
+  });
+
   test('returns parameter name inlay hints for current-file calls', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

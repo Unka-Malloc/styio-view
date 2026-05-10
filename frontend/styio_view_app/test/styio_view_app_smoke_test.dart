@@ -1805,7 +1805,8 @@ value = blend(price, price)
       findsOneWidget,
     );
     expect(find.text('Quick Documentation: value'), findsOneWidget);
-    expect(find.text('Identifier `value`.'), findsOneWidget);
+    expect(find.textContaining('Styio variable `value`'), findsOneWidget);
+    expect(find.textContaining('Declared at 1:1'), findsOneWidget);
     expect(find.text('3 current-file usages'), findsOneWidget);
 
     final sourceScrollable = find.descendant(

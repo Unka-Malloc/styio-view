@@ -250,6 +250,10 @@ class SimpleStyioLanguageService implements StyioLanguageService {
               'Resource identifier `${token.lexeme}`. Prefix it with `@` when using it as a Styio resource.',
         );
       }
+      final symbolHover = _symbolHoverPayload(document, offset, token);
+      if (symbolHover != null) {
+        return symbolHover;
+      }
       return HoverPayload(
         range: token.range,
         markdown: 'Identifier `${token.lexeme}`.',
@@ -257,6 +261,33 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     }
 
     return null;
+  }
+
+  HoverPayload? _symbolHoverPayload(
+    DocumentState document,
+    int offset,
+    TokenSpan token,
+  ) {
+    final definition = _symbolIndex.definitionAt(document.text, offset);
+    if (definition == null) {
+      return null;
+    }
+
+    final symbol = definition.symbol;
+    final references = _symbolIndex.referencesAt(document.text, offset);
+    final position = document.positionForOffset(symbol.nameRange.start);
+    final usageLabel =
+        '${references.length} current-file usage'
+        '${references.length == 1 ? '' : 's'}';
+    final detail = symbol.detail.isEmpty ? '' : ' ${symbol.detail}.';
+
+    return HoverPayload(
+      range: token.range,
+      markdown:
+          'Styio ${symbol.kind.name} `${symbol.name}`.$detail '
+          'Declared at ${position.line + 1}:${position.column + 1}. '
+          '$usageLabel.',
+    );
   }
 
   @override

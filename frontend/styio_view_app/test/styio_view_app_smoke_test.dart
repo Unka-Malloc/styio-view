@@ -3039,7 +3039,7 @@ value -> @stdout
         '  result = left + right\n'
         '}\n'
         'value = blend(price, tax)\n'
-        'again = blend(total, fee)\n';
+        'again = blend(right: fee, left: total)\n';
     bootstrap.editorController.loadDocument(
       const DocumentState(
         documentId: 'change-signature.styio',
@@ -3101,7 +3101,7 @@ value -> @stdout
       '  result = left + right\n'
       '}\n'
       'value = combine(tax, price)\n'
-      'again = combine(fee, total)\n',
+      'again = combine(right: fee, left: total)\n',
     );
     expect(
       find.byKey(const ValueKey('source-change-signature-panel')),

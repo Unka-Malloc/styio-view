@@ -340,6 +340,50 @@ again = blend(total, fee)
     },
   );
 
+  test('keeps named call arguments stable during parameter reorder', () {
+    String applyEdits(String text, Iterable<FormattingEdit> edits) {
+      var nextText = text;
+      final ordered = edits.toList(growable: false)
+        ..sort((left, right) => right.range.start.compareTo(left.range.start));
+      for (final edit in ordered) {
+        nextText = nextText.replaceRange(
+          edit.range.start,
+          edit.range.end,
+          edit.newText,
+        );
+      }
+      return nextText;
+    }
+
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64) {
+  result = left + right
+}
+value = blend(right: tax, left: price)
+again = blend(total, fee)
+''';
+
+    final plan = index.changeSignature(
+      source,
+      source.indexOf('blend'),
+      newName: 'combine',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+      ],
+    );
+
+    expect(plan?.hasConflicts, isFalse);
+    expect(applyEdits(source, plan!.edits), '''
+fn combine(right: f64, left: f64) {
+  result = left + right
+}
+value = combine(right: tax, left: price)
+again = combine(fee, total)
+''');
+  });
+
   test(
     'builds change signature edits for parameter rename in function body',
     () {
@@ -368,6 +412,48 @@ fn blend(left: f64, right: f64) {
       expect(plan?.edits.map((edit) => edit.newText), contains('lhs'));
     },
   );
+
+  test('renames named call argument labels during parameter rename', () {
+    String applyEdits(String text, Iterable<FormattingEdit> edits) {
+      var nextText = text;
+      final ordered = edits.toList(growable: false)
+        ..sort((left, right) => right.range.start.compareTo(left.range.start));
+      for (final edit in ordered) {
+        nextText = nextText.replaceRange(
+          edit.range.start,
+          edit.range.end,
+          edit.newText,
+        );
+      }
+      return nextText;
+    }
+
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64) {
+  result = left + right
+}
+value = blend(left: price, right: tax)
+''';
+
+    final plan = index.changeSignature(
+      source,
+      source.indexOf('blend'),
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'lhs'),
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+      ],
+    );
+
+    expect(plan?.hasConflicts, isFalse);
+    expect(applyEdits(source, plan!.edits), '''
+fn blend(lhs: f64, right: f64) {
+  result = lhs + right
+}
+value = blend(lhs: price, right: tax)
+''');
+  });
 
   test('reports change signature conflicts for call arity mismatch', () {
     const index = StyioSymbolIndex();

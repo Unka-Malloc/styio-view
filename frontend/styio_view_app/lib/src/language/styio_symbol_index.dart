@@ -1381,7 +1381,7 @@ class StyioSymbolIndex {
         _ArgumentSegment(
           range: range,
           text: source.substring(range.start, range.end),
-          name: _namedArgumentNameForRange(tokens, range),
+          nameToken: _namedArgumentTokenForRange(tokens, range),
         ),
       );
     }
@@ -1453,7 +1453,7 @@ class StyioSymbolIndex {
     return null;
   }
 
-  String? _namedArgumentNameForRange(
+  TokenSpan? _namedArgumentTokenForRange(
     List<TokenSpan> tokens,
     SourceRange range,
   ) {
@@ -1479,7 +1479,7 @@ class StyioSymbolIndex {
         tokens[separatorIndex].lexeme != ':') {
       return null;
     }
-    return tokens[firstIndex].lexeme;
+    return tokens[firstIndex];
   }
 
   int _activeParameterIndex({
@@ -2625,6 +2625,36 @@ class StyioSymbolIndex {
       }
     }
 
+    for (final parameter in parameters) {
+      if (parameter.name == parameter.originalName) {
+        continue;
+      }
+      for (final reference in references.where((item) => !item.isDeclaration)) {
+        final referenceIndex = _tokenIndexForRange(tokens, reference.range);
+        final call = referenceIndex == null
+            ? null
+            : _callArgumentListAfter(tokens, referenceIndex);
+        if (call == null) {
+          continue;
+        }
+        final arguments = _parseCallArguments(
+          source: source,
+          tokens: tokens,
+          openingIndex: call.openingIndex,
+          closingIndex: call.closingIndex,
+        );
+        for (final argument in arguments) {
+          if (argument.name != parameter.originalName ||
+              argument.nameRange == null) {
+            continue;
+          }
+          edits.add(
+            FormattingEdit(range: argument.nameRange!, newText: parameter.name),
+          );
+        }
+      }
+    }
+
     if (shouldRewriteArguments) {
       for (final reference in references.where((item) => !item.isDeclaration)) {
         final referenceIndex = _tokenIndexForRange(tokens, reference.range);
@@ -2643,12 +2673,11 @@ class StyioSymbolIndex {
         if (arguments.length != originalNames.length) {
           continue;
         }
-        final nextArgumentText = parameters
-            .map(
-              (parameter) =>
-                  arguments[originalNames.indexOf(parameter.originalName)].text,
-            )
-            .join(', ');
+        final nextArgumentText = _changeSignatureCallArgumentText(
+          originalNames: originalNames,
+          parameters: parameters,
+          arguments: arguments,
+        );
         final argumentListRange = SourceRange(
           start: tokens[call.openingIndex].range.end,
           end: tokens[call.closingIndex].range.start,
@@ -2663,6 +2692,48 @@ class StyioSymbolIndex {
     }
 
     return edits;
+  }
+
+  String _changeSignatureCallArgumentText({
+    required List<String> originalNames,
+    required List<ChangeSignatureParameterUpdate> parameters,
+    required List<_ArgumentSegment> arguments,
+  }) {
+    if (!arguments.any((argument) => argument.name != null)) {
+      return parameters
+          .map(
+            (parameter) =>
+                arguments[originalNames.indexOf(parameter.originalName)].text,
+          )
+          .join(', ');
+    }
+
+    final argumentsByParameterName = <String, String>{};
+    final originalNameSet = originalNames.toSet();
+    var positionalIndex = 0;
+    for (final argument in arguments) {
+      final name = argument.name;
+      if (name != null && originalNameSet.contains(name)) {
+        argumentsByParameterName[name] = argument.text;
+        continue;
+      }
+      while (positionalIndex < originalNames.length &&
+          argumentsByParameterName.containsKey(
+            originalNames[positionalIndex],
+          )) {
+        positionalIndex += 1;
+      }
+      if (positionalIndex < originalNames.length) {
+        argumentsByParameterName[originalNames[positionalIndex]] =
+            argument.text;
+        positionalIndex += 1;
+      }
+    }
+    return [
+      for (final parameter in parameters)
+        if (argumentsByParameterName.containsKey(parameter.originalName))
+          argumentsByParameterName[parameter.originalName]!,
+    ].join(', ');
   }
 
   ExtractFunctionConflict? _braceConflictForSelection(List<TokenSpan> tokens) {
@@ -3041,11 +3112,19 @@ class _CallArgumentList {
 }
 
 class _ArgumentSegment {
-  const _ArgumentSegment({required this.range, required this.text, this.name});
+  const _ArgumentSegment({
+    required this.range,
+    required this.text,
+    this.nameToken,
+  });
 
   final SourceRange range;
   final String text;
-  final String? name;
+  final TokenSpan? nameToken;
+
+  String? get name => nameToken?.lexeme;
+
+  SourceRange? get nameRange => nameToken?.range;
 }
 
 class _InlineVariableInitializer {

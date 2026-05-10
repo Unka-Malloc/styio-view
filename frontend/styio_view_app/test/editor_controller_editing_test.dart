@@ -1419,6 +1419,37 @@ when limit < price -> state expensive
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies invert-comparison context intention', () {
+    const text = '''
+price = 12.5
+limit = 10.0
+when price > limit -> state expensive
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'invert-comparison.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(
+        text.indexOf('price > limit') + 2,
+      ),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Invert comparison',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+price = 12.5
+limit = 10.0
+when price <= limit -> state expensive
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies demorgans-law context intention', () {
     const text = '''
 ready = true

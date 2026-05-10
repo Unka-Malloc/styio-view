@@ -483,6 +483,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       intentions.add(negatedComparisonFix);
     }
 
+    final invertComparisonFix = _invertComparisonAt(document, offset);
+    if (invertComparisonFix != null) {
+      intentions.add(invertComparisonFix);
+    }
+
     final redundantParenthesesFix = _removeRedundantParenthesesAt(
       document,
       offset,
@@ -2343,6 +2348,10 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       final rightText = source
           .substring(rightRange.start, rightRange.end)
           .trim();
+      if (!_isBalancedInlineExpression(leftText) ||
+          !_isBalancedInlineExpression(rightText)) {
+        continue;
+      }
       final leftLiteral = _boolLiteralValue(leftText);
       final rightLiteral = _boolLiteralValue(rightText);
       final hasOneBoolLiteral =
@@ -2435,6 +2444,10 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       final rightText = source
           .substring(rightRange.start, rightRange.end)
           .trim();
+      if (!_isBalancedInlineExpression(leftText) ||
+          !_isBalancedInlineExpression(rightText)) {
+        continue;
+      }
       final replacement = _simplifiedBooleanBinaryExpressionText(
         leftText: leftText,
         operatorLexeme: operatorToken.lexeme,
@@ -2530,6 +2543,29 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       }
     }
     return null;
+  }
+
+  bool _isBalancedInlineExpression(String text) {
+    final tokens = _syntaxHighlighter.tokenize(text);
+    final stack = <String>[];
+    for (final token in tokens) {
+      if (token.kind == TokenKind.string || token.kind == TokenKind.comment) {
+        continue;
+      }
+      switch (token.lexeme) {
+        case '(':
+          stack.add(')');
+        case '[':
+          stack.add(']');
+        case '{':
+          stack.add('}');
+        case ')' || ']' || '}':
+          if (stack.isEmpty || stack.removeLast() != token.lexeme) {
+            return false;
+          }
+      }
+    }
+    return stack.isEmpty;
   }
 
   DiagnosticQuickFix? _simplifyNegatedComparisonAt(
@@ -2654,6 +2690,61 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       '==': '!=',
       '!=': '==',
     }[lexeme];
+  }
+
+  DiagnosticQuickFix? _invertComparisonAt(DocumentState document, int offset) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final operatorToken = tokens[index];
+      final invertedOperator = _negatedComparisonOperator(operatorToken.lexeme);
+      if (invertedOperator == null) {
+        continue;
+      }
+      final leftRange = _comparisonLeftOperandRange(
+        source: source,
+        tokens: tokens,
+        operatorIndex: index,
+      );
+      final rightRange = _comparisonRightOperandRange(
+        source: source,
+        tokens: tokens,
+        operatorIndex: index,
+      );
+      if (leftRange == null ||
+          rightRange == null ||
+          leftRange.isCollapsed ||
+          rightRange.isCollapsed) {
+        continue;
+      }
+      final expressionRange = SourceRange(
+        start: leftRange.start,
+        end: rightRange.end,
+      );
+      if (offset < expressionRange.start || offset > expressionRange.end) {
+        continue;
+      }
+
+      final leftText = source.substring(leftRange.start, leftRange.end).trim();
+      final rightText = source
+          .substring(rightRange.start, rightRange.end)
+          .trim();
+      if (!_isBalancedInlineExpression(leftText) ||
+          !_isBalancedInlineExpression(rightText)) {
+        continue;
+      }
+      return DiagnosticQuickFix(
+        label: 'Invert comparison',
+        detail: 'Replace the comparison operator with its logical opposite.',
+        edits: [
+          FormattingEdit(
+            range: expressionRange,
+            newText: '$leftText $invertedOperator $rightText',
+          ),
+        ],
+      );
+    }
+    return null;
   }
 
   DiagnosticQuickFix? _removeRedundantParenthesesAt(
@@ -2964,6 +3055,10 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       final rightText = source
           .substring(rightRange.start, rightRange.end)
           .trim();
+      if (!_isBalancedInlineExpression(leftText) ||
+          !_isBalancedInlineExpression(rightText)) {
+        continue;
+      }
       return DiagnosticQuickFix(
         label: 'Flip comparison operands',
         detail: 'Swap comparison operands and preserve the expression meaning.',

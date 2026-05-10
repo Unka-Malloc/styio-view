@@ -546,6 +546,94 @@ when limit <= price + tax -> state taxed
 ''');
   });
 
+  test('offers invert-comparison as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'invert-comparison.styio',
+      text: '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+ready = true
+blocked = false
+when price > limit -> state expensive
+when ready == blocked -> state same
+when price + tax <= limit -> state affordable
+when !(price > limit) -> state guarded
+''',
+      revision: 0,
+    );
+
+    final greaterAction = service
+        .intentionsAt(document, document.text.indexOf('price > limit') + 2)
+        .singleWhere((item) => item.label == 'Invert comparison');
+    final equalityAction = service
+        .intentionsAt(document, document.text.indexOf('ready == blocked') + 2)
+        .singleWhere((item) => item.label == 'Invert comparison');
+    final lessOrEqualAction = service
+        .intentionsAt(document, document.text.indexOf('price + tax') + 8)
+        .singleWhere((item) => item.label == 'Invert comparison');
+
+    expect(greaterAction.detail, contains('logical opposite'));
+    expect(applyEdits(document.text, greaterAction.edits), '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+ready = true
+blocked = false
+when price <= limit -> state expensive
+when ready == blocked -> state same
+when price + tax <= limit -> state affordable
+when !(price > limit) -> state guarded
+''');
+    expect(applyEdits(document.text, equalityAction.edits), '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+ready = true
+blocked = false
+when price > limit -> state expensive
+when ready != blocked -> state same
+when price + tax <= limit -> state affordable
+when !(price > limit) -> state guarded
+''');
+    expect(applyEdits(document.text, lessOrEqualAction.edits), '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+ready = true
+blocked = false
+when price > limit -> state expensive
+when ready == blocked -> state same
+when price + tax > limit -> state affordable
+when !(price > limit) -> state guarded
+''');
+    final guardedIntentions = service.intentionsAt(
+      document,
+      document.text.lastIndexOf('price > limit') + 2,
+    );
+    expect(
+      guardedIntentions,
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Invert comparison',
+          ),
+        ),
+      ),
+    );
+    expect(
+      guardedIntentions,
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Flip comparison operands',
+          ),
+        ),
+      ),
+    );
+  });
+
   test('offers apply-demorgans-law as a context intention', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

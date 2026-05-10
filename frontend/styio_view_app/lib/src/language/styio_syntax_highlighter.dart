@@ -105,16 +105,20 @@ class StyioSyntaxHighlighter {
         '`@` starts import declarations, resources, standard streams, and '
         'resource topology declarations.',
     '#': '`#` starts Styio function declarations and closure signatures.',
+    r'$': r'`$` is a reserved Styio marker operator for syntax surfaces.',
     ':=': '`:=` binds declarations in current Styio syntax.',
     '?=': '`?=` starts match-cases over the left expression.',
     '?|': '`?|` awaits a task result or marks a reserved continuation freeze.',
     '||>': '`||>` launches a task block or task group.',
     '<|': '`<|` returns from a block or applies a one-shot continuation.',
     '|<|': '`|<|` is the inline return form for compact blocks.',
+    '|;': '`|;` separates compact pipeline stages by context.',
     '->': '`->` writes to a resource sink or redirects a produced value.',
     '<-': '`<-` receives from a resource entry or awaits a task binding.',
     '>>': '`>>` iterates, pipes, or writes iterable values to a sink.',
     '<<': '`<<` copies resources and remains a compatibility pull spelling.',
+    '=>': '`=>` separates a Styio function or closure signature from its body.',
+    '|>': '`|>` pipes an expression result into the next stage by context.',
     '..': '`..` is a range, selector, or type-repetition separator by context.',
     '...': '`...` is a dot-run separator equivalent to `..` by context.',
     '[>_]': '`[>_]` is the canonical terminal-handle spelling.',
@@ -122,6 +126,29 @@ class StyioSyntaxHighlighter {
     '<~': '`<~` is reserved and should fail closed until implemented.',
     '~>': '`~>` is reserved and should fail closed until implemented.',
     '??': '`??` is reserved for diagnostic/fallback surfaces.',
+    '>=': '`>=` is a comparison operator in Styio expressions.',
+    '<=': '`<=` is a comparison operator in Styio expressions.',
+    '==': '`==` is an equality comparison operator in Styio expressions.',
+    '!=': '`!=` is an inequality comparison operator in Styio expressions.',
+    '&&': '`&&` is a logical-and operator in Styio expressions.',
+    '||': '`||` is a logical-or operator in Styio expressions.',
+    '**': '`**` is the exponent-style arithmetic operator.',
+    '+=': '`+=` is a compound assignment operator.',
+    '-=': '`-=` is a compound assignment operator.',
+    '*=': '`*=` is a compound assignment operator.',
+    '/=': '`/=` is a compound assignment operator.',
+    '%=': '`%=` is a compound assignment operator.',
+    '!': '`!` negates a boolean expression by context.',
+    '^': '`^` is a caret operator in Styio expressions.',
+    '+': '`+` is an arithmetic addition or unary-plus operator.',
+    '-': '`-` is an arithmetic subtraction or unary-minus operator.',
+    '*': '`*` is an arithmetic multiplication operator.',
+    '/': '`/` is an arithmetic division operator.',
+    '%': '`%` is an arithmetic remainder operator.',
+    '<': '`<` is a comparison operator in Styio expressions.',
+    '>': '`>` is a comparison operator in Styio expressions.',
+    '|': '`|` separates type dimensions and pipeline fragments by context.',
+    '=': '`=` binds or assigns values in compatibility editor syntax.',
   };
 
   List<TokenSpan> tokenize(String source) {
@@ -665,9 +692,28 @@ class StyioSyntaxHighlighter {
     return null;
   }
 
-  bool isOperatorLexeme(String lexeme) => operatorLexemes.contains(lexeme);
+  bool isOperatorLexeme(String lexeme) =>
+      operatorLexemes.contains(lexeme) || _isRepeatedOperatorLexeme(lexeme);
 
-  String? hoverForOperator(String lexeme) => operatorHover[lexeme];
+  String? hoverForOperator(String lexeme) {
+    final exactHover = operatorHover[lexeme];
+    if (exactHover != null) {
+      return exactHover;
+    }
+    if (_isRepeatedLexeme(lexeme, '.')) {
+      return '`$lexeme` is tokenized as a dot-run separator; `..` is the '
+          'canonical range, selector, or type-repetition spelling.';
+    }
+    if (_isRepeatedLexeme(lexeme, '>')) {
+      return '`$lexeme` is tokenized as a write/pipe run; `>>` is the '
+          'canonical iterable write or sink spelling.';
+    }
+    if (_isRepeatedLexeme(lexeme, '^')) {
+      return '`$lexeme` is tokenized as a caret-run operator for tolerant '
+          'Styio expression preview.';
+    }
+    return null;
+  }
 
   bool isKeyword(String lexeme) => keywords.contains(lexeme);
 
@@ -807,6 +853,14 @@ class StyioSyntaxHighlighter {
       cursor = tokens.indexOf(next) + 1;
     }
   }
+
+  bool _isRepeatedOperatorLexeme(String lexeme) =>
+      _isRepeatedLexeme(lexeme, '.') ||
+      _isRepeatedLexeme(lexeme, '>') ||
+      _isRepeatedLexeme(lexeme, '^');
+
+  static bool _isRepeatedLexeme(String lexeme, String char) =>
+      lexeme.length > 1 && lexeme.split('').every((part) => part == char);
 
   String? _matchOperator(String source, int index) {
     if (source[index] == '.') {

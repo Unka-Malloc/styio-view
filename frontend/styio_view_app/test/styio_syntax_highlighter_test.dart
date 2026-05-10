@@ -246,8 +246,24 @@ job = ||> { <| 42 }
   test('exposes operator hover copy for language service reuse', () {
     const highlighter = StyioSyntaxHighlighter();
 
+    for (final lexeme in StyioSyntaxHighlighter.operatorLexemes) {
+      expect(
+        highlighter.hoverForOperator(lexeme),
+        isNot(isNull),
+        reason: 'Operator $lexeme should have hover copy.',
+      );
+    }
     expect(highlighter.hoverForOperator('||>'), contains('task'));
+    expect(highlighter.hoverForOperator('=>'), contains('function'));
+    expect(highlighter.hoverForOperator('|;'), contains('pipeline'));
+    expect(highlighter.hoverForOperator('=='), contains('comparison'));
+    expect(highlighter.hoverForOperator('+='), contains('assignment'));
+    expect(highlighter.hoverForOperator('...'), contains('dot-run'));
+    expect(highlighter.hoverForOperator('>>>'), contains('>>'));
+    expect(highlighter.hoverForOperator('^^'), contains('caret-run'));
     expect(highlighter.isOperatorLexeme('?|'), isTrue);
+    expect(highlighter.isOperatorLexeme('>>>'), isTrue);
+    expect(highlighter.isOperatorLexeme('^^'), isTrue);
     expect(highlighter.isTypeName('i64'), isTrue);
     expect(highlighter.isStandardResource('stdout'), isTrue);
   });

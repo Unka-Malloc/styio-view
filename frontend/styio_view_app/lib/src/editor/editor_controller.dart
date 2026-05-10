@@ -161,6 +161,34 @@ class EditorSessionController extends ChangeNotifier {
     return fixes;
   }
 
+  List<DiagnosticQuickFix> get contextActionsAtSelection {
+    final actions = <DiagnosticQuickFix>[];
+    final seenSignatures = <String>{};
+
+    void addAction(DiagnosticQuickFix action) {
+      final signature = [
+        action.label,
+        for (final edit in action.edits)
+          '${edit.range.start}:${edit.range.end}:${edit.newText}',
+      ].join('|');
+      if (seenSignatures.add(signature)) {
+        actions.add(action);
+      }
+    }
+
+    for (final fix in quickFixesForDiagnostics(diagnosticsAtSelection)) {
+      addAction(fix);
+    }
+    for (final intention in _languageService.intentionsAt(
+      _document,
+      _selection.extentOffset,
+    )) {
+      addAction(intention);
+    }
+
+    return actions;
+  }
+
   bool get canUndo => _undoStack.isNotEmpty;
   bool get canRedo => _redoStack.isNotEmpty;
   bool get shouldIndentLineAtSelection =>
@@ -783,7 +811,7 @@ class EditorSessionController extends ChangeNotifier {
   }
 
   bool applyFirstQuickFixAtSelection() {
-    final fixes = quickFixesForDiagnostics(diagnosticsAtSelection);
+    final fixes = contextActionsAtSelection;
     if (fixes.isEmpty) {
       return false;
     }

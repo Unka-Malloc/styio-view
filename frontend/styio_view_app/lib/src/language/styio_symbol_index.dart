@@ -684,6 +684,87 @@ class StyioSymbolIndex {
     ];
   }
 
+  AddArgumentNamesPlan? addArgumentNamesAt(String source, int offset) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    if (signaturesByName.isEmpty) {
+      return null;
+    }
+
+    final call = _callArgumentListAt(tokens, offset);
+    if (call == null) {
+      return null;
+    }
+    if (offset < call.callable.range.start ||
+        offset > tokens[call.closingIndex].range.end) {
+      return null;
+    }
+
+    final signature = _signatureForCall(signaturesByName, call.callable);
+    if (signature == null || signature.parameters.isEmpty) {
+      return null;
+    }
+
+    final arguments = _parseCallArguments(
+      source: source,
+      tokens: tokens,
+      openingIndex: call.openingIndex,
+      closingIndex: call.closingIndex,
+    );
+    if (arguments.isEmpty ||
+        arguments.every((argument) => argument.name != null)) {
+      return null;
+    }
+
+    final parameterNames = signature.parameters
+        .map((parameter) => parameter.name)
+        .toSet();
+    final providedNames = <String>{};
+    final edits = <FormattingEdit>[];
+    var positionalIndex = 0;
+
+    for (final argument in arguments) {
+      final name = argument.name;
+      if (name != null) {
+        if (!parameterNames.contains(name)) {
+          return null;
+        }
+        providedNames.add(name);
+        continue;
+      }
+
+      while (positionalIndex < signature.parameters.length &&
+          providedNames.contains(signature.parameters[positionalIndex].name)) {
+        positionalIndex += 1;
+      }
+      if (positionalIndex >= signature.parameters.length) {
+        return null;
+      }
+
+      final parameter = signature.parameters[positionalIndex];
+      providedNames.add(parameter.name);
+      positionalIndex += 1;
+      edits.add(
+        FormattingEdit(
+          range: argument.range,
+          newText: '${parameter.name}: ${argument.text}',
+        ),
+      );
+    }
+
+    if (edits.isEmpty) {
+      return null;
+    }
+    return AddArgumentNamesPlan(
+      callableName: signature.name,
+      invocationRange: SourceRange(
+        start: call.callable.range.start,
+        end: tokens[call.closingIndex].range.end,
+      ),
+      edits: edits,
+    );
+  }
+
   List<InlayHint> inlayHints(String source) {
     return <InlayHint>[...parameterNameHints(source), ...typeNameHints(source)]
       ..sort((left, right) {
@@ -3392,6 +3473,18 @@ class StyioUnusedParameterIssue {
   final Diagnostic diagnostic;
   final String functionName;
   final String parameterName;
+  final List<FormattingEdit> edits;
+}
+
+class AddArgumentNamesPlan {
+  const AddArgumentNamesPlan({
+    required this.callableName,
+    required this.invocationRange,
+    required this.edits,
+  });
+
+  final String callableName;
+  final SourceRange invocationRange;
   final List<FormattingEdit> edits;
 }
 

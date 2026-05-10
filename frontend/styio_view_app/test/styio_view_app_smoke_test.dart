@@ -2539,6 +2539,68 @@ value -> @stdout
     expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsNothing);
   });
 
+  testWidgets('opens add-argument-names intention from editor keymap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+blend(price, tax) -> @stdout
+''';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'argument-name-intention.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.lastIndexOf('price, tax'));
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsOneWidget,
+    );
+    expect(find.text('Add argument names'), findsOneWidget);
+    expect(find.text('Preview 2 edits'), findsOneWidget);
+    expect(bootstrap.editorController.document.text, text);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text, '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+blend(left: price, right: tax) -> @stdout
+''');
+    expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsNothing);
+  });
+
   testWidgets('applies unused parameter quick fix from editor keymap', (
     tester,
   ) async {

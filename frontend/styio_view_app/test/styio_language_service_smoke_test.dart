@@ -889,6 +889,37 @@ again = blend(left: price, ri)
     expect(rightNamedArgumentLabels, ['right:']);
   });
 
+  test('offers add-argument-names as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'add-argument-names.styio',
+      text: '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+value = blend(price, tax)
+''',
+      revision: 0,
+    );
+
+    final action = service
+        .intentionsAt(document, document.text.lastIndexOf('price, tax') + 1)
+        .single;
+
+    expect(action.label, 'Add argument names');
+    expect(action.detail, contains('blend'));
+    expect(applyEdits(document.text, action.edits), '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+value = blend(left: price, right: tax)
+''');
+  });
+
   test('offers postfix completions that replace the target expression', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

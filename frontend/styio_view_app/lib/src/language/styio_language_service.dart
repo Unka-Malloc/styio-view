@@ -48,6 +48,8 @@ abstract class StyioLanguageService {
 
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset);
 
+  List<DiagnosticQuickFix> intentionsAt(DocumentState document, int offset);
+
   List<DiagnosticQuickFix> quickFixesForDiagnostic(
     DocumentState document,
     Diagnostic diagnostic,

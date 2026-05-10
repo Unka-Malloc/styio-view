@@ -362,6 +362,24 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   @override
+  List<DiagnosticQuickFix> intentionsAt(DocumentState document, int offset) {
+    final addNamesPlan = _symbolIndex.addArgumentNamesAt(document.text, offset);
+    if (addNamesPlan == null || addNamesPlan.edits.isEmpty) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    return [
+      DiagnosticQuickFix(
+        label: 'Add argument names',
+        detail:
+            'Name positional arguments in `${addNamesPlan.callableName}` using '
+            'the current signature.',
+        edits: addNamesPlan.edits,
+      ),
+    ];
+  }
+
+  @override
   List<DiagnosticQuickFix> quickFixesForDiagnostic(
     DocumentState document,
     Diagnostic diagnostic,

@@ -610,6 +610,56 @@ empty = blend(price, )
     );
   });
 
+  test('builds add-argument-names edits for current function calls', () {
+    String applyEdits(String text, Iterable<FormattingEdit> edits) {
+      var nextText = text;
+      final ordered = edits.toList(growable: false)
+        ..sort((left, right) => right.range.start.compareTo(left.range.start));
+      for (final edit in ordered) {
+        nextText = nextText.replaceRange(
+          edit.range.start,
+          edit.range.end,
+          edit.newText,
+        );
+      }
+      return nextText;
+    }
+
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(price, right: tax, factor)
+already = blend(left: price, right: tax, scale: factor)
+''';
+
+    final plan = index.addArgumentNamesAt(
+      source,
+      source.indexOf('blend(price') + 'blend(price'.length,
+    );
+
+    expect(plan?.callableName, 'blend');
+    expect(plan?.edits.length, 2);
+    expect(applyEdits(source, plan!.edits), '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(left: price, right: tax, scale: factor)
+already = blend(left: price, right: tax, scale: factor)
+''');
+    expect(
+      index.addArgumentNamesAt(source, source.indexOf('already = blend(left:')),
+      isNull,
+    );
+  });
+
   test('resolves KDoc-style block comments for parameter info', () {
     const index = StyioSymbolIndex();
     const source = '''

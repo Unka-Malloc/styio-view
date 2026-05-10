@@ -1863,9 +1863,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   }
 
   List<DiagnosticQuickFix> _quickFixLookupItems() {
-    return widget.controller.quickFixesForDiagnostics(
-      widget.controller.diagnosticsAtSelection,
-    );
+    return widget.controller.contextActionsAtSelection;
   }
 
   bool _openQuickFixLookup() {
@@ -2170,6 +2168,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     final theme = Theme.of(context);
     final quickFixes = _quickFixLookupItems();
     final diagnostics = widget.controller.diagnosticsAtSelection;
+    final actionCount = quickFixes.length;
     final selectedIndex = quickFixes.isEmpty
         ? -1
         : _quickFixLookupIndex.clamp(0, quickFixes.length - 1).toInt();
@@ -2216,7 +2215,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
             const SizedBox(height: 8),
             Text(
               '${diagnostics.length} diagnostic'
-              '${diagnostics.length == 1 ? '' : 's'} at caret',
+              '${diagnostics.length == 1 ? '' : 's'} at caret, '
+              '$actionCount context action'
+              '${actionCount == 1 ? '' : 's'}',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 8),

@@ -1641,7 +1641,7 @@ void main() {
 fn blend(left: f64, right: f64 = 0.0) {
   emit left
 }
-value = blend(price, tax)
+value = blend(right: tax, left: price)
 ''';
     bootstrap.editorController.loadDocument(
       const DocumentState(

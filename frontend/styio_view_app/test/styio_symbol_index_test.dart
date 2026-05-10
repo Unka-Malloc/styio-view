@@ -443,6 +443,34 @@ value = blend(price)
     expect(issues, isEmpty);
   });
 
+  test('maps named call arguments to signature parameters', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+value = blend(right: tax, left: price)
+''';
+
+    final rightInfo = index.parameterInfoAt(
+      source,
+      source.lastIndexOf('tax') + 1,
+    );
+    final leftInfo = index.parameterInfoAt(
+      source,
+      source.lastIndexOf('price)') + 1,
+    );
+
+    expect(rightInfo?.activeParameterIndex, 1);
+    expect(rightInfo?.activeParameter?.name, 'right');
+    expect(leftInfo?.activeParameterIndex, 0);
+    expect(leftInfo?.activeParameter?.name, 'left');
+    expect(index.parameterNameHints(source), isEmpty);
+    expect(index.callArgumentIssues(source), isEmpty);
+  });
+
   test('resolves KDoc-style block comments for parameter info', () {
     const index = StyioSymbolIndex();
     const source = '''

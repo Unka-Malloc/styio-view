@@ -191,6 +191,44 @@ value = blend(price)
     expect(info?.parameters.last.displayText, 'right: f64 = 0.0');
   });
 
+  test('maps named call arguments for parameter info and quick fixes', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'named-arguments.styio',
+      text: '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+value = blend(right: tax, left: price)
+missing = blend(right: tax)
+''',
+      revision: 0,
+    );
+
+    final info = service.parameterInfoAt(
+      document,
+      document.text.indexOf('right: tax') + 'right: tax'.length,
+    );
+    final analysis = service.analyzeDocument(document);
+    final missing = analysis.diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'missing-call-argument',
+    );
+    final quickFix = service.quickFixesForDiagnostic(document, missing).single;
+
+    expect(info?.activeParameterIndex, 1);
+    expect(info?.activeParameter?.name, 'right');
+    expect(
+      service
+          .inlayHints(document)
+          .where((hint) => hint.kind == InlayHintKind.parameter),
+      isEmpty,
+    );
+    expect(missing.message, contains('left'));
+    expect(quickFix.edits.single.newText, 'right: tax, left: value');
+  });
+
   test('attaches block documentation comments to function assistance', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

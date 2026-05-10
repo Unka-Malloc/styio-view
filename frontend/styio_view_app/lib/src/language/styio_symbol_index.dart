@@ -579,12 +579,27 @@ class StyioSymbolIndex {
       (candidate) => candidate.nameRange.start <= call.callable.range.start,
       orElse: () => candidates.first,
     );
+    final arguments = _parseCallArguments(
+      source: source,
+      tokens: tokens,
+      openingIndex: call.openingIndex,
+      closingIndex: call.closingIndex,
+    );
     var activeParameterIndex = _activeParameterIndex(
       tokens: tokens,
       openingIndex: call.openingIndex,
       closingIndex: call.closingIndex,
       offset: offset,
     );
+    final activeArgument = _argumentAtOffset(arguments, offset);
+    if (activeArgument?.name != null) {
+      final namedIndex = signature.parameters.indexWhere(
+        (parameter) => parameter.name == activeArgument!.name,
+      );
+      if (namedIndex >= 0) {
+        activeParameterIndex = namedIndex;
+      }
+    }
     if (signature.parameters.isEmpty) {
       activeParameterIndex = -1;
     } else {
@@ -811,6 +826,10 @@ class StyioSymbolIndex {
                 !_parameterHasDefaultValue(tokens, signature, parameter.name),
           )
           .toList(growable: false);
+      final providedParameterNames = _providedCallParameterNames(
+        signature,
+        arguments,
+      );
       final argumentListRange = SourceRange(
         start: tokens[call.openingIndex].range.end,
         end: tokens[call.closingIndex].range.start,
@@ -820,10 +839,16 @@ class StyioSymbolIndex {
         end: tokens[call.closingIndex].range.end,
       );
 
-      if (arguments.length < requiredParameters.length) {
-        final missingParameters = requiredParameters
-            .skip(arguments.length)
-            .toList(growable: false);
+      final missingParameters = requiredParameters
+          .where(
+            (parameter) => !providedParameterNames.contains(parameter.name),
+          )
+          .toList(growable: false);
+
+      if (missingParameters.isNotEmpty) {
+        final usesNamedArguments = arguments.any(
+          (argument) => argument.name != null,
+        );
         issues.add(
           StyioCallArgumentIssue(
             diagnostic: Diagnostic(
@@ -842,12 +867,8 @@ class StyioSymbolIndex {
             argumentListRange: argumentListRange,
             replacementArgumentText: [
               ...arguments.map((argument) => argument.text),
-              for (
-                var index = arguments.length;
-                index < requiredParameters.length;
-                index += 1
-              )
-                'value',
+              for (final parameter in missingParameters)
+                usesNamedArguments ? '${parameter.name}: value' : 'value',
             ].join(', '),
             missingParameterNames: missingParameters
                 .map((parameter) => parameter.name)
@@ -1360,6 +1381,7 @@ class StyioSymbolIndex {
         _ArgumentSegment(
           range: range,
           text: source.substring(range.start, range.end),
+          name: _namedArgumentNameForRange(tokens, range),
         ),
       );
     }
@@ -1388,7 +1410,76 @@ class StyioSymbolIndex {
     ParameterInfoParameter parameter,
     _ArgumentSegment argument,
   ) {
-    return argument.text == parameter.name;
+    return argument.name != null || argument.text == parameter.name;
+  }
+
+  Set<String> _providedCallParameterNames(
+    _FunctionSignature signature,
+    List<_ArgumentSegment> arguments,
+  ) {
+    final providedNames = <String>{};
+    final parameterNames = signature.parameters
+        .map((parameter) => parameter.name)
+        .toSet();
+    var positionalIndex = 0;
+
+    for (final argument in arguments) {
+      final name = argument.name;
+      if (name != null && parameterNames.contains(name)) {
+        providedNames.add(name);
+        continue;
+      }
+      while (positionalIndex < signature.parameters.length &&
+          providedNames.contains(signature.parameters[positionalIndex].name)) {
+        positionalIndex += 1;
+      }
+      if (positionalIndex < signature.parameters.length) {
+        providedNames.add(signature.parameters[positionalIndex].name);
+        positionalIndex += 1;
+      }
+    }
+    return providedNames;
+  }
+
+  _ArgumentSegment? _argumentAtOffset(
+    List<_ArgumentSegment> arguments,
+    int offset,
+  ) {
+    for (final argument in arguments) {
+      if (offset >= argument.range.start && offset <= argument.range.end) {
+        return argument;
+      }
+    }
+    return null;
+  }
+
+  String? _namedArgumentNameForRange(
+    List<TokenSpan> tokens,
+    SourceRange range,
+  ) {
+    int? firstIndex;
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.range.start < range.start || token.range.end > range.end) {
+        continue;
+      }
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      firstIndex = index;
+      break;
+    }
+    if (firstIndex == null || tokens[firstIndex].kind != TokenKind.identifier) {
+      return null;
+    }
+    final separatorIndex = _nextSignificantIndex(tokens, firstIndex + 1);
+    if (separatorIndex == null ||
+        tokens[separatorIndex].range.end > range.end ||
+        tokens[separatorIndex].lexeme != ':') {
+      return null;
+    }
+    return tokens[firstIndex].lexeme;
   }
 
   int _activeParameterIndex({
@@ -2950,10 +3041,11 @@ class _CallArgumentList {
 }
 
 class _ArgumentSegment {
-  const _ArgumentSegment({required this.range, required this.text});
+  const _ArgumentSegment({required this.range, required this.text, this.name});
 
   final SourceRange range;
   final String text;
+  final String? name;
 }
 
 class _InlineVariableInitializer {

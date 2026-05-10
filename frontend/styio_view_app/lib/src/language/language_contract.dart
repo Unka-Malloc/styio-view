@@ -406,15 +406,20 @@ class ParameterInfoParameter {
     required this.name,
     required this.range,
     this.type = '',
+    this.defaultValue = '',
     this.documentation = '',
   });
 
   final String name;
   final SourceRange range;
   final String type;
+  final String defaultValue;
   final String documentation;
 
-  String get displayText => type.isEmpty ? name : '$name: $type';
+  String get displayText {
+    final typedText = type.isEmpty ? name : '$name: $type';
+    return defaultValue.isEmpty ? typedText : '$typedText = $defaultValue';
+  }
 }
 
 class ParameterInfoPayload {

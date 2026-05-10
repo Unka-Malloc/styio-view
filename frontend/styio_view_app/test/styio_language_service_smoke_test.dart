@@ -139,7 +139,7 @@ answer -> @stdout
 /// Blends price and tax inputs.
 /// @param left Base price before tax.
 /// @param right Tax component to add.
-fn blend(left: f64, right: f64) {
+fn blend(left: f64, right: f64 = 0.0) {
   emit left
 }
 value = blend(price, tax)
@@ -153,11 +153,42 @@ value = blend(price, tax)
     );
 
     expect(info?.callableName, 'blend');
-    expect(info?.signature, 'fn blend(left: f64, right: f64)');
+    expect(info?.signature, 'fn blend(left: f64, right: f64 = 0.0)');
     expect(info?.documentation, 'Blends price and tax inputs.');
     expect(info?.activeParameterIndex, 1);
     expect(info?.activeParameter?.name, 'right');
+    expect(info?.activeParameter?.defaultValue, '0.0');
     expect(info?.activeParameter?.documentation, 'Tax component to add.');
+  });
+
+  test('does not require defaulted call arguments', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'default-arguments.styio',
+      text: '''
+fn blend(left: f64, right: f64 = 0.0) {
+  emit left + right
+}
+price = 1.0
+value = blend(price)
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service.analyzeDocument(document).diagnostics;
+    final info = service.parameterInfoAt(
+      document,
+      document.text.lastIndexOf('price)') + 1,
+    );
+
+    expect(
+      diagnostics.where(
+        (diagnostic) => diagnostic.code == 'missing-call-argument',
+      ),
+      isEmpty,
+    );
+    expect(info?.signature, 'fn blend(left: f64, right: f64 = 0.0)');
+    expect(info?.parameters.last.displayText, 'right: f64 = 0.0');
   });
 
   test('attaches block documentation comments to function assistance', () {

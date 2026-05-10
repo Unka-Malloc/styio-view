@@ -990,6 +990,7 @@ class StyioSymbolIndex {
               name: parameter.name,
               range: parameter.range,
               type: parameter.type,
+              defaultValue: parameter.defaultValue,
               documentation: parameterDocumentation[parameter.name] ?? '',
             ),
           )
@@ -1176,9 +1177,15 @@ class StyioSymbolIndex {
       startIndex: nameIndex + 1,
       endExclusive: endExclusive,
     );
+    final defaultValueText = _parameterDefaultValueText(
+      tokens: tokens,
+      startIndex: nameIndex + 1,
+      endExclusive: endExclusive,
+    );
     return ParameterInfoParameter(
       name: nameToken.lexeme,
       type: typeText,
+      defaultValue: defaultValueText,
       range: nameToken.range,
     );
   }
@@ -1207,6 +1214,33 @@ class StyioSymbolIndex {
       }
       if (token.lexeme == '=') {
         break;
+      }
+      parts.add(token.lexeme);
+    }
+    return parts.join();
+  }
+
+  String _parameterDefaultValueText({
+    required List<TokenSpan> tokens,
+    required int startIndex,
+    required int endExclusive,
+  }) {
+    final assignmentIndex = _firstLexemeIndex(
+      tokens: tokens,
+      lexeme: '=',
+      startIndex: startIndex,
+      endExclusive: endExclusive,
+    );
+    if (assignmentIndex == null) {
+      return '';
+    }
+
+    final parts = <String>[];
+    for (var index = assignmentIndex + 1; index < endExclusive; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
       }
       parts.add(token.lexeme);
     }

@@ -399,7 +399,7 @@ value = blend(price)
 /// Blends price and tax inputs.
 /// @param left Base price before tax.
 /// @param right Tax component to add.
-fn blend(left: f64, right: f64) {
+fn blend(left: f64, right: f64 = 0.0) {
   emit left
 }
 value = blend(price, tax)
@@ -408,16 +408,39 @@ value = blend(price, tax)
     final info = index.parameterInfoAt(source, source.lastIndexOf('tax') + 1);
 
     expect(info?.callableName, 'blend');
-    expect(info?.signature, 'fn blend(left: f64, right: f64)');
+    expect(info?.signature, 'fn blend(left: f64, right: f64 = 0.0)');
     expect(info?.documentation, 'Blends price and tax inputs.');
     expect(info?.activeParameterIndex, 1);
-    expect(info?.activeParameter?.displayText, 'right: f64');
+    expect(info?.activeParameter?.displayText, 'right: f64 = 0.0');
+    expect(info?.activeParameter?.defaultValue, '0.0');
     expect(info?.activeParameter?.documentation, 'Tax component to add.');
     expect(info?.parameters.map((parameter) => parameter.name), [
       'left',
       'right',
     ]);
     expect(index.parameterInfoAt(source, source.indexOf('left:')), isNull);
+  });
+
+  test('uses default parameters for signature display and call arity', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64 = 0.0) {
+  emit left + right
+}
+price = 1.0
+value = blend(price)
+''';
+
+    final info = index.parameterInfoAt(
+      source,
+      source.lastIndexOf('price)') + 1,
+    );
+    final issues = index.callArgumentIssues(source);
+
+    expect(info?.signature, 'fn blend(left: f64, right: f64 = 0.0)');
+    expect(info?.parameters.last.displayText, 'right: f64 = 0.0');
+    expect(info?.parameters.last.defaultValue, '0.0');
+    expect(issues, isEmpty);
   });
 
   test('resolves KDoc-style block comments for parameter info', () {

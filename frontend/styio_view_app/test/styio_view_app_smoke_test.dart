@@ -1638,7 +1638,7 @@ void main() {
 /// Blends price and tax inputs.
 /// @param left Base price before tax.
 /// @param right Tax component to add.
-fn blend(left: f64, right: f64) {
+fn blend(left: f64, right: f64 = 0.0) {
   emit left
 }
 value = blend(price, tax)
@@ -1671,9 +1671,9 @@ value = blend(price, tax)
       findsOneWidget,
     );
     expect(find.text('Parameter Info: blend'), findsOneWidget);
-    expect(find.text('fn blend(left: f64, right: f64)'), findsOneWidget);
+    expect(find.text('fn blend(left: f64, right: f64 = 0.0)'), findsOneWidget);
     expect(find.text('Blends price and tax inputs.'), findsOneWidget);
-    expect(find.text('Argument 2 of 2: right: f64'), findsOneWidget);
+    expect(find.text('Argument 2 of 2: right: f64 = 0.0'), findsOneWidget);
     expect(find.text('Tax component to add.'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('source-parameter-info-close')));

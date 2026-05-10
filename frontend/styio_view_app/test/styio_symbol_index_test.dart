@@ -721,6 +721,53 @@ duplicate = blend(price, left: tax)
     );
   });
 
+  test('builds specify-type-explicitly edits for inferred local bindings', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+price = 12.5
+copy = price
+explicit: f64 = 1
+copy -> @stdout
+explicit -> @stdout
+''';
+
+    final plan = index.specifyTypeExplicitlyAt(
+      source,
+      source.indexOf('copy ='),
+    );
+    final snapshot = index.build(
+      const StyioSyntaxHighlighter().tokenize(source),
+    );
+    final explicitReferences = index.referencesAt(
+      source,
+      source.lastIndexOf('explicit ->'),
+    );
+
+    expect(plan?.variableName, 'copy');
+    expect(plan?.typeName, 'f64');
+    expect(plan?.edit.newText, ': f64');
+    expect(
+      source.replaceRange(
+        plan!.edit.range.start,
+        plan.edit.range.end,
+        plan.edit.newText,
+      ),
+      '''
+price = 12.5
+copy: f64 = price
+explicit: f64 = 1
+copy -> @stdout
+explicit -> @stdout
+''',
+    );
+    expect(
+      index.specifyTypeExplicitlyAt(source, source.indexOf('explicit:')),
+      isNull,
+    );
+    expect(snapshot.symbols.map((symbol) => symbol.name), contains('explicit'));
+    expect(explicitReferences.length, 2);
+  });
+
   test('resolves KDoc-style block comments for parameter info', () {
     const index = StyioSymbolIndex();
     const source = '''

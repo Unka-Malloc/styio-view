@@ -112,6 +112,31 @@ class StyioSymbolIndex {
         continue;
       }
 
+      if (token.lexeme == ':') {
+        final previous = _previousSignificant(tokens, index - 1);
+        final typeIndex = _nextSignificantIndex(tokens, index + 1);
+        final assignmentIndex = typeIndex == null
+            ? null
+            : _nextSignificantIndex(tokens, typeIndex + 1);
+        if (previous?.kind == TokenKind.identifier &&
+            typeIndex != null &&
+            _syntaxHighlighter.isTypeName(tokens[typeIndex].lexeme) &&
+            assignmentIndex != null &&
+            (tokens[assignmentIndex].lexeme == '=' ||
+                tokens[assignmentIndex].lexeme == ':=')) {
+          addSymbol(
+            nameToken: previous!,
+            kind: SymbolKind.variable,
+            declarationRange: _declarationRange(
+              tokens,
+              tokens.indexOf(previous),
+            ),
+            detail: 'Styio typed value binding',
+          );
+        }
+        continue;
+      }
+
       if (token.lexeme == '->') {
         final binding = _nextIdentifier(tokens, index + 1);
         if (binding == null) {
@@ -819,6 +844,37 @@ class StyioSymbolIndex {
         newText: '${parameter.name}: ${activeArgument.text}',
       ),
     );
+  }
+
+  SpecifyTypeExplicitlyPlan? specifyTypeExplicitlyAt(
+    String source,
+    int offset,
+  ) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final token = _tokenAroundOffset(tokens, offset);
+    if (token == null || token.kind != TokenKind.identifier) {
+      return null;
+    }
+
+    for (final hint in typeNameHints(source)) {
+      if (!_sameRange(hint.range, token.range)) {
+        continue;
+      }
+      final typeName = hint.label.replaceFirst(':', '').trim();
+      if (typeName.isEmpty) {
+        return null;
+      }
+      return SpecifyTypeExplicitlyPlan(
+        variableName: token.lexeme,
+        typeName: typeName,
+        nameRange: token.range,
+        edit: FormattingEdit(
+          range: SourceRange(start: token.range.end, end: token.range.end),
+          newText: ': $typeName',
+        ),
+      );
+    }
+    return null;
   }
 
   List<InlayHint> inlayHints(String source) {
@@ -3610,6 +3666,20 @@ class AddArgumentNamePlan {
   final String parameterName;
   final SourceRange argumentRange;
   final SourceRange invocationRange;
+  final FormattingEdit edit;
+}
+
+class SpecifyTypeExplicitlyPlan {
+  const SpecifyTypeExplicitlyPlan({
+    required this.variableName,
+    required this.typeName,
+    required this.nameRange,
+    required this.edit,
+  });
+
+  final String variableName;
+  final String typeName;
+  final SourceRange nameRange;
   final FormattingEdit edit;
 }
 

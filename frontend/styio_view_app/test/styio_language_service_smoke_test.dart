@@ -388,6 +388,34 @@ explicit: f64 = 1
     );
   });
 
+  test('offers specify-type-explicitly as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'specify-type-explicitly.styio',
+      text: '''
+price = 12.5
+copy = price
+explicit: f64 = 1
+''',
+      revision: 0,
+    );
+
+    final action = service
+        .intentionsAt(document, document.text.indexOf('copy =') + 1)
+        .singleWhere((item) => item.label == 'Specify type explicitly');
+
+    expect(action.detail, contains('f64'));
+    expect(applyEdits(document.text, action.edits), '''
+price = 12.5
+copy: f64 = price
+explicit: f64 = 1
+''');
+    expect(
+      service.intentionsAt(document, document.text.indexOf('explicit:') + 1),
+      isEmpty,
+    );
+  });
+
   test('removes unused parameters through change signature', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

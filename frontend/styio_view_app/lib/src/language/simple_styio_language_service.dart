@@ -390,6 +390,22 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       );
     }
 
+    final specifyTypePlan = _symbolIndex.specifyTypeExplicitlyAt(
+      document.text,
+      offset,
+    );
+    if (specifyTypePlan != null) {
+      intentions.add(
+        DiagnosticQuickFix(
+          label: 'Specify type explicitly',
+          detail:
+              'Insert `${specifyTypePlan.typeName}` for local binding '
+              '`${specifyTypePlan.variableName}`.',
+          edits: [specifyTypePlan.edit],
+        ),
+      );
+    }
+
     return intentions;
   }
 

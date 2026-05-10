@@ -482,6 +482,52 @@ wide -> @stdout
 ''');
   });
 
+  test('reports and fixes typed local assignment type mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'assignment-type-mismatch.styio',
+      text: '''
+rate: f64 = 0.0
+rate = 1
+count: i64 = 0
+count = 1.5
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service
+        .analyzeDocument(document)
+        .diagnostics
+        .where((diagnostic) => diagnostic.code == 'assignment-type-mismatch');
+    final rateMismatch = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.message.contains('`rate`'),
+    );
+    final countMismatch = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.message.contains('`count`'),
+    );
+    final rateFixes = service.quickFixesForDiagnostic(document, rateMismatch);
+    final literalFix = rateFixes.singleWhere(
+      (fix) => fix.label == 'Change assignment to f64 literal',
+    );
+    final countTypeFix = service
+        .quickFixesForDiagnostic(document, countMismatch)
+        .singleWhere((fix) => fix.label == 'Change local `count` type to f64');
+
+    expect(rateMismatch.message, contains('expects `f64`, got `i64`'));
+    expect(applyEdits(document.text, literalFix.edits), '''
+rate: f64 = 0.0
+rate = 1.0
+count: i64 = 0
+count = 1.5
+''');
+    expect(applyEdits(document.text, countTypeFix.edits), '''
+rate: f64 = 0.0
+rate = 1
+count: f64 = 0.0
+count = 1.5
+''');
+  });
+
   test('reports and fixes function return type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

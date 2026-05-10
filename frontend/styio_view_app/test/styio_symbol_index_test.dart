@@ -1026,6 +1026,53 @@ ok: f64 = price
     );
   });
 
+  test('reports typed local assignment type mismatches', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+rate: f64 = 0.0
+rate = 1
+count: i64 = 0
+count = 1.5
+label: string = "ok"
+label = 2
+ok: f64 = 1.0
+ok = rate
+''';
+
+    final issues = index.assignmentTypeMismatchIssues(source);
+
+    expect(issues.map((issue) => issue.variableName), [
+      'rate',
+      'count',
+      'label',
+    ]);
+    expect(issues.map((issue) => issue.expectedTypeName), [
+      'f64',
+      'i64',
+      'string',
+    ]);
+    expect(issues.map((issue) => issue.actualTypeName), ['i64', 'f64', 'i64']);
+    expect(
+      issues.map(
+        (issue) => source.substring(
+          issue.diagnostic.range.start,
+          issue.diagnostic.range.end,
+        ),
+      ),
+      ['1', '1.5', '2'],
+    );
+    expect(issues.first.replacementAssignmentText, '1.0');
+    expect(issues[1].replacementInitializerTextForActualType, '0.0');
+    expect(issues[1].canChangeDeclaredType, isTrue);
+    expect(issues[2].canChangeDeclaredType, isFalse);
+    expect(
+      issues.map(
+        (issue) => source.substring(issue.typeRange.start, issue.typeRange.end),
+      ),
+      ['f64', 'i64', 'string'],
+    );
+  });
+
   test('reports function return type mismatches', () {
     const index = StyioSymbolIndex();
     const source = '''

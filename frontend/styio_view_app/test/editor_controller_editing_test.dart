@@ -1537,6 +1537,36 @@ wide -> @stdout
     );
   });
 
+  test('applies assignment type quick fix at the caret', () {
+    const text = '''
+rate: f64 = 0.0
+rate = 1
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'assignment-type-mismatch.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.lastIndexOf('1')),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+rate: f64 = 0.0
+rate = 1.0
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'assignment-type-mismatch',
+      ),
+      isEmpty,
+    );
+  });
+
   test('applies return type quick fix at the caret', () {
     const text = '''
 fn price(): f64 {

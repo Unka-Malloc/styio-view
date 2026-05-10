@@ -1477,6 +1477,150 @@ class StyioSymbolIndex {
     return issues;
   }
 
+  List<StyioAssignmentTypeMismatchIssue> assignmentTypeMismatchIssues(
+    String source,
+  ) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    final inferredTypesByName = <String, String>{};
+    final explicitTypesByName = <String, _ExplicitTypedLocal>{};
+    final issues = <StyioAssignmentTypeMismatchIssue>[];
+
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind != TokenKind.identifier ||
+          _syntaxHighlighter.isTypeName(token.lexeme)) {
+        continue;
+      }
+
+      final typedBinding = _typedLocalBindingAtName(tokens, index);
+      if (typedBinding != null) {
+        final expressionStartIndex = _nextSignificantIndex(
+          tokens,
+          typedBinding.assignmentIndex + 1,
+        );
+        SourceRange? initializerRange;
+        String initializerActualType = '';
+        if (expressionStartIndex != null) {
+          initializerRange = _initializerRangeForBinding(
+            source: source,
+            tokens: tokens,
+            expressionStartIndex: expressionStartIndex,
+          );
+          final inferredType = _inferExpressionType(
+            tokens: tokens,
+            expressionStartIndex: expressionStartIndex,
+            signaturesByName: signaturesByName,
+            inferredTypesByName: inferredTypesByName,
+          );
+          if (inferredType != null && inferredType.isNotEmpty) {
+            initializerActualType = inferredType;
+          }
+        }
+        explicitTypesByName[token.lexeme] = _ExplicitTypedLocal(
+          typeName: typedBinding.typeName,
+          typeRange: tokens[typedBinding.typeIndex].range,
+          initializerRange: initializerRange,
+          initializerExpressionStartIndex: expressionStartIndex,
+          initializerActualTypeName: initializerActualType,
+        );
+        inferredTypesByName[token.lexeme] = typedBinding.typeName;
+        continue;
+      }
+
+      final assignmentIndex = _bindingAssignmentIndex(tokens, index);
+      if (assignmentIndex == null) {
+        continue;
+      }
+
+      final expressionStartIndex = _nextSignificantIndex(
+        tokens,
+        assignmentIndex + 1,
+      );
+      if (expressionStartIndex == null) {
+        continue;
+      }
+
+      final actualType = _inferExpressionType(
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (actualType == null || actualType.isEmpty) {
+        continue;
+      }
+
+      final explicitType = explicitTypesByName[token.lexeme];
+      if (explicitType == null) {
+        inferredTypesByName[token.lexeme] = actualType;
+        continue;
+      }
+      inferredTypesByName[token.lexeme] = explicitType.typeName;
+
+      if (actualType == explicitType.typeName) {
+        continue;
+      }
+
+      final assignmentRange = _initializerRangeForBinding(
+        source: source,
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+      );
+      if (assignmentRange == null || assignmentRange.isCollapsed) {
+        continue;
+      }
+
+      var replacementInitializerTextForActualType = '';
+      final initializerRange = explicitType.initializerRange;
+      final initializerExpressionStartIndex =
+          explicitType.initializerExpressionStartIndex;
+      if (initializerRange != null &&
+          initializerExpressionStartIndex != null &&
+          explicitType.initializerActualTypeName.isNotEmpty &&
+          explicitType.initializerActualTypeName != actualType) {
+        replacementInitializerTextForActualType = _argumentTypeReplacementText(
+          tokens: tokens,
+          expressionStartIndex: initializerExpressionStartIndex,
+          argumentRange: initializerRange,
+          expectedType: actualType,
+          actualType: explicitType.initializerActualTypeName,
+        );
+      }
+
+      issues.add(
+        StyioAssignmentTypeMismatchIssue(
+          diagnostic: Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'assignment-type-mismatch',
+            message:
+                'Assignment to `${token.lexeme}` expects '
+                '`${explicitType.typeName}`, got `$actualType`.',
+            range: assignmentRange,
+          ),
+          variableName: token.lexeme,
+          expectedTypeName: explicitType.typeName,
+          actualTypeName: actualType,
+          assignmentRange: assignmentRange,
+          typeRange: explicitType.typeRange,
+          replacementAssignmentText: _argumentTypeReplacementText(
+            tokens: tokens,
+            expressionStartIndex: expressionStartIndex,
+            argumentRange: assignmentRange,
+            expectedType: explicitType.typeName,
+            actualType: actualType,
+          ),
+          initializerRange: initializerRange,
+          initializerActualTypeName: explicitType.initializerActualTypeName,
+          replacementInitializerTextForActualType:
+              replacementInitializerTextForActualType,
+        ),
+      );
+    }
+
+    return issues;
+  }
+
   List<StyioFunctionReturnTypeIssue> functionReturnTypeIssues(String source) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -4735,6 +4879,22 @@ class _TypedLocalBinding {
   final String typeName;
 }
 
+class _ExplicitTypedLocal {
+  const _ExplicitTypedLocal({
+    required this.typeName,
+    required this.typeRange,
+    required this.initializerRange,
+    required this.initializerExpressionStartIndex,
+    required this.initializerActualTypeName,
+  });
+
+  final String typeName;
+  final SourceRange typeRange;
+  final SourceRange? initializerRange;
+  final int? initializerExpressionStartIndex;
+  final String initializerActualTypeName;
+}
+
 class _ArgumentSegment {
   const _ArgumentSegment({
     required this.range,
@@ -4847,6 +5007,37 @@ class StyioTypeMismatchIssue {
   final SourceRange initializerRange;
   final SourceRange typeRange;
   final String replacementInitializerText;
+}
+
+class StyioAssignmentTypeMismatchIssue {
+  const StyioAssignmentTypeMismatchIssue({
+    required this.diagnostic,
+    required this.variableName,
+    required this.expectedTypeName,
+    required this.actualTypeName,
+    required this.assignmentRange,
+    required this.typeRange,
+    required this.replacementAssignmentText,
+    required this.initializerRange,
+    required this.initializerActualTypeName,
+    required this.replacementInitializerTextForActualType,
+  });
+
+  final Diagnostic diagnostic;
+  final String variableName;
+  final String expectedTypeName;
+  final String actualTypeName;
+  final SourceRange assignmentRange;
+  final SourceRange typeRange;
+  final String replacementAssignmentText;
+  final SourceRange? initializerRange;
+  final String initializerActualTypeName;
+  final String replacementInitializerTextForActualType;
+
+  bool get canChangeDeclaredType =>
+      initializerActualTypeName.isEmpty ||
+      initializerActualTypeName == actualTypeName ||
+      replacementInitializerTextForActualType.isNotEmpty;
 }
 
 class StyioFunctionReturnTypeIssue {

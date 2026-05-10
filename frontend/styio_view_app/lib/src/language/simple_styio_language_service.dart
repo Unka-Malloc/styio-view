@@ -532,6 +532,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         return _quickFixesForDuplicateDeclaration(document, diagnostic);
       case 'initializer-type-mismatch':
         return _quickFixesForTypeMismatchIssue(document, diagnostic);
+      case 'assignment-type-mismatch':
+        return _quickFixesForAssignmentTypeMismatchIssue(document, diagnostic);
       case 'return-type-mismatch':
         return _quickFixesForFunctionReturnTypeIssue(document, diagnostic);
       case 'unknown-named-argument':
@@ -596,6 +598,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     diagnostics.addAll(
       _symbolIndex
           .typedLocalInitializerIssues(source)
+          .map((issue) => issue.diagnostic),
+    );
+    diagnostics.addAll(
+      _symbolIndex
+          .assignmentTypeMismatchIssues(source)
           .map((issue) => issue.diagnostic),
     );
     diagnostics.addAll(
@@ -1232,6 +1239,86 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         ],
       ),
     );
+    return fixes;
+  }
+
+  List<DiagnosticQuickFix> _quickFixesForAssignmentTypeMismatchIssue(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final issue = _symbolIndex
+        .assignmentTypeMismatchIssues(document.text)
+        .firstWhere(
+          (item) =>
+              item.diagnostic.code == diagnostic.code &&
+              item.diagnostic.range.start == diagnostic.range.start &&
+              item.diagnostic.range.end == diagnostic.range.end,
+          orElse: () => const StyioAssignmentTypeMismatchIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: '',
+              message: '',
+              range: SourceRange(start: 0, end: 0),
+            ),
+            variableName: '',
+            expectedTypeName: '',
+            actualTypeName: '',
+            assignmentRange: SourceRange(start: 0, end: 0),
+            typeRange: SourceRange(start: 0, end: 0),
+            replacementAssignmentText: '',
+            initializerRange: null,
+            initializerActualTypeName: '',
+            replacementInitializerTextForActualType: '',
+          ),
+        );
+    if (issue.variableName.isEmpty) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    final fixes = <DiagnosticQuickFix>[];
+    if (issue.replacementAssignmentText.isNotEmpty) {
+      fixes.add(
+        DiagnosticQuickFix(
+          label: 'Change assignment to ${issue.expectedTypeName} literal',
+          detail:
+              'Rewrite `${issue.variableName}` assignment from '
+              '`${issue.actualTypeName}` to `${issue.expectedTypeName}`.',
+          edits: [
+            FormattingEdit(
+              range: issue.assignmentRange,
+              newText: issue.replacementAssignmentText,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (issue.canChangeDeclaredType) {
+      final edits = <FormattingEdit>[
+        FormattingEdit(range: issue.typeRange, newText: issue.actualTypeName),
+      ];
+      final initializerRange = issue.initializerRange;
+      if (initializerRange != null &&
+          issue.replacementInitializerTextForActualType.isNotEmpty) {
+        edits.add(
+          FormattingEdit(
+            range: initializerRange,
+            newText: issue.replacementInitializerTextForActualType,
+          ),
+        );
+      }
+      fixes.add(
+        DiagnosticQuickFix(
+          label:
+              'Change local `${issue.variableName}` type to '
+              '${issue.actualTypeName}',
+          detail:
+              'Update `${issue.variableName}` explicit type to match the '
+              'assigned expression.',
+          edits: edits,
+        ),
+      );
+    }
     return fixes;
   }
 

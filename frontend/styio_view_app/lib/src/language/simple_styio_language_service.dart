@@ -2401,6 +2401,20 @@ class SimpleStyioLanguageService implements StyioLanguageService {
           !_isBalancedInlineExpression(rightText)) {
         continue;
       }
+      final stableComparison = _simplifiedStableBooleanComparisonText(
+        leftText: leftText,
+        operatorLexeme: operatorToken.lexeme,
+        rightText: rightText,
+      );
+      if (stableComparison != null) {
+        return DiagnosticQuickFix(
+          label: 'Simplify boolean comparison',
+          detail: 'Replace a stable boolean comparison with its truth value.',
+          edits: [
+            FormattingEdit(range: expressionRange, newText: stableComparison),
+          ],
+        );
+      }
       final leftLiteral = _boolLiteralValue(leftText);
       final rightLiteral = _boolLiteralValue(rightText);
       final hasOneBoolLiteral =
@@ -2424,6 +2438,25 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       );
     }
     return null;
+  }
+
+  String? _simplifiedStableBooleanComparisonText({
+    required String leftText,
+    required String operatorLexeme,
+    required String rightText,
+  }) {
+    final leftTerm = _stableBooleanTermName(leftText);
+    final rightTerm = _stableBooleanTermName(rightText);
+    if (leftTerm == null || rightTerm == null || leftTerm != rightTerm) {
+      return null;
+    }
+    final leftNegated = leftText.trim().startsWith('!');
+    final rightNegated = rightText.trim().startsWith('!');
+    final termsAreEquivalent = leftNegated == rightNegated;
+    final comparisonValue = operatorLexeme == '=='
+        ? termsAreEquivalent
+        : !termsAreEquivalent;
+    return comparisonValue ? 'true' : 'false';
   }
 
   bool? _boolLiteralValue(String expression) {

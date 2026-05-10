@@ -840,6 +840,11 @@ when ready == true -> state ready
 when ready == false -> state stopped
 when blocked != true -> state active
 when false != ready -> state inverted
+when ready == ready -> state same
+when ready != ready -> state changed
+when ready == !ready -> state impossible
+when !blocked != blocked -> state active_mirror
+when check() == check() -> state effect
 when price > 0 -> state priced
 ''',
       revision: 0,
@@ -857,6 +862,21 @@ when price > 0 -> state priced
     final literalLeftAction = service
         .intentionsAt(document, document.text.indexOf('false != ready') + 2)
         .singleWhere((item) => item.label == 'Simplify boolean comparison');
+    final sameTermAction = service
+        .intentionsAt(document, document.text.indexOf('ready == ready') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean comparison');
+    final changedTermAction = service
+        .intentionsAt(document, document.text.indexOf('ready != ready') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean comparison');
+    final complementEqualsAction = service
+        .intentionsAt(document, document.text.indexOf('ready == !ready') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean comparison');
+    final complementNotEqualsAction = service
+        .intentionsAt(
+          document,
+          document.text.indexOf('!blocked != blocked') + 2,
+        )
+        .singleWhere((item) => item.label == 'Simplify boolean comparison');
 
     expect(equalsTrueAction.detail, contains('boolean literal'));
     expect(applyEdits(document.text, equalsTrueAction.edits), '''
@@ -867,6 +887,11 @@ when ready -> state ready
 when ready == false -> state stopped
 when blocked != true -> state active
 when false != ready -> state inverted
+when ready == ready -> state same
+when ready != ready -> state changed
+when ready == !ready -> state impossible
+when !blocked != blocked -> state active_mirror
+when check() == check() -> state effect
 when price > 0 -> state priced
 ''');
     expect(applyEdits(document.text, equalsFalseAction.edits), '''
@@ -877,6 +902,11 @@ when ready == true -> state ready
 when !ready -> state stopped
 when blocked != true -> state active
 when false != ready -> state inverted
+when ready == ready -> state same
+when ready != ready -> state changed
+when ready == !ready -> state impossible
+when !blocked != blocked -> state active_mirror
+when check() == check() -> state effect
 when price > 0 -> state priced
 ''');
     expect(applyEdits(document.text, notEqualsTrueAction.edits), '''
@@ -887,6 +917,11 @@ when ready == true -> state ready
 when ready == false -> state stopped
 when !blocked -> state active
 when false != ready -> state inverted
+when ready == ready -> state same
+when ready != ready -> state changed
+when ready == !ready -> state impossible
+when !blocked != blocked -> state active_mirror
+when check() == check() -> state effect
 when price > 0 -> state priced
 ''');
     expect(applyEdits(document.text, literalLeftAction.edits), '''
@@ -897,10 +932,86 @@ when ready == true -> state ready
 when ready == false -> state stopped
 when blocked != true -> state active
 when ready -> state inverted
+when ready == ready -> state same
+when ready != ready -> state changed
+when ready == !ready -> state impossible
+when !blocked != blocked -> state active_mirror
+when check() == check() -> state effect
+when price > 0 -> state priced
+''');
+    expect(sameTermAction.detail, contains('truth value'));
+    expect(applyEdits(document.text, sameTermAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+when ready == true -> state ready
+when ready == false -> state stopped
+when blocked != true -> state active
+when false != ready -> state inverted
+when true -> state same
+when ready != ready -> state changed
+when ready == !ready -> state impossible
+when !blocked != blocked -> state active_mirror
+when check() == check() -> state effect
+when price > 0 -> state priced
+''');
+    expect(applyEdits(document.text, changedTermAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+when ready == true -> state ready
+when ready == false -> state stopped
+when blocked != true -> state active
+when false != ready -> state inverted
+when ready == ready -> state same
+when false -> state changed
+when ready == !ready -> state impossible
+when !blocked != blocked -> state active_mirror
+when check() == check() -> state effect
+when price > 0 -> state priced
+''');
+    expect(applyEdits(document.text, complementEqualsAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+when ready == true -> state ready
+when ready == false -> state stopped
+when blocked != true -> state active
+when false != ready -> state inverted
+when ready == ready -> state same
+when ready != ready -> state changed
+when false -> state impossible
+when !blocked != blocked -> state active_mirror
+when check() == check() -> state effect
+when price > 0 -> state priced
+''');
+    expect(applyEdits(document.text, complementNotEqualsAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+when ready == true -> state ready
+when ready == false -> state stopped
+when blocked != true -> state active
+when false != ready -> state inverted
+when ready == ready -> state same
+when ready != ready -> state changed
+when ready == !ready -> state impossible
+when true -> state active_mirror
+when check() == check() -> state effect
 when price > 0 -> state priced
 ''');
     expect(
       service.intentionsAt(document, document.text.indexOf('price > 0') + 2),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Simplify boolean comparison',
+          ),
+        ),
+      ),
+    );
+    expect(
+      service.intentionsAt(document, document.text.indexOf('check() ==') + 2),
       isNot(
         contains(
           predicate<DiagnosticQuickFix>(

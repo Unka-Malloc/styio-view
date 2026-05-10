@@ -1562,6 +1562,35 @@ when !ready -> state stopped
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies simplify-stable-boolean-comparison context intention', () {
+    const text = '''
+ready = true
+when ready == !ready -> state impossible
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'simplify-stable-boolean-comparison.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(
+        text.indexOf('ready == !ready') + 2,
+      ),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Simplify boolean comparison',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+ready = true
+when false -> state impossible
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies simplify-boolean-expression context intention', () {
     const text = '''
 ready = true

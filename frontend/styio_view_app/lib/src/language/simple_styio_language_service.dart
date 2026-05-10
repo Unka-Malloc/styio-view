@@ -380,6 +380,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
             ],
           ),
         ];
+      case 'unused-parameter':
+        return _quickFixesForUnusedParameter(document, diagnostic);
       case 'unresolved-reference':
         return _quickFixesForUnresolvedReference(document, diagnostic);
       case 'duplicate-declaration':
@@ -439,6 +441,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
 
     diagnostics.addAll(
       _symbolIndex.callArgumentIssues(source).map((issue) => issue.diagnostic),
+    );
+    diagnostics.addAll(
+      _symbolIndex
+          .unusedParameterIssues(source)
+          .map((issue) => issue.diagnostic),
     );
     diagnostics.addAll(
       _duplicateDeclarationDiagnostics(tokens, symbolSnapshot),
@@ -917,6 +924,43 @@ class SimpleStyioLanguageService implements StyioLanguageService {
             newText: issue.replacementArgumentText,
           ),
         ],
+      ),
+    ];
+  }
+
+  List<DiagnosticQuickFix> _quickFixesForUnusedParameter(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final issue = _symbolIndex
+        .unusedParameterIssues(document.text)
+        .firstWhere(
+          (item) =>
+              item.diagnostic.range.start == diagnostic.range.start &&
+              item.diagnostic.range.end == diagnostic.range.end,
+          orElse: () => const StyioUnusedParameterIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: '',
+              message: '',
+              range: SourceRange(start: 0, end: 0),
+            ),
+            functionName: '',
+            parameterName: '',
+            edits: <FormattingEdit>[],
+          ),
+        );
+    if (issue.parameterName.isEmpty || issue.edits.isEmpty) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    return [
+      DiagnosticQuickFix(
+        label: 'Remove unused parameter',
+        detail:
+            'Remove `${issue.parameterName}` from `${issue.functionName}` and '
+            'rewrite current-file call arguments.',
+        edits: issue.edits,
       ),
     ];
   }

@@ -286,6 +286,42 @@ value = blend(price, tax)
     expect(plan.edits, isEmpty);
   });
 
+  test('reports and fixes unused parameters through change signature', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'unused-parameter.styio',
+      text: '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+value = blend(price, tax)
+again = blend(total, fee)
+''',
+      revision: 0,
+    );
+
+    final diagnostic = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere((item) => item.code == 'unused-parameter');
+
+    expect(
+      document.text.substring(diagnostic.range.start, diagnostic.range.end),
+      'right',
+    );
+    final quickFix = service
+        .quickFixesForDiagnostic(document, diagnostic)
+        .single;
+    expect(quickFix.label, 'Remove unused parameter');
+    expect(applyEdits(document.text, quickFix.edits), '''
+fn blend(left: f64) {
+  emit left
+}
+value = blend(price)
+again = blend(total)
+''');
+  });
+
   test('reports and fixes call argument arity mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

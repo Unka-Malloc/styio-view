@@ -882,6 +882,76 @@ class StyioSymbolIndex {
     return issues;
   }
 
+  List<StyioUnusedParameterIssue> unusedParameterIssues(String source) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final snapshot = build(tokens);
+    final signatures = _collectFunctionSignatures(
+      tokens,
+    ).values.expand((items) => items);
+    final issues = <StyioUnusedParameterIssue>[];
+
+    for (final signature in signatures) {
+      final bodyRange = _functionBodyRange(tokens, signature);
+      if (bodyRange == null) {
+        continue;
+      }
+
+      for (final parameter in signature.parameters) {
+        if (parameter.name.startsWith('_')) {
+          continue;
+        }
+
+        final bodyReferences = snapshot
+            .referencesForTarget(parameter.range)
+            .where(
+              (reference) =>
+                  !reference.isDeclaration &&
+                  bodyRange.intersects(reference.range),
+            )
+            .toList(growable: false);
+        if (bodyReferences.isNotEmpty) {
+          continue;
+        }
+
+        final remainingParameters = [
+          for (final item in signature.parameters)
+            if (item.name != parameter.name)
+              ChangeSignatureParameterUpdate(
+                originalName: item.name,
+                name: item.name,
+              ),
+        ];
+        final plan = changeSignature(
+          source,
+          signature.nameRange.start,
+          newName: signature.name,
+          parameters: remainingParameters,
+        );
+        if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
+          continue;
+        }
+
+        issues.add(
+          StyioUnusedParameterIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.warning,
+              code: 'unused-parameter',
+              message:
+                  'Parameter `${parameter.name}` is never used in '
+                  '`${signature.name}`.',
+              range: parameter.range,
+            ),
+            functionName: signature.name,
+            parameterName: parameter.name,
+            edits: plan.edits,
+          ),
+        );
+      }
+    }
+
+    return issues;
+  }
+
   Map<String, List<_FunctionSignature>> _collectFunctionSignatures(
     List<TokenSpan> tokens,
   ) {
@@ -2743,6 +2813,20 @@ class StyioCallArgumentIssue {
 
   bool get hasMissingArguments => missingParameterNames.isNotEmpty;
   bool get hasExtraArguments => extraArgumentCount > 0;
+}
+
+class StyioUnusedParameterIssue {
+  const StyioUnusedParameterIssue({
+    required this.diagnostic,
+    required this.functionName,
+    required this.parameterName,
+    required this.edits,
+  });
+
+  final Diagnostic diagnostic;
+  final String functionName;
+  final String parameterName;
+  final List<FormattingEdit> edits;
 }
 
 class StyioSymbolSnapshot {

@@ -2486,6 +2486,58 @@ value = blend(price, price)
     expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsNothing);
   });
 
+  testWidgets('applies unused parameter quick fix from editor keymap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text =
+        'fn blend(left: f64, right: f64) {\n'
+        '  emit left\n'
+        '}\n'
+        'value = blend(price, tax)\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'unused-parameter-quickfix.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('right') + 2);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsOne);
+    expect(find.text('Remove unused parameter'), findsOne);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      'fn blend(left: f64) {\n'
+      '  emit left\n'
+      '}\n'
+      'value = blend(price)\n',
+    );
+  });
+
   testWidgets('opens safe delete blockers from source keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

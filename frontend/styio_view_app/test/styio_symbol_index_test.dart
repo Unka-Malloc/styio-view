@@ -1008,6 +1008,37 @@ ready = spread && true
     );
   });
 
+  test('infers parenthesized and unary expression types', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+price = 12.5
+tax = 2
+ready = price > 0
+total = (price + tax)
+negative = -(price + tax)
+blocked = !ready
+''';
+
+    final hints = index.typeNameHints(source);
+
+    expect(
+      hints.singleWhere((hint) => hint.range.start == source.indexOf('total')),
+      isA<InlayHint>().having((hint) => hint.label, 'label', ': f64'),
+    );
+    expect(
+      hints.singleWhere(
+        (hint) => hint.range.start == source.indexOf('negative'),
+      ),
+      isA<InlayHint>().having((hint) => hint.label, 'label', ': f64'),
+    );
+    expect(
+      hints.singleWhere(
+        (hint) => hint.range.start == source.indexOf('blocked'),
+      ),
+      isA<InlayHint>().having((hint) => hint.label, 'label', ': bool'),
+    );
+  });
+
   test('reports when condition type mismatches', () {
     const index = StyioSymbolIndex();
     const source = '''
@@ -1015,13 +1046,16 @@ price = 12.5
 ready = price > 0
 when price -> state priced
 when ready -> state ready
+when !ready -> state blocked
 when price + 1 -> state wide
+when -(price + 1) -> state negative
 when "open" -> state text
 ''';
 
     final issues = index.conditionTypeMismatchIssues(source);
 
     expect(issues.map((issue) => issue.actualTypeName), [
+      'f64',
       'f64',
       'f64',
       'string',
@@ -1033,11 +1067,12 @@ when "open" -> state text
           issue.diagnostic.range.end,
         ),
       ),
-      ['price', 'price + 1', '"open"'],
+      ['price', 'price + 1', '-(price + 1)', '"open"'],
     );
     expect(issues.first.replacementConditionText, 'price != 0.0');
     expect(issues[1].replacementConditionText, 'price + 1 != 0.0');
-    expect(issues[2].replacementConditionText, isEmpty);
+    expect(issues[2].replacementConditionText, '-(price + 1) != 0.0');
+    expect(issues[3].replacementConditionText, isEmpty);
   });
 
   test('reports typed local initializer type mismatches', () {
@@ -1052,6 +1087,7 @@ count: i64 = price
 fromCall: f64 = amount()
 ok: f64 = price
 flag: i64 = price > 1
+blocked: i64 = !true
 ''';
 
     final issues = index.typedLocalInitializerIssues(source);
@@ -1061,17 +1097,20 @@ flag: i64 = price > 1
       'count',
       'fromCall',
       'flag',
+      'blocked',
     ]);
     expect(issues.map((issue) => issue.expectedTypeName), [
       'f64',
       'i64',
       'f64',
       'i64',
+      'i64',
     ]);
     expect(issues.map((issue) => issue.actualTypeName), [
       'i64',
       'f64',
       'i64',
+      'bool',
       'bool',
     ]);
     expect(
@@ -1081,14 +1120,14 @@ flag: i64 = price > 1
           issue.diagnostic.range.end,
         ),
       ),
-      ['3', 'price', 'amount()', 'price > 1'],
+      ['3', 'price', 'amount()', 'price > 1', '!true'],
     );
     expect(issues.first.replacementInitializerText, '3.0');
     expect(
       issues.map(
         (issue) => source.substring(issue.typeRange.start, issue.typeRange.end),
       ),
-      ['f64', 'i64', 'f64', 'i64'],
+      ['f64', 'i64', 'f64', 'i64', 'i64'],
     );
   });
 

@@ -1351,6 +1351,65 @@ class StyioSymbolIndex {
     required Map<String, String> inferredTypesByName,
   }) {
     final token = tokens[expressionStartIndex];
+    if (token.lexeme == '(') {
+      final innerIndex = _nextSignificantIndex(
+        tokens,
+        expressionStartIndex + 1,
+      );
+      final closingIndex = _matchingParenthesisIndex(
+        tokens,
+        expressionStartIndex,
+      );
+      if (innerIndex == null ||
+          closingIndex == null ||
+          innerIndex >= closingIndex) {
+        return null;
+      }
+      final innerType = _inferExpressionType(
+        tokens: tokens,
+        expressionStartIndex: innerIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (innerType == null || innerType.isEmpty) {
+        return null;
+      }
+      return _ExpressionTypeSpan(typeName: innerType, endIndex: closingIndex);
+    }
+    if (_isUnaryPrefixExpressionOperator(token.lexeme)) {
+      final operandIndex = _nextSignificantIndex(
+        tokens,
+        expressionStartIndex + 1,
+      );
+      if (operandIndex == null ||
+          _hasLineBreakBetween(
+            tokens,
+            expressionStartIndex + 1,
+            operandIndex,
+          )) {
+        return null;
+      }
+      final operand = _inferPrimaryExpressionType(
+        tokens: tokens,
+        expressionStartIndex: operandIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (operand == null) {
+        return null;
+      }
+      final typeName = _inferUnaryExpressionType(
+        operatorLexeme: token.lexeme,
+        operandType: operand.typeName,
+      );
+      if (typeName == null || typeName.isEmpty) {
+        return null;
+      }
+      return _ExpressionTypeSpan(
+        typeName: typeName,
+        endIndex: operand.endIndex,
+      );
+    }
     if (token.kind == TokenKind.number) {
       return _ExpressionTypeSpan(
         typeName: token.lexeme.contains('.') ? 'f64' : 'i64',
@@ -1397,6 +1456,23 @@ class StyioSymbolIndex {
       typeName: inferredType,
       endIndex: expressionStartIndex,
     );
+  }
+
+  bool _isUnaryPrefixExpressionOperator(String lexeme) {
+    return lexeme == '!' || lexeme == '-' || lexeme == '+';
+  }
+
+  String? _inferUnaryExpressionType({
+    required String operatorLexeme,
+    required String operandType,
+  }) {
+    if (operatorLexeme == '!') {
+      return operandType == 'bool' ? 'bool' : null;
+    }
+    if (operatorLexeme == '-' || operatorLexeme == '+') {
+      return _isNumericType(operandType) ? operandType : null;
+    }
+    return null;
   }
 
   bool _isBinaryExpressionOperator(String lexeme) {

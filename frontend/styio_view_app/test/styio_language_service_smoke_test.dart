@@ -566,6 +566,46 @@ fn ready(value: f64): bool {
 ''');
   });
 
+  test('reports unary and parenthesized expression type mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'unary-expression-type-mismatch.styio',
+      text: '''
+price = 12.5
+ready = price > 0
+flag: i64 = !ready
+fn negative(value: f64): i64 {
+  emit -(value + 1)
+}
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service.analyzeDocument(document).diagnostics;
+    final initializerMismatch = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'initializer-type-mismatch',
+    );
+    final returnMismatch = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'return-type-mismatch',
+    );
+    final returnTypeFix = service
+        .quickFixesForDiagnostic(document, returnMismatch)
+        .singleWhere(
+          (fix) => fix.label == 'Change function `negative` return type to f64',
+        );
+
+    expect(initializerMismatch.message, contains('expects `i64`, got `bool`'));
+    expect(returnMismatch.message, contains('expects `i64`, got `f64`'));
+    expect(applyEdits(document.text, returnTypeFix.edits), '''
+price = 12.5
+ready = price > 0
+flag: i64 = !ready
+fn negative(value: f64): f64 {
+  emit -(value + 1)
+}
+''');
+  });
+
   test('reports and fixes when condition type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

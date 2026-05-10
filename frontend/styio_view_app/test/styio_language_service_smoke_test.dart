@@ -179,6 +179,62 @@ blend(price, tax, price) -> @stdout
     expect(extraFix.edits.single.newText, 'price, tax');
   });
 
+  test('reports and optimizes duplicate or unsorted imports', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'imports.styio',
+      text: '''
+@import { styio/io }
+@import { styio/core }
+@import { styio/io }
+value = 1
+''',
+      revision: 0,
+    );
+
+    final duplicate = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere((diagnostic) => diagnostic.code == 'duplicate-import');
+    final fixes = service.quickFixesForDiagnostic(document, duplicate);
+
+    expect(duplicate.message, contains('styio/io'));
+    expect(fixes.single.label, 'Optimize imports');
+    expect(fixes.single.edits.map((edit) => edit.newText), [
+      '@import { styio/core }\n@import { styio/io }\n',
+      '',
+      '',
+    ]);
+  });
+
+  test('reports non-canonical import blocks for optimization', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'unsorted-imports.styio',
+      text: '''
+@import { styio/io }
+@import { styio/core }
+value = 1
+''',
+      revision: 0,
+    );
+
+    final diagnostic = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere(
+          (diagnostic) => diagnostic.code == 'import-block-not-optimized',
+        );
+    final fix = service.quickFixesForDiagnostic(document, diagnostic).single;
+
+    expect(diagnostic.severity, DiagnosticSeverity.hint);
+    expect(fix.label, 'Optimize imports');
+    expect(
+      fix.edits.first.newText,
+      '@import { styio/core }\n@import { styio/io }\n',
+    );
+  });
+
   test('reports unresolved identifiers from the local symbol index', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

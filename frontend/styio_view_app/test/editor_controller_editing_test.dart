@@ -1128,6 +1128,42 @@ blend(price, value) -> @stdout
     );
   });
 
+  test('applies optimize imports quick fix at the caret', () {
+    const text = '''
+@import { styio/io }
+@import { styio/core }
+@import { styio/io }
+value = 1
+''';
+    final duplicateOffset = text.lastIndexOf('styio/io') + 2;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'imports.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(duplicateOffset),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+@import { styio/core }
+@import { styio/io }
+value = 1
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) =>
+            diagnostic.code == 'duplicate-import' ||
+            diagnostic.code == 'import-block-not-optimized',
+      ),
+      isEmpty,
+    );
+  });
+
   test('resolves active token when caret lands on token boundary', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(

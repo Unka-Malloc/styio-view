@@ -379,6 +379,9 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       case 'missing-call-argument':
       case 'too-many-call-arguments':
         return _quickFixesForCallArgumentIssue(document, diagnostic);
+      case 'duplicate-import':
+      case 'import-block-not-optimized':
+        return _quickFixesForImportOptimization(document, diagnostic);
     }
 
     return const <DiagnosticQuickFix>[];
@@ -429,6 +432,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     diagnostics.addAll(
       _symbolIndex.callArgumentIssues(source).map((issue) => issue.diagnostic),
     );
+    diagnostics.addAll(_importOptimizationDiagnostics(source));
 
     for (var index = 0; index < tokens.length; index += 1) {
       final token = tokens[index];
@@ -506,6 +510,179 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       return SourceRange(start: lineStart - 1, end: source.length);
     }
     return SourceRange(start: 0, end: source.length);
+  }
+
+  List<Diagnostic> _importOptimizationDiagnostics(String source) {
+    final plan = _importOptimizationPlan(source);
+    if (plan == null || !plan.needsOptimization) {
+      return const <Diagnostic>[];
+    }
+
+    if (plan.duplicateImports.isNotEmpty) {
+      return [
+        for (final importLine in plan.duplicateImports)
+          Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'duplicate-import',
+            message: 'Import `${importLine.target}` is already declared.',
+            range: importLine.lineContentRange,
+          ),
+      ];
+    }
+
+    return [
+      Diagnostic(
+        severity: DiagnosticSeverity.hint,
+        code: 'import-block-not-optimized',
+        message: 'Top-level Styio imports can be optimized.',
+        range: SourceRange(
+          start: plan.imports.first.lineContentRange.start,
+          end: plan.imports.last.lineContentRange.end,
+        ),
+      ),
+    ];
+  }
+
+  List<DiagnosticQuickFix> _quickFixesForImportOptimization(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final plan = _importOptimizationPlan(document.text);
+    if (plan == null || !plan.needsOptimization || plan.edits.isEmpty) {
+      return const <DiagnosticQuickFix>[];
+    }
+    return [
+      DiagnosticQuickFix(
+        label: 'Optimize imports',
+        detail: 'Sort Styio imports and remove duplicate declarations.',
+        edits: plan.edits,
+      ),
+    ];
+  }
+
+  _StyioImportOptimization? _importOptimizationPlan(String source) {
+    final imports = _topLevelImportLines(source);
+    if (imports.isEmpty) {
+      return null;
+    }
+
+    final firstByTarget = <String, _StyioImportLine>{};
+    final duplicateImports = <_StyioImportLine>[];
+    for (final importLine in imports) {
+      final previous = firstByTarget[importLine.target];
+      if (previous == null) {
+        firstByTarget[importLine.target] = importLine;
+      } else {
+        duplicateImports.add(importLine);
+      }
+    }
+
+    final optimizedTargets = firstByTarget.keys.toList(growable: false)
+      ..sort(_compareImportTargets);
+    final optimizedLines = [
+      for (final target in optimizedTargets) '@import { $target }',
+    ];
+    final optimizedText =
+        optimizedLines.join('\n') +
+        (_importReplacementNeedsTrailingNewline(source, imports) ? '\n' : '');
+    final currentTargets = imports
+        .map((importLine) => importLine.target)
+        .toList(growable: false);
+    final canonicalLines = imports.every(
+      (importLine) => importLine.lineText == '@import { ${importLine.target} }',
+    );
+    final needsOptimization =
+        duplicateImports.isNotEmpty ||
+        !canonicalLines ||
+        currentTargets.length != optimizedTargets.length ||
+        !_sameStringList(currentTargets, optimizedTargets);
+
+    return _StyioImportOptimization(
+      imports: imports,
+      duplicateImports: duplicateImports,
+      needsOptimization: needsOptimization,
+      edits: needsOptimization
+          ? [
+              FormattingEdit(
+                range: imports.first.lineRemovalRange,
+                newText: optimizedText,
+              ),
+              for (final importLine in imports.skip(1))
+                FormattingEdit(range: importLine.lineRemovalRange, newText: ''),
+            ]
+          : const <FormattingEdit>[],
+    );
+  }
+
+  List<_StyioImportLine> _topLevelImportLines(String source) {
+    final imports = <_StyioImportLine>[];
+    var lineStart = 0;
+    while (lineStart <= source.length) {
+      final newline = source.indexOf('\n', lineStart);
+      final lineEnd = newline < 0 ? source.length : newline;
+      final rawLine = source.substring(lineStart, lineEnd);
+      final lineText = rawLine.replaceFirst(RegExp(r'\s+$'), '');
+      if (lineText.startsWith('@import')) {
+        final target = _importTargetFromLine(lineText);
+        if (target != null && target.isNotEmpty) {
+          imports.add(
+            _StyioImportLine(
+              target: target,
+              lineText: lineText,
+              lineContentRange: SourceRange(start: lineStart, end: lineEnd),
+              lineRemovalRange: SourceRange(
+                start: lineStart,
+                end: newline < 0 ? lineEnd : newline + 1,
+              ),
+            ),
+          );
+        }
+      }
+
+      if (newline < 0) {
+        break;
+      }
+      lineStart = newline + 1;
+    }
+    return imports;
+  }
+
+  String? _importTargetFromLine(String lineText) {
+    final openBrace = lineText.indexOf('{');
+    final closeBrace = lineText.lastIndexOf('}');
+    if (openBrace >= 0 && closeBrace > openBrace) {
+      return lineText.substring(openBrace + 1, closeBrace).trim();
+    }
+    return lineText.replaceFirst('@import', '').trim();
+  }
+
+  int _compareImportTargets(String left, String right) {
+    final lowerCompare = left.toLowerCase().compareTo(right.toLowerCase());
+    return lowerCompare == 0 ? left.compareTo(right) : lowerCompare;
+  }
+
+  bool _sameStringList(List<String> left, List<String> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index += 1) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _importReplacementNeedsTrailingNewline(
+    String source,
+    List<_StyioImportLine> imports,
+  ) {
+    if (imports.length > 1) {
+      return true;
+    }
+    final first = imports.first;
+    return first.lineRemovalRange.end > first.lineContentRange.end ||
+        source.length > first.lineRemovalRange.end;
   }
 
   List<DiagnosticQuickFix> _quickFixesForUnresolvedReference(
@@ -1037,4 +1214,32 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       detail: 'Current file ${symbol.kind.name} symbol.',
     );
   }
+}
+
+class _StyioImportLine {
+  const _StyioImportLine({
+    required this.target,
+    required this.lineText,
+    required this.lineContentRange,
+    required this.lineRemovalRange,
+  });
+
+  final String target;
+  final String lineText;
+  final SourceRange lineContentRange;
+  final SourceRange lineRemovalRange;
+}
+
+class _StyioImportOptimization {
+  const _StyioImportOptimization({
+    required this.imports,
+    required this.duplicateImports,
+    required this.needsOptimization,
+    required this.edits,
+  });
+
+  final List<_StyioImportLine> imports;
+  final List<_StyioImportLine> duplicateImports;
+  final bool needsOptimization;
+  final List<FormattingEdit> edits;
 }

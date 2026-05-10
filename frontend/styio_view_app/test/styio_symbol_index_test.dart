@@ -1049,6 +1049,48 @@ blend(price, tax, price) -> @stdout
     expect(extra.replacementArgumentText, 'price, tax');
   });
 
+  test('reports named call argument issues for current-file functions', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left
+}
+price = 1
+tax = 2
+factor = 3
+blend(left: price, rigth: tax, scale: factor) -> @stdout
+blend(left: price, left: tax, scale: factor) -> @stdout
+''';
+
+    final issues = index.callArgumentIssues(source);
+    final unknown = issues.singleWhere(
+      (issue) => issue.diagnostic.code == 'unknown-named-argument',
+    );
+    final duplicate = issues.singleWhere(
+      (issue) => issue.diagnostic.code == 'duplicate-named-argument',
+    );
+
+    expect(unknown.callableName, 'blend');
+    expect(unknown.namedArgumentName, 'rigth');
+    expect(unknown.suggestedParameterName, 'right');
+    expect(
+      source.substring(
+        unknown.diagnostic.range.start,
+        unknown.diagnostic.range.end,
+      ),
+      'rigth',
+    );
+    expect(duplicate.namedArgumentName, 'left');
+    expect(
+      source.substring(
+        duplicate.diagnostic.range.start,
+        duplicate.diagnostic.range.end,
+      ),
+      'left',
+    );
+    expect(duplicate.replacementArgumentText, 'left: price, scale: factor');
+  });
+
   test('resolves parameter info from current hash function declarations', () {
     const index = StyioSymbolIndex();
     const source = '''

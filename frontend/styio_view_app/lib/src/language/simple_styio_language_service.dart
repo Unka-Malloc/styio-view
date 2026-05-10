@@ -530,6 +530,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         return _quickFixesForUnresolvedReference(document, diagnostic);
       case 'duplicate-declaration':
         return _quickFixesForDuplicateDeclaration(document, diagnostic);
+      case 'unknown-named-argument':
+      case 'duplicate-named-argument':
       case 'missing-call-argument':
       case 'too-many-call-arguments':
         return _quickFixesForCallArgumentIssue(document, diagnostic);
@@ -1044,6 +1046,46 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         );
     if (issue.callableName.isEmpty) {
       return const <DiagnosticQuickFix>[];
+    }
+
+    if (issue.hasUnknownNamedArgument) {
+      final argumentNameRange = issue.argumentNameRange;
+      final suggestedParameterName = issue.suggestedParameterName;
+      if (argumentNameRange == null || suggestedParameterName == null) {
+        return const <DiagnosticQuickFix>[];
+      }
+      return [
+        DiagnosticQuickFix(
+          label: 'Change argument name to `$suggestedParameterName`',
+          detail:
+              'Replace unknown `${issue.namedArgumentName}` argument name '
+              'with `${issue.callableName}` parameter '
+              '`$suggestedParameterName`.',
+          edits: [
+            FormattingEdit(
+              range: argumentNameRange,
+              newText: suggestedParameterName,
+            ),
+          ],
+        ),
+      ];
+    }
+
+    if (issue.hasDuplicateNamedArgument) {
+      return [
+        DiagnosticQuickFix(
+          label: 'Remove duplicate `${issue.namedArgumentName}` argument',
+          detail:
+              'Rewrite `${issue.callableName}` call arguments without the '
+              'duplicate `${issue.namedArgumentName}` entry.',
+          edits: [
+            FormattingEdit(
+              range: issue.argumentListRange,
+              newText: issue.replacementArgumentText,
+            ),
+          ],
+        ),
+      ];
     }
 
     final isMissing = issue.hasMissingArguments;

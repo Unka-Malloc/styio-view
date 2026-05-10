@@ -1435,6 +1435,44 @@ blend(price, value) -> @stdout
     );
   });
 
+  test('applies unknown named argument quick fix at the caret', () {
+    const text = '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+price = 1
+tax = 2
+blend(left: price, rigth: tax) -> @stdout
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'unknown-named-argument.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('rigth') + 1),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+price = 1
+tax = 2
+blend(left: price, right: tax) -> @stdout
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'unknown-named-argument',
+      ),
+      isEmpty,
+    );
+  });
+
   test('applies optimize imports quick fix at the caret', () {
     const text = '''
 @import { styio/io }

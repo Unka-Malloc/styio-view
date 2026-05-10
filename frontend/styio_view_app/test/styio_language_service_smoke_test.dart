@@ -582,6 +582,63 @@ blend(price, tax, price) -> @stdout
     expect(extraFix.edits.single.newText, 'price, tax');
   });
 
+  test('reports and fixes named call argument issues', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'named-argument-issues.styio',
+      text: '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left
+}
+price = 1
+tax = 2
+factor = 3
+typo = blend(left: price, rigth: tax, scale: factor)
+duplicate = blend(left: price, left: tax, scale: factor)
+''',
+      revision: 0,
+    );
+    final diagnostics = service.analyzeDocument(document).diagnostics;
+    final unknown = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'unknown-named-argument',
+    );
+    final duplicate = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'duplicate-named-argument',
+    );
+
+    final unknownFix = service
+        .quickFixesForDiagnostic(document, unknown)
+        .single;
+    final duplicateFix = service
+        .quickFixesForDiagnostic(document, duplicate)
+        .single;
+
+    expect(unknown.message, contains('rigth'));
+    expect(unknownFix.label, 'Change argument name to `right`');
+    expect(applyEdits(document.text, unknownFix.edits), '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left
+}
+price = 1
+tax = 2
+factor = 3
+typo = blend(left: price, right: tax, scale: factor)
+duplicate = blend(left: price, left: tax, scale: factor)
+''');
+    expect(duplicate.message, contains('left'));
+    expect(duplicateFix.label, 'Remove duplicate `left` argument');
+    expect(applyEdits(document.text, duplicateFix.edits), '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left
+}
+price = 1
+tax = 2
+factor = 3
+typo = blend(left: price, rigth: tax, scale: factor)
+duplicate = blend(left: price, scale: factor)
+''');
+  });
+
   test('reports and optimizes duplicate or unsorted imports', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

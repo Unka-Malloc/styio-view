@@ -1441,6 +1441,72 @@ class StyioSymbolIndex {
         start: call.callable.range.start,
         end: tokens[call.closingIndex].range.end,
       );
+      final parameterNames = signature.parameters
+          .map((parameter) => parameter.name)
+          .toSet();
+      final argumentNameCounts = <String, int>{};
+
+      for (final argument in arguments) {
+        final argumentName = argument.name;
+        if (argumentName == null) {
+          continue;
+        }
+
+        if (!parameterNames.contains(argumentName)) {
+          issues.add(
+            StyioCallArgumentIssue(
+              diagnostic: Diagnostic(
+                severity: DiagnosticSeverity.warning,
+                code: 'unknown-named-argument',
+                message:
+                    'Call to `${signature.name}` has no parameter named '
+                    '`$argumentName`.',
+                range: argument.nameRange ?? argument.range,
+              ),
+              callableName: signature.name,
+              expectedArgumentCount: signature.parameters.length,
+              actualArgumentCount: arguments.length,
+              argumentListRange: argumentListRange,
+              replacementArgumentText: '',
+              namedArgumentName: argumentName,
+              suggestedParameterName: _closestParameterName(
+                argumentName,
+                signature.parameters,
+              ),
+              argumentNameRange: argument.nameRange,
+            ),
+          );
+          continue;
+        }
+
+        final count = (argumentNameCounts[argumentName] ?? 0) + 1;
+        argumentNameCounts[argumentName] = count;
+        if (count > 1) {
+          issues.add(
+            StyioCallArgumentIssue(
+              diagnostic: Diagnostic(
+                severity: DiagnosticSeverity.warning,
+                code: 'duplicate-named-argument',
+                message:
+                    'Argument `$argumentName` is already supplied in call to '
+                    '`${signature.name}`.',
+                range: argument.nameRange ?? argument.range,
+              ),
+              callableName: signature.name,
+              expectedArgumentCount: signature.parameters.length,
+              actualArgumentCount: arguments.length,
+              argumentListRange: argumentListRange,
+              replacementArgumentText: arguments
+                  .where((candidate) => !identical(candidate, argument))
+                  .map((argument) => argument.text)
+                  .join(', '),
+              namedArgumentName: argumentName,
+              argumentNameRange: argument.nameRange,
+            ),
+          );
+          continue;
+        }
+      }
 
       final missingParameters = requiredParameters
           .where(
@@ -1509,6 +1575,75 @@ class StyioSymbolIndex {
     }
 
     return issues;
+  }
+
+  String? _closestParameterName(
+    String argumentName,
+    List<ParameterInfoParameter> parameters,
+  ) {
+    _ParameterNameCandidate? best;
+    for (final parameter in parameters) {
+      final score = _parameterNameSimilarityScore(argumentName, parameter.name);
+      if (score == null) {
+        continue;
+      }
+      final candidate = _ParameterNameCandidate(
+        name: parameter.name,
+        score: score,
+      );
+      if (best == null ||
+          candidate.score < best.score ||
+          (candidate.score == best.score &&
+              candidate.name.compareTo(best.name) < 0)) {
+        best = candidate;
+      }
+    }
+    return best?.name;
+  }
+
+  int? _parameterNameSimilarityScore(
+    String argumentName,
+    String parameterName,
+  ) {
+    final left = argumentName.toLowerCase();
+    final right = parameterName.toLowerCase();
+    if (left == right) {
+      return 0;
+    }
+    if (left.length < 3 || right.length < 3) {
+      return null;
+    }
+    if (right.startsWith(left) || left.startsWith(right)) {
+      return 1 + (left.length - right.length).abs();
+    }
+    if (right.contains(left) || left.contains(right)) {
+      return 3 + (left.length - right.length).abs();
+    }
+
+    final distance = _editDistance(left, right);
+    final limit = left.length < 5 && right.length < 5 ? 1 : 2;
+    if (distance > limit) {
+      return null;
+    }
+    return 8 + distance;
+  }
+
+  int _editDistance(String left, String right) {
+    var previous = List<int>.generate(right.length + 1, (index) => index);
+    for (var leftIndex = 0; leftIndex < left.length; leftIndex += 1) {
+      final current = List<int>.filled(right.length + 1, leftIndex + 1);
+      for (var rightIndex = 0; rightIndex < right.length; rightIndex += 1) {
+        final substitutionCost =
+            left.codeUnitAt(leftIndex) == right.codeUnitAt(rightIndex) ? 0 : 1;
+        current[rightIndex + 1] = [
+          current[rightIndex] + 1,
+          previous[rightIndex + 1] + 1,
+          previous[rightIndex] + substitutionCost,
+        ].reduce((value, element) => value < element ? value : element);
+      }
+      previous = current;
+    }
+    return previous.last;
   }
 
   List<StyioUnusedParameterIssue> unusedParameterIssues(String source) {
@@ -3986,6 +4121,13 @@ class _NamedArgumentCompletionContext {
   final SourceRange replacementRange;
 }
 
+class _ParameterNameCandidate {
+  const _ParameterNameCandidate({required this.name, required this.score});
+
+  final String name;
+  final int score;
+}
+
 class _InlineVariableInitializer {
   const _InlineVariableInitializer({required this.range, required this.text});
 
@@ -4005,6 +4147,9 @@ class StyioCallArgumentIssue {
     required this.replacementArgumentText,
     this.missingParameterNames = const <String>[],
     this.extraArgumentCount = 0,
+    this.namedArgumentName = '',
+    this.suggestedParameterName,
+    this.argumentNameRange,
   });
 
   final Diagnostic diagnostic;
@@ -4015,9 +4160,18 @@ class StyioCallArgumentIssue {
   final String replacementArgumentText;
   final List<String> missingParameterNames;
   final int extraArgumentCount;
+  final String namedArgumentName;
+  final String? suggestedParameterName;
+  final SourceRange? argumentNameRange;
 
   bool get hasMissingArguments => missingParameterNames.isNotEmpty;
   bool get hasExtraArguments => extraArgumentCount > 0;
+  bool get hasUnknownNamedArgument =>
+      diagnostic.code == 'unknown-named-argument' &&
+      namedArgumentName.isNotEmpty;
+  bool get hasDuplicateNamedArgument =>
+      diagnostic.code == 'duplicate-named-argument' &&
+      namedArgumentName.isNotEmpty;
 }
 
 class StyioUnusedParameterIssue {

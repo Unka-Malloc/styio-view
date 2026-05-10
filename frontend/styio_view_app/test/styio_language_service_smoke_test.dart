@@ -704,7 +704,10 @@ value -> @stdout
     const service = SimpleStyioLanguageService();
     const document = DocumentState(
       documentId: 'completion.styio',
-      text: 'job = ||> { <| 42 }\njo',
+      text: '''
+/// Runs async price work.
+job = ||> { <| 42 }
+jo''',
       revision: 0,
     );
 
@@ -714,6 +717,7 @@ value -> @stdout
 
     expect(jobCompletion.kind, CompletionItemKind.variable);
     expect(jobCompletion.insertText, 'job');
+    expect(jobCompletion.documentation, 'Runs async price work.');
   });
 
   test('offers postfix completions that replace the target expression', () {

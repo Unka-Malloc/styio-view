@@ -1764,6 +1764,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       },
       insertText: symbol.name,
       detail: 'Current file ${symbol.kind.name} symbol.',
+      documentation: symbol.documentation,
     );
   }
 }

@@ -3136,6 +3136,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         : 'Quick Documentation: ${definition.symbol.name}';
     final body = completionItem == null
         ? hover?.markdown ?? 'No documentation payload at the caret.'
+        : completionItem.documentation.isNotEmpty
+        ? completionItem.documentation
         : completionItem.detail.isEmpty
         ? '${completionItem.kind.name} completion'
         : completionItem.detail;

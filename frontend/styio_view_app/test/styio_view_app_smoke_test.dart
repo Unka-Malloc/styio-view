@@ -2350,7 +2350,7 @@ value = blend(price, price)
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final bootstrap = await createBootstrap(PlatformTarget.macos);
-    const text = 'job = ||> { <| 42 }\njo';
+    const text = '/// Runs async price work.\njob = ||> { <| 42 }\njo';
     bootstrap.editorController.loadDocument(
       const DocumentState(
         documentId: 'completion-doc-keymap.styio',
@@ -2395,7 +2395,7 @@ value = blend(price, price)
       tester
           .widget<Text>(find.byKey(const ValueKey('source-quick-doc-body')))
           .data,
-      'Current file variable symbol.',
+      'Runs async price work.',
     );
     expect(
       tester

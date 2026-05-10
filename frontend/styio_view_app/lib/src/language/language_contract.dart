@@ -126,6 +126,7 @@ class CompletionItem {
     required this.kind,
     required this.insertText,
     this.detail = '',
+    this.documentation = '',
     this.replacementRange,
   });
 
@@ -133,6 +134,7 @@ class CompletionItem {
   final CompletionItemKind kind;
   final String insertText;
   final String detail;
+  final String documentation;
   final SourceRange? replacementRange;
 }
 

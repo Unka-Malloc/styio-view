@@ -792,6 +792,88 @@ outOfOrder = blend(scale: factor, price, right: tax)
     );
   });
 
+  test('builds remove-all-argument-names edits for ordered named calls', () {
+    String applyEdits(String text, Iterable<FormattingEdit> edits) {
+      var nextText = text;
+      final ordered = edits.toList(growable: false)
+        ..sort((left, right) => right.range.start.compareTo(left.range.start));
+      for (final edit in ordered) {
+        nextText = nextText.replaceRange(
+          edit.range.start,
+          edit.range.end,
+          edit.newText,
+        );
+      }
+      return nextText;
+    }
+
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(left: price, right: tax, scale: factor)
+mixed = blend(price, right: tax, scale: factor)
+singleNamed = blend(price, right: tax, factor)
+unsafe = blend(scale: factor, right: tax)
+''';
+
+    final orderedPlan = index.removeArgumentNamesAt(
+      source,
+      source.indexOf('value = blend') + 'value = blend('.length,
+    );
+    final mixedPlan = index.removeArgumentNamesAt(
+      source,
+      source.indexOf('mixed = blend') + 'mixed = blend(price, '.length,
+    );
+
+    expect(orderedPlan?.callableName, 'blend');
+    expect(orderedPlan?.edits.length, 3);
+    expect(mixedPlan?.edits.length, 2);
+    expect(applyEdits(source, orderedPlan!.edits), '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(price, tax, factor)
+mixed = blend(price, right: tax, scale: factor)
+singleNamed = blend(price, right: tax, factor)
+unsafe = blend(scale: factor, right: tax)
+''');
+    expect(applyEdits(source, mixedPlan!.edits), '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(left: price, right: tax, scale: factor)
+mixed = blend(price, tax, factor)
+singleNamed = blend(price, right: tax, factor)
+unsafe = blend(scale: factor, right: tax)
+''');
+    expect(
+      index.removeArgumentNamesAt(
+        source,
+        source.indexOf('singleNamed = blend') +
+            'singleNamed = blend(price, '.length,
+      ),
+      isNull,
+    );
+    expect(
+      index.removeArgumentNamesAt(
+        source,
+        source.indexOf('unsafe = blend') + 'unsafe = blend('.length,
+      ),
+      isNull,
+    );
+  });
+
   test('builds specify-type-explicitly edits for inferred local bindings', () {
     const index = StyioSymbolIndex();
     const source = '''

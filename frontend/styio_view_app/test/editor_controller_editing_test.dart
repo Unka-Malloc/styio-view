@@ -1230,6 +1230,49 @@ blend(price, tax) -> @stdout
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies remove-all-argument-names context intention', () {
+    const text = '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+blend(left: price, right: tax, scale: factor) -> @stdout
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'remove-all-argument-names.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.lastIndexOf('right:')),
+    );
+
+    expect(
+      controller.contextActionsAtSelection.first.label,
+      'Remove all argument names',
+    );
+    expect(
+      controller.contextActionsAtSelection.map((item) => item.label),
+      contains('Remove right: from argument'),
+    );
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+blend(price, tax, factor) -> @stdout
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies specify-type-explicitly context intention', () {
     const text = '''
 price = 12.5

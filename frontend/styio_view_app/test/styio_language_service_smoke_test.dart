@@ -1042,6 +1042,53 @@ wrongSlot = blend(price, scale: factor)
     );
   });
 
+  test('offers remove-all-argument-names as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'remove-all-argument-names.styio',
+      text: '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(left: price, right: tax, scale: factor)
+unsafe = blend(scale: factor, right: tax)
+''',
+      revision: 0,
+    );
+
+    final action = service
+        .intentionsAt(document, document.text.indexOf('right: tax') + 1)
+        .singleWhere((item) => item.label == 'Remove all argument names');
+
+    expect(action.detail, contains('signature order'));
+    expect(applyEdits(document.text, action.edits), '''
+fn blend(left: f64, right: f64, scale: f64) {
+  emit left + right
+}
+price = 1.0
+tax = 0.5
+factor = 2.0
+value = blend(price, tax, factor)
+unsafe = blend(scale: factor, right: tax)
+''');
+    expect(
+      service.intentionsAt(
+        document,
+        document.text.indexOf('unsafe = blend') + 'unsafe = blend('.length,
+      ),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Remove all argument names',
+          ),
+        ),
+      ),
+    );
+  });
+
   test('offers postfix completions that replace the target expression', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

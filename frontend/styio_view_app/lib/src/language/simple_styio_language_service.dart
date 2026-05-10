@@ -390,6 +390,22 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       );
     }
 
+    final removeNamesPlan = _symbolIndex.removeArgumentNamesAt(
+      document.text,
+      offset,
+    );
+    if (removeNamesPlan != null && removeNamesPlan.edits.isNotEmpty) {
+      intentions.add(
+        DiagnosticQuickFix(
+          label: 'Remove all argument names',
+          detail:
+              'Use all named `${removeNamesPlan.callableName}` arguments '
+              'positionally when the signature order is preserved.',
+          edits: removeNamesPlan.edits,
+        ),
+      );
+    }
+
     final removeNamePlan = _symbolIndex.removeArgumentNameAt(
       document.text,
       offset,

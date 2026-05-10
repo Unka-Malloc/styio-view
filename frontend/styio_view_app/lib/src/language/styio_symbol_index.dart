@@ -846,6 +846,113 @@ class StyioSymbolIndex {
     );
   }
 
+  RemoveArgumentNamesPlan? removeArgumentNamesAt(String source, int offset) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    if (signaturesByName.isEmpty) {
+      return null;
+    }
+
+    final call = _callArgumentListAt(tokens, offset);
+    if (call == null) {
+      return null;
+    }
+    if (offset < call.callable.range.start ||
+        offset > tokens[call.closingIndex].range.end) {
+      return null;
+    }
+
+    final signature = _signatureForCall(signaturesByName, call.callable);
+    if (signature == null || signature.parameters.isEmpty) {
+      return null;
+    }
+
+    final arguments = _parseCallArguments(
+      source: source,
+      tokens: tokens,
+      openingIndex: call.openingIndex,
+      closingIndex: call.closingIndex,
+    );
+    final namedArguments = arguments
+        .where((argument) => argument.name != null)
+        .toList(growable: false);
+    if (namedArguments.length < 2) {
+      return null;
+    }
+
+    final parameterNames = signature.parameters
+        .map((parameter) => parameter.name)
+        .toSet();
+    final originalNames = <_ArgumentSegment, String>{};
+    final valueRanges = <_ArgumentSegment, SourceRange>{};
+    final seenNames = <String>{};
+    for (final argument in namedArguments) {
+      final name = argument.name!;
+      if (!parameterNames.contains(name) || !seenNames.add(name)) {
+        return null;
+      }
+      final valueRange = _argumentValueRange(
+        source: source,
+        tokens: tokens,
+        argument: argument,
+      );
+      if (valueRange == null || valueRange.isCollapsed) {
+        return null;
+      }
+      originalNames[argument] = name;
+      valueRanges[argument] = valueRange;
+    }
+
+    final simulatedArguments = <_ArgumentSegment>[];
+    final simulatedByOriginal = <_ArgumentSegment, _ArgumentSegment>{};
+    for (final argument in arguments) {
+      final valueRange = valueRanges[argument];
+      if (valueRange == null) {
+        simulatedArguments.add(argument);
+        continue;
+      }
+      final simulated = _ArgumentSegment(
+        range: argument.range,
+        text: source.substring(valueRange.start, valueRange.end),
+      );
+      simulatedArguments.add(simulated);
+      simulatedByOriginal[argument] = simulated;
+    }
+
+    final edits = <FormattingEdit>[];
+    for (final argument in namedArguments) {
+      final simulatedArgument = simulatedByOriginal[argument];
+      if (simulatedArgument == null) {
+        return null;
+      }
+      final simulatedParameter = _parameterForPositionalArgument(
+        signature: signature,
+        arguments: simulatedArguments,
+        targetArgument: simulatedArgument,
+      );
+      if (simulatedParameter == null ||
+          simulatedParameter.name != originalNames[argument]) {
+        return null;
+      }
+      final valueRange = valueRanges[argument]!;
+      edits.add(
+        FormattingEdit(
+          range: argument.range,
+          newText: source.substring(valueRange.start, valueRange.end),
+        ),
+      );
+    }
+
+    return RemoveArgumentNamesPlan(
+      callableName: signature.name,
+      invocationRange: SourceRange(
+        start: call.callable.range.start,
+        end: tokens[call.closingIndex].range.end,
+      ),
+      edits: edits,
+    );
+  }
+
   RemoveArgumentNamePlan? removeArgumentNameAt(String source, int offset) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -3953,6 +4060,18 @@ class AddArgumentNamePlan {
   final SourceRange argumentRange;
   final SourceRange invocationRange;
   final FormattingEdit edit;
+}
+
+class RemoveArgumentNamesPlan {
+  const RemoveArgumentNamesPlan({
+    required this.callableName,
+    required this.invocationRange,
+    required this.edits,
+  });
+
+  final String callableName;
+  final SourceRange invocationRange;
+  final List<FormattingEdit> edits;
 }
 
 class RemoveArgumentNamePlan {

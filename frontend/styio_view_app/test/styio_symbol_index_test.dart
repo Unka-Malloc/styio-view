@@ -1135,6 +1135,15 @@ blend(left: count, count: price) -> @stdout
       ),
       ['count', 'price', 'count', 'price'],
     );
+    expect(
+      mismatches.map(
+        (issue) => source.substring(
+          issue.parameterTypeRange!.start,
+          issue.parameterTypeRange!.end,
+        ),
+      ),
+      ['f64', 'i64', 'f64', 'i64'],
+    );
     expect(mismatches.first.diagnostic.message, contains('expects `f64`'));
   });
 

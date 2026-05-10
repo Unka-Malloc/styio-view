@@ -1719,6 +1719,11 @@ class StyioSymbolIndex {
           expectedTypeName: parameter.type,
           actualTypeName: actualType,
           argumentRange: argumentRange,
+          parameterTypeRange: _parameterTypeRange(
+            tokens: tokens,
+            signature: signature,
+            parameter: parameter,
+          ),
         ),
       );
     }
@@ -2420,6 +2425,64 @@ class StyioSymbolIndex {
       arguments: arguments,
       targetArgument: argument,
     );
+  }
+
+  SourceRange? _parameterTypeRange({
+    required List<TokenSpan> tokens,
+    required _FunctionSignature signature,
+    required ParameterInfoParameter parameter,
+  }) {
+    final nameIndex = tokens.indexWhere(
+      (token) => _sameRange(token.range, parameter.range),
+    );
+    if (nameIndex < 0 || nameIndex >= signature.closingIndex) {
+      return null;
+    }
+
+    final colonIndex = _nextSignificantIndex(tokens, nameIndex + 1);
+    if (colonIndex == null ||
+        colonIndex >= signature.closingIndex ||
+        tokens[colonIndex].lexeme != ':') {
+      return null;
+    }
+
+    int? start;
+    int? end;
+    var parenDepth = 0;
+    var bracketDepth = 0;
+    for (
+      var index = colonIndex + 1;
+      index < signature.closingIndex;
+      index += 1
+    ) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      if (parenDepth == 0 &&
+          bracketDepth == 0 &&
+          (token.lexeme == ',' || token.lexeme == '=')) {
+        break;
+      }
+
+      start ??= token.range.start;
+      end = token.range.end;
+      if (token.kind == TokenKind.punctuation && token.lexeme == '(') {
+        parenDepth += 1;
+      } else if (token.kind == TokenKind.punctuation && token.lexeme == ')') {
+        parenDepth -= 1;
+      } else if (token.kind == TokenKind.punctuation && token.lexeme == '[') {
+        bracketDepth += 1;
+      } else if (token.kind == TokenKind.punctuation && token.lexeme == ']') {
+        bracketDepth -= 1;
+      }
+    }
+
+    if (start == null || end == null) {
+      return null;
+    }
+    return SourceRange(start: start, end: end);
   }
 
   _ArgumentSegment? _argumentAtOffset(
@@ -4365,6 +4428,7 @@ class StyioCallArgumentIssue {
     this.expectedTypeName = '',
     this.actualTypeName = '',
     this.argumentRange,
+    this.parameterTypeRange,
   });
 
   final Diagnostic diagnostic;
@@ -4382,6 +4446,7 @@ class StyioCallArgumentIssue {
   final String expectedTypeName;
   final String actualTypeName;
   final SourceRange? argumentRange;
+  final SourceRange? parameterTypeRange;
 
   bool get hasMissingArguments => missingParameterNames.isNotEmpty;
   bool get hasExtraArguments => extraArgumentCount > 0;

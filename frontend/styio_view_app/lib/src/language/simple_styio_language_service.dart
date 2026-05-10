@@ -1090,25 +1090,46 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     }
 
     if (issue.hasArgumentTypeMismatch) {
+      final fixes = <DiagnosticQuickFix>[];
       final argumentRange = issue.argumentRange;
-      if (argumentRange == null || issue.replacementArgumentText.isEmpty) {
-        return const <DiagnosticQuickFix>[];
+      if (argumentRange != null && issue.replacementArgumentText.isNotEmpty) {
+        fixes.add(
+          DiagnosticQuickFix(
+            label: 'Change argument to ${issue.expectedTypeName} literal',
+            detail:
+                'Rewrite `${issue.parameterName}` argument for '
+                '`${issue.callableName}` from `${issue.actualTypeName}` to '
+                '`${issue.expectedTypeName}`.',
+            edits: [
+              FormattingEdit(
+                range: argumentRange,
+                newText: issue.replacementArgumentText,
+              ),
+            ],
+          ),
+        );
       }
-      return [
-        DiagnosticQuickFix(
-          label: 'Change argument to ${issue.expectedTypeName} literal',
-          detail:
-              'Rewrite `${issue.parameterName}` argument for '
-              '`${issue.callableName}` from `${issue.actualTypeName}` to '
-              '`${issue.expectedTypeName}`.',
-          edits: [
-            FormattingEdit(
-              range: argumentRange,
-              newText: issue.replacementArgumentText,
-            ),
-          ],
-        ),
-      ];
+
+      final parameterTypeRange = issue.parameterTypeRange;
+      if (parameterTypeRange != null) {
+        fixes.add(
+          DiagnosticQuickFix(
+            label:
+                'Change parameter `${issue.parameterName}` type to '
+                '${issue.actualTypeName}',
+            detail:
+                'Update `${issue.callableName}` parameter '
+                '`${issue.parameterName}` to match the argument type.',
+            edits: [
+              FormattingEdit(
+                range: parameterTypeRange,
+                newText: issue.actualTypeName,
+              ),
+            ],
+          ),
+        );
+      }
+      return fixes;
     }
 
     final isMissing = issue.hasMissingArguments;

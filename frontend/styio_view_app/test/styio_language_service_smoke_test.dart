@@ -658,15 +658,26 @@ emitPrice(3) -> @stdout
         .singleWhere(
           (diagnostic) => diagnostic.code == 'argument-type-mismatch',
         );
-    final fix = service.quickFixesForDiagnostic(document, mismatch).single;
+    final fixes = service.quickFixesForDiagnostic(document, mismatch);
+    final literalFix = fixes.singleWhere(
+      (fix) => fix.label == 'Change argument to f64 literal',
+    );
+    final parameterTypeFix = fixes.singleWhere(
+      (fix) => fix.label == 'Change parameter `value` type to i64',
+    );
 
     expect(mismatch.message, contains('expects `f64`, got `i64`'));
-    expect(fix.label, 'Change argument to f64 literal');
-    expect(applyEdits(document.text, fix.edits), '''
+    expect(applyEdits(document.text, literalFix.edits), '''
 fn emitPrice(value: f64) {
   emit value
 }
 emitPrice(3.0) -> @stdout
+''');
+    expect(applyEdits(document.text, parameterTypeFix.edits), '''
+fn emitPrice(value: i64) {
+  emit value
+}
+emitPrice(3) -> @stdout
 ''');
   });
 

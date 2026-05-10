@@ -406,11 +406,13 @@ class ParameterInfoParameter {
     required this.name,
     required this.range,
     this.type = '',
+    this.documentation = '',
   });
 
   final String name;
   final SourceRange range;
   final String type;
+  final String documentation;
 
   String get displayText => type.isEmpty ? name : '$name: $type';
 }

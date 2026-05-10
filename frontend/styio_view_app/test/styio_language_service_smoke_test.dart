@@ -137,6 +137,8 @@ answer -> @stdout
       documentId: 'parameter-info.styio',
       text: '''
 /// Blends price and tax inputs.
+/// @param left Base price before tax.
+/// @param right Tax component to add.
 fn blend(left: f64, right: f64) {
   emit left
 }
@@ -155,6 +157,7 @@ value = blend(price, tax)
     expect(info?.documentation, 'Blends price and tax inputs.');
     expect(info?.activeParameterIndex, 1);
     expect(info?.activeParameter?.name, 'right');
+    expect(info?.activeParameter?.documentation, 'Tax component to add.');
   });
 
   test('returns symbol-aware hover documentation for current-file symbols', () {

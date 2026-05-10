@@ -3520,6 +3520,16 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           '${activeParameter.displayText}',
                 style: theme.textTheme.bodySmall,
               ),
+              if (activeParameter?.documentation.isNotEmpty ?? false) ...[
+                const SizedBox(height: 6),
+                Text(
+                  activeParameter!.documentation,
+                  key: const ValueKey('source-parameter-info-active-doc'),
+                  style: theme.textTheme.bodySmall!.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               for (
                 var index = 0;

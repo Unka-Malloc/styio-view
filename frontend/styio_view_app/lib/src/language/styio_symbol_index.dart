@@ -977,6 +977,23 @@ class StyioSymbolIndex {
         openingIndex: openingIndex,
         closingIndex: closingIndex,
       );
+      final rawDocumentation = _leadingDocumentationForDeclaration(
+        tokens,
+        declarationRange,
+      );
+      final parameterDocumentation = _parameterDocumentationByName(
+        rawDocumentation,
+      );
+      final documentedParameters = parameters
+          .map(
+            (parameter) => ParameterInfoParameter(
+              name: parameter.name,
+              range: parameter.range,
+              type: parameter.type,
+              documentation: parameterDocumentation[parameter.name] ?? '',
+            ),
+          )
+          .toList(growable: false);
       final returnType = _functionReturnTypeText(
         tokens: tokens,
         closingIndex: closingIndex,
@@ -987,15 +1004,12 @@ class StyioSymbolIndex {
         prefix: prefix,
         openingIndex: openingIndex,
         closingIndex: closingIndex,
-        parameters: parameters,
+        parameters: documentedParameters,
         returnType: returnType,
         displayText:
             '${prefix == '#' ? '#' : '$prefix '}${nameToken.lexeme}'
-            '(${parameters.map((parameter) => parameter.displayText).join(', ')})',
-        documentation: _leadingDocumentationForDeclaration(
-          tokens,
-          declarationRange,
-        ),
+            '(${documentedParameters.map((parameter) => parameter.displayText).join(', ')})',
+        documentation: _documentationSummaryText(rawDocumentation),
       );
       signaturesByName
           .putIfAbsent(signature.name, () => <_FunctionSignature>[])
@@ -1644,6 +1658,35 @@ class StyioSymbolIndex {
   String _documentationTextForComment(String lexeme) {
     final text = lexeme.substring(3);
     return text.startsWith(' ') ? text.substring(1) : text;
+  }
+
+  String _documentationSummaryText(String documentation) {
+    return documentation
+        .split('\n')
+        .where((line) => !_isParameterDocumentationLine(line))
+        .join('\n')
+        .trim();
+  }
+
+  Map<String, String> _parameterDocumentationByName(String documentation) {
+    final docsByName = <String, String>{};
+    final tagPattern = RegExp(r'^@param\s+([A-Za-z_][A-Za-z0-9_]*)\s*(.*)$');
+    for (final line in documentation.split('\n')) {
+      final match = tagPattern.firstMatch(line.trim());
+      if (match == null) {
+        continue;
+      }
+      final name = match.group(1)!;
+      final text = match.group(2)!.trim();
+      if (text.isNotEmpty) {
+        docsByName[name] = text;
+      }
+    }
+    return docsByName;
+  }
+
+  bool _isParameterDocumentationLine(String line) {
+    return line.trimLeft().startsWith('@param ');
   }
 
   TokenSpan? _nextIdentifier(List<TokenSpan> tokens, int startIndex) {

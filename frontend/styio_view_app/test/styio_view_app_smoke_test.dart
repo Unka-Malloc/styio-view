@@ -1636,6 +1636,8 @@ void main() {
     final bootstrap = await createBootstrap(PlatformTarget.macos);
     const text = '''
 /// Blends price and tax inputs.
+/// @param left Base price before tax.
+/// @param right Tax component to add.
 fn blend(left: f64, right: f64) {
   emit left
 }
@@ -1672,6 +1674,7 @@ value = blend(price, tax)
     expect(find.text('fn blend(left: f64, right: f64)'), findsOneWidget);
     expect(find.text('Blends price and tax inputs.'), findsOneWidget);
     expect(find.text('Argument 2 of 2: right: f64'), findsOneWidget);
+    expect(find.text('Tax component to add.'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('source-parameter-info-close')));
     await tester.pump();

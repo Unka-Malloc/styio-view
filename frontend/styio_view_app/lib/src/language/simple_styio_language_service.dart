@@ -475,6 +475,14 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       intentions.add(negatedComparisonFix);
     }
 
+    final redundantParenthesesFix = _removeRedundantParenthesesAt(
+      document,
+      offset,
+    );
+    if (redundantParenthesesFix != null) {
+      intentions.add(redundantParenthesesFix);
+    }
+
     final deMorganFix = _deMorganAt(document, offset);
     if (deMorganFix != null) {
       intentions.add(deMorganFix);
@@ -2148,13 +2156,18 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   TokenSpan? _previousSignificant(List<TokenSpan> tokens, int startIndex) {
+    final index = _previousSignificantIndex(tokens, startIndex);
+    return index == null ? null : tokens[index];
+  }
+
+  int? _previousSignificantIndex(List<TokenSpan> tokens, int startIndex) {
     for (var index = startIndex; index >= 0; index -= 1) {
       final token = tokens[index];
       if (token.kind == TokenKind.whitespace ||
           token.kind == TokenKind.comment) {
         continue;
       }
-      return token;
+      return index;
     }
     return null;
   }
@@ -2486,6 +2499,151 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       '==': '!=',
       '!=': '==',
     }[lexeme];
+  }
+
+  DiagnosticQuickFix? _removeRedundantParenthesesAt(
+    DocumentState document,
+    int offset,
+  ) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final openingToken = tokens[index];
+      if (openingToken.lexeme != '(') {
+        continue;
+      }
+      final closingIndex = _matchingParenthesisIndex(tokens, index);
+      if (closingIndex == null) {
+        continue;
+      }
+      final expressionRange = SourceRange(
+        start: openingToken.range.start,
+        end: tokens[closingIndex].range.end,
+      );
+      if (offset < expressionRange.start || offset > expressionRange.end) {
+        continue;
+      }
+      if (source
+          .substring(expressionRange.start, expressionRange.end)
+          .contains('\n')) {
+        continue;
+      }
+      if (!_isRedundantParenthesizedExpression(
+        tokens: tokens,
+        openingIndex: index,
+        closingIndex: closingIndex,
+      )) {
+        continue;
+      }
+
+      final innerRange = _trimmedRange(
+        source,
+        SourceRange(
+          start: openingToken.range.end,
+          end: tokens[closingIndex].range.start,
+        ),
+      );
+      if (innerRange.isCollapsed) {
+        continue;
+      }
+
+      return DiagnosticQuickFix(
+        label: 'Remove redundant parentheses',
+        detail: 'Unwrap parentheses that do not change the expression shape.',
+        edits: [
+          FormattingEdit(
+            range: expressionRange,
+            newText: source.substring(innerRange.start, innerRange.end),
+          ),
+        ],
+      );
+    }
+    return null;
+  }
+
+  bool _isRedundantParenthesizedExpression({
+    required List<TokenSpan> tokens,
+    required int openingIndex,
+    required int closingIndex,
+  }) {
+    return _isWholeWhenConditionParentheses(
+          tokens: tokens,
+          openingIndex: openingIndex,
+          closingIndex: closingIndex,
+        ) ||
+        _isNestedOnlyParentheses(
+          tokens: tokens,
+          openingIndex: openingIndex,
+          closingIndex: closingIndex,
+        ) ||
+        _isAtomicParenthesizedExpression(
+          tokens: tokens,
+          openingIndex: openingIndex,
+          closingIndex: closingIndex,
+        );
+  }
+
+  bool _isWholeWhenConditionParentheses({
+    required List<TokenSpan> tokens,
+    required int openingIndex,
+    required int closingIndex,
+  }) {
+    final previousIndex = _previousSignificantIndex(tokens, openingIndex - 1);
+    final nextIndex = _nextSignificantIndex(tokens, closingIndex + 1);
+    return previousIndex != null &&
+        tokens[previousIndex].lexeme == 'when' &&
+        !_hasLineBreakBetween(tokens, previousIndex + 1, openingIndex) &&
+        nextIndex != null &&
+        tokens[nextIndex].lexeme == '->' &&
+        !_hasLineBreakBetween(tokens, closingIndex + 1, nextIndex);
+  }
+
+  bool _isNestedOnlyParentheses({
+    required List<TokenSpan> tokens,
+    required int openingIndex,
+    required int closingIndex,
+  }) {
+    final firstIndex = _nextSignificantIndex(tokens, openingIndex + 1);
+    final lastIndex = _previousSignificantIndex(tokens, closingIndex - 1);
+    return firstIndex != null &&
+        lastIndex != null &&
+        tokens[firstIndex].lexeme == '(' &&
+        _matchingParenthesisIndex(tokens, firstIndex) == lastIndex;
+  }
+
+  bool _isAtomicParenthesizedExpression({
+    required List<TokenSpan> tokens,
+    required int openingIndex,
+    required int closingIndex,
+  }) {
+    final firstIndex = _nextSignificantIndex(tokens, openingIndex + 1);
+    final lastIndex = _previousSignificantIndex(tokens, closingIndex - 1);
+    if (firstIndex == null || lastIndex == null) {
+      return false;
+    }
+    final firstToken = tokens[firstIndex];
+    if (firstIndex == lastIndex) {
+      return _isAtomicUnwrappedToken(firstToken);
+    }
+
+    final argumentOpeningIndex = _nextSignificantIndex(tokens, firstIndex + 1);
+    return _isCallableUnwrappedToken(firstToken) &&
+        argumentOpeningIndex != null &&
+        tokens[argumentOpeningIndex].lexeme == '(' &&
+        _matchingParenthesisIndex(tokens, argumentOpeningIndex) == lastIndex;
+  }
+
+  bool _isAtomicUnwrappedToken(TokenSpan token) {
+    return token.kind == TokenKind.identifier ||
+        token.kind == TokenKind.number ||
+        token.kind == TokenKind.string ||
+        token.lexeme == 'true' ||
+        token.lexeme == 'false';
+  }
+
+  bool _isCallableUnwrappedToken(TokenSpan token) {
+    return token.kind == TokenKind.identifier ||
+        const {'avg', 'max', 'min', 'std', 'rsi'}.contains(token.lexeme);
   }
 
   DiagnosticQuickFix? _deMorganAt(DocumentState document, int offset) {

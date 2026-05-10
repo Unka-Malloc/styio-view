@@ -848,6 +848,76 @@ when !(ready && blocked) -> state boolean
     );
   });
 
+  test('offers remove-redundant-parentheses as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'remove-redundant-parentheses.styio',
+      text: '''
+ready = true
+blocked = false
+price = 12.5
+limit = 10.0
+label = (ready)
+when (price > limit) -> state expensive
+when ((ready && !blocked)) -> state active
+when !(ready && blocked) -> state guarded
+''',
+      revision: 0,
+    );
+
+    final atomAction = service
+        .intentionsAt(document, document.text.indexOf('(ready)') + 2)
+        .singleWhere((item) => item.label == 'Remove redundant parentheses');
+    final conditionAction = service
+        .intentionsAt(document, document.text.indexOf('price > limit') + 2)
+        .singleWhere((item) => item.label == 'Remove redundant parentheses');
+    final nestedAction = service
+        .intentionsAt(document, document.text.indexOf('ready && !blocked') + 2)
+        .singleWhere((item) => item.label == 'Remove redundant parentheses');
+
+    expect(atomAction.detail, contains('Unwrap parentheses'));
+    expect(applyEdits(document.text, atomAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+limit = 10.0
+label = ready
+when (price > limit) -> state expensive
+when ((ready && !blocked)) -> state active
+when !(ready && blocked) -> state guarded
+''');
+    expect(applyEdits(document.text, conditionAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+limit = 10.0
+label = (ready)
+when price > limit -> state expensive
+when ((ready && !blocked)) -> state active
+when !(ready && blocked) -> state guarded
+''');
+    expect(applyEdits(document.text, nestedAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+limit = 10.0
+label = (ready)
+when (price > limit) -> state expensive
+when (ready && !blocked) -> state active
+when !(ready && blocked) -> state guarded
+''');
+    expect(
+      service.intentionsAt(document, document.text.lastIndexOf('ready &&') + 2),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Remove redundant parentheses',
+          ),
+        ),
+      ),
+    );
+  });
+
   test('reports and fixes typed local initializer type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

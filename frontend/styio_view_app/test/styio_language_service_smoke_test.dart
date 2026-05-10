@@ -482,6 +482,43 @@ wide -> @stdout
 ''');
   });
 
+  test('reports and fixes function return type mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'return-type-mismatch.styio',
+      text: '''
+fn price(): f64 {
+  emit 3
+}
+''',
+      revision: 0,
+    );
+
+    final mismatch = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere((diagnostic) => diagnostic.code == 'return-type-mismatch');
+    final fixes = service.quickFixesForDiagnostic(document, mismatch);
+    final literalFix = fixes.singleWhere(
+      (fix) => fix.label == 'Change return expression to f64 literal',
+    );
+    final returnTypeFix = fixes.singleWhere(
+      (fix) => fix.label == 'Change function `price` return type to i64',
+    );
+
+    expect(mismatch.message, contains('expects `f64`, got `i64`'));
+    expect(applyEdits(document.text, literalFix.edits), '''
+fn price(): f64 {
+  emit 3.0
+}
+''');
+    expect(applyEdits(document.text, returnTypeFix.edits), '''
+fn price(): i64 {
+  emit 3
+}
+''');
+  });
+
   test('removes unused parameters through change signature', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

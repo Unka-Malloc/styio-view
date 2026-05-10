@@ -1537,6 +1537,38 @@ wide -> @stdout
     );
   });
 
+  test('applies return type quick fix at the caret', () {
+    const text = '''
+fn price(): f64 {
+  emit 3
+}
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'return-type-mismatch.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('3')),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+fn price(): f64 {
+  emit 3.0
+}
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'return-type-mismatch',
+      ),
+      isEmpty,
+    );
+  });
+
   test('applies optimize imports quick fix at the caret', () {
     const text = '''
 @import { styio/io }

@@ -1026,6 +1026,57 @@ ok: f64 = price
     );
   });
 
+  test('reports function return type mismatches', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn price(): f64 {
+  emit 3
+}
+fn amount(): i64 {
+  emit 1.5
+}
+#label := (): string => {
+  <| 1
+}
+fn ok(left: f64): f64 {
+  emit left
+}
+''';
+
+    final issues = index.functionReturnTypeIssues(source);
+
+    expect(issues.map((issue) => issue.functionName), [
+      'price',
+      'amount',
+      'label',
+    ]);
+    expect(issues.map((issue) => issue.expectedTypeName), [
+      'f64',
+      'i64',
+      'string',
+    ]);
+    expect(issues.map((issue) => issue.actualTypeName), ['i64', 'f64', 'i64']);
+    expect(
+      issues.map(
+        (issue) => source.substring(
+          issue.diagnostic.range.start,
+          issue.diagnostic.range.end,
+        ),
+      ),
+      ['3', '1.5', '1'],
+    );
+    expect(issues.first.replacementReturnExpressionText, '3.0');
+    expect(
+      issues.map(
+        (issue) => source.substring(
+          issue.returnTypeRange.start,
+          issue.returnTypeRange.end,
+        ),
+      ),
+      ['f64', 'i64', 'string'],
+    );
+  });
+
   test('resolves KDoc-style block comments for parameter info', () {
     const index = StyioSymbolIndex();
     const source = '''

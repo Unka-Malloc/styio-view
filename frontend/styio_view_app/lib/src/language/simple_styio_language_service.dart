@@ -532,6 +532,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         return _quickFixesForDuplicateDeclaration(document, diagnostic);
       case 'initializer-type-mismatch':
         return _quickFixesForTypeMismatchIssue(document, diagnostic);
+      case 'return-type-mismatch':
+        return _quickFixesForFunctionReturnTypeIssue(document, diagnostic);
       case 'unknown-named-argument':
       case 'duplicate-named-argument':
       case 'missing-call-argument':
@@ -594,6 +596,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     diagnostics.addAll(
       _symbolIndex
           .typedLocalInitializerIssues(source)
+          .map((issue) => issue.diagnostic),
+    );
+    diagnostics.addAll(
+      _symbolIndex
+          .functionReturnTypeIssues(source)
           .map((issue) => issue.diagnostic),
     );
     diagnostics.addAll(
@@ -1222,6 +1229,73 @@ class SimpleStyioLanguageService implements StyioLanguageService {
             'initializer type.',
         edits: [
           FormattingEdit(range: issue.typeRange, newText: issue.actualTypeName),
+        ],
+      ),
+    );
+    return fixes;
+  }
+
+  List<DiagnosticQuickFix> _quickFixesForFunctionReturnTypeIssue(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final issue = _symbolIndex
+        .functionReturnTypeIssues(document.text)
+        .firstWhere(
+          (item) =>
+              item.diagnostic.code == diagnostic.code &&
+              item.diagnostic.range.start == diagnostic.range.start &&
+              item.diagnostic.range.end == diagnostic.range.end,
+          orElse: () => const StyioFunctionReturnTypeIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: '',
+              message: '',
+              range: SourceRange(start: 0, end: 0),
+            ),
+            functionName: '',
+            expectedTypeName: '',
+            actualTypeName: '',
+            returnExpressionRange: SourceRange(start: 0, end: 0),
+            returnTypeRange: SourceRange(start: 0, end: 0),
+            replacementReturnExpressionText: '',
+          ),
+        );
+    if (issue.functionName.isEmpty) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    final fixes = <DiagnosticQuickFix>[];
+    if (issue.replacementReturnExpressionText.isNotEmpty) {
+      fixes.add(
+        DiagnosticQuickFix(
+          label:
+              'Change return expression to ${issue.expectedTypeName} literal',
+          detail:
+              'Rewrite `${issue.functionName}` return expression from '
+              '`${issue.actualTypeName}` to `${issue.expectedTypeName}`.',
+          edits: [
+            FormattingEdit(
+              range: issue.returnExpressionRange,
+              newText: issue.replacementReturnExpressionText,
+            ),
+          ],
+        ),
+      );
+    }
+    fixes.add(
+      DiagnosticQuickFix(
+        label:
+            'Change function `${issue.functionName}` return type to '
+            '${issue.actualTypeName}',
+        detail:
+            'Update `${issue.functionName}` return type to match the returned '
+            'expression.',
+        edits: [
+          FormattingEdit(
+            range: issue.returnTypeRange,
+            newText: issue.actualTypeName,
+          ),
         ],
       ),
     );

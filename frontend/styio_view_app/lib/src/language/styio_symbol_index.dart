@@ -1477,6 +1477,151 @@ class StyioSymbolIndex {
     return issues;
   }
 
+  List<StyioFunctionReturnTypeIssue> functionReturnTypeIssues(String source) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    final signatures = signaturesByName.values.expand((items) => items);
+    final issues = <StyioFunctionReturnTypeIssue>[];
+
+    for (final signature in signatures) {
+      final returnTypeRange = signature.returnTypeRange;
+      if (signature.returnType.isEmpty || returnTypeRange == null) {
+        continue;
+      }
+      final bodySpan = _functionBodySpan(tokens, signature);
+      if (bodySpan == null) {
+        continue;
+      }
+
+      final inferredTypesByName = <String, String>{
+        for (final parameter in signature.parameters)
+          if (parameter.type.isNotEmpty) parameter.name: parameter.type,
+      };
+      var nestedBraceDepth = 0;
+      for (
+        var index = bodySpan.openingIndex + 1;
+        index < bodySpan.closingIndex;
+        index += 1
+      ) {
+        final token = tokens[index];
+        if (token.kind == TokenKind.punctuation && token.lexeme == '{') {
+          nestedBraceDepth += 1;
+          continue;
+        }
+        if (token.kind == TokenKind.punctuation && token.lexeme == '}') {
+          nestedBraceDepth -= 1;
+          continue;
+        }
+        if (nestedBraceDepth > 0) {
+          continue;
+        }
+
+        if (token.kind == TokenKind.identifier &&
+            !_syntaxHighlighter.isTypeName(token.lexeme)) {
+          final typedBinding = _typedLocalBindingAtName(tokens, index);
+          if (typedBinding != null &&
+              typedBinding.assignmentIndex < bodySpan.closingIndex) {
+            final expressionStartIndex = _nextSignificantIndex(
+              tokens,
+              typedBinding.assignmentIndex + 1,
+            );
+            if (expressionStartIndex != null &&
+                expressionStartIndex < bodySpan.closingIndex) {
+              final inferredType = _inferExpressionType(
+                tokens: tokens,
+                expressionStartIndex: expressionStartIndex,
+                signaturesByName: signaturesByName,
+                inferredTypesByName: inferredTypesByName,
+              );
+              if (inferredType != null && inferredType.isNotEmpty) {
+                inferredTypesByName[token.lexeme] = inferredType;
+              }
+            }
+            inferredTypesByName[token.lexeme] = typedBinding.typeName;
+            continue;
+          }
+
+          final assignmentIndex = _bindingAssignmentIndex(tokens, index);
+          if (assignmentIndex != null &&
+              assignmentIndex < bodySpan.closingIndex) {
+            final expressionStartIndex = _nextSignificantIndex(
+              tokens,
+              assignmentIndex + 1,
+            );
+            if (expressionStartIndex != null &&
+                expressionStartIndex < bodySpan.closingIndex) {
+              final inferredType = _inferExpressionType(
+                tokens: tokens,
+                expressionStartIndex: expressionStartIndex,
+                signaturesByName: signaturesByName,
+                inferredTypesByName: inferredTypesByName,
+              );
+              if (inferredType != null && inferredType.isNotEmpty) {
+                inferredTypesByName[token.lexeme] = inferredType;
+              }
+            }
+          }
+        }
+
+        if (!_isReturnExpressionMarker(token)) {
+          continue;
+        }
+        final expressionStartIndex = _nextSignificantIndex(tokens, index + 1);
+        if (expressionStartIndex == null ||
+            expressionStartIndex >= bodySpan.closingIndex) {
+          continue;
+        }
+        final expressionRange = _lineExpressionRange(
+          source: source,
+          tokens: tokens,
+          expressionStartIndex: expressionStartIndex,
+          endExclusive: bodySpan.closingIndex,
+        );
+        if (expressionRange == null || expressionRange.isCollapsed) {
+          continue;
+        }
+        final actualType = _inferExpressionType(
+          tokens: tokens,
+          expressionStartIndex: expressionStartIndex,
+          signaturesByName: signaturesByName,
+          inferredTypesByName: inferredTypesByName,
+        );
+        if (actualType == null ||
+            actualType.isEmpty ||
+            actualType == signature.returnType) {
+          continue;
+        }
+
+        issues.add(
+          StyioFunctionReturnTypeIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.warning,
+              code: 'return-type-mismatch',
+              message:
+                  'Return expression for `${signature.name}` expects '
+                  '`${signature.returnType}`, got `$actualType`.',
+              range: expressionRange,
+            ),
+            functionName: signature.name,
+            expectedTypeName: signature.returnType,
+            actualTypeName: actualType,
+            returnExpressionRange: expressionRange,
+            returnTypeRange: returnTypeRange,
+            replacementReturnExpressionText: _argumentTypeReplacementText(
+              tokens: tokens,
+              expressionStartIndex: expressionStartIndex,
+              argumentRange: expressionRange,
+              expectedType: signature.returnType,
+              actualType: actualType,
+            ),
+          ),
+        );
+      }
+    }
+
+    return issues;
+  }
+
   Map<String, String> _inferLocalBindingTypes(
     List<TokenSpan> tokens,
     Map<String, List<_FunctionSignature>> signaturesByName,
@@ -1864,6 +2009,36 @@ class StyioSymbolIndex {
     );
   }
 
+  SourceRange? _lineExpressionRange({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int expressionStartIndex,
+    required int endExclusive,
+  }) {
+    var end = tokens[expressionStartIndex].range.end;
+    for (
+      var index = expressionStartIndex + 1;
+      index < endExclusive;
+      index += 1
+    ) {
+      final token = tokens[index];
+      if (token.lexeme.contains('\n') || token.kind == TokenKind.comment) {
+        break;
+      }
+      end = token.range.end;
+    }
+    return _trimmedRange(
+      source,
+      SourceRange(start: tokens[expressionStartIndex].range.start, end: end),
+    );
+  }
+
+  bool _isReturnExpressionMarker(TokenSpan token) {
+    return token.lexeme == 'emit' ||
+        token.lexeme == '<|' ||
+        token.lexeme == '|<|';
+  }
+
   String? _closestParameterName(
     String argumentName,
     List<ParameterInfoParameter> parameters,
@@ -2045,6 +2220,10 @@ class StyioSymbolIndex {
         tokens: tokens,
         closingIndex: closingIndex,
       );
+      final returnTypeRange = _functionReturnTypeRange(
+        tokens: tokens,
+        closingIndex: closingIndex,
+      );
       final signature = _FunctionSignature(
         name: nameToken.lexeme,
         nameRange: nameToken.range,
@@ -2053,6 +2232,7 @@ class StyioSymbolIndex {
         closingIndex: closingIndex,
         parameters: documentedParameters,
         returnType: returnType,
+        returnTypeRange: returnTypeRange,
         displayText:
             '${prefix == '#' ? '#' : '$prefix '}${nameToken.lexeme}'
             '(${documentedParameters.map((parameter) => parameter.displayText).join(', ')})',
@@ -2141,6 +2321,38 @@ class StyioSymbolIndex {
       parts.add(token.lexeme);
     }
     return parts.join();
+  }
+
+  SourceRange? _functionReturnTypeRange({
+    required List<TokenSpan> tokens,
+    required int closingIndex,
+  }) {
+    final colonIndex = _nextSignificantIndex(tokens, closingIndex + 1);
+    if (colonIndex == null || tokens[colonIndex].lexeme != ':') {
+      return null;
+    }
+
+    int? start;
+    int? end;
+    for (var index = colonIndex + 1; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.lexeme.contains('\n')) {
+        break;
+      }
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      if (token.lexeme == '{' || token.lexeme == '=>') {
+        break;
+      }
+      start ??= token.range.start;
+      end = token.range.end;
+    }
+    if (start == null || end == null) {
+      return null;
+    }
+    return SourceRange(start: start, end: end);
   }
 
   _FunctionSignature? _functionSignatureForTarget(
@@ -3402,17 +3614,43 @@ class StyioSymbolIndex {
     List<TokenSpan> tokens,
     _FunctionSignature signature,
   ) {
+    return _functionBodySpan(tokens, signature)?.range;
+  }
+
+  _FunctionBodySpan? _functionBodySpan(
+    List<TokenSpan> tokens,
+    _FunctionSignature signature,
+  ) {
     var index = _nextSignificantIndex(tokens, signature.closingIndex + 1);
     while (index != null && index < tokens.length) {
       final token = tokens[index];
+      if (token.lexeme == ':') {
+        index = _nextSignificantIndex(tokens, index + 1);
+        while (index != null && index < tokens.length) {
+          final typeToken = tokens[index];
+          if (typeToken.lexeme.contains('\n') ||
+              typeToken.lexeme == '{' ||
+              typeToken.lexeme == '=>' ||
+              typeToken.lexeme == ':=' ||
+              typeToken.lexeme == '=') {
+            break;
+          }
+          index = _nextSignificantIndex(tokens, index + 1);
+        }
+        continue;
+      }
       if (token.lexeme == '{') {
         final closingIndex = _matchingBraceIndex(tokens, index);
         if (closingIndex == null) {
           return null;
         }
-        return SourceRange(
-          start: token.range.end,
-          end: tokens[closingIndex].range.start,
+        return _FunctionBodySpan(
+          openingIndex: index,
+          closingIndex: closingIndex,
+          range: SourceRange(
+            start: token.range.end,
+            end: tokens[closingIndex].range.start,
+          ),
         );
       }
       if (token.lexeme != '=>' && token.lexeme != ':=' && token.lexeme != '=') {
@@ -4440,6 +4678,7 @@ class _FunctionSignature {
     required this.closingIndex,
     required this.parameters,
     required this.returnType,
+    required this.returnTypeRange,
     required this.displayText,
     this.documentation = '',
   });
@@ -4451,8 +4690,21 @@ class _FunctionSignature {
   final int closingIndex;
   final List<ParameterInfoParameter> parameters;
   final String returnType;
+  final SourceRange? returnTypeRange;
   final String displayText;
   final String documentation;
+}
+
+class _FunctionBodySpan {
+  const _FunctionBodySpan({
+    required this.openingIndex,
+    required this.closingIndex,
+    required this.range,
+  });
+
+  final int openingIndex;
+  final int closingIndex;
+  final SourceRange range;
 }
 
 class _CallArgumentList {
@@ -4595,6 +4847,26 @@ class StyioTypeMismatchIssue {
   final SourceRange initializerRange;
   final SourceRange typeRange;
   final String replacementInitializerText;
+}
+
+class StyioFunctionReturnTypeIssue {
+  const StyioFunctionReturnTypeIssue({
+    required this.diagnostic,
+    required this.functionName,
+    required this.expectedTypeName,
+    required this.actualTypeName,
+    required this.returnExpressionRange,
+    required this.returnTypeRange,
+    required this.replacementReturnExpressionText,
+  });
+
+  final Diagnostic diagnostic;
+  final String functionName;
+  final String expectedTypeName;
+  final String actualTypeName;
+  final SourceRange returnExpressionRange;
+  final SourceRange returnTypeRange;
+  final String replacementReturnExpressionText;
 }
 
 class StyioUnusedParameterIssue {

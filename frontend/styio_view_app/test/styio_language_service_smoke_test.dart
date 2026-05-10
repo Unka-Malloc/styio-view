@@ -926,6 +926,9 @@ when ready || ready -> state repeated
 when !blocked && !blocked -> state guarded
 when ready || !ready -> state tautology
 when !blocked && blocked -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
 when true || ready && blocked -> state mixed
 when check() || check() -> state effect
 ''',
@@ -959,6 +962,15 @@ when check() || check() -> state effect
           document.text.indexOf('!blocked && blocked') + 2,
         )
         .singleWhere((item) => item.label == 'Simplify boolean expression');
+    final absorbedOrAction = service
+        .intentionsAt(
+          document,
+          document.text.indexOf('ready || (ready && blocked)') + 2,
+        )
+        .singleWhere((item) => item.label == 'Simplify boolean expression');
+    final absorbedAndAction = service
+        .intentionsAt(document, document.text.indexOf('ready) && !blocked') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean expression');
 
     expect(andTrueAction.detail, contains('simplified value'));
     expect(applyEdits(document.text, andTrueAction.edits), '''
@@ -972,6 +984,9 @@ when ready || ready -> state repeated
 when !blocked && !blocked -> state guarded
 when ready || !ready -> state tautology
 when !blocked && blocked -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
 when true || ready && blocked -> state mixed
 when check() || check() -> state effect
 ''');
@@ -986,6 +1001,9 @@ when ready || ready -> state repeated
 when !blocked && !blocked -> state guarded
 when ready || !ready -> state tautology
 when !blocked && blocked -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
 when true || ready && blocked -> state mixed
 when check() || check() -> state effect
 ''');
@@ -1000,6 +1018,9 @@ when ready || ready -> state repeated
 when !blocked && !blocked -> state guarded
 when ready || !ready -> state tautology
 when !blocked && blocked -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
 when true || ready && blocked -> state mixed
 when check() || check() -> state effect
 ''');
@@ -1014,6 +1035,9 @@ when ready || ready -> state repeated
 when !blocked && !blocked -> state guarded
 when ready || !ready -> state tautology
 when !blocked && blocked -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
 when true || ready && blocked -> state mixed
 when check() || check() -> state effect
 ''');
@@ -1028,6 +1052,9 @@ when ready -> state repeated
 when !blocked && !blocked -> state guarded
 when ready || !ready -> state tautology
 when !blocked && blocked -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
 when true || ready && blocked -> state mixed
 when check() || check() -> state effect
 ''');
@@ -1042,6 +1069,9 @@ when ready || ready -> state repeated
 when !blocked -> state guarded
 when ready || !ready -> state tautology
 when !blocked && blocked -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
 when true || ready && blocked -> state mixed
 when check() || check() -> state effect
 ''');
@@ -1056,6 +1086,9 @@ when ready || ready -> state repeated
 when !blocked && !blocked -> state guarded
 when true -> state tautology
 when !blocked && blocked -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
 when true || ready && blocked -> state mixed
 when check() || check() -> state effect
 ''');
@@ -1070,6 +1103,43 @@ when ready || ready -> state repeated
 when !blocked && !blocked -> state guarded
 when ready || !ready -> state tautology
 when false -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
+when true || ready && blocked -> state mixed
+when check() || check() -> state effect
+''');
+    expect(applyEdits(document.text, absorbedOrAction.edits), '''
+ready = true
+blocked = false
+when ready && true -> state ready
+when false || ready -> state active
+when blocked || true -> state always
+when ready && false -> state never
+when ready || ready -> state repeated
+when !blocked && !blocked -> state guarded
+when ready || !ready -> state tautology
+when !blocked && blocked -> state contradiction
+when ready -> state absorbed
+when (!blocked || ready) && !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
+when true || ready && blocked -> state mixed
+when check() || check() -> state effect
+''');
+    expect(applyEdits(document.text, absorbedAndAction.edits), '''
+ready = true
+blocked = false
+when ready && true -> state ready
+when false || ready -> state active
+when blocked || true -> state always
+when ready && false -> state never
+when ready || ready -> state repeated
+when !blocked && !blocked -> state guarded
+when ready || !ready -> state tautology
+when !blocked && blocked -> state contradiction
+when ready || (ready && blocked) -> state absorbed
+when !blocked -> state absorbed_negated
+when ready || (ready && check()) -> state effect_absorption
 when true || ready && blocked -> state mixed
 when check() || check() -> state effect
 ''');
@@ -1085,6 +1155,19 @@ when check() || check() -> state effect
     );
     expect(
       service.intentionsAt(document, document.text.indexOf('check() ||') + 2),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Simplify boolean expression',
+          ),
+        ),
+      ),
+    );
+    expect(
+      service.intentionsAt(
+        document,
+        document.text.indexOf('ready && check()') + 2,
+      ),
       isNot(
         contains(
           predicate<DiagnosticQuickFix>(

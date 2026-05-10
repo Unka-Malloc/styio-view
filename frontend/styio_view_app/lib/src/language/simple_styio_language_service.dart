@@ -2533,6 +2533,14 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     if (complementaryReplacement != null) {
       return complementaryReplacement;
     }
+    final absorbedReplacement = _simplifiedAbsorbedBooleanTermsText(
+      leftText: leftText,
+      operatorLexeme: operatorLexeme,
+      rightText: rightText,
+    );
+    if (absorbedReplacement != null) {
+      return absorbedReplacement;
+    }
 
     if (leftLiteral == null && rightLiteral == null) {
       return null;
@@ -2593,6 +2601,91 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       return null;
     }
     return trimmed.startsWith('!') ? trimmed.substring(1) : trimmed;
+  }
+
+  String? _simplifiedAbsorbedBooleanTermsText({
+    required String leftText,
+    required String operatorLexeme,
+    required String rightText,
+  }) {
+    return _absorbedBooleanTermText(
+          stableTermText: leftText,
+          parenthesizedExpressionText: rightText,
+          outerOperatorLexeme: operatorLexeme,
+        ) ??
+        _absorbedBooleanTermText(
+          stableTermText: rightText,
+          parenthesizedExpressionText: leftText,
+          outerOperatorLexeme: operatorLexeme,
+        );
+  }
+
+  String? _absorbedBooleanTermText({
+    required String stableTermText,
+    required String parenthesizedExpressionText,
+    required String outerOperatorLexeme,
+  }) {
+    final stableTerm = stableTermText.trim();
+    if (!_isStableBooleanTerm(stableTerm)) {
+      return null;
+    }
+    final parts = _parenthesizedStableBooleanBinaryParts(
+      parenthesizedExpressionText,
+    );
+    if (parts == null) {
+      return null;
+    }
+    final expectedInnerOperator = outerOperatorLexeme == '||' ? '&&' : '||';
+    if (parts[0] != expectedInnerOperator) {
+      return null;
+    }
+    return parts[1] == stableTerm || parts[2] == stableTerm ? stableTerm : null;
+  }
+
+  List<String>? _parenthesizedStableBooleanBinaryParts(String expression) {
+    final trimmed = expression.trim();
+    if (!trimmed.startsWith('(') ||
+        !trimmed.endsWith(')') ||
+        trimmed.contains('\n')) {
+      return null;
+    }
+    final innerText = trimmed.substring(1, trimmed.length - 1).trim();
+    if (innerText.isEmpty || !_isBalancedInlineExpression(innerText)) {
+      return null;
+    }
+    final tokens = _syntaxHighlighter.tokenize(innerText);
+    int? operatorIndex;
+    var nestedDepth = 0;
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      if (nestedDepth == 0 && (token.lexeme == '&&' || token.lexeme == '||')) {
+        if (operatorIndex != null) {
+          return null;
+        }
+        operatorIndex = index;
+      }
+      if (token.lexeme == '(' || token.lexeme == '[' || token.lexeme == '{') {
+        nestedDepth += 1;
+      } else if (token.lexeme == ')' ||
+          token.lexeme == ']' ||
+          token.lexeme == '}') {
+        nestedDepth -= 1;
+      }
+    }
+    if (operatorIndex == null) {
+      return null;
+    }
+    final operatorToken = tokens[operatorIndex];
+    final leftText = innerText.substring(0, operatorToken.range.start).trim();
+    final rightText = innerText.substring(operatorToken.range.end).trim();
+    if (!_isStableBooleanTerm(leftText) || !_isStableBooleanTerm(rightText)) {
+      return null;
+    }
+    return [operatorToken.lexeme, leftText, rightText];
   }
 
   bool _hasAdjacentBooleanOperator({

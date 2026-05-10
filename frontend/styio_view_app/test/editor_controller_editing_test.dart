@@ -1649,6 +1649,37 @@ when false -> state impossible
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies simplify-absorbed-boolean-expression context intention', () {
+    const text = '''
+ready = true
+blocked = false
+when ready || (ready && blocked) -> state absorbed
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'simplify-absorbed-boolean-expression.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(
+        text.indexOf('ready || (ready && blocked)') + 2,
+      ),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Simplify boolean expression',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+ready = true
+blocked = false
+when ready -> state absorbed
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies simplify-negated-comparison context intention', () {
     const text = '''
 price = 12.5

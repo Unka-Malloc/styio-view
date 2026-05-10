@@ -187,6 +187,39 @@ fn normalize(source: f64, scale: f64) {
     expect(textsFor(SemanticKind.variable), isNot(contains('f64')));
   });
 
+  test('resolves resource topology blocks for folding surfaces', () {
+    const highlighter = StyioSyntaxHighlighter();
+    const source = '''
+@prices : f64|..10| := {
+  @file("prices.txt") >> #(price: f64) => {
+    price -> @prices
+  }
+}
+job = ||> { <| 42 }
+''';
+
+    final tokens = highlighter.tokenize(source);
+    final blocks = highlighter.resolveSemanticBlocks(tokens);
+
+    final resourceBlock = blocks.singleWhere(
+      (block) => block.label == 'prices',
+    );
+    final taskBlock = blocks.singleWhere(
+      (block) => block.label == 'task_block',
+    );
+
+    expect(source.substring(resourceBlock.range.start), startsWith('{\n  @'));
+    expect(
+      source.substring(resourceBlock.range.start, resourceBlock.range.end),
+      contains('price -> @prices'),
+    );
+    expect(blocks.map((block) => block.label), isNot(contains('file')));
+    expect(
+      source.substring(taskBlock.range.start, taskBlock.range.end),
+      '{ <| 42 }',
+    );
+  });
+
   test('exposes operator hover copy for language service reuse', () {
     const highlighter = StyioSyntaxHighlighter();
 

@@ -598,7 +598,14 @@ class StyioSyntaxHighlighter {
           token.kind == TokenKind.keyword && token.lexeme == 'fn';
       final isHashFunction = token.lexeme == '#';
       final isTaskLaunch = token.lexeme == '||>';
-      if (!isLegacyFunction && !isHashFunction && !isTaskLaunch) {
+      final isResourceDeclaration = _isResourceDeclarationBlockAnchor(
+        tokens,
+        index,
+      );
+      if (!isLegacyFunction &&
+          !isHashFunction &&
+          !isTaskLaunch &&
+          !isResourceDeclaration) {
         continue;
       }
 
@@ -759,6 +766,38 @@ class StyioSyntaxHighlighter {
     }
 
     return null;
+  }
+
+  bool _isResourceDeclarationBlockAnchor(List<TokenSpan> tokens, int index) {
+    final token = tokens[index];
+    if (token.lexeme != '@') {
+      return false;
+    }
+    final resourceToken = nextSignificantToken(tokens, startIndex: index + 1);
+    if (resourceToken == null ||
+        resourceToken.lexeme == 'import' ||
+        (resourceToken.kind != TokenKind.identifier &&
+            resourceToken.kind != TokenKind.keyword)) {
+      return false;
+    }
+    var cursor = tokens.indexOf(resourceToken) + 1;
+    while (true) {
+      final next = nextSignificantToken(tokens, startIndex: cursor);
+      if (next == null) {
+        return false;
+      }
+      if (next.lexeme == '{' || next.lexeme == ';') {
+        return false;
+      }
+      if (next.lexeme == ':=') {
+        final opening = nextSignificantToken(
+          tokens,
+          startIndex: tokens.indexOf(next) + 1,
+        );
+        return opening?.lexeme == '{';
+      }
+      cursor = tokens.indexOf(next) + 1;
+    }
   }
 
   String? _matchOperator(String source, int index) {

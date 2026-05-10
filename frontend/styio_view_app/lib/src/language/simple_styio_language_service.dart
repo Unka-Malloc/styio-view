@@ -609,6 +609,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     );
     diagnostics.addAll(
       _symbolIndex
+          .binaryOperatorTypeIssues(source)
+          .map((issue) => issue.diagnostic),
+    );
+    diagnostics.addAll(
+      _symbolIndex
           .conditionTypeMismatchIssues(source)
           .map((issue) => issue.diagnostic),
     );

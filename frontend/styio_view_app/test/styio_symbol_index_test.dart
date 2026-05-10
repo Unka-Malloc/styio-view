@@ -1035,6 +1035,38 @@ total = price + tax * 2
     );
   });
 
+  test('reports binary operator operand type mismatches', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+price = 12.5
+ready = true
+bad = price && ready
+also = ready + 1
+ok = true || price > 0
+fn broken(value: f64): bool {
+  emit true || value + 1
+}
+''';
+
+    final issues = index.binaryOperatorTypeIssues(source);
+
+    expect(issues.map((issue) => issue.operatorLexeme), ['&&', '+', '||']);
+    expect(issues.map((issue) => issue.leftTypeName), ['f64', 'bool', 'bool']);
+    expect(issues.map((issue) => issue.rightTypeName), ['bool', 'i64', 'f64']);
+    expect(
+      issues.map(
+        (issue) => source.substring(
+          issue.operatorRange.start,
+          issue.operatorRange.end,
+        ),
+      ),
+      ['&&', '+', '||'],
+    );
+    expect(issues.map((issue) => issue.diagnostic.code).toSet(), {
+      'binary-operator-type-mismatch',
+    });
+  });
+
   test('infers parenthesized and unary expression types', () {
     const index = StyioSymbolIndex();
     const source = '''

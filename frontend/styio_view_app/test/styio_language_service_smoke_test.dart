@@ -604,6 +604,39 @@ fn ready(value: f64): bool {
 ''');
   });
 
+  test('reports binary operator operand type mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'binary-operator-type-mismatch.styio',
+      text: '''
+price = 12.5
+ready = true
+bad = price && ready
+fn broken(value: f64): bool {
+  emit true || value + 1
+}
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service
+        .analyzeDocument(document)
+        .diagnostics
+        .where(
+          (diagnostic) => diagnostic.code == 'binary-operator-type-mismatch',
+        )
+        .toList(growable: false);
+
+    expect(diagnostics, hasLength(2));
+    expect(
+      diagnostics.map((diagnostic) => diagnostic.message),
+      containsAll([
+        'Operator `&&` cannot be applied to `f64` and `bool`.',
+        'Operator `||` cannot be applied to `bool` and `f64`.',
+      ]),
+    );
+  });
+
   test('reports unary and parenthesized expression type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

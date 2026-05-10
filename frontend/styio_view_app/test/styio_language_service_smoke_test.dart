@@ -352,6 +352,81 @@ used -> @stdout
     },
   );
 
+  test('reports and renames duplicate declarations in the same scope', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'duplicate-declaration.styio',
+      text: '''
+value = 1
+value = 2
+value -> @stdout
+''',
+      revision: 0,
+    );
+
+    final diagnostic = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere(
+          (diagnostic) => diagnostic.code == 'duplicate-declaration',
+        );
+    final fixes = service.quickFixesForDiagnostic(document, diagnostic);
+
+    expect(diagnostic.message, contains('value'));
+    expect(fixes.single.label, 'Rename duplicate declaration to `value2`');
+    expect(fixes.single.edits.map((edit) => edit.newText), [
+      'value2',
+      'value2',
+    ]);
+  });
+
+  test('does not report matching parameter names in separate functions', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'scoped-parameters.styio',
+      text: '''
+#first := (value) => {
+  <| value
+}
+#second := (value) => {
+  <| value
+}
+''',
+      revision: 0,
+    );
+
+    final duplicateDiagnostics = service
+        .analyzeDocument(document)
+        .diagnostics
+        .where((diagnostic) => diagnostic.code == 'duplicate-declaration');
+
+    expect(duplicateDiagnostics, isEmpty);
+  });
+
+  test('reports duplicate parameters in the same signature scope', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'duplicate-parameters.styio',
+      text: '''
+#sum := (value, value) => {
+  <| value
+}
+''',
+      revision: 0,
+    );
+
+    final diagnostic = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere(
+          (diagnostic) => diagnostic.code == 'duplicate-declaration',
+        );
+    final fix = service.quickFixesForDiagnostic(document, diagnostic).single;
+
+    expect(fix.label, 'Rename duplicate declaration to `value2`');
+    expect(fix.edits.map((edit) => edit.newText), ['value2', 'value2']);
+  });
+
   test('offers resource and task completions for target syntax', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

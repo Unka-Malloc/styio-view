@@ -1164,6 +1164,39 @@ value = 1
     );
   });
 
+  test('applies duplicate declaration rename quick fix at the caret', () {
+    const text = '''
+value = 1
+value = 2
+value -> @stdout
+''';
+    final duplicateOffset = text.indexOf('value = 2') + 2;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'duplicate-declaration.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(duplicateOffset),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+value = 1
+value2 = 2
+value2 -> @stdout
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'duplicate-declaration',
+      ),
+      isEmpty,
+    );
+  });
+
   test('resolves active token when caret lands on token boundary', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(

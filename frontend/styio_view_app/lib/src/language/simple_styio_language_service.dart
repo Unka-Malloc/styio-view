@@ -376,6 +376,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         ];
       case 'unresolved-reference':
         return _quickFixesForUnresolvedReference(document, diagnostic);
+      case 'duplicate-declaration':
+        return _quickFixesForDuplicateDeclaration(document, diagnostic);
       case 'missing-call-argument':
       case 'too-many-call-arguments':
         return _quickFixesForCallArgumentIssue(document, diagnostic);
@@ -432,6 +434,9 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     diagnostics.addAll(
       _symbolIndex.callArgumentIssues(source).map((issue) => issue.diagnostic),
     );
+    diagnostics.addAll(
+      _duplicateDeclarationDiagnostics(tokens, symbolSnapshot),
+    );
     diagnostics.addAll(_importOptimizationDiagnostics(source));
 
     for (var index = 0; index < tokens.length; index += 1) {
@@ -453,6 +458,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
 
     for (final symbol in symbolSnapshot.symbols) {
       if (!_shouldReportUnusedLocalSymbol(tokens, symbol) ||
+          _hasDuplicateDeclaration(tokens, symbolSnapshot, symbol) ||
           _diagnosticsIntersectRange(diagnostics, symbol.declarationRange)) {
         continue;
       }
@@ -493,6 +499,26 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     }
 
     return diagnostics;
+  }
+
+  List<Diagnostic> _duplicateDeclarationDiagnostics(
+    List<TokenSpan> tokens,
+    StyioSymbolSnapshot symbolSnapshot,
+  ) {
+    return [
+      for (final duplicate in _duplicateDeclarationEntries(
+        tokens,
+        symbolSnapshot,
+      ))
+        Diagnostic(
+          severity: DiagnosticSeverity.warning,
+          code: 'duplicate-declaration',
+          message:
+              'Name `${duplicate.symbol.name}` already has a current-file '
+              '${duplicate.original.kind.name} declaration in this scope.',
+          range: duplicate.symbol.nameRange,
+        ),
+    ];
   }
 
   SourceRange _lineRemovalRange(String source, SourceRange range) {
@@ -790,6 +816,39 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     ];
   }
 
+  List<DiagnosticQuickFix> _quickFixesForDuplicateDeclaration(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final tokens = _syntaxHighlighter.tokenize(document.text);
+    final symbolSnapshot = _symbolIndex.build(tokens);
+    final symbol = _symbolForRange(symbolSnapshot, diagnostic.range);
+    if (symbol == null) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    final newName = _uniqueSymbolName(symbolSnapshot, symbol.name);
+    final renamePlan = _symbolIndex.renameAt(
+      document.text,
+      diagnostic.range.start,
+      newName,
+    );
+    if (renamePlan == null ||
+        renamePlan.hasConflicts ||
+        renamePlan.edits.isEmpty) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    return [
+      DiagnosticQuickFix(
+        label: 'Rename duplicate declaration to `$newName`',
+        detail:
+            'Rename the duplicate declaration and its current-file references.',
+        edits: renamePlan.edits,
+      ),
+    ];
+  }
+
   DiagnosticQuickFix? _createFunctionFromUsageFix({
     required String source,
     required List<TokenSpan> tokens,
@@ -996,6 +1055,120 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     }
     final previous = _previousSignificant(tokens, nameIndex - 1);
     return previous?.lexeme != 'let';
+  }
+
+  List<_DuplicateDeclarationEntry> _duplicateDeclarationEntries(
+    List<TokenSpan> tokens,
+    StyioSymbolSnapshot symbolSnapshot,
+  ) {
+    final firstByKey = <String, DocumentSymbol>{};
+    final duplicates = <_DuplicateDeclarationEntry>[];
+    for (final symbol in symbolSnapshot.symbols) {
+      final key = _duplicateDeclarationKey(tokens, symbol);
+      final previous = firstByKey[key];
+      if (previous == null) {
+        firstByKey[key] = symbol;
+        continue;
+      }
+      duplicates.add(
+        _DuplicateDeclarationEntry(original: previous, symbol: symbol),
+      );
+    }
+    return duplicates;
+  }
+
+  bool _hasDuplicateDeclaration(
+    List<TokenSpan> tokens,
+    StyioSymbolSnapshot symbolSnapshot,
+    DocumentSymbol symbol,
+  ) {
+    final key = _duplicateDeclarationKey(tokens, symbol);
+    var count = 0;
+    for (final candidate in symbolSnapshot.symbols) {
+      if (_duplicateDeclarationKey(tokens, candidate) == key) {
+        count += 1;
+      }
+      if (count > 1) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _duplicateDeclarationKey(
+    List<TokenSpan> tokens,
+    DocumentSymbol symbol,
+  ) {
+    final scope = symbol.kind == SymbolKind.parameter
+        ? _enclosingParenthesisStart(tokens, symbol.nameRange.start)
+        : _enclosingBlockStart(tokens, symbol.nameRange.start);
+    return '${symbol.name}\u0000$scope';
+  }
+
+  int _enclosingBlockStart(List<TokenSpan> tokens, int offset) {
+    final stack = <int>[];
+    for (final token in tokens) {
+      if (token.range.start >= offset) {
+        break;
+      }
+      if (token.kind != TokenKind.punctuation) {
+        continue;
+      }
+      if (token.lexeme == '{') {
+        stack.add(token.range.start);
+      } else if (token.lexeme == '}' && stack.isNotEmpty) {
+        stack.removeLast();
+      }
+    }
+    return stack.isEmpty ? -1 : stack.last;
+  }
+
+  int _enclosingParenthesisStart(List<TokenSpan> tokens, int offset) {
+    final stack = <int>[];
+    for (final token in tokens) {
+      if (token.range.start >= offset) {
+        break;
+      }
+      if (token.kind != TokenKind.punctuation) {
+        continue;
+      }
+      if (token.lexeme == '(') {
+        stack.add(token.range.start);
+      } else if (token.lexeme == ')' && stack.isNotEmpty) {
+        stack.removeLast();
+      }
+    }
+    return stack.isEmpty ? -1 : stack.last;
+  }
+
+  DocumentSymbol? _symbolForRange(
+    StyioSymbolSnapshot symbolSnapshot,
+    SourceRange range,
+  ) {
+    for (final symbol in symbolSnapshot.symbols) {
+      if (symbol.nameRange.start == range.start &&
+          symbol.nameRange.end == range.end) {
+        return symbol;
+      }
+    }
+    return null;
+  }
+
+  String _uniqueSymbolName(
+    StyioSymbolSnapshot symbolSnapshot,
+    String baseName,
+  ) {
+    final existingNames = symbolSnapshot.symbols
+        .map((symbol) => symbol.name)
+        .toSet();
+    var suffix = 2;
+    var candidate = '$baseName$suffix';
+    while (existingNames.contains(candidate) ||
+        !_isValidIdentifier(candidate)) {
+      suffix += 1;
+      candidate = '$baseName$suffix';
+    }
+    return candidate;
   }
 
   bool _diagnosticsIntersectRange(
@@ -1242,4 +1415,14 @@ class _StyioImportOptimization {
   final List<_StyioImportLine> duplicateImports;
   final bool needsOptimization;
   final List<FormattingEdit> edits;
+}
+
+class _DuplicateDeclarationEntry {
+  const _DuplicateDeclarationEntry({
+    required this.original,
+    required this.symbol,
+  });
+
+  final DocumentSymbol original;
+  final DocumentSymbol symbol;
 }

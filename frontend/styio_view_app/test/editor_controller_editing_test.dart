@@ -1506,6 +1506,37 @@ when !ready -> state stopped
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies simplify-negated-comparison context intention', () {
+    const text = '''
+price = 12.5
+limit = 10.0
+when !(price > limit) -> state affordable
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'simplify-negated-comparison.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(
+        text.indexOf('price > limit') + 2,
+      ),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Simplify negated comparison',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+price = 12.5
+limit = 10.0
+when price <= limit -> state affordable
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies create function quick fix from unresolved call', () {
     const text = 'price = 1\ntax = 2\ncalculate(price, tax) -> @stdout\n';
     final controller = EditorSessionController(

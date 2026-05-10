@@ -774,6 +774,80 @@ when price > 0 -> state priced
     );
   });
 
+  test('offers simplify-negated-comparison as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'simplify-negated-comparison.styio',
+      text: '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+ready = true
+blocked = false
+when !(price > limit) -> state affordable
+when !(ready == blocked) -> state different
+when !(price + tax <= limit) -> state over
+when !(ready && blocked) -> state boolean
+''',
+      revision: 0,
+    );
+
+    final greaterAction = service
+        .intentionsAt(document, document.text.indexOf('price > limit') + 2)
+        .singleWhere((item) => item.label == 'Simplify negated comparison');
+    final equalityAction = service
+        .intentionsAt(document, document.text.indexOf('ready == blocked') + 2)
+        .singleWhere((item) => item.label == 'Simplify negated comparison');
+    final lessOrEqualAction = service
+        .intentionsAt(document, document.text.indexOf('price + tax') + 8)
+        .singleWhere((item) => item.label == 'Simplify negated comparison');
+
+    expect(greaterAction.detail, contains('opposite operator'));
+    expect(applyEdits(document.text, greaterAction.edits), '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+ready = true
+blocked = false
+when price <= limit -> state affordable
+when !(ready == blocked) -> state different
+when !(price + tax <= limit) -> state over
+when !(ready && blocked) -> state boolean
+''');
+    expect(applyEdits(document.text, equalityAction.edits), '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+ready = true
+blocked = false
+when !(price > limit) -> state affordable
+when ready != blocked -> state different
+when !(price + tax <= limit) -> state over
+when !(ready && blocked) -> state boolean
+''');
+    expect(applyEdits(document.text, lessOrEqualAction.edits), '''
+price = 12.5
+tax = 0.5
+limit = 10.0
+ready = true
+blocked = false
+when !(price > limit) -> state affordable
+when !(ready == blocked) -> state different
+when price + tax > limit -> state over
+when !(ready && blocked) -> state boolean
+''');
+    expect(
+      service.intentionsAt(document, document.text.indexOf('ready &&') + 2),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Simplify negated comparison',
+          ),
+        ),
+      ),
+    );
+  });
+
   test('reports and fixes typed local initializer type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

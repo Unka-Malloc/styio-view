@@ -470,6 +470,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       intentions.add(booleanComparisonFix);
     }
 
+    final negatedComparisonFix = _simplifyNegatedComparisonAt(document, offset);
+    if (negatedComparisonFix != null) {
+      intentions.add(negatedComparisonFix);
+    }
+
     final deMorganFix = _deMorganAt(document, offset);
     if (deMorganFix != null) {
       intentions.add(deMorganFix);
@@ -2357,6 +2362,130 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }) {
     final isPositive = operatorLexeme == '==' ? literal : !literal;
     return isPositive ? expression.trim() : _negatedBooleanTerm(expression);
+  }
+
+  DiagnosticQuickFix? _simplifyNegatedComparisonAt(
+    DocumentState document,
+    int offset,
+  ) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final notToken = tokens[index];
+      if (notToken.lexeme != '!') {
+        continue;
+      }
+      final openingIndex = _nextSignificantIndex(tokens, index + 1);
+      if (openingIndex == null ||
+          tokens[openingIndex].lexeme != '(' ||
+          _hasLineBreakBetween(tokens, index + 1, openingIndex)) {
+        continue;
+      }
+      final closingIndex = _matchingParenthesisIndex(tokens, openingIndex);
+      if (closingIndex == null) {
+        continue;
+      }
+      final expressionRange = SourceRange(
+        start: notToken.range.start,
+        end: tokens[closingIndex].range.end,
+      );
+      if (offset < expressionRange.start || offset > expressionRange.end) {
+        continue;
+      }
+      if (source
+          .substring(expressionRange.start, expressionRange.end)
+          .contains('\n')) {
+        continue;
+      }
+
+      final operatorIndex = _topLevelComparisonOperatorIndex(
+        tokens: tokens,
+        startIndex: openingIndex + 1,
+        endIndex: closingIndex,
+      );
+      if (operatorIndex == null) {
+        continue;
+      }
+      final operatorToken = tokens[operatorIndex];
+      final negatedOperator = _negatedComparisonOperator(operatorToken.lexeme);
+      if (negatedOperator == null) {
+        continue;
+      }
+
+      final leftRange = _trimmedRange(
+        source,
+        SourceRange(
+          start: tokens[openingIndex].range.end,
+          end: operatorToken.range.start,
+        ),
+      );
+      final rightRange = _trimmedRange(
+        source,
+        SourceRange(
+          start: operatorToken.range.end,
+          end: tokens[closingIndex].range.start,
+        ),
+      );
+      if (leftRange.isCollapsed || rightRange.isCollapsed) {
+        continue;
+      }
+
+      final leftText = source.substring(leftRange.start, leftRange.end);
+      final rightText = source.substring(rightRange.start, rightRange.end);
+      return DiagnosticQuickFix(
+        label: 'Simplify negated comparison',
+        detail: 'Replace negated comparison with the opposite operator.',
+        edits: [
+          FormattingEdit(
+            range: expressionRange,
+            newText: '$leftText $negatedOperator $rightText',
+          ),
+        ],
+      );
+    }
+    return null;
+  }
+
+  int? _topLevelComparisonOperatorIndex({
+    required List<TokenSpan> tokens,
+    required int startIndex,
+    required int endIndex,
+  }) {
+    int? operatorIndex;
+    var nestedDepth = 0;
+    for (var index = startIndex; index < endIndex; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      if (nestedDepth == 0 &&
+          _negatedComparisonOperator(token.lexeme) != null) {
+        if (operatorIndex != null) {
+          return null;
+        }
+        operatorIndex = index;
+      }
+      if (token.lexeme == '(' || token.lexeme == '[' || token.lexeme == '{') {
+        nestedDepth += 1;
+      } else if (token.lexeme == ')' ||
+          token.lexeme == ']' ||
+          token.lexeme == '}') {
+        nestedDepth -= 1;
+      }
+    }
+    return operatorIndex;
+  }
+
+  String? _negatedComparisonOperator(String lexeme) {
+    return const {
+      '<': '>=',
+      '<=': '>',
+      '>': '<=',
+      '>=': '<',
+      '==': '!=',
+      '!=': '==',
+    }[lexeme];
   }
 
   DiagnosticQuickFix? _deMorganAt(DocumentState document, int offset) {

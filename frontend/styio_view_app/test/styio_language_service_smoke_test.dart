@@ -691,6 +691,89 @@ when !ready -> state negated
     );
   });
 
+  test('offers simplify-boolean-comparison as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'simplify-boolean-comparison.styio',
+      text: '''
+ready = true
+blocked = false
+price = 12.5
+when ready == true -> state ready
+when ready == false -> state stopped
+when blocked != true -> state active
+when false != ready -> state inverted
+when price > 0 -> state priced
+''',
+      revision: 0,
+    );
+
+    final equalsTrueAction = service
+        .intentionsAt(document, document.text.indexOf('ready == true') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean comparison');
+    final equalsFalseAction = service
+        .intentionsAt(document, document.text.indexOf('ready == false') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean comparison');
+    final notEqualsTrueAction = service
+        .intentionsAt(document, document.text.indexOf('blocked != true') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean comparison');
+    final literalLeftAction = service
+        .intentionsAt(document, document.text.indexOf('false != ready') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean comparison');
+
+    expect(equalsTrueAction.detail, contains('boolean literal'));
+    expect(applyEdits(document.text, equalsTrueAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+when ready -> state ready
+when ready == false -> state stopped
+when blocked != true -> state active
+when false != ready -> state inverted
+when price > 0 -> state priced
+''');
+    expect(applyEdits(document.text, equalsFalseAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+when ready == true -> state ready
+when !ready -> state stopped
+when blocked != true -> state active
+when false != ready -> state inverted
+when price > 0 -> state priced
+''');
+    expect(applyEdits(document.text, notEqualsTrueAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+when ready == true -> state ready
+when ready == false -> state stopped
+when !blocked -> state active
+when false != ready -> state inverted
+when price > 0 -> state priced
+''');
+    expect(applyEdits(document.text, literalLeftAction.edits), '''
+ready = true
+blocked = false
+price = 12.5
+when ready == true -> state ready
+when ready == false -> state stopped
+when blocked != true -> state active
+when ready -> state inverted
+when price > 0 -> state priced
+''');
+    expect(
+      service.intentionsAt(document, document.text.indexOf('price > 0') + 2),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Simplify boolean comparison',
+          ),
+        ),
+      ),
+    );
+  });
+
   test('reports and fixes typed local initializer type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

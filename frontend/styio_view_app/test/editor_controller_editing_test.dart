@@ -1477,6 +1477,35 @@ when ready -> state active
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies simplify-boolean-comparison context intention', () {
+    const text = '''
+ready = true
+when ready == false -> state stopped
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'simplify-boolean-comparison.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(
+        text.indexOf('ready == false') + 2,
+      ),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Simplify boolean comparison',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+ready = true
+when !ready -> state stopped
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies create function quick fix from unresolved call', () {
     const text = 'price = 1\ntax = 2\ncalculate(price, tax) -> @stdout\n';
     final controller = EditorSessionController(

@@ -465,6 +465,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       intentions.add(doubleNegationFix);
     }
 
+    final booleanComparisonFix = _simplifyBooleanComparisonAt(document, offset);
+    if (booleanComparisonFix != null) {
+      intentions.add(booleanComparisonFix);
+    }
+
     final deMorganFix = _deMorganAt(document, offset);
     if (deMorganFix != null) {
       intentions.add(deMorganFix);
@@ -2271,6 +2276,87 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       TokenKind.comment ||
       TokenKind.unknown => false,
     };
+  }
+
+  DiagnosticQuickFix? _simplifyBooleanComparisonAt(
+    DocumentState document,
+    int offset,
+  ) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final operatorToken = tokens[index];
+      if (operatorToken.lexeme != '==' && operatorToken.lexeme != '!=') {
+        continue;
+      }
+      final leftRange = _comparisonLeftOperandRange(
+        source: source,
+        tokens: tokens,
+        operatorIndex: index,
+      );
+      final rightRange = _comparisonRightOperandRange(
+        source: source,
+        tokens: tokens,
+        operatorIndex: index,
+      );
+      if (leftRange == null ||
+          rightRange == null ||
+          leftRange.isCollapsed ||
+          rightRange.isCollapsed) {
+        continue;
+      }
+      final expressionRange = SourceRange(
+        start: leftRange.start,
+        end: rightRange.end,
+      );
+      if (offset < expressionRange.start || offset > expressionRange.end) {
+        continue;
+      }
+
+      final leftText = source.substring(leftRange.start, leftRange.end).trim();
+      final rightText = source
+          .substring(rightRange.start, rightRange.end)
+          .trim();
+      final leftLiteral = _boolLiteralValue(leftText);
+      final rightLiteral = _boolLiteralValue(rightText);
+      final hasOneBoolLiteral =
+          (leftLiteral != null && rightLiteral == null) ||
+          (rightLiteral != null && leftLiteral == null);
+      if (!hasOneBoolLiteral) {
+        continue;
+      }
+
+      final literal = leftLiteral ?? rightLiteral!;
+      final expression = leftLiteral == null ? leftText : rightText;
+      final simplified = _simplifiedBooleanComparisonText(
+        expression: expression,
+        literal: literal,
+        operatorLexeme: operatorToken.lexeme,
+      );
+      return DiagnosticQuickFix(
+        label: 'Simplify boolean comparison',
+        detail: 'Replace comparison to a boolean literal with the expression.',
+        edits: [FormattingEdit(range: expressionRange, newText: simplified)],
+      );
+    }
+    return null;
+  }
+
+  bool? _boolLiteralValue(String expression) {
+    return switch (expression.trim()) {
+      'true' => true,
+      'false' => false,
+      _ => null,
+    };
+  }
+
+  String _simplifiedBooleanComparisonText({
+    required String expression,
+    required bool literal,
+    required String operatorLexeme,
+  }) {
+    final isPositive = operatorLexeme == '==' ? literal : !literal;
+    return isPositive ? expression.trim() : _negatedBooleanTerm(expression);
   }
 
   DiagnosticQuickFix? _deMorganAt(DocumentState document, int offset) {

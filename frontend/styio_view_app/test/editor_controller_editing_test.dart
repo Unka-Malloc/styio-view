@@ -1506,6 +1506,35 @@ when !ready -> state stopped
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies simplify-boolean-expression context intention', () {
+    const text = '''
+ready = true
+when ready && true -> state ready
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'simplify-boolean-expression.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(
+        text.indexOf('ready && true') + 2,
+      ),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Simplify boolean expression',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+ready = true
+when ready -> state ready
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies simplify-negated-comparison context intention', () {
     const text = '''
 price = 12.5

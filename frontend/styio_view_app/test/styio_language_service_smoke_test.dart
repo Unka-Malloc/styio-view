@@ -774,6 +774,84 @@ when price > 0 -> state priced
     );
   });
 
+  test('offers simplify-boolean-expression as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'simplify-boolean-expression.styio',
+      text: '''
+ready = true
+blocked = false
+when ready && true -> state ready
+when false || ready -> state active
+when blocked || true -> state always
+when ready && false -> state never
+when true || ready && blocked -> state mixed
+''',
+      revision: 0,
+    );
+
+    final andTrueAction = service
+        .intentionsAt(document, document.text.indexOf('ready && true') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean expression');
+    final falseOrAction = service
+        .intentionsAt(document, document.text.indexOf('false || ready') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean expression');
+    final orTrueAction = service
+        .intentionsAt(document, document.text.indexOf('blocked || true') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean expression');
+    final andFalseAction = service
+        .intentionsAt(document, document.text.indexOf('ready && false') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean expression');
+
+    expect(andTrueAction.detail, contains('simplified value'));
+    expect(applyEdits(document.text, andTrueAction.edits), '''
+ready = true
+blocked = false
+when ready -> state ready
+when false || ready -> state active
+when blocked || true -> state always
+when ready && false -> state never
+when true || ready && blocked -> state mixed
+''');
+    expect(applyEdits(document.text, falseOrAction.edits), '''
+ready = true
+blocked = false
+when ready && true -> state ready
+when ready -> state active
+when blocked || true -> state always
+when ready && false -> state never
+when true || ready && blocked -> state mixed
+''');
+    expect(applyEdits(document.text, orTrueAction.edits), '''
+ready = true
+blocked = false
+when ready && true -> state ready
+when false || ready -> state active
+when true -> state always
+when ready && false -> state never
+when true || ready && blocked -> state mixed
+''');
+    expect(applyEdits(document.text, andFalseAction.edits), '''
+ready = true
+blocked = false
+when ready && true -> state ready
+when false || ready -> state active
+when blocked || true -> state always
+when false -> state never
+when true || ready && blocked -> state mixed
+''');
+    expect(
+      service.intentionsAt(document, document.text.indexOf('true || ready')),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Simplify boolean expression',
+          ),
+        ),
+      ),
+    );
+  });
+
   test('offers simplify-negated-comparison as a context intention', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

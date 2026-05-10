@@ -470,6 +470,14 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       intentions.add(booleanComparisonFix);
     }
 
+    final booleanExpressionFix = _simplifyBooleanBinaryExpressionAt(
+      document,
+      offset,
+    );
+    if (booleanExpressionFix != null) {
+      intentions.add(booleanExpressionFix);
+    }
+
     final negatedComparisonFix = _simplifyNegatedComparisonAt(document, offset);
     if (negatedComparisonFix != null) {
       intentions.add(negatedComparisonFix);
@@ -2375,6 +2383,153 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }) {
     final isPositive = operatorLexeme == '==' ? literal : !literal;
     return isPositive ? expression.trim() : _negatedBooleanTerm(expression);
+  }
+
+  DiagnosticQuickFix? _simplifyBooleanBinaryExpressionAt(
+    DocumentState document,
+    int offset,
+  ) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final operatorToken = tokens[index];
+      if (operatorToken.lexeme != '&&' && operatorToken.lexeme != '||') {
+        continue;
+      }
+      final leftRange = _comparisonLeftOperandRange(
+        source: source,
+        tokens: tokens,
+        operatorIndex: index,
+      );
+      final rightRange = _comparisonRightOperandRange(
+        source: source,
+        tokens: tokens,
+        operatorIndex: index,
+      );
+      if (leftRange == null ||
+          rightRange == null ||
+          leftRange.isCollapsed ||
+          rightRange.isCollapsed) {
+        continue;
+      }
+      final expressionRange = SourceRange(
+        start: leftRange.start,
+        end: rightRange.end,
+      );
+      if (offset < expressionRange.start || offset > expressionRange.end) {
+        continue;
+      }
+      if (source
+          .substring(expressionRange.start, expressionRange.end)
+          .contains('\n')) {
+        continue;
+      }
+      if (_hasAdjacentBooleanOperator(
+        tokens: tokens,
+        expressionRange: expressionRange,
+      )) {
+        continue;
+      }
+
+      final leftText = source.substring(leftRange.start, leftRange.end).trim();
+      final rightText = source
+          .substring(rightRange.start, rightRange.end)
+          .trim();
+      final replacement = _simplifiedBooleanBinaryExpressionText(
+        leftText: leftText,
+        operatorLexeme: operatorToken.lexeme,
+        rightText: rightText,
+      );
+      if (replacement == null) {
+        continue;
+      }
+
+      return DiagnosticQuickFix(
+        label: 'Simplify boolean expression',
+        detail: 'Replace a boolean operation with its simplified value.',
+        edits: [FormattingEdit(range: expressionRange, newText: replacement)],
+      );
+    }
+    return null;
+  }
+
+  String? _simplifiedBooleanBinaryExpressionText({
+    required String leftText,
+    required String operatorLexeme,
+    required String rightText,
+  }) {
+    final leftLiteral = _boolLiteralValue(leftText);
+    final rightLiteral = _boolLiteralValue(rightText);
+    if (leftLiteral == null && rightLiteral == null) {
+      return null;
+    }
+
+    if (operatorLexeme == '&&') {
+      if (leftLiteral == false || rightLiteral == false) {
+        return 'false';
+      }
+      if (leftLiteral == true) {
+        return rightText;
+      }
+      if (rightLiteral == true) {
+        return leftText;
+      }
+    }
+
+    if (operatorLexeme == '||') {
+      if (leftLiteral == true || rightLiteral == true) {
+        return 'true';
+      }
+      if (leftLiteral == false) {
+        return rightText;
+      }
+      if (rightLiteral == false) {
+        return leftText;
+      }
+    }
+
+    return null;
+  }
+
+  bool _hasAdjacentBooleanOperator({
+    required List<TokenSpan> tokens,
+    required SourceRange expressionRange,
+  }) {
+    final firstIndex = _firstTokenIndexStartingAt(
+      tokens,
+      expressionRange.start,
+    );
+    final lastIndex = _lastTokenIndexEndingAt(tokens, expressionRange.end);
+    if (firstIndex == null || lastIndex == null) {
+      return true;
+    }
+    final previousIndex = _previousSignificantIndex(tokens, firstIndex - 1);
+    if (previousIndex != null &&
+        (tokens[previousIndex].lexeme == '&&' ||
+            tokens[previousIndex].lexeme == '||')) {
+      return true;
+    }
+    final nextIndex = _nextSignificantIndex(tokens, lastIndex + 1);
+    return nextIndex != null &&
+        (tokens[nextIndex].lexeme == '&&' || tokens[nextIndex].lexeme == '||');
+  }
+
+  int? _firstTokenIndexStartingAt(List<TokenSpan> tokens, int start) {
+    for (var index = 0; index < tokens.length; index += 1) {
+      if (tokens[index].range.start == start) {
+        return index;
+      }
+    }
+    return null;
+  }
+
+  int? _lastTokenIndexEndingAt(List<TokenSpan> tokens, int end) {
+    for (var index = tokens.length - 1; index >= 0; index -= 1) {
+      if (tokens[index].range.end == end) {
+        return index;
+      }
+    }
+    return null;
   }
 
   DiagnosticQuickFix? _simplifyNegatedComparisonAt(

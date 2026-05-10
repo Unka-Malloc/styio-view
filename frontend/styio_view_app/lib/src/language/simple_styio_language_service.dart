@@ -2522,6 +2522,10 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }) {
     final leftLiteral = _boolLiteralValue(leftText);
     final rightLiteral = _boolLiteralValue(rightText);
+    if (leftText == rightText && _isStableBooleanTerm(leftText)) {
+      return leftText;
+    }
+
     if (leftLiteral == null && rightLiteral == null) {
       return null;
     }
@@ -2551,6 +2555,10 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     }
 
     return null;
+  }
+
+  bool _isStableBooleanTerm(String expression) {
+    return RegExp(r'^!?[A-Za-z_][A-Za-z0-9_]*$').hasMatch(expression.trim());
   }
 
   bool _hasAdjacentBooleanOperator({

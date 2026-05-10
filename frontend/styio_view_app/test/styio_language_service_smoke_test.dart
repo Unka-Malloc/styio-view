@@ -922,7 +922,10 @@ when ready && true -> state ready
 when false || ready -> state active
 when blocked || true -> state always
 when ready && false -> state never
+when ready || ready -> state repeated
+when !blocked && !blocked -> state guarded
 when true || ready && blocked -> state mixed
+when check() || check() -> state effect
 ''',
       revision: 0,
     );
@@ -939,6 +942,12 @@ when true || ready && blocked -> state mixed
     final andFalseAction = service
         .intentionsAt(document, document.text.indexOf('ready && false') + 2)
         .singleWhere((item) => item.label == 'Simplify boolean expression');
+    final duplicateOrAction = service
+        .intentionsAt(document, document.text.indexOf('ready || ready') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean expression');
+    final duplicateNegatedAndAction = service
+        .intentionsAt(document, document.text.indexOf('!blocked &&') + 2)
+        .singleWhere((item) => item.label == 'Simplify boolean expression');
 
     expect(andTrueAction.detail, contains('simplified value'));
     expect(applyEdits(document.text, andTrueAction.edits), '''
@@ -948,7 +957,10 @@ when ready -> state ready
 when false || ready -> state active
 when blocked || true -> state always
 when ready && false -> state never
+when ready || ready -> state repeated
+when !blocked && !blocked -> state guarded
 when true || ready && blocked -> state mixed
+when check() || check() -> state effect
 ''');
     expect(applyEdits(document.text, falseOrAction.edits), '''
 ready = true
@@ -957,7 +969,10 @@ when ready && true -> state ready
 when ready -> state active
 when blocked || true -> state always
 when ready && false -> state never
+when ready || ready -> state repeated
+when !blocked && !blocked -> state guarded
 when true || ready && blocked -> state mixed
+when check() || check() -> state effect
 ''');
     expect(applyEdits(document.text, orTrueAction.edits), '''
 ready = true
@@ -966,7 +981,10 @@ when ready && true -> state ready
 when false || ready -> state active
 when true -> state always
 when ready && false -> state never
+when ready || ready -> state repeated
+when !blocked && !blocked -> state guarded
 when true || ready && blocked -> state mixed
+when check() || check() -> state effect
 ''');
     expect(applyEdits(document.text, andFalseAction.edits), '''
 ready = true
@@ -975,10 +993,47 @@ when ready && true -> state ready
 when false || ready -> state active
 when blocked || true -> state always
 when false -> state never
+when ready || ready -> state repeated
+when !blocked && !blocked -> state guarded
 when true || ready && blocked -> state mixed
+when check() || check() -> state effect
+''');
+    expect(applyEdits(document.text, duplicateOrAction.edits), '''
+ready = true
+blocked = false
+when ready && true -> state ready
+when false || ready -> state active
+when blocked || true -> state always
+when ready && false -> state never
+when ready -> state repeated
+when !blocked && !blocked -> state guarded
+when true || ready && blocked -> state mixed
+when check() || check() -> state effect
+''');
+    expect(applyEdits(document.text, duplicateNegatedAndAction.edits), '''
+ready = true
+blocked = false
+when ready && true -> state ready
+when false || ready -> state active
+when blocked || true -> state always
+when ready && false -> state never
+when ready || ready -> state repeated
+when !blocked -> state guarded
+when true || ready && blocked -> state mixed
+when check() || check() -> state effect
 ''');
     expect(
       service.intentionsAt(document, document.text.indexOf('true || ready')),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Simplify boolean expression',
+          ),
+        ),
+      ),
+    );
+    expect(
+      service.intentionsAt(document, document.text.indexOf('check() ||') + 2),
       isNot(
         contains(
           predicate<DiagnosticQuickFix>(

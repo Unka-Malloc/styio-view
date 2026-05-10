@@ -337,11 +337,14 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   late final FocusNode _focusNode;
   late final FocusNode _inlineRenameFocusNode;
   late final FocusNode _introduceVariableFocusNode;
+  late final FocusNode _extractFunctionFocusNode;
   late final TextEditingController _inlineRenameController;
   late final TextEditingController _introduceVariableController;
+  late final TextEditingController _extractFunctionController;
   int? _dragBaseOffset;
   bool _inlineRenameOpen = false;
   bool _introduceVariablePanelOpen = false;
+  bool _extractFunctionPanelOpen = false;
   bool _usagesPanelOpen = false;
   bool _safeDeletePanelOpen = false;
   bool _inlineVariablePanelOpen = false;
@@ -360,6 +363,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   final Set<String> _collapsedSemanticBlockKeys = <String>{};
   String? _inlineRenameError;
   String? _introduceVariableError;
+  String? _extractFunctionError;
 
   @override
   void initState() {
@@ -370,8 +374,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _introduceVariableFocusNode = FocusNode(
       debugLabel: 'editor-introduce-variable',
     );
+    _extractFunctionFocusNode = FocusNode(debugLabel: 'editor-extract-method');
     _inlineRenameController = TextEditingController();
     _introduceVariableController = TextEditingController();
+    _extractFunctionController = TextEditingController();
   }
 
   @override
@@ -381,8 +387,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       ..dispose();
     _inlineRenameFocusNode.dispose();
     _introduceVariableFocusNode.dispose();
+    _extractFunctionFocusNode.dispose();
     _inlineRenameController.dispose();
     _introduceVariableController.dispose();
+    _extractFunctionController.dispose();
     super.dispose();
   }
 
@@ -428,6 +436,19 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       }
       return KeyEventResult.ignored;
     }
+    if (_extractFunctionFocusNode.hasFocus) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+          return _applyExtractFunction()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        case LogicalKeyboardKey.escape:
+          _closeExtractFunctionPanel();
+          return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
     if (_usagesPanelOpen && event.logicalKey == LogicalKeyboardKey.escape) {
       _closeUsagesPanel();
       return KeyEventResult.handled;
@@ -464,6 +485,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         case LogicalKeyboardKey.enter:
         case LogicalKeyboardKey.numpadEnter:
           return _applyIntroduceVariable()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+      }
+    }
+    if (_extractFunctionPanelOpen) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          _closeExtractFunctionPanel();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+          return _applyExtractFunction()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
       }
@@ -622,6 +655,15 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         !shiftPressed &&
         event.logicalKey == LogicalKeyboardKey.keyV) {
       return _openIntroduceVariablePanel()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+
+    if (commandPressed &&
+        altPressed &&
+        !shiftPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyM) {
+      return _openExtractFunctionPanel()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -1031,6 +1073,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         baseOffset: 0,
         extentOffset: initialName.length,
       );
+      _extractFunctionPanelOpen = false;
       _inlineVariablePanelOpen = false;
       _safeDeletePanelOpen = false;
       _completionLookupOpen = false;
@@ -1108,6 +1151,100 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     return '${baseName}100';
   }
 
+  bool _openExtractFunctionPanel() {
+    if (widget.selection.isCollapsed) {
+      return false;
+    }
+    final initialName = _availableExtractFunctionName();
+    if (widget.controller.extractFunctionPlanAtSelection(initialName) == null) {
+      return false;
+    }
+    setState(() {
+      _extractFunctionPanelOpen = true;
+      _extractFunctionError = null;
+      _extractFunctionController.text = initialName;
+      _extractFunctionController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: initialName.length,
+      );
+      _introduceVariablePanelOpen = false;
+      _inlineVariablePanelOpen = false;
+      _safeDeletePanelOpen = false;
+      _completionLookupOpen = false;
+      _completionLookupIndex = 0;
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+      _surroundLookupOpen = false;
+      _surroundLookupIndex = 0;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _extractFunctionPanelOpen) {
+        _extractFunctionFocusNode.requestFocus();
+      }
+    });
+    return true;
+  }
+
+  void _closeExtractFunctionPanel() {
+    setState(() {
+      _extractFunctionPanelOpen = false;
+      _extractFunctionError = null;
+    });
+    _focusNode.requestFocus();
+  }
+
+  bool _applyExtractFunction() {
+    final name = _extractFunctionController.text.trim();
+    final plan = widget.controller.extractFunctionPlanAtSelection(name);
+    if (plan != null &&
+        !plan.hasConflicts &&
+        widget.controller.applyExtractFunctionAtSelection(name)) {
+      setState(() {
+        _extractFunctionPanelOpen = false;
+        _extractFunctionError = null;
+      });
+      _focusNode.requestFocus();
+      return true;
+    }
+
+    setState(() {
+      _extractFunctionError = _extractFunctionUnavailableMessage(plan);
+    });
+    return false;
+  }
+
+  String _extractFunctionUnavailableMessage(ExtractFunctionPlan? plan) {
+    if (plan != null && plan.hasConflicts) {
+      return _formatExtractFunctionConflict(plan.conflicts.first);
+    }
+    return 'Select Styio code.';
+  }
+
+  String _formatExtractFunctionConflict(ExtractFunctionConflict conflict) {
+    return '${conflict.message} Conflict at '
+        '${_formatUsageLocationForRange(conflict.range)}.';
+  }
+
+  String _availableExtractFunctionName() {
+    const baseName = 'extractedFunction';
+    final existingNames = {
+      for (final symbol in widget.analysis.documentSymbols) symbol.name,
+    };
+    if (!existingNames.contains(baseName)) {
+      return baseName;
+    }
+    for (var suffix = 2; suffix < 100; suffix += 1) {
+      final candidate = '$baseName$suffix';
+      if (!existingNames.contains(candidate)) {
+        return candidate;
+      }
+    }
+    return '${baseName}100';
+  }
+
   String _formatRenameConflict(RenameConflict conflict) {
     return '${conflict.message} Conflict at '
         '${_formatUsageLocationForRange(conflict.range)}.';
@@ -1137,6 +1274,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
     setState(() {
       _safeDeletePanelOpen = true;
+      _extractFunctionPanelOpen = false;
+      _introduceVariablePanelOpen = false;
       _inlineVariablePanelOpen = false;
       _completionLookupOpen = false;
       _completionLookupIndex = 0;
@@ -1176,6 +1315,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
     setState(() {
       _inlineVariablePanelOpen = true;
+      _extractFunctionPanelOpen = false;
+      _introduceVariablePanelOpen = false;
       _safeDeletePanelOpen = false;
       _completionLookupOpen = false;
       _completionLookupIndex = 0;
@@ -1723,6 +1864,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           _buildIntroduceVariablePanel(context),
                           const SizedBox(height: 12),
                         ],
+                        if (_extractFunctionPanelOpen) ...[
+                          _buildExtractFunctionPanel(context),
+                          const SizedBox(height: 12),
+                        ],
                         if (_surroundLookupOpen) ...[
                           _buildSurroundLookupPanel(context),
                           const SizedBox(height: 12),
@@ -2220,6 +2365,107 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                   icon: Icons.close_rounded,
                   label: 'Cancel',
                   onTap: _closeIntroduceVariablePanel,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExtractFunctionPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final functionName = _extractFunctionController.text.trim();
+    final plan = widget.controller.extractFunctionPlanAtSelection(functionName);
+    final helperText = plan == null
+        ? _extractFunctionError
+        : plan.hasConflicts
+        ? _formatExtractFunctionConflict(plan.conflicts.first)
+        : 'Preview ${plan.edits.length} edit'
+              '${plan.edits.length == 1 ? '' : 's'} and '
+              '${plan.parameters.length} parameter'
+              '${plan.parameters.length == 1 ? '' : 's'}';
+
+    return Material(
+      key: const ValueKey('source-extract-function-panel'),
+      color: const Color(0xFFF0F7F4),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.functions_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Extract Function',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('source-extract-function-input'),
+              focusNode: _extractFunctionFocusNode,
+              controller: _extractFunctionController,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                labelText: 'Function name',
+                helperText: plan == null || plan.hasConflicts
+                    ? null
+                    : helperText,
+                errorText: plan == null || plan.hasConflicts
+                    ? helperText
+                    : null,
+              ),
+              onChanged: (_) {
+                setState(() {
+                  _extractFunctionError = null;
+                });
+              },
+              onSubmitted: (_) => _applyExtractFunction(),
+            ),
+            if (plan != null && !plan.hasConflicts) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Replace selection with `${plan.callText}`',
+                key: const ValueKey('source-extract-function-preview'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InlineActionChip(
+                  key: const ValueKey('source-extract-function-apply'),
+                  icon: Icons.check_rounded,
+                  label: 'Extract',
+                  onTap: _applyExtractFunction,
+                ),
+                _InlineActionChip(
+                  key: const ValueKey('source-extract-function-cancel'),
+                  icon: Icons.close_rounded,
+                  label: 'Cancel',
+                  onTap: _closeExtractFunctionPanel,
                 ),
               ],
             ),

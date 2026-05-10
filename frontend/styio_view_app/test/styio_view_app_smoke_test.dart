@@ -2680,6 +2680,123 @@ value = blend(price, tax)
     );
   });
 
+  testWidgets('opens extract function blockers from source keymap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'value = 40 + 2\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'extract-function-blocked.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectRange(
+      baseOffset: text.indexOf('value'),
+      extentOffset: text.indexOf('value') + 'value'.length,
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-extract-function-panel')),
+      findsOne,
+    );
+    expect(find.text('Extract Function'), findsOne);
+    expect(
+      find.textContaining(
+        'Cannot extract a function from an assignment target.',
+      ),
+      findsOne,
+    );
+    expect(bootstrap.editorController.document.text, text);
+  });
+
+  testWidgets('applies extract function from source keymap', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'fn main(user) {\n  value = user + 1\n}\n';
+    final start = text.indexOf('user + 1');
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'extract-function.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectRange(
+      baseOffset: start,
+      extentOffset: start + 'user + 1'.length,
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('source-extract-function-panel')),
+      findsOne,
+    );
+    expect(
+      find.byKey(const ValueKey('source-extract-function-preview')),
+      findsOne,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      '#extractedFunction := (user) => {\n'
+      '  <| user + 1\n'
+      '}\n'
+      '\n'
+      'fn main(user) {\n'
+      '  value = extractedFunction(user)\n'
+      '}\n',
+    );
+    expect(
+      find.byKey(const ValueKey('source-extract-function-panel')),
+      findsNothing,
+    );
+  });
+
   testWidgets('applies rename edits from language pane', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

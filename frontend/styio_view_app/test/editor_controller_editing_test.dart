@@ -1291,6 +1291,62 @@ value -> @stdout
     expect(controller.canUndo, isFalse);
   });
 
+  test('extracts a function for the selected expression', () {
+    const text = 'fn main(user) {\n  value = user + 1\n}\n';
+    final start = text.indexOf('user + 1');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(
+        baseOffset: start,
+        extentOffset: start + 'user + 1'.length,
+      ),
+    );
+
+    final plan = controller.extractFunctionPlanAtSelection('computeValue');
+    expect(plan?.hasConflicts, isFalse);
+    expect(plan?.parameters, ['user']);
+    expect(controller.applyExtractFunctionAtSelection('computeValue'), isTrue);
+    expect(
+      controller.document.text,
+      '#computeValue := (user) => {\n'
+      '  <| user + 1\n'
+      '}\n'
+      '\n'
+      'fn main(user) {\n'
+      '  value = computeValue(user)\n'
+      '}\n',
+    );
+    expect(controller.canUndo, isTrue);
+  });
+
+  test('rejects extract function name conflicts without history', () {
+    const text = 'fn computeValue() {}\nvalue = user + 1\n';
+    final start = text.indexOf('user + 1');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(
+        baseOffset: start,
+        extentOffset: start + 'user + 1'.length,
+      ),
+    );
+
+    final plan = controller.extractFunctionPlanAtSelection('computeValue');
+    expect(plan?.hasConflicts, isTrue);
+    expect(controller.applyExtractFunctionAtSelection('computeValue'), isFalse);
+    expect(controller.document.text, text);
+    expect(controller.canUndo, isFalse);
+  });
+
   test('selects the resolved definition without changing document history', () {
     const text = 'value = value\n';
     final controller = EditorSessionController(

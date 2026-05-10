@@ -276,6 +276,15 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }
 
   @override
+  ExtractFunctionPlan? extractFunction(
+    DocumentState document,
+    SourceRange range,
+    String name,
+  ) {
+    return _symbolIndex.extractFunction(document.text, range, name);
+  }
+
+  @override
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset) {
     return _symbolIndex.parameterInfoAt(document.text, offset);
   }

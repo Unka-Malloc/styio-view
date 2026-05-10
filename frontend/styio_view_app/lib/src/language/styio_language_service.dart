@@ -31,6 +31,12 @@ abstract class StyioLanguageService {
     String name,
   );
 
+  ExtractFunctionPlan? extractFunction(
+    DocumentState document,
+    SourceRange range,
+    String name,
+  );
+
   ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset);
 
   List<DiagnosticQuickFix> quickFixesForDiagnostic(

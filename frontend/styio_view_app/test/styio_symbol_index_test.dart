@@ -215,6 +215,62 @@ pending -> @stdout
     expect(plan?.conflicts.single.message, contains('already declares'));
   });
 
+  test('builds extract function edits from a selected expression', () {
+    const index = StyioSymbolIndex();
+    const source = 'fn main(user) {\n  value = user + 1\n}\n';
+    final start = source.indexOf('user + 1');
+    final plan = index.extractFunction(
+      source,
+      SourceRange(start: start, end: start + 'user + 1'.length),
+      'computeValue',
+    );
+
+    expect(plan?.functionName, 'computeValue');
+    expect(plan?.parameters, ['user']);
+    expect(plan?.callText, 'computeValue(user)');
+    expect(plan?.hasConflicts, isFalse);
+    expect(plan?.edits.length, 2);
+    expect(
+      plan?.functionText,
+      '#computeValue := (user) => {\n  <| user + 1\n}\n\n',
+    );
+    expect(plan?.edits.last.newText, 'computeValue(user)');
+  });
+
+  test('builds extract function edits from selected statements', () {
+    const index = StyioSymbolIndex();
+    const source = 'fn main(user) {\n  value = user\n}\n';
+    final start = source.indexOf('value = user');
+    final plan = index.extractFunction(
+      source,
+      SourceRange(start: start, end: start + 'value = user'.length),
+      'emitValue',
+    );
+
+    expect(plan?.parameters, ['user']);
+    expect(plan?.hasConflicts, isFalse);
+    expect(
+      plan?.functionText,
+      '#emitValue := (user) => {\n  value = user\n}\n\n',
+    );
+    expect(plan?.edits.last.newText, 'emitValue(user)');
+  });
+
+  test('reports extract function conflicts before applying edits', () {
+    const index = StyioSymbolIndex();
+    const source = 'fn computeValue() {}\nvalue = user + 1\n';
+    final start = source.indexOf('user + 1');
+    final plan = index.extractFunction(
+      source,
+      SourceRange(start: start, end: start + 'user + 1'.length),
+      'computeValue',
+    );
+
+    expect(plan?.hasConflicts, isTrue);
+    expect(plan?.edits, isEmpty);
+    expect(plan?.conflicts.single.message, contains('already declares'));
+  });
+
   test('resolves parameter info from a function call argument list', () {
     const index = StyioSymbolIndex();
     const source = '''
@@ -235,5 +291,29 @@ value = blend(price, tax)
       'right',
     ]);
     expect(index.parameterInfoAt(source, source.indexOf('left:')), isNull);
+  });
+
+  test('resolves parameter info from current hash function declarations', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+#blend := (left: f64, right: f64) => {
+  <| left
+}
+value = blend(price, tax)
+''';
+
+    final info = index.parameterInfoAt(source, source.indexOf('tax') + 1);
+    final snapshot = index.build(
+      const StyioSyntaxHighlighter().tokenize(source),
+    );
+
+    expect(info?.callableName, 'blend');
+    expect(info?.activeParameter?.displayText, 'right: f64');
+    expect(
+      snapshot.symbols
+          .where((symbol) => symbol.kind == SymbolKind.parameter)
+          .map((symbol) => symbol.name),
+      containsAll(['left', 'right']),
+    );
   });
 }

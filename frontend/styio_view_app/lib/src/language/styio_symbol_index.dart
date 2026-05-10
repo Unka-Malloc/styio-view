@@ -416,6 +416,66 @@ class StyioSymbolIndex {
     );
   }
 
+  ExtractFunctionPlan? extractFunction(
+    String source,
+    SourceRange range,
+    String name,
+  ) {
+    final selectionRange = _trimmedRange(source, range);
+    if (selectionRange.isCollapsed) {
+      return null;
+    }
+
+    final selectedText = source.substring(
+      selectionRange.start,
+      selectionRange.end,
+    );
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final snapshot = build(tokens);
+    final selectionKind = _extractFunctionSelectionKind(source, selectionRange);
+    final parameters = _extractFunctionParameters(
+      snapshot: snapshot,
+      selectionRange: selectionRange,
+    );
+    final callText = _extractFunctionCallText(
+      name: name,
+      parameters: parameters,
+    );
+    final functionText = _extractFunctionDeclarationText(
+      name: name,
+      parameters: parameters,
+      selectionKind: selectionKind,
+      selectedText: selectedText,
+    );
+    final conflicts = _extractFunctionConflicts(
+      source: source,
+      tokens: tokens,
+      snapshot: snapshot,
+      selectionRange: selectionRange,
+      selectedText: selectedText,
+      name: name,
+      selectionKind: selectionKind,
+    );
+    return ExtractFunctionPlan(
+      functionName: name,
+      selectionRange: selectionRange,
+      selectedText: selectedText,
+      parameters: parameters,
+      callText: callText,
+      functionText: functionText,
+      edits: conflicts.isEmpty
+          ? [
+              FormattingEdit(
+                range: _extractFunctionInsertionRange(source),
+                newText: functionText,
+              ),
+              FormattingEdit(range: selectionRange, newText: callText),
+            ]
+          : const <FormattingEdit>[],
+      conflicts: conflicts,
+    );
+  }
+
   ParameterInfoPayload? parameterInfoAt(String source, int offset) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -504,7 +564,10 @@ class StyioSymbolIndex {
         if (nameIndex == null) {
           continue;
         }
-        final openingIndex = _nextSignificantIndex(tokens, nameIndex + 1);
+        final openingIndex = _functionParameterOpeningIndex(
+          tokens,
+          nameIndex + 1,
+        );
         if (openingIndex == null || tokens[openingIndex].lexeme != '(') {
           continue;
         }
@@ -521,7 +584,10 @@ class StyioSymbolIndex {
         if (nameIndex == null) {
           continue;
         }
-        final openingIndex = _nextSignificantIndex(tokens, nameIndex + 1);
+        final openingIndex = _functionParameterOpeningIndex(
+          tokens,
+          nameIndex + 1,
+        );
         if (openingIndex == null || tokens[openingIndex].lexeme != '(') {
           continue;
         }
@@ -758,21 +824,28 @@ class StyioSymbolIndex {
     })
     addSymbol,
   }) {
-    for (var index = startIndex; index < tokens.length; index += 1) {
-      final token = tokens[index];
-      if (token.kind == TokenKind.whitespace ||
-          token.kind == TokenKind.comment) {
-        continue;
-      }
-      if (token.lexeme == '(') {
-        _addParametersInDelimitedList(
-          tokens: tokens,
-          openingIndex: index,
-          addSymbol: addSymbol,
-        );
-      }
-      return;
+    final openingIndex = _functionParameterOpeningIndex(tokens, startIndex);
+    if (openingIndex != null) {
+      _addParametersInDelimitedList(
+        tokens: tokens,
+        openingIndex: openingIndex,
+        addSymbol: addSymbol,
+      );
     }
+  }
+
+  int? _functionParameterOpeningIndex(List<TokenSpan> tokens, int startIndex) {
+    var index = _nextSignificantIndex(tokens, startIndex);
+    if (index == null) {
+      return null;
+    }
+    if (tokens[index].lexeme == ':=' || tokens[index].lexeme == '=') {
+      index = _nextSignificantIndex(tokens, index + 1);
+      if (index == null) {
+        return null;
+      }
+    }
+    return tokens[index].lexeme == '(' ? index : null;
   }
 
   void _addParametersInDelimitedList({
@@ -1210,6 +1283,260 @@ class StyioSymbolIndex {
     return conflicts;
   }
 
+  List<ExtractFunctionConflict> _extractFunctionConflicts({
+    required String source,
+    required List<TokenSpan> tokens,
+    required StyioSymbolSnapshot snapshot,
+    required SourceRange selectionRange,
+    required String selectedText,
+    required String name,
+    required _ExtractFunctionSelectionKind selectionKind,
+  }) {
+    final conflicts = <ExtractFunctionConflict>[];
+    if (!_isValidIdentifier(name)) {
+      conflicts.add(
+        ExtractFunctionConflict(
+          message: 'Enter a valid Styio function identifier.',
+          range: selectionRange,
+        ),
+      );
+    }
+
+    for (final symbol in snapshot.symbols) {
+      if (symbol.name == name) {
+        conflicts.add(
+          ExtractFunctionConflict(
+            message: 'Name `$name` already declares a current-file symbol.',
+            range: symbol.nameRange,
+          ),
+        );
+      }
+    }
+
+    final selectedTokens = tokens
+        .where((token) => token.range.intersects(selectionRange))
+        .toList(growable: false);
+    final significantTokens = selectedTokens
+        .where(
+          (token) =>
+              token.kind != TokenKind.whitespace &&
+              token.kind != TokenKind.comment,
+        )
+        .toList(growable: false);
+    if (significantTokens.isEmpty) {
+      conflicts.add(
+        ExtractFunctionConflict(
+          message: 'Select Styio code before extracting a function.',
+          range: selectionRange,
+        ),
+      );
+    }
+
+    for (final token in significantTokens) {
+      if (token.range.start < selectionRange.start ||
+          token.range.end > selectionRange.end) {
+        conflicts.add(
+          ExtractFunctionConflict(
+            message: 'Extract Function requires complete selected tokens.',
+            range: token.range,
+          ),
+        );
+        break;
+      }
+    }
+
+    if (selectionKind == _ExtractFunctionSelectionKind.expression &&
+        selectedText.contains('\n')) {
+      conflicts.add(
+        ExtractFunctionConflict(
+          message:
+              'Extract Function currently requires full-line selections for '
+              'multi-line code.',
+          range: selectionRange,
+        ),
+      );
+    }
+
+    if (selectionKind == _ExtractFunctionSelectionKind.expression &&
+        _looksLikeAssignmentTarget(tokens, selectionRange)) {
+      conflicts.add(
+        ExtractFunctionConflict(
+          message: 'Cannot extract a function from an assignment target.',
+          range: selectionRange,
+        ),
+      );
+    }
+
+    final declarationToken = significantTokens.cast<TokenSpan?>().firstWhere(
+      (token) =>
+          token != null &&
+          (token.lexeme == 'fn' ||
+              token.lexeme == 'pipeline' ||
+              token.lexeme == 'state' ||
+              token.lexeme == '#'),
+      orElse: () => null,
+    );
+    if (declarationToken != null) {
+      conflicts.add(
+        ExtractFunctionConflict(
+          message:
+              'Extract Function currently supports expressions and statement '
+              'blocks, not declarations.',
+          range: declarationToken.range,
+        ),
+      );
+    }
+
+    final braceConflict = _braceConflictForSelection(significantTokens);
+    if (braceConflict != null) {
+      conflicts.add(braceConflict);
+    }
+
+    return conflicts;
+  }
+
+  ExtractFunctionConflict? _braceConflictForSelection(List<TokenSpan> tokens) {
+    var depth = 0;
+    for (final token in tokens) {
+      if (token.lexeme == '{') {
+        depth += 1;
+        continue;
+      }
+      if (token.lexeme == '}') {
+        depth -= 1;
+        if (depth < 0) {
+          return ExtractFunctionConflict(
+            message: 'Extract Function selection has unmatched closing brace.',
+            range: token.range,
+          );
+        }
+      }
+    }
+    if (depth != 0 && tokens.isNotEmpty) {
+      return ExtractFunctionConflict(
+        message: 'Extract Function selection has unmatched opening brace.',
+        range: tokens.last.range,
+      );
+    }
+    return null;
+  }
+
+  List<String> _extractFunctionParameters({
+    required StyioSymbolSnapshot snapshot,
+    required SourceRange selectionRange,
+  }) {
+    final parameters = <String>[];
+    final seen = <String>{};
+    for (final reference in snapshot.references) {
+      if (reference.isDeclaration ||
+          !reference.range.intersects(selectionRange) ||
+          reference.targetRange.intersects(selectionRange) ||
+          reference.access != ReferenceAccess.read ||
+          (reference.kind != SymbolKind.variable &&
+              reference.kind != SymbolKind.parameter)) {
+        continue;
+      }
+      if (seen.add(reference.name)) {
+        parameters.add(reference.name);
+      }
+    }
+    return parameters;
+  }
+
+  String _extractFunctionCallText({
+    required String name,
+    required List<String> parameters,
+  }) {
+    return '$name(${parameters.join(', ')})';
+  }
+
+  String _extractFunctionDeclarationText({
+    required String name,
+    required List<String> parameters,
+    required _ExtractFunctionSelectionKind selectionKind,
+    required String selectedText,
+  }) {
+    final buffer = StringBuffer()
+      ..write('#')
+      ..write(name)
+      ..write(' := (')
+      ..write(parameters.join(', '))
+      ..writeln(') => {');
+
+    if (selectionKind == _ExtractFunctionSelectionKind.expression) {
+      buffer
+        ..write('  <| ')
+        ..writeln(selectedText.trim());
+    } else {
+      for (final line in selectedText.split('\n')) {
+        if (line.isEmpty) {
+          buffer.writeln();
+        } else {
+          buffer
+            ..write('  ')
+            ..writeln(line);
+        }
+      }
+    }
+
+    buffer
+      ..writeln('}')
+      ..writeln();
+    return buffer.toString();
+  }
+
+  SourceRange _extractFunctionInsertionRange(String source) {
+    var insertionOffset = 0;
+    var cursor = 0;
+    while (cursor < source.length) {
+      final lineEnd = source.indexOf('\n', cursor);
+      final end = lineEnd < 0 ? source.length : lineEnd;
+      final line = source.substring(cursor, end).trimLeft();
+      if (!line.startsWith('@import')) {
+        break;
+      }
+      insertionOffset = lineEnd < 0 ? source.length : lineEnd + 1;
+      cursor = insertionOffset;
+    }
+    return SourceRange(start: insertionOffset, end: insertionOffset);
+  }
+
+  _ExtractFunctionSelectionKind _extractFunctionSelectionKind(
+    String source,
+    SourceRange selectionRange,
+  ) {
+    if (_selectionStartsAtLineContent(source, selectionRange) &&
+        _selectionEndsAtLineContent(source, selectionRange)) {
+      return _ExtractFunctionSelectionKind.statements;
+    }
+    return _ExtractFunctionSelectionKind.expression;
+  }
+
+  bool _selectionStartsAtLineContent(String source, SourceRange range) {
+    final lineStart = _lineInsertionRange(source, range.start).start;
+    for (var index = lineStart; index < range.start; index += 1) {
+      final codeUnit = source.codeUnitAt(index);
+      if (codeUnit != 0x20 && codeUnit != 0x09) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _selectionEndsAtLineContent(String source, SourceRange range) {
+    var lineEnd = source.indexOf('\n', range.end);
+    if (lineEnd < 0) {
+      lineEnd = source.length;
+    }
+    for (var index = range.end; index < lineEnd; index += 1) {
+      final codeUnit = source.codeUnitAt(index);
+      if (codeUnit != 0x20 && codeUnit != 0x09) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   _InlineVariableInitializer? _variableInitializer(
     String source,
     List<TokenSpan> tokens,
@@ -1381,6 +1708,8 @@ class _InlineVariableInitializer {
   final SourceRange range;
   final String text;
 }
+
+enum _ExtractFunctionSelectionKind { expression, statements }
 
 class StyioSymbolSnapshot {
   const StyioSymbolSnapshot({required this.symbols, required this.references});

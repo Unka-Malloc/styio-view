@@ -305,6 +305,37 @@ class IntroduceVariablePlan {
   bool get hasConflicts => conflicts.isNotEmpty;
 }
 
+class ExtractFunctionConflict {
+  const ExtractFunctionConflict({required this.message, required this.range});
+
+  final String message;
+  final SourceRange range;
+}
+
+class ExtractFunctionPlan {
+  const ExtractFunctionPlan({
+    required this.functionName,
+    required this.selectionRange,
+    required this.selectedText,
+    required this.parameters,
+    required this.callText,
+    required this.functionText,
+    required this.edits,
+    this.conflicts = const <ExtractFunctionConflict>[],
+  });
+
+  final String functionName;
+  final SourceRange selectionRange;
+  final String selectedText;
+  final List<String> parameters;
+  final String callText;
+  final String functionText;
+  final List<FormattingEdit> edits;
+  final List<ExtractFunctionConflict> conflicts;
+
+  bool get hasConflicts => conflicts.isNotEmpty;
+}
+
 class ParameterInfoParameter {
   const ParameterInfoParameter({
     required this.name,

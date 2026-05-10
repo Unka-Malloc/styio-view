@@ -68,6 +68,17 @@ class EditorSessionController extends ChangeNotifier {
     );
   }
 
+  ExtractFunctionPlan? extractFunctionPlanAtSelection(String name) {
+    if (_selection.isCollapsed) {
+      return null;
+    }
+    return _languageService.extractFunction(
+      _document,
+      SourceRange(start: _selection.start, end: _selection.end),
+      name,
+    );
+  }
+
   ParameterInfoPayload? get parameterInfoAtSelection =>
       _languageService.parameterInfoAt(_document, inspectionOffset);
   TokenSpan? get tokenAtSelection => _tokenAroundOffset(inspectionOffset);
@@ -793,6 +804,15 @@ class EditorSessionController extends ChangeNotifier {
 
   bool applyIntroduceVariableAtSelection(String name) {
     final plan = introduceVariablePlanAtSelection(name);
+    if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
+      return false;
+    }
+    applyFormattingEdits(plan.edits);
+    return true;
+  }
+
+  bool applyExtractFunctionAtSelection(String name) {
+    final plan = extractFunctionPlanAtSelection(name);
     if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
       return false;
     }

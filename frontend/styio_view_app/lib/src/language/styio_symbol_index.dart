@@ -2132,34 +2132,63 @@ class StyioSymbolIndex {
       }
     }
 
-    if (parameters.length != originalNames.length ||
-        requestedOriginals.length != originalNames.length) {
+    if (requestedOriginals.length != parameters.length) {
       conflicts.add(
         ChangeSignatureConflict(
           message:
-              'Change Signature currently requires the same existing '
-              'parameter set.',
+              'Change Signature currently only reuses existing parameters.',
           range: target.nameRange,
         ),
       );
+    }
+
+    final removedOriginalNames = originalNames
+        .where((name) => !requestedOriginals.contains(name))
+        .toList(growable: false);
+    final bodyRange = _functionBodyRange(tokens, signature);
+    for (final removedName in removedOriginalNames) {
+      final removedRange = _parameterRange(signature, removedName);
+      if (removedRange == null) {
+        continue;
+      }
+      final bodyReferences = snapshot
+          .referencesForTarget(removedRange)
+          .where(
+            (reference) =>
+                !reference.isDeclaration &&
+                bodyRange != null &&
+                bodyRange.intersects(reference.range),
+          )
+          .toList(growable: false);
+      if (bodyReferences.isNotEmpty) {
+        conflicts.add(
+          ChangeSignatureConflict(
+            message:
+                'Cannot remove parameter `$removedName` while it is used in '
+                'the function body.',
+            range: bodyReferences.first.range,
+          ),
+        );
+      }
     }
 
     final hasParameterRenames = parameters.any(
       (parameter) => parameter.name != parameter.originalName,
     );
     final hasParameterReorder = !_sameParameterOrder(originalNames, parameters);
-    if (hasParameterRenames && hasParameterReorder) {
+    final hasParameterRemoval = removedOriginalNames.isNotEmpty;
+    if (hasParameterRenames && (hasParameterReorder || hasParameterRemoval)) {
       conflicts.add(
         ChangeSignatureConflict(
           message:
               'Change Signature currently applies parameter rename and '
-              'parameter reorder as separate safe steps.',
+              'parameter reorder/removal as separate safe steps.',
           range: target.nameRange,
         ),
       );
     }
 
-    if (hasParameterReorder) {
+    if (hasParameterReorder || hasParameterRemoval) {
       for (final reference in references.where((item) => !item.isDeclaration)) {
         final referenceIndex = _tokenIndexForRange(tokens, reference.range);
         final call = referenceIndex == null
@@ -2218,6 +2247,8 @@ class StyioSymbolIndex {
         .map((parameter) => parameter.name)
         .toList(growable: false);
     final hasParameterReorder = !_sameParameterOrder(originalNames, parameters);
+    final hasParameterRemoval = parameters.length != originalNames.length;
+    final shouldRewriteArguments = hasParameterReorder || hasParameterRemoval;
 
     if (newName != target.name) {
       for (final reference in references) {
@@ -2260,7 +2291,7 @@ class StyioSymbolIndex {
       }
     }
 
-    if (hasParameterReorder) {
+    if (shouldRewriteArguments) {
       for (final reference in references.where((item) => !item.isDeclaration)) {
         final referenceIndex = _tokenIndexForRange(tokens, reference.range);
         final call = referenceIndex == null

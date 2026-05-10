@@ -1417,21 +1417,21 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         .map((part) => part.trim())
         .where((part) => part.isNotEmpty)
         .toList(growable: false);
-    if (enteredNames.length != originalNames.length) {
-      return null;
-    }
 
     final originalNameSet = originalNames.toSet();
     final enteredNameSet = enteredNames.toSet();
-    final isPureReorder =
+    final reusesExistingParameters =
         enteredNameSet.length == enteredNames.length &&
-        enteredNameSet.length == originalNameSet.length &&
         enteredNameSet.every(originalNameSet.contains);
-    if (isPureReorder) {
+    if (reusesExistingParameters) {
       return [
         for (final name in enteredNames)
           ChangeSignatureParameterUpdate(originalName: name, name: name),
       ];
+    }
+
+    if (enteredNames.length != originalNames.length) {
+      return null;
     }
 
     return [
@@ -1452,7 +1452,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       return 'Place the caret on a Styio function.';
     }
     if (parameterUpdates == null) {
-      return 'Enter ${seedPlan.originalParameters.length} comma-separated '
+      return 'Enter up to ${seedPlan.originalParameters.length} comma-separated '
           'parameter${seedPlan.originalParameters.length == 1 ? '' : 's'}.';
     }
     if (plan != null && plan.hasConflicts) {
@@ -2814,7 +2814,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                 border: OutlineInputBorder(),
                 labelText: 'Parameters',
                 helperText:
-                    'Rename in place or reorder existing names with commas.',
+                    'Rename in place, reorder, or remove existing names.',
               ),
               onChanged: (_) {
                 setState(() {

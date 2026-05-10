@@ -4,6 +4,20 @@ import 'package:styio_view_app/src/language/language_contract.dart';
 import 'package:styio_view_app/src/language/simple_styio_language_service.dart';
 
 void main() {
+  String applyEdits(String text, Iterable<FormattingEdit> edits) {
+    var nextText = text;
+    final editsDescending = edits.toList(growable: false)
+      ..sort((left, right) => right.range.start.compareTo(left.range.start));
+    for (final edit in editsDescending) {
+      nextText = nextText.replaceRange(
+        edit.range.start,
+        edit.range.end,
+        edit.newText,
+      );
+    }
+    return nextText;
+  }
+
   test('analyzes token, semantic, diagnostic, and formatting layers', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(
@@ -208,6 +222,68 @@ explicit: f64 = 1
       ),
       isFalse,
     );
+  });
+
+  test('removes unused parameters through change signature', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'change-signature-remove-parameter.styio',
+      text: '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+value = blend(price, tax)
+again = blend(total, fee)
+''',
+      revision: 0,
+    );
+
+    final plan = service.changeSignatureAt(
+      document,
+      document.text.indexOf('blend') + 1,
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+      ],
+    );
+
+    expect(plan, isNotNull);
+    expect(plan!.hasConflicts, isFalse);
+    expect(applyEdits(document.text, plan.edits), '''
+fn blend(left: f64) {
+  emit left
+}
+value = blend(price)
+again = blend(total)
+''');
+  });
+
+  test('blocks parameter removal while body references remain', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'change-signature-remove-used-parameter.styio',
+      text: '''
+fn blend(left: f64, right: f64) {
+  emit left + right
+}
+value = blend(price, tax)
+''',
+      revision: 0,
+    );
+
+    final plan = service.changeSignatureAt(
+      document,
+      document.text.indexOf('blend') + 1,
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+      ],
+    );
+
+    expect(plan, isNotNull);
+    expect(plan!.hasConflicts, isTrue);
+    expect(plan.conflicts.single.message, contains('Cannot remove parameter'));
+    expect(plan.edits, isEmpty);
   });
 
   test('reports and fixes call argument arity mismatches', () {

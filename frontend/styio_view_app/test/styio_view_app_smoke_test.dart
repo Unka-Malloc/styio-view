@@ -3004,6 +3004,63 @@ value = blend(price, price)
     );
   });
 
+  testWidgets('removes a parameter from change signature', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text =
+        'fn blend(left: f64, right: f64) {\n'
+        '  emit left\n'
+        '}\n'
+        'value = blend(price, tax)\n'
+        'again = blend(total, fee)\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'change-signature-remove-parameter.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('blend') + 1);
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f6);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('source-change-signature-parameters-input')),
+      'left',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Change `blend(left, right)` to `blend(left)`'), findsOne);
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      'fn blend(left: f64) {\n'
+      '  emit left\n'
+      '}\n'
+      'value = blend(price)\n'
+      'again = blend(total)\n',
+    );
+  });
+
   testWidgets('applies rename edits from language pane', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

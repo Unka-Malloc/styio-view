@@ -982,6 +982,32 @@ later = count
     },
   );
 
+  test('infers simple binary expression types', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+price = 12.5
+tax = 2
+total = price + tax
+spread = total > 10.0
+ready = spread && true
+''';
+
+    final hints = index.typeNameHints(source);
+
+    expect(
+      hints.singleWhere((hint) => hint.range.start == source.indexOf('total')),
+      isA<InlayHint>().having((hint) => hint.label, 'label', ': f64'),
+    );
+    expect(
+      hints.singleWhere((hint) => hint.range.start == source.indexOf('spread')),
+      isA<InlayHint>().having((hint) => hint.label, 'label', ': bool'),
+    );
+    expect(
+      hints.singleWhere((hint) => hint.range.start == source.indexOf('ready')),
+      isA<InlayHint>().having((hint) => hint.label, 'label', ': bool'),
+    );
+  });
+
   test('reports typed local initializer type mismatches', () {
     const index = StyioSymbolIndex();
     const source = '''
@@ -993,6 +1019,7 @@ wide: f64 = 3
 count: i64 = price
 fromCall: f64 = amount()
 ok: f64 = price
+flag: i64 = price > 1
 ''';
 
     final issues = index.typedLocalInitializerIssues(source);
@@ -1001,13 +1028,20 @@ ok: f64 = price
       'wide',
       'count',
       'fromCall',
+      'flag',
     ]);
     expect(issues.map((issue) => issue.expectedTypeName), [
       'f64',
       'i64',
       'f64',
+      'i64',
     ]);
-    expect(issues.map((issue) => issue.actualTypeName), ['i64', 'f64', 'i64']);
+    expect(issues.map((issue) => issue.actualTypeName), [
+      'i64',
+      'f64',
+      'i64',
+      'bool',
+    ]);
     expect(
       issues.map(
         (issue) => source.substring(
@@ -1015,14 +1049,14 @@ ok: f64 = price
           issue.diagnostic.range.end,
         ),
       ),
-      ['3', 'price', 'amount()'],
+      ['3', 'price', 'amount()', 'price > 1'],
     );
     expect(issues.first.replacementInitializerText, '3.0');
     expect(
       issues.map(
         (issue) => source.substring(issue.typeRange.start, issue.typeRange.end),
       ),
-      ['f64', 'i64', 'f64'],
+      ['f64', 'i64', 'f64', 'i64'],
     );
   });
 
@@ -1036,7 +1070,9 @@ count = 1.5
 label: string = "ok"
 label = 2
 ok: f64 = 1.0
-ok = rate
+ok = rate + 1
+flag: bool = true
+flag = rate + 1
 ''';
 
     final issues = index.assignmentTypeMismatchIssues(source);
@@ -1045,13 +1081,20 @@ ok = rate
       'rate',
       'count',
       'label',
+      'flag',
     ]);
     expect(issues.map((issue) => issue.expectedTypeName), [
       'f64',
       'i64',
       'string',
+      'bool',
     ]);
-    expect(issues.map((issue) => issue.actualTypeName), ['i64', 'f64', 'i64']);
+    expect(issues.map((issue) => issue.actualTypeName), [
+      'i64',
+      'f64',
+      'i64',
+      'f64',
+    ]);
     expect(
       issues.map(
         (issue) => source.substring(
@@ -1059,7 +1102,7 @@ ok = rate
           issue.diagnostic.range.end,
         ),
       ),
-      ['1', '1.5', '2'],
+      ['1', '1.5', '2', 'rate + 1'],
     );
     expect(issues.first.replacementAssignmentText, '1.0');
     expect(issues[1].replacementInitializerTextForActualType, '0.0');
@@ -1069,7 +1112,7 @@ ok = rate
       issues.map(
         (issue) => source.substring(issue.typeRange.start, issue.typeRange.end),
       ),
-      ['f64', 'i64', 'string'],
+      ['f64', 'i64', 'string', 'bool'],
     );
   });
 
@@ -1088,6 +1131,9 @@ fn amount(): i64 {
 fn ok(left: f64): f64 {
   emit left
 }
+fn ready(left: f64): i64 {
+  emit left > 0
+}
 ''';
 
     final issues = index.functionReturnTypeIssues(source);
@@ -1096,13 +1142,20 @@ fn ok(left: f64): f64 {
       'price',
       'amount',
       'label',
+      'ready',
     ]);
     expect(issues.map((issue) => issue.expectedTypeName), [
       'f64',
       'i64',
       'string',
+      'i64',
     ]);
-    expect(issues.map((issue) => issue.actualTypeName), ['i64', 'f64', 'i64']);
+    expect(issues.map((issue) => issue.actualTypeName), [
+      'i64',
+      'f64',
+      'i64',
+      'bool',
+    ]);
     expect(
       issues.map(
         (issue) => source.substring(
@@ -1110,7 +1163,7 @@ fn ok(left: f64): f64 {
           issue.diagnostic.range.end,
         ),
       ),
-      ['3', '1.5', '1'],
+      ['3', '1.5', '1', 'left > 0'],
     );
     expect(issues.first.replacementReturnExpressionText, '3.0');
     expect(
@@ -1120,7 +1173,7 @@ fn ok(left: f64): f64 {
           issue.returnTypeRange.end,
         ),
       ),
-      ['f64', 'i64', 'string'],
+      ['f64', 'i64', 'string', 'i64'],
     );
   });
 

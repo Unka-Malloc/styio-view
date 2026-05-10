@@ -1298,16 +1298,77 @@ class StyioSymbolIndex {
     required Map<String, List<_FunctionSignature>> signaturesByName,
     required Map<String, String> inferredTypesByName,
   }) {
+    final primary = _inferPrimaryExpressionType(
+      tokens: tokens,
+      expressionStartIndex: expressionStartIndex,
+      signaturesByName: signaturesByName,
+      inferredTypesByName: inferredTypesByName,
+    );
+    if (primary == null) {
+      return null;
+    }
+
+    var currentType = primary.typeName;
+    var cursor = primary.endIndex;
+    while (true) {
+      final operatorIndex = _nextSignificantIndex(tokens, cursor + 1);
+      if (operatorIndex == null ||
+          _hasLineBreakBetween(tokens, cursor + 1, operatorIndex) ||
+          !_isBinaryExpressionOperator(tokens[operatorIndex].lexeme)) {
+        return currentType;
+      }
+      final rightIndex = _nextSignificantIndex(tokens, operatorIndex + 1);
+      if (rightIndex == null ||
+          _hasLineBreakBetween(tokens, operatorIndex + 1, rightIndex)) {
+        return currentType;
+      }
+      final right = _inferPrimaryExpressionType(
+        tokens: tokens,
+        expressionStartIndex: rightIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (right == null) {
+        return null;
+      }
+      final combinedType = _inferBinaryExpressionType(
+        operatorLexeme: tokens[operatorIndex].lexeme,
+        leftType: currentType,
+        rightType: right.typeName,
+      );
+      if (combinedType == null || combinedType.isEmpty) {
+        return null;
+      }
+      currentType = combinedType;
+      cursor = right.endIndex;
+    }
+  }
+
+  _ExpressionTypeSpan? _inferPrimaryExpressionType({
+    required List<TokenSpan> tokens,
+    required int expressionStartIndex,
+    required Map<String, List<_FunctionSignature>> signaturesByName,
+    required Map<String, String> inferredTypesByName,
+  }) {
     final token = tokens[expressionStartIndex];
     if (token.kind == TokenKind.number) {
-      return token.lexeme.contains('.') ? 'f64' : 'i64';
+      return _ExpressionTypeSpan(
+        typeName: token.lexeme.contains('.') ? 'f64' : 'i64',
+        endIndex: expressionStartIndex,
+      );
     }
     if (token.kind == TokenKind.string) {
-      return 'string';
+      return _ExpressionTypeSpan(
+        typeName: 'string',
+        endIndex: expressionStartIndex,
+      );
     }
     if (token.kind == TokenKind.keyword) {
       if (token.lexeme == 'true' || token.lexeme == 'false') {
-        return 'bool';
+        return _ExpressionTypeSpan(
+          typeName: 'bool',
+          endIndex: expressionStartIndex,
+        );
       }
       return null;
     }
@@ -1322,10 +1383,75 @@ class StyioSymbolIndex {
       if (signature == null || signature.returnType.isEmpty) {
         return null;
       }
-      return signature.returnType;
+      return _ExpressionTypeSpan(
+        typeName: signature.returnType,
+        endIndex: call.closingIndex,
+      );
     }
 
-    return inferredTypesByName[token.lexeme];
+    final inferredType = inferredTypesByName[token.lexeme];
+    if (inferredType == null || inferredType.isEmpty) {
+      return null;
+    }
+    return _ExpressionTypeSpan(
+      typeName: inferredType,
+      endIndex: expressionStartIndex,
+    );
+  }
+
+  bool _isBinaryExpressionOperator(String lexeme) {
+    return const {
+      '+',
+      '-',
+      '*',
+      '/',
+      '%',
+      '**',
+      '<',
+      '<=',
+      '>',
+      '>=',
+      '==',
+      '!=',
+      '&&',
+      '||',
+    }.contains(lexeme);
+  }
+
+  String? _inferBinaryExpressionType({
+    required String operatorLexeme,
+    required String leftType,
+    required String rightType,
+  }) {
+    final isNumeric = _isNumericType(leftType) && _isNumericType(rightType);
+    if (const {'+', '-', '*', '/', '%', '**'}.contains(operatorLexeme)) {
+      if (!isNumeric) {
+        return null;
+      }
+      return leftType == 'f64' || rightType == 'f64' ? 'f64' : 'i64';
+    }
+    if (const {'<', '<=', '>', '>='}.contains(operatorLexeme)) {
+      return isNumeric ? 'bool' : null;
+    }
+    if (operatorLexeme == '==' || operatorLexeme == '!=') {
+      return leftType == rightType || isNumeric ? 'bool' : null;
+    }
+    if (operatorLexeme == '&&' || operatorLexeme == '||') {
+      return leftType == 'bool' && rightType == 'bool' ? 'bool' : null;
+    }
+    return null;
+  }
+
+  bool _isNumericType(String typeName) {
+    return const {
+      'i8',
+      'i16',
+      'i32',
+      'i64',
+      'i128',
+      'f32',
+      'f64',
+    }.contains(typeName);
   }
 
   Map<String, String> _inferTypedLocalInitializerTypes(List<TokenSpan> tokens) {
@@ -4849,6 +4975,13 @@ class _FunctionBodySpan {
   final int openingIndex;
   final int closingIndex;
   final SourceRange range;
+}
+
+class _ExpressionTypeSpan {
+  const _ExpressionTypeSpan({required this.typeName, required this.endIndex});
+
+  final String typeName;
+  final int endIndex;
 }
 
 class _CallArgumentList {

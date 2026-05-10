@@ -528,6 +528,44 @@ count = 1.5
 ''');
   });
 
+  test('reports binary expression type mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'binary-expression-type-mismatch.styio',
+      text: '''
+price = 12.5
+flag: i64 = price > 1
+fn ready(value: f64): i64 {
+  emit value > 0
+}
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service.analyzeDocument(document).diagnostics;
+    final initializerMismatch = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'initializer-type-mismatch',
+    );
+    final returnMismatch = diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'return-type-mismatch',
+    );
+    final returnTypeFix = service
+        .quickFixesForDiagnostic(document, returnMismatch)
+        .singleWhere(
+          (fix) => fix.label == 'Change function `ready` return type to bool',
+        );
+
+    expect(initializerMismatch.message, contains('expects `i64`, got `bool`'));
+    expect(returnMismatch.message, contains('expects `i64`, got `bool`'));
+    expect(applyEdits(document.text, returnTypeFix.edits), '''
+price = 12.5
+flag: i64 = price > 1
+fn ready(value: f64): bool {
+  emit value > 0
+}
+''');
+  });
+
   test('reports and fixes function return type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

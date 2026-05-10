@@ -4618,6 +4618,7 @@ class _InlineFeedbackBadge extends StatelessWidget {
 enum _LanguageInspectorSection {
   diagnostics,
   blocks,
+  inlays,
   symbols,
   resolve,
   token,
@@ -4633,6 +4634,8 @@ extension on _LanguageInspectorSection {
         return 'Diagnostics';
       case _LanguageInspectorSection.blocks:
         return 'Blocks';
+      case _LanguageInspectorSection.inlays:
+        return 'Inlays';
       case _LanguageInspectorSection.symbols:
         return 'Symbols';
       case _LanguageInspectorSection.resolve:
@@ -4776,6 +4779,7 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
                 _CapabilityPill(
                   label: 'blocks ${analysis.semanticBlocks.length}',
                 ),
+                _CapabilityPill(label: 'inlays ${analysis.inlayHintCount}'),
               ],
             ),
           ),
@@ -4790,6 +4794,12 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
             key: const ValueKey('language-desktop-section-blocks'),
             title: 'Semantic Blocks',
             child: _buildSemanticBlocksContent(context),
+          ),
+          const SizedBox(height: 12),
+          _InspectorCard(
+            key: const ValueKey('language-desktop-section-inlays'),
+            title: 'Inlay Hints',
+            child: _buildInlayHintsContent(context),
           ),
           const SizedBox(height: 12),
           _InspectorCard(
@@ -4841,6 +4851,8 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
         return _buildDiagnosticsContent(context);
       case _LanguageInspectorSection.blocks:
         return _buildSemanticBlocksContent(context);
+      case _LanguageInspectorSection.inlays:
+        return _buildInlayHintsContent(context);
       case _LanguageInspectorSection.symbols:
         return _buildDocumentSymbolsContent(context);
       case _LanguageInspectorSection.resolve:
@@ -5001,6 +5013,38 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
             ),
           )
           .toList(growable: false),
+    );
+  }
+
+  Widget _buildInlayHintsContent(BuildContext context) {
+    final theme = Theme.of(context);
+    if (widget.analysis.inlayHints.isEmpty) {
+      return Text(
+        'No inlay hints for the current document.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    return Column(
+      key: const ValueKey('language-inlay-hints-list'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (
+          var index = 0;
+          index < widget.analysis.inlayHints.length;
+          index += 1
+        )
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '${widget.analysis.inlayHints[index].label} · '
+              '${widget.analysis.inlayHints[index].kind.name} · '
+              '${_formatRange(widget.analysis.inlayHints[index].range)}',
+              key: ValueKey('language-inlay-hint-$index'),
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+      ],
     );
   }
 
@@ -5638,6 +5682,31 @@ List<InlineSpan> _buildLineSpans(
   final lineTokens = analysis.tokenSpans
       .where((token) => token.range.intersects(lineRange))
       .toList(growable: false);
+  final lineInlayHints =
+      analysis.inlayHints
+          .where(
+            (hint) =>
+                hint.position >= lineRange.start &&
+                hint.position <= lineRange.end,
+          )
+          .toList(growable: false)
+        ..sort((left, right) => left.position.compareTo(right.position));
+  var inlayHintIndex = 0;
+
+  void appendInlayHintsThrough(int boundary) {
+    while (inlayHintIndex < lineInlayHints.length &&
+        lineInlayHints[inlayHintIndex].position <= boundary) {
+      final hint = lineInlayHints[inlayHintIndex];
+      _appendCaretIfNeeded(
+        spans,
+        context,
+        caretOffset: caretOffset,
+        boundary: hint.position,
+      );
+      spans.add(_inlayHintSpan(hint));
+      inlayHintIndex += 1;
+    }
+  }
 
   if (lineTokens.isEmpty) {
     _appendCaretIfNeeded(
@@ -5698,6 +5767,7 @@ List<InlineSpan> _buildLineSpans(
     }
 
     if (end > start) {
+      appendInlayHintsThrough(start);
       final tokenRange = SourceRange(start: start, end: end);
       _appendCaretIfNeeded(
         spans,
@@ -5764,8 +5834,22 @@ List<InlineSpan> _buildLineSpans(
     caretOffset: caretOffset,
     boundary: lineRange.end,
   );
+  appendInlayHintsThrough(lineRange.end);
 
   return spans;
+}
+
+InlineSpan _inlayHintSpan(InlayHint hint) {
+  return TextSpan(
+    text: '${hint.label} ',
+    style: const TextStyle(
+      color: Color(0xFF6E5F49),
+      backgroundColor: Color(0xFFECE4D8),
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
+    ),
+  );
 }
 
 List<InlineSpan> _inlineSpansForToken(

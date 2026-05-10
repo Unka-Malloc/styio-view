@@ -52,14 +52,42 @@ void main() {
 
     final richTexts = tester.widgetList<RichText>(
       find.descendant(
-        of: find.byKey(ValueKey('source-line-$lineIndex')),
-        matching: find.byType(RichText),
+        of: find.byKey(ValueKey('source-line-$lineIndex'), skipOffstage: false),
+        matching: find.byType(RichText, skipOffstage: false),
+        skipOffstage: false,
       ),
     );
     for (final richText in richTexts) {
       visit(richText.text);
     }
     return colors;
+  }
+
+  List<String> spanTextsOnLine(WidgetTester tester, {required int lineIndex}) {
+    final texts = <String>[];
+
+    void visit(InlineSpan span) {
+      if (span is TextSpan) {
+        if (span.text != null) {
+          texts.add(span.text!);
+        }
+        for (final child in span.children ?? const <InlineSpan>[]) {
+          visit(child);
+        }
+      }
+    }
+
+    final richTexts = tester.widgetList<RichText>(
+      find.descendant(
+        of: find.byKey(ValueKey('source-line-$lineIndex'), skipOffstage: false),
+        matching: find.byType(RichText, skipOffstage: false),
+        skipOffstage: false,
+      ),
+    );
+    for (final richText in richTexts) {
+      visit(richText.text);
+    }
+    return texts;
   }
 
   ProjectGraphSnapshot createProjectSnapshot(PlatformTarget target) {
@@ -1650,6 +1678,52 @@ value = blend(price, tax)
       find.byKey(const ValueKey('source-parameter-info-panel')),
       findsNothing,
     );
+  });
+
+  testWidgets('renders parameter inlay hints in source lines', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+value = blend(price, tax)
+''';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'parameter-inlay-source.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.pump();
+
+    final callLine = bootstrap.editorController.document
+        .positionForOffset(text.indexOf('value = blend'))
+        .line;
+    final callLineSpans = spanTextsOnLine(tester, lineIndex: callLine);
+    final inlaySection = find.byKey(
+      const ValueKey('language-desktop-section-inlays'),
+    );
+
+    expect(bootstrap.editorController.analysis.inlayHintCount, 2);
+    expect(callLineSpans, containsAll(<String>['left: ', 'right: ']));
+    await tester.scrollUntilVisible(
+      inlaySection,
+      120,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('language-pane-desktop')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(inlaySection, findsOneWidget);
   });
 
   testWidgets('opens quick documentation from editor keymap', (tester) async {

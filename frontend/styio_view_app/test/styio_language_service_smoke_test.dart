@@ -141,6 +141,29 @@ value = blend(price, tax)
     expect(info?.activeParameter?.name, 'right');
   });
 
+  test('returns parameter name inlay hints for current-file calls', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'parameter-inlays.styio',
+      text: '''
+fn blend(left: f64, right: f64) {
+  emit left
+}
+value = blend(price, tax)
+same = blend(left, right)
+''',
+      revision: 0,
+    );
+
+    final hints = service.inlayHints(document);
+
+    expect(hints.map((hint) => hint.label), ['left:', 'right:']);
+    expect(hints.map((hint) => hint.kind).toSet(), {InlayHintKind.parameter});
+    expect(hints.first.position, document.text.indexOf('price'));
+    expect(hints.last.position, document.text.indexOf('tax'));
+    expect(service.analyzeDocument(document).inlayHintCount, 2);
+  });
+
   test('reports and fixes call argument arity mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

@@ -6,6 +6,8 @@ abstract class StyioLanguageService {
 
   List<FormattingEdit> formatDocument(DocumentState document);
 
+  List<InlayHint> inlayHints(DocumentState document);
+
   List<CompletionItem> completeAt(DocumentState document, int offset);
 
   List<SurroundTemplate> surroundTemplatesAt(

@@ -603,6 +603,51 @@ class StyioSymbolIndex {
     );
   }
 
+  List<InlayHint> parameterNameHints(String source) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    if (signaturesByName.isEmpty) {
+      return const <InlayHint>[];
+    }
+
+    final hints = <InlayHint>[];
+    for (final call in _callArgumentLists(tokens)) {
+      final candidates = signaturesByName[call.callable.lexeme];
+      if (candidates == null || candidates.isEmpty) {
+        continue;
+      }
+      final signature = candidates.lastWhere(
+        (candidate) => candidate.nameRange.start <= call.callable.range.start,
+        orElse: () => candidates.first,
+      );
+      final arguments = _parseCallArguments(
+        source: source,
+        tokens: tokens,
+        openingIndex: call.openingIndex,
+        closingIndex: call.closingIndex,
+      );
+      final limit = arguments.length < signature.parameters.length
+          ? arguments.length
+          : signature.parameters.length;
+      for (var index = 0; index < limit; index += 1) {
+        final argument = arguments[index];
+        final parameter = signature.parameters[index];
+        if (_shouldSuppressParameterNameHint(parameter, argument)) {
+          continue;
+        }
+        hints.add(
+          InlayHint(
+            label: '${parameter.name}:',
+            kind: InlayHintKind.parameter,
+            position: argument.range.start,
+            range: argument.range,
+          ),
+        );
+      }
+    }
+    return hints;
+  }
+
   List<StyioCallArgumentIssue> callArgumentIssues(String source) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -1040,6 +1085,13 @@ class StyioSymbolIndex {
 
     parseSegment(tokens[closingIndex].range.start);
     return arguments;
+  }
+
+  bool _shouldSuppressParameterNameHint(
+    ParameterInfoParameter parameter,
+    _ArgumentSegment argument,
+  ) {
+    return argument.text == parameter.name;
   }
 
   int _activeParameterIndex({

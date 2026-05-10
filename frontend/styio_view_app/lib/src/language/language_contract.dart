@@ -24,6 +24,8 @@ enum DiagnosticSeverity { error, warning, hint }
 
 enum CompletionItemKind { keyword, function, variable, snippet }
 
+enum InlayHintKind { parameter }
+
 enum SymbolKind {
   function,
   pipeline,
@@ -162,6 +164,20 @@ class SemanticBlockRange {
 
   final SourceRange range;
   final String label;
+}
+
+class InlayHint {
+  const InlayHint({
+    required this.label,
+    required this.kind,
+    required this.position,
+    required this.range,
+  });
+
+  final String label;
+  final InlayHintKind kind;
+  final int position;
+  final SourceRange range;
 }
 
 class DocumentSymbol {
@@ -425,6 +441,7 @@ class StyioDocumentAnalysis {
     required this.diagnostics,
     required this.formattingEdits,
     required this.semanticBlocks,
+    required this.inlayHints,
     required this.documentSymbols,
     required this.referenceSpans,
   });
@@ -434,12 +451,14 @@ class StyioDocumentAnalysis {
   final List<Diagnostic> diagnostics;
   final List<FormattingEdit> formattingEdits;
   final List<SemanticBlockRange> semanticBlocks;
+  final List<InlayHint> inlayHints;
   final List<DocumentSymbol> documentSymbols;
   final List<ReferenceSpan> referenceSpans;
 
   int get tokenCount => tokenSpans.length;
   int get semanticCount => semanticSpans.length;
   int get diagnosticCount => diagnostics.length;
+  int get inlayHintCount => inlayHints.length;
   int get symbolCount => documentSymbols.length;
   int get referenceCount => referenceSpans.length;
 }

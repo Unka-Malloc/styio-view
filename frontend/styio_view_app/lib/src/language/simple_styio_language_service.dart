@@ -460,6 +460,14 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       intentions.add(negateConditionFix);
     }
 
+    final negatedBooleanLiteralFix = _simplifyNegatedBooleanLiteralAt(
+      document,
+      offset,
+    );
+    if (negatedBooleanLiteralFix != null) {
+      intentions.add(negatedBooleanLiteralFix);
+    }
+
     final doubleNegationFix = _simplifyDoubleNegationAt(document, offset);
     if (doubleNegationFix != null) {
       intentions.add(doubleNegationFix);
@@ -2198,6 +2206,47 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       }
     }
     return false;
+  }
+
+  DiagnosticQuickFix? _simplifyNegatedBooleanLiteralAt(
+    DocumentState document,
+    int offset,
+  ) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final operatorToken = tokens[index];
+      if (operatorToken.lexeme != '!') {
+        continue;
+      }
+      final literalIndex = _nextSignificantIndex(tokens, index + 1);
+      if (literalIndex == null ||
+          _hasLineBreakBetween(tokens, index + 1, literalIndex)) {
+        continue;
+      }
+      final literal = _boolLiteralValue(tokens[literalIndex].lexeme);
+      if (literal == null) {
+        continue;
+      }
+      final expressionRange = SourceRange(
+        start: operatorToken.range.start,
+        end: tokens[literalIndex].range.end,
+      );
+      if (offset < expressionRange.start || offset > expressionRange.end) {
+        continue;
+      }
+      return DiagnosticQuickFix(
+        label: 'Simplify negated boolean literal',
+        detail: 'Replace a negated boolean literal with its opposite value.',
+        edits: [
+          FormattingEdit(
+            range: expressionRange,
+            newText: literal ? 'false' : 'true',
+          ),
+        ],
+      );
+    }
+    return null;
   }
 
   DiagnosticQuickFix? _simplifyDoubleNegationAt(

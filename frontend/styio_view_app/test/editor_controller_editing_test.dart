@@ -1481,6 +1481,31 @@ when !ready || !priced -> state active
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies simplify-negated-boolean-literal context intention', () {
+    const text = '''
+when !true -> state never
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'simplify-negated-boolean-literal.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('!true') + 1),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Simplify negated boolean literal',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+when false -> state never
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies simplify-double-negation context intention', () {
     const text = '''
 ready = true

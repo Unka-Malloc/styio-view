@@ -717,6 +717,55 @@ when !(ready && priced || blocked) -> state mixed
     );
   });
 
+  test('offers simplify-negated-boolean-literal as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'simplify-negated-boolean-literal.styio',
+      text: '''
+ready = true
+when !true -> state never
+when ! false -> state always
+when !ready -> state toggled
+''',
+      revision: 0,
+    );
+
+    final trueAction = service
+        .intentionsAt(document, document.text.indexOf('!true') + 1)
+        .singleWhere(
+          (item) => item.label == 'Simplify negated boolean literal',
+        );
+    final falseAction = service
+        .intentionsAt(document, document.text.indexOf('! false') + 2)
+        .singleWhere(
+          (item) => item.label == 'Simplify negated boolean literal',
+        );
+
+    expect(trueAction.detail, contains('opposite value'));
+    expect(applyEdits(document.text, trueAction.edits), '''
+ready = true
+when false -> state never
+when ! false -> state always
+when !ready -> state toggled
+''');
+    expect(applyEdits(document.text, falseAction.edits), '''
+ready = true
+when !true -> state never
+when true -> state always
+when !ready -> state toggled
+''');
+    expect(
+      service.intentionsAt(document, document.text.indexOf('!ready') + 1),
+      isNot(
+        contains(
+          predicate<DiagnosticQuickFix>(
+            (item) => item.label == 'Simplify negated boolean literal',
+          ),
+        ),
+      ),
+    );
+  });
+
   test('offers simplify-double-negation as a context intention', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

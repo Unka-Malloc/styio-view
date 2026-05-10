@@ -338,13 +338,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   late final FocusNode _inlineRenameFocusNode;
   late final FocusNode _introduceVariableFocusNode;
   late final FocusNode _extractFunctionFocusNode;
+  late final FocusNode _changeSignatureNameFocusNode;
+  late final FocusNode _changeSignatureParametersFocusNode;
   late final TextEditingController _inlineRenameController;
   late final TextEditingController _introduceVariableController;
   late final TextEditingController _extractFunctionController;
+  late final TextEditingController _changeSignatureNameController;
+  late final TextEditingController _changeSignatureParametersController;
   int? _dragBaseOffset;
   bool _inlineRenameOpen = false;
   bool _introduceVariablePanelOpen = false;
   bool _extractFunctionPanelOpen = false;
+  bool _changeSignaturePanelOpen = false;
   bool _usagesPanelOpen = false;
   bool _safeDeletePanelOpen = false;
   bool _inlineVariablePanelOpen = false;
@@ -364,6 +369,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   String? _inlineRenameError;
   String? _introduceVariableError;
   String? _extractFunctionError;
+  String? _changeSignatureError;
 
   @override
   void initState() {
@@ -375,9 +381,17 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       debugLabel: 'editor-introduce-variable',
     );
     _extractFunctionFocusNode = FocusNode(debugLabel: 'editor-extract-method');
+    _changeSignatureNameFocusNode = FocusNode(
+      debugLabel: 'editor-change-signature-name',
+    );
+    _changeSignatureParametersFocusNode = FocusNode(
+      debugLabel: 'editor-change-signature-parameters',
+    );
     _inlineRenameController = TextEditingController();
     _introduceVariableController = TextEditingController();
     _extractFunctionController = TextEditingController();
+    _changeSignatureNameController = TextEditingController();
+    _changeSignatureParametersController = TextEditingController();
   }
 
   @override
@@ -388,9 +402,13 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _inlineRenameFocusNode.dispose();
     _introduceVariableFocusNode.dispose();
     _extractFunctionFocusNode.dispose();
+    _changeSignatureNameFocusNode.dispose();
+    _changeSignatureParametersFocusNode.dispose();
     _inlineRenameController.dispose();
     _introduceVariableController.dispose();
     _extractFunctionController.dispose();
+    _changeSignatureNameController.dispose();
+    _changeSignatureParametersController.dispose();
     super.dispose();
   }
 
@@ -449,6 +467,20 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       }
       return KeyEventResult.ignored;
     }
+    if (_changeSignatureNameFocusNode.hasFocus ||
+        _changeSignatureParametersFocusNode.hasFocus) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+          return _applyChangeSignature()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+        case LogicalKeyboardKey.escape:
+          _closeChangeSignaturePanel();
+          return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
     if (_usagesPanelOpen && event.logicalKey == LogicalKeyboardKey.escape) {
       _closeUsagesPanel();
       return KeyEventResult.handled;
@@ -497,6 +529,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         case LogicalKeyboardKey.enter:
         case LogicalKeyboardKey.numpadEnter:
           return _applyExtractFunction()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
+      }
+    }
+    if (_changeSignaturePanelOpen) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          _closeChangeSignaturePanel();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.numpadEnter:
+          return _applyChangeSignature()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
       }
@@ -709,6 +753,15 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         (event.logicalKey == LogicalKeyboardKey.minus ||
             event.logicalKey == LogicalKeyboardKey.numpadSubtract)) {
       return _toggleSemanticBlockAtSelection()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+
+    if (commandPressed &&
+        !altPressed &&
+        !shiftPressed &&
+        event.logicalKey == LogicalKeyboardKey.f6) {
+      return _openChangeSignaturePanel()
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -1009,6 +1062,11 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         baseOffset: 0,
         extentOffset: definition.symbol.name.length,
       );
+      _introduceVariablePanelOpen = false;
+      _extractFunctionPanelOpen = false;
+      _changeSignaturePanelOpen = false;
+      _safeDeletePanelOpen = false;
+      _inlineVariablePanelOpen = false;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _inlineRenameOpen) {
@@ -1074,6 +1132,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         extentOffset: initialName.length,
       );
       _extractFunctionPanelOpen = false;
+      _changeSignaturePanelOpen = false;
       _inlineVariablePanelOpen = false;
       _safeDeletePanelOpen = false;
       _completionLookupOpen = false;
@@ -1168,6 +1227,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         extentOffset: initialName.length,
       );
       _introduceVariablePanelOpen = false;
+      _changeSignaturePanelOpen = false;
       _inlineVariablePanelOpen = false;
       _safeDeletePanelOpen = false;
       _completionLookupOpen = false;
@@ -1245,6 +1305,167 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     return '${baseName}100';
   }
 
+  bool _openChangeSignaturePanel() {
+    final seedPlan = _changeSignatureSeedPlan();
+    if (seedPlan == null) {
+      return false;
+    }
+    final parameterText = seedPlan.originalParameters
+        .map((parameter) => parameter.name)
+        .join(', ');
+    setState(() {
+      _changeSignaturePanelOpen = true;
+      _changeSignatureError = null;
+      _changeSignatureNameController.text = seedPlan.originalName;
+      _changeSignatureNameController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: seedPlan.originalName.length,
+      );
+      _changeSignatureParametersController.text = parameterText;
+      _changeSignatureParametersController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: parameterText.length,
+      );
+      _inlineRenameOpen = false;
+      _introduceVariablePanelOpen = false;
+      _extractFunctionPanelOpen = false;
+      _inlineVariablePanelOpen = false;
+      _safeDeletePanelOpen = false;
+      _completionLookupOpen = false;
+      _completionLookupIndex = 0;
+      _quickFixLookupOpen = false;
+      _quickFixLookupIndex = 0;
+      _symbolLookupOpen = false;
+      _symbolLookupIndex = 0;
+      _symbolLookupQuery = '';
+      _surroundLookupOpen = false;
+      _surroundLookupIndex = 0;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _changeSignaturePanelOpen) {
+        _changeSignatureNameFocusNode.requestFocus();
+      }
+    });
+    return true;
+  }
+
+  void _closeChangeSignaturePanel() {
+    setState(() {
+      _changeSignaturePanelOpen = false;
+      _changeSignatureError = null;
+    });
+    _focusNode.requestFocus();
+  }
+
+  bool _applyChangeSignature() {
+    final seedPlan = _changeSignatureSeedPlan();
+    final parameterUpdates = seedPlan == null
+        ? null
+        : _changeSignatureParameterUpdates(seedPlan);
+    final newName = _changeSignatureNameController.text.trim();
+    final plan = parameterUpdates == null
+        ? null
+        : widget.controller.changeSignaturePlanAtSelection(
+            newName: newName,
+            parameters: parameterUpdates,
+          );
+    final updatesToApply = parameterUpdates;
+    if (updatesToApply != null &&
+        plan != null &&
+        !plan.hasConflicts &&
+        widget.controller.applyChangeSignatureAtSelection(
+          newName: newName,
+          parameters: updatesToApply,
+        )) {
+      setState(() {
+        _changeSignaturePanelOpen = false;
+        _changeSignatureError = null;
+      });
+      _focusNode.requestFocus();
+      return true;
+    }
+
+    setState(() {
+      _changeSignatureError = _changeSignatureUnavailableMessage(
+        seedPlan: seedPlan,
+        parameterUpdates: parameterUpdates,
+        plan: plan,
+      );
+    });
+    return false;
+  }
+
+  ChangeSignaturePlan? _changeSignatureSeedPlan() {
+    final definition = widget.controller.definitionAtSelection;
+    if (definition == null || definition.symbol.kind != SymbolKind.function) {
+      return null;
+    }
+    return widget.controller.changeSignaturePlanAtSelection(
+      newName: definition.symbol.name,
+      parameters: const <ChangeSignatureParameterUpdate>[],
+    );
+  }
+
+  List<ChangeSignatureParameterUpdate>? _changeSignatureParameterUpdates(
+    ChangeSignaturePlan seedPlan,
+  ) {
+    final originalNames = seedPlan.originalParameters
+        .map((parameter) => parameter.name)
+        .toList(growable: false);
+    final enteredNames = _changeSignatureParametersController.text
+        .split(',')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (enteredNames.length != originalNames.length) {
+      return null;
+    }
+
+    final originalNameSet = originalNames.toSet();
+    final enteredNameSet = enteredNames.toSet();
+    final isPureReorder =
+        enteredNameSet.length == enteredNames.length &&
+        enteredNameSet.length == originalNameSet.length &&
+        enteredNameSet.every(originalNameSet.contains);
+    if (isPureReorder) {
+      return [
+        for (final name in enteredNames)
+          ChangeSignatureParameterUpdate(originalName: name, name: name),
+      ];
+    }
+
+    return [
+      for (var index = 0; index < originalNames.length; index += 1)
+        ChangeSignatureParameterUpdate(
+          originalName: originalNames[index],
+          name: enteredNames[index],
+        ),
+    ];
+  }
+
+  String _changeSignatureUnavailableMessage({
+    required ChangeSignaturePlan? seedPlan,
+    required List<ChangeSignatureParameterUpdate>? parameterUpdates,
+    required ChangeSignaturePlan? plan,
+  }) {
+    if (seedPlan == null) {
+      return 'Place the caret on a Styio function.';
+    }
+    if (parameterUpdates == null) {
+      return 'Enter ${seedPlan.originalParameters.length} comma-separated '
+          'parameter${seedPlan.originalParameters.length == 1 ? '' : 's'}.';
+    }
+    if (plan != null && plan.hasConflicts) {
+      return _formatChangeSignatureConflict(plan.conflicts.first);
+    }
+    return 'Enter a changed Styio function signature.';
+  }
+
+  String _formatChangeSignatureConflict(ChangeSignatureConflict conflict) {
+    return '${conflict.message} Conflict at '
+        '${_formatUsageLocationForRange(conflict.range)}.';
+  }
+
   String _formatRenameConflict(RenameConflict conflict) {
     return '${conflict.message} Conflict at '
         '${_formatUsageLocationForRange(conflict.range)}.';
@@ -1276,6 +1497,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _safeDeletePanelOpen = true;
       _extractFunctionPanelOpen = false;
       _introduceVariablePanelOpen = false;
+      _changeSignaturePanelOpen = false;
       _inlineVariablePanelOpen = false;
       _completionLookupOpen = false;
       _completionLookupIndex = 0;
@@ -1317,6 +1539,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
       _inlineVariablePanelOpen = true;
       _extractFunctionPanelOpen = false;
       _introduceVariablePanelOpen = false;
+      _changeSignaturePanelOpen = false;
       _safeDeletePanelOpen = false;
       _completionLookupOpen = false;
       _completionLookupIndex = 0;
@@ -1866,6 +2089,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                         ],
                         if (_extractFunctionPanelOpen) ...[
                           _buildExtractFunctionPanel(context),
+                          const SizedBox(height: 12),
+                        ],
+                        if (_changeSignaturePanelOpen) ...[
+                          _buildChangeSignaturePanel(context),
                           const SizedBox(height: 12),
                         ],
                         if (_surroundLookupOpen) ...[
@@ -2477,6 +2704,151 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                   icon: Icons.close_rounded,
                   label: 'Cancel',
                   onTap: _closeExtractFunctionPanel,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChangeSignaturePanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final seedPlan = _changeSignatureSeedPlan();
+    final parameterUpdates = seedPlan == null
+        ? null
+        : _changeSignatureParameterUpdates(seedPlan);
+    final functionName = _changeSignatureNameController.text.trim();
+    final plan = parameterUpdates == null
+        ? null
+        : widget.controller.changeSignaturePlanAtSelection(
+            newName: functionName,
+            parameters: parameterUpdates,
+          );
+    final helperText = plan == null
+        ? _changeSignatureError ??
+              _changeSignatureUnavailableMessage(
+                seedPlan: seedPlan,
+                parameterUpdates: parameterUpdates,
+                plan: plan,
+              )
+        : plan.hasConflicts
+        ? _formatChangeSignatureConflict(plan.conflicts.first)
+        : 'Preview ${plan.edits.length} edit'
+              '${plan.edits.length == 1 ? '' : 's'} across '
+              '${plan.references.length} reference'
+              '${plan.references.length == 1 ? '' : 's'}';
+    final originalSignature = seedPlan == null
+        ? ''
+        : '${seedPlan.originalName}'
+              '(${seedPlan.originalParameters.map((item) => item.name).join(', ')})';
+    final nextSignature = plan == null
+        ? ''
+        : '${plan.newName}'
+              '(${plan.newParameters.map((item) => item.name).join(', ')})';
+
+    return Material(
+      key: const ValueKey('source-change-signature-panel'),
+      color: const Color(0xFFF4F5FB),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.tune_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Change Signature',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('source-change-signature-name-input'),
+              focusNode: _changeSignatureNameFocusNode,
+              controller: _changeSignatureNameController,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                labelText: 'Function name',
+                helperText: plan == null || plan.hasConflicts
+                    ? null
+                    : helperText,
+                errorText: plan == null || plan.hasConflicts
+                    ? helperText
+                    : null,
+              ),
+              onChanged: (_) {
+                setState(() {
+                  _changeSignatureError = null;
+                });
+              },
+              onSubmitted: (_) {
+                _changeSignatureParametersFocusNode.requestFocus();
+              },
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('source-change-signature-parameters-input'),
+              focusNode: _changeSignatureParametersFocusNode,
+              controller: _changeSignatureParametersController,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(),
+                labelText: 'Parameters',
+                helperText:
+                    'Rename in place or reorder existing names with commas.',
+              ),
+              onChanged: (_) {
+                setState(() {
+                  _changeSignatureError = null;
+                });
+              },
+              onSubmitted: (_) => _applyChangeSignature(),
+            ),
+            if (plan != null && !plan.hasConflicts) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Change `$originalSignature` to `$nextSignature`',
+                key: const ValueKey('source-change-signature-preview'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InlineActionChip(
+                  key: const ValueKey('source-change-signature-apply'),
+                  icon: Icons.check_rounded,
+                  label: 'Change',
+                  onTap: _applyChangeSignature,
+                ),
+                _InlineActionChip(
+                  key: const ValueKey('source-change-signature-cancel'),
+                  icon: Icons.close_rounded,
+                  label: 'Cancel',
+                  onTap: _closeChangeSignaturePanel,
                 ),
               ],
             ),

@@ -2525,6 +2525,14 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     if (leftText == rightText && _isStableBooleanTerm(leftText)) {
       return leftText;
     }
+    final complementaryReplacement = _simplifiedComplementaryBooleanTermsText(
+      leftText: leftText,
+      operatorLexeme: operatorLexeme,
+      rightText: rightText,
+    );
+    if (complementaryReplacement != null) {
+      return complementaryReplacement;
+    }
 
     if (leftLiteral == null && rightLiteral == null) {
       return null;
@@ -2559,6 +2567,32 @@ class SimpleStyioLanguageService implements StyioLanguageService {
 
   bool _isStableBooleanTerm(String expression) {
     return RegExp(r'^!?[A-Za-z_][A-Za-z0-9_]*$').hasMatch(expression.trim());
+  }
+
+  String? _simplifiedComplementaryBooleanTermsText({
+    required String leftText,
+    required String operatorLexeme,
+    required String rightText,
+  }) {
+    final leftTerm = _stableBooleanTermName(leftText);
+    final rightTerm = _stableBooleanTermName(rightText);
+    if (leftTerm == null || rightTerm == null || leftTerm != rightTerm) {
+      return null;
+    }
+    final leftNegated = leftText.trim().startsWith('!');
+    final rightNegated = rightText.trim().startsWith('!');
+    if (leftNegated == rightNegated) {
+      return null;
+    }
+    return operatorLexeme == '&&' ? 'false' : 'true';
+  }
+
+  String? _stableBooleanTermName(String expression) {
+    final trimmed = expression.trim();
+    if (!_isStableBooleanTerm(trimmed)) {
+      return null;
+    }
+    return trimmed.startsWith('!') ? trimmed.substring(1) : trimmed;
   }
 
   bool _hasAdjacentBooleanOperator({

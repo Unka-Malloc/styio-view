@@ -48,7 +48,7 @@ fn blend(left: f64, right: f64) {
 
   test('resolves resource and type semantic spans independently', () {
     const highlighter = StyioSyntaxHighlighter();
-    const source = '@ma5 : f64|..2| := { value -> @stdout }';
+    const source = '@ma5 : f64|..2| := { value: i64 = source }';
     final tokens = highlighter.tokenize(source);
     final spans = highlighter.resolveSemanticSpans(tokens);
 
@@ -59,14 +59,87 @@ fn blend(left: f64, right: f64) {
       spans
           .where((span) => span.kind == SemanticKind.resource)
           .map(semanticText),
-      containsAll(['ma5', 'stdout']),
+      contains('ma5'),
     );
     expect(
       spans
           .where((span) => span.kind == SemanticKind.typeName)
           .map(semanticText),
-      contains('f64'),
+      containsAll(['f64', 'i64']),
     );
+    expect(
+      spans
+          .where((span) => span.kind == SemanticKind.variable)
+          .map(semanticText),
+      contains('value'),
+    );
+    expect(
+      spans
+          .where((span) => span.kind == SemanticKind.variable)
+          .map(semanticText),
+      isNot(contains('f64')),
+    );
+    expect(
+      spans
+          .where((span) => span.kind == SemanticKind.variable)
+          .map(semanticText),
+      isNot(contains('i64')),
+    );
+  });
+
+  test('resolves declaration and parameter semantic spans for hash syntax', () {
+    const highlighter = StyioSyntaxHighlighter();
+    const source = '''
+@prices : f64|..10| := {
+  @file("prices.txt") >> #(price: f64) => {
+    average: f64 = price
+    price -> @prices
+  }
+}
+#blend := (left: f64, right: f64) => {
+  <| left
+}
+''';
+
+    final tokens = highlighter.tokenize(source);
+    final spans = highlighter.resolveSemanticSpans(tokens);
+
+    Iterable<String> textsFor(SemanticKind kind) => spans
+        .where((span) => span.kind == kind)
+        .map((span) => source.substring(span.range.start, span.range.end));
+
+    expect(textsFor(SemanticKind.resource), containsAll(['prices', 'file']));
+    expect(textsFor(SemanticKind.function), contains('blend'));
+    expect(
+      textsFor(SemanticKind.parameter),
+      containsAll(['price', 'left', 'right']),
+    );
+    expect(textsFor(SemanticKind.variable), contains('average'));
+    expect(textsFor(SemanticKind.variable), isNot(contains('f64')));
+    expect(textsFor(SemanticKind.variable), isNot(contains('prices')));
+    expect(textsFor(SemanticKind.variable), isNot(contains('blend')));
+  });
+
+  test('resolves legacy function parameters without reclassifying types', () {
+    const highlighter = StyioSyntaxHighlighter();
+    const source = '''
+fn normalize(source: f64, scale: f64) {
+  let result
+  emit source
+}
+''';
+
+    final tokens = highlighter.tokenize(source);
+    final spans = highlighter.resolveSemanticSpans(tokens);
+
+    Iterable<String> textsFor(SemanticKind kind) => spans
+        .where((span) => span.kind == kind)
+        .map((span) => source.substring(span.range.start, span.range.end));
+
+    expect(textsFor(SemanticKind.function), contains('normalize'));
+    expect(textsFor(SemanticKind.parameter), containsAll(['source', 'scale']));
+    expect(textsFor(SemanticKind.variable), contains('result'));
+    expect(textsFor(SemanticKind.variable), isNot(contains('f64')));
   });
 
   test('exposes operator hover copy for language service reuse', () {

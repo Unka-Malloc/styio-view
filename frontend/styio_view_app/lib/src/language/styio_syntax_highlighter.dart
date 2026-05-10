@@ -289,28 +289,170 @@ class StyioSyntaxHighlighter {
   List<SemanticSpan> resolveSemanticSpans(List<TokenSpan> tokens) {
     final spans = <SemanticSpan>[];
 
+    void addSpan(TokenSpan token, SemanticKind kind) {
+      final duplicate = spans.any(
+        (span) =>
+            span.kind == kind &&
+            span.range.start == token.range.start &&
+            span.range.end == token.range.end,
+      );
+      if (duplicate) {
+        return;
+      }
+      spans.add(SemanticSpan(range: token.range, kind: kind));
+    }
+
+    int? nextSignificantIndex(int startIndex) {
+      for (var index = startIndex; index < tokens.length; index += 1) {
+        final token = tokens[index];
+        if (token.kind == TokenKind.whitespace ||
+            token.kind == TokenKind.comment) {
+          continue;
+        }
+        return index;
+      }
+      return null;
+    }
+
+    int? previousSignificantIndex(int startIndex) {
+      for (var index = startIndex; index >= 0; index -= 1) {
+        final token = tokens[index];
+        if (token.kind == TokenKind.whitespace ||
+            token.kind == TokenKind.comment) {
+          continue;
+        }
+        return index;
+      }
+      return null;
+    }
+
+    int? parameterListOpeningIndex(int startIndex) {
+      for (var index = startIndex; index < tokens.length; index += 1) {
+        final token = tokens[index];
+        if (token.kind == TokenKind.whitespace ||
+            token.kind == TokenKind.comment) {
+          continue;
+        }
+        if (token.lexeme == '(') {
+          return index;
+        }
+        if (token.lexeme == '{' ||
+            token.lexeme == '=>' ||
+            token.lexeme == ';') {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    void addParameterSpansInList(int openingIndex) {
+      var depth = 0;
+      for (var index = openingIndex + 1; index < tokens.length; index += 1) {
+        final token = tokens[index];
+        if (token.kind == TokenKind.whitespace ||
+            token.kind == TokenKind.comment) {
+          continue;
+        }
+        if (token.lexeme == '(') {
+          depth += 1;
+          continue;
+        }
+        if (token.lexeme == ')') {
+          if (depth == 0) {
+            return;
+          }
+          depth -= 1;
+          continue;
+        }
+        if (depth > 0 ||
+            token.kind != TokenKind.identifier ||
+            isTypeName(token.lexeme)) {
+          continue;
+        }
+
+        final previousIndex = previousSignificantIndex(index - 1);
+        final nextIndex = nextSignificantIndex(index + 1);
+        final previousLexeme = previousIndex == null
+            ? '('
+            : tokens[previousIndex].lexeme;
+        final nextLexeme = nextIndex == null ? ')' : tokens[nextIndex].lexeme;
+        final startsParameter = previousLexeme == '(' || previousLexeme == ',';
+        final endsParameter =
+            nextLexeme == ':' ||
+            nextLexeme == ',' ||
+            nextLexeme == ')' ||
+            nextLexeme == '=';
+
+        if (startsParameter && endsParameter) {
+          addSpan(token, SemanticKind.parameter);
+        }
+      }
+    }
+
+    TokenSpan? typedBindingNameBeforeAssignment(int assignmentIndex) {
+      final typeIndex = previousSignificantIndex(assignmentIndex - 1);
+      if (typeIndex == null || !isTypeName(tokens[typeIndex].lexeme)) {
+        return null;
+      }
+      final colonIndex = previousSignificantIndex(typeIndex - 1);
+      if (colonIndex == null || tokens[colonIndex].lexeme != ':') {
+        return null;
+      }
+      final nameIndex = previousSignificantIndex(colonIndex - 1);
+      if (nameIndex == null) {
+        return null;
+      }
+      final nameToken = tokens[nameIndex];
+      if (nameToken.kind != TokenKind.identifier ||
+          isTypeName(nameToken.lexeme)) {
+        return null;
+      }
+      final ownerIndex = previousSignificantIndex(nameIndex - 1);
+      if (ownerIndex != null &&
+          (tokens[ownerIndex].lexeme == '@' ||
+              tokens[ownerIndex].lexeme == '#')) {
+        return null;
+      }
+      return nameToken;
+    }
+
+    TokenSpan? untypedBindingNameBeforeAssignment(int assignmentIndex) {
+      final nameIndex = previousSignificantIndex(assignmentIndex - 1);
+      if (nameIndex == null) {
+        return null;
+      }
+      final nameToken = tokens[nameIndex];
+      if (nameToken.kind != TokenKind.identifier ||
+          isTypeName(nameToken.lexeme)) {
+        return null;
+      }
+      final ownerIndex = previousSignificantIndex(nameIndex - 1);
+      if (ownerIndex != null &&
+          (tokens[ownerIndex].lexeme == '@' ||
+              tokens[ownerIndex].lexeme == '#')) {
+        return null;
+      }
+      return nameToken;
+    }
+
     for (var index = 0; index < tokens.length; index += 1) {
       final token = tokens[index];
 
       if (token.kind == TokenKind.identifier && isTypeName(token.lexeme)) {
-        spans.add(
-          SemanticSpan(range: token.range, kind: SemanticKind.typeName),
-        );
+        addSpan(token, SemanticKind.typeName);
       }
 
       if (token.lexeme == '#') {
-        final nextIdentifier = nextTokenOfKind(
-          tokens,
-          startIndex: index + 1,
-          kind: TokenKind.identifier,
-        );
-        if (nextIdentifier != null) {
-          spans.add(
-            SemanticSpan(
-              range: nextIdentifier.range,
-              kind: SemanticKind.function,
-            ),
-          );
+        final nextIndex = nextSignificantIndex(index + 1);
+        if (nextIndex != null &&
+            tokens[nextIndex].kind == TokenKind.identifier) {
+          addSpan(tokens[nextIndex], SemanticKind.function);
+          final openingIndex = parameterListOpeningIndex(nextIndex + 1);
+          if (openingIndex != null) {
+            addParameterSpansInList(openingIndex);
+          }
+        } else if (nextIndex != null && tokens[nextIndex].lexeme == '(') {
+          addParameterSpansInList(nextIndex);
         }
         continue;
       }
@@ -324,12 +466,7 @@ class StyioSyntaxHighlighter {
             resourceIdentifier.lexeme != 'import' &&
             (resourceIdentifier.kind == TokenKind.identifier ||
                 resourceIdentifier.kind == TokenKind.keyword)) {
-          spans.add(
-            SemanticSpan(
-              range: resourceIdentifier.range,
-              kind: SemanticKind.resource,
-            ),
-          );
+          addSpan(resourceIdentifier, SemanticKind.resource);
         }
         continue;
       }
@@ -347,28 +484,16 @@ class StyioSyntaxHighlighter {
                 startIndex: tokens.indexOf(nextIdentifier) + 1,
               );
         if (nextIdentifier != null && afterIdentifier?.lexeme == ':') {
-          spans.add(
-            SemanticSpan(
-              range: nextIdentifier.range,
-              kind: SemanticKind.variable,
-            ),
-          );
+          addSpan(nextIdentifier, SemanticKind.variable);
         }
       }
 
       if (token.lexeme == '=' || token.lexeme == ':=') {
-        final previousIdentifier = previousTokenOfKind(
-          tokens,
-          startIndex: index - 1,
-          kind: TokenKind.identifier,
-        );
-        if (previousIdentifier != null) {
-          spans.add(
-            SemanticSpan(
-              range: previousIdentifier.range,
-              kind: SemanticKind.variable,
-            ),
-          );
+        final bindingName =
+            typedBindingNameBeforeAssignment(index) ??
+            untypedBindingNameBeforeAssignment(index);
+        if (bindingName != null) {
+          addSpan(bindingName, SemanticKind.variable);
         }
       }
 
@@ -384,12 +509,13 @@ class StyioSyntaxHighlighter {
             kind: TokenKind.identifier,
           );
           if (nextIdentifier != null) {
-            spans.add(
-              SemanticSpan(
-                range: nextIdentifier.range,
-                kind: SemanticKind.function,
-              ),
+            addSpan(nextIdentifier, SemanticKind.function);
+            final openingIndex = parameterListOpeningIndex(
+              tokens.indexOf(nextIdentifier) + 1,
             );
+            if (openingIndex != null) {
+              addParameterSpansInList(openingIndex);
+            }
           }
           break;
         case 'pipeline':
@@ -399,12 +525,7 @@ class StyioSyntaxHighlighter {
             kind: TokenKind.identifier,
           );
           if (nextIdentifier != null) {
-            spans.add(
-              SemanticSpan(
-                range: nextIdentifier.range,
-                kind: SemanticKind.pipeline,
-              ),
-            );
+            addSpan(nextIdentifier, SemanticKind.pipeline);
           }
           break;
         case 'state':
@@ -414,12 +535,7 @@ class StyioSyntaxHighlighter {
             kind: TokenKind.identifier,
           );
           if (nextIdentifier != null) {
-            spans.add(
-              SemanticSpan(
-                range: nextIdentifier.range,
-                kind: SemanticKind.state,
-              ),
-            );
+            addSpan(nextIdentifier, SemanticKind.state);
           }
           break;
         case 'let':
@@ -429,12 +545,7 @@ class StyioSyntaxHighlighter {
             kind: TokenKind.identifier,
           );
           if (nextIdentifier != null) {
-            spans.add(
-              SemanticSpan(
-                range: nextIdentifier.range,
-                kind: SemanticKind.variable,
-              ),
-            );
+            addSpan(nextIdentifier, SemanticKind.variable);
           }
           break;
         default:

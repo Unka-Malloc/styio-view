@@ -185,8 +185,9 @@ class StyioSyntaxHighlighter {
 
       if (_isQuote(char)) {
         final start = index;
+        final quote = char;
         index += 1;
-        while (index < source.length && source[index] != '"') {
+        while (index < source.length && source[index] != quote) {
           if (source[index] == '\\' && index + 1 < source.length) {
             index += 2;
           } else {
@@ -233,16 +234,45 @@ class StyioSyntaxHighlighter {
 
       if (_isDigit(char)) {
         final start = index;
-        while (index < source.length && _isDigit(source[index])) {
-          index += 1;
-        }
         if (index + 1 < source.length &&
-            source[index] == '.' &&
-            source[index + 1] != '.' &&
-            _isDigit(source[index + 1])) {
-          index += 1;
-          while (index < source.length && _isDigit(source[index])) {
+            source[index] == '0' &&
+            _isRadixPrefix(source[index + 1])) {
+          final prefix = source[index + 1];
+          index += 2;
+          while (index < source.length &&
+              _isRadixDigit(source[index], prefix)) {
             index += 1;
+          }
+        } else {
+          while (index < source.length && _isDecimalDigitPart(source[index])) {
+            index += 1;
+          }
+          if (index + 1 < source.length &&
+              source[index] == '.' &&
+              source[index + 1] != '.' &&
+              _isDigit(source[index + 1])) {
+            index += 1;
+            while (index < source.length &&
+                _isDecimalDigitPart(source[index])) {
+              index += 1;
+            }
+          }
+          if (index < source.length &&
+              (source[index] == 'e' || source[index] == 'E')) {
+            final exponentStart = index;
+            index += 1;
+            if (index < source.length &&
+                (source[index] == '+' || source[index] == '-')) {
+              index += 1;
+            }
+            final digitsStart = index;
+            while (index < source.length &&
+                _isDecimalDigitPart(source[index])) {
+              index += 1;
+            }
+            if (digitsStart == index) {
+              index = exponentStart;
+            }
           }
         }
         tokens.add(
@@ -826,8 +856,47 @@ class StyioSyntaxHighlighter {
     return code >= 48 && code <= 57;
   }
 
+  bool _isDecimalDigitPart(String char) {
+    return _isDigit(char) || char == '_';
+  }
+
+  bool _isRadixPrefix(String char) {
+    return char == 'x' ||
+        char == 'X' ||
+        char == 'b' ||
+        char == 'B' ||
+        char == 'o' ||
+        char == 'O';
+  }
+
+  bool _isRadixDigit(String char, String prefix) {
+    if (char == '_') {
+      return true;
+    }
+    switch (prefix) {
+      case 'x':
+      case 'X':
+        return _isHexDigit(char);
+      case 'b':
+      case 'B':
+        return char == '0' || char == '1';
+      case 'o':
+      case 'O':
+        return char.codeUnitAt(0) >= 48 && char.codeUnitAt(0) <= 55;
+      default:
+        return false;
+    }
+  }
+
+  bool _isHexDigit(String char) {
+    final code = char.codeUnitAt(0);
+    return (code >= 48 && code <= 57) ||
+        (code >= 65 && code <= 70) ||
+        (code >= 97 && code <= 102);
+  }
+
   bool _isQuote(String char) {
-    return char == '"';
+    return char == '"' || char == "'";
   }
 
   bool _isPunctuation(String char) {

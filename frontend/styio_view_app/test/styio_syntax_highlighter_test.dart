@@ -46,6 +46,31 @@ fn blend(left: f64, right: f64) {
     expect(tokenLexemes, containsAll(['fn', 'blend', 'emit']));
   });
 
+  test('tokenizes char and extended numeric literals', () {
+    const highlighter = StyioSyntaxHighlighter();
+    const source = r'''
+letter: char = '\n'
+price = 1_000.25e-2
+mask = 0xFF_A0
+bits = 0b1010_1100
+octal = 0o755
+''';
+
+    final tokens = highlighter.tokenize(source);
+    final strings = tokens
+        .where((token) => token.kind == TokenKind.string)
+        .map((token) => token.lexeme);
+    final numbers = tokens
+        .where((token) => token.kind == TokenKind.number)
+        .map((token) => token.lexeme);
+
+    expect(strings, contains(r"'\n'"));
+    expect(
+      numbers,
+      containsAll(['1_000.25e-2', '0xFF_A0', '0b1010_1100', '0o755']),
+    );
+  });
+
   test('resolves resource and type semantic spans independently', () {
     const highlighter = StyioSyntaxHighlighter();
     const source = '@ma5 : f64|..2| := { value: i64 = source }';

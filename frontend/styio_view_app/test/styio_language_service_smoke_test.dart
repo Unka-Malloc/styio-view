@@ -174,6 +174,38 @@ value = blend(price, tax)
     expect(hover?.markdown, contains('3 current-file usages'));
   });
 
+  test('attaches leading doc comments to symbol quick documentation', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'doc-comment-hover.styio',
+      text: '''
+/// Normalizes prices before sink writes.
+/// Keeps source units unchanged.
+fn normalize(price: f64) {
+  emit price
+}
+value = normalize(total)
+''',
+      revision: 0,
+    );
+
+    final symbol = service
+        .analyzeDocument(document)
+        .documentSymbols
+        .singleWhere((item) => item.name == 'normalize');
+    final hover = service.hoverAt(
+      document,
+      document.text.lastIndexOf('normalize'),
+    );
+
+    expect(
+      symbol.documentation,
+      'Normalizes prices before sink writes.\nKeeps source units unchanged.',
+    );
+    expect(hover?.markdown, contains('Normalizes prices before sink writes.'));
+    expect(hover?.markdown, contains('Keeps source units unchanged.'));
+  });
+
   test('returns parameter name inlay hints for current-file calls', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

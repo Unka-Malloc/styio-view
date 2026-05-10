@@ -189,6 +189,7 @@ class DocumentSymbol {
     required this.nameRange,
     required this.declarationRange,
     this.detail = '',
+    this.documentation = '',
   });
 
   final String name;
@@ -196,6 +197,7 @@ class DocumentSymbol {
   final SourceRange nameRange;
   final SourceRange declarationRange;
   final String detail;
+  final String documentation;
 }
 
 class ReferenceSpan {

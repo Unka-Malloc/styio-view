@@ -36,6 +36,10 @@ class StyioSymbolIndex {
         nameRange: nameToken.range,
         declarationRange: declarationRange,
         detail: detail,
+        documentation: _leadingDocumentationForDeclaration(
+          tokens,
+          declarationRange,
+        ),
       );
       symbols.add(symbol);
       symbolsByName
@@ -1579,6 +1583,53 @@ class StyioSymbolIndex {
     }
 
     return SourceRange(start: start, end: end);
+  }
+
+  String _leadingDocumentationForDeclaration(
+    List<TokenSpan> tokens,
+    SourceRange declarationRange,
+  ) {
+    final declarationIndex = tokens.indexWhere(
+      (token) => token.range.start >= declarationRange.start,
+    );
+    if (declarationIndex <= 0) {
+      return '';
+    }
+
+    final lines = <String>[];
+    var index = declarationIndex - 1;
+    while (index >= 0) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.whitespace) {
+        if (_blankLineCount(token.lexeme) > 0) {
+          break;
+        }
+        index -= 1;
+        continue;
+      }
+      if (token.kind != TokenKind.comment || !token.lexeme.startsWith('///')) {
+        break;
+      }
+      lines.add(_documentationTextForComment(token.lexeme));
+      index -= 1;
+    }
+
+    return lines.reversed.map((line) => line.trimRight()).join('\n').trim();
+  }
+
+  int _blankLineCount(String whitespace) {
+    var newlineCount = 0;
+    for (var index = 0; index < whitespace.length; index += 1) {
+      if (whitespace[index] == '\n') {
+        newlineCount += 1;
+      }
+    }
+    return newlineCount > 1 ? newlineCount - 1 : 0;
+  }
+
+  String _documentationTextForComment(String lexeme) {
+    final text = lexeme.substring(3);
+    return text.startsWith(' ') ? text.substring(1) : text;
   }
 
   TokenSpan? _nextIdentifier(List<TokenSpan> tokens, int startIndex) {

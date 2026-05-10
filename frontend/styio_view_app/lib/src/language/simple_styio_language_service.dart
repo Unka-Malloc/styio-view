@@ -280,11 +280,14 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         '${references.length} current-file usage'
         '${references.length == 1 ? '' : 's'}';
     final detail = symbol.detail.isEmpty ? '' : ' ${symbol.detail}.';
+    final documentation = symbol.documentation.isEmpty
+        ? ''
+        : '\n\n${symbol.documentation}';
 
     return HoverPayload(
       range: token.range,
       markdown:
-          'Styio ${symbol.kind.name} `${symbol.name}`.$detail '
+          'Styio ${symbol.kind.name} `${symbol.name}`.$documentation$detail '
           'Declared at ${position.line + 1}:${position.column + 1}. '
           '$usageLabel.',
     );

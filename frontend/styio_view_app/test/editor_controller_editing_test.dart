@@ -1092,6 +1092,37 @@ void main() {
     );
   });
 
+  test('applies similar symbol quick fix for unresolved typo', () {
+    const text = '''
+movingAverage = 42
+movingAverge -> @stdout
+''';
+    final typoOffset = text.indexOf('movingAverge') + 6;
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'typo-local.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(typoOffset),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+movingAverage = 42
+movingAverage -> @stdout
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'unresolved-reference',
+      ),
+      isEmpty,
+    );
+  });
+
   test('applies call argument arity quick fix at the caret', () {
     const text = '''
 fn blend(left: f64, right: f64) {

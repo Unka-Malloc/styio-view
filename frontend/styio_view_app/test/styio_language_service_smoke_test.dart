@@ -282,6 +282,31 @@ missingPrice -> @stdout
     );
   });
 
+  test('offers change-to quick fix for similar unresolved symbols', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'typo-local.styio',
+      text: '''
+movingAverage = 42
+movingAverge -> @stdout
+''',
+      revision: 0,
+    );
+
+    final unresolved = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere((diagnostic) => diagnostic.code == 'unresolved-reference');
+    final fixes = service.quickFixesForDiagnostic(document, unresolved);
+
+    expect(fixes.first.label, 'Change to `movingAverage`');
+    expect(fixes.first.edits.single.newText, 'movingAverage');
+    expect(
+      fixes.map((fix) => fix.label),
+      contains('Create local binding `movingAverge`'),
+    );
+  });
+
   test('offers create function quick fix from unresolved calls', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

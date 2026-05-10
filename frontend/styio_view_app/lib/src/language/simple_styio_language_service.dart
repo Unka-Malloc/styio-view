@@ -732,6 +732,9 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     final tokens = _syntaxHighlighter.tokenize(document.text);
     final tokenIndex = _tokenIndexForRange(tokens, diagnostic.range);
     final fixes = <DiagnosticQuickFix>[];
+    fixes.addAll(
+      _changeToSimilarSymbolFixes(tokens, name: name, range: diagnostic.range),
+    );
     final functionFix = tokenIndex == null
         ? null
         : _createFunctionFromUsageFix(
@@ -759,6 +762,102 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       ),
     );
     return fixes;
+  }
+
+  List<DiagnosticQuickFix> _changeToSimilarSymbolFixes(
+    List<TokenSpan> tokens, {
+    required String name,
+    required SourceRange range,
+  }) {
+    final symbolSnapshot = _symbolIndex.build(tokens);
+    final candidates = _similarSymbolCandidates(symbolSnapshot, name);
+    return [
+      for (final candidate in candidates)
+        DiagnosticQuickFix(
+          label: 'Change to `${candidate.name}`',
+          detail:
+              'Replace unresolved identifier with current-file '
+              '${candidate.kind.name} `${candidate.name}`.',
+          edits: [FormattingEdit(range: range, newText: candidate.name)],
+        ),
+    ];
+  }
+
+  List<DocumentSymbol> _similarSymbolCandidates(
+    StyioSymbolSnapshot symbolSnapshot,
+    String name,
+  ) {
+    final seenNames = <String>{};
+    final candidates = <_SimilarSymbolCandidate>[];
+    for (final symbol in symbolSnapshot.symbols) {
+      if (!seenNames.add(symbol.name) || symbol.name == name) {
+        continue;
+      }
+      final score = _symbolSimilarityScore(name, symbol.name);
+      if (score == null) {
+        continue;
+      }
+      candidates.add(_SimilarSymbolCandidate(symbol: symbol, score: score));
+    }
+    candidates.sort((left, right) {
+      final scoreCompare = left.score.compareTo(right.score);
+      if (scoreCompare != 0) {
+        return scoreCompare;
+      }
+      final nameCompare = left.symbol.name.compareTo(right.symbol.name);
+      if (nameCompare != 0) {
+        return nameCompare;
+      }
+      return left.symbol.nameRange.start.compareTo(
+        right.symbol.nameRange.start,
+      );
+    });
+    return candidates
+        .take(3)
+        .map((candidate) => candidate.symbol)
+        .toList(growable: false);
+  }
+
+  int? _symbolSimilarityScore(String unresolved, String candidate) {
+    final left = unresolved.toLowerCase();
+    final right = candidate.toLowerCase();
+    if (left == right) {
+      return 0;
+    }
+    if (left.length < 3 || right.length < 3) {
+      return null;
+    }
+    if (right.startsWith(left) || left.startsWith(right)) {
+      return 1 + (left.length - right.length).abs();
+    }
+    if (right.contains(left) || left.contains(right)) {
+      return 3 + (left.length - right.length).abs();
+    }
+
+    final distance = _editDistance(left, right);
+    final limit = left.length < 8 && right.length < 8 ? 1 : 2;
+    if (distance > limit) {
+      return null;
+    }
+    return 8 + distance;
+  }
+
+  int _editDistance(String left, String right) {
+    var previous = List<int>.generate(right.length + 1, (index) => index);
+    for (var leftIndex = 0; leftIndex < left.length; leftIndex += 1) {
+      final current = List<int>.filled(right.length + 1, leftIndex + 1);
+      for (var rightIndex = 0; rightIndex < right.length; rightIndex += 1) {
+        final substitutionCost =
+            left.codeUnitAt(leftIndex) == right.codeUnitAt(rightIndex) ? 0 : 1;
+        current[rightIndex + 1] = [
+          current[rightIndex] + 1,
+          previous[rightIndex + 1] + 1,
+          previous[rightIndex] + substitutionCost,
+        ].reduce((value, element) => value < element ? value : element);
+      }
+      previous = current;
+    }
+    return previous.last;
   }
 
   List<DiagnosticQuickFix> _quickFixesForCallArgumentIssue(
@@ -1425,4 +1524,11 @@ class _DuplicateDeclarationEntry {
 
   final DocumentSymbol original;
   final DocumentSymbol symbol;
+}
+
+class _SimilarSymbolCandidate {
+  const _SimilarSymbolCandidate({required this.symbol, required this.score});
+
+  final DocumentSymbol symbol;
+  final int score;
 }

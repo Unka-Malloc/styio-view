@@ -1226,6 +1226,37 @@ copy -> @stdout
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies remove-explicit-type context intention', () {
+    const text = '''
+price = 12.5
+copy: f64 = price
+copy -> @stdout
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'remove-explicit-type.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('copy:') + 1),
+    );
+
+    expect(
+      controller.contextActionsAtSelection.single.label,
+      'Remove explicit type',
+    );
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+price = 12.5
+copy = price
+copy -> @stdout
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies create function quick fix from unresolved call', () {
     const text = 'price = 1\ntax = 2\ncalculate(price, tax) -> @stdout\n';
     final controller = EditorSessionController(

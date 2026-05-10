@@ -416,6 +416,36 @@ explicit: f64 = 1
     );
   });
 
+  test('offers remove-explicit-type as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'remove-explicit-type.styio',
+      text: '''
+price = 12.5
+copy: f64 = price
+wide: f64 = 3
+copy -> @stdout
+''',
+      revision: 0,
+    );
+
+    final action = service
+        .intentionsAt(document, document.text.indexOf('copy:') + 1)
+        .singleWhere((item) => item.label == 'Remove explicit type');
+
+    expect(action.detail, contains('f64'));
+    expect(applyEdits(document.text, action.edits), '''
+price = 12.5
+copy = price
+wide: f64 = 3
+copy -> @stdout
+''');
+    expect(
+      service.intentionsAt(document, document.text.indexOf('wide:') + 1),
+      isEmpty,
+    );
+  });
+
   test('removes unused parameters through change signature', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

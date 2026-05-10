@@ -768,6 +768,67 @@ explicit -> @stdout
     expect(explicitReferences.length, 2);
   });
 
+  test(
+    'builds remove-explicit-type edits when inference preserves the type',
+    () {
+      const index = StyioSymbolIndex();
+      const source = '''
+price = 12.5
+copy: f64 = price
+count: i64 = 3
+wide: f64 = 3
+again = copy
+later = count
+''';
+
+      final copyPlan = index.removeExplicitTypeAt(
+        source,
+        source.indexOf('copy:'),
+      );
+      final countPlan = index.removeExplicitTypeAt(
+        source,
+        source.indexOf('i64'),
+      );
+      final hints = index.typeNameHints(source);
+
+      expect(copyPlan?.variableName, 'copy');
+      expect(copyPlan?.typeName, 'f64');
+      expect(copyPlan?.edit.newText, '');
+      expect(
+        source.replaceRange(
+          copyPlan!.edit.range.start,
+          copyPlan.edit.range.end,
+          copyPlan.edit.newText,
+        ),
+        '''
+price = 12.5
+copy = price
+count: i64 = 3
+wide: f64 = 3
+again = copy
+later = count
+''',
+      );
+      expect(countPlan?.typeName, 'i64');
+      expect(
+        index.removeExplicitTypeAt(source, source.indexOf('wide:')),
+        isNull,
+      );
+      expect(
+        hints.singleWhere(
+          (hint) => hint.range.start == source.indexOf('again'),
+        ),
+        isA<InlayHint>().having((hint) => hint.label, 'label', ': f64'),
+      );
+      expect(
+        hints.singleWhere(
+          (hint) => hint.range.start == source.indexOf('later'),
+        ),
+        isA<InlayHint>().having((hint) => hint.label, 'label', ': i64'),
+      );
+    },
+  );
+
   test('resolves KDoc-style block comments for parameter info', () {
     const index = StyioSymbolIndex();
     const source = '''

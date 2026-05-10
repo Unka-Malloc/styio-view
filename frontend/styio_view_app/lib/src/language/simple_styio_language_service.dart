@@ -406,6 +406,22 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       );
     }
 
+    final removeTypePlan = _symbolIndex.removeExplicitTypeAt(
+      document.text,
+      offset,
+    );
+    if (removeTypePlan != null) {
+      intentions.add(
+        DiagnosticQuickFix(
+          label: 'Remove explicit type',
+          detail:
+              'Remove `${removeTypePlan.typeName}` from local binding '
+              '`${removeTypePlan.variableName}` when inference preserves it.',
+          edits: [removeTypePlan.edit],
+        ),
+      );
+    }
+
     return intentions;
   }
 

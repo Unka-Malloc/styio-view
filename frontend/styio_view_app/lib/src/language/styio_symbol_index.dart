@@ -877,6 +877,46 @@ class StyioSymbolIndex {
     return null;
   }
 
+  RemoveExplicitTypePlan? removeExplicitTypeAt(String source, int offset) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final token = _tokenAroundOffset(tokens, offset);
+    if (token == null) {
+      return null;
+    }
+    final tokenIndex = tokens.indexOf(token);
+    if (tokenIndex < 0) {
+      return null;
+    }
+
+    final binding = _typedLocalBindingContaining(tokens, tokenIndex);
+    if (binding == null) {
+      return null;
+    }
+
+    final inferredType = _inferTypedLocalInitializerTypes(
+      tokens,
+    )[tokens[binding.nameIndex].lexeme];
+    if (inferredType == null || inferredType != binding.typeName) {
+      return null;
+    }
+
+    return RemoveExplicitTypePlan(
+      variableName: tokens[binding.nameIndex].lexeme,
+      typeName: binding.typeName,
+      typeRange: SourceRange(
+        start: tokens[binding.colonIndex].range.start,
+        end: tokens[binding.typeIndex].range.end,
+      ),
+      edit: FormattingEdit(
+        range: SourceRange(
+          start: tokens[binding.nameIndex].range.end,
+          end: tokens[binding.typeIndex].range.end,
+        ),
+        newText: '',
+      ),
+    );
+  }
+
   List<InlayHint> inlayHints(String source) {
     return <InlayHint>[...parameterNameHints(source), ...typeNameHints(source)]
       ..sort((left, right) {
@@ -946,6 +986,12 @@ class StyioSymbolIndex {
         continue;
       }
 
+      final typedBinding = _typedLocalBindingAtName(tokens, index);
+      if (typedBinding != null) {
+        inferredTypesByName[token.lexeme] = typedBinding.typeName;
+        continue;
+      }
+
       final assignmentIndex = _bindingAssignmentIndex(tokens, index);
       if (assignmentIndex == null) {
         continue;
@@ -1001,6 +1047,66 @@ class StyioSymbolIndex {
     return nextIndex;
   }
 
+  _TypedLocalBinding? _typedLocalBindingContaining(
+    List<TokenSpan> tokens,
+    int tokenIndex,
+  ) {
+    for (var index = 0; index < tokens.length; index += 1) {
+      final binding = _typedLocalBindingAtName(tokens, index);
+      if (binding == null) {
+        continue;
+      }
+      if (tokenIndex >= binding.nameIndex &&
+          tokenIndex < binding.assignmentIndex) {
+        return binding;
+      }
+    }
+    return null;
+  }
+
+  _TypedLocalBinding? _typedLocalBindingAtName(
+    List<TokenSpan> tokens,
+    int nameIndex,
+  ) {
+    final nameToken = tokens[nameIndex];
+    if (nameToken.kind != TokenKind.identifier ||
+        _syntaxHighlighter.isTypeName(nameToken.lexeme)) {
+      return null;
+    }
+    final colonIndex = _nextSignificantIndex(tokens, nameIndex + 1);
+    if (colonIndex == null || tokens[colonIndex].lexeme != ':') {
+      return null;
+    }
+    final typeIndex = _nextSignificantIndex(tokens, colonIndex + 1);
+    if (typeIndex == null ||
+        !_syntaxHighlighter.isTypeName(tokens[typeIndex].lexeme)) {
+      return null;
+    }
+    final assignmentIndex = _nextSignificantIndex(tokens, typeIndex + 1);
+    if (assignmentIndex == null ||
+        (tokens[assignmentIndex].lexeme != '=' &&
+            tokens[assignmentIndex].lexeme != ':=')) {
+      return null;
+    }
+    if (_hasLineBreakBetween(tokens, nameIndex + 1, assignmentIndex)) {
+      return null;
+    }
+
+    final previous = _previousSignificant(tokens, nameIndex - 1);
+    final disallowedPrevious = <String>{'fn', '#', '(', ',', ':', '@'};
+    if (previous != null && disallowedPrevious.contains(previous.lexeme)) {
+      return null;
+    }
+
+    return _TypedLocalBinding(
+      nameIndex: nameIndex,
+      colonIndex: colonIndex,
+      typeIndex: typeIndex,
+      assignmentIndex: assignmentIndex,
+      typeName: tokens[typeIndex].lexeme,
+    );
+  }
+
   String? _inferExpressionType({
     required List<TokenSpan> tokens,
     required int expressionStartIndex,
@@ -1035,6 +1141,64 @@ class StyioSymbolIndex {
     }
 
     return inferredTypesByName[token.lexeme];
+  }
+
+  Map<String, String> _inferTypedLocalInitializerTypes(List<TokenSpan> tokens) {
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    final inferredTypesByName = <String, String>{};
+    final inferredTypedLocalTypes = <String, String>{};
+
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind != TokenKind.identifier ||
+          _syntaxHighlighter.isTypeName(token.lexeme)) {
+        continue;
+      }
+
+      final typedBinding = _typedLocalBindingAtName(tokens, index);
+      if (typedBinding != null) {
+        final expressionStartIndex = _nextSignificantIndex(
+          tokens,
+          typedBinding.assignmentIndex + 1,
+        );
+        if (expressionStartIndex != null) {
+          final inferredType = _inferExpressionType(
+            tokens: tokens,
+            expressionStartIndex: expressionStartIndex,
+            signaturesByName: signaturesByName,
+            inferredTypesByName: inferredTypesByName,
+          );
+          if (inferredType != null && inferredType.isNotEmpty) {
+            inferredTypedLocalTypes[token.lexeme] = inferredType;
+          }
+        }
+        inferredTypesByName[token.lexeme] = typedBinding.typeName;
+        continue;
+      }
+
+      final assignmentIndex = _bindingAssignmentIndex(tokens, index);
+      if (assignmentIndex == null) {
+        continue;
+      }
+      final expressionStartIndex = _nextSignificantIndex(
+        tokens,
+        assignmentIndex + 1,
+      );
+      if (expressionStartIndex == null) {
+        continue;
+      }
+      final inferredType = _inferExpressionType(
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (inferredType != null && inferredType.isNotEmpty) {
+        inferredTypesByName[token.lexeme] = inferredType;
+      }
+    }
+
+    return inferredTypedLocalTypes;
   }
 
   _FunctionSignature? _signatureForCall(
@@ -3567,6 +3731,22 @@ class _CallArgumentList {
   final int closingIndex;
 }
 
+class _TypedLocalBinding {
+  const _TypedLocalBinding({
+    required this.nameIndex,
+    required this.colonIndex,
+    required this.typeIndex,
+    required this.assignmentIndex,
+    required this.typeName,
+  });
+
+  final int nameIndex;
+  final int colonIndex;
+  final int typeIndex;
+  final int assignmentIndex;
+  final String typeName;
+}
+
 class _ArgumentSegment {
   const _ArgumentSegment({
     required this.range,
@@ -3680,6 +3860,20 @@ class SpecifyTypeExplicitlyPlan {
   final String variableName;
   final String typeName;
   final SourceRange nameRange;
+  final FormattingEdit edit;
+}
+
+class RemoveExplicitTypePlan {
+  const RemoveExplicitTypePlan({
+    required this.variableName,
+    required this.typeName,
+    required this.typeRange,
+    required this.edit,
+  });
+
+  final String variableName;
+  final String typeName;
+  final SourceRange typeRange;
   final FormattingEdit edit;
 }
 

@@ -11,6 +11,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
   }) : _syntaxHighlighter = syntaxHighlighter,
        _symbolIndex = symbolIndex;
 
+  static final RegExp _todoCommentPattern = RegExp(
+    r'\b(TODO|FIXME)\b[:\s-]*(.*)$',
+    caseSensitive: false,
+  );
+
   static const Set<String> _implicitIdentifierAllowlist = {
     'condition',
     'normalize',
@@ -699,6 +704,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       _duplicateDeclarationDiagnostics(tokens, symbolSnapshot),
     );
     diagnostics.addAll(_importOptimizationDiagnostics(source));
+    diagnostics.addAll(_todoCommentDiagnostics(tokens));
 
     for (var index = 0; index < tokens.length; index += 1) {
       final token = tokens[index];
@@ -757,6 +763,52 @@ class SimpleStyioLanguageService implements StyioLanguageService {
           range: token.range,
         ),
       );
+    }
+
+    return diagnostics;
+  }
+
+  List<Diagnostic> _todoCommentDiagnostics(List<TokenSpan> tokens) {
+    final diagnostics = <Diagnostic>[];
+
+    for (final token in tokens) {
+      if (token.kind != TokenKind.comment) {
+        continue;
+      }
+      var lineStart = 0;
+      while (lineStart <= token.lexeme.length) {
+        final newline = token.lexeme.indexOf('\n', lineStart);
+        final lineEnd = newline < 0 ? token.lexeme.length : newline;
+        final line = token.lexeme.substring(lineStart, lineEnd);
+        final match = _todoCommentPattern.firstMatch(line);
+
+        if (match != null) {
+          final marker = match.group(1)!.toUpperCase();
+          final detail = (match.group(2) ?? '')
+              .replaceFirst(RegExp(r'\s*\*/\s*$'), '')
+              .trim();
+          final range = SourceRange(
+            start: token.range.start + lineStart + match.start,
+            end: token.range.start + lineEnd,
+          );
+
+          diagnostics.add(
+            Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: 'todo-comment',
+              message: detail.isEmpty
+                  ? '$marker comment.'
+                  : '$marker comment: $detail',
+              range: range,
+            ),
+          );
+        }
+
+        if (newline < 0) {
+          break;
+        }
+        lineStart = newline + 1;
+      }
     }
 
     return diagnostics;

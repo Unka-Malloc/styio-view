@@ -131,6 +131,47 @@ answer -> @stdout
     expect(renamePlan?.target.kind, SymbolKind.resource);
   });
 
+  test('surfaces TODO and FIXME comments as hint diagnostics', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'todo-comments.styio',
+      text: '''
+// TODO: hand this block to compiler-owned semantic parsing.
+value = 42
+/*
+ * FIXME validate resource sink ownership after adapter handoff.
+ */
+value -> @stdout
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service
+        .analyzeDocument(document)
+        .diagnostics
+        .where((diagnostic) => diagnostic.code == 'todo-comment')
+        .toList(growable: false);
+
+    expect(diagnostics, hasLength(2));
+    expect(
+      diagnostics.every(
+        (diagnostic) => diagnostic.severity == DiagnosticSeverity.hint,
+      ),
+      isTrue,
+    );
+    expect(diagnostics.first.message, contains('TODO comment'));
+    expect(diagnostics.first.message, contains('compiler-owned'));
+    expect(diagnostics.last.message, contains('FIXME comment'));
+    expect(diagnostics.last.message, contains('adapter handoff'));
+    expect(
+      document.text.substring(
+        diagnostics.first.range.start,
+        diagnostics.first.range.end,
+      ),
+      contains('TODO: hand this block'),
+    );
+  });
+
   test('returns parameter info for current-file function calls', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

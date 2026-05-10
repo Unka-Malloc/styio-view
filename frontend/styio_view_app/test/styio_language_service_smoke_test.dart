@@ -136,6 +136,7 @@ answer -> @stdout
     const document = DocumentState(
       documentId: 'parameter-info.styio',
       text: '''
+/// Blends price and tax inputs.
 fn blend(left: f64, right: f64) {
   emit left
 }
@@ -146,11 +147,12 @@ value = blend(price, tax)
 
     final info = service.parameterInfoAt(
       document,
-      document.text.indexOf('tax') + 1,
+      document.text.lastIndexOf('tax') + 1,
     );
 
     expect(info?.callableName, 'blend');
     expect(info?.signature, 'fn blend(left: f64, right: f64)');
+    expect(info?.documentation, 'Blends price and tax inputs.');
     expect(info?.activeParameterIndex, 1);
     expect(info?.activeParameter?.name, 'right');
   });

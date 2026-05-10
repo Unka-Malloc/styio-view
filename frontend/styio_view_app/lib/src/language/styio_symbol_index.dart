@@ -604,6 +604,7 @@ class StyioSymbolIndex {
         end: tokens[call.closingIndex].range.end,
       ),
       callableRange: call.callable.range,
+      documentation: signature.documentation,
     );
   }
 
@@ -965,6 +966,7 @@ class StyioSymbolIndex {
       required TokenSpan nameToken,
       required int openingIndex,
       required String prefix,
+      required SourceRange declarationRange,
     }) {
       final closingIndex = _matchingParenthesisIndex(tokens, openingIndex);
       if (closingIndex == null) {
@@ -990,6 +992,10 @@ class StyioSymbolIndex {
         displayText:
             '${prefix == '#' ? '#' : '$prefix '}${nameToken.lexeme}'
             '(${parameters.map((parameter) => parameter.displayText).join(', ')})',
+        documentation: _leadingDocumentationForDeclaration(
+          tokens,
+          declarationRange,
+        ),
       );
       signaturesByName
           .putIfAbsent(signature.name, () => <_FunctionSignature>[])
@@ -1014,6 +1020,10 @@ class StyioSymbolIndex {
           nameToken: tokens[nameIndex],
           openingIndex: openingIndex,
           prefix: 'fn',
+          declarationRange: SourceRange(
+            start: token.range.start,
+            end: tokens[openingIndex].range.end,
+          ),
         );
         continue;
       }
@@ -1034,6 +1044,10 @@ class StyioSymbolIndex {
           nameToken: tokens[nameIndex],
           openingIndex: openingIndex,
           prefix: '#',
+          declarationRange: SourceRange(
+            start: token.range.start,
+            end: tokens[openingIndex].range.end,
+          ),
         );
       }
     }
@@ -2801,6 +2815,7 @@ class _FunctionSignature {
     required this.parameters,
     required this.returnType,
     required this.displayText,
+    this.documentation = '',
   });
 
   final String name;
@@ -2811,6 +2826,7 @@ class _FunctionSignature {
   final List<ParameterInfoParameter> parameters;
   final String returnType;
   final String displayText;
+  final String documentation;
 }
 
 class _CallArgumentList {

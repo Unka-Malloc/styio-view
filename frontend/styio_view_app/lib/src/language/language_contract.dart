@@ -423,6 +423,7 @@ class ParameterInfoPayload {
     required this.activeParameterIndex,
     required this.invocationRange,
     required this.callableRange,
+    this.documentation = '',
   });
 
   final String callableName;
@@ -431,6 +432,7 @@ class ParameterInfoPayload {
   final int activeParameterIndex;
   final SourceRange invocationRange;
   final SourceRange callableRange;
+  final String documentation;
 
   ParameterInfoParameter? get activeParameter {
     if (activeParameterIndex < 0 || activeParameterIndex >= parameters.length) {

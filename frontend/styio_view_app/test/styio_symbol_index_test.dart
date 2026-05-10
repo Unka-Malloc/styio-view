@@ -396,16 +396,18 @@ value = blend(price)
   test('resolves parameter info from a function call argument list', () {
     const index = StyioSymbolIndex();
     const source = '''
+/// Blends price and tax inputs.
 fn blend(left: f64, right: f64) {
   emit left
 }
 value = blend(price, tax)
 ''';
 
-    final info = index.parameterInfoAt(source, source.indexOf('tax') + 1);
+    final info = index.parameterInfoAt(source, source.lastIndexOf('tax') + 1);
 
     expect(info?.callableName, 'blend');
     expect(info?.signature, 'fn blend(left: f64, right: f64)');
+    expect(info?.documentation, 'Blends price and tax inputs.');
     expect(info?.activeParameterIndex, 1);
     expect(info?.activeParameter?.displayText, 'right: f64');
     expect(info?.parameters.map((parameter) => parameter.name), [

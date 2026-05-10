@@ -3503,6 +3503,14 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (parameterInfo.documentation.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  parameterInfo.documentation,
+                  key: const ValueKey('source-parameter-info-doc'),
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
                 activeParameter == null

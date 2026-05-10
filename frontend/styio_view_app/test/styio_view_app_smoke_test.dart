@@ -1635,6 +1635,7 @@ void main() {
 
     final bootstrap = await createBootstrap(PlatformTarget.macos);
     const text = '''
+/// Blends price and tax inputs.
 fn blend(left: f64, right: f64) {
   emit left
 }
@@ -1647,7 +1648,7 @@ value = blend(price, tax)
         revision: 0,
       ),
     );
-    bootstrap.editorController.selectCollapsed(text.indexOf('tax') + 1);
+    bootstrap.editorController.selectCollapsed(text.lastIndexOf('tax') + 1);
 
     await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
     await tester.tap(
@@ -1669,6 +1670,7 @@ value = blend(price, tax)
     );
     expect(find.text('Parameter Info: blend'), findsOneWidget);
     expect(find.text('fn blend(left: f64, right: f64)'), findsOneWidget);
+    expect(find.text('Blends price and tax inputs.'), findsOneWidget);
     expect(find.text('Argument 2 of 2: right: f64'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('source-parameter-info-close')));

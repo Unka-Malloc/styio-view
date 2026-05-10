@@ -446,6 +446,54 @@ copy -> @stdout
     );
   });
 
+  test('offers negate-when-condition as a context intention', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'negate-when-condition.styio',
+      text: '''
+ready = true
+price = 12.5
+when ready -> state ready
+when !ready -> state blocked
+when price > 0 -> state priced
+''',
+      revision: 0,
+    );
+
+    final readyAction = service
+        .intentionsAt(document, document.text.indexOf('ready ->'))
+        .singleWhere((item) => item.label == 'Negate when condition');
+    final negatedAction = service
+        .intentionsAt(document, document.text.indexOf('!ready') + 1)
+        .singleWhere((item) => item.label == 'Negate when condition');
+    final complexAction = service
+        .intentionsAt(document, document.text.indexOf('price > 0') + 2)
+        .singleWhere((item) => item.label == 'Negate when condition');
+
+    expect(readyAction.detail, contains('guard'));
+    expect(applyEdits(document.text, readyAction.edits), '''
+ready = true
+price = 12.5
+when !ready -> state ready
+when !ready -> state blocked
+when price > 0 -> state priced
+''');
+    expect(applyEdits(document.text, negatedAction.edits), '''
+ready = true
+price = 12.5
+when ready -> state ready
+when ready -> state blocked
+when price > 0 -> state priced
+''');
+    expect(applyEdits(document.text, complexAction.edits), '''
+ready = true
+price = 12.5
+when ready -> state ready
+when !ready -> state blocked
+when !(price > 0) -> state priced
+''');
+  });
+
   test('reports and fixes typed local initializer type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

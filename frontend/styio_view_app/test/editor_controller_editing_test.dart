@@ -1361,6 +1361,33 @@ copy -> @stdout
     expect(controller.canUndo, isTrue);
   });
 
+  test('applies negate-when-condition context intention', () {
+    const text = '''
+ready = true
+when ready -> state ready
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'negate-when-condition.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('ready ->')),
+    );
+
+    final action = controller.contextActionsAtSelection.singleWhere(
+      (item) => item.label == 'Negate when condition',
+    );
+    controller.applyDiagnosticQuickFix(action);
+
+    expect(controller.document.text, '''
+ready = true
+when !ready -> state ready
+''');
+    expect(controller.canUndo, isTrue);
+  });
+
   test('applies create function quick fix from unresolved call', () {
     const text = 'price = 1\ntax = 2\ncalculate(price, tax) -> @stdout\n';
     final controller = EditorSessionController(

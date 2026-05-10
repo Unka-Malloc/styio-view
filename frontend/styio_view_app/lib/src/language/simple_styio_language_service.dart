@@ -455,6 +455,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       );
     }
 
+    final negateConditionFix = _negateWhenConditionAt(document, offset);
+    if (negateConditionFix != null) {
+      intentions.add(negateConditionFix);
+    }
+
     return intentions;
   }
 
@@ -2127,6 +2132,107 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       return token;
     }
     return null;
+  }
+
+  bool _hasLineBreakBetween(
+    List<TokenSpan> tokens,
+    int startIndex,
+    int endIndex,
+  ) {
+    final start = startIndex.clamp(0, tokens.length).toInt();
+    final end = endIndex.clamp(start, tokens.length).toInt();
+    for (var index = start; index < end; index += 1) {
+      if (tokens[index].lexeme.contains('\n')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  DiagnosticQuickFix? _negateWhenConditionAt(
+    DocumentState document,
+    int offset,
+  ) {
+    final source = document.text;
+    final tokens = _syntaxHighlighter.tokenize(source);
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind != TokenKind.keyword || token.lexeme != 'when') {
+        continue;
+      }
+      final expressionStartIndex = _nextSignificantIndex(tokens, index + 1);
+      if (expressionStartIndex == null ||
+          _hasLineBreakBetween(tokens, index + 1, expressionStartIndex)) {
+        continue;
+      }
+      final conditionRange = _whenConditionExpressionRange(
+        source: source,
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+      );
+      if (conditionRange == null || conditionRange.isCollapsed) {
+        continue;
+      }
+      if (offset < conditionRange.start || offset > conditionRange.end) {
+        continue;
+      }
+      return DiagnosticQuickFix(
+        label: 'Negate when condition',
+        detail: 'Invert the current `when` guard expression.',
+        edits: [
+          FormattingEdit(
+            range: conditionRange,
+            newText: _negatedWhenConditionText(source, conditionRange),
+          ),
+        ],
+      );
+    }
+    return null;
+  }
+
+  SourceRange? _whenConditionExpressionRange({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int expressionStartIndex,
+  }) {
+    var end = tokens[expressionStartIndex].range.end;
+    var nestedDepth = 0;
+    for (
+      var index = expressionStartIndex + 1;
+      index < tokens.length;
+      index += 1
+    ) {
+      final token = tokens[index];
+      if (token.lexeme.contains('\n') || token.kind == TokenKind.comment) {
+        break;
+      }
+      if (nestedDepth == 0 && token.lexeme == '->') {
+        break;
+      }
+      if (token.lexeme == '(' || token.lexeme == '[' || token.lexeme == '{') {
+        nestedDepth += 1;
+      } else if (token.lexeme == ')' ||
+          token.lexeme == ']' ||
+          token.lexeme == '}') {
+        nestedDepth -= 1;
+      }
+      end = token.range.end;
+    }
+    return _trimmedRange(
+      source,
+      SourceRange(start: tokens[expressionStartIndex].range.start, end: end),
+    );
+  }
+
+  String _negatedWhenConditionText(String source, SourceRange range) {
+    final conditionText = source.substring(range.start, range.end).trim();
+    if (conditionText.startsWith('!')) {
+      return conditionText.substring(1).trimLeft();
+    }
+    if (_isSimplePostfixOperand(conditionText)) {
+      return '!$conditionText';
+    }
+    return '!($conditionText)';
   }
 
   TokenSpan? _tokenAroundOffset(List<TokenSpan> tokens, int offset) {

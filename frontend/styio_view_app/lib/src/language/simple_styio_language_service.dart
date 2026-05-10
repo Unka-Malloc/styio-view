@@ -41,7 +41,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       diagnostics: diagnostics,
       formattingEdits: formattingEdits,
       semanticBlocks: semanticBlocks,
-      inlayHints: _symbolIndex.parameterNameHints(document.text),
+      inlayHints: _symbolIndex.inlayHints(document.text),
       documentSymbols: symbolSnapshot.symbols,
       referenceSpans: symbolSnapshot.references,
     );
@@ -49,7 +49,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
 
   @override
   List<InlayHint> inlayHints(DocumentState document) {
-    return _symbolIndex.parameterNameHints(document.text);
+    return _symbolIndex.inlayHints(document.text);
   }
 
   @override

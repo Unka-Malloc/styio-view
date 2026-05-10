@@ -603,6 +603,17 @@ class StyioSymbolIndex {
     );
   }
 
+  List<InlayHint> inlayHints(String source) {
+    return <InlayHint>[...parameterNameHints(source), ...typeNameHints(source)]
+      ..sort((left, right) {
+        final positionOrder = left.position.compareTo(right.position);
+        if (positionOrder != 0) {
+          return positionOrder;
+        }
+        return left.kind.index.compareTo(right.kind.index);
+      });
+  }
+
   List<InlayHint> parameterNameHints(String source) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -646,6 +657,124 @@ class StyioSymbolIndex {
       }
     }
     return hints;
+  }
+
+  List<InlayHint> typeNameHints(String source) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    final hints = <InlayHint>[];
+    final inferredTypesByName = <String, String>{};
+
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind != TokenKind.identifier ||
+          _syntaxHighlighter.isTypeName(token.lexeme)) {
+        continue;
+      }
+
+      final assignmentIndex = _bindingAssignmentIndex(tokens, index);
+      if (assignmentIndex == null) {
+        continue;
+      }
+
+      final expressionStartIndex = _nextSignificantIndex(
+        tokens,
+        assignmentIndex + 1,
+      );
+      if (expressionStartIndex == null) {
+        continue;
+      }
+
+      final typeName = _inferExpressionType(
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (typeName == null || typeName.isEmpty) {
+        continue;
+      }
+
+      inferredTypesByName[token.lexeme] = typeName;
+      hints.add(
+        InlayHint(
+          label: ': $typeName',
+          kind: InlayHintKind.type,
+          position: token.range.end,
+          range: token.range,
+        ),
+      );
+    }
+
+    return hints;
+  }
+
+  int? _bindingAssignmentIndex(List<TokenSpan> tokens, int nameIndex) {
+    final nextIndex = _nextSignificantIndex(tokens, nameIndex + 1);
+    if (nextIndex == null ||
+        (tokens[nextIndex].lexeme != '=' && tokens[nextIndex].lexeme != ':=')) {
+      return null;
+    }
+    if (_hasLineBreakBetween(tokens, nameIndex + 1, nextIndex)) {
+      return null;
+    }
+
+    final previous = _previousSignificant(tokens, nameIndex - 1);
+    final disallowedPrevious = <String>{'fn', '#', '(', ',', ':', '@'};
+    if (previous != null && disallowedPrevious.contains(previous.lexeme)) {
+      return null;
+    }
+    return nextIndex;
+  }
+
+  String? _inferExpressionType({
+    required List<TokenSpan> tokens,
+    required int expressionStartIndex,
+    required Map<String, List<_FunctionSignature>> signaturesByName,
+    required Map<String, String> inferredTypesByName,
+  }) {
+    final token = tokens[expressionStartIndex];
+    if (token.kind == TokenKind.number) {
+      return token.lexeme.contains('.') ? 'f64' : 'i64';
+    }
+    if (token.kind == TokenKind.string) {
+      return 'string';
+    }
+    if (token.kind == TokenKind.keyword) {
+      if (token.lexeme == 'true' || token.lexeme == 'false') {
+        return 'bool';
+      }
+      return null;
+    }
+    if (token.kind != TokenKind.identifier ||
+        _syntaxHighlighter.isTypeName(token.lexeme)) {
+      return null;
+    }
+
+    final call = _callArgumentListAfter(tokens, expressionStartIndex);
+    if (call != null) {
+      final signature = _signatureForCall(signaturesByName, call.callable);
+      if (signature == null || signature.returnType.isEmpty) {
+        return null;
+      }
+      return signature.returnType;
+    }
+
+    return inferredTypesByName[token.lexeme];
+  }
+
+  _FunctionSignature? _signatureForCall(
+    Map<String, List<_FunctionSignature>> signaturesByName,
+    TokenSpan callable,
+  ) {
+    final candidates = signaturesByName[callable.lexeme];
+    if (candidates == null || candidates.isEmpty) {
+      return null;
+    }
+    return candidates.lastWhere(
+      (candidate) => candidate.nameRange.start <= callable.range.start,
+      orElse: () => candidates.first,
+    );
   }
 
   List<StyioCallArgumentIssue> callArgumentIssues(String source) {
@@ -772,6 +901,10 @@ class StyioSymbolIndex {
         openingIndex: openingIndex,
         closingIndex: closingIndex,
       );
+      final returnType = _functionReturnTypeText(
+        tokens: tokens,
+        closingIndex: closingIndex,
+      );
       final signature = _FunctionSignature(
         name: nameToken.lexeme,
         nameRange: nameToken.range,
@@ -779,6 +912,7 @@ class StyioSymbolIndex {
         openingIndex: openingIndex,
         closingIndex: closingIndex,
         parameters: parameters,
+        returnType: returnType,
         displayText:
             '${prefix == '#' ? '#' : '$prefix '}${nameToken.lexeme}'
             '(${parameters.map((parameter) => parameter.displayText).join(', ')})',
@@ -831,6 +965,33 @@ class StyioSymbolIndex {
     }
 
     return signaturesByName;
+  }
+
+  String _functionReturnTypeText({
+    required List<TokenSpan> tokens,
+    required int closingIndex,
+  }) {
+    final colonIndex = _nextSignificantIndex(tokens, closingIndex + 1);
+    if (colonIndex == null || tokens[colonIndex].lexeme != ':') {
+      return '';
+    }
+
+    final parts = <String>[];
+    for (var index = colonIndex + 1; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.lexeme.contains('\n')) {
+        break;
+      }
+      if (token.kind == TokenKind.whitespace ||
+          token.kind == TokenKind.comment) {
+        continue;
+      }
+      if (token.lexeme == '{' || token.lexeme == '=>') {
+        break;
+      }
+      parts.add(token.lexeme);
+    }
+    return parts.join();
   }
 
   _FunctionSignature? _functionSignatureForTarget(
@@ -1402,6 +1563,19 @@ class StyioSymbolIndex {
       return index;
     }
     return null;
+  }
+
+  bool _hasLineBreakBetween(
+    List<TokenSpan> tokens,
+    int startIndex,
+    int endExclusive,
+  ) {
+    for (var index = startIndex; index < endExclusive; index += 1) {
+      if (tokens[index].lexeme.contains('\n')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   TokenSpan? _tokenAroundOffset(List<TokenSpan> tokens, int offset) {
@@ -2473,6 +2647,7 @@ class _FunctionSignature {
     required this.openingIndex,
     required this.closingIndex,
     required this.parameters,
+    required this.returnType,
     required this.displayText,
   });
 
@@ -2482,6 +2657,7 @@ class _FunctionSignature {
   final int openingIndex;
   final int closingIndex;
   final List<ParameterInfoParameter> parameters;
+  final String returnType;
   final String displayText;
 }
 

@@ -1726,6 +1726,49 @@ value = blend(price, tax)
     expect(inlaySection, findsOneWidget);
   });
 
+  testWidgets('renders type inlay hints in source lines', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = '''
+fn blend(left: f64, right: f64): f64 {
+  emit left
+}
+price = 12.5
+value = blend(price, price)
+''';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'type-inlay-source.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(StyioViewApp(bootstrap: bootstrap));
+    await tester.pump();
+
+    final priceLine = bootstrap.editorController.document
+        .positionForOffset(text.indexOf('price = 12.5'))
+        .line;
+    final valueLine = bootstrap.editorController.document
+        .positionForOffset(text.indexOf('value = blend'))
+        .line;
+
+    expect(bootstrap.editorController.analysis.inlayHintCount, 4);
+    expect(
+      spanTextsOnLine(tester, lineIndex: priceLine),
+      containsAll(<String>[': f64 ']),
+    );
+    expect(
+      spanTextsOnLine(tester, lineIndex: valueLine),
+      containsAll(<String>[': f64 ', 'left: ', 'right: ']),
+    );
+  });
+
   testWidgets('opens quick documentation from editor keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;

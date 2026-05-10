@@ -24,7 +24,7 @@ enum DiagnosticSeverity { error, warning, hint }
 
 enum CompletionItemKind { keyword, function, variable, snippet }
 
-enum InlayHintKind { parameter }
+enum InlayHintKind { parameter, type }
 
 enum SymbolKind {
   function,

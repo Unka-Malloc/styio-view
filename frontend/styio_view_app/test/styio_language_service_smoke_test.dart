@@ -164,6 +164,52 @@ same = blend(left, right)
     expect(service.analyzeDocument(document).inlayHintCount, 2);
   });
 
+  test('returns inferred type inlay hints for local bindings', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'type-inlays.styio',
+      text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left
+}
+price = 12.5
+count = 3
+enabled = true
+label = "close"
+value = blend(price, count)
+copy = price
+explicit: f64 = 1
+''',
+      revision: 0,
+    );
+
+    final hints = service.inlayHints(document);
+    final typeHints = hints.where((hint) => hint.kind == InlayHintKind.type);
+
+    expect(typeHints.map((hint) => hint.label), [
+      ': f64',
+      ': i64',
+      ': bool',
+      ': string',
+      ': f64',
+      ': f64',
+    ]);
+    expect(typeHints.map((hint) => hint.position), [
+      document.text.indexOf('price') + 'price'.length,
+      document.text.indexOf('count') + 'count'.length,
+      document.text.indexOf('enabled') + 'enabled'.length,
+      document.text.indexOf('label') + 'label'.length,
+      document.text.indexOf('value') + 'value'.length,
+      document.text.indexOf('copy') + 'copy'.length,
+    ]);
+    expect(
+      typeHints.any(
+        (hint) => hint.range.start == document.text.indexOf('explicit'),
+      ),
+      isFalse,
+    );
+  });
+
   test('reports and fixes call argument arity mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

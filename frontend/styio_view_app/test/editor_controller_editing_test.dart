@@ -1567,6 +1567,36 @@ rate = 1.0
     );
   });
 
+  test('applies condition type quick fix at the caret', () {
+    const text = '''
+price = 12.5
+when price -> state priced
+''';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'condition-type-mismatch.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('price ->')),
+    );
+
+    final applied = controller.applyFirstQuickFixAtSelection();
+
+    expect(applied, isTrue);
+    expect(controller.document.text, '''
+price = 12.5
+when price != 0.0 -> state priced
+''');
+    expect(
+      controller.analysis.diagnostics.where(
+        (diagnostic) => diagnostic.code == 'condition-type-mismatch',
+      ),
+      isEmpty,
+    );
+  });
+
   test('applies return type quick fix at the caret', () {
     const text = '''
 fn price(): f64 {

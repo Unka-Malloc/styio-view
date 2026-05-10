@@ -1747,6 +1747,96 @@ class StyioSymbolIndex {
     return issues;
   }
 
+  List<StyioConditionTypeMismatchIssue> conditionTypeMismatchIssues(
+    String source,
+  ) {
+    final tokens = _syntaxHighlighter.tokenize(source);
+    final signaturesByName = _collectFunctionSignatures(tokens);
+    final inferredTypesByName = <String, String>{};
+    final issues = <StyioConditionTypeMismatchIssue>[];
+
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.kind == TokenKind.keyword && token.lexeme == 'when') {
+        final expressionStartIndex = _nextSignificantIndex(tokens, index + 1);
+        if (expressionStartIndex == null ||
+            _hasLineBreakBetween(tokens, index + 1, expressionStartIndex)) {
+          continue;
+        }
+        final conditionRange = _conditionExpressionRange(
+          source: source,
+          tokens: tokens,
+          expressionStartIndex: expressionStartIndex,
+        );
+        if (conditionRange == null || conditionRange.isCollapsed) {
+          continue;
+        }
+        final actualType = _inferExpressionType(
+          tokens: tokens,
+          expressionStartIndex: expressionStartIndex,
+          signaturesByName: signaturesByName,
+          inferredTypesByName: inferredTypesByName,
+        );
+        if (actualType == null || actualType.isEmpty || actualType == 'bool') {
+          continue;
+        }
+        issues.add(
+          StyioConditionTypeMismatchIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.warning,
+              code: 'condition-type-mismatch',
+              message: '`when` condition expects `bool`, got `$actualType`.',
+              range: conditionRange,
+            ),
+            expectedTypeName: 'bool',
+            actualTypeName: actualType,
+            conditionRange: conditionRange,
+            replacementConditionText: _conditionTypeReplacementText(
+              source: source,
+              conditionRange: conditionRange,
+              actualType: actualType,
+            ),
+          ),
+        );
+        continue;
+      }
+
+      if (token.kind != TokenKind.identifier ||
+          _syntaxHighlighter.isTypeName(token.lexeme)) {
+        continue;
+      }
+
+      final typedBinding = _typedLocalBindingAtName(tokens, index);
+      if (typedBinding != null) {
+        inferredTypesByName[token.lexeme] = typedBinding.typeName;
+        continue;
+      }
+
+      final assignmentIndex = _bindingAssignmentIndex(tokens, index);
+      if (assignmentIndex == null) {
+        continue;
+      }
+      final expressionStartIndex = _nextSignificantIndex(
+        tokens,
+        assignmentIndex + 1,
+      );
+      if (expressionStartIndex == null) {
+        continue;
+      }
+      final inferredType = _inferExpressionType(
+        tokens: tokens,
+        expressionStartIndex: expressionStartIndex,
+        signaturesByName: signaturesByName,
+        inferredTypesByName: inferredTypesByName,
+      );
+      if (inferredType != null && inferredType.isNotEmpty) {
+        inferredTypesByName[token.lexeme] = inferredType;
+      }
+    }
+
+    return issues;
+  }
+
   List<StyioFunctionReturnTypeIssue> functionReturnTypeIssues(String source) {
     final tokens = _syntaxHighlighter.tokenize(source);
     final signaturesByName = _collectFunctionSignatures(tokens);
@@ -2301,6 +2391,58 @@ class StyioSymbolIndex {
       source,
       SourceRange(start: tokens[expressionStartIndex].range.start, end: end),
     );
+  }
+
+  SourceRange? _conditionExpressionRange({
+    required String source,
+    required List<TokenSpan> tokens,
+    required int expressionStartIndex,
+  }) {
+    var end = tokens[expressionStartIndex].range.end;
+    var nestedDepth = 0;
+    for (
+      var index = expressionStartIndex + 1;
+      index < tokens.length;
+      index += 1
+    ) {
+      final token = tokens[index];
+      if (token.lexeme.contains('\n') || token.kind == TokenKind.comment) {
+        break;
+      }
+      if (nestedDepth == 0 && token.lexeme == '->') {
+        break;
+      }
+      if (token.lexeme == '(' || token.lexeme == '[' || token.lexeme == '{') {
+        nestedDepth += 1;
+      } else if (token.lexeme == ')' ||
+          token.lexeme == ']' ||
+          token.lexeme == '}') {
+        nestedDepth -= 1;
+      }
+      end = token.range.end;
+    }
+    return _trimmedRange(
+      source,
+      SourceRange(start: tokens[expressionStartIndex].range.start, end: end),
+    );
+  }
+
+  String _conditionTypeReplacementText({
+    required String source,
+    required SourceRange conditionRange,
+    required String actualType,
+  }) {
+    if (!_isNumericType(actualType)) {
+      return '';
+    }
+    final conditionText = source
+        .substring(conditionRange.start, conditionRange.end)
+        .trim();
+    if (conditionText.isEmpty) {
+      return '';
+    }
+    final zero = actualType.startsWith('f') ? '0.0' : '0';
+    return '$conditionText != $zero';
   }
 
   bool _isReturnExpressionMarker(TokenSpan token) {
@@ -5171,6 +5313,22 @@ class StyioAssignmentTypeMismatchIssue {
       initializerActualTypeName.isEmpty ||
       initializerActualTypeName == actualTypeName ||
       replacementInitializerTextForActualType.isNotEmpty;
+}
+
+class StyioConditionTypeMismatchIssue {
+  const StyioConditionTypeMismatchIssue({
+    required this.diagnostic,
+    required this.expectedTypeName,
+    required this.actualTypeName,
+    required this.conditionRange,
+    required this.replacementConditionText,
+  });
+
+  final Diagnostic diagnostic;
+  final String expectedTypeName;
+  final String actualTypeName;
+  final SourceRange conditionRange;
+  final String replacementConditionText;
 }
 
 class StyioFunctionReturnTypeIssue {

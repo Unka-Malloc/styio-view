@@ -534,6 +534,8 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         return _quickFixesForTypeMismatchIssue(document, diagnostic);
       case 'assignment-type-mismatch':
         return _quickFixesForAssignmentTypeMismatchIssue(document, diagnostic);
+      case 'condition-type-mismatch':
+        return _quickFixesForConditionTypeMismatchIssue(document, diagnostic);
       case 'return-type-mismatch':
         return _quickFixesForFunctionReturnTypeIssue(document, diagnostic);
       case 'unknown-named-argument':
@@ -603,6 +605,11 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     diagnostics.addAll(
       _symbolIndex
           .assignmentTypeMismatchIssues(source)
+          .map((issue) => issue.diagnostic),
+    );
+    diagnostics.addAll(
+      _symbolIndex
+          .conditionTypeMismatchIssues(source)
           .map((issue) => issue.diagnostic),
     );
     diagnostics.addAll(
@@ -1320,6 +1327,51 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       );
     }
     return fixes;
+  }
+
+  List<DiagnosticQuickFix> _quickFixesForConditionTypeMismatchIssue(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    final issue = _symbolIndex
+        .conditionTypeMismatchIssues(document.text)
+        .firstWhere(
+          (item) =>
+              item.diagnostic.code == diagnostic.code &&
+              item.diagnostic.range.start == diagnostic.range.start &&
+              item.diagnostic.range.end == diagnostic.range.end,
+          orElse: () => const StyioConditionTypeMismatchIssue(
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: '',
+              message: '',
+              range: SourceRange(start: 0, end: 0),
+            ),
+            expectedTypeName: '',
+            actualTypeName: '',
+            conditionRange: SourceRange(start: 0, end: 0),
+            replacementConditionText: '',
+          ),
+        );
+    if (issue.expectedTypeName.isEmpty ||
+        issue.replacementConditionText.isEmpty) {
+      return const <DiagnosticQuickFix>[];
+    }
+
+    return [
+      DiagnosticQuickFix(
+        label: 'Compare condition with zero',
+        detail:
+            'Rewrite numeric `when` condition from '
+            '`${issue.actualTypeName}` to `bool`.',
+        edits: [
+          FormattingEdit(
+            range: issue.conditionRange,
+            newText: issue.replacementConditionText,
+          ),
+        ],
+      ),
+    ];
   }
 
   List<DiagnosticQuickFix> _quickFixesForFunctionReturnTypeIssue(

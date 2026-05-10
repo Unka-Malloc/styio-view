@@ -566,6 +566,38 @@ fn ready(value: f64): bool {
 ''');
   });
 
+  test('reports and fixes when condition type mismatches', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'condition-type-mismatch.styio',
+      text: '''
+price = 12.5
+ready = price > 0
+when price -> state priced
+when ready -> state ready
+''',
+      revision: 0,
+    );
+
+    final mismatch = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere(
+          (diagnostic) => diagnostic.code == 'condition-type-mismatch',
+        );
+    final fix = service
+        .quickFixesForDiagnostic(document, mismatch)
+        .singleWhere((item) => item.label == 'Compare condition with zero');
+
+    expect(mismatch.message, contains('expects `bool`, got `f64`'));
+    expect(applyEdits(document.text, fix.edits), '''
+price = 12.5
+ready = price > 0
+when price != 0.0 -> state priced
+when ready -> state ready
+''');
+  });
+
   test('reports and fixes function return type mismatches', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

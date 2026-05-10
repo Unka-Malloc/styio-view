@@ -1008,6 +1008,38 @@ ready = spread && true
     );
   });
 
+  test('reports when condition type mismatches', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+price = 12.5
+ready = price > 0
+when price -> state priced
+when ready -> state ready
+when price + 1 -> state wide
+when "open" -> state text
+''';
+
+    final issues = index.conditionTypeMismatchIssues(source);
+
+    expect(issues.map((issue) => issue.actualTypeName), [
+      'f64',
+      'f64',
+      'string',
+    ]);
+    expect(
+      issues.map(
+        (issue) => source.substring(
+          issue.diagnostic.range.start,
+          issue.diagnostic.range.end,
+        ),
+      ),
+      ['price', 'price + 1', '"open"'],
+    );
+    expect(issues.first.replacementConditionText, 'price != 0.0');
+    expect(issues[1].replacementConditionText, 'price + 1 != 0.0');
+    expect(issues[2].replacementConditionText, isEmpty);
+  });
+
   test('reports typed local initializer type mismatches', () {
     const index = StyioSymbolIndex();
     const source = '''

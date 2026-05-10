@@ -1623,6 +1623,43 @@ emit blend(price, tax)
     );
   });
 
+  test('offers expression negation and when postfix completions', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'postfix-control-completion.styio',
+      text: '''
+ready.no
+(price > 0).wh
+''',
+      revision: 0,
+    );
+
+    final notCompletion = service
+        .completeAt(document, document.text.indexOf('no') + 2)
+        .singleWhere((item) => item.label == '.not');
+    final whenCompletion = service
+        .completeAt(document, document.text.indexOf('wh') + 2)
+        .singleWhere((item) => item.label == '.when');
+
+    expect(notCompletion.kind, CompletionItemKind.snippet);
+    expect(notCompletion.insertText, '!ready');
+    expect(
+      document.text.substring(
+        notCompletion.replacementRange!.start,
+        notCompletion.replacementRange!.end,
+      ),
+      'ready.no',
+    );
+    expect(whenCompletion.insertText, 'when (price > 0) -> state next_state');
+    expect(
+      document.text.substring(
+        whenCompletion.replacementRange!.start,
+        whenCompletion.replacementRange!.end,
+      ),
+      '(price > 0).wh',
+    );
+  });
+
   test('matches completion items by contained text and symbol initials', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(

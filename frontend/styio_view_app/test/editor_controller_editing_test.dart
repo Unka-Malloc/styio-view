@@ -983,6 +983,32 @@ void main() {
     expect(controller.canUndo, isTrue);
   });
 
+  test(
+    'applies negation postfix completion by replacing the target expression',
+    () {
+      const text = '  ready.no';
+      final controller = EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: 'postfix-negation-completion.styio',
+          text: text,
+          revision: 0,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+        initialSelection: const SelectionState.collapsed(text.length),
+      );
+
+      final completion = controller.completionsAtSelection.firstWhere(
+        (item) => item.label == '.not',
+      );
+
+      controller.applyCompletionItem(completion);
+
+      expect(controller.document.text, '  !ready');
+      expect(controller.selection.end, '  !ready'.length);
+      expect(controller.canUndo, isTrue);
+    },
+  );
+
   test('applies named argument completion at a call argument boundary', () {
     const text = '''
 fn blend(left: f64, right: f64) {

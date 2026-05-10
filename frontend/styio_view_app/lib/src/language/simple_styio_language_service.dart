@@ -2209,6 +2209,20 @@ class SimpleStyioLanguageService implements StyioLanguageService {
 
     return [
       CompletionItem(
+        label: '.not',
+        kind: CompletionItemKind.snippet,
+        insertText: _negatedPostfixExpression(expression),
+        detail: 'Postfix completion: negate the expression.',
+        replacementRange: context.replacementRange,
+      ),
+      CompletionItem(
+        label: '.when',
+        kind: CompletionItemKind.snippet,
+        insertText: 'when $expression -> state next_state',
+        detail: 'Postfix completion: use the expression as a state guard.',
+        replacementRange: context.replacementRange,
+      ),
+      CompletionItem(
         label: '.emit',
         kind: CompletionItemKind.snippet,
         insertText: 'emit $expression',
@@ -2357,6 +2371,27 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       return null;
     }
     return SourceRange(start: start, end: targetEnd);
+  }
+
+  String _negatedPostfixExpression(String expression) {
+    final trimmed = expression.trim();
+    if (_isSimplePostfixOperand(trimmed)) {
+      return '!$trimmed';
+    }
+    return '!($trimmed)';
+  }
+
+  bool _isSimplePostfixOperand(String expression) {
+    if (expression.isEmpty) {
+      return false;
+    }
+    if (RegExp(r'^[A-Za-z_][A-Za-z0-9_]*(\([^()]*\))?$').hasMatch(expression)) {
+      return true;
+    }
+    if (RegExp(r'^-?[0-9]+(\.[0-9]+)?$').hasMatch(expression)) {
+      return true;
+    }
+    return expression.startsWith('(') && expression.endsWith(')');
   }
 
   String _lineIndentBefore(String source, int offset) {

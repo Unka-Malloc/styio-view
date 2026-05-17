@@ -764,7 +764,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
 def main() -> None:
     current_workspace().mkdir(parents=True, exist_ok=True)
     server = ThreadingHTTPServer((HOST, PORT), PrototypeHandler)
-    print(f"styio-view dev server listening on http://{HOST}:{PORT}", flush=True)
+    print(f"Vityo dev server listening on http://{HOST}:{PORT}", flush=True)
     if mutation_enabled():
         print("workspace mutation APIs enabled for this local dev session", flush=True)
     else:

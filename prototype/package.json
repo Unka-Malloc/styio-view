@@ -1,7 +1,7 @@
 {
   "name": "prototype",
   "version": "1.0.0",
-  "description": "当前目录是 `styio-view` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。",
+  "description": "当前目录是 `Vityo` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。",
   "main": "app.js",
   "scripts": {
     "governance": "node ./scripts/check-prototype-governance.mjs",

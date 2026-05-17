@@ -1,13 +1,13 @@
 # Prototype Surface
 
-**Purpose:** Describe the handwritten `styio-view` prototype surfaces, their local server, and the repo-local governance checks that keep them owned and testable.
+**Purpose:** Describe the handwritten `Vityo` prototype surfaces, their local server, and the repo-local governance checks that keep them owned and testable.
 
 **Last updated:** 2026-05-02
 
-当前目录是 `styio-view` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。
+当前目录是 `Vityo` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。
 
 这里同时也是当前仓库里“给人维护的 Web Editor 入口”。
-`frontend/styio_view_app/build/web` 之类的 Flutter 生成物只用于构建验证，不作为人工维护页面。
+`frontend/vityo_app/build/web` 之类的 Flutter 生成物只用于构建验证，不作为人工维护页面。
 
 仓库级 bootstrap、共享工具链和常用验证命令见 [../docs/BUILD-AND-DEV-ENV.md](../docs/BUILD-AND-DEV-ENV.md)；本页只描述手写原型本身。
 
@@ -68,7 +68,7 @@
 19. focused editor 当前固定只维护 `main.styio`，不再混入其它非主线示例文件
 20. 当前默认视觉基线为 `Graphite` 壳层，并以 `#F4C76A` 作为默认强调色和 symbol 高亮色
 21. 当前原型支持导入 / 编辑一份参考 VS Code 结构的 JSONC 调色盘配置，示例见 `theme-config.example.jsonc`
-22. 当前 canonical 配置存放在浏览器 `localStorage` 的 `styio-view:custom-palette-config`
+22. 当前 canonical 配置存放在浏览器 `localStorage` 的 `Vityo:custom-palette-config`
 23. 手写 Web IDE 的设计理念、分层规则和标准工作流，见 `../docs/specs/HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md`
 
 ## Module Structure

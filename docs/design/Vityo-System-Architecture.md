@@ -1,6 +1,6 @@
-# Styio View System Architecture
+# Vityo System Architecture
 
-**Purpose:** 定义 `styio-view` 的系统层次、adapter 边界、平台执行后端与主线实现策略；具体产品语义以 [Styio-View-Product-Spec.md](./Styio-View-Product-Spec.md) 为准。
+**Purpose:** 定义 `Vityo` 的系统层次、adapter 边界、平台执行后端与主线实现策略；具体产品语义以 [Vityo-Product-Spec.md](./Vityo-Product-Spec.md) 为准。
 
 **Last updated:** 2026-04-21
 
@@ -8,7 +8,7 @@
 
 ## 1. 总体架构
 
-`styio-view` 采用 `Flutter UI + Custom Editor Engine + Module Host Runtime + Product-Owned Adapter Layer + 分平台执行后端` 的体系。
+`Vityo` 采用 `Flutter UI + Custom Editor Engine + Module Host Runtime + Product-Owned Adapter Layer + 分平台执行后端` 的体系。
 
 ```mermaid
 flowchart TB
@@ -36,10 +36,10 @@ flowchart TB
 这里的“前端 / 后端”不是按单一仓库目录硬切，而是按产品责任切：
 
 - 前端是面向用户的 `Flutter UI Runtime + Custom Editor Engine + Panels + Module Host`，负责编辑、浏览、交互和状态呈现。
-- 后端是 `styio-view` 背后的整条工具链面，包含 adapter layer、local CLI / FFI、hosted control plane，以及上游 `spio` / `styio` 提供的 machine contract。
-- `prototype/` 与 `frontend/styio_view_app/lib/src/app|editor|runtime|agent|theme|module_host|platform` 属于前端主面；`frontend/styio_view_app/lib/src/frontend_shell/` 是这组壳层模块对外聚合的显式入口边界。
-- `frontend/styio_view_app/lib/src/backend_toolchain/` 是后端工具链接入的实现根目录，承载 adapter、hosted control plane codec 和产品运维 lane。
-- `frontend/styio_view_app/lib/src/integration/` 只保留 legacy compatibility exports；它继续服务旧 import 路径，但不再承载新的后端实现。
+- 后端是 `Vityo` 背后的整条工具链面，包含 adapter layer、local CLI / FFI、hosted control plane，以及上游 `spio` / `styio` 提供的 machine contract。
+- `prototype/` 与 `frontend/vityo_app/lib/src/app|editor|runtime|agent|theme|module_host|platform` 属于前端主面；`frontend/vityo_app/lib/src/frontend_shell/` 是这组壳层模块对外聚合的显式入口边界。
+- `frontend/vityo_app/lib/src/backend_toolchain/` 是后端工具链接入的实现根目录，承载 adapter、hosted control plane codec 和产品运维 lane。
+- `frontend/vityo_app/lib/src/integration/` 只保留 legacy compatibility exports；它继续服务旧 import 路径，但不再承载新的后端实现。
 
 非协商规则：
 
@@ -99,7 +99,7 @@ flowchart TB
 
 ### 2.4 Product-Owned Adapter Layer
 
-`styio-view` 主线只依赖以下四个合同：
+`Vityo` 主线只依赖以下四个合同：
 
 1. `LanguageServiceAdapter`
 2. `ProjectGraphAdapter`
@@ -114,7 +114,7 @@ flowchart TB
 
 关键原则：
 
-1. `styio-view` 拥有产品合同，上游来适配。
+1. `Vityo` 拥有产品合同，上游来适配。
 2. Flutter 主线不依赖上游内部源码结构、类名或某个专门命名的 native 包。
 3. 缺能力时，adapter 返回 capability gap，不让 UI 崩溃或猜状态。
 4. `DependencySourceAdapter`、`DeploymentAdapter`、`ToolchainManagementAdapter` 这三条产品运维 lane 也属于同一后端工具链面，不能回流进 UI 层自行实现。
@@ -148,7 +148,7 @@ flowchart TB
 
 关键原则：
 
-1. `styio-view` 不通过私有目录结构推断业务状态。
+1. `Vityo` 不通过私有目录结构推断业务状态。
 2. `spio.toml / spio.lock / spio-toolchain.toml / .spio / styio.toml` 是当前允许的 canonical files。
 3. 一旦 `spio` 发布正式 project graph payload，主线切到 payload。
 
@@ -207,13 +207,13 @@ flowchart TB
 
 当前已落地的实现入口：
 
-1. `frontend/styio_view_app/lib/src/frontend_shell/frontend_shell.dart`
-2. `frontend/styio_view_app/lib/src/backend_toolchain/backend_toolchain.dart`
-3. `frontend/styio_view_app/lib/src/backend_toolchain/adapter_contracts.dart`
-4. `frontend/styio_view_app/lib/src/backend_toolchain/project_graph_contract.dart`
-5. `frontend/styio_view_app/lib/src/backend_toolchain/project_graph_adapter.dart`
-6. `frontend/styio_view_app/lib/src/backend_toolchain/execution_adapter.dart`
-7. `frontend/styio_view_app/lib/src/backend_toolchain/runtime_event_adapter.dart`
-8. `frontend/styio_view_app/lib/src/integration/`
-9. `frontend/styio_view_app/lib/src/app/app_bootstrap.dart`
-10. `frontend/styio_view_app/lib/src/app/layout/styio_shell_scaffold.dart`
+1. `frontend/vityo_app/lib/src/frontend_shell/frontend_shell.dart`
+2. `frontend/vityo_app/lib/src/backend_toolchain/backend_toolchain.dart`
+3. `frontend/vityo_app/lib/src/backend_toolchain/adapter_contracts.dart`
+4. `frontend/vityo_app/lib/src/backend_toolchain/project_graph_contract.dart`
+5. `frontend/vityo_app/lib/src/backend_toolchain/project_graph_adapter.dart`
+6. `frontend/vityo_app/lib/src/backend_toolchain/execution_adapter.dart`
+7. `frontend/vityo_app/lib/src/backend_toolchain/runtime_event_adapter.dart`
+8. `frontend/vityo_app/lib/src/integration/`
+9. `frontend/vityo_app/lib/src/app/app_bootstrap.dart`
+10. `frontend/vityo_app/lib/src/app/layout/vityo_shell_scaffold.dart`

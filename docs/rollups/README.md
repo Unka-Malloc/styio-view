@@ -1,6 +1,6 @@
 # Rollups Docs
 
-**Purpose:** 提供 `styio-view` 的压缩活跃摘要与默认阅读入口，让当前状态和活跃缺口能在不先通读 raw history 的前提下被快速定位。
+**Purpose:** 提供 `Vityo` 的压缩活跃摘要与默认阅读入口，让当前状态和活跃缺口能在不先通读 raw history 的前提下被快速定位。
 
 **Last updated:** 2026-04-17
 

@@ -1,6 +1,6 @@
-# Styio View Product Spec
+# Vityo Product Spec
 
-**Purpose:** 作为 `styio-view` 的产品级单一事实来源，定义产品定位、术语、不变量、功能域、平台策略与验收边界。
+**Purpose:** 作为 `Vityo` 的产品级单一事实来源，定义产品定位、术语、不变量、功能域、平台策略与验收边界。
 
 **Last updated:** 2026-04-13
 
@@ -8,7 +8,7 @@
 
 ## 1. 产品定位
 
-`styio-view` 是 Styio 的专属原生 IDE 与运行视窗，不以复用传统 IDE 控件或传统编辑器壳为前提，而是以 Styio 语言特性和现代交互系统为中心，重写：
+`Vityo` 是 Styio 的专属原生 IDE 与运行视窗，不以复用传统 IDE 控件或传统编辑器壳为前提，而是以 Styio 语言特性和现代交互系统为中心，重写：
 
 1. 编辑器文本显示与交互
 2. 编译与运行反馈面板
@@ -26,7 +26,7 @@
 
 ## 3. 非目标
 
-1. 不把 `styio-view` 做成 VS Code 皮肤或传统 IDE 主题包。
+1. 不把 `Vityo` 做成 VS Code 皮肤或传统 IDE 主题包。
 2. 不以兼容任意第三方插件生态作为首发目标。
 3. 不在产品级语义上承诺 iOS 支持任意 unrestricted 本地 JIT。
 4. 不要求桌面与移动端拥有完全一致的操作方式。
@@ -84,13 +84,14 @@
 21. 本地 agent 首发只预留外接组件接口，不把模型 runtime 内建到主壳。
 22. 云端 agent provider 至少支持 OpenAI-compatible endpoint adapter。
 23. 若未挂载 `ProfileSyncAdapter`，prompt / profile 必须完整工作在 local-only 模式。
-24. iOS 是唯一受 App Store 审核与分发限制的平台，并作为共享架构的合规下限；iOS 客户端最后上线。
-25. Web 端只作为 hosted workspace 客户端；关闭云环境前必须提示清空后果并提供核心文件导出入口。
-26. Hosted workspace 默认保留 7 天后删除。
-27. 移动端模块卸载默认全量回收；桌面端模块卸载必须给用户保留或清除数据的选择。
-28. 基础高亮必须先由 token / semantic 层驱动，`linter` 只负责 diagnostics、fix 和 hint，不负责基础高亮。
-29. 格式化结果必须以 `TextEdit` 风格补丁返回，而不是绕过编辑器直接改写 Source Buffer。
-30. 任何 UI 容器内的子组件都不得溢出父容器；若空间不足，必须通过重排、内部滚动、局部折叠或尺寸约束处理，而不是允许内容越界。
+24. 登录不是使用 Vityo 的前置条件；用户账户、profile sync 和远端身份能力必须作为可选服务模块挂载。
+25. iOS 是唯一受 App Store 审核与分发限制的平台，并作为共享架构的合规下限；iOS 客户端最后上线。
+26. Web 端只作为 hosted workspace 客户端；关闭云环境前必须提示清空后果并提供核心文件导出入口。
+27. Hosted workspace 默认保留 7 天后删除。
+28. 移动端模块卸载默认全量回收；桌面端模块卸载必须给用户保留或清除数据的选择。
+29. 基础高亮必须先由 token / semantic 层驱动，`linter` 只负责 diagnostics、fix 和 hint，不负责基础高亮。
+30. 格式化结果必须以 `TextEdit` 风格补丁返回，而不是绕过编辑器直接改写 Source Buffer。
+31. 任何 UI 容器内的子组件都不得溢出父容器；若空间不足，必须通过重排、内部滚动、局部折叠或尺寸约束处理，而不是允许内容越界。
 
 ## 6. 功能域
 

@@ -3,10 +3,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/flutter-workspace-common.sh"
-PROFILE_FILE="${STYIO_VIEW_APPLE_PROFILE_FILE:-$ROOT/toolchain/apple-platform-profiles.csv}"
-FLUTTER_HOME="${STYIO_VIEW_FLUTTER_HOME:-$HOME/develop/flutter}"
-FLUTTER_BIN="${STYIO_VIEW_FLUTTER_BIN:-$FLUTTER_HOME/bin/flutter}"
-FLUTTER_DIR_DEFAULT="$ROOT/frontend/styio_view_app"
+PROFILE_FILE="${VITYO_APPLE_PROFILE_FILE:-$ROOT/toolchain/apple-platform-profiles.csv}"
+FLUTTER_HOME="${VITYO_FLUTTER_HOME:-$HOME/develop/flutter}"
+FLUTTER_BIN="${VITYO_FLUTTER_BIN:-$FLUTTER_HOME/bin/flutter}"
+FLUTTER_DIR_DEFAULT="$ROOT/frontend/vityo_app"
 OUT_DIR_DEFAULT="$ROOT/build/apple-profile-artifacts"
 WORK_DIR_DEFAULT="$ROOT/build/apple-profile-workspaces"
 
@@ -21,7 +21,7 @@ usage() {
   cat <<'EOF'
 Usage: apple-platform-profile.sh <command> [options]
 
-Manage standardized Apple build profiles for styio-view on macOS, including
+Manage standardized Apple build profiles for Vityo on macOS, including
 selectable iOS deployment targets, macOS deployment targets, and Xcode roots.
 
 Commands:
@@ -46,9 +46,9 @@ Build options:
   --no-codesign            Pass --no-codesign to iOS builds
 
 Environment:
-  STYIO_VIEW_APPLE_PROFILE_FILE  Profile csv location
-  STYIO_VIEW_FLUTTER_HOME        Flutter checkout root
-  STYIO_VIEW_FLUTTER_BIN         Flutter binary override
+  VITYO_APPLE_PROFILE_FILE  Profile csv location
+  VITYO_FLUTTER_HOME        Flutter checkout root
+  VITYO_FLUTTER_BIN         Flutter binary override
 EOF
 }
 
@@ -66,8 +66,8 @@ ensure_macos() {
 }
 
 ensure_flutter_bin() {
-  FLUTTER_BIN="$(styio_view_resolve_flutter_bin "$FLUTTER_BIN" "$FLUTTER_HOME")" \
-    || fail "flutter is not installed. Set STYIO_VIEW_FLUTTER_BIN or STYIO_VIEW_FLUTTER_HOME."
+  FLUTTER_BIN="$(vityo_resolve_flutter_bin "$FLUTTER_BIN" "$FLUTTER_HOME")" \
+    || fail "flutter is not installed. Set VITYO_FLUTTER_BIN or VITYO_FLUTTER_HOME."
 }
 
 load_profiles() {
@@ -75,18 +75,18 @@ load_profiles() {
 
   [[ -r "$PROFILE_FILE" ]] || fail "Apple profile file is missing: $PROFILE_FILE"
   while IFS= read -r line || [[ -n "$line" ]]; do
-    line="$(styio_view_trim "$line")"
+    line="$(vityo_trim "$line")"
     [[ -n "$line" ]] || continue
     [[ "$line" == \#* ]] && continue
     [[ "$line" == name,* ]] && continue
 
     IFS=, read -r name family ios_target macos_target developer_dir default_flag <<<"$line"
-    name="$(styio_view_trim "$name")"
-    family="$(styio_view_trim "$family")"
-    ios_target="$(styio_view_trim "$ios_target")"
-    macos_target="$(styio_view_trim "$macos_target")"
-    developer_dir="$(styio_view_trim "$developer_dir")"
-    default_flag="$(styio_view_trim "$default_flag")"
+    name="$(vityo_trim "$name")"
+    family="$(vityo_trim "$family")"
+    ios_target="$(vityo_trim "$ios_target")"
+    macos_target="$(vityo_trim "$macos_target")"
+    developer_dir="$(vityo_trim "$developer_dir")"
+    default_flag="$(vityo_trim "$default_flag")"
 
     [[ -n "$name" ]] || continue
     PROFILE_ORDER+=("$name")
@@ -115,7 +115,7 @@ profiles_from_csv() {
   [[ -n "$csv" ]] || fail "profile list is required"
   IFS=, read -r -a raw <<<"$csv"
   for token in "${raw[@]}"; do
-    token="$(styio_view_trim "$token")"
+    token="$(vityo_trim "$token")"
     [[ -n "$token" ]] || continue
     require_profile "$token"
     result+=("$token")
@@ -139,8 +139,8 @@ export_profile_env() {
   local family="${PROFILE_FAMILY[$profile]}"
   local developer_dir="${PROFILE_DEVELOPER_DIR[$profile]}"
 
-  export STYIO_VIEW_APPLE_PROFILE="$profile"
-  export STYIO_VIEW_APPLE_PROFILE_FAMILY="$family"
+  export VITYO_APPLE_PROFILE="$profile"
+  export VITYO_APPLE_PROFILE_FAMILY="$family"
   export COCOAPODS_DISABLE_STATS=true
   if [[ -n "$developer_dir" ]]; then
     export DEVELOPER_DIR="$developer_dir"
@@ -148,12 +148,12 @@ export_profile_env() {
 
   case "$family" in
     ios)
-      export STYIO_VIEW_IOS_DEPLOYMENT_TARGET="${PROFILE_IOS_TARGET[$profile]}"
-      unset STYIO_VIEW_MACOS_DEPLOYMENT_TARGET || true
+      export VITYO_IOS_DEPLOYMENT_TARGET="${PROFILE_IOS_TARGET[$profile]}"
+      unset VITYO_MACOS_DEPLOYMENT_TARGET || true
       ;;
     macos)
-      export STYIO_VIEW_MACOS_DEPLOYMENT_TARGET="${PROFILE_MACOS_TARGET[$profile]}"
-      unset STYIO_VIEW_IOS_DEPLOYMENT_TARGET || true
+      export VITYO_MACOS_DEPLOYMENT_TARGET="${PROFILE_MACOS_TARGET[$profile]}"
+      unset VITYO_IOS_DEPLOYMENT_TARGET || true
       ;;
     *)
       fail "unsupported Apple profile family: $family"
@@ -170,8 +170,8 @@ print_env() {
   developer_dir="${PROFILE_DEVELOPER_DIR[$profile]}"
 
   cat <<EOF
-export STYIO_VIEW_APPLE_PROFILE="$profile"
-export STYIO_VIEW_APPLE_PROFILE_FAMILY="$family"
+export VITYO_APPLE_PROFILE="$profile"
+export VITYO_APPLE_PROFILE_FAMILY="$family"
 export COCOAPODS_DISABLE_STATS=true
 EOF
 
@@ -181,10 +181,10 @@ EOF
 
   case "$family" in
     ios)
-      printf 'export STYIO_VIEW_IOS_DEPLOYMENT_TARGET="%s"\n' "${PROFILE_IOS_TARGET[$profile]}"
+      printf 'export VITYO_IOS_DEPLOYMENT_TARGET="%s"\n' "${PROFILE_IOS_TARGET[$profile]}"
       ;;
     macos)
-      printf 'export STYIO_VIEW_MACOS_DEPLOYMENT_TARGET="%s"\n' "${PROFILE_MACOS_TARGET[$profile]}"
+      printf 'export VITYO_MACOS_DEPLOYMENT_TARGET="%s"\n' "${PROFILE_MACOS_TARGET[$profile]}"
       ;;
   esac
 }
@@ -233,7 +233,7 @@ build_for_profile() {
   outputs_root="$out_dir/$profile"
   cache_dir=".dart_tool-$profile"
 
-  styio_view_copy_flutter_project "$flutter_dir" "$workspace_root"
+  vityo_copy_flutter_project "$flutter_dir" "$workspace_root"
 
   case "$family" in
     ios)
@@ -266,11 +266,11 @@ build_for_profile() {
     cp -a "$app_dir/build-$profile" "$outputs_root/build"
   fi
   cat >"$outputs_root/profile.env" <<EOF
-STYIO_VIEW_APPLE_PROFILE=$profile
-STYIO_VIEW_APPLE_PROFILE_FAMILY=$family
+VITYO_APPLE_PROFILE=$profile
+VITYO_APPLE_PROFILE_FAMILY=$family
 DEVELOPER_DIR=${PROFILE_DEVELOPER_DIR[$profile]}
-STYIO_VIEW_IOS_DEPLOYMENT_TARGET=${PROFILE_IOS_TARGET[$profile]}
-STYIO_VIEW_MACOS_DEPLOYMENT_TARGET=${PROFILE_MACOS_TARGET[$profile]}
+VITYO_IOS_DEPLOYMENT_TARGET=${PROFILE_IOS_TARGET[$profile]}
+VITYO_MACOS_DEPLOYMENT_TARGET=${PROFILE_MACOS_TARGET[$profile]}
 EOF
 }
 

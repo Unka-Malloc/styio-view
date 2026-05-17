@@ -3,14 +3,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/flutter-workspace-common.sh"
-PROFILE_FILE="${STYIO_VIEW_ANDROID_PROFILE_FILE:-$ROOT/toolchain/android-sdk-profiles.csv}"
-ANDROID_SDK_ROOT="${STYIO_VIEW_ANDROID_SDK_ROOT:-$HOME/Android/Sdk}"
-FLUTTER_HOME="${STYIO_VIEW_FLUTTER_HOME:-$HOME/develop/flutter}"
-FLUTTER_BIN="${STYIO_VIEW_FLUTTER_BIN:-$FLUTTER_HOME/bin/flutter}"
-FLUTTER_DIR_DEFAULT="$ROOT/frontend/styio_view_app"
+PROFILE_FILE="${VITYO_ANDROID_PROFILE_FILE:-$ROOT/toolchain/android-sdk-profiles.csv}"
+ANDROID_SDK_ROOT="${VITYO_ANDROID_SDK_ROOT:-$HOME/Android/Sdk}"
+FLUTTER_HOME="${VITYO_FLUTTER_HOME:-$HOME/develop/flutter}"
+FLUTTER_BIN="${VITYO_FLUTTER_BIN:-$FLUTTER_HOME/bin/flutter}"
+FLUTTER_DIR_DEFAULT="$ROOT/frontend/vityo_app"
 OUT_DIR_DEFAULT="$ROOT/build/android-profile-artifacts"
 WORK_DIR_DEFAULT="$ROOT/build/android-profile-workspaces"
-ANDROID_PROFILES_DEFAULT="${STYIO_VIEW_ANDROID_PROFILES:-all}"
+ANDROID_PROFILES_DEFAULT="${VITYO_ANDROID_PROFILES:-all}"
 
 declare -A PROFILE_PLATFORM=()
 declare -A PROFILE_COMPILE_SDK=()
@@ -25,7 +25,7 @@ usage() {
   cat <<'EOF'
 Usage: android-sdk-profile.sh <command> [options]
 
-Manage standardized Android SDK profiles for styio-view on Linux/macOS hosts
+Manage standardized Android SDK profiles for Vityo on Linux/macOS hosts
 and containers, and run Android builds against one or more pinned SDK profiles.
 
 Commands:
@@ -57,10 +57,10 @@ Build options:
   --target-platform <csv>  Pass through Flutter --target-platform
 
 Environment:
-  STYIO_VIEW_ANDROID_PROFILE_FILE  Profile csv location
-  STYIO_VIEW_ANDROID_SDK_ROOT      Android SDK root
-  STYIO_VIEW_FLUTTER_HOME          Flutter checkout root
-  STYIO_VIEW_FLUTTER_BIN           Flutter binary override
+  VITYO_ANDROID_PROFILE_FILE  Profile csv location
+  VITYO_ANDROID_SDK_ROOT      Android SDK root
+  VITYO_FLUTTER_HOME          Flutter checkout root
+  VITYO_FLUTTER_BIN           Flutter binary override
 EOF
 }
 
@@ -78,20 +78,20 @@ load_profiles() {
 
   [[ -r "$PROFILE_FILE" ]] || fail "Android profile file is missing: $PROFILE_FILE"
   while IFS= read -r line || [[ -n "$line" ]]; do
-    line="$(styio_view_trim "$line")"
+    line="$(vityo_trim "$line")"
     [[ -n "$line" ]] || continue
     [[ "$line" == \#* ]] && continue
     [[ "$line" == name,* ]] && continue
 
     IFS=, read -r name platform compile_sdk target_sdk min_sdk build_tools ndk_version default_flag <<<"$line"
-    name="$(styio_view_trim "$name")"
-    platform="$(styio_view_trim "$platform")"
-    compile_sdk="$(styio_view_trim "$compile_sdk")"
-    target_sdk="$(styio_view_trim "$target_sdk")"
-    min_sdk="$(styio_view_trim "$min_sdk")"
-    build_tools="$(styio_view_trim "$build_tools")"
-    ndk_version="$(styio_view_trim "$ndk_version")"
-    default_flag="$(styio_view_trim "$default_flag")"
+    name="$(vityo_trim "$name")"
+    platform="$(vityo_trim "$platform")"
+    compile_sdk="$(vityo_trim "$compile_sdk")"
+    target_sdk="$(vityo_trim "$target_sdk")"
+    min_sdk="$(vityo_trim "$min_sdk")"
+    build_tools="$(vityo_trim "$build_tools")"
+    ndk_version="$(vityo_trim "$ndk_version")"
+    default_flag="$(vityo_trim "$default_flag")"
 
     [[ -n "$name" ]] || continue
     PROFILE_ORDER+=("$name")
@@ -127,7 +127,7 @@ profiles_from_csv() {
 
   IFS=, read -r -a raw <<<"$csv"
   for token in "${raw[@]}"; do
-    token="$(styio_view_trim "$token")"
+    token="$(vityo_trim "$token")"
     [[ -n "$token" ]] || continue
     require_profile "$token"
     result+=("$token")
@@ -141,28 +141,28 @@ export_profile_env() {
   local profile="$1"
   require_profile "$profile"
 
-  export STYIO_VIEW_ANDROID_PROFILE="$profile"
-  export STYIO_VIEW_ANDROID_PLATFORM="${PROFILE_PLATFORM[$profile]}"
-  export STYIO_VIEW_ANDROID_COMPILE_SDK="${PROFILE_COMPILE_SDK[$profile]}"
-  export STYIO_VIEW_ANDROID_TARGET_SDK="${PROFILE_TARGET_SDK[$profile]}"
-  export STYIO_VIEW_ANDROID_MIN_SDK="${PROFILE_MIN_SDK[$profile]}"
-  export STYIO_VIEW_ANDROID_BUILD_TOOLS="${PROFILE_BUILD_TOOLS[$profile]}"
-  export STYIO_VIEW_ANDROID_NDK_VERSION="${PROFILE_NDK_VERSION[$profile]}"
+  export VITYO_ANDROID_PROFILE="$profile"
+  export VITYO_ANDROID_PLATFORM="${PROFILE_PLATFORM[$profile]}"
+  export VITYO_ANDROID_COMPILE_SDK="${PROFILE_COMPILE_SDK[$profile]}"
+  export VITYO_ANDROID_TARGET_SDK="${PROFILE_TARGET_SDK[$profile]}"
+  export VITYO_ANDROID_MIN_SDK="${PROFILE_MIN_SDK[$profile]}"
+  export VITYO_ANDROID_BUILD_TOOLS="${PROFILE_BUILD_TOOLS[$profile]}"
+  export VITYO_ANDROID_NDK_VERSION="${PROFILE_NDK_VERSION[$profile]}"
   export ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT"
   export ANDROID_HOME="$ANDROID_SDK_ROOT"
   local java_home
-  java_home="$(styio_view_default_java_home)"
+  java_home="$(vityo_default_java_home)"
   if [[ -n "$java_home" ]]; then
     export JAVA_HOME="$java_home"
   fi
   export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/${PROFILE_BUILD_TOOLS[$profile]}:$PATH"
 
-  export ORG_GRADLE_PROJECT_styioAndroidCompileSdk="${PROFILE_COMPILE_SDK[$profile]}"
-  export ORG_GRADLE_PROJECT_styioAndroidTargetSdk="${PROFILE_TARGET_SDK[$profile]}"
-  export ORG_GRADLE_PROJECT_styioAndroidMinSdk="${PROFILE_MIN_SDK[$profile]}"
-  export ORG_GRADLE_PROJECT_styioAndroidBuildToolsVersion="${PROFILE_BUILD_TOOLS[$profile]}"
-  export ORG_GRADLE_PROJECT_styioAndroidNdkVersion="${PROFILE_NDK_VERSION[$profile]}"
-  export ORG_GRADLE_PROJECT_styioAndroidBuildRoot="../../build/${profile}"
+  export ORG_GRADLE_PROJECT_vityoAndroidCompileSdk="${PROFILE_COMPILE_SDK[$profile]}"
+  export ORG_GRADLE_PROJECT_vityoAndroidTargetSdk="${PROFILE_TARGET_SDK[$profile]}"
+  export ORG_GRADLE_PROJECT_vityoAndroidMinSdk="${PROFILE_MIN_SDK[$profile]}"
+  export ORG_GRADLE_PROJECT_vityoAndroidBuildToolsVersion="${PROFILE_BUILD_TOOLS[$profile]}"
+  export ORG_GRADLE_PROJECT_vityoAndroidNdkVersion="${PROFILE_NDK_VERSION[$profile]}"
+  export ORG_GRADLE_PROJECT_vityoAndroidBuildRoot="../../build/${profile}"
 }
 
 print_env() {
@@ -170,26 +170,26 @@ print_env() {
   require_profile "$profile"
 
   cat <<EOF
-export STYIO_VIEW_ANDROID_PROFILE="$profile"
+export VITYO_ANDROID_PROFILE="$profile"
 export ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT"
 export ANDROID_HOME="\$ANDROID_SDK_ROOT"
-export STYIO_VIEW_ANDROID_PLATFORM="${PROFILE_PLATFORM[$profile]}"
-export STYIO_VIEW_ANDROID_COMPILE_SDK="${PROFILE_COMPILE_SDK[$profile]}"
-export STYIO_VIEW_ANDROID_TARGET_SDK="${PROFILE_TARGET_SDK[$profile]}"
-export STYIO_VIEW_ANDROID_MIN_SDK="${PROFILE_MIN_SDK[$profile]}"
-export STYIO_VIEW_ANDROID_BUILD_TOOLS="${PROFILE_BUILD_TOOLS[$profile]}"
-export STYIO_VIEW_ANDROID_NDK_VERSION="${PROFILE_NDK_VERSION[$profile]}"
+export VITYO_ANDROID_PLATFORM="${PROFILE_PLATFORM[$profile]}"
+export VITYO_ANDROID_COMPILE_SDK="${PROFILE_COMPILE_SDK[$profile]}"
+export VITYO_ANDROID_TARGET_SDK="${PROFILE_TARGET_SDK[$profile]}"
+export VITYO_ANDROID_MIN_SDK="${PROFILE_MIN_SDK[$profile]}"
+export VITYO_ANDROID_BUILD_TOOLS="${PROFILE_BUILD_TOOLS[$profile]}"
+export VITYO_ANDROID_NDK_VERSION="${PROFILE_NDK_VERSION[$profile]}"
 export PATH="\$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:\$ANDROID_SDK_ROOT/platform-tools:\$ANDROID_SDK_ROOT/build-tools/${PROFILE_BUILD_TOOLS[$profile]}:\$PATH"
-export ORG_GRADLE_PROJECT_styioAndroidCompileSdk="${PROFILE_COMPILE_SDK[$profile]}"
-export ORG_GRADLE_PROJECT_styioAndroidTargetSdk="${PROFILE_TARGET_SDK[$profile]}"
-export ORG_GRADLE_PROJECT_styioAndroidMinSdk="${PROFILE_MIN_SDK[$profile]}"
-export ORG_GRADLE_PROJECT_styioAndroidBuildToolsVersion="${PROFILE_BUILD_TOOLS[$profile]}"
-export ORG_GRADLE_PROJECT_styioAndroidNdkVersion="${PROFILE_NDK_VERSION[$profile]}"
-export ORG_GRADLE_PROJECT_styioAndroidBuildRoot="../../build/${profile}"
+export ORG_GRADLE_PROJECT_vityoAndroidCompileSdk="${PROFILE_COMPILE_SDK[$profile]}"
+export ORG_GRADLE_PROJECT_vityoAndroidTargetSdk="${PROFILE_TARGET_SDK[$profile]}"
+export ORG_GRADLE_PROJECT_vityoAndroidMinSdk="${PROFILE_MIN_SDK[$profile]}"
+export ORG_GRADLE_PROJECT_vityoAndroidBuildToolsVersion="${PROFILE_BUILD_TOOLS[$profile]}"
+export ORG_GRADLE_PROJECT_vityoAndroidNdkVersion="${PROFILE_NDK_VERSION[$profile]}"
+export ORG_GRADLE_PROJECT_vityoAndroidBuildRoot="../../build/${profile}"
 EOF
 
   local java_home
-  java_home="$(styio_view_default_java_home)"
+  java_home="$(vityo_default_java_home)"
   if [[ -n "$java_home" ]]; then
     printf 'export JAVA_HOME="%s"\n' "$java_home"
   fi
@@ -285,22 +285,22 @@ build_for_profile() {
   local -a cmd=()
 
   require_profile "$profile"
-  FLUTTER_BIN="$(styio_view_resolve_flutter_bin "$FLUTTER_BIN" "$FLUTTER_HOME")" \
-    || fail "flutter is not installed. Set STYIO_VIEW_FLUTTER_BIN or STYIO_VIEW_FLUTTER_HOME."
-  styio_view_copy_flutter_project \
+  FLUTTER_BIN="$(vityo_resolve_flutter_bin "$FLUTTER_BIN" "$FLUTTER_HOME")" \
+    || fail "flutter is not installed. Set VITYO_FLUTTER_BIN or VITYO_FLUTTER_HOME."
+  vityo_copy_flutter_project \
     "$flutter_dir" \
     "$workspace_root" \
     ".gradle" \
     "android/.gradle"
 
   cmd=("$FLUTTER_BIN" "build" "$artifact" "--$mode" "--android-project-cache-dir" "$cache_dir")
-  cmd+=("--android-project-arg" "styioAndroidProfile=$profile")
-  cmd+=("--android-project-arg" "styioAndroidCompileSdk=${PROFILE_COMPILE_SDK[$profile]}")
-  cmd+=("--android-project-arg" "styioAndroidTargetSdk=${PROFILE_TARGET_SDK[$profile]}")
-  cmd+=("--android-project-arg" "styioAndroidMinSdk=${PROFILE_MIN_SDK[$profile]}")
-  cmd+=("--android-project-arg" "styioAndroidBuildToolsVersion=${PROFILE_BUILD_TOOLS[$profile]}")
-  cmd+=("--android-project-arg" "styioAndroidNdkVersion=${PROFILE_NDK_VERSION[$profile]}")
-  cmd+=("--android-project-arg" "styioAndroidBuildRoot=../../build/${profile}")
+  cmd+=("--android-project-arg" "vityoAndroidProfile=$profile")
+  cmd+=("--android-project-arg" "vityoAndroidCompileSdk=${PROFILE_COMPILE_SDK[$profile]}")
+  cmd+=("--android-project-arg" "vityoAndroidTargetSdk=${PROFILE_TARGET_SDK[$profile]}")
+  cmd+=("--android-project-arg" "vityoAndroidMinSdk=${PROFILE_MIN_SDK[$profile]}")
+  cmd+=("--android-project-arg" "vityoAndroidBuildToolsVersion=${PROFILE_BUILD_TOOLS[$profile]}")
+  cmd+=("--android-project-arg" "vityoAndroidNdkVersion=${PROFILE_NDK_VERSION[$profile]}")
+  cmd+=("--android-project-arg" "vityoAndroidBuildRoot=../../build/${profile}")
   if [[ -n "$target_platform" ]]; then
     cmd+=("--target-platform" "$target_platform")
   fi
@@ -321,13 +321,13 @@ build_for_profile() {
     cp -a "$app_dir/build/app/outputs" "$outputs_root/outputs"
   fi
   cat >"$outputs_root/profile.env" <<EOF
-STYIO_VIEW_ANDROID_PROFILE=$profile
-STYIO_VIEW_ANDROID_PLATFORM=${PROFILE_PLATFORM[$profile]}
-STYIO_VIEW_ANDROID_COMPILE_SDK=${PROFILE_COMPILE_SDK[$profile]}
-STYIO_VIEW_ANDROID_TARGET_SDK=${PROFILE_TARGET_SDK[$profile]}
-STYIO_VIEW_ANDROID_MIN_SDK=${PROFILE_MIN_SDK[$profile]}
-STYIO_VIEW_ANDROID_BUILD_TOOLS=${PROFILE_BUILD_TOOLS[$profile]}
-STYIO_VIEW_ANDROID_NDK_VERSION=${PROFILE_NDK_VERSION[$profile]}
+VITYO_ANDROID_PROFILE=$profile
+VITYO_ANDROID_PLATFORM=${PROFILE_PLATFORM[$profile]}
+VITYO_ANDROID_COMPILE_SDK=${PROFILE_COMPILE_SDK[$profile]}
+VITYO_ANDROID_TARGET_SDK=${PROFILE_TARGET_SDK[$profile]}
+VITYO_ANDROID_MIN_SDK=${PROFILE_MIN_SDK[$profile]}
+VITYO_ANDROID_BUILD_TOOLS=${PROFILE_BUILD_TOOLS[$profile]}
+VITYO_ANDROID_NDK_VERSION=${PROFILE_NDK_VERSION[$profile]}
 EOF
 }
 

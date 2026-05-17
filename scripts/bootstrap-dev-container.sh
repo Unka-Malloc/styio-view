@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE_NAME="${STYIO_VIEW_DOCKER_IMAGE:-styio-view/dev-env}"
-CONTAINER_NAME="${STYIO_VIEW_DOCKER_CONTAINER:-styio-view-dev}"
-ANDROID_PROFILES="${STYIO_VIEW_ANDROID_PROFILES:-android-35,android-36}"
-ANDROID_DEFAULT_PROFILE="${STYIO_VIEW_ANDROID_DEFAULT_PROFILE:-android-36}"
+IMAGE_NAME="${VITYO_DOCKER_IMAGE:-vityo-nightly/dev-env}"
+CONTAINER_NAME="${VITYO_DOCKER_CONTAINER:-vityo-nightly-dev}"
+ANDROID_PROFILES="${VITYO_ANDROID_PROFILES:-android-35,android-36}"
+ANDROID_DEFAULT_PROFILE="${VITYO_ANDROID_DEFAULT_PROFILE:-android-36}"
 WITH_ANDROID=0
 REBUILD=0
 NO_RUN=0
@@ -15,7 +15,7 @@ usage() {
   cat <<'EOF'
 Usage: bootstrap-dev-container.sh [options]
 
-Build and launch the standardized styio-view development container.
+Build and launch the standardized Vityo development container.
 
 Options:
   --with-android            Build the Linux + Android combo image
@@ -35,11 +35,11 @@ EOF
 }
 
 log() {
-  printf '[styio-view container] %s\n' "$*"
+  printf '[Vityo container] %s\n' "$*"
 }
 
 fail() {
-  printf '[styio-view container] %s\n' "$*" >&2
+  printf '[Vityo container] %s\n' "$*" >&2
   exit 1
 }
 
@@ -81,10 +81,10 @@ run_container() {
     -u "$(id -u):$(id -g)" \
     -e HOME=/tmp/styio-home \
     -e STYIO_EDITOR_URL=http://127.0.0.1:4180/editor.html \
-    -e STYIO_VIEW_ANDROID_PROFILES="$ANDROID_PROFILES" \
-    -e STYIO_VIEW_ANDROID_DEFAULT_PROFILE="$ANDROID_DEFAULT_PROFILE" \
-    -v "$ROOT:/workspace/styio-view" \
-    -w /workspace/styio-view \
+    -e VITYO_ANDROID_PROFILES="$ANDROID_PROFILES" \
+    -e VITYO_ANDROID_DEFAULT_PROFILE="$ANDROID_DEFAULT_PROFILE" \
+    -v "$ROOT:/workspace/vityo-nightly" \
+    -w /workspace/vityo-nightly \
     -p 4180:4180 \
     "$IMAGE_NAME" \
     bash -lc "mkdir -p \"\$HOME\" && ${startup} && exec bash"

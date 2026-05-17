@@ -133,7 +133,7 @@ if [[ "$RUN_AUDIT" -eq 1 ]]; then
   if git -C "$AUDIT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     log "styio-audit commit: $(git -C "$AUDIT_ROOT" rev-parse HEAD)"
   fi
-  run_cmd "$AUDIT_BIN" gate --repo "$ROOT" --project styio-view
+  run_cmd "$AUDIT_BIN" gate --repo "$ROOT" --project Vityo
 else
   log "styio-audit skipped"
 fi

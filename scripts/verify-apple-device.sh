@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/flutter-workspace-common.sh"
-FLUTTER_DIR_DEFAULT="$ROOT/frontend/styio_view_app"
+FLUTTER_DIR_DEFAULT="$ROOT/frontend/vityo_app"
 WORK_DIR_DEFAULT="$ROOT/build/apple-device-workspaces"
 
 PROFILE=""
@@ -20,7 +20,7 @@ usage() {
   cat <<'EOF'
 Usage: verify-apple-device.sh [options] [-- <extra flutter run args>]
 
-Run styio-view against a real Apple target using one of the standardized Apple
+Run Vityo against a real Apple target using one of the standardized Apple
 profiles. iOS profiles target physical devices or simulators. macOS profiles
 target the local Mac host via `flutter run -d macos`.
 
@@ -52,9 +52,9 @@ ensure_macos() {
 }
 
 ensure_flutter_bin() {
-  local flutter_home="${STYIO_VIEW_FLUTTER_HOME:-$HOME/develop/flutter}"
-  local flutter_bin="${STYIO_VIEW_FLUTTER_BIN:-$flutter_home/bin/flutter}"
-  styio_view_resolve_flutter_bin "$flutter_bin" "$flutter_home" \
+  local flutter_home="${VITYO_FLUTTER_HOME:-$HOME/develop/flutter}"
+  local flutter_bin="${VITYO_FLUTTER_BIN:-$flutter_home/bin/flutter}"
+  vityo_resolve_flutter_bin "$flutter_bin" "$flutter_home" \
     || fail "flutter is not installed"
 }
 
@@ -119,12 +119,12 @@ main() {
 
   [[ -n "$PROFILE" ]] || fail "--profile is required"
   local family
-  family="$(STYIO_VIEW_APPLE_PROFILE_FILE="${STYIO_VIEW_APPLE_PROFILE_FILE:-$ROOT/toolchain/apple-platform-profiles.csv}" "$ROOT/scripts/apple-platform-profile.sh" env "$PROFILE" | awk -F= '/STYIO_VIEW_APPLE_PROFILE_FAMILY/ {gsub(/"/,"",$2); print $2}')"
+  family="$(VITYO_APPLE_PROFILE_FILE="${VITYO_APPLE_PROFILE_FILE:-$ROOT/toolchain/apple-platform-profiles.csv}" "$ROOT/scripts/apple-platform-profile.sh" env "$PROFILE" | awk -F= '/VITYO_APPLE_PROFILE_FAMILY/ {gsub(/"/,"",$2); print $2}')"
   [[ -n "$family" ]] || fail "unable to resolve Apple profile family for $PROFILE"
 
   local workspace_root="$WORK_DIR/$PROFILE"
   local app_dir="$workspace_root/$(basename "$FLUTTER_DIR")"
-  styio_view_copy_flutter_project "$FLUTTER_DIR" "$workspace_root"
+  vityo_copy_flutter_project "$FLUTTER_DIR" "$workspace_root"
 
   local -a cmd=()
   case "$family" in

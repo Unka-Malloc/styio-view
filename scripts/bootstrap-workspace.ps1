@@ -9,12 +9,12 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$FlutterHome = if ($env:STYIO_VIEW_FLUTTER_HOME) { $env:STYIO_VIEW_FLUTTER_HOME } else { Join-Path $env:USERPROFILE "develop\\flutter" }
-$FlutterBin = if ($env:STYIO_VIEW_FLUTTER_BIN) { $env:STYIO_VIEW_FLUTTER_BIN } else { Join-Path $FlutterHome "bin\\flutter.bat" }
+$FlutterHome = if ($env:VITYO_FLUTTER_HOME) { $env:VITYO_FLUTTER_HOME } else { Join-Path $env:USERPROFILE "develop\\flutter" }
+$FlutterBin = if ($env:VITYO_FLUTTER_BIN) { $env:VITYO_FLUTTER_BIN } else { Join-Path $FlutterHome "bin\\flutter.bat" }
 
 function Write-Log {
     param([string]$Message)
-    Write-Host "[styio-view workspace] $Message"
+    Write-Host "[Vityo workspace] $Message"
 }
 
 function Ensure-Platform {
@@ -39,16 +39,16 @@ if ($WithAndroid) {
 }
 
 if (-not (Test-Path $FlutterBin)) {
-    throw "flutter is not installed. Set STYIO_VIEW_FLUTTER_HOME or STYIO_VIEW_FLUTTER_BIN."
+    throw "flutter is not installed. Set VITYO_FLUTTER_HOME or VITYO_FLUTTER_BIN."
 }
 
 if (-not $SkipPlatformBootstrap) {
     Write-Log "generating Flutter runners for platforms: $Platforms"
-    Push-Location (Join-Path $Root "frontend\\styio_view_app")
+    Push-Location (Join-Path $Root "frontend\\vityo_app")
     & $FlutterBin create `
         --platforms="$Platforms" `
-        --project-name=styio_view_app `
-        --org=io.styio.view `
+        --project-name=vityo_app `
+        --org=io.vityo `
         .
     Pop-Location
 }
@@ -62,7 +62,7 @@ if (-not $SkipNpm) {
 
 if (-not $SkipFlutterPub) {
     Write-Log "installing Flutter package dependencies"
-    Push-Location (Join-Path $Root "frontend\\styio_view_app")
+    Push-Location (Join-Path $Root "frontend\\vityo_app")
     & $FlutterBin pub get
     Pop-Location
 }

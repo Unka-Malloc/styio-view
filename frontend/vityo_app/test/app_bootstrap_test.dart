@@ -1,0 +1,295 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/app/app_bootstrap.dart';
+import 'package:vityo_app/src/integration/hosted_control_plane.dart';
+import 'package:vityo_app/src/integration/project_graph_contract.dart';
+import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/editor/editor_controller.dart';
+import 'package:vityo_app/src/view_ide/editor/document_state.dart';
+import 'package:vityo_app/src/view_ide/environment/configuration/configuration.dart';
+import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
+import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
+import 'package:vityo_app/src/view_ide/language/service/service.dart';
+import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_document_store_types.dart';
+
+void main() {
+  test('app bootstrap resolves language service project context', () {
+    final context = AppBootstrap.resolveLanguageServiceProjectContext(
+      workspaceRoot: '/workspace/demo',
+      styioConfigPath: '/workspace/demo/styio.toml',
+    );
+
+    expect(context.workingDirectory, '/workspace/demo');
+    expect(context.configPath, '/workspace/demo/styio.toml');
+  });
+
+  test('app bootstrap allows missing Styio config path', () {
+    final context = AppBootstrap.resolveLanguageServiceProjectContext(
+      workspaceRoot: '/workspace/scratch',
+    );
+
+    expect(context.workingDirectory, '/workspace/scratch');
+    expect(context.configPath, isNull);
+  });
+
+  test(
+    'app bootstrap binds language result cache to toolchain catalog changes',
+    () async {
+      final cache = StyioServiceResultCache()
+        ..store(
+          const StyioServiceResponse(
+            status: StyioServiceStatus.succeeded,
+            documentId: 'fixture://app-cache',
+            revision: 1,
+            toolchainId: 'styio-old',
+          ),
+        );
+      final changes =
+          StreamController<ToolchainCatalogConfigurationChange>.broadcast(
+            sync: true,
+          );
+      addTearDown(changes.close);
+      final binding = AppBootstrap.bindLanguageResultCacheToToolchainCatalog(
+        resultCache: cache,
+        catalogChanges: changes.stream,
+      );
+      addTearDown(binding.dispose);
+
+      changes.add(
+        ToolchainCatalogConfigurationChange(
+          kind: ConfigurationSettingChangeKind.deleted,
+          workspaceId: 'demo',
+          catalog: null,
+          emittedAt: DateTime.utc(2026, 5, 17),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cache.length, 0);
+    },
+  );
+
+  test('app bootstrap refreshes language service for active editor', () async {
+    final cache = StyioServiceResultCache();
+    final connector = _RecordingStyioConnector();
+    final driver = StyioServiceAnalysisDriver(
+      connector: connector,
+      resultCache: cache,
+    );
+    const document = DocumentState(
+      documentId: 'fixture://app-editor',
+      text: '#main := () => {}',
+      revision: 2,
+    );
+    final editorController = EditorSessionController(
+      initialDocument: document,
+      languageService: createRoutedStyioLanguageService(resultCache: cache),
+    );
+    final status = ValueNotifier<LanguageServiceStatusSurface>(
+      LanguageServiceStatusSurface.refreshing(),
+    );
+
+    final report = await AppBootstrap.refreshLanguageServiceForEditor(
+      driver: driver,
+      editorController: editorController,
+      workspaceDocumentStore: const _MappedWorkspaceDocumentStore(
+        filePath: '/workspace/src/main.styio',
+      ),
+      projectContext: const AppLanguageServiceProjectContext(
+        workingDirectory: '/workspace',
+        configPath: '/workspace/styio.toml',
+      ),
+      languageServiceStatus: status,
+    );
+
+    expect(report.response.configPath, '/workspace/styio.toml');
+    expect(report.response.workingDirectory, '/workspace');
+    expect(connector.documents.single.filePath, '/workspace/src/main.styio');
+    expect(connector.documents.single.configPath, '/workspace/styio.toml');
+    expect(connector.documents.single.workingDirectory, '/workspace');
+    expect(editorController.analysis.diagnostics.single.code, 'styio.app');
+    expect(status.value.primaryCapabilityStates['diagnostics'], 'available');
+  });
+
+  test(
+    'app bootstrap uses hosted document store for hosted workspaces',
+    () async {
+      final localStore = InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          '/workspace/demo/src/main.styio': DocumentState(
+            documentId: '/workspace/demo/src/main.styio',
+            text: 'local := true\n',
+            revision: 1,
+          ),
+        },
+      );
+      final hostedClient = _RecordingHostedControlPlaneClient();
+      final store = await AppBootstrap.createEditorWorkspaceDocumentStore(
+        platformTarget: PlatformTarget.ios,
+        localStore: localStore,
+        projectSnapshot: _hostedProjectGraph(),
+        hostedClientProvider: ({required platformTarget}) async => hostedClient,
+      );
+
+      final document = await store.loadDocument(
+        '/workspace/demo/src/main.styio',
+      );
+      expect(document.text, 'remote := true\n');
+      expect(document.revision, 3);
+
+      final edited = document.replaceRange(
+        start: document.text.indexOf('true'),
+        end: document.text.indexOf('true') + 'true'.length,
+        replacement: 'false',
+      );
+      await store.saveDocument(edited);
+
+      expect(hostedClient.loadedPaths, <String>[
+        '/workspace/demo/src/main.styio',
+      ]);
+      expect(hostedClient.savedDocuments.single['path'], edited.documentId);
+      expect(
+        hostedClient.savedDocuments.single['documentText'],
+        'remote := false\n',
+      );
+      expect(hostedClient.savedDocuments.single['revision'], 4);
+    },
+  );
+}
+
+class _RecordingStyioConnector implements StyioServiceConnector {
+  final List<StyioServiceDocument> documents = <StyioServiceDocument>[];
+
+  @override
+  Future<StyioServiceResponse> analyzeDocument(
+    StyioServiceDocument document,
+  ) async {
+    documents.add(document);
+    return StyioServiceResponse(
+      status: StyioServiceStatus.succeeded,
+      documentId: document.documentId,
+      revision: document.revision,
+      configPath: document.configPath,
+      workingDirectory: document.workingDirectory,
+      diagnostics: const <StyioServiceDiagnosticDto>[
+        StyioServiceDiagnosticDto(
+          severity: DiagnosticSeverity.warning,
+          code: 'styio.app',
+          message: 'app diagnostic',
+          range: SourceRange(start: 0, end: 1),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecordingHostedControlPlaneClient implements HostedControlPlaneClient {
+  final List<String> loadedPaths = <String>[];
+  final List<Map<String, Object?>> savedDocuments = <Map<String, Object?>>[];
+
+  @override
+  HostedControlPlaneConfig get config => const HostedControlPlaneConfig(
+    baseUrl: 'https://hosted.example.test',
+    workspaceRoot: '/workspace/demo',
+    workspaceId: 'demo-workspace',
+  );
+
+  @override
+  Future<Map<String, dynamic>> loadDocument({
+    required String workspaceId,
+    required String path,
+  }) async {
+    loadedPaths.add(path);
+    return <String, dynamic>{
+      'returncode': 0,
+      'message': 'loaded hosted document',
+      'payload': <String, Object?>{
+        'path': path,
+        'document_text': 'remote := true\n',
+        'revision': 3,
+      },
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> saveDocument({
+    required String workspaceId,
+    required String path,
+    required String documentText,
+    required int revision,
+  }) async {
+    savedDocuments.add(<String, Object?>{
+      'workspaceId': workspaceId,
+      'path': path,
+      'documentText': documentText,
+      'revision': revision,
+    });
+    return <String, dynamic>{
+      'returncode': 0,
+      'message': 'saved hosted document',
+      'payload': <String, Object?>{
+        'path': path,
+        'revision': revision,
+        'saved': true,
+      },
+    };
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+ProjectGraphSnapshot _hostedProjectGraph() {
+  return ProjectGraphSnapshot(
+    id: '/workspace/demo/spio.toml',
+    title: 'demo/app',
+    kind: ProjectKind.hosted,
+    workspaceRoot: '/workspace/demo',
+    workspaceMembers: const <String>[],
+    manifestPath: '/workspace/demo/spio.toml',
+    packages: const <ProjectPackageSnapshot>[],
+    dependencies: const <ProjectDependencySnapshot>[],
+    targets: const <ProjectTargetDescriptor>[],
+    editorFiles: const <String>['/workspace/demo/src/main.styio'],
+    toolchain: const ToolchainStatusSnapshot(
+      source: ToolchainResolutionSource.managedCurrent,
+      detail: 'hosted toolchain',
+      channel: 'stable',
+      version: '0.0.2',
+    ),
+    lockState: ProjectLockState.fresh,
+    vendorState: ProjectVendorState.present,
+    hostedWorkspace: HostedWorkspaceRecordSnapshot(
+      workspaceId: 'demo-workspace',
+      schemaVersion: '1',
+      ownerRef: 'Vityo',
+      status: HostedWorkspaceStatus.active,
+      entryUrl: 'https://hosted.example.test/workspaces/demo-workspace',
+      createdAt: DateTime.utc(2026, 5, 17),
+      lastActiveAt: DateTime.utc(2026, 5, 17, 1),
+      retentionDays: 7,
+      exportState: HostedWorkspaceExportState.notRequested,
+    ),
+    notes: const <String>[],
+  );
+}
+
+class _MappedWorkspaceDocumentStore implements WorkspaceDocumentStore {
+  const _MappedWorkspaceDocumentStore({required this.filePath});
+
+  final String filePath;
+
+  @override
+  String? filePathForDocumentId(String documentId) => filePath;
+
+  @override
+  Future<DocumentState> loadDocument(String path) async {
+    return DocumentState(documentId: path, text: '', revision: 0);
+  }
+
+  @override
+  Future<void> saveDocument(DocumentState document) async {}
+}

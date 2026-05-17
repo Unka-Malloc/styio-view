@@ -1,0 +1,9 @@
+/// Blends price and tax inputs.
+/// @param left Base price before tax.
+/// @param right Tax component to add.
+fn blend(left: f64, right: f64 = 0.0) {
+  emit left
+}
+price = 1.0
+tax = 0.5
+value = blend(price, tax)

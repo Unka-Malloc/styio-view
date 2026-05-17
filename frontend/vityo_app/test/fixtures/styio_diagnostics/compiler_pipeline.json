@@ -1,0 +1,118 @@
+{
+  "cases": [
+    {
+      "name": "lexical and delimiter diagnostics",
+      "source": "value = \"open\ncost = €\nfn main(\nitems = [1, 2\n/* open\n",
+      "diagnostics": [
+        {
+          "code": "unclosed-bracket",
+          "severity": "error",
+          "phase": "syntax"
+        },
+        {
+          "code": "unclosed-parenthesis",
+          "severity": "error",
+          "phase": "syntax"
+        },
+        {
+          "code": "unknown-token",
+          "severity": "error",
+          "phase": "lexical"
+        },
+        {
+          "code": "unterminated-block-comment",
+          "severity": "error",
+          "phase": "lexical"
+        },
+        {
+          "code": "unterminated-string",
+          "severity": "error",
+          "phase": "lexical"
+        }
+      ]
+    },
+    {
+      "name": "resolver and type diagnostics",
+      "source": "fn blend(left: f64, right: f64): f64 {\n  temp = left + right\n  emit \"bad\"\n}\nprice = 1.0\ncount: i64 = 1.5\nvalue = blend(price)\nwhen price -> state ready\n",
+      "diagnostics": [
+        {
+          "code": "condition-type-mismatch",
+          "severity": "warning",
+          "phase": "type"
+        },
+        {
+          "code": "initializer-type-mismatch",
+          "severity": "warning",
+          "phase": "type"
+        },
+        {
+          "code": "missing-call-argument",
+          "severity": "warning",
+          "phase": "resolver"
+        },
+        {
+          "code": "return-type-mismatch",
+          "severity": "warning",
+          "phase": "type"
+        }
+      ]
+    },
+    {
+      "name": "resource and task-flow diagnostics",
+      "source": "@prices : f64|..2| := {}\nprice = 1.0\nlabel = \"bad\"\nlabel -> @prices\nprice -> @missing\nprice -> @stdin\ntask = ||> { <| \"done\" }\n?| task -> result: i64\n?| missingTask -> fallback: string\n",
+      "diagnostics": [
+        {
+          "code": "await-result-type-mismatch",
+          "severity": "error",
+          "phase": "taskFlow"
+        },
+        {
+          "code": "read-only-resource-write",
+          "severity": "error",
+          "phase": "resourceTopology"
+        },
+        {
+          "code": "resource-write-type-mismatch",
+          "severity": "error",
+          "phase": "resourceTopology"
+        },
+        {
+          "code": "unresolved-resource",
+          "severity": "error",
+          "phase": "resourceTopology"
+        },
+        {
+          "code": "unresolved-task-await",
+          "severity": "error",
+          "phase": "taskFlow"
+        }
+      ]
+    },
+    {
+      "name": "function declaration and hash function diagnostics",
+      "source": "fn blend(value: f64): f64 {\n  emit value\n}\n#blend := (left, left) => {\n  <| left\n  next = left\n}\n",
+      "diagnostics": [
+        {
+          "code": "duplicate-function-declaration",
+          "severity": "error",
+          "phase": "resolver"
+        },
+        {
+          "code": "duplicate-parameter-declaration",
+          "severity": "error",
+          "phase": "resolver"
+        },
+        {
+          "code": "unreachable-code",
+          "severity": "warning",
+          "phase": "controlFlow"
+        },
+        {
+          "code": "unused-parameter",
+          "severity": "warning",
+          "phase": "resolver"
+        }
+      ]
+    }
+  ]
+}

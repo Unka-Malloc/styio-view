@@ -1,0 +1,15 @@
+{
+  "moduleId": "theme.core",
+  "displayName": "Theme Core",
+  "version": "0.1.0",
+  "kind": "core",
+  "slot": "theme",
+  "description": "Theme preset loading and shared shell styling.",
+  "enabledByDefault": true,
+  "entrypoint": "lib/src/theme/vityo_theme.dart",
+  "distributionPolicyRef": "base-shell",
+  "capabilityFlags": {
+    "presetThemes": true,
+    "themeOverrides": true
+  }
+}

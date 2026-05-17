@@ -1,0 +1,15 @@
+{
+  "moduleId": "debug.console",
+  "displayName": "Debug Console",
+  "version": "0.1.0",
+  "kind": "optional",
+  "slot": "debugTools",
+  "description": "Desktop-first debug console and shell diagnostics panel.",
+  "enabledByDefault": true,
+  "entrypoint": "lib/src/app/layout/vityo_shell_scaffold.dart",
+  "distributionPolicyRef": "cross-platform-ui",
+  "capabilityFlags": {
+    "debugConsole": true,
+    "hostDiagnostics": true
+  }
+}

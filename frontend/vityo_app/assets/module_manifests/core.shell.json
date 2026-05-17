@@ -1,0 +1,16 @@
+{
+  "moduleId": "core.shell",
+  "displayName": "Shell Core",
+  "version": "0.1.0",
+  "kind": "core",
+  "slot": "shell",
+  "description": "Workspace shell, navigation, status bar, and command routing.",
+  "enabledByDefault": true,
+  "entrypoint": "lib/src/app/layout/vityo_shell_scaffold.dart",
+  "distributionPolicyRef": "base-shell",
+  "capabilityFlags": {
+    "workspaceRouting": true,
+    "commandRouting": true,
+    "statusBar": true
+  }
+}

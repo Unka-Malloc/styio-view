@@ -1,0 +1,577 @@
+import '../backend_toolchain/project_graph_contract.dart';
+import '../backend_toolchain/toolchain_management_adapter.dart';
+import '../toolchain/toolchain_catalog.dart';
+import '../toolchain/toolchain_configuration_store.dart';
+import '../toolchain/toolchain_install_executor.dart'
+    hide ToolchainRecoveryAction;
+import '../toolchain/toolchain_install_policy.dart';
+import '../toolchain/toolchain_manager.dart';
+
+enum ToolchainStatusSeverity { ready, unavailable, blocked, failed }
+
+class ToolchainRecoveryAction {
+  const ToolchainRecoveryAction({
+    required this.id,
+    required this.label,
+    required this.description,
+  });
+
+  final String id;
+  final String label;
+  final String description;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'label': label,
+      'description': description,
+    };
+  }
+}
+
+class ToolchainStatusSurface {
+  const ToolchainStatusSurface({
+    required this.source,
+    required this.severity,
+    required this.title,
+    required this.message,
+    required this.recoveryActions,
+    this.version,
+    this.channel,
+    this.pinPath,
+    this.lastCommand,
+    this.lastCommandStatus,
+    this.lastCommandMessage,
+  });
+
+  factory ToolchainStatusSurface.fromProjectToolchain(
+    ToolchainStatusSnapshot snapshot, {
+    ToolchainCommandResult? lastCommand,
+  }) {
+    final severity = _severityFor(snapshot, lastCommand);
+    return ToolchainStatusSurface(
+      source: snapshot.source.label,
+      severity: severity,
+      title: _titleFor(severity),
+      message: lastCommand?.statusMessage ?? snapshot.detail,
+      version: snapshot.version,
+      channel: snapshot.channel,
+      pinPath: snapshot.pinPath,
+      lastCommand: lastCommand?.command,
+      lastCommandStatus: lastCommand?.status.name,
+      lastCommandMessage: lastCommand?.statusMessage,
+      recoveryActions: _recoveryActionsFor(severity, lastCommand),
+    );
+  }
+
+  factory ToolchainStatusSurface.fromManagerStatusReport(
+    ToolchainManagerStatusReport report, {
+    ToolchainCommandResult? lastCommand,
+  }) {
+    final severity = lastCommand != null && !lastCommand.succeeded
+        ? _severityForCommand(lastCommand)
+        : _severityForManagerStatus(report.status);
+    final descriptor = report.resolution.descriptor;
+    return ToolchainStatusSurface(
+      source: 'manager-report',
+      severity: severity,
+      title: _titleFor(severity),
+      message:
+          lastCommand?.statusMessage ??
+          report.message ??
+          report.health?.message ??
+          report.resolution.message ??
+          _managerMessageFor(report.status),
+      version: descriptor?.version,
+      channel: descriptor?.channel,
+      lastCommand: lastCommand?.command,
+      lastCommandStatus: lastCommand?.status.name,
+      lastCommandMessage: lastCommand?.statusMessage,
+      recoveryActions: _recoveryActionsFor(severity, lastCommand),
+    );
+  }
+
+  final String source;
+  final ToolchainStatusSeverity severity;
+  final String title;
+  final String message;
+  final String? version;
+  final String? channel;
+  final String? pinPath;
+  final String? lastCommand;
+  final String? lastCommandStatus;
+  final String? lastCommandMessage;
+  final List<ToolchainRecoveryAction> recoveryActions;
+
+  bool get actionable {
+    return severity == ToolchainStatusSeverity.unavailable ||
+        severity == ToolchainStatusSeverity.blocked ||
+        severity == ToolchainStatusSeverity.failed;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'source': source,
+      'severity': severity.name,
+      'title': title,
+      'message': message,
+      if (version != null) 'version': version,
+      if (channel != null) 'channel': channel,
+      if (pinPath != null) 'pinPath': pinPath,
+      if (lastCommand != null) 'lastCommand': lastCommand,
+      if (lastCommandStatus != null) 'lastCommandStatus': lastCommandStatus,
+      if (lastCommandMessage != null) 'lastCommandMessage': lastCommandMessage,
+      'recoveryActions': recoveryActions
+          .map((action) => action.toJson())
+          .toList(growable: false),
+      'actionable': actionable,
+    };
+  }
+
+  static ToolchainStatusSeverity _severityFor(
+    ToolchainStatusSnapshot snapshot,
+    ToolchainCommandResult? lastCommand,
+  ) {
+    if (lastCommand != null) {
+      return _severityForCommand(lastCommand);
+    }
+    return switch (snapshot.source) {
+      ToolchainResolutionSource.projectPin ||
+      ToolchainResolutionSource.managedCurrent ||
+      ToolchainResolutionSource.environment => ToolchainStatusSeverity.ready,
+      ToolchainResolutionSource.unavailable =>
+        ToolchainStatusSeverity.unavailable,
+      ToolchainResolutionSource.unknown => ToolchainStatusSeverity.unavailable,
+    };
+  }
+
+  static ToolchainStatusSeverity _severityForCommand(
+    ToolchainCommandResult command,
+  ) {
+    return switch (command.status) {
+      ToolchainCommandStatus.succeeded => ToolchainStatusSeverity.ready,
+      ToolchainCommandStatus.blocked => ToolchainStatusSeverity.blocked,
+      ToolchainCommandStatus.failed => ToolchainStatusSeverity.failed,
+    };
+  }
+
+  static ToolchainStatusSeverity _severityForManagerStatus(
+    ToolchainManagerStatus status,
+  ) {
+    return switch (status) {
+      ToolchainManagerStatus.ready => ToolchainStatusSeverity.ready,
+      ToolchainManagerStatus.unresolved => ToolchainStatusSeverity.unavailable,
+      ToolchainManagerStatus.unhealthy => ToolchainStatusSeverity.failed,
+    };
+  }
+
+  static String _titleFor(ToolchainStatusSeverity severity) {
+    return switch (severity) {
+      ToolchainStatusSeverity.ready => 'Toolchain ready',
+      ToolchainStatusSeverity.unavailable => 'Toolchain unavailable',
+      ToolchainStatusSeverity.blocked => 'Toolchain action blocked',
+      ToolchainStatusSeverity.failed => 'Toolchain command failed',
+    };
+  }
+
+  static String _managerMessageFor(ToolchainManagerStatus status) {
+    return switch (status) {
+      ToolchainManagerStatus.ready =>
+        'Toolchain manager resolved a usable toolchain.',
+      ToolchainManagerStatus.unresolved =>
+        'Toolchain manager could not resolve a matching toolchain.',
+      ToolchainManagerStatus.unhealthy =>
+        'Toolchain manager resolved a toolchain, but health probing failed.',
+    };
+  }
+
+  static List<ToolchainRecoveryAction> _recoveryActionsFor(
+    ToolchainStatusSeverity severity,
+    ToolchainCommandResult? lastCommand,
+  ) {
+    return switch (severity) {
+      ToolchainStatusSeverity.ready => const <ToolchainRecoveryAction>[],
+      ToolchainStatusSeverity.unavailable => const <ToolchainRecoveryAction>[
+        ToolchainRecoveryAction(
+          id: 'select-existing-toolchain',
+          label: 'Select toolchain',
+          description: 'Choose an existing Styio toolchain for this workspace.',
+        ),
+        ToolchainRecoveryAction(
+          id: 'install-managed-toolchain',
+          label: 'Install managed toolchain',
+          description: 'Install a Vityo-managed Styio toolchain when allowed.',
+        ),
+        ToolchainRecoveryAction(
+          id: 'use-degraded-mode',
+          label: 'Use degraded mode',
+          description: 'Continue with features that do not require Styio.',
+        ),
+      ],
+      ToolchainStatusSeverity.blocked => <ToolchainRecoveryAction>[
+        ToolchainRecoveryAction(
+          id: 'fix-toolchain-precondition',
+          label: 'Fix precondition',
+          description:
+              lastCommand?.statusMessage ??
+              'Resolve the blocked toolchain command precondition.',
+        ),
+        const ToolchainRecoveryAction(
+          id: 'select-existing-toolchain',
+          label: 'Select toolchain',
+          description: 'Choose a compatible local Styio toolchain.',
+        ),
+      ],
+      ToolchainStatusSeverity.failed => <ToolchainRecoveryAction>[
+        ToolchainRecoveryAction(
+          id: 'retry-${(lastCommand?.command ?? 'toolchain').replaceAll(' ', '-')}',
+          label: 'Retry command',
+          description:
+              lastCommand?.statusMessage ??
+              'Retry the failed toolchain command after reviewing logs.',
+        ),
+        const ToolchainRecoveryAction(
+          id: 'show-toolchain-logs',
+          label: 'Show logs',
+          description: 'Open the latest toolchain command logs.',
+        ),
+        const ToolchainRecoveryAction(
+          id: 'select-existing-toolchain',
+          label: 'Select toolchain',
+          description: 'Switch to another compatible Styio toolchain.',
+        ),
+      ],
+    };
+  }
+}
+
+class ToolchainSettingsSurface {
+  const ToolchainSettingsSurface({
+    required this.status,
+    required this.toolchains,
+    required this.capabilities,
+    required this.recoveryState,
+    required this.installHistory,
+    this.targetId,
+    this.workspaceId,
+  });
+
+  factory ToolchainSettingsSurface.fromStatus(ToolchainStatusSurface status) {
+    return ToolchainSettingsSurface(
+      status: status,
+      toolchains: const <ToolchainCandidateSurface>[],
+      capabilities: const <ToolchainCapabilitySurface>[],
+      recoveryState: const ToolchainRecoveryStateSurface(
+        kind: 'unknown',
+        actionIds: <String>[],
+        actionable: false,
+      ),
+      installHistory: const <ToolchainInstallHistorySurface>[],
+    );
+  }
+
+  factory ToolchainSettingsSurface.fromManagerStatusReport(
+    ToolchainManagerStatusReport report, {
+    ToolchainCommandResult? lastCommand,
+  }) {
+    return ToolchainSettingsSurface(
+      status: ToolchainStatusSurface.fromManagerStatusReport(
+        report,
+        lastCommand: lastCommand,
+      ),
+      targetId: report.snapshot.targetId,
+      workspaceId: report.snapshot.workspaceId,
+      toolchains: report.snapshot.entries
+          .map(ToolchainCandidateSurface.fromEntry)
+          .toList(growable: false),
+      capabilities: report.capabilities
+          .map(ToolchainCapabilitySurface.fromCapability)
+          .toList(growable: false),
+      recoveryState: ToolchainRecoveryStateSurface.fromState(
+        report.recoveryState,
+      ),
+      installHistory:
+          report.installHistory?.entries
+              .map(ToolchainInstallHistorySurface.fromEntry)
+              .toList(growable: false) ??
+          const <ToolchainInstallHistorySurface>[],
+    );
+  }
+
+  final ToolchainStatusSurface status;
+  final String? targetId;
+  final String? workspaceId;
+  final List<ToolchainCandidateSurface> toolchains;
+  final List<ToolchainCapabilitySurface> capabilities;
+  final ToolchainRecoveryStateSurface recoveryState;
+  final List<ToolchainInstallHistorySurface> installHistory;
+
+  bool get hasManagerSnapshot => targetId != null;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.toJson(),
+      if (targetId != null) 'targetId': targetId,
+      if (workspaceId != null) 'workspaceId': workspaceId,
+      'toolchains': toolchains
+          .map((toolchain) => toolchain.toJson())
+          .toList(growable: false),
+      'capabilities': capabilities
+          .map((capability) => capability.toJson())
+          .toList(growable: false),
+      'recoveryState': recoveryState.toJson(),
+      'installHistory': installHistory
+          .map((entry) => entry.toJson())
+          .toList(growable: false),
+      'hasManagerSnapshot': hasManagerSnapshot,
+    };
+  }
+}
+
+class ToolchainCandidateSurface {
+  const ToolchainCandidateSurface({
+    required this.id,
+    required this.kind,
+    required this.displayName,
+    required this.executablePath,
+    required this.active,
+    this.version,
+    this.channel,
+  });
+
+  factory ToolchainCandidateSurface.fromEntry(ToolchainStateEntry entry) {
+    return ToolchainCandidateSurface(
+      id: entry.id,
+      kind: entry.kind,
+      displayName: entry.displayName,
+      executablePath: entry.executablePath,
+      active: entry.active,
+      version: entry.version,
+      channel: entry.channel,
+    );
+  }
+
+  final String id;
+  final ToolchainKind kind;
+  final String displayName;
+  final String executablePath;
+  final bool active;
+  final String? version;
+  final String? channel;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'kind': kind.wireValue,
+      'displayName': displayName,
+      'executablePath': executablePath,
+      'active': active,
+      if (version != null) 'version': version,
+      if (channel != null) 'channel': channel,
+    };
+  }
+}
+
+class ToolchainCapabilitySurface {
+  const ToolchainCapabilitySurface({
+    required this.kind,
+    required this.state,
+    required this.active,
+    required this.usable,
+    this.descriptorId,
+    this.message,
+  });
+
+  factory ToolchainCapabilitySurface.fromCapability(
+    ToolchainCapabilityStatus capability,
+  ) {
+    return ToolchainCapabilitySurface(
+      kind: capability.kind,
+      state: capability.state.name,
+      active: capability.active,
+      usable: capability.usable,
+      descriptorId: capability.descriptorId,
+      message: capability.message,
+    );
+  }
+
+  final ToolchainKind kind;
+  final String state;
+  final bool active;
+  final bool usable;
+  final String? descriptorId;
+  final String? message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'state': state,
+      'active': active,
+      'usable': usable,
+      if (descriptorId != null) 'descriptorId': descriptorId,
+      if (message != null) 'message': message,
+    };
+  }
+}
+
+class ToolchainRecoveryStateSurface {
+  const ToolchainRecoveryStateSurface({
+    required this.kind,
+    required this.actionIds,
+    required this.actionable,
+    this.message,
+  });
+
+  factory ToolchainRecoveryStateSurface.fromState(
+    ToolchainRecoveryState state,
+  ) {
+    return ToolchainRecoveryStateSurface(
+      kind: state.kind.name,
+      actionIds: state.actionIds,
+      actionable: state.actionable,
+      message: state.message,
+    );
+  }
+
+  final String kind;
+  final List<String> actionIds;
+  final bool actionable;
+  final String? message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind,
+      'actionIds': actionIds,
+      'actionable': actionable,
+      if (message != null) 'message': message,
+    };
+  }
+}
+
+class ToolchainInstallHistorySurface {
+  const ToolchainInstallHistorySurface({
+    required this.id,
+    required this.status,
+    required this.mode,
+    required this.kind,
+    required this.succeeded,
+    required this.recordedAt,
+    this.message,
+  });
+
+  factory ToolchainInstallHistorySurface.fromEntry(
+    ToolchainInstallHistoryEntry entry,
+  ) {
+    return ToolchainInstallHistorySurface(
+      id: entry.id,
+      status: entry.status,
+      mode: entry.mode,
+      kind: entry.kind,
+      succeeded: entry.succeeded,
+      recordedAt: entry.recordedAt,
+      message: entry.message,
+    );
+  }
+
+  final String id;
+  final String status;
+  final String mode;
+  final String kind;
+  final bool succeeded;
+  final DateTime recordedAt;
+  final String? message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'status': status,
+      'mode': mode,
+      'kind': kind,
+      'succeeded': succeeded,
+      'recordedAt': recordedAt.toUtc().toIso8601String(),
+      if (message != null) 'message': message,
+    };
+  }
+}
+
+class ToolchainInstallPlanSurface {
+  const ToolchainInstallPlanSurface({
+    required this.status,
+    required this.mode,
+    required this.kind,
+    required this.actionable,
+    this.message,
+    this.downloadUri,
+    this.externalCommand,
+  });
+
+  factory ToolchainInstallPlanSurface.fromPlan(ToolchainInstallPlan plan) {
+    return ToolchainInstallPlanSurface(
+      status: plan.status.name,
+      mode: plan.mode.name,
+      kind: plan.requirement.kind.wireValue,
+      actionable: plan.actionable,
+      message: plan.message,
+      downloadUri: plan.downloadUri?.toString(),
+      externalCommand: plan.externalCommand,
+    );
+  }
+
+  final String status;
+  final String mode;
+  final String kind;
+  final bool actionable;
+  final String? message;
+  final String? downloadUri;
+  final String? externalCommand;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status,
+      'mode': mode,
+      'kind': kind,
+      'actionable': actionable,
+      if (message != null) 'message': message,
+      if (downloadUri != null) 'downloadUri': downloadUri,
+      if (externalCommand != null) 'externalCommand': externalCommand,
+    };
+  }
+}
+
+class ToolchainInstallExecutionSurface {
+  const ToolchainInstallExecutionSurface({
+    required this.status,
+    required this.mode,
+    required this.kind,
+    required this.succeeded,
+    this.message,
+  });
+
+  factory ToolchainInstallExecutionSurface.fromResult(
+    ToolchainInstallExecutionResult result,
+  ) {
+    return ToolchainInstallExecutionSurface(
+      status: result.status.name,
+      mode: result.plan.mode.name,
+      kind: result.plan.requirement.kind.wireValue,
+      succeeded: result.succeeded,
+      message: result.message,
+    );
+  }
+
+  final String status;
+  final String mode;
+  final String kind;
+  final bool succeeded;
+  final String? message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status,
+      'mode': mode,
+      'kind': kind,
+      'succeeded': succeeded,
+      if (message != null) 'message': message,
+    };
+  }
+}

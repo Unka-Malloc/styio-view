@@ -1,0 +1,14 @@
+{
+  "id": "vityo-ide-syntax",
+  "version": "2026.05.ide",
+  "delimiterPairs": {
+    "(": ")",
+    "[": "]",
+    "{": "}"
+  },
+  "diagnostics": {
+    "unknownToken": true,
+    "unterminatedString": true,
+    "unterminatedBlockComment": true
+  }
+}

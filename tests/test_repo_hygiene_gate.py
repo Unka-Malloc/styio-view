@@ -81,6 +81,12 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
         self.assertIn("package:flutter/widgets.dart", joined)
         self.assertIn("dart:ui", joined)
 
+    def test_current_view_ide_language_layout_matches_registered_contract(self) -> None:
+        self.assertEqual(self.gate.check_view_ide_language_layout(), [])
+
+    def test_current_view_ide_editor_layout_matches_registered_contract(self) -> None:
+        self.assertEqual(self.gate.check_view_ide_editor_layout(), [])
+
     def test_project_branding_accepts_vityo_entrypoints(self) -> None:
         with tempfile.TemporaryDirectory(
             prefix="project-branding-",

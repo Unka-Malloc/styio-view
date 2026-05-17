@@ -236,6 +236,7 @@ VIEW_IDE_LANGUAGE_SUBMODULES = (
     "semantic",
     "service",
     "features",
+    "syntax_validation",
 )
 VIEW_IDE_EDITOR_SUBMODULES = (
     "document",
@@ -244,6 +245,7 @@ VIEW_IDE_EDITOR_SUBMODULES = (
     "transactions",
     "render_plan",
     "actions",
+    "session",
 )
 VIEW_IDE_EDITOR_FACADES = {
     "document_state.dart": "document/document_state.dart",
@@ -257,6 +259,7 @@ VIEW_IDE_EDITOR_BARREL = (
     "export 'document/document.dart';",
     "export 'render_plan/render_plan.dart';",
     "export 'selection/selection.dart';",
+    "export 'session/session.dart';",
     "export 'transactions/transactions.dart';",
 )
 VIEW_IDE_LANGUAGE_FACADES = {
@@ -265,15 +268,30 @@ VIEW_IDE_LANGUAGE_FACADES = {
     "styio_symbol_index.dart": "semantic/styio_symbol_index.dart",
     "styio_language_service.dart": "service/styio_language_service.dart",
     "simple_styio_language_service.dart": "service/simple_styio_language_service.dart",
+    "local_styio_language_service.dart": "service/local_styio_language_service.dart",
 }
 VIEW_IDE_LANGUAGE_BARREL = (
     "export 'contract/language_contract.dart';",
     "export 'diagnostics/diagnostics.dart';",
+    "export 'features/features.dart';",
     "export 'semantic/styio_symbol_index.dart';",
+    "export 'service/legacy_project_document_rule_provider.dart';",
+    "export 'service/project_document_diagnostics.dart';",
+    "export 'service/project_document_quick_fixes.dart';",
+    "export 'service/project_document_rule_registry.dart';",
+    "export 'service/project_document_rule_provider.dart';",
     "export 'service/project_styio_language_service.dart';",
-    "export 'service/simple_styio_language_service.dart';",
+    "export 'service/project_styio_document_service.dart';",
+    "export 'service/language_service_foundation.dart';",
+    "export 'service/local_styio_language_service.dart';",
+    "export 'service/styio_service_capability.dart';",
+    "export 'service/styio_service_capability_detector.dart';",
+    "export 'service/styio_service_connector.dart';",
+    "export 'service/styio_service_project_document_rule_provider.dart';",
+    "export 'service/styio_service_runtime.dart';",
     "export 'service/styio_language_service.dart';",
     "export 'syntax/styio_syntax_highlighter.dart';",
+    "export 'syntax_validation/syntax_validation.dart';",
 )
 
 

@@ -1,6 +1,6 @@
 # Spio Workflow Success Payloads
 
-**Purpose:** 冻结 `styio-view` 对 `spio` workflow success payload 的 handoff 要求。
+**Purpose:** 冻结 `Vityo` 对 `spio` workflow success payload 的 handoff 要求。
 
 **Last updated:** 2026-04-17
 
@@ -47,7 +47,7 @@ spio --json test --manifest-path <path> ...
 
 ## 2. Stable JSON Success For Supporting Commands
 
-除 `workflow_success_payloads v1` 外，`styio-view` 当前还依赖这些 canonical CLI forms 的成功 JSON：
+除 `workflow_success_payloads v1` 外，`Vityo` 当前还依赖这些 canonical CLI forms 的成功 JSON：
 
 ```text
 spio --json fetch --manifest-path <path> ...
@@ -71,5 +71,5 @@ spio --json tool pin (--version <compiler-version> [--channel <channel>] | --cle
 
 1. 不能只有 failure JSON；成功也必须有稳定机器输出。
 2. `build/run/test` 使用 `workflow_success_payloads v1`，并作为 IDE 项目执行主线。
-3. supporting commands 的成功 JSON 也必须稳定，因为 `styio-view` 已通过这些命令驱动 fetch/vendor、pack/publish 和 toolchain lifecycle。
-4. `styio-view` 不解析 prose stderr 来判断 workflow 是否成功。
+3. supporting commands 的成功 JSON 也必须稳定，因为 `Vityo` 已通过这些命令驱动 fetch/vendor、pack/publish 和 toolchain lifecycle。
+4. `Vityo` 不解析 prose stderr 来判断 workflow 是否成功。

@@ -1,6 +1,6 @@
 # LanguageServiceAdapter
 
-**Purpose:** 冻结 `styio-view` 需要的语言层结果；任何上游实现只要满足本合同，就能驱动当前编辑器语义。
+**Purpose:** 冻结 `Vityo` 需要的语言层结果；任何上游实现只要满足本合同，就能驱动当前编辑器语义。
 
 **Last updated:** 2026-05-10
 
@@ -73,4 +73,4 @@
 2. `FFI Adapter`
 3. `Cloud Adapter`
 
-只要 snapshot shape 一致，`styio-view` 不关心实现方式。
+只要 snapshot shape 一致，`Vityo` 不关心实现方式。

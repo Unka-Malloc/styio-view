@@ -10,4 +10,4 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `2026-04-12/` | [Styio View Milestone Index — 2026-04-12](./2026-04-12/00-Milestone-Index.md) | 冻结 styio-view 首批实施里程碑、依赖链和验收门禁；具体任务见各里程碑文件。 |
+| `2026-04-12/` | [Vityo Milestone Index — 2026-04-12](./2026-04-12/00-Milestone-Index.md) | 冻结 Vityo 首批实施里程碑、依赖链和验收门禁；具体任务见各里程碑文件。 |

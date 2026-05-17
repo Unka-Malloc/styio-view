@@ -1,6 +1,6 @@
 # Styio Integration Overview
 
-**Purpose:** 说明 `styio-view` 与上游 `styio` 的总体责任边界，避免把 UI 壳层工作与编译器集成工作混在同一个任务队列里。
+**Purpose:** 说明 `Vityo` 与上游 `styio` 的总体责任边界，避免把 UI 壳层工作与编译器集成工作混在同一个任务队列里。
 
 **Last updated:** 2026-04-12
 
@@ -13,13 +13,13 @@
 1. 语言服务边界
 2. 编译运行边界
 
-`styio-view` 不应该直接依赖 `styio` 的内部 C++ ABI，也不应该把 UI 与编译器实现细节绑死。
+`Vityo` 不应该直接依赖 `styio` 的内部 C++ ABI，也不应该把 UI 与编译器实现细节绑死。
 
-`styio-view` 拥有产品合同，`styio` 只需要通过 `CLI`、`FFI` 或云端实现去满足这些合同；具体内部做法由 `styio` 自己决定。
+`Vityo` 拥有产品合同，`styio` 只需要通过 `CLI`、`FFI` 或云端实现去满足这些合同；具体内部做法由 `styio` 自己决定。
 
 ## 2. 责任划分
 
-### 2.1 `styio-view` 负责
+### 2.1 `Vityo` 负责
 
 1. Flutter 主壳
 2. 产品合同与 adapter 边界
@@ -43,7 +43,7 @@
 
 ## 3. 当前阻塞面
 
-目前 `styio-view` 已经可以先用本地假服务推进 UI，但下面这些能力如果不和 `styio` 对接，就只能停在 mock 阶段：
+目前 `Vityo` 已经可以先用本地假服务推进 UI，但下面这些能力如果不和 `styio` 对接，就只能停在 mock 阶段：
 
 1. 真实语义高亮
 2. 真实 diagnostics 与 quick fix
@@ -83,7 +83,7 @@
 
 当前开发策略应该是：
 
-1. `styio-view` 继续完成独立可做的 UI 与编辑器部分
+1. `Vityo` 继续完成独立可做的 UI 与编辑器部分
 2. 与 `styio` 的所有正式输入输出边界统一冻结到本目录
 3. 先用已发布的 single-file CLI 能力和 `jsonl diagnostics` 走主线
 4. 上游一旦发布 `CLI` 或 `FFI` handoff，就只替换 adapter 实现，不重构 UI

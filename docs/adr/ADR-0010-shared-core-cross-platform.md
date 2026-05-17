@@ -1,6 +1,6 @@
 # ADR-0010: Desktop And Mobile Share A Core Framework
 
-**Purpose:** 记录 `styio-view` 在桌面端与移动端之间共享核心框架、数据模型和服务层，而只在展示与交互层分化的决定。
+**Purpose:** 记录 `Vityo` 在桌面端与移动端之间共享核心框架、数据模型和服务层，而只在展示与交互层分化的决定。
 
 **Last updated:** 2026-04-12
 

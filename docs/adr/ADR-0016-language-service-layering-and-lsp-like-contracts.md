@@ -1,6 +1,6 @@
 # ADR-0016: Language Service Separates Highlighting, Diagnostics, And Formatting
 
-**Purpose:** 记录 `styio-view` 的语言服务如何分层，以及为什么不让 `linter` 负责基础高亮。
+**Purpose:** 记录 `Vityo` 的语言服务如何分层，以及为什么不让 `linter` 负责基础高亮。
 
 **Last updated:** 2026-05-10
 
@@ -10,7 +10,7 @@
 
 ## Context
 
-`styio-view` 需要：
+`Vityo` 需要：
 
 1. 在输入时立即更新基础 token 高亮
 2. 在稍慢但更准确的分析结果到达后刷新语义高亮

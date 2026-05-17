@@ -18,11 +18,11 @@ jobs:
       STYIO_PYTHON_VERSION: "3.13.5"
 
     steps:
-      - name: Checkout styio-view
+      - name: Checkout Vityo nightly
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          path: styio-view
+          path: vityo-nightly
 
       - name: Checkout released styio-audit policy
         uses: actions/checkout@v5
@@ -37,14 +37,14 @@ jobs:
           python-version: ${{ env.STYIO_PYTHON_VERSION }}
 
       - name: Fetch managed branch evidence
-        working-directory: styio-view
+        working-directory: vityo-nightly
         run: |
           for branch in stable nightly ai-dev; do
             git fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
           done
 
       - name: Run released styio-audit gate
-        working-directory: styio-view
+        working-directory: vityo-nightly
         run: |
           git -C ../styio-audit rev-parse HEAD
-          python3 ../styio-audit/bin/styio-audit gate --repo . --project styio-view
+          python3 ../styio-audit/bin/styio-audit gate --repo . --project Vityo

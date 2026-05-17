@@ -6,14 +6,14 @@
 
 ## Mission
 
-负责 `styio-view` 自己拥有的 adapter 合同、integration layer 以及对上游的 required handoff。该团队不规划上游内部实现，也不降低前端产品语义去适配临时实现。
+负责 `Vityo` 自己拥有的 adapter 合同、integration layer 以及对上游的 required handoff。该团队不规划上游内部实现，也不降低前端产品语义去适配临时实现。
 
 ## Owned Surface
 
 Primary paths:
 
-1. `frontend/styio_view_app/lib/src/backend_toolchain/`
-2. `frontend/styio_view_app/lib/src/integration/`
+1. `frontend/vityo_app/lib/src/backend_toolchain/`
+2. `frontend/vityo_app/lib/src/integration/`
 3. `docs/contracts/`
 4. `docs/external/for-styio/`
 5. `docs/external/for-spio/`
@@ -52,7 +52,7 @@ Key SSOTs:
 Minimum:
 
 ```bash
-cd frontend/styio_view_app && flutter analyze && flutter test
+cd frontend/vityo_app && flutter analyze && flutter test
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
 

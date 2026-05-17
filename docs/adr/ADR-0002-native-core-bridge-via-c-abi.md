@@ -1,6 +1,6 @@
 # ADR-0002: Native Bridge Is Exposed As FFI Adapter
 
-**Purpose:** 记录 `styio-view` 如何把上游 `styio` 原生核心接入 Flutter。
+**Purpose:** 记录 `Vityo` 如何把上游 `styio` 原生核心接入 Flutter。
 
 **Last updated:** 2026-04-12
 
@@ -14,7 +14,7 @@
 
 ## Decision
 
-原生接入统一只使用 `FFI Adapter` 这个产品术语。实现上可以是稳定 C ABI、sidecar native bridge 或其它原生形式，但对 `styio-view` 主线而言只暴露成 `FFI Adapter`。
+原生接入统一只使用 `FFI Adapter` 这个产品术语。实现上可以是稳定 C ABI、sidecar native bridge 或其它原生形式，但对 `Vityo` 主线而言只暴露成 `FFI Adapter`。
 
 ## Alternatives
 

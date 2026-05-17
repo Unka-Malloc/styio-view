@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-04-22
 
-**Scope:** `frontend/styio_view_app/lib/src/backend_toolchain/execution_adapter_io.dart` execution overlay isolation.
+**Scope:** `frontend/vityo_app/lib/src/backend_toolchain/execution_adapter_io.dart` execution overlay isolation.
 
 ## Findings Addressed
 

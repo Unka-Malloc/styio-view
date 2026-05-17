@@ -6,7 +6,7 @@
 
 **Date:** 2026-04-22
 **Scope owner:** hosted control-plane IO client
-**Status:** Remediated for `frontend/styio_view_app/lib/src/backend_toolchain/hosted_control_plane_io.dart`
+**Status:** Remediated for `frontend/vityo_app/lib/src/backend_toolchain/hosted_control_plane_io.dart`
 
 ## Findings Addressed
 
@@ -16,10 +16,10 @@
 
 ## Remediation
 
-- Base URLs are normalized from `STYIO_VIEW_HOSTED_URL` and must be absolute `https`, or `http` only for loopback local development. Credentials, query strings, fragments, and relative path segments are rejected.
-- Hosted IO routes require `STYIO_VIEW_HOSTED_TOKEN`; requests send `Authorization: Bearer ...`, `Accept: application/json`, and disable redirects so auth is not forwarded through redirect chains.
-- Requests use `STYIO_VIEW_HOSTED_TIMEOUT_MS` when provided, otherwise a 15 second default. The timeout is applied to connection and whole request/response handling.
-- Response reads are bounded by `STYIO_VIEW_HOSTED_MAX_RESPONSE_BYTES` when provided, otherwise a 1 MiB default. Both declared `contentLength` and streamed chunks are checked.
+- Base URLs are normalized from `VITYO_HOSTED_URL` and must be absolute `https`, or `http` only for loopback local development. Credentials, query strings, fragments, and relative path segments are rejected.
+- Hosted IO routes require `VITYO_HOSTED_TOKEN`; requests send `Authorization: Bearer ...`, `Accept: application/json`, and disable redirects so auth is not forwarded through redirect chains.
+- Requests use `VITYO_HOSTED_TIMEOUT_MS` when provided, otherwise a 15 second default. The timeout is applied to connection and whole request/response handling.
+- Response reads are bounded by `VITYO_HOSTED_MAX_RESPONSE_BYTES` when provided, otherwise a 1 MiB default. Both declared `contentLength` and streamed chunks are checked.
 - Successful responses must be JSON objects. Optional top-level envelope fields used by hosted adapters are type-checked.
 
 ## Test Evidence

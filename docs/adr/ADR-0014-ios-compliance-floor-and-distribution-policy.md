@@ -1,6 +1,6 @@
 # ADR-0014: iOS Defines The Compliance Floor For Distribution
 
-**Purpose:** 记录 `styio-view` 为什么以 iOS 作为唯一商店受限平台和共享合规下限，同时允许其它平台采用自分发和自更新路径。
+**Purpose:** 记录 `Vityo` 为什么以 iOS 作为唯一商店受限平台和共享合规下限，同时允许其它平台采用自分发和自更新路径。
 
 **Last updated:** 2026-04-12
 

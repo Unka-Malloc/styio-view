@@ -40,8 +40,8 @@
 
 当前代码入口：
 
-1. `frontend/styio_view_app/lib/src/agent/agent_surface.dart`
-2. `frontend/styio_view_app/lib/src/app/layout/styio_shell_scaffold.dart`
+1. `frontend/vityo_app/lib/src/agent/agent_surface.dart`
+2. `frontend/vityo_app/lib/src/app/layout/vityo_shell_scaffold.dart`
 
 当前已落地：
 

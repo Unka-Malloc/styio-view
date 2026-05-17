@@ -22,11 +22,11 @@ jobs:
       STYIO_FLUTTER_VERSION: "3.41.7"
 
     steps:
-      - name: Checkout styio-view
+      - name: Checkout Vityo nightly
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          path: styio-view
+          path: vityo-nightly
 
       - name: Resolve sibling checkout ref
         id: sibling-ref
@@ -93,15 +93,21 @@ jobs:
           "${{ steps.setup-chrome.outputs.chrome-path }}" --version
 
       - name: Restore repository dependencies
-        working-directory: styio-view
+        working-directory: vityo-nightly
         run: |
           cd prototype && npm ci
-          cd ../frontend/styio_view_app && flutter pub get
+          cd ../frontend/vityo_app && flutter pub get
+
+      - name: Build Styio language fixture parser
+        working-directory: styio-nightly
+        run: |
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/default --target styio -j2
 
       - name: Resolve CI refs
         id: ci_refs
         shell: bash
-        working-directory: styio-view
+        working-directory: vityo-nightly
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             git fetch --no-tags origin "+refs/heads/${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}"
@@ -130,10 +136,11 @@ jobs:
           echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Run styio-view local CI gate
-        working-directory: styio-view
+      - name: Run Vityo nightly local CI gate
+        working-directory: vityo-nightly
         env:
           STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          STYIO: ${{ github.workspace }}/styio-nightly/build/default/bin/styio
         run: >
           ./scripts/delivery-gate.sh
           --mode push

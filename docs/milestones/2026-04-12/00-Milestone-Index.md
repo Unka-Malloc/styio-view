@@ -1,6 +1,6 @@
-# Styio View Milestone Index — 2026-04-12
+# Vityo Milestone Index — 2026-04-12
 
-**Purpose:** 冻结 `styio-view` 首批实施里程碑、依赖链和验收门禁；具体任务见各里程碑文件。
+**Purpose:** 冻结 `Vityo` 首批实施里程碑、依赖链和验收门禁；具体任务见各里程碑文件。
 
 **Last updated:** 2026-04-12
 
@@ -8,7 +8,7 @@
 
 ## 1. 批次目标
 
-把 `styio-view` 从“仅有方向”推进到“桌面最小闭环 + 模块宿主与 staged update 基线 + 运行视图骨架 + AI 面板骨架 + 移动端分平台策略”。
+把 `Vityo` 从“仅有方向”推进到“桌面最小闭环 + 模块宿主与 staged update 基线 + 运行视图骨架 + AI 面板骨架 + 移动端分平台策略”。
 
 ## 2. 里程碑列表
 

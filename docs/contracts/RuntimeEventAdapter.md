@@ -30,7 +30,7 @@
 8. `log.emitted`
 9. `diagnostic.emitted`
 
-当前 `styio-view` 已消费这批 replay 事件并接入：
+当前 `Vityo` 已消费这批 replay 事件并接入：
 
 1. runtime surface 的最小 event replay 摘要
 2. runtime surface / debug console 共享的 replay family、payload、route trace 与 debug lane 摘要

@@ -17,16 +17,16 @@
 | Path | Entry | Summary |
 |------|-------|---------|
 | `AGENT-PROVIDER-ADAPTER-SCHEMA.md` | [Agent Provider Adapter Schema](./AGENT-PROVIDER-ADAPTER-SCHEMA.md) | 冻结 AgentProviderAdapter 的最小合同，使 AI 面板、模块宿主和云/本地 provider 能在不共享实现细节的情况下对接。 |
-| `CONTRIBUTOR-AND-AGENT-SPEC.md` | [Styio View Contributor And Agent Spec](./CONTRIBUTOR-AND-AGENT-SPEC.md) | 定义人类贡献者与代码 agent 在 styio-view 仓库中的协作规则、联动更新要求与交付边界。 |
+| `CONTRIBUTOR-AND-AGENT-SPEC.md` | [Vityo Contributor And Agent Spec](./CONTRIBUTOR-AND-AGENT-SPEC.md) | 定义人类贡献者与代码 agent 在 Vityo 仓库中的协作规则、联动更新要求与交付边界。 |
 | `DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md` | [Distribution Channel Policy Schema](./DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md) | 冻结 DistributionChannelPolicy 的最小合同，使模块宿主能判断某模块如何分发、能否 staged update、以及是否属于 iOS-safe。 |
-| `DOCUMENTATION-POLICY.md` | [Styio View Documentation Policy](./DOCUMENTATION-POLICY.md) | 定义 styio-view 的文档目录、单一事实来源、联动更新规则与最小维护要求；产品行为与系统边界分别以 docs/design/ 中的权威文档为准。 |
+| `DOCUMENTATION-POLICY.md` | [Vityo Documentation Policy](./DOCUMENTATION-POLICY.md) | 定义 Vityo 的文档目录、单一事实来源、联动更新规则与最小维护要求；产品行为与系统边界分别以 docs/design/ 中的权威文档为准。 |
 | `HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md` | [Handwritten Web IDE Engineering Handbook](./HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md) | 记录 prototype/editor.html 这条手写 Web IDE 原型线的设计理念、设计决策、实现方法、重构原则与标准工作流，避免经验只存在于对话中。 |
 | `HOSTED-WORKSPACE-RECORD-SCHEMA.md` | [Hosted Workspace Record Schema](./HOSTED-WORKSPACE-RECORD-SCHEMA.md) | 冻结 HostedWorkspaceRecord 的最小合同，使 Web 路径、云执行平面和删除保留作业能够共享同一生命周期模型。 |
-| `OPEN-SOURCE-UI-ASSET-POLICY.md` | [Open Source UI Asset Policy](./OPEN-SOURCE-UI-ASSET-POLICY.md) | 约束 styio-view 的默认字体、glyph 字体、主题标签和调色盘来源，降低商业专有资产与品牌命名带来的许可或争议风险。 |
+| `OPEN-SOURCE-UI-ASSET-POLICY.md` | [Open Source UI Asset Policy](./OPEN-SOURCE-UI-ASSET-POLICY.md) | 约束 Vityo 的默认字体、glyph 字体、主题标签和调色盘来源，降低商业专有资产与品牌命名带来的许可或争议风险。 |
 | `POST-COMMIT-CI-CHECKS.md` | [Post-Commit CI Checks](./POST-COMMIT-CI-CHECKS.md) | Define the required workflow for checking GitHub Actions after a local commit is pushed, including what must be verified before committing and what must be watched after pushing. |
 | `PROFILE-SYNC-ADAPTER-SCHEMA.md` | [Profile Sync Adapter Schema](./PROFILE-SYNC-ADAPTER-SCHEMA.md) | 冻结 ProfileSyncAdapter 的最小合同，使 prompt、theme 和偏好设置能够在可选同步组件存在时镜像到云端，而在缺席时保持本地可用。 |
-| `REPOSITORY-MAP.md` | [Styio View Repository Map](./REPOSITORY-MAP.md) | 说明 styio-view 与上游 styio 主仓库之间的职责边界，以及本仓库当前和未来可能承担的内容；本文件不追踪具体实现进度。 |
-| `STYIO-THEME-CONFIG.md` | [Styio Theme Config](./STYIO-THEME-CONFIG.md) | 定义 styio-view 原型当前支持的主题 / 编辑器调色盘配置文件格式，结构参考 VS Code 的 settings.json、workbench.colorCustomizations 和 editor.tokenColorCustomizations。 |
-| `TECHNOLOGY-COMPONENT-INVENTORY.md` | [Technology And Component Inventory](./TECHNOLOGY-COMPONENT-INVENTORY.md) | Define the required technology-stack, internal-component, open-source-component, and dependency-manifest inventory for styio-view. |
-| `THIRD-PARTY.md` | [Third-Party Inventory](./THIRD-PARTY.md) | 记录 styio-view 当前接受、计划或明确暂缓的第三方依赖与运行时边界；第一方上游 styio 也在此登记，便于实现期核对。 |
-| `UX-MAINTENANCE-GUIDELINES.md` | [UX Maintenance Guidelines](./UX-MAINTENANCE-GUIDELINES.md) | 把外部 UX / accessibility / performance 基准转成 styio-view 的长期开发和维护准则。 |
+| `REPOSITORY-MAP.md` | [Vityo Repository Map](./REPOSITORY-MAP.md) | 说明 Vityo 与上游 styio 主仓库之间的职责边界，以及本仓库当前和未来可能承担的内容；本文件不追踪具体实现进度。 |
+| `STYIO-THEME-CONFIG.md` | [Styio Theme Config](./STYIO-THEME-CONFIG.md) | 定义 Vityo 原型当前支持的主题 / 编辑器调色盘配置文件格式，结构参考 VS Code 的 settings.json、workbench.colorCustomizations 和 editor.tokenColorCustomizations。 |
+| `TECHNOLOGY-COMPONENT-INVENTORY.md` | [Technology And Component Inventory](./TECHNOLOGY-COMPONENT-INVENTORY.md) | Define the required technology-stack, internal-component, open-source-component, and dependency-manifest inventory for Vityo. |
+| `THIRD-PARTY.md` | [Third-Party Inventory](./THIRD-PARTY.md) | 记录 Vityo 当前接受、计划或明确暂缓的第三方依赖与运行时边界；第一方上游 styio 也在此登记，便于实现期核对。 |
+| `UX-MAINTENANCE-GUIDELINES.md` | [UX Maintenance Guidelines](./UX-MAINTENANCE-GUIDELINES.md) | 把外部 UX / accessibility / performance 基准转成 Vityo 的长期开发和维护准则。 |

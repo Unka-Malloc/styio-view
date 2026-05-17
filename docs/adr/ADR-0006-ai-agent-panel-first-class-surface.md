@@ -1,6 +1,6 @@
 # ADR-0006: AI Agent Panel Is A First-Class IDE Surface
 
-**Purpose:** 记录 `styio-view` 如何定位 AI 协作层，以及为什么它不能只是一个外挂聊天窗口。
+**Purpose:** 记录 `Vityo` 如何定位 AI 协作层，以及为什么它不能只是一个外挂聊天窗口。
 
 **Last updated:** 2026-04-12
 

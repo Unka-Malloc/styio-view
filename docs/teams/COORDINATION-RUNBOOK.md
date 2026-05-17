@@ -1,6 +1,6 @@
 # Coordination Runbook
 
-**Purpose:** 提供 `styio-view` 的日常协调入口；显式维护团队 ownership、review routing、升级路径和 checkpoint 纪律，但不替代产品规格、系统架构或 adapter 合同 SSOT。
+**Purpose:** 提供 `Vityo` 的日常协调入口；显式维护团队 ownership、review routing、升级路径和 checkpoint 纪律，但不替代产品规格、系统架构或 adapter 合同 SSOT。
 
 **Last updated:** 2026-04-21
 
@@ -10,14 +10,14 @@
 
 权威入口：
 
-1. 产品规格：[../design/Styio-View-Product-Spec.md](../design/Styio-View-Product-Spec.md)
-2. 系统架构：[../design/Styio-View-System-Architecture.md](../design/Styio-View-System-Architecture.md)
+1. 产品规格：[../design/Vityo-Product-Spec.md](../design/Vityo-Product-Spec.md)
+2. 系统架构：[../design/Vityo-System-Architecture.md](../design/Vityo-System-Architecture.md)
 3. 仓库边界：[../specs/REPOSITORY-MAP.md](../specs/REPOSITORY-MAP.md)
 4. 文档策略：[../specs/DOCUMENTATION-POLICY.md](../specs/DOCUMENTATION-POLICY.md)
 5. 人机协作规范：[../specs/CONTRIBUTOR-AND-AGENT-SPEC.md](../specs/CONTRIBUTOR-AND-AGENT-SPEC.md)
 6. 测试目录：[../assets/workflow/TEST-CATALOG.md](../assets/workflow/TEST-CATALOG.md)
-7. 三仓统一总纲镜像：[../plans/Styio-Ecosystem-Delivery-Master-Plan.md](../plans/Styio-Ecosystem-Delivery-Master-Plan.md)
-8. 文件治理对齐计划镜像：[../plans/Styio-Ecosystem-File-Governance-Alignment-Plan.md](../plans/Styio-Ecosystem-File-Governance-Alignment-Plan.md)
+7. 三仓统一总纲镜像：[../design/Vityo-Delivered-Design-Baseline.md](../design/Vityo-Delivered-Design-Baseline.md)
+8. 文件治理对齐计划镜像：[../specs/DOCUMENTATION-POLICY.md](../specs/DOCUMENTATION-POLICY.md)
 
 ## Module Map
 
@@ -59,8 +59,8 @@ flowchart TB
 
 ## Escalation Rules
 
-1. 产品语义冲突：回到 [../design/Styio-View-Product-Spec.md](../design/Styio-View-Product-Spec.md)。
-2. 系统层次、数据流或执行后端冲突：回到 [../design/Styio-View-System-Architecture.md](../design/Styio-View-System-Architecture.md)。
+1. 产品语义冲突：回到 [../design/Vityo-Product-Spec.md](../design/Vityo-Product-Spec.md)。
+2. 系统层次、数据流或执行后端冲突：回到 [../design/Vityo-System-Architecture.md](../design/Vityo-System-Architecture.md)。
 3. 上游职责边界冲突：回到 [../specs/REPOSITORY-MAP.md](../specs/REPOSITORY-MAP.md)、`../external/for-styio/`、`../external/for-spio/`。
 4. 文档与交付纪律冲突：回到 [../specs/DOCUMENTATION-POLICY.md](../specs/DOCUMENTATION-POLICY.md) 与 [../specs/CONTRIBUTOR-AND-AGENT-SPEC.md](../specs/CONTRIBUTOR-AND-AGENT-SPEC.md)。
 5. 未决风险仍无结论：记录到 [../review/Logic-Conflicts.md](../review/Logic-Conflicts.md)。
@@ -71,7 +71,7 @@ flowchart TB
 2. 一次结构性变更应同时带上设计或规格更新、必要 ADR、里程碑状态调整和测试目录映射。
 3. 若改变了 owned surface、review 路由或 handoff 路径，同批更新对应 team runbook。
 4. 中断时必须把状态、下一步、阻塞项和回滚点写入 `docs/history/YYYY-MM-DD.md`。
-5. 若改动了三仓共同里程碑、repo exit、checkpoint ID 或跨仓 cutover 语义，同批更新本镜像总纲、`Styio-View-Implementation-Plan.md` 和对应 handoff 文档。
+5. 若改动了三仓共同里程碑、repo exit、checkpoint ID 或跨仓 cutover 语义，同批更新本镜像总纲、`Vityo-Implementation-Gaps.md` 和对应 handoff 文档。
 6. 若改动了 docs tree、索引规则、archive/rollup lifecycle、ignore-policy 或 fixture 反忽略策略，同批更新文件治理对齐镜像、本仓文档策略和受影响 team runbook。
 7. `TEST-CATALOG` 中标为 `planned` 的项不得当作“已验证”。
 
@@ -80,7 +80,7 @@ flowchart TB
 | Cutover | Minimum gate |
 |---------|--------------|
 | 手写 Web Editor 主线 | `cd prototype && npm run selftest:editor`，必要时更新手写 Web IDE handbook |
-| Flutter 壳层或共享 UI 状态 | `cd frontend/styio_view_app && flutter analyze && flutter test` |
+| Flutter 壳层或共享 UI 状态 | `cd frontend/vityo_app && flutter analyze && flutter test` |
 | adapter / schema / handoff 合同 | 更新 `docs/contracts/`、`docs/external/for-styio/`、`docs/external/for-spio/` 与 `TEST-CATALOG` 对应映射 |
 | module lifecycle / distribution / capability | 更新 manifest、capability matrix、分发 schema 与测试目录条目 |
 | 文档结构或交付边界 | 更新相关 `README.md` / `INDEX.md` 并运行 `python3 scripts/repo-hygiene-gate.py --mode tracked` |

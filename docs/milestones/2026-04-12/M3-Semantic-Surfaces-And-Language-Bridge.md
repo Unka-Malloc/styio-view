@@ -42,12 +42,12 @@
 
 当前代码入口：
 
-1. `frontend/styio_view_app/lib/src/integration/adapter_contracts.dart`
-2. `frontend/styio_view_app/lib/src/language/language_contract.dart`
-3. `frontend/styio_view_app/lib/src/language/styio_language_service.dart`
-4. `frontend/styio_view_app/lib/src/language/simple_styio_language_service.dart`
-5. `frontend/styio_view_app/lib/src/editor/editor_controller.dart`
-6. `frontend/styio_view_app/lib/src/editor/editor_surface.dart`
+1. `frontend/vityo_app/lib/src/integration/adapter_contracts.dart`
+2. `frontend/vityo_app/lib/src/language/language_contract.dart`
+3. `frontend/vityo_app/lib/src/language/styio_language_service.dart`
+4. `frontend/vityo_app/lib/src/language/simple_styio_language_service.dart`
+5. `frontend/vityo_app/lib/src/editor/editor_controller.dart`
+6. `frontend/vityo_app/lib/src/editor/editor_surface.dart`
 
 当前已落地：
 

@@ -10,10 +10,10 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `agent-findings/` | [Audit Agent Findings](./agent-findings/README.md) | Index parallel audit shards written by external audit agents for styio-view. |
+| `agent-findings/` | [Audit Agent Findings](./agent-findings/README.md) | Index parallel audit shards written by external audit agents for Vityo. |
 
 ## Files
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `EXTERNAL-AUDIT-2026-04-22.md` | [External Audit: styio-view](./EXTERNAL-AUDIT-2026-04-22.md) | External audit report for the 2026-04-22 styio-view review using styio-audit project styio-view and module for-styio-view. |
+| `EXTERNAL-AUDIT-2026-04-22.md` | [External Audit: Vityo](./EXTERNAL-AUDIT-2026-04-22.md) | External audit report for the 2026-04-22 Vityo review using styio-audit project Vityo and module for-vityo. |

@@ -1,6 +1,6 @@
 # Styio Language Service Adapter Contract
 
-**Purpose:** 冻结 `styio-view` 需要上游 `styio` 提供的语言服务 handoff；允许 `CLI` 或 `FFI` 任一实现路径，但输出 shape 必须满足产品合同。
+**Purpose:** 冻结 `Vityo` 需要上游 `styio` 提供的语言服务 handoff；允许 `CLI` 或 `FFI` 任一实现路径，但输出 shape 必须满足产品合同。
 
 **Last updated:** 2026-04-12
 
@@ -46,7 +46,7 @@
 
 ## 3. Acceptable Delivery Modes
 
-`styio-view` 接受两种本地交付路径：
+`Vityo` 接受两种本地交付路径：
 
 1. `CLI Adapter`
 2. `FFI Adapter`
@@ -55,7 +55,7 @@
 
 1. 可以只先交付其中一种。
 2. 一旦交付，输出 shape 必须与 `docs/contracts/LanguageServiceAdapter.md` 对齐。
-3. `styio-view` 不解析人类 stderr 来猜测 token、diagnostic 或 hover 结果。
+3. `Vityo` 不解析人类 stderr 来猜测 token、diagnostic 或 hover 结果。
 
 ## 4. Machine Handshake Requirements
 
@@ -68,7 +68,7 @@
 
 ## 5. Current Frontend Baseline
 
-当前 `styio-view` 已有：
+当前 `Vityo` 已有：
 
 1. `TokenSpan / SemanticSpan / Diagnostic / FormattingEdit / CompletionItem / HoverPayload` 数据合同
 2. inline glyph substitution

@@ -12,23 +12,23 @@
 
 Primary paths:
 
-1. `frontend/styio_view_app/lib/src/module_host/`
-2. `frontend/styio_view_app/lib/src/platform/`
-3. `frontend/styio_view_app/assets/module_manifests/`
-4. `frontend/styio_view_app/assets/capability_matrices/`
-5. `frontend/styio_view_app/android/`
-6. `frontend/styio_view_app/ios/`
-7. `frontend/styio_view_app/linux/`
-8. `frontend/styio_view_app/macos/`
-9. `frontend/styio_view_app/windows/`
-10. `frontend/styio_view_app/web/`
+1. `frontend/vityo_app/lib/src/module_host/`
+2. `frontend/vityo_app/lib/src/platform/`
+3. `frontend/vityo_app/assets/module_manifests/`
+4. `frontend/vityo_app/assets/capability_matrices/`
+5. `frontend/vityo_app/android/`
+6. `frontend/vityo_app/ios/`
+7. `frontend/vityo_app/linux/`
+8. `frontend/vityo_app/macos/`
+9. `frontend/vityo_app/windows/`
+10. `frontend/vityo_app/web/`
 11. `docs/specs/DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md`
 
 Key SSOTs:
 
-1. `系统架构 -> ../design/Styio-View-System-Architecture.md`
+1. `系统架构 -> ../design/Vityo-System-Architecture.md`
 2. `仓库边界 -> ../specs/REPOSITORY-MAP.md`
-3. `实现计划 -> ../plans/Styio-View-Implementation-Plan.md`
+3. `活跃缺口登记 -> ../design/Vityo-Implementation-Gaps.md`
 4. `卸载与 hosted 保留策略 -> ../adr/ADR-0015-uninstall-reclamation-and-hosted-workspace-retention.md`
 
 ## Daily Workflow
@@ -51,7 +51,7 @@ Key SSOTs:
 Minimum:
 
 ```bash
-cd frontend/styio_view_app && flutter analyze && flutter test
+cd frontend/vityo_app && flutter analyze && flutter test
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
 

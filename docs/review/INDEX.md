@@ -10,4 +10,4 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `Logic-Conflicts.md` | [Styio View Logic Conflicts](./Logic-Conflicts.md) | 记录 styio-view 当前尚未关闭的产品与架构冲突、风险和待裁决问题；已接受的结论应迁移到 ADR。 |
+| `Logic-Conflicts.md` | [Vityo Logic Conflicts](./Logic-Conflicts.md) | 记录 Vityo 当前尚未关闭的产品与架构冲突、风险和待裁决问题；已接受的结论应迁移到 ADR。 |

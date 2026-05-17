@@ -1,5 +1,5 @@
 {
-  "name": "styio-view",
+  "name": "Vityo",
   "build": {
     "dockerfile": "../docker/dev-env.Dockerfile",
     "context": "..",
@@ -10,7 +10,7 @@
     }
   },
   "remoteUser": "styio",
-  "workspaceFolder": "/workspace/styio-view",
+  "workspaceFolder": "/workspace/vityo-nightly",
   "forwardPorts": [
     4180
   ],

@@ -1,6 +1,6 @@
 # ADR-0009: Module Runtime Uses Mountable Modules And Staged Updates
 
-**Purpose:** 记录 `styio-view` 如何把功能能力组织为可挂载模块，以及为什么更新采用 staged update 而不是会话内强切。
+**Purpose:** 记录 `Vityo` 如何把功能能力组织为可挂载模块，以及为什么更新采用 staged update 而不是会话内强切。
 
 **Last updated:** 2026-04-12
 

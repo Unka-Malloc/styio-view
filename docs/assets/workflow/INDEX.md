@@ -10,10 +10,10 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `CHECKPOINT-HEALTH.md` | [Checkpoint Health](./CHECKPOINT-HEALTH.md) | Define the repository-wide build/test health entrypoint for styio-view so CI and checkpoint delivery can call one script instead of wiring Flutter and prototype verification inline. |
-| `DELIVERY-GATE.md` | [Delivery Gate](./DELIVERY-GATE.md) | Define the common delivery-floor entrypoint for styio-view so contributors can run repository hygiene, the unified docs gate, external styio-audit, and checkpoint health through one command before checkpoint merge or branch delivery. |
-| `DOCS-GATE.md` | [Docs Gate](./DOCS-GATE.md) | Define the common docs/process gate entrypoint for styio-view so contributors can run owner-runbook maintenance, docs audit, and ecosystem CLI contract consistency through one command. |
-| `REPO-HYGIENE.md` | [Repository Hygiene](./REPO-HYGIENE.md) | Define the repository hygiene entrypoint for styio-view so contributors and CI use one script to reject generated artifacts, dependency payloads, and undocumented binary blobs. |
+| `CHECKPOINT-HEALTH.md` | [Checkpoint Health](./CHECKPOINT-HEALTH.md) | Define the repository-wide build/test health entrypoint for Vityo so CI and checkpoint delivery can call one script instead of wiring Flutter and prototype verification inline. |
+| `DELIVERY-GATE.md` | [Delivery Gate](./DELIVERY-GATE.md) | Define the common delivery-floor entrypoint for Vityo so contributors can run repository hygiene, the unified docs gate, external styio-audit, and checkpoint health through one command before checkpoint merge or branch delivery. |
+| `DOCS-GATE.md` | [Docs Gate](./DOCS-GATE.md) | Define the common docs/process gate entrypoint for Vityo so contributors can run owner-runbook maintenance, docs audit, and ecosystem CLI contract consistency through one command. |
+| `REPO-HYGIENE.md` | [Repository Hygiene](./REPO-HYGIENE.md) | Define the repository hygiene entrypoint for Vityo so contributors and CI use one script to reject generated artifacts, dependency payloads, and undocumented binary blobs. |
 | `TEAM-RUNBOOK-MAINTENANCE-GATE.md` | [Team Runbook Maintenance Gate](./TEAM-RUNBOOK-MAINTENANCE-GATE.md) | Define the delivery gate that requires team runbooks under docs/teams/ to be updated and kept in the standard template shape when files in corresponding team-owned folders are added, modified, renamed, or deleted. |
-| `TEAM-RUNBOOK-TEMPLATE.md` | [Team Runbook Template](./TEAM-RUNBOOK-TEMPLATE.md) | Provide the required section template for styio-view team runbooks so owner-gate automation and human reviewers share the same shape. |
-| `TEST-CATALOG.md` | [Styio View Test Catalog](./TEST-CATALOG.md) | 给出 styio-view 当前按里程碑组织的测试与验收目录；在实现期作为 tests/ 与 CI 的映射基线。 |
+| `TEAM-RUNBOOK-TEMPLATE.md` | [Team Runbook Template](./TEAM-RUNBOOK-TEMPLATE.md) | Provide the required section template for Vityo team runbooks so owner-gate automation and human reviewers share the same shape. |
+| `TEST-CATALOG.md` | [Vityo Test Catalog](./TEST-CATALOG.md) | 给出 Vityo 当前按里程碑组织的测试与验收目录；在实现期作为 tests/ 与 CI 的映射基线。 |

@@ -1,8 +1,8 @@
 # UX Maintenance Guidelines
 
-**Purpose:** 把外部 UX / accessibility / performance 基准转成 `styio-view` 的长期开发和维护准则。
+**Purpose:** 把外部 UX / accessibility / performance 基准转成 `Vityo` 的长期开发和维护准则。
 
-**Scope:** 覆盖 Flutter 主壳 `frontend/styio_view_app/`、手写 Web IDE 原型 `prototype/editor.html` 线，以及两者之间需要保持一致的产品行为。
+**Scope:** 覆盖 Flutter 主壳 `frontend/vityo_app/`、手写 Web IDE 原型 `prototype/editor.html` 线，以及两者之间需要保持一致的产品行为。
 
 **Last updated:** 2026-04-16
 
@@ -16,11 +16,11 @@
 4. Flutter: [Accessibility](https://docs.flutter.dev/ui/accessibility)、[Web accessibility](https://docs.flutter.dev/ui/accessibility/web-accessibility)、[Performance best practices](https://docs.flutter.dev/perf/best-practices)。
 5. Vercel Labs: [Web Interface Guidelines](https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md)。
 
-这些资料不是视觉风格模板，而是验收基线。若本项目的视觉表达与通用建议冲突，优先保留 `styio-view` 的 IDE 产品定位，但不能牺牲可理解性、可访问性、错误恢复和响应性能。
+这些资料不是视觉风格模板，而是验收基线。若本项目的视觉表达与通用建议冲突，优先保留 `Vityo` 的 IDE 产品定位，但不能牺牲可理解性、可访问性、错误恢复和响应性能。
 
 ## 2. 产品 UX 立场
 
-`styio-view` 是编辑器和运行视窗，不是营销页。用户体验的核心不是装饰感，而是让用户稳定完成高频工作：
+`Vityo` 是编辑器和运行视窗，不是营销页。用户体验的核心不是装饰感，而是让用户稳定完成高频工作：
 
 1. 打开工作区。
 2. 理解当前文件、路由、平台能力和运行状态。

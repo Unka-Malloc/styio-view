@@ -1,6 +1,6 @@
-# Styio View Logic Conflicts
+# Vityo Logic Conflicts
 
-**Purpose:** 记录 `styio-view` 当前尚未关闭的产品与架构冲突、风险和待裁决问题；已接受的结论应迁移到 ADR。
+**Purpose:** 记录 `Vityo` 当前尚未关闭的产品与架构冲突、风险和待裁决问题；已接受的结论应迁移到 ADR。
 
 **Last updated:** 2026-04-12
 

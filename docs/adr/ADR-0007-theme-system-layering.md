@@ -1,6 +1,6 @@
 # ADR-0007: Theme System Is Layered
 
-**Purpose:** 记录 `styio-view` 的主题系统为何按多个视觉层分离，而不是单套全局配色。
+**Purpose:** 记录 `Vityo` 的主题系统为何按多个视觉层分离，而不是单套全局配色。
 
 **Last updated:** 2026-04-12
 

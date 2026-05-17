@@ -1,6 +1,6 @@
 # DependencySourceAdapter
 
-**Purpose:** 冻结依赖源物化接口，让 `styio-view` 可以在不关心 `spio` 内部缓存布局的前提下完成 fetch/vendor 工作流。
+**Purpose:** 冻结依赖源物化接口，让 `Vityo` 可以在不关心 `spio` 内部缓存布局的前提下完成 fetch/vendor 工作流。
 
 **Last updated:** 2026-04-21
 

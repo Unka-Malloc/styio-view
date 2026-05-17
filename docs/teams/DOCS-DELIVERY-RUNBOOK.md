@@ -1,6 +1,6 @@
 # Docs / Delivery Runbook
 
-**Purpose:** 提供 `styio-view` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
+**Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
 **Last updated:** 2026-05-10
 
@@ -39,17 +39,17 @@ Primary paths:
 25. `toolchain/android-sdk-profiles.csv`
 26. `toolchain/apple-platform-profiles.csv`
 27. `prototype/README.md`
-28. `frontend/styio_view_app/README.md`
+28. `frontend/vityo_app/README.md`
 
 Key SSOTs:
 
 1. `文档策略 -> ../specs/DOCUMENTATION-POLICY.md`
 2. `人机协作规范 -> ../specs/CONTRIBUTOR-AND-AGENT-SPEC.md`
 3. `测试目录 -> ../assets/workflow/TEST-CATALOG.md`
-4. `文件治理镜像 -> ../plans/Styio-Ecosystem-File-Governance-Alignment-Plan.md`
+4. `文档策略 -> ../specs/DOCUMENTATION-POLICY.md`
 5. `当前状态摘要 -> ../rollups/CURRENT-STATE.md`
 6. `外部审计入口 -> ../audit/README.md`
-7. `后端工具链 handoff -> ../plans/Styio-View-Toolchain-Backend-Handoff-Plan.md`
+7. `活跃缺口登记 -> ../design/Vityo-Implementation-Gaps.md`
 
 ## Daily Workflow
 
@@ -58,7 +58,7 @@ Key SSOTs:
 3. 若一次变更改变了团队边界、review 路由或 handoff 路径，同批更新 `docs/teams/`。
 4. 中断时把恢复信息写入 `docs/history/YYYY-MM-DD.md`，不要只留在聊天或注释里。
 5. docs tree 变化时，同批运行 `docs-lifecycle.py`、`docs-index.py`、`docs-audit.py`，而不是只靠 `README/INDEX` 手工刷新；生成式 `INDEX.md` 必须保持跨本地和 GitHub Actions 可复现，空 collection 继承本目录 `README.md` 的 `Last updated`，不得回退到执行当天日期。
-6. 根 `.gitignore` 若新增 temp/build/log/cache 类忽略规则，同批补 `docs/**` 与 `frontend/styio_view_app/test/**` 的显式 negate 规则，并让 `scripts/repo-hygiene-gate.py` 通过。
+6. 根 `.gitignore` 若新增 temp/build/log/cache 类忽略规则，同批补 `docs/**` 与 `frontend/vityo_app/test/**` 的显式 negate 规则，并让 `scripts/repo-hygiene-gate.py` 通过。
 7. 仓库级 build/dev-env 文档必须保持固定版本基线显式一致：Debian 13、Python 3.13.5、Node.js v24.15.0 LTS、Flutter 3.41.7 / Dart 3.11.5、Chromium 147.0.7727.116；不得把这类版本描述回退成浮动 `stable`。
 8. 容器和宿主机开发环境入口必须一起维护：`Dockerfile`、`.devcontainer/`、Linux/macOS/Windows 一键安装脚本，以及可选 `+android` / `+ios` 组合矩阵，都要在仓库级 build/dev-env 入口里保持同一套说明。
 9. Linux Android 工具链是 profile 驱动：`toolchain/android-sdk-profiles.csv`、`scripts/android-sdk-profile.sh`、Linux bootstrap、容器镜像和仓库级 build/dev-env 文档必须同步更新；不得只改单一脚本里的 `android-36` 字面量。
@@ -66,7 +66,7 @@ Key SSOTs:
 11. 真实设备验证入口也属于交付表面：Android bash/PowerShell 验证脚本和 Apple 设备验证脚本必须与 profile CSV、bootstrap、仓库级 build/dev-env 文档同步更新，不能单独漂移。
 12. 根 `README.md` 只保留仓库级一跳入口；多平台 bootstrap、profile 切换和真实设备验证的细节统一收在 `docs/BUILD-AND-DEV-ENV.md`，不要在 README、runbook 和子系统文档里各自维护平行说明。
 13. 新增 external audit、agent findings、contract package 或 toolchain handoff 时，同批刷新 collection `README.md` / `INDEX.md`，并确保缺口被路由到 owner runbook，而不是停留在审计摘要里。
-14. 本轮最小闭环只要求 `repo-hygiene --mode tracked`、`docs-audit`、Flutter analyze/test 和三仓合同测试；product gate 项保持 `STYIO_VIEW_PRODUCT_GATE=1` 的显式扩展验证，不写成默认必过项。
+14. 本轮最小闭环只要求 `repo-hygiene --mode tracked`、`docs-audit`、Flutter analyze/test 和三仓合同测试；product gate 项保持 `VITYO_PRODUCT_GATE=1` 的显式扩展验证，不写成默认必过项。
 15. Keep [../specs/POST-COMMIT-CI-CHECKS.md](../specs/POST-COMMIT-CI-CHECKS.md) aligned with actual GitHub Actions monitoring practice whenever commit, push, or CI handoff rules change.
 16. 外部上游 handoff 统一收在 `docs/external/for-*`，不要在 docs 根目录重新创建 `for-*` collection。
 17. Keep [../specs/TECHNOLOGY-COMPONENT-INVENTORY.md](../specs/TECHNOLOGY-COMPONENT-INVENTORY.md) aligned with `styio-audit` whenever the technology stack, internal components, open-source components, dependency manifests, Apache-2.0 evidence, commercial-risk boundaries, or UI asset-source evidence changes.

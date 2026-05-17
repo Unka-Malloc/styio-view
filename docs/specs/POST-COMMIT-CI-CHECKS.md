@@ -6,7 +6,7 @@
 
 ## Scope
 
-This spec applies to agent and maintainer work on `styio-view` branches. It covers local pre-commit verification, post-push GitHub Actions monitoring, and failure recovery for repository-local and cross-repository gates.
+This spec applies to agent and maintainer work on `Vityo` branches. It covers local pre-commit verification, post-push GitHub Actions monitoring, and failure recovery for repository-local and cross-repository gates.
 
 ## Commit-Time Verification
 
@@ -23,7 +23,7 @@ python3 scripts/repo-hygiene-gate.py --mode tracked
 Product-gate tests remain explicit extension checks unless the user requests them or CI is configured to require them:
 
 ```bash
-STYIO_VIEW_PRODUCT_GATE=1 flutter test
+VITYO_PRODUCT_GATE=1 flutter test
 ```
 
 Cross-repository contract or product changes must also run the matching ecosystem gate from `styio-nightly`, for example:
@@ -61,7 +61,7 @@ If `gh` is unavailable or unauthenticated, the agent must state that GitHub Acti
 
 ## Cross-Repository Work
 
-When one delivery touches `styio-nightly`, `styio-spio`, and `styio-view`, post-push verification applies to every pushed repository. The agent should check each repository's GitHub Actions status, not only the repository that received the last commit.
+When one delivery touches `styio-nightly`, `styio-spio`, and `Vityo`, post-push verification applies to every pushed repository. The agent should check each repository's GitHub Actions status, not only the repository that received the last commit.
 
 Cross-repository gates must use the same workspace checkout set that will be visible to CI. If a gate consumes another repository's branch, push that repository first or report that remote CI may still be using an older sibling checkout.
 
@@ -72,7 +72,7 @@ Required GitHub merge gates are maintained through GitHub Rulesets, not legacy c
 Gate audits must inspect effective branch rules, for example:
 
 ```bash
-gh api repos/Unka-Malloc/styio-view/rules/branches/nightly
+gh api repos/Unka-Malloc/vityo-nightly/rules/branches/nightly
 ```
 
 Do not use `branches/ai-dev/protection/required_status_checks` as the authority for this repository. That legacy classic endpoint can return 404 even when the Ruleset gate is active.

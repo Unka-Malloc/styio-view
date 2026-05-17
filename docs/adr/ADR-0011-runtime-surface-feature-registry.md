@@ -1,6 +1,6 @@
 # ADR-0011: Runtime Surface Uses A Feature Entry Registry
 
-**Purpose:** 记录 `styio-view` 为什么不把运行可视化能力写死在 UI 中，而是通过可发现、可挂载、可 staged update 的特性入口列表来组织。
+**Purpose:** 记录 `Vityo` 为什么不把运行可视化能力写死在 UI 中，而是通过可发现、可挂载、可 staged update 的特性入口列表来组织。
 
 **Last updated:** 2026-04-12
 

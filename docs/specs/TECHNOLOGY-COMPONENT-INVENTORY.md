@@ -1,10 +1,10 @@
 # Technology And Component Inventory
 
-**Purpose:** Define the required technology-stack, internal-component, open-source-component, and dependency-manifest inventory for `styio-view`.
+**Purpose:** Define the required technology-stack, internal-component, open-source-component, and dependency-manifest inventory for `Vityo`.
 
 **Last updated:** 2026-04-24
 
-This document is the repository-local maintenance rule for the manifest inventory audited by `styio-audit`. The canonical audit module must list the same surfaces in `for-styio-view/module.json`; if this document and the audit manifest diverge, the change is not closed.
+This document is the repository-local maintenance rule for the manifest inventory audited by `styio-audit`. The canonical audit module must list the same surfaces in `for-vityo/module.json`; if this document and the audit manifest diverge, the change is not closed.
 
 ## Required Inventory Fields
 
@@ -53,12 +53,12 @@ Open-source and external components:
 
 Dependency manifest surfaces:
 
-- `frontend/styio_view_app/pubspec.yaml`.
+- `frontend/vityo_app/pubspec.yaml`.
 - `prototype/package.json`.
-- `frontend/styio_view_app/linux/CMakeLists.txt`.
-- `frontend/styio_view_app/linux/flutter/CMakeLists.txt`.
-- `frontend/styio_view_app/windows/CMakeLists.txt`.
-- `frontend/styio_view_app/windows/flutter/CMakeLists.txt`.
+- `frontend/vityo_app/linux/CMakeLists.txt`.
+- `frontend/vityo_app/linux/flutter/CMakeLists.txt`.
+- `frontend/vityo_app/windows/CMakeLists.txt`.
+- `frontend/vityo_app/windows/flutter/CMakeLists.txt`.
 - Android Gradle files.
 - `.github/workflows/*.yml`.
 

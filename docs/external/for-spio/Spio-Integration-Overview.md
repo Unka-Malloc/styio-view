@@ -1,6 +1,6 @@
 # Spio Integration Overview
 
-**Purpose:** 说明 `styio-view` 与上游 `spio` 的总体责任边界，避免把前端项目模型和包管理器内部实现绑死。
+**Purpose:** 说明 `Vityo` 与上游 `spio` 的总体责任边界，避免把前端项目模型和包管理器内部实现绑死。
 
 **Last updated:** 2026-04-17
 
@@ -8,9 +8,9 @@
 
 `spio` 是项目、workspace、toolchain、lock/vendor、registry/package orchestration 的 canonical owner。
 
-`styio-view` 不应该通过读取 `spio` 私有缓存目录或内部源码结构来推断这些状态。
+`Vityo` 不应该通过读取 `spio` 私有缓存目录或内部源码结构来推断这些状态。
 
-## 2. `styio-view` 负责
+## 2. `Vityo` 负责
 
 1. project graph、target selector、toolchain badge 的 UI
 2. lock/vendor/build 状态的展示

@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。
 
-**Last updated:** 2026-05-10
+**Last updated:** 2026-05-12
 
 ## Mission
 
@@ -12,26 +12,34 @@
 
 Primary paths:
 
-1. `frontend/styio_view_app/lib/src/app/`
-2. `frontend/styio_view_app/lib/src/editor/`
-3. `frontend/styio_view_app/lib/src/language/`
-4. `prototype/editor.html`
-5. `prototype/editor.css`
-6. `prototype/editor.js`
-7. `prototype/editor-modules/`
-8. `prototype/workspace/`
-9. `prototype/README.md`
-10. `prototype/dev_server.py`
-11. `prototype/test_dev_server_security.py`
-12. `frontend/styio_view_app/lib/src/frontend_shell/`
-13. `prototype/PROTOTYPE-GOVERNANCE.md`
-14. `prototype/prototype-manifest.json`
-15. `prototype/scripts/check-prototype-governance.mjs`
+1. `frontend/vityo_app/lib/src/app/`
+2. `frontend/vityo_app/lib/src/view_render/shell/`
+3. `frontend/vityo_app/lib/src/view_render/editor/`
+4. `frontend/vityo_app/lib/src/view_render/runtime/`
+5. `frontend/vityo_app/lib/src/view_render/agent/`
+6. `frontend/vityo_app/lib/src/view_render/theme/`
+7. `frontend/vityo_app/lib/src/view_render/platform/`
+8. `frontend/vityo_app/lib/src/view_ide/editor/`
+9. `frontend/vityo_app/lib/src/editor/`
+10. `frontend/vityo_app/lib/src/view_ide/language/`
+11. `frontend/vityo_app/lib/src/language/`
+12. `prototype/editor.html`
+13. `prototype/editor.css`
+14. `prototype/editor.js`
+15. `prototype/editor-modules/`
+16. `prototype/workspace/`
+17. `prototype/README.md`
+18. `prototype/dev_server.py`
+19. `prototype/test_dev_server_security.py`
+20. `frontend/vityo_app/lib/src/frontend_shell/`
+21. `prototype/PROTOTYPE-GOVERNANCE.md`
+22. `prototype/prototype-manifest.json`
+23. `prototype/scripts/check-prototype-governance.mjs`
 
 Key SSOTs:
 
-1. `产品规格 -> ../design/Styio-View-Product-Spec.md`
-2. `系统架构 -> ../design/Styio-View-System-Architecture.md`
+1. `产品规格 -> ../design/Vityo-Product-Spec.md`
+2. `系统架构 -> ../design/Vityo-System-Architecture.md`
 3. `手写 Web IDE handbook -> ../specs/HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md`
 
 ## Daily Workflow
@@ -44,12 +52,13 @@ Key SSOTs:
 6. Flutter 主壳与手写原型的工具链说明必须保持显式版本钉住：Flutter `3.41.7` / Dart `3.11.5`、Node.js `v24.15.0` LTS、Chromium `147.0.7727.116`。
 7. `prototype/package.json` 与 `package-lock.json` 的 Node 依赖必须用锁文件可复现的精确版本，并优先用 `npm ci` 而不是 `npm install`。
 8. Flutter shell 的 app bootstrap、workspace controller、document store 和 command registry 只能消费 `backend_toolchain` 的正式 adapter surface；legacy `integration/` export 只用于兼容测试。
-9. product gate 测试若需要 `STYIO_VIEW_PRODUCT_GATE=1`，在本轮最小闭环中保持显式跳过策略，不把 gated workflow 写成默认 shell 验证要求。
+9. product gate 测试若需要 `VITYO_PRODUCT_GATE=1`，在本轮最小闭环中保持显式跳过策略，不把 gated workflow 写成默认 shell 验证要求。
 10. 手写 prototype selftest 的布局几何断言必须等待 grid/sidebar CSS transition 收敛后再采样；容差只能覆盖 headless Chromium 子像素取整，不得掩盖实际 drawer 宽度或 inset 漂移。
 11. Prototype dev-server API 变更必须保持 Host allowlist、same-origin mutation、session credential、default-off mutation 和 workspace-limited file-content reads，并同步运行 `python3 prototype/test_dev_server_security.py`。
 12. Top-level `prototype/*.html` 只能通过 `prototype/prototype-manifest.json` 增删改名；`editor.html` 是唯一 canonical 产品行为入口，gallery 和 style experiment 页面不得定义 workspace mutation、adapter contract 或 dev-server API 语义。
-13. 当上游 `styio` 语法仍在实现中时，`frontend/styio_view_app/lib/src/language/styio_syntax_highlighter.dart` 只能提前提供宽容 token、nested-comment-safe token、line-contained literal-safe token、typed-declaration-safe semantic、parameter semantic、operator-hover copy 和 resource-aware block-range 支持；language service 可以复用这些结果提供 completion、hover 和 TODO/FIXME comment hint diagnostics，但不得把 mock 支持描述成编译器已可执行能力，compile/run 仍必须通过 adapter capability gap 或真实 handoff 表达。
-14. IntelliJ-style navigation 的本地 fallback 放在 `frontend/styio_view_app/lib/src/language/styio_symbol_index.dart`：它可以从 token 结果建立 document symbol、reference、definition、rename edit、rename conflict preflight、current-file Safe Delete preflight、current-file Inline Variable initializer / usage preflight、current-file Introduce Variable selection / name-conflict preflight、current-file Extract Function selection / parameter / duplicate-fragment / name-conflict preflight、current-file Change Signature function rename / parameter reorder / parameter rename / unused parameter removal preflight、带 declaration / read / write 分类的 current-file usage、支持 `///` 与 `/** ... */` 的 doc-comment-backed function-call parameter info 和 `@param` / `@param[name]` active-argument docs、named-argument active-parameter mapping、named-argument-safe Change Signature、default-parameter signature display、symbol-aware hover / doc-comment-backed quick documentation、parameter-name / local-binding / precedence-aware binary / parenthesized / unary-expression type inlay hints、Specify type explicitly / Remove explicit type intentions、call-site arity diagnostics / argument-list quick fixes、named-argument issue diagnostics / quick fixes、argument type diagnostics / literal and parameter-type quick fixes、binary / unary operator operand diagnostics / quick fixes、local initializer type diagnostics / quick fixes、typed local assignment type diagnostics / quick fixes、`when` condition type diagnostics / quick fixes、function return type diagnostics / quick fixes、unused parameter diagnostics / removal quick fixes、top-level import optimization diagnostics / quick fixes、same-scope duplicate declaration diagnostics / unique rename quick fixes、支持中段与首字母匹配的 symbol-scoped completion、doc-comment-backed symbol completion documentation、call-site named-argument completion、Alt+Enter Add argument names / Add current argument name / Remove current argument name / Remove all argument names / Negate when condition / Simplify negated boolean literal / Simplify double negation / Simplify boolean comparison（literal / stable-term） / Simplify boolean expression（literal / duplicate / complement / absorption operand） / Simplify negated comparison / Invert comparison / Remove redundant parentheses / Apply De Morgan's law / Flip comparison operands intentions、`.emit` / `.task` / `.await` / `.stdout` / `.not` / `.when` expression postfix completion、warning 级 `unresolved-reference` / `unused-local-symbol` diagnostics、unresolved usage 的 current-file Change To Similar Symbol / Create Local Binding / Create Function quick fixes；`frontend/styio_view_app/lib/src/editor/editor_surface.dart` 可以用 document symbols 驱动 structure-view style Symbols pane，并消费 reference ranges、completion items、parameter info、surround templates 与 diagnostic ranges 做 caret usage 高亮、definition / usage navigation、`Alt+F7` current-file Find Usages panel、`Alt+Delete` current-file Safe Delete blockers / declaration-delete preview、`Ctrl+Alt+N` current-file Inline Variable blockers / inline-all preview、`Ctrl+Alt+V` current-file Introduce Variable name input / edit preview、`Ctrl+Alt+M` current-file Extract Function name input / duplicate replacement preview、`Ctrl+F6` current-file Change Signature name / parameter-order / parameter-removal input 与 edit preview、`Alt+Enter` context actions lookup 与 edit preview、`Ctrl+Alt+Shift+N` current-file symbol lookup、typing auto-popup 与 `Ctrl+Space` completion lookup、选中项 preview / documentation action 和 `Ctrl+Q` completion documentation、`Ctrl+Alt+T` Surround With lookup、`Ctrl+P` parameter info popup、`Ctrl+Q` quick documentation panel、`Ctrl+W` / `Ctrl+Shift+W` structural selection、semantic block folding、`Ctrl+-` fold toggle、`Ctrl+Shift+M` matching brace navigation、`Home` smart line-start navigation、`Ctrl/Alt+Left` / `Ctrl/Alt+Right` token-aware word navigation、`Ctrl/Alt+Backspace` / `Ctrl/Alt+Delete` token-aware word deletion、typed brace/quote pair insertion、selection wrapping、empty-pair backspace、smart Enter indentation 和 `Tab` / `Shift+Tab` line indent / outdent、`Ctrl+/` line comment toggle、`Ctrl+D` duplicate line/selection、`Alt+Shift+Up` / `Alt+Shift+Down` move line/selection、`Ctrl+Shift+J` join lines、`Ctrl+Y` delete line、problems-list selection、diagnostic navigation、quick-fix keymap actions、side-pane rename apply 和 `Shift+F6` inline rename bar，但只能作为编辑器体验预览，不能替代上游 compiler-owned 语义解析。
+13. 当上游 `styio` 语法仍在实现中时，`frontend/vityo_app/lib/src/language/styio_syntax_highlighter.dart` 只能提前提供宽容 token、nested-comment-safe token、line-contained literal-safe token、typed-declaration-safe semantic、parameter semantic、operator-hover copy 和 resource-aware block-range 支持；language service 可以复用这些结果提供 completion、hover 和 TODO/FIXME comment hint diagnostics，但不得把 mock 支持描述成编译器已可执行能力，compile/run 仍必须通过 adapter capability gap 或真实 handoff 表达。
+14. IntelliJ-style navigation 的本地 fallback 放在 `frontend/vityo_app/lib/src/language/styio_symbol_index.dart`：它可以从 token 结果建立 document symbol、reference、definition、rename edit、rename conflict preflight、current-file Safe Delete preflight、current-file Inline Variable initializer / usage preflight、current-file Introduce Variable selection / name-conflict preflight、current-file Extract Function selection / parameter / duplicate-fragment / name-conflict preflight、current-file Change Signature function rename / parameter reorder / parameter rename / unused parameter removal preflight、带 declaration / read / write 分类的 current-file usage、支持 `///` 与 `/** ... */` 的 doc-comment-backed function-call parameter info 和 `@param` / `@param[name]` active-argument docs、named-argument active-parameter mapping、named-argument-safe Change Signature、default-parameter signature display、symbol-aware hover / doc-comment-backed quick documentation、parameter-name / local-binding / precedence-aware binary / parenthesized / unary-expression type inlay hints、Specify type explicitly / Remove explicit type intentions、call-site arity diagnostics / argument-list quick fixes、named-argument issue diagnostics / quick fixes、argument type diagnostics / literal and parameter-type quick fixes、binary / unary operator operand diagnostics / quick fixes、local initializer type diagnostics / quick fixes、typed local assignment type diagnostics / quick fixes、`when` condition type diagnostics / quick fixes、function return type diagnostics / quick fixes、unused parameter diagnostics / removal quick fixes、top-level import optimization diagnostics / quick fixes、same-scope duplicate declaration diagnostics / unique rename quick fixes、支持中段与首字母匹配的 symbol-scoped completion、doc-comment-backed symbol completion documentation、call-site named-argument completion、Alt+Enter Add argument names / Add current argument name / Remove current argument name / Remove all argument names / Negate when condition / Simplify negated boolean literal / Simplify double negation / Simplify boolean comparison（literal / stable-term） / Simplify boolean expression（literal / duplicate / complement / absorption operand） / Simplify negated comparison / Invert comparison / Remove redundant parentheses / Apply De Morgan's law / Flip comparison operands intentions、`.emit` / `.task` / `.await` / `.stdout` / `.not` / `.when` expression postfix completion、warning 级 `unresolved-reference` / `unused-local-symbol` diagnostics、unresolved usage 的 current-file Change To Similar Symbol / Create Local Binding / Create Function quick fixes；`frontend/vityo_app/lib/src/view_render/editor/editor_surface.dart` 可以用 document symbols 驱动 structure-view style Symbols pane，并消费 reference ranges、completion items、parameter info、surround templates 与 diagnostic ranges 做 caret usage 高亮、definition / usage navigation、`Alt+F7` current-file Find Usages panel、`Alt+Delete` current-file Safe Delete blockers / declaration-delete preview、`Ctrl+Alt+N` current-file Inline Variable blockers / inline-all preview、`Ctrl+Alt+V` current-file Introduce Variable name input / edit preview、`Ctrl+Alt+M` current-file Extract Function name input / duplicate replacement preview、`Ctrl+F6` current-file Change Signature name / parameter-order / parameter-removal input 与 edit preview、`Alt+Enter` context actions lookup 与 edit preview、`Ctrl+Alt+Shift+N` current-file symbol lookup、typing auto-popup 与 `Ctrl+Space` completion lookup、选中项 preview / documentation action 和 `Ctrl+Q` completion documentation、`Ctrl+Alt+T` Surround With lookup、`Ctrl+P` parameter info popup、`Ctrl+Q` quick documentation panel、`Ctrl+W` / `Ctrl+Shift+W` structural selection、semantic block folding、`Ctrl+-` fold toggle、`Ctrl+Shift+M` matching brace navigation、`Home` smart line-start navigation、`Ctrl/Alt+Left` / `Ctrl/Alt+Right` token-aware word navigation、`Ctrl/Alt+Backspace` / `Ctrl/Alt+Delete` token-aware word deletion、typed brace/quote pair insertion、selection wrapping、empty-pair backspace、smart Enter indentation 和 `Tab` / `Shift+Tab` line indent / outdent、`Ctrl+/` line comment toggle、`Ctrl+D` duplicate line/selection、`Alt+Shift+Up` / `Alt+Shift+Down` move line/selection、`Ctrl+Shift+J` join lines、`Ctrl+Y` delete line、problems-list selection、diagnostic navigation、quick-fix keymap actions、side-pane rename apply 和 `Shift+F6` inline rename bar，但只能作为编辑器体验预览，不能替代上游 compiler-owned 语义解析。
+15. Editor core 实现只能落在 `frontend/vityo_app/lib/src/view_ide/editor/document/`、`selection/`、`controller/`、`transactions/`、`render_plan/`、`actions/` 子模块；顶层 `view_ide/editor/*.dart` 和 legacy `src/editor/*.dart` 必须保持 façade/barrel。
 
 ## Change Classes
 
@@ -64,7 +73,7 @@ Minimum:
 ```bash
 cd prototype && npm run governance
 cd prototype && npm run selftest:editor
-cd frontend/styio_view_app && flutter analyze && flutter test
+cd frontend/vityo_app && flutter analyze && flutter test
 ```
 
 ## Cross-Team Dependencies

@@ -1,6 +1,6 @@
 # ADR-0005: Runtime Visualization Is Driven By Event Stream
 
-**Purpose:** 记录 `styio-view` 的运行可视图如何从执行层接收数据，而不是从 UI 侧猜测程序结构。
+**Purpose:** 记录 `Vityo` 的运行可视图如何从执行层接收数据，而不是从 UI 侧猜测程序结构。
 
 **Last updated:** 2026-04-12
 

@@ -1,6 +1,6 @@
 # ADR-0008: Mobile Interaction Model May Diverge From Desktop
 
-**Purpose:** 记录 `styio-view` 明确允许移动端交互模型与桌面端分化的决定。
+**Purpose:** 记录 `Vityo` 明确允许移动端交互模型与桌面端分化的决定。
 
 **Last updated:** 2026-04-12
 

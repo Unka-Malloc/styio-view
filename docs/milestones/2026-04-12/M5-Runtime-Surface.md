@@ -36,9 +36,9 @@
 
 当前代码入口：
 
-1. `frontend/styio_view_app/lib/src/runtime/runtime_surface.dart`
-2. `frontend/styio_view_app/lib/src/runtime/debug_console_surface.dart`
-3. `frontend/styio_view_app/lib/src/app/layout/styio_shell_scaffold.dart`
+1. `frontend/vityo_app/lib/src/runtime/runtime_surface.dart`
+2. `frontend/vityo_app/lib/src/runtime/debug_console_surface.dart`
+3. `frontend/vityo_app/lib/src/app/layout/vityo_shell_scaffold.dart`
 
 当前已落地：
 

@@ -1,12 +1,12 @@
-# Styio View Contributor And Agent Spec
+# Vityo Contributor And Agent Spec
 
-**Purpose:** 定义人类贡献者与代码 agent 在 `styio-view` 仓库中的协作规则、联动更新要求与交付边界。
+**Purpose:** 定义人类贡献者与代码 agent 在 `Vityo` 仓库中的协作规则、联动更新要求与交付边界。
 
 **Last updated:** 2026-04-16
 
 ## 1. 基本原则
 
-1. `styio-view` 是产品仓，不是临时实验笔记仓。
+1. `Vityo` 是产品仓，不是临时实验笔记仓。
 2. 任何长期保留的交互、架构或平台策略，都必须有对应文档落点。
 3. 源码文本始终是编辑器中的 canonical source；视觉替换不能静默改写用户源代码。
 4. 任何内部 UI 组件都不得超过外部容器；若空间不足，必须通过 `min-width: 0`、局部滚动、换行或重排解决，不能让子组件溢出父容器。
@@ -61,7 +61,7 @@
 
 ## 7. 当前明确禁止项
 
-1. 把 `styio-view` 退化为纯 Web 壳或传统 IDE 皮肤层。
+1. 把 `Vityo` 退化为纯 Web 壳或传统 IDE 皮肤层。
 2. 假设所有平台共享完全一致的交互模型。
 3. 在未写平台策略文档前承诺 iOS 任意本地 JIT。
 4. 在没有类型系统或语言服务支撑时，把 pipeline 选择做成纯字符串菜单。

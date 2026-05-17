@@ -35,11 +35,11 @@
 
 当前代码入口：
 
-1. `frontend/styio_view_app/lib/src/editor/document_state.dart`
-2. `frontend/styio_view_app/lib/src/editor/selection_state.dart`
-3. `frontend/styio_view_app/lib/src/editor/editor_render_layers.dart`
-4. `frontend/styio_view_app/lib/src/editor/editor_controller.dart`
-5. `frontend/styio_view_app/lib/src/editor/editor_surface.dart`
+1. `frontend/vityo_app/lib/src/editor/document_state.dart`
+2. `frontend/vityo_app/lib/src/editor/selection_state.dart`
+3. `frontend/vityo_app/lib/src/editor/editor_render_layers.dart`
+4. `frontend/vityo_app/lib/src/editor/editor_controller.dart`
+5. `frontend/vityo_app/lib/src/editor/editor_surface.dart`
 
 当前已落地：
 

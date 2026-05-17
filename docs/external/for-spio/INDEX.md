@@ -10,8 +10,8 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `Spio-Hosted-Control-Plane-Contract.md` | [Spio Hosted Control-Plane Contract](./Spio-Hosted-Control-Plane-Contract.md) | Record the frontend-facing hosted workspace API that styio-view consumes from spio so UI and backend teams can ship independently against a fixed contract package. |
-| `Spio-Integration-Overview.md` | [Spio Integration Overview](./Spio-Integration-Overview.md) | 说明 styio-view 与上游 spio 的总体责任边界，避免把前端项目模型和包管理器内部实现绑死。 |
-| `Spio-Project-Graph-Contract.md` | [Spio Project Graph Contract](./Spio-Project-Graph-Contract.md) | 冻结 styio-view 对 spio 项目图 published payload 的 handoff 要求。 |
-| `Spio-Toolchain-And-Registry-State.md` | [Spio Toolchain And Registry State](./Spio-Toolchain-And-Registry-State.md) | 冻结 styio-view 对 spio toolchain、registry 和 package 状态的 handoff 要求。 |
-| `Spio-Workflow-Success-Payloads.md` | [Spio Workflow Success Payloads](./Spio-Workflow-Success-Payloads.md) | 冻结 styio-view 对 spio workflow success payload 的 handoff 要求。 |
+| `Spio-Hosted-Control-Plane-Contract.md` | [Spio Hosted Control-Plane Contract](./Spio-Hosted-Control-Plane-Contract.md) | Record the frontend-facing hosted workspace API that Vityo consumes from spio so UI and backend teams can ship independently against a fixed contract package. |
+| `Spio-Integration-Overview.md` | [Spio Integration Overview](./Spio-Integration-Overview.md) | 说明 Vityo 与上游 spio 的总体责任边界，避免把前端项目模型和包管理器内部实现绑死。 |
+| `Spio-Project-Graph-Contract.md` | [Spio Project Graph Contract](./Spio-Project-Graph-Contract.md) | 冻结 Vityo 对 spio 项目图 published payload 的 handoff 要求。 |
+| `Spio-Toolchain-And-Registry-State.md` | [Spio Toolchain And Registry State](./Spio-Toolchain-And-Registry-State.md) | 冻结 Vityo 对 spio toolchain、registry 和 package 状态的 handoff 要求。 |
+| `Spio-Workflow-Success-Payloads.md` | [Spio Workflow Success Payloads](./Spio-Workflow-Success-Payloads.md) | 冻结 Vityo 对 spio workflow success payload 的 handoff 要求。 |

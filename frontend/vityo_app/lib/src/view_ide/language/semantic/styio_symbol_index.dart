@@ -4663,7 +4663,7 @@ class StyioSymbolIndex {
     int offset,
   ) {
     for (final argument in arguments) {
-      if (argument.range.contains(offset)) {
+      if (argument.range.contains(offset) || offset == argument.range.end) {
         return argument;
       }
     }

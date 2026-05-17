@@ -1,5 +1,8 @@
 # App Shell Surface
 
+**Purpose:** Document the `docs/design/appearance/app-shell-surface/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 App Shell Surface is an Appearance Layer concern. It absorbs the former product-ui/product-surface idea without creating a separate product UI layer.
 
 ## 1. Position

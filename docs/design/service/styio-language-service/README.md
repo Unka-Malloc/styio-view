@@ -1,5 +1,8 @@
 # Styio Language Service
 
+**Purpose:** Document the `docs/design/service/styio-language-service/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 Styio Language Service is the Service Layer directory that directly serves Styio language capabilities to upper Vityo layers.
 
 It is the only Service Layer root for Styio language behavior. Internal connector, adapter, cache, and fixture-confidence modules live under this service instead of appearing as Service Layer roots.

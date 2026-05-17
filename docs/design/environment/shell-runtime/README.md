@@ -1,5 +1,8 @@
 # Shell Runtime
 
+**Purpose:** Document the `docs/design/environment/shell-runtime/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 Shell Runtime is an Environment module that coordinates shell-oriented execution through the Environment stack. It is not a UI shell and not an editor controller.
 
 ## 1. Environment Placement

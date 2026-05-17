@@ -1,5 +1,8 @@
 # Environment
 
+**Purpose:** Document the `docs/design/environment/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 Environment owns system and runtime environment capabilities. It has seven conceptual parts.
 
 System integration side, from bottom to top:

@@ -1,5 +1,8 @@
 # Resource Manager
 
+**Purpose:** Document the `docs/design/environment/system-compatibility-manager/resource-manager/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Resource Manager` is the Platform Manager component for resource facts, resource locations, and resource budgets. It does not manage stored data and it does not perform general file-system operations.
 
 The short rule is:

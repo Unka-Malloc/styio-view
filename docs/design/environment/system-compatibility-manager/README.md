@@ -1,5 +1,8 @@
 # System Compatibility Manager
 
+**Purpose:** Document the `docs/design/environment/system-compatibility-manager/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 ## Platform Detector Contract
 
 `Platform Detector` is the global interface preset for the detector layer. It does not mean one concrete detector implementation; it defines the behavior all concrete `Prober` modules must follow.

@@ -1,5 +1,8 @@
 # Editor Vertical Flow View
 
+**Purpose:** Document the `docs/design/architecture-views/vertical-flow-diagrams/editor/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Editor` is not a runtime layer and must not become a vertical implementation directory. It is a design view that crosses Appearance, Interaction, Service, and Environment.
 
 Concrete editor implementation must stay horizontally split. The vertical view exists only to review whether UI, rendering, editing behavior, service facts, file IO, configuration, and runtime state are crossing layer boundaries correctly.

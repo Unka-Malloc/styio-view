@@ -1,5 +1,7 @@
 # Vityo Core Completion Audit
 
+**Purpose:** Record the Vityo Core Completion Audit reference material for Vityo architecture, release, or maintenance work.
+
 **Last updated:** 2026-05-17
 
 This audit maps the active core implementation objective to concrete artifacts and verification evidence. It is intentionally stricter than a test summary: a passing test suite is evidence only when it covers the stated requirement.

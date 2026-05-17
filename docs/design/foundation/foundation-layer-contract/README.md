@@ -1,5 +1,8 @@
 # Foundation Layer Contract
 
+**Purpose:** Document the `docs/design/foundation/foundation-layer-contract/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Foundation` is Vityo's shared application-mechanics layer.
 
 It exists because multiple upper layers need the same low-level mechanics before they can implement real product behavior:

@@ -1,5 +1,8 @@
 # Credential DataStore
 
+**Purpose:** Document the `docs/design/environment/configuration-store/credential-data-store/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Credential DataStore` belongs to Configuration. It is the storage boundary for tokens, registry credentials, remote-service credentials, and other secret values that must not be mixed into ordinary configuration files.
 
 ## 1. Position

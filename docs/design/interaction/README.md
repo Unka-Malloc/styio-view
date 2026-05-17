@@ -1,5 +1,8 @@
 # Interaction
 
+**Purpose:** Document the `docs/design/interaction/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 Interaction owns user and editor behavior: commands, controller coordination, edit transactions, document state, text buffers, input routing, focus, selection, keybindings, and workspace edit application.
 
 Only boundary or complex interaction modules get their own README. Ordinary editor submodels are recorded here and in the Editor vertical flow view until they need dedicated design documents.

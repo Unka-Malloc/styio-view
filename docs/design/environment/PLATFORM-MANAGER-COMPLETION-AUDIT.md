@@ -1,5 +1,7 @@
 # Platform Manager Completion Audit
 
+**Purpose:** Record the Platform Manager Completion Audit reference material for Vityo architecture, release, or maintenance work.
+
 **Last updated:** 2026-05-17
 
 This audit covers the Platform Manager layer in the environment stack:

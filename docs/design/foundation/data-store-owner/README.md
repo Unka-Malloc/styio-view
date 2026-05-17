@@ -1,5 +1,8 @@
 # Foundation / DataStore Owner
 
+**Purpose:** Document the `docs/design/foundation/data-store-owner/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `DataStore Owner` is the layer-local owner of one IDE state family.
 
 It decides what state exists, who may mutate it, how it is scoped, and whether it is volatile, cached, persisted, or synced.

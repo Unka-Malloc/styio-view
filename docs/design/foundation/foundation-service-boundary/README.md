@@ -1,5 +1,8 @@
 # Foundation Service Boundary
 
+**Purpose:** Document the `docs/design/foundation/foundation-service-boundary/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Foundation` is the shared application-mechanics layer for Vityo.
 
 It exists because `DataStore`, `Registry`, `Workspace`, and shared resource coordination are needed by many upper layers before those layers can implement their own product behavior.

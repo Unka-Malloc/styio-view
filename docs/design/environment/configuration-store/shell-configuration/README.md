@@ -1,5 +1,8 @@
 # Shell Configuration
 
+**Purpose:** Document the `docs/design/environment/configuration-store/shell-configuration/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 Shell Configuration belongs to Environment / Configuration.
 
 It stores the configuration required by Shell Runtime. It does not probe available shells, build command lines, quote arguments, or execute commands.

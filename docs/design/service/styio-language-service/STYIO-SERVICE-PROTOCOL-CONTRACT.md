@@ -1,5 +1,7 @@
 # StyioService Protocol Contract
 
+**Purpose:** Record the StyioService Protocol Contract reference material for Vityo architecture, release, or maintenance work.
+
 **Last updated:** 2026-05-17
 
 This document defines the Vityo-side contract for consuming StyioService language facts. It is written for future StyioService CLI, daemon, LSP, or embedded API implementations.

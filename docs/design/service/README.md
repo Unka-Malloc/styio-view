@@ -1,5 +1,8 @@
 # Service Layer
 
+**Purpose:** Document the `docs/design/service/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 Service Layer only exposes directories that can provide callable services to upper layers.
 
 A top-level Service Layer directory must represent a service provider that can be consumed by Interaction, Appearance, or app-shell surfaces. Connectors, adapters, caches, fixture matrices, protocol helpers, and quality gates are internal implementation details of a concrete service and must not appear as root Service Layer modules.

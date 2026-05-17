@@ -1,5 +1,8 @@
 # Platform Adapter
 
+**Purpose:** Document the `docs/design/environment/system-compatibility-manager/platform-adapter/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Platform Adapter` converts immutable `Platform Context` facts into manager-ready compatibility inputs.
 
 It is not a feature layer and it does not execute platform operations. Its job is to keep fact interpretation out of `Platform Context` and to keep manager factories from each inventing their own context conversion path.

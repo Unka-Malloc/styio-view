@@ -1,5 +1,8 @@
 # Appearance
 
+**Purpose:** Document the `docs/design/appearance/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 Appearance owns visible presentation: app shell surfaces, rendering, theme mapping, visual widgets, icons, decorations, semantic highlighting, and responsive presentation.
 
 Only boundary or complex appearance modules get their own README. Ordinary renderer submodules are recorded here until they need a dedicated design document.

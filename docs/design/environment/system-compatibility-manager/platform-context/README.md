@@ -1,5 +1,8 @@
 # Platform Context
 
+**Purpose:** Document the `docs/design/environment/system-compatibility-manager/platform-context/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Platform Context` is the singleton configuration object for platform knowledge inside Vityo. It is mapped from real configuration files and composes the platform fact documents used by system-facing modules.
 
 `File System Facts`, `Shell Facts`, `Process Facts`, `Resource Facts`, `Network Facts`, `Clipboard Facts`, `Notification Facts`, `Local Service Facts`, and `PTY Facts` are not separate global stores. They are composable sections inside `Platform Context`.

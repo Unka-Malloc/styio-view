@@ -1,5 +1,7 @@
 # Vityo Core Implementation Gaps
 
+**Purpose:** Record the Vityo Core Implementation Gaps reference material for Vityo architecture, release, or maintenance work.
+
 **Last updated:** 2026-05-17
 
 This document records objective-level gaps for the current core implementation goal:

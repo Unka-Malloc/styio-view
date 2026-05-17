@@ -1,5 +1,8 @@
 # Environment Variable Configuration
 
+**Purpose:** Document the `docs/design/environment/configuration-store/environment-variable-configuration/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 Environment Variable Configuration stores Vityo-managed environment overlays. It does not write IDE-internal environment state back to the operating system's global environment.
 
 This follows the same product boundary used by mature IDEs: environment values configured in the IDE are persisted as IDE or workspace configuration, then merged into process environments when terminals, tasks, debuggers, language services, shell runtimes, or toolchain commands are launched.

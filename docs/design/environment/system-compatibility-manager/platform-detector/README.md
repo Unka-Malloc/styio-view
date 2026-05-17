@@ -1,5 +1,8 @@
 # Platform Detector
 
+**Purpose:** Document the `docs/design/environment/system-compatibility-manager/platform-detector/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Platform Detector` is the global interface preset for the whole detector layer. It defines how every concrete `Prober` behaves before any platform fact is published upward.
 
 It is not a feature manager and it is not a compatibility implementation. Its only job is to standardize bottom-level probing so `File System Prober`, `Shell Prober`, and future probers produce comparable facts.

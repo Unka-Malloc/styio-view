@@ -1,5 +1,8 @@
 # PTY Manager
 
+**Purpose:** Document the `docs/design/environment/system-compatibility-manager/pty-manager/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `PTY Manager` is the Platform Manager component for pseudo-terminal capability. It owns OS-facing terminal device behavior that `Shell Manager` and `Process Manager` should not absorb.
 
 A PTY is not a shell. A shell is a command interpreter such as `bash`, `zsh`, `sh`, or `powershell`. A PTY is the operating-system terminal device abstraction that lets an interactive process believe it is attached to a real terminal.

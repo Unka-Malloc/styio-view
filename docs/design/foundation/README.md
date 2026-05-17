@@ -1,5 +1,8 @@
 # Foundation
 
+**Purpose:** Document the `docs/design/foundation/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Foundation` is the shared application foundation for upper Vityo services. It provides common coordination mechanics that are required by Configuration, Toolchain, Extension, Service, Interaction, and Appearance modules.
 
 It must not become a catch-all layer. Foundation owns shared mechanics only.

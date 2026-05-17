@@ -1,5 +1,8 @@
 # User Service
 
+**Purpose:** Document the `docs/design/service/user-service/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 User Service is an optional Service Layer service. Vityo must remain usable without login, cloud profile sync, or any remote identity provider.
 
 ## 1. Position

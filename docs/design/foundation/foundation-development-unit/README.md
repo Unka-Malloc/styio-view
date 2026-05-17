@@ -1,5 +1,8 @@
 # Foundation Development Unit
 
+**Purpose:** Document the `docs/design/foundation/foundation-development-unit/` collection scope, ownership, and maintenance rules.
+**Last updated:** 2026-05-17
+
 `Foundation` is the independent development unit for Vityo's shared
 application mechanics.
 

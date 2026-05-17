@@ -149,7 +149,7 @@ REQUIRED_PROJECT_BRAND_METADATA = {
     ),
     Path("frontend/vityo_app/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Vityo");',
     Path("frontend/vityo_app/macos/Runner/Configs/AppInfo.xcconfig"): "PRODUCT_NAME = Vityo",
-    Path("frontend/vityo_app/pubspec.yaml"): "description: Vityo cross-platform shell",
+    Path("frontend/vityo_app/pubspec.yaml"): "description: Vityo IDE editor shell",
     Path("frontend/vityo_app/windows/runner/Runner.rc"): (
         'VALUE "FileDescription", "Vityo"',
         'VALUE "InternalName", "Vityo"',

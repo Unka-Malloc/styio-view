@@ -14,6 +14,28 @@
 
 当前标准 Flutter 基线固定为 `3.41.7`，配套 Dart SDK 固定为 `3.11.5`。
 
+## Release readiness gate
+
+正式发布前需要从仓库根目录执行：
+
+```bash
+./scripts/delivery-gate.sh --mode checkpoint
+python3 scripts/release-readiness-gate.py
+```
+
+`delivery-gate` 负责仓库卫生、文档、完整 Flutter 测试、语言 fixture、prototype governance 和 editor selftest。`release-readiness-gate.py` 负责发布级证据：
+
+1. 检查 `frontend/vityo_app/pubspec.yaml` 的 Vityo IDE editor 元数据。
+2. 检查关键 IDE 能力是否都有测试入口，包括 editor binding、language service、runtime/toolchain、environment/data persistence。
+3. 检查本 README 是否记录正式发布命令。
+4. 执行 `flutter build web --release`，确认 Web release artifact 可生成。
+
+如果只需要快速检查发布元数据和测试入口，可以执行：
+
+```bash
+python3 scripts/release-readiness-gate.py --skip-build
+```
+
 ## Frontend vs Backend Boundary
 
 前端拥有：

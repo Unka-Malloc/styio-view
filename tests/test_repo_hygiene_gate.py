@@ -97,7 +97,7 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             docs_readme.write_text("# Vityo Docs\n", encoding="utf-8")
             app_readme.write_text("# Vityo Flutter Shell\n", encoding="utf-8")
             pubspec.write_text(
-                "description: Vityo cross-platform shell for web, desktop, and mobile targets.\n",
+                "description: Vityo IDE editor shell for web, desktop, and mobile targets.\n",
                 encoding="utf-8",
             )
 
@@ -111,7 +111,7 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
                 Path("frontend/vityo_app/README.md"): "# Vityo Flutter Shell",
             }
             self.gate.REQUIRED_PROJECT_BRAND_METADATA = {
-                Path("frontend/vityo_app/pubspec.yaml"): "description: Vityo cross-platform shell",
+                Path("frontend/vityo_app/pubspec.yaml"): "description: Vityo IDE editor shell",
             }
             try:
                 errors = self.gate.check_project_branding()
@@ -138,7 +138,7 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             docs_readme.write_text("# Vityo Docs\n", encoding="utf-8")
             app_readme.write_text("# Vityo Flutter Shell\n", encoding="utf-8")
             pubspec.write_text(
-                "description: Vityo cross-platform shell for web, desktop, and mobile targets.\n",
+                "description: Vityo IDE editor shell for web, desktop, and mobile targets.\n",
                 encoding="utf-8",
             )
 
@@ -152,7 +152,7 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
                 Path("frontend/vityo_app/README.md"): "# Vityo Flutter Shell",
             }
             self.gate.REQUIRED_PROJECT_BRAND_METADATA = {
-                Path("frontend/vityo_app/pubspec.yaml"): "description: Vityo cross-platform shell",
+                Path("frontend/vityo_app/pubspec.yaml"): "description: Vityo IDE editor shell",
             }
             try:
                 errors = self.gate.check_project_branding()

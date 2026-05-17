@@ -1,7 +1,7 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-
 import 'dart:convert';
-import 'dart:html' as html;
+import 'dart:js_interop';
+
+import 'package:web/web.dart' as web;
 
 import '../platform/platform_target.dart';
 import 'hosted_control_plane.dart';
@@ -28,7 +28,7 @@ HostedControlPlaneConfig? resolveHostedControlPlaneConfig({
   );
   final baseUrl = configuredUrl.isNotEmpty
       ? configuredUrl
-      : '${html.window.location.origin}/api/styio-hosted/v1';
+      : '${web.window.location.origin}/api/styio-hosted/v1';
   final workspaceRoot = configuredWorkspaceRoot.isNotEmpty
       ? configuredWorkspaceRoot
       : '/workspace/hosted';
@@ -295,18 +295,34 @@ class _WebHostedControlPlaneClient implements HostedControlPlaneClient {
     String path, {
     Map<String, Object?>? body,
   }) async {
-    final response = await html.HttpRequest.request(
-      '${config.baseUrl}$path',
-      method: method,
-      sendData: body == null ? null : jsonEncode(body),
-      requestHeaders: body == null
-          ? const <String, String>{}
-          : const <String, String>{'Content-Type': 'application/json'},
-    );
-    final decoded = jsonDecode(response.responseText ?? '');
+    final response = await web.window.fetch(
+      '${config.baseUrl}$path'.toJS,
+      body == null
+          ? web.RequestInit(method: method)
+          : web.RequestInit(
+              method: method,
+              headers: _jsonHeaders(),
+              body: jsonEncode(body).toJS,
+            ),
+    ).toDart;
+    final responseText = (await response.text().toDart).toDart;
+    if (!response.ok) {
+      throw StateError(
+        'Hosted control plane request failed: '
+        '$method $path -> ${response.status} ${response.statusText}: '
+        '$responseText',
+      );
+    }
+    final decoded = jsonDecode(responseText);
     if (decoded is! Map<String, dynamic>) {
       throw StateError('Hosted control plane did not return a JSON object.');
     }
     return decoded;
+  }
+
+  web.Headers _jsonHeaders() {
+    final headers = web.Headers();
+    headers.set('Content-Type', 'application/json');
+    return headers;
   }
 }

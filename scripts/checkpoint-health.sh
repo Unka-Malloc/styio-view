@@ -74,6 +74,9 @@ python3 -m unittest tests.test_repo_hygiene_gate
 log "flutter test"
 (cd "$FLUTTER_DIR" && flutter test)
 
+log "release readiness static gate"
+python3 scripts/release-readiness-gate.py --flutter-dir "$FLUTTER_DIR" --skip-build
+
 if [[ "$RUN_LANGUAGE_FIXTURES" -eq 1 ]]; then
   log "language fixture confidence gate"
   LANGUAGE_FIXTURE_CMD=(./scripts/language-fixture-gate.sh --flutter-dir "$FLUTTER_DIR")

@@ -1,6 +1,6 @@
 # ADR-0012: Runtime Visualization Uses An Ordered RuntimeEvent Protocol
 
-**Purpose:** 记录 `styio-view` 为什么要先冻结执行层到 UI 的最小事件协议，以及该协议的排序与退化原则。
+**Purpose:** 记录 `Vityo` 为什么要先冻结执行层到 UI 的最小事件协议，以及该协议的排序与退化原则。
 
 **Last updated:** 2026-04-12
 

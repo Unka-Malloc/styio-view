@@ -1,6 +1,6 @@
 # ADR-0003: Build A Custom Editor Engine
 
-**Purpose:** 记录 `styio-view` 不复用传统 IDE 编辑控件、而是自研编辑器引擎的决定。
+**Purpose:** 记录 `Vityo` 不复用传统 IDE 编辑控件、而是自研编辑器引擎的决定。
 
 **Last updated:** 2026-04-12
 

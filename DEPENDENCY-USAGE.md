@@ -1,10 +1,10 @@
 # Dependency Usage Boundary
 
-**Purpose:** Record dependency authorization boundaries for `styio-view`.
+**Purpose:** Record dependency authorization boundaries for `Vityo`.
 
 **Last updated:** 2026-04-24
 
-`styio-view` is an Apache-2.0 Flutter/Dart application source project. Its current app, prototype, runner, docs, and test dependency boundary is:
+`Vityo` is an Apache-2.0 Flutter/Dart application source project. Its current app, prototype, runner, docs, and test dependency boundary is:
 
 - Flutter SDK and Dart SDK drive the frontend workspace and test harness.
 - `cupertino_icons`, `shared_preferences`, `path_provider`, `flutter_test`, and `flutter_lints` are Flutter/Dart dependencies governed by the app manifests.

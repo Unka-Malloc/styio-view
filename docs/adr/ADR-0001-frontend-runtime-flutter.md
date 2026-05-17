@@ -1,6 +1,6 @@
 # ADR-0001: Frontend Runtime Uses Flutter
 
-**Purpose:** 记录 `styio-view` 选择 Flutter 作为主前端运行时的背景、决策与后果。
+**Purpose:** 记录 `Vityo` 选择 Flutter 作为主前端运行时的背景、决策与后果。
 
 **Last updated:** 2026-04-12
 
@@ -10,7 +10,7 @@
 
 ## Context
 
-`styio-view` 需要：
+`Vityo` 需要：
 
 1. 跨桌面、移动和 Web 的统一 UI 系统
 2. 高自由度动画与现代界面表达

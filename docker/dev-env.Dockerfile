@@ -15,11 +15,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV FLUTTER_HOME=/opt/flutter
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
 ENV ANDROID_HOME=/opt/android-sdk
-ENV STYIO_VIEW_ANDROID_PROFILES=${ANDROID_PROFILES}
-ENV STYIO_VIEW_ANDROID_DEFAULT_PROFILE=${ANDROID_DEFAULT_PROFILE}
+ENV VITYO_ANDROID_PROFILES=${ANDROID_PROFILES}
+ENV VITYO_ANDROID_DEFAULT_PROFILE=${ANDROID_DEFAULT_PROFILE}
 ENV STYIO_CHROME_PATH=/usr/bin/chromium
 ENV CHROME_EXECUTABLE=/usr/bin/chromium
-ENV PATH=/opt/styio-view-tools/bin:/opt/nodejs/current/bin:/opt/flutter/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
+ENV PATH=/opt/Vityo-tools/bin:/opt/nodejs/current/bin:/opt/flutter/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
 
 COPY toolchain/android-sdk-profiles.csv /tmp/android-sdk-profiles.csv
 
@@ -48,9 +48,9 @@ RUN apt-get update \
     && if [ "$INCLUDE_ANDROID" = "1" ]; then apt-get install -y --no-install-recommends openjdk-21-jdk; fi \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m venv /opt/styio-view-tools \
-    && /opt/styio-view-tools/bin/python -m pip install --upgrade pip \
-    && /opt/styio-view-tools/bin/python -m pip install "cmake==$CMAKE_VERSION"
+RUN python3 -m venv /opt/Vityo-tools \
+    && /opt/Vityo-tools/bin/python -m pip install --upgrade pip \
+    && /opt/Vityo-tools/bin/python -m pip install "cmake==$CMAKE_VERSION"
 
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
@@ -100,9 +100,9 @@ RUN if [ "$INCLUDE_ANDROID" = "1" ]; then \
     fi
 
 RUN useradd -m -s /bin/bash styio \
-    && chown -R styio:styio /opt/flutter /opt/android-sdk /opt/nodejs /opt/styio-view-tools
+    && chown -R styio:styio /opt/flutter /opt/android-sdk /opt/nodejs /opt/Vityo-tools
 
 USER styio
-WORKDIR /workspace/styio-view
+WORKDIR /workspace/vityo-nightly
 
 CMD ["/bin/bash"]

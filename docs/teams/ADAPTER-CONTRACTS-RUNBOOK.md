@@ -2,18 +2,18 @@
 
 **Purpose:** 提供 adapter 合同、integration 层以及上游 `styio` / `spio` handoff 文档的日常维护入口。
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-10
 
 ## Mission
 
-负责 `styio-view` 自己拥有的 adapter 合同、integration layer 以及对上游的 required handoff。该团队不规划上游内部实现，也不降低前端产品语义去适配临时实现。
+负责 `Vityo` 自己拥有的 adapter 合同、integration layer 以及对上游的 required handoff。该团队不规划上游内部实现，也不降低前端产品语义去适配临时实现。
 
 ## Owned Surface
 
 Primary paths:
 
-1. `frontend/styio_view_app/lib/src/backend_toolchain/`
-2. `frontend/styio_view_app/lib/src/integration/`
+1. `frontend/vityo_app/lib/src/backend_toolchain/`
+2. `frontend/vityo_app/lib/src/integration/`
 3. `docs/contracts/`
 4. `docs/external/for-styio/`
 5. `docs/external/for-spio/`
@@ -39,6 +39,7 @@ Key SSOTs:
 7. 对 manifest section、target kind、dependency source kind、toolchain source 这类离散 wire value，优先使用共享映射表或 enum helper，不要在多个 parser/adapter 里复制字符串判断。
 8. 对 blocked-result、missing-binary、cloud-only fallback 这类 adapter 返回值，优先收成共享 helper，避免 execution / toolchain / runtime adapters 各自维护一份近似但会漂移的消息和状态。
 9. hosted execution、hosted workspace、project graph、dependency source、deployment 和 toolchain state 都必须通过 versioned payload / adapter contract 进入前端，不允许读 `spio` 私有目录或解析 human stderr。
+10. `LanguageServiceAdapter` 的 symbol / reference / definition / rename 字段属于编辑器核心合同；本地 token-derived fallback 可以先实现体验，但 adapter handoff 必须保留 declaration range、usage range、declaration-vs-usage 标记、`unresolved-reference` range 和 rename `TextEdit` 计划，不能退化成纯字符串搜索或前端静默改写。
 
 ## Change Classes
 
@@ -51,7 +52,7 @@ Key SSOTs:
 Minimum:
 
 ```bash
-cd frontend/styio_view_app && flutter analyze && flutter test
+cd frontend/vityo_app && flutter analyze && flutter test
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
 

@@ -2,11 +2,11 @@
 
 **Purpose:** Define the required workflow for checking GitHub Actions after a local commit is pushed, including what must be verified before committing and what must be watched after pushing.
 
-**Last updated:** 2026-04-25
+**Last updated:** 2026-05-02
 
 ## Scope
 
-This spec applies to agent and maintainer work on `styio-view` branches. It covers local pre-commit verification, post-push GitHub Actions monitoring, and failure recovery for repository-local and cross-repository gates.
+This spec applies to agent and maintainer work on `Vityo` branches. It covers local pre-commit verification, post-push GitHub Actions monitoring, and failure recovery for repository-local and cross-repository gates.
 
 ## Commit-Time Verification
 
@@ -16,15 +16,14 @@ Minimum local checks for normal changes:
 
 ```bash
 python3 scripts/repo-hygiene-gate.py --mode tracked
-python3 scripts/docs-audit.py
-cd frontend/styio_view_app && flutter analyze
-cd frontend/styio_view_app && flutter test
+./scripts/docs-gate.sh
+./scripts/delivery-gate.sh --mode checkpoint
 ```
 
 Product-gate tests remain explicit extension checks unless the user requests them or CI is configured to require them:
 
 ```bash
-STYIO_VIEW_PRODUCT_GATE=1 flutter test
+VITYO_PRODUCT_GATE=1 flutter test
 ```
 
 Cross-repository contract or product changes must also run the matching ecosystem gate from `styio-nightly`, for example:
@@ -62,18 +61,18 @@ If `gh` is unavailable or unauthenticated, the agent must state that GitHub Acti
 
 ## Cross-Repository Work
 
-When one delivery touches `styio-nightly`, `styio-spio`, and `styio-view`, post-push verification applies to every pushed repository. The agent should check each repository's GitHub Actions status, not only the repository that received the last commit.
+When one delivery touches `styio-nightly`, `styio-spio`, and `Vityo`, post-push verification applies to every pushed repository. The agent should check each repository's GitHub Actions status, not only the repository that received the last commit.
 
 Cross-repository gates must use the same workspace checkout set that will be visible to CI. If a gate consumes another repository's branch, push that repository first or report that remote CI may still be using an older sibling checkout.
 
 ## Delivery Ruleset Governance
 
-Required GitHub merge gates are maintained through GitHub Rulesets, not legacy classic branch protection. `ai-dev` and protected release/default branches must have an active Ruleset requiring the `audit` status check from the `styio-audit` workflow, with strict required status checks enabled.
+Required GitHub merge gates are maintained through GitHub Rulesets, not legacy classic branch protection. Downstream `nightly` must require pull requests and the `audit`, `styio-audit`, and `local-ci-gate` checks before merge.
 
 Gate audits must inspect effective branch rules, for example:
 
 ```bash
-gh api repos/Unka-Malloc/styio-view/rules/branches/ai-dev
+gh api repos/Unka-Malloc/vityo-nightly/rules/branches/nightly
 ```
 
 Do not use `branches/ai-dev/protection/required_status_checks` as the authority for this repository. That legacy classic endpoint can return 404 even when the Ruleset gate is active.

@@ -1,0 +1,5 @@
+#price := (): f64 => {
+  total = 1.0
+}
+value = price()
+value -> @stdout

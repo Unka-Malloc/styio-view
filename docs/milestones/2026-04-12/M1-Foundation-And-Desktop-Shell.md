@@ -38,7 +38,7 @@
 
 当前代码入口：
 
-1. `frontend/styio_view_app/`
+1. `frontend/vityo_app/`
 2. `lib/src/app/`
 3. `lib/src/editor/`
 4. `lib/src/runtime/`

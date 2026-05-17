@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface": "styio-view.toolchain-backend",
+  "surface": "Vityo.toolchain-backend",
   "note": "Non-normative example for local mocks. Product-contract truth lives in docs/contracts/ and upstream repo contracts.",
   "workspace": {
     "workspace_id": null,

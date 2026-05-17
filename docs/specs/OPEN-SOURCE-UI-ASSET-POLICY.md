@@ -1,6 +1,6 @@
 # Open Source UI Asset Policy
 
-**Purpose:** 约束 `styio-view` 的默认字体、glyph 字体、主题标签和调色盘来源，降低商业专有资产与品牌命名带来的许可或争议风险。
+**Purpose:** 约束 `Vityo` 的默认字体、glyph 字体、主题标签和调色盘来源，降低商业专有资产与品牌命名带来的许可或争议风险。
 
 **Last updated:** 2026-04-13
 

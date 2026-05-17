@@ -1,6 +1,6 @@
 # ADR-0004: Split Execution Backends By Platform
 
-**Purpose:** 记录 `styio-view` 不把所有平台的编译与运行策略强制统一，而按平台拆分执行后端。
+**Purpose:** 记录 `Vityo` 不把所有平台的编译与运行策略强制统一，而按平台拆分执行后端。
 
 **Last updated:** 2026-04-12
 

@@ -1,6 +1,6 @@
 # Styio Theme Config
 
-**Purpose:** 定义 `styio-view` 原型当前支持的主题 / 编辑器调色盘配置文件格式，结构参考 VS Code 的 `settings.json`、`workbench.colorCustomizations` 和 `editor.tokenColorCustomizations`。
+**Purpose:** 定义 `Vityo` 原型当前支持的主题 / 编辑器调色盘配置文件格式，结构参考 VS Code 的 `settings.json`、`workbench.colorCustomizations` 和 `editor.tokenColorCustomizations`。
 
 **Last updated:** 2026-04-21
 
@@ -131,7 +131,7 @@
 
 1. 导入或编辑后的配置会被归一化成一份 canonical JSON 配置
 2. 配置保存在浏览器本地存储中
-3. 当前 localStorage key 为 `styio-view:custom-palette-config`
+3. 当前 localStorage key 为 `Vityo:custom-palette-config`
 4. 普通 UI 设置改动会同步回这份 canonical 配置
 
 如果存在 `styioView.visualTokens`，这些 token 也会被持久化进同一份 canonical 配置。

@@ -1,6 +1,6 @@
 # Archive Docs
 
-**Purpose:** 保存 `styio-view` 已归档的文档 provenance 和生命周期元数据；活跃摘要留在 `docs/rollups/`，活跃恢复记录留在 `docs/history/`。
+**Purpose:** 保存 `Vityo` 已归档的文档 provenance 和生命周期元数据；活跃摘要留在 `docs/rollups/`，活跃恢复记录留在 `docs/history/`。
 
 **Last updated:** 2026-04-17
 

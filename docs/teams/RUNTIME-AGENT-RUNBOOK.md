@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 runtime surface、debug/agent 面板、prompt/profile 入口与执行态 UI 的日常维护入口。
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-12
 
 ## Mission
 
@@ -12,15 +12,19 @@
 
 Primary paths:
 
-1. `frontend/styio_view_app/lib/src/runtime/`
-2. `frontend/styio_view_app/lib/src/agent/`
-3. `docs/specs/AGENT-PROVIDER-ADAPTER-SCHEMA.md`
-4. `docs/specs/PROFILE-SYNC-ADAPTER-SCHEMA.md`
+1. `frontend/vityo_app/lib/src/view_ide/runtime/`
+2. `frontend/vityo_app/lib/src/view_ide/agent/`
+3. `frontend/vityo_app/lib/src/view_render/runtime/`
+4. `frontend/vityo_app/lib/src/view_render/agent/`
+5. `frontend/vityo_app/lib/src/runtime/`
+6. `frontend/vityo_app/lib/src/agent/`
+7. `docs/specs/AGENT-PROVIDER-ADAPTER-SCHEMA.md`
+8. `docs/specs/PROFILE-SYNC-ADAPTER-SCHEMA.md`
 
 Key SSOTs:
 
-1. `产品规格 -> ../design/Styio-View-Product-Spec.md`
-2. `系统架构 -> ../design/Styio-View-System-Architecture.md`
+1. `产品规格 -> ../design/Vityo-Product-Spec.md`
+2. `系统架构 -> ../design/Vityo-System-Architecture.md`
 3. `测试目录 -> ../assets/workflow/TEST-CATALOG.md`
 
 ## Daily Workflow
@@ -31,6 +35,7 @@ Key SSOTs:
 4. 变更 profile/prompt 流程时，同步检查本地持久化和 sync adapter 语义。
 5. `agent_profile.dart` 只冻结 provider route、默认 endpoint、profile JSON 和 local-bridge eligibility；本轮不新增真实 AI provider 调用、账号策略或云端 secret 管理。
 6. runtime replay、debug lane 和 hosted execution 摘要必须消费 `backend_toolchain` adapter payload，不得回读 legacy integration façade 或上游 human stderr。
+7. runtime/agent 的纯状态归 `view_ide`，Flutter surface 和 debug/agent panel 呈现归 `view_render`；legacy `src/runtime/` 与 `src/agent/` 只能保留 façade。
 
 ## Change Classes
 
@@ -43,7 +48,7 @@ Key SSOTs:
 Minimum:
 
 ```bash
-cd frontend/styio_view_app && flutter analyze && flutter test
+cd frontend/vityo_app && flutter analyze && flutter test
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
 

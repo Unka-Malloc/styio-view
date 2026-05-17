@@ -57,7 +57,7 @@ def render_ledger(manifest: dict[str, object]) -> str:
     lines = [
         "# Archive Ledger",
         "",
-        "**Purpose:** Track archived `styio-view` documentation provenance and lifecycle status; the machine-readable source of truth lives in [ARCHIVE-MANIFEST.json](./ARCHIVE-MANIFEST.json).",
+        "**Purpose:** Track archived `Vityo` documentation provenance and lifecycle status; the machine-readable source of truth lives in [ARCHIVE-MANIFEST.json](./ARCHIVE-MANIFEST.json).",
         "",
         f"**Last updated:** {manifest.get('last_updated', TODAY)}",
         "",
@@ -71,7 +71,7 @@ def render_ledger(manifest: dict[str, object]) -> str:
         "",
     ]
     if not entries:
-        lines.append("- No archived `styio-view` docs are recorded yet. When active history or other provenance files are archived, register them in `ARCHIVE-MANIFEST.json` and refresh this ledger.")
+        lines.append("- No archived `Vityo` docs are recorded yet. When active history or other provenance files are archived, register them in `ARCHIVE-MANIFEST.json` and refresh this ledger.")
     else:
         lines.extend(["| Source | Status | Archive Path |", "|--------|--------|--------------|"])
         for entry in entries:

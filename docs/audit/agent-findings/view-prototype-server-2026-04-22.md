@@ -20,8 +20,9 @@ The prototype dev server exposed local workspace and file-browser APIs without a
 2. Added a per-process session credential. Static page responses issue `styio_dev_server_session` as `HttpOnly; SameSite=Strict`; all `/api/` routes now fail closed without that cookie or an explicit `X-Styio-Dev-Server-Token` / `Authorization: Bearer` token.
 3. Added same-origin `Origin` enforcement for every `POST /api/` route.
 4. Disabled all workspace mutation routes by default. Local writes now require `STYIO_DEV_SERVER_ENABLE_MUTATION=1` for the local dev-server session.
-5. Added `prototype/test_dev_server_security.py` to exercise missing-cookie denial, valid-cookie reads, Host rejection, Origin rejection, disabled mutation, enabled mutation, and invalid-origin denial over real HTTP.
-6. Updated `prototype/README.md` with the local development security model and validation command.
+5. Limited `/api/browser/file` content reads to files inside the current workspace root, so authenticated local sessions cannot use the browser preview endpoint to read arbitrary UTF-8 files elsewhere on the machine.
+6. Added `prototype/test_dev_server_security.py` to exercise missing-cookie denial, valid-cookie reads, workspace-limited file reads, Host rejection, Origin rejection, disabled mutation, enabled mutation, and invalid-origin denial over real HTTP.
+7. Updated `prototype/README.md` with the local development security model and validation command.
 
 ## Validation
 
@@ -31,7 +32,7 @@ Run from repository root:
 python3 -m unittest prototype/test_dev_server_security.py
 ```
 
-Observed result on 2026-04-22: `Ran 8 tests ... OK`.
+Observed result on 2026-04-28: `Ran 9 tests ... OK`.
 
 ## Remaining Risks
 

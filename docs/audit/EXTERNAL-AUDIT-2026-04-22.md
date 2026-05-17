@@ -1,25 +1,25 @@
-# External Audit: styio-view
+# External Audit: Vityo
 
-**Purpose:** External audit report for the 2026-04-22 `styio-view` review using `styio-audit` project `styio-view` and module `for-styio-view`.
+**Purpose:** External audit report for the 2026-04-22 `Vityo` review using `styio-audit` project `Vityo` and module `for-vityo`.
 
-**Last updated:** 2026-04-22
+**Last updated:** 2026-05-02
 
 **Date:** 2026-04-22
-**Scope:** `styio-view`, audited through the external `styio-audit` framework with `project=styio-view` and module `for-styio-view`.
+**Scope:** `Vityo`, audited through the external `styio-audit` framework with `project=Vityo` and module `for-vityo`.
 **Status:** Open findings remain.
 
-This report records the code audit outcome for the Flutter workspace, adapter, module, runtime, and platform lifecycle surfaces in `styio-view`. The audit intentionally focuses on the seven design principles, lifecycle state machines, test coverage, gate strictness, and UI/state consistency.
+This report records the code audit outcome for the Flutter workspace, adapter, module, runtime, and platform lifecycle surfaces in `Vityo`. The audit intentionally focuses on the seven design principles, lifecycle state machines, test coverage, gate strictness, and UI/state consistency.
 
 ## Bottom Line
 
 The repo has a strong amount of surface-area coverage already. During the parallel remediation pass, the original critical/high findings were narrowed substantially:
 
-1. The prototype dev server now has Host/Origin checks, per-process API credentials, and mutations disabled by default.
+1. The prototype dev server now has Host/Origin checks, per-process API credentials, workspace-limited file-content reads, and mutations disabled by default.
 2. The hosted control-plane IO client now requires a bearer token, validates endpoint URIs, uses request timeouts, and bounds response reads.
 3. The execution overlay now snapshots files instead of symlinking back to the source workspace and uses resolved path containment.
 4. Shell-level command gating, web hosted-client hardening, route text precision, and live product gates remain open follow-up areas.
 
-I also added a small CI reinforcement lane for core Flutter lifecycle tests so the default quality signal now includes the main workspace, module, runtime, shell, execution, and document-store state machines.
+The downstream `nightly` delivery line now uses a repository-local `local-ci-gate` workflow so the default quality signal includes repository hygiene, docs governance, Flutter analyze/test, and the prototype editor selftest.
 
 ## Parallel Remediation Shards
 
@@ -37,44 +37,44 @@ I also added a small CI reinforcement lane for core Flutter lifecycle tests so t
 
 ### High
 
-2. `_IoHostedControlPlaneClient` concatenated base URLs as strings, did not model auth or tokens, had no timeout, and drained the full response before decode. The IO client now validates URIs, requires `STYIO_VIEW_HOSTED_TOKEN`, applies request timeouts, disables redirects, and bounds streamed response reads.
-   - Evidence: `frontend/styio_view_app/lib/src/backend_toolchain/hosted_control_plane_io.dart:258`, `:274`, `:293`
+2. `_IoHostedControlPlaneClient` concatenated base URLs as strings, did not model auth or tokens, had no timeout, and drained the full response before decode. The IO client now validates URIs, requires `VITYO_HOSTED_TOKEN`, applies request timeouts, disables redirects, and bounds streamed response reads.
+   - Evidence: `frontend/vityo_app/lib/src/backend_toolchain/hosted_control_plane_io.dart:258`, `:274`, `:293`
    - Principles: 3 Typed Contracts, 4 Fail Closed, 5 Secure And Bounded, 6 Evidence Must Match The Claim
 
 3. The execution overlay linked source workspace entries into a temporary directory. The IO adapter now builds a bounded snapshot, skips symlink entries, and blocks changed project active files that resolve outside the workspace root.
-   - Evidence: `frontend/styio_view_app/lib/src/backend_toolchain/execution_adapter_io.dart:1229`, `:1251`, `:1263`, `:1295`
+   - Evidence: `frontend/vityo_app/lib/src/backend_toolchain/execution_adapter_io.dart:1229`, `:1251`, `:1263`, `:1295`
    - Principles: 5 Secure And Bounded, 7 Recoverable Evolution
 
 4. `ShellModel.executeCommand` still lets run-path execution reach the adapter directly, rather than gating from the route snapshot first. That weakens the command state machine and makes blocked routes depend on downstream adapter behavior.
-   - Evidence: `frontend/styio_view_app/lib/src/app/state/shell_model.dart:118`, `:136`, `:227`
+   - Evidence: `frontend/vityo_app/lib/src/app/state/shell_model.dart:118`, `:136`, `:227`
    - Principles: 2 Explicit Ownership, 4 Fail Closed, 6 Evidence Must Match The Claim
 
 5. Hosted IO response parsing now treats HTTP status, malformed JSON, non-object success bodies, oversized bodies, and malformed envelope fields as first-class failure modes. Higher-level adapters can still expose some hosted failures as raw exceptions.
-   - Evidence: `frontend/styio_view_app/lib/src/backend_toolchain/hosted_control_plane_io.dart:289`, `:293`, `:300`
+   - Evidence: `frontend/vityo_app/lib/src/backend_toolchain/hosted_control_plane_io.dart:289`, `:293`, `:300`
    - Principles: 3 Typed Contracts, 4 Fail Closed, 5 Secure And Bounded
 
 ### Medium
 
 6. Execution-overlay path-containment checks now resolve real paths before comparison. Some non-overlay route-selection paths should still be reviewed before the broader class is declared fully closed.
-   - Evidence: `frontend/styio_view_app/lib/src/backend_toolchain/execution_adapter_io.dart:1431`, `:1440`; `frontend/styio_view_app/lib/src/backend_toolchain/project_workflow_selection.dart:128`, `:141`
+   - Evidence: `frontend/vityo_app/lib/src/backend_toolchain/execution_adapter_io.dart:1431`, `:1440`; `frontend/vityo_app/lib/src/backend_toolchain/project_workflow_selection.dart:128`, `:141`
    - Principles: 3 Typed Contracts, 5 Secure And Bounded
 
 7. `AppBootstrap` advertises cloud capability from platform alone, not from a resolved hosted config or workspace state. That can overstate availability in the UI and route summaries.
-   - Evidence: `frontend/styio_view_app/lib/src/app/app_bootstrap.dart:100`, `:106`
+   - Evidence: `frontend/vityo_app/lib/src/app/app_bootstrap.dart:100`, `:106`
    - Principles: 2 Explicit Ownership, 6 Evidence Must Match The Claim
 
 8. `RuntimeSurface` always pulls the CLI capability detail for the execution banner, even on hosted/cloud or FFI routes. The UI can therefore describe the wrong route.
-   - Evidence: `frontend/styio_view_app/lib/src/runtime/runtime_surface.dart:60`, `:98`, `:142`
+   - Evidence: `frontend/vityo_app/lib/src/runtime/runtime_surface.dart:60`, `:98`, `:142`
    - Principles: 2 Explicit Ownership, 6 Evidence Must Match The Claim
 
 9. Active document loads in `ShellModel` are fire-and-forget. Rapid file switching can still write stale state or drop load errors if the pending load resolves after the active path changed.
-   - Evidence: `frontend/styio_view_app/lib/src/app/state/shell_model.dart:361`, `:582`, `:589`
+   - Evidence: `frontend/vityo_app/lib/src/app/state/shell_model.dart:361`, `:582`, `:589`
    - Principles: 3 Typed Contracts, 4 Fail Closed, 7 Recoverable Evolution
 
 ### Low
 
-10. Product workflow tests are gated by `STYIO_VIEW_PRODUCT_GATE=1`, so the default green path does not prove live product closure by itself. Before this audit, CI also did not run any Flutter tests.
-    - Evidence: `frontend/styio_view_app/test/local_product_workflow_test.dart:27`, `frontend/styio_view_app/test/hosted_product_workflow_test.dart:29`, `.github/workflows/ci.yml:1`
+10. Product workflow tests are gated by `VITYO_PRODUCT_GATE=1`, so the default green path does not prove live product closure by itself. The repository-local CI gate covers Flutter analyze/test and prototype health; the live product workflow remains an explicit release-relevant extension lane.
+    - Evidence: `frontend/vityo_app/test/local_product_workflow_test.dart:27`, `frontend/vityo_app/test/hosted_product_workflow_test.dart:29`, `.github/workflows/local-ci-gate.yml:1`
     - Principles: 6 Evidence Must Match The Claim, 7 Recoverable Evolution
 
 ## Lifecycle State Machines
@@ -145,9 +145,9 @@ Coverage gaps:
 
 ## Gate Strictness
 
-Before this audit, `styio-audit` validated the framework and project module, but the full gate was blocked by the open defect queue record in `docs/audit/defects/STYIO-VIEW-2026-04-22.md`. The default repository CI also did not include Flutter tests, so it could go green without exercising the workspace/module/runtime state machines.
+Before this audit, `styio-audit` validated the framework and project module, but the full gate was blocked by an ignored open defect queue record in `docs/audit/defects/STYIO-VIEW-2026-04-22.md`. That scratch record has been migrated into this tracked audit report and [NEXT-STAGE-GAP-LEDGER.md](../rollups/NEXT-STAGE-GAP-LEDGER.md), and the ignored scratch file is removed before submission.
 
-I added a Flutter lifecycle unit-test step to `.github/workflows/ci.yml` so the default CI path now checks the main local state machines instead of only docs and hygiene.
+The downstream delivery workflow now exposes `local-ci-gate` as the required repository-local CI status for `nightly`, instead of the older `styio-ci` / `build-and-test` naming. It runs the composed delivery gate with external `styio-audit` skipped because the released policy gate runs separately in `.github/workflows/styio-audit.yml`.
 
 The product workflow tests remain environment-gated, so they should continue to be treated as a release-relevant lane rather than proof from the default test run.
 
@@ -155,8 +155,8 @@ The product workflow tests remain environment-gated, so they should continue to 
 
 - `python3 -m styio_audit.cli list-modules`
 - `python3 -m styio_audit.cli validate-modules`
-- `python3 -m styio_audit.cli gate --repo /home/unka/styio-view --project styio-view --framework-only`
-- `python3 -m styio_audit.cli gate --repo /home/unka/styio-view --project styio-view`
+- `python3 -m styio_audit.cli gate --repo /home/unka/Unka-Malloc/vityo-nightly --project Vityo --framework-only`
+- `python3 -m styio_audit.cli gate --repo /home/unka/Unka-Malloc/vityo-nightly --project Vityo`
 - `flutter test test/module_lifecycle_test.dart test/runtime_surfaces_test.dart test/hosted_control_plane_client_test.dart test/shell_model_test.dart test/execution_adapter_test.dart test/workspace_document_store_test.dart`
 - `python3 -m unittest prototype/test_dev_server_security.py`
 - `flutter test test/hosted_control_plane_io_hardening_test.dart`
@@ -164,7 +164,7 @@ The product workflow tests remain environment-gated, so they should continue to 
 
 ## Remaining Risks
 
-1. The open defect queue record still blocks the external audit gate until it is closed or removed.
-2. Web hosted-control-plane hardening still needs parity with the IO client.
-3. Product workflow coverage still depends on an env-gated lane, so the full execution matrix is not yet default.
-4. Shell run-route gating, route text precision, and stale async document-load rejection remain follow-up work.
+1. Web hosted-control-plane hardening still needs parity with the IO client.
+2. Product workflow coverage still depends on an env-gated lane, so the full execution matrix is not yet default.
+3. Shell run-route gating, route text precision, and stale async document-load rejection remain follow-up work.
+4. `nightly` merge governance depends on GitHub Rulesets requiring `audit`, `styio-audit`, and `local-ci-gate` checks.

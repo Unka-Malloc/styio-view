@@ -1,7 +1,7 @@
 param(
     [switch]$WithAndroid,
-    [string]$AndroidProfiles = $(if ($env:STYIO_VIEW_ANDROID_PROFILES) { $env:STYIO_VIEW_ANDROID_PROFILES } else { "android-35,android-36" }),
-    [string]$AndroidDefaultProfile = $(if ($env:STYIO_VIEW_ANDROID_DEFAULT_PROFILE) { $env:STYIO_VIEW_ANDROID_DEFAULT_PROFILE } else { "android-36" }),
+    [string]$AndroidProfiles = $(if ($env:VITYO_ANDROID_PROFILES) { $env:VITYO_ANDROID_PROFILES } else { "android-35,android-36" }),
+    [string]$AndroidDefaultProfile = $(if ($env:VITYO_ANDROID_DEFAULT_PROFILE) { $env:VITYO_ANDROID_DEFAULT_PROFILE } else { "android-36" }),
     [switch]$SkipWorkspaceBootstrap
 )
 
@@ -15,16 +15,16 @@ $ChromiumStandardVersion = (Get-Content -Raw (Join-Path $Root ".chromium-version
 $DartStandardVersion = "3.11.5"
 $CmakeStandardVersion = "3.31.6"
 $AndroidCmdlineToolsVersion = "14742923"
-$AndroidProfileFile = if ($env:STYIO_VIEW_ANDROID_PROFILE_FILE) { $env:STYIO_VIEW_ANDROID_PROFILE_FILE } else { Join-Path $Root "toolchain\android-sdk-profiles.csv" }
-$FlutterHome = if ($env:STYIO_VIEW_FLUTTER_HOME) { $env:STYIO_VIEW_FLUTTER_HOME } else { Join-Path $env:USERPROFILE "develop\\flutter" }
-$AndroidSdkRoot = if ($env:STYIO_VIEW_ANDROID_SDK_ROOT) { $env:STYIO_VIEW_ANDROID_SDK_ROOT } else { Join-Path $env:LOCALAPPDATA "Android\\Sdk" }
-$NodeInstallRoot = if ($env:STYIO_VIEW_NODE_INSTALL_ROOT) { $env:STYIO_VIEW_NODE_INSTALL_ROOT } else { Join-Path $env:LOCALAPPDATA "styio-view\\nodejs" }
-$BrowserHome = if ($env:STYIO_VIEW_BROWSER_HOME) { $env:STYIO_VIEW_BROWSER_HOME } else { Join-Path $env:LOCALAPPDATA "styio-view\\browser" }
-$ToolVenv = if ($env:STYIO_VIEW_TOOL_VENV) { $env:STYIO_VIEW_TOOL_VENV } else { Join-Path $env:LOCALAPPDATA "styio-view\\tools" }
+$AndroidProfileFile = if ($env:VITYO_ANDROID_PROFILE_FILE) { $env:VITYO_ANDROID_PROFILE_FILE } else { Join-Path $Root "toolchain\android-sdk-profiles.csv" }
+$FlutterHome = if ($env:VITYO_FLUTTER_HOME) { $env:VITYO_FLUTTER_HOME } else { Join-Path $env:USERPROFILE "develop\\flutter" }
+$AndroidSdkRoot = if ($env:VITYO_ANDROID_SDK_ROOT) { $env:VITYO_ANDROID_SDK_ROOT } else { Join-Path $env:LOCALAPPDATA "Android\\Sdk" }
+$NodeInstallRoot = if ($env:VITYO_NODE_INSTALL_ROOT) { $env:VITYO_NODE_INSTALL_ROOT } else { Join-Path $env:LOCALAPPDATA "Vityo\\nodejs" }
+$BrowserHome = if ($env:VITYO_BROWSER_HOME) { $env:VITYO_BROWSER_HOME } else { Join-Path $env:LOCALAPPDATA "Vityo\\browser" }
+$ToolVenv = if ($env:VITYO_TOOL_VENV) { $env:VITYO_TOOL_VENV } else { Join-Path $env:LOCALAPPDATA "Vityo\\tools" }
 
 function Write-Log {
     param([string]$Message)
-    Write-Host "[styio-view windows env] $Message"
+    Write-Host "[Vityo windows env] $Message"
 }
 
 function Require-Windows {
@@ -179,7 +179,7 @@ function Install-AndroidSdk {
         Write-Log "Installing Android command-line tools"
         Ensure-Directory $AndroidSdkRoot
         Download-File -Url $url -Destination $tmp
-        $extract = Join-Path $env:TEMP "styio-view-android-tools"
+        $extract = Join-Path $env:TEMP "Vityo-android-tools"
         if (Test-Path $extract) {
             Remove-Item -Recurse -Force $extract
         }
@@ -206,9 +206,9 @@ function Write-UserEnv {
     [Environment]::SetEnvironmentVariable("ANDROID_HOME", $AndroidSdkRoot, "User")
     [Environment]::SetEnvironmentVariable("STYIO_CHROME_PATH", $chromePath, "User")
     [Environment]::SetEnvironmentVariable("CHROME_EXECUTABLE", $chromePath, "User")
-    [Environment]::SetEnvironmentVariable("STYIO_VIEW_ANDROID_PROFILE_FILE", $AndroidProfileFile, "User")
-    [Environment]::SetEnvironmentVariable("STYIO_VIEW_ANDROID_PROFILES", $AndroidProfiles, "User")
-    [Environment]::SetEnvironmentVariable("STYIO_VIEW_ANDROID_DEFAULT_PROFILE", $AndroidDefaultProfile, "User")
+    [Environment]::SetEnvironmentVariable("VITYO_ANDROID_PROFILE_FILE", $AndroidProfileFile, "User")
+    [Environment]::SetEnvironmentVariable("VITYO_ANDROID_PROFILES", $AndroidProfiles, "User")
+    [Environment]::SetEnvironmentVariable("VITYO_ANDROID_DEFAULT_PROFILE", $AndroidDefaultProfile, "User")
 
     Add-ToUserPath (Join-Path $ToolVenv "Scripts")
     Add-ToUserPath (Join-Path $NodeInstallRoot "node-v$NodeStandardVersion-win-x64")
@@ -254,7 +254,7 @@ $profileName = if ($WithAndroid) { "windows+android" } else { "windows" }
 $chromePath = Join-Path $BrowserHome "chrome-win64\\chrome.exe"
 
 Write-Host ""
-Write-Host "styio-view Windows bootstrap complete."
+Write-Host "Vityo Windows bootstrap complete."
 Write-Host ""
 Write-Host "Profile:         $profileName"
 Write-Host "Python:          $PythonStandardVersion"
@@ -275,5 +275,5 @@ if ($WithAndroid) {
     Write-Host "  powershell -ExecutionPolicy Bypass -File .\\scripts\\android-sdk-profile.ps1 env $AndroidDefaultProfile"
     Write-Host "  powershell -ExecutionPolicy Bypass -File .\\scripts\\android-sdk-profile.ps1 build --profiles $AndroidProfiles --parallel --artifact apk --mode debug"
 }
-Write-Host "  cd frontend\\styio_view_app; flutter analyze; flutter test"
+Write-Host "  cd frontend\\vityo_app; flutter analyze; flutter test"
 Write-Host "  cd prototype; `$env:STYIO_CHROME_PATH = '$chromePath'; `$env:STYIO_EDITOR_URL = 'http://127.0.0.1:4180/editor.html'; npm run selftest:editor"

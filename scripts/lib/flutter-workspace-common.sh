@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-styio_view_trim() {
+vityo_trim() {
   local value="$1"
   value="${value#"${value%%[![:space:]]*}"}"
   value="${value%"${value##*[![:space:]]}"}"
   printf '%s' "$value"
 }
 
-styio_view_default_java_home() {
+vityo_default_java_home() {
   if [[ -n "${JAVA_HOME:-}" ]]; then
     printf '%s\n' "$JAVA_HOME"
     return
@@ -27,7 +27,7 @@ styio_view_default_java_home() {
   esac
 }
 
-styio_view_resolve_flutter_bin() {
+vityo_resolve_flutter_bin() {
   local flutter_bin="${1:-}"
   local flutter_home="${2:-$HOME/develop/flutter}"
 
@@ -50,7 +50,7 @@ styio_view_resolve_flutter_bin() {
   return 1
 }
 
-styio_view_copy_flutter_project() {
+vityo_copy_flutter_project() {
   local source_dir="$1"
   local dest_root="$2"
   shift 2

@@ -1,6 +1,6 @@
 # ADR-0015: Uninstall Reclamation And Hosted Workspace Retention Are Explicit
 
-**Purpose:** 记录 `styio-view` 如何处理不同平台的模块卸载、数据回收，以及 Web 托管工作区的关闭与保留窗口。
+**Purpose:** 记录 `Vityo` 如何处理不同平台的模块卸载、数据回收，以及 Web 托管工作区的关闭与保留窗口。
 
 **Last updated:** 2026-04-12
 

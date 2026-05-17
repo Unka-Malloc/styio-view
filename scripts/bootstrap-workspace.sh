@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FLUTTER_HOME="${STYIO_VIEW_FLUTTER_HOME:-$HOME/develop/flutter}"
-FLUTTER_BIN="${STYIO_VIEW_FLUTTER_BIN:-$FLUTTER_HOME/bin/flutter}"
-PLATFORMS="${STYIO_VIEW_FLUTTER_PLATFORMS:-}"
+FLUTTER_HOME="${VITYO_FLUTTER_HOME:-$HOME/develop/flutter}"
+FLUTTER_BIN="${VITYO_FLUTTER_BIN:-$FLUTTER_HOME/bin/flutter}"
+PLATFORMS="${VITYO_FLUTTER_PLATFORMS:-}"
 SKIP_PLATFORM_BOOTSTRAP=0
 SKIP_NPM=0
 SKIP_FLUTTER_PUB=0
@@ -28,11 +28,11 @@ EOF
 }
 
 log() {
-  printf '[styio-view workspace] %s\n' "$*"
+  printf '[Vityo workspace] %s\n' "$*"
 }
 
 fail() {
-  printf '[styio-view workspace] %s\n' "$*" >&2
+  printf '[Vityo workspace] %s\n' "$*" >&2
   exit 1
 }
 
@@ -121,7 +121,7 @@ main() {
   verify_platforms
 
   if [[ ! -x "$FLUTTER_BIN" ]] && ! command -v flutter >/dev/null 2>&1; then
-    fail "flutter is not installed. Set STYIO_VIEW_FLUTTER_HOME or STYIO_VIEW_FLUTTER_BIN."
+    fail "flutter is not installed. Set VITYO_FLUTTER_HOME or VITYO_FLUTTER_BIN."
   fi
 
   if [[ ! -x "$FLUTTER_BIN" ]]; then
@@ -131,11 +131,11 @@ main() {
   if [[ $SKIP_PLATFORM_BOOTSTRAP -eq 0 ]]; then
     log "generating Flutter runners for platforms: $PLATFORMS"
     (
-      cd "$ROOT/frontend/styio_view_app"
+      cd "$ROOT/frontend/vityo_app"
       "$FLUTTER_BIN" create \
         --platforms="$PLATFORMS" \
-        --project-name=styio_view_app \
-        --org=io.styio.view \
+        --project-name=vityo_app \
+        --org=io.vityo \
         .
     )
   fi
@@ -148,7 +148,7 @@ main() {
   if [[ $SKIP_FLUTTER_PUB -eq 0 ]]; then
     log "installing Flutter package dependencies"
     (
-      cd "$ROOT/frontend/styio_view_app"
+      cd "$ROOT/frontend/vityo_app"
       "$FLUTTER_BIN" pub get
     )
   fi

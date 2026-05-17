@@ -1,6 +1,6 @@
-# Styio View Test Catalog
+# Vityo Test Catalog
 
-**Purpose:** 给出 `styio-view` 当前按里程碑组织的测试与验收目录；在实现期作为 `tests/` 与 CI 的映射基线。
+**Purpose:** 给出 `Vityo` 当前按里程碑组织的测试与验收目录；在实现期作为 `tests/` 与 CI 的映射基线。
 
 **Last updated:** 2026-04-12
 

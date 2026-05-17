@@ -1,6 +1,6 @@
 # Toolchain Backend Surface
 
-**Purpose:** Make `toolchain/` the repo-local home for backend-owned toolchain assets, handoff notes, and mockable examples used by `styio-view`.
+**Purpose:** Make `toolchain/` the repo-local home for backend-owned toolchain assets, handoff notes, and mockable examples used by `Vityo`.
 
 **Last updated:** 2026-04-21
 
@@ -18,7 +18,7 @@
 - `apple-platform-profiles.csv`
   Stable Apple profile table. Keep this path stable for the same reason.
 - `backend/`
-  Backend-owned notes about the toolchain lane that `styio-view` owns inside this repo.
+  Backend-owned notes about the toolchain lane that `Vityo` owns inside this repo.
 - `handoff/`
   Frontend/backend interface notes for teams building UI against the toolchain backend surface.
 - `examples/`
@@ -29,7 +29,7 @@
 1. `toolchain/` is not a Flutter UI area and must not accumulate page copy, widget state, or screen-specific view models.
 2. `styio-nightly` remains the compiler and managed-toolchain SSOT.
 3. `styio-spio` remains the backend-service and hosted-control-plane owner for project, dependency, and hosted workspace routes.
-4. `styio-view` owns the product-facing backend adapter surface that consumes those upstream machine contracts and hands normalized state to the frontend.
+4. `Vityo` owns the product-facing backend adapter surface that consumes those upstream machine contracts and hands normalized state to the frontend.
 5. Canonical adapter contracts still live under `docs/contracts/`; files here are a repo-local backend working area, not a replacement SSOT.
 
 ## Frontend Consumption Rule

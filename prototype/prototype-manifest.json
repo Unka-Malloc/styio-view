@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "last_updated": "2026-05-02",
+  "canonical_entry": "editor.html",
+  "entries": [
+    {
+      "path": "editor.html",
+      "status": "canonical",
+      "owner": "Shell / Editor",
+      "validation": "npm run selftest:editor",
+      "notes": "Current focused Web Editor surface. Product-facing prototype behavior starts here."
+    },
+    {
+      "path": "index.html",
+      "status": "gallery-index",
+      "owner": "Shell / Editor",
+      "validation": "manual visual review",
+      "notes": "Design gallery index and legacy composite preview. Do not treat as the canonical editor workflow."
+    },
+    {
+      "path": "styio-bauhaus.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-cinema.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-glace.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-hyper-vis.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-lumina.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-monolith.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-obsidian.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-parchment.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-pearl.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-synapse-v2.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-synapse.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-xenon.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    },
+    {
+      "path": "styio-zenith.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Standalone visual direction sample."
+    }
+  ]
+}

@@ -16,4 +16,4 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `ARCHIVE-LEDGER.md` | [Archive Ledger](./ARCHIVE-LEDGER.md) | Track archived styio-view documentation provenance and lifecycle status; the machine-readable source of truth lives in ARCHIVE-MANIFEST.json. |
+| `ARCHIVE-LEDGER.md` | [Archive Ledger](./ARCHIVE-LEDGER.md) | Track archived Vityo documentation provenance and lifecycle status; the machine-readable source of truth lives in ARCHIVE-MANIFEST.json. |

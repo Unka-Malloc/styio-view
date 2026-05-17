@@ -1,18 +1,21 @@
-# Styio View Build And Dev Environment
+# Vityo Build And Dev Environment
 
 **Purpose:** Provide the repository-level entry point for bootstrapping a fresh machine, installing shared GUI toolchains, and routing contributors to the correct implementation surface.
 
-**Last updated:** 2026-04-21
+**Last updated:** 2026-05-10
 
 ## Who This Is For
 
-1. Contributors bringing up `styio-view` on a fresh Debian/Ubuntu VM or container.
-2. Contributors working on the Flutter shell in `frontend/styio_view_app/`.
+1. Contributors bringing up `Vityo` on a fresh Debian/Ubuntu VM or container.
+2. Contributors working on the Flutter shell in `frontend/vityo_app/`.
 3. Contributors working on the handwritten web prototype in `prototype/`.
 
 ## Fresh Machine Bootstrap
 
-`styio-view` now ships both containerized and host-native environment entrypoints.
+`Vityo` now ships both containerized and host-native environment entrypoints.
+
+Flutter source lives under `frontend/vityo_app/`, and the Dart package is
+`vityo_app`.
 
 ### Container / VM
 
@@ -49,7 +52,7 @@ Device verification stays host-driven:
 
 ## Standardized Baseline
 
-`styio-view` now follows the same shared project-level version discipline used by `styio-nightly` and `styio-spio` where the tool overlaps:
+`Vityo` now follows the same shared project-level version discipline used by `styio-nightly` and `styio-spio` where the tool overlaps:
 
 1. Development host standard: Debian `13` (`trixie`).
 2. Compiler helper toolchain standard: LLVM / Clang `18.1.x` and CMake / CTest `3.31.6`.
@@ -91,7 +94,7 @@ Linux Android SDK profile management:
 ```bash
 ./scripts/android-sdk-profile.sh list
 eval "$(./scripts/android-sdk-profile.sh env android-35)"
-./scripts/android-sdk-profile.sh run android-36 -- bash -lc 'cd frontend/styio_view_app && flutter build apk --debug'
+./scripts/android-sdk-profile.sh run android-36 -- bash -lc 'cd frontend/vityo_app && flutter build apk --debug'
 ./scripts/android-sdk-profile.sh build --profiles android-35,android-36 --parallel --artifact apk --mode debug
 ```
 
@@ -145,11 +148,19 @@ Use the same profile family for bootstrap, build, and device verification. Do no
 Flutter shell:
 
 ```bash
-cd frontend/styio_view_app
+cd frontend/vityo_app
 flutter analyze
 flutter test
 flutter build web
 ```
+
+Flutter Web local preview with the required hosted control-plane mock:
+
+```bash
+./scripts/serve-flutter-web-preview.sh
+```
+
+This is the preferred one-command browser startup path for local UI and language-service validation. It builds `frontend/vityo_app/build/web`, starts `frontend/vityo_app/scripts/serve_web_preview.py`, verifies the Flutter bootstrap resources and `/api/styio-hosted/v1/workspaces/open`, then prints the URL. The hosted route in this mode is a local preview mock and does not represent real Styio compile/run/package execution.
 
 Handwritten prototype:
 
@@ -182,14 +193,14 @@ Full checkpoint delivery floor:
 
 ## Subsystem-Specific Follow-Ups
 
-1. Flutter shell details: [../frontend/styio_view_app/README.md](../frontend/styio_view_app/README.md)
+1. Flutter shell details: [../frontend/vityo_app/README.md](../frontend/vityo_app/README.md)
 2. Handwritten prototype details: [../prototype/README.md](../prototype/README.md)
-3. Product and system design: [design/Styio-View-System-Architecture.md](./design/Styio-View-System-Architecture.md)
+3. Product and system design: [design/Vityo-System-Architecture.md](./design/Vityo-System-Architecture.md)
 4. Team and review routing: [teams/COORDINATION-RUNBOOK.md](./teams/COORDINATION-RUNBOOK.md)
 5. Host-local Windows workspace bootstrap: [../scripts/bootstrap-workspace.ps1](../scripts/bootstrap-workspace.ps1)
 
 ## Related Docs
 
 1. Docs tree guide: [README.md](./README.md)
-2. Product spec: [design/Styio-View-Product-Spec.md](./design/Styio-View-Product-Spec.md)
+2. Product spec: [design/Vityo-Product-Spec.md](./design/Vityo-Product-Spec.md)
 3. Handwritten Web IDE handbook: [specs/HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md](./specs/HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md)

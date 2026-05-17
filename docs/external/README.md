@@ -1,6 +1,6 @@
 # External Docs
 
-**Purpose:** 集中维护 `styio-view` 与外部上游仓库之间的 handoff 文档入口。
+**Purpose:** 集中维护 `Vityo` 与外部上游仓库之间的 handoff 文档入口。
 
 **Last updated:** 2026-04-23
 

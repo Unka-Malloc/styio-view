@@ -9,11 +9,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$ProfileFile = if ($env:STYIO_VIEW_ANDROID_PROFILE_FILE) { $env:STYIO_VIEW_ANDROID_PROFILE_FILE } else { Join-Path $Root "toolchain\android-sdk-profiles.csv" }
-$AndroidSdkRoot = if ($env:STYIO_VIEW_ANDROID_SDK_ROOT) { $env:STYIO_VIEW_ANDROID_SDK_ROOT } else { Join-Path $env:LOCALAPPDATA "Android\Sdk" }
-$FlutterHome = if ($env:STYIO_VIEW_FLUTTER_HOME) { $env:STYIO_VIEW_FLUTTER_HOME } else { Join-Path $env:USERPROFILE "develop\flutter" }
-$FlutterBin = if ($env:STYIO_VIEW_FLUTTER_BIN) { $env:STYIO_VIEW_FLUTTER_BIN } else { Join-Path $FlutterHome "bin\flutter.bat" }
-$FlutterDirDefault = Join-Path $Root "frontend\styio_view_app"
+$ProfileFile = if ($env:VITYO_ANDROID_PROFILE_FILE) { $env:VITYO_ANDROID_PROFILE_FILE } else { Join-Path $Root "toolchain\android-sdk-profiles.csv" }
+$AndroidSdkRoot = if ($env:VITYO_ANDROID_SDK_ROOT) { $env:VITYO_ANDROID_SDK_ROOT } else { Join-Path $env:LOCALAPPDATA "Android\Sdk" }
+$FlutterHome = if ($env:VITYO_FLUTTER_HOME) { $env:VITYO_FLUTTER_HOME } else { Join-Path $env:USERPROFILE "develop\flutter" }
+$FlutterBin = if ($env:VITYO_FLUTTER_BIN) { $env:VITYO_FLUTTER_BIN } else { Join-Path $FlutterHome "bin\flutter.bat" }
+$FlutterDirDefault = Join-Path $Root "frontend\vityo_app"
 $OutDirDefault = Join-Path $Root "build\android-profile-artifacts"
 $WorkDirDefault = Join-Path $Root "build\android-profile-workspaces"
 
@@ -31,7 +31,7 @@ function Show-Usage {
     @'
 Usage: android-sdk-profile.ps1 <command> [options]
 
-Manage standardized Android SDK profiles for styio-view on Windows hosts.
+Manage standardized Android SDK profiles for Vityo on Windows hosts.
 
 Commands:
   list
@@ -163,21 +163,21 @@ function Get-ProfileEnv {
     $pathValue = Add-PathEntry -Entries $pathEntries -ExistingPath $env:Path
 
     $envMap = [ordered]@{
-        STYIO_VIEW_ANDROID_PROFILE = $profile.name
+        VITYO_ANDROID_PROFILE = $profile.name
         ANDROID_SDK_ROOT = $AndroidSdkRoot
         ANDROID_HOME = $AndroidSdkRoot
-        STYIO_VIEW_ANDROID_PLATFORM = $profile.platform
-        STYIO_VIEW_ANDROID_COMPILE_SDK = [string]$profile.compile_sdk
-        STYIO_VIEW_ANDROID_TARGET_SDK = [string]$profile.target_sdk
-        STYIO_VIEW_ANDROID_MIN_SDK = [string]$profile.min_sdk
-        STYIO_VIEW_ANDROID_BUILD_TOOLS = $profile.build_tools
-        STYIO_VIEW_ANDROID_NDK_VERSION = $profile.ndk_version
-        ORG_GRADLE_PROJECT_styioAndroidCompileSdk = [string]$profile.compile_sdk
-        ORG_GRADLE_PROJECT_styioAndroidTargetSdk = [string]$profile.target_sdk
-        ORG_GRADLE_PROJECT_styioAndroidMinSdk = [string]$profile.min_sdk
-        ORG_GRADLE_PROJECT_styioAndroidBuildToolsVersion = $profile.build_tools
-        ORG_GRADLE_PROJECT_styioAndroidNdkVersion = $profile.ndk_version
-        ORG_GRADLE_PROJECT_styioAndroidBuildRoot = "../../build/$($profile.name)"
+        VITYO_ANDROID_PLATFORM = $profile.platform
+        VITYO_ANDROID_COMPILE_SDK = [string]$profile.compile_sdk
+        VITYO_ANDROID_TARGET_SDK = [string]$profile.target_sdk
+        VITYO_ANDROID_MIN_SDK = [string]$profile.min_sdk
+        VITYO_ANDROID_BUILD_TOOLS = $profile.build_tools
+        VITYO_ANDROID_NDK_VERSION = $profile.ndk_version
+        ORG_GRADLE_PROJECT_vityoAndroidCompileSdk = [string]$profile.compile_sdk
+        ORG_GRADLE_PROJECT_vityoAndroidTargetSdk = [string]$profile.target_sdk
+        ORG_GRADLE_PROJECT_vityoAndroidMinSdk = [string]$profile.min_sdk
+        ORG_GRADLE_PROJECT_vityoAndroidBuildToolsVersion = $profile.build_tools
+        ORG_GRADLE_PROJECT_vityoAndroidNdkVersion = $profile.ndk_version
+        ORG_GRADLE_PROJECT_vityoAndroidBuildRoot = "../../build/$($profile.name)"
         Path = $pathValue
     }
     if ($javaHome) {
@@ -337,19 +337,19 @@ function Build-Profiles {
 
         $env:ANDROID_SDK_ROOT = $AndroidSdkRoot
         $env:ANDROID_HOME = $AndroidSdkRoot
-        $env:STYIO_VIEW_ANDROID_PROFILE = $profile.name
-        $env:STYIO_VIEW_ANDROID_PLATFORM = $profile.platform
-        $env:STYIO_VIEW_ANDROID_COMPILE_SDK = [string]$profile.compile_sdk
-        $env:STYIO_VIEW_ANDROID_TARGET_SDK = [string]$profile.target_sdk
-        $env:STYIO_VIEW_ANDROID_MIN_SDK = [string]$profile.min_sdk
-        $env:STYIO_VIEW_ANDROID_BUILD_TOOLS = $profile.build_tools
-        $env:STYIO_VIEW_ANDROID_NDK_VERSION = $profile.ndk_version
-        $env:ORG_GRADLE_PROJECT_styioAndroidCompileSdk = [string]$profile.compile_sdk
-        $env:ORG_GRADLE_PROJECT_styioAndroidTargetSdk = [string]$profile.target_sdk
-        $env:ORG_GRADLE_PROJECT_styioAndroidMinSdk = [string]$profile.min_sdk
-        $env:ORG_GRADLE_PROJECT_styioAndroidBuildToolsVersion = $profile.build_tools
-        $env:ORG_GRADLE_PROJECT_styioAndroidNdkVersion = $profile.ndk_version
-        $env:ORG_GRADLE_PROJECT_styioAndroidBuildRoot = "../../build/$($profile.name)"
+        $env:VITYO_ANDROID_PROFILE = $profile.name
+        $env:VITYO_ANDROID_PLATFORM = $profile.platform
+        $env:VITYO_ANDROID_COMPILE_SDK = [string]$profile.compile_sdk
+        $env:VITYO_ANDROID_TARGET_SDK = [string]$profile.target_sdk
+        $env:VITYO_ANDROID_MIN_SDK = [string]$profile.min_sdk
+        $env:VITYO_ANDROID_BUILD_TOOLS = $profile.build_tools
+        $env:VITYO_ANDROID_NDK_VERSION = $profile.ndk_version
+        $env:ORG_GRADLE_PROJECT_vityoAndroidCompileSdk = [string]$profile.compile_sdk
+        $env:ORG_GRADLE_PROJECT_vityoAndroidTargetSdk = [string]$profile.target_sdk
+        $env:ORG_GRADLE_PROJECT_vityoAndroidMinSdk = [string]$profile.min_sdk
+        $env:ORG_GRADLE_PROJECT_vityoAndroidBuildToolsVersion = $profile.build_tools
+        $env:ORG_GRADLE_PROJECT_vityoAndroidNdkVersion = $profile.ndk_version
+        $env:ORG_GRADLE_PROJECT_vityoAndroidBuildRoot = "../../build/$($profile.name)"
         $env:Path = Add-PathEntry -Entries @(
             (Join-Path $AndroidSdkRoot "cmdline-tools\latest\bin"),
             (Join-Path $AndroidSdkRoot "platform-tools"),
@@ -357,13 +357,13 @@ function Build-Profiles {
         ) -ExistingPath $env:Path
 
         $cmd = @($FlutterBin, "build", $Artifact, "--$Mode", "--android-project-cache-dir", ".gradle-$ProfileName")
-        $cmd += @("--android-project-arg", "styioAndroidProfile=$ProfileName")
-        $cmd += @("--android-project-arg", "styioAndroidCompileSdk=$($profile.compile_sdk)")
-        $cmd += @("--android-project-arg", "styioAndroidTargetSdk=$($profile.target_sdk)")
-        $cmd += @("--android-project-arg", "styioAndroidMinSdk=$($profile.min_sdk)")
-        $cmd += @("--android-project-arg", "styioAndroidBuildToolsVersion=$($profile.build_tools)")
-        $cmd += @("--android-project-arg", "styioAndroidNdkVersion=$($profile.ndk_version)")
-        $cmd += @("--android-project-arg", "styioAndroidBuildRoot=../../build/$ProfileName")
+        $cmd += @("--android-project-arg", "vityoAndroidProfile=$ProfileName")
+        $cmd += @("--android-project-arg", "vityoAndroidCompileSdk=$($profile.compile_sdk)")
+        $cmd += @("--android-project-arg", "vityoAndroidTargetSdk=$($profile.target_sdk)")
+        $cmd += @("--android-project-arg", "vityoAndroidMinSdk=$($profile.min_sdk)")
+        $cmd += @("--android-project-arg", "vityoAndroidBuildToolsVersion=$($profile.build_tools)")
+        $cmd += @("--android-project-arg", "vityoAndroidNdkVersion=$($profile.ndk_version)")
+        $cmd += @("--android-project-arg", "vityoAndroidBuildRoot=../../build/$ProfileName")
         if ($TargetPlatform) {
             $cmd += @("--target-platform", $TargetPlatform)
         }

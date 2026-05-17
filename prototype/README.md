@@ -1,9 +1,13 @@
 # Prototype Surface
 
-当前目录是 `styio-view` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。
+**Purpose:** Describe the handwritten `Vityo` prototype surfaces, their local server, and the repo-local governance checks that keep them owned and testable.
+
+**Last updated:** 2026-05-02
+
+当前目录是 `Vityo` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。
 
 这里同时也是当前仓库里“给人维护的 Web Editor 入口”。
-`frontend/styio_view_app/build/web` 之类的 Flutter 生成物只用于构建验证，不作为人工维护页面。
+`frontend/vityo_app/build/web` 之类的 Flutter 生成物只用于构建验证，不作为人工维护页面。
 
 仓库级 bootstrap、共享工具链和常用验证命令见 [../docs/BUILD-AND-DEV-ENV.md](../docs/BUILD-AND-DEV-ENV.md)；本页只描述手写原型本身。
 
@@ -21,6 +25,9 @@
 8. `editor-modules/*.js`: focused editor 的配置、枚举、主题模板、渲染调度与默认状态模块
 9. `GRID-STYLE-REFERENCE.md`: `Grid` 风格的布局结构、共享变量、几何约束与自测规则
 10. `GRID-STYLE-PRACTICE.md`: `Grid` 风格在重构、调样和验证过程中沉淀下来的工程经验与维护方法
+11. `PROTOTYPE-GOVERNANCE.md`: top-level HTML 原型的治理规则、分类和 gate
+12. `prototype-manifest.json`: top-level HTML 原型清单，声明 canonical / gallery / style experiment 边界
+13. `scripts/check-prototype-governance.mjs`: manifest 与治理文档的可执行校验
 
 ## Current Focus
 
@@ -61,7 +68,7 @@
 19. focused editor 当前固定只维护 `main.styio`，不再混入其它非主线示例文件
 20. 当前默认视觉基线为 `Graphite` 壳层，并以 `#F4C76A` 作为默认强调色和 symbol 高亮色
 21. 当前原型支持导入 / 编辑一份参考 VS Code 结构的 JSONC 调色盘配置，示例见 `theme-config.example.jsonc`
-22. 当前 canonical 配置存放在浏览器 `localStorage` 的 `styio-view:custom-palette-config`
+22. 当前 canonical 配置存放在浏览器 `localStorage` 的 `Vityo:custom-palette-config`
 23. 手写 Web IDE 的设计理念、分层规则和标准工作流，见 `../docs/specs/HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md`
 
 ## Module Structure
@@ -89,16 +96,17 @@
 
 ## Self-Test
 
-1. 在 `prototype/` 下运行 `npm run selftest:editor`
-2. 若使用仓库内的 `dev_server.py`，请显式设置 `STYIO_EDITOR_URL=http://127.0.0.1:4180/editor.html`
-3. 这条脚本会自动检查 `editor.html` 是否可打开，并在需要时自动启动 `dev_server.py`
-4. 自测会覆盖：
+1. 在 `prototype/` 下运行 `npm run governance`，确认 top-level HTML 原型都被 `prototype-manifest.json` 声明并归属到 owner。
+2. 运行 `npm run selftest:editor`，检查当前 canonical focused editor。
+3. 若使用仓库内的 `dev_server.py`，请显式设置 `STYIO_EDITOR_URL=http://127.0.0.1:4180/editor.html`
+4. 这条脚本会自动检查 `editor.html` 是否可打开，并在需要时自动启动 `dev_server.py`
+5. 自测会覆盖：
    - 页面基础资源加载
    - 侧边栏展开
    - 设置页切换
    - `Theme` 的 `Palette` 和 `Light / Dark`
    - `Symbol Highlight` 展开
-5. 若失败，会在 `prototype/.artifacts/editor-load-failure.png` 写出失败截图
+6. 若失败，会在 `prototype/.artifacts/editor-load-failure.png` 写出失败截图
 
 ## Local Dev Server Security
 
@@ -115,3 +123,5 @@
 3. 若 Flutter Web 行为需要回归到手写页，先在这里验证交互，再考虑是否同步回 Flutter 主壳
 4. 任何内部组件都不得超过外部容器；若空间不足，优先收紧盒模型、加 `min-width: 0`、改成内部滚动或重排，而不是允许内容溢出父容器
 5. 默认界面字体、编辑器字体、数学 glyph 字体和用户可见主题预设名必须优先采用开源、低争议来源；不得把商业专有字体作为默认值，也不得把第三方商业产品名直接当作默认主题标签
+6. 新增、删除或重命名 top-level `*.html` 原型时，必须同步更新 `prototype-manifest.json` 并运行 `npm run governance`
+7. 只有 `prototype-manifest.json` 中的 `canonical` entry 可以定义当前产品行为；`style-experiment` 页面只提供视觉参考，不能引入 workspace mutation、adapter contract 或 dev-server API 语义

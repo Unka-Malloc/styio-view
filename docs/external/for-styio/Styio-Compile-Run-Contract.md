@@ -1,6 +1,6 @@
 # Styio Compile Run Contract
 
-**Purpose:** 冻结 `styio-view` 与上游 `styio` 在执行、runtime 事件、compile-plan consumer 和 machine-info 扩展上的对接边界。
+**Purpose:** 冻结 `Vityo` 与上游 `styio` 在执行、runtime 事件、compile-plan consumer 和 machine-info 扩展上的对接边界。
 
 **Last updated:** 2026-04-17
 
@@ -57,7 +57,7 @@
 2. language-service / runtime surface 所需的更多稳定 payload
 3. debug-oriented runtime families 与更细粒度 graph semantics
 
-当前 `styio-view` 的 project route 已不再停留在 preview-only：
+当前 `Vityo` 的 project route 已不再停留在 preview-only：
 
 1. 项目图优先消费 `spio project-graph --json`
 2. 项目执行优先消费 `spio build/run/test --json` 的 `workflow_success_payloads v1`
@@ -77,7 +77,7 @@
 
 ## 5. Rules
 
-1. `styio-view` 不解析人类 stderr 来猜状态。
+1. `Vityo` 不解析人类 stderr 来猜状态。
 2. 未发布的执行路径必须明确返回 `blocked` 原因，而不是让前端猜测。
 3. 上游可以只先交付 `CLI` 或 `FFI` 中的一种，但 shape 必须满足 `docs/contracts/ExecutionAdapter.md` 与 `docs/contracts/RuntimeEventAdapter.md`。
 4. 项目执行主线优先消费 `spio --json build/run/test`，`styio` 继续作为 compile-plan consumer 与 receipt / diagnostics 的真相源。

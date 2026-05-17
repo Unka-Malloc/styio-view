@@ -10,6 +10,6 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `Styio-Compile-Run-Contract.md` | [Styio Compile Run Contract](./Styio-Compile-Run-Contract.md) | 冻结 styio-view 与上游 styio 在执行、runtime 事件、compile-plan consumer 和 machine-info 扩展上的对接边界。 |
-| `Styio-Integration-Overview.md` | [Styio Integration Overview](./Styio-Integration-Overview.md) | 说明 styio-view 与上游 styio 的总体责任边界，避免把 UI 壳层工作与编译器集成工作混在同一个任务队列里。 |
-| `Styio-Language-Service-Adapter-Contract.md` | [Styio Language Service Adapter Contract](./Styio-Language-Service-Adapter-Contract.md) | 冻结 styio-view 需要上游 styio 提供的语言服务 handoff；允许 CLI 或 FFI 任一实现路径，但输出 shape 必须满足产品合同。 |
+| `Styio-Compile-Run-Contract.md` | [Styio Compile Run Contract](./Styio-Compile-Run-Contract.md) | 冻结 Vityo 与上游 styio 在执行、runtime 事件、compile-plan consumer 和 machine-info 扩展上的对接边界。 |
+| `Styio-Integration-Overview.md` | [Styio Integration Overview](./Styio-Integration-Overview.md) | 说明 Vityo 与上游 styio 的总体责任边界，避免把 UI 壳层工作与编译器集成工作混在同一个任务队列里。 |
+| `Styio-Language-Service-Adapter-Contract.md` | [Styio Language Service Adapter Contract](./Styio-Language-Service-Adapter-Contract.md) | 冻结 Vityo 需要上游 styio 提供的语言服务 handoff；允许 CLI 或 FFI 任一实现路径，但输出 shape 必须满足产品合同。 |

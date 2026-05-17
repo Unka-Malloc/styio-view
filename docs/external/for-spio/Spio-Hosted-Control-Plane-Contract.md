@@ -1,6 +1,6 @@
 # Spio Hosted Control-Plane Contract
 
-**Purpose:** Record the frontend-facing hosted workspace API that `styio-view` consumes from `spio` so UI and backend teams can ship independently against a fixed contract package.
+**Purpose:** Record the frontend-facing hosted workspace API that `Vityo` consumes from `spio` so UI and backend teams can ship independently against a fixed contract package.
 
 **Last updated:** 2026-04-21
 
@@ -14,11 +14,11 @@ The backend-owned machine contract lives in `styio-spio`:
 - `contracts/hosted-control-plane/v1/hosted-control-plane.examples.json`
 - `contracts/hosted-control-plane/v1/redocly.yaml`
 
-`styio-view` consumes that versioned package. This document is the consumer-side handoff note, not a second source of truth.
+`Vityo` consumes that versioned package. This document is the consumer-side handoff note, not a second source of truth.
 
 ## Fixed Base Path
 
-`styio-view` treats the hosted API family as:
+`Vityo` treats the hosted API family as:
 
 `/api/styio-hosted/v1`
 
@@ -66,7 +66,7 @@ Every frontend/backend interaction now has a fixed contract entrypoint:
 
 ## Frontend Request Body Summary
 
-`styio-view` binds to these request fields when it calls the hosted control plane:
+`Vityo` binds to these request fields when it calls the hosted control plane:
 
 | Operation | Required request fields consumed by frontend | Optional request fields consumed by frontend |
 |-----------|----------------------------------------------|---------------------------------------------|
@@ -108,7 +108,7 @@ These fields are part of the hosted consumer contract even when some deployments
 
 ## Execution Envelope Fields Consumed By Frontend
 
-Hosted execution is a single response-envelope contract. `styio-view` does not rely on a separate event stream route in `v1`.
+Hosted execution is a single response-envelope contract. `Vityo` does not rely on a separate event stream route in `v1`.
 
 The frontend consumes:
 

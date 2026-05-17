@@ -1,6 +1,6 @@
 # Audit Agent Findings
 
-**Purpose:** Index parallel audit shards written by external audit agents for `styio-view`.
+**Purpose:** Index parallel audit shards written by external audit agents for `Vityo`.
 
 **Last updated:** 2026-04-22
 

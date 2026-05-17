@@ -1,6 +1,6 @@
 # ADR-0013: AI And Profile Integrations Use Provider Adapters
 
-**Purpose:** 记录 `styio-view` 如何把 AI provider、本地 agent 接入和 profile 同步做成可替换组件，而不是把某一类模型或服务硬编码进主壳。
+**Purpose:** 记录 `Vityo` 如何把 AI provider、本地 agent 接入和 profile 同步做成可替换组件，而不是把某一类模型或服务硬编码进主壳。
 
 **Last updated:** 2026-04-12
 

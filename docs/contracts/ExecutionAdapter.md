@@ -1,6 +1,6 @@
 # ExecutionAdapter
 
-**Purpose:** 冻结 compile/run 会话与其机器输出；`styio-view` 的保存、运行、debug console 与 runtime surface 都围绕本合同消费结果。
+**Purpose:** 冻结 compile/run 会话与其机器输出；`Vityo` 的保存、运行、debug console 与 runtime surface 都围绕本合同消费结果。
 
 **Last updated:** 2026-04-21
 

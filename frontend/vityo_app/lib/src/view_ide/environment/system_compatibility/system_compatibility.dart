@@ -1,0 +1,13 @@
+export 'file_system/file_system.dart';
+export 'shell/shell.dart';
+export 'platform_adapter/platform_adapter.dart';
+export 'platform_detector/platform_detector.dart';
+export 'platform_manager/platform_manager.dart';
+export 'platform_context/platform_context.dart';
+export 'process/process.dart';
+export 'resource/resource.dart';
+export 'network/network.dart';
+export 'clipboard/clipboard.dart';
+export 'notification/notification.dart';
+export 'local_service/local_service.dart';
+export 'pty/pty.dart';

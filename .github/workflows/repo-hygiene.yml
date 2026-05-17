@@ -16,11 +16,11 @@ jobs:
       STYIO_PYTHON_VERSION: "3.13.5"
 
     steps:
-      - name: Checkout styio-view
+      - name: Checkout Vityo nightly
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          path: styio-view
+          path: vityo-nightly
 
       - name: Resolve sibling checkout ref
         id: sibling-ref
@@ -62,16 +62,16 @@ jobs:
           python-version: ${{ env.STYIO_PYTHON_VERSION }}
 
       - name: Check tracked tree
-        working-directory: styio-view
+        working-directory: vityo-nightly
         run: python3 scripts/repo-hygiene-gate.py --mode tracked
 
       - name: Check ecosystem CLI doc consistency
-        working-directory: styio-view
+        working-directory: vityo-nightly
         run: python3 scripts/ecosystem-cli-doc-gate.py --require-workspace --json
 
       - name: Check incoming history range
         shell: bash
-        working-directory: styio-view
+        working-directory: vityo-nightly
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"

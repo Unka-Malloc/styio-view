@@ -6,7 +6,7 @@ param(
     [string]$FlutterDir,
     [string]$OutDir,
     [string]$WorkDir,
-    [string]$PackageName = "io.styio.view.styio_view_app",
+    [string]$PackageName = "io.vityo.app",
     [string]$TargetPlatform,
     [switch]$BuildOnly,
     [switch]$NoLaunch,
@@ -18,7 +18,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-if (-not $FlutterDir) { $FlutterDir = Join-Path $Root "frontend\styio_view_app" }
+if (-not $FlutterDir) { $FlutterDir = Join-Path $Root "frontend\vityo_app" }
 if (-not $OutDir) { $OutDir = Join-Path $Root "build\android-device-verification" }
 if (-not $WorkDir) { $WorkDir = Join-Path $Root "build\android-device-workspaces" }
 
@@ -42,7 +42,7 @@ function Show-Usage {
     @'
 Usage: verify-android-device.ps1 -Profile <name> [options]
 
-Build, install, and optionally launch styio-view on a real Android device using
+Build, install, and optionally launch Vityo on a real Android device using
 one of the standardized Android SDK profiles.
 
 Options:

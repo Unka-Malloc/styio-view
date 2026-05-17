@@ -1,6 +1,6 @@
 # Docs Gate
 
-**Purpose:** Define the common docs/process gate entrypoint for `styio-view` so contributors can run owner-runbook maintenance, docs audit, and ecosystem CLI contract consistency through one command.
+**Purpose:** Define the common docs/process gate entrypoint for `Vityo` so contributors can run owner-runbook maintenance, docs audit, and ecosystem CLI contract consistency through one command.
 
 **Last updated:** 2026-04-19
 

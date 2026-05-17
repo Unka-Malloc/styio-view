@@ -1,0 +1,28 @@
+name: vityo_app
+description: Vityo IDE editor shell for web, desktop, and mobile targets.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.11.5 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  crypto: ^3.0.7
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.5
+  path_provider: ^2.1.5
+  cryptography: ^2.9.0
+  web: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/module_manifests/
+    - assets/capability_matrices/

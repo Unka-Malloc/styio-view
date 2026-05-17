@@ -1,0 +1,6 @@
+#count := (): i64 => {
+  total = 1
+  <| 0
+}
+value = count()
+value -> @stdout

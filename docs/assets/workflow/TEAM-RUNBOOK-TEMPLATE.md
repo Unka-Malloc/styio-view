@@ -1,6 +1,6 @@
 # Team Runbook Template
 
-**Purpose:** Provide the required section template for `styio-view` team runbooks so owner-gate automation and human reviewers share the same shape.
+**Purpose:** Provide the required section template for `Vityo` team runbooks so owner-gate automation and human reviewers share the same shape.
 
 **Last updated:** 2026-04-19
 

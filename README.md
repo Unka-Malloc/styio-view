@@ -1,13 +1,19 @@
-# Styio View
+# Vityo
 
-Styio View 是面向 `styio` 生态的专属编辑器与运行视窗项目。
+Vityo 是面向 `styio` 生态的专属 IDE、编辑器与运行视窗项目。
+
+本仓库是 Vityo 的 downstream nightly 仓库；Flutter package 与主实现目录已统一为 `vityo_app`。
+
+Canonical upstream repository: <https://github.com/eBioRing/Vityo>
+
+Downstream nightly repository: <https://github.com/Unka-Malloc/vityo-nightly>
 
 当前仓库阶段为 `product-led integration bootstrap`：
 
-1. `styio-view` 先冻结产品合同与 adapter 边界
+1. `Vityo` 先冻结产品合同与 adapter 边界
 2. Flutter 主壳与编辑器核心继续独立推进
-3. 上游 `styio` / `spio` 按 `styio-view` 的合同补齐机器接口
-4. 面向人维护的网页入口只保留手写的 `editor.html` 线；`frontend/styio_view_app/build/web` 这类 Flutter 生成物只用于构建验证，不作为人工维护页面
+3. 上游 `styio` / `spio` 按 `Vityo` 的合同补齐机器接口
+4. 面向人维护的网页入口只保留手写的 `editor.html` 线；`frontend/vityo_app/build/web` 这类 Flutter 生成物只用于构建验证，不作为人工维护页面
 
 文档入口见 [docs/README.md](docs/README.md)。
 
@@ -17,15 +23,15 @@ Styio View 是面向 `styio` 生态的专属编辑器与运行视窗项目。
 
 人工维护的 Web Editor 入口见 [prototype/editor.html](prototype/editor.html)。
 
-实际实现入口见 [frontend/styio_view_app/README.md](frontend/styio_view_app/README.md)。
+实际实现入口见 [frontend/vityo_app/README.md](frontend/vityo_app/README.md)。
 
 ## Frontend / Backend Split
 
-- 前端是面向用户的编辑器、运行视窗和产品交互界面，入口在 `frontend/styio_view_app/` 与 `prototype/`。
-- 后端不是单一服务，而是 `styio-view` 背后的整条工具链面：adapter layer、local CLI/FFI、hosted control plane，以及上游 `spio` / `styio` 合同。
+- 前端是面向用户的编辑器、运行视窗和产品交互界面，入口在 `frontend/vityo_app/` 与 `prototype/`。
+- 后端不是单一服务，而是 `Vityo` 背后的整条工具链面：adapter layer、local CLI/FFI、hosted control plane，以及上游 `spio` / `styio` 合同。
 - 前端只编排和展示 machine contract；工具链解析、依赖/发布/执行语义、仓库与云平台行为都留在后端。
 
-系统级边界定义见 [docs/design/Styio-View-System-Architecture.md](docs/design/Styio-View-System-Architecture.md)。
+系统级边界定义见 [docs/design/Vityo-System-Architecture.md](docs/design/Vityo-System-Architecture.md)。
 
 ## Fresh Dev Environment
 
@@ -57,7 +63,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-dev-env-windows.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-dev-env-windows.ps1 -WithAndroid
 ```
 
-这套脚本会把 `styio-view` 的桌面 / Web 主线环境拉起，并按需附加 `linux+android`、`macos+ios`、`macos+android`、`windows+android` 组合开发工具链。共享 workspace 初始化入口是：
+这套脚本会把 `Vityo` 的桌面 / Web 主线环境拉起，并按需附加 `linux+android`、`macos+ios`、`macos+android`、`windows+android` 组合开发工具链。共享 workspace 初始化入口是：
 
 ```bash
 ./scripts/bootstrap-workspace.sh --platforms web,linux

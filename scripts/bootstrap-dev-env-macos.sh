@@ -9,16 +9,16 @@ FLUTTER_STANDARD_VERSION="${STYIO_TOOLCHAIN_FLUTTER_STANDARD_VERSION:-$(tr -d '[
 DART_STANDARD_VERSION="${STYIO_TOOLCHAIN_DART_STANDARD_VERSION:-3.11.5}"
 CHROMIUM_STANDARD_VERSION="${STYIO_TOOLCHAIN_CHROMIUM_STANDARD_VERSION:-$(tr -d '[:space:]' < "$ROOT/.chromium-version")}"
 CMAKE_STANDARD_VERSION="${STYIO_TOOLCHAIN_CMAKE_STANDARD_VERSION:-3.31.6}"
-ANDROID_CMDLINE_TOOLS_VERSION="${STYIO_VIEW_ANDROID_CMDLINE_TOOLS_VERSION:-14742923}"
-ANDROID_PROFILE_FILE="${STYIO_VIEW_ANDROID_PROFILE_FILE:-$ROOT/toolchain/android-sdk-profiles.csv}"
-ANDROID_PROFILES="${STYIO_VIEW_ANDROID_PROFILES:-android-35,android-36}"
-ANDROID_DEFAULT_PROFILE="${STYIO_VIEW_ANDROID_DEFAULT_PROFILE:-android-36}"
-APPLE_PROFILE_FILE="${STYIO_VIEW_APPLE_PROFILE_FILE:-$ROOT/toolchain/apple-platform-profiles.csv}"
-FLUTTER_HOME="${STYIO_VIEW_FLUTTER_HOME:-$TARGET_HOME/develop/flutter}"
-ANDROID_SDK_ROOT="${STYIO_VIEW_ANDROID_SDK_ROOT:-$TARGET_HOME/Library/Android/sdk}"
-NODE_INSTALL_ROOT="${STYIO_VIEW_NODE_INSTALL_ROOT:-$TARGET_HOME/.local/styio-view/nodejs}"
-BROWSER_HOME="${STYIO_VIEW_BROWSER_HOME:-$TARGET_HOME/Library/Application Support/styio-view/browser}"
-TOOL_VENV="${STYIO_VIEW_TOOL_VENV:-$TARGET_HOME/.local/venvs/styio-view-tools}"
+ANDROID_CMDLINE_TOOLS_VERSION="${VITYO_ANDROID_CMDLINE_TOOLS_VERSION:-14742923}"
+ANDROID_PROFILE_FILE="${VITYO_ANDROID_PROFILE_FILE:-$ROOT/toolchain/android-sdk-profiles.csv}"
+ANDROID_PROFILES="${VITYO_ANDROID_PROFILES:-android-35,android-36}"
+ANDROID_DEFAULT_PROFILE="${VITYO_ANDROID_DEFAULT_PROFILE:-android-36}"
+APPLE_PROFILE_FILE="${VITYO_APPLE_PROFILE_FILE:-$ROOT/toolchain/apple-platform-profiles.csv}"
+FLUTTER_HOME="${VITYO_FLUTTER_HOME:-$TARGET_HOME/develop/flutter}"
+ANDROID_SDK_ROOT="${VITYO_ANDROID_SDK_ROOT:-$TARGET_HOME/Library/Android/sdk}"
+NODE_INSTALL_ROOT="${VITYO_NODE_INSTALL_ROOT:-$TARGET_HOME/.local/Vityo/nodejs}"
+BROWSER_HOME="${VITYO_BROWSER_HOME:-$TARGET_HOME/Library/Application Support/Vityo/browser}"
+TOOL_VENV="${VITYO_TOOL_VENV:-$TARGET_HOME/.local/venvs/Vityo-tools}"
 WITH_ANDROID=0
 WITH_IOS=0
 SKIP_WORKSPACE_BOOTSTRAP=0
@@ -27,7 +27,7 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [options]
 
-Install the styio-view macOS developer environment. Base profile is macOS
+Install the Vityo macOS developer environment. Base profile is macOS
 desktop + web. Optional mobile combos can be added with flags.
 
 Options:
@@ -43,11 +43,11 @@ EOF
 }
 
 log() {
-  printf '[styio-view macOS env] %s\n' "$*"
+  printf '[Vityo macOS env] %s\n' "$*"
 }
 
 fail() {
-  printf '[styio-view macOS env] %s\n' "$*" >&2
+  printf '[Vityo macOS env] %s\n' "$*" >&2
   exit 1
 }
 
@@ -244,8 +244,8 @@ install_android_sdk() {
   "$FLUTTER_HOME/bin/flutter" config --android-sdk "$ANDROID_SDK_ROOT" --enable-web --enable-macos-desktop --enable-ios --enable-android
 
   log "installing Android SDK profiles: $ANDROID_PROFILES"
-  STYIO_VIEW_ANDROID_PROFILE_FILE="$ANDROID_PROFILE_FILE" \
-  STYIO_VIEW_ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+  VITYO_ANDROID_PROFILE_FILE="$ANDROID_PROFILE_FILE" \
+  VITYO_ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
     "$ROOT/scripts/android-sdk-profile.sh" install --profiles "$ANDROID_PROFILES"
 }
 
@@ -259,7 +259,7 @@ ensure_ios_toolchain() {
   fi
 
   if [[ ! -d "$developer_dir" ]]; then
-    if [[ "${STYIO_VIEW_AUTO_INSTALL_XCODE:-0}" == "1" ]] && command -v mas >/dev/null 2>&1; then
+    if [[ "${VITYO_AUTO_INSTALL_XCODE:-0}" == "1" ]] && command -v mas >/dev/null 2>&1; then
       log "attempting Xcode installation via App Store"
       mas install 497799835
     fi
@@ -276,7 +276,7 @@ bootstrap_workspace() {
   local platforms="web,macos"
   [[ $WITH_IOS -eq 1 ]] && platforms="$platforms,ios"
   [[ $WITH_ANDROID -eq 1 ]] && platforms="$platforms,android"
-  STYIO_VIEW_FLUTTER_HOME="$FLUTTER_HOME" "$ROOT/scripts/bootstrap-workspace.sh" --platforms "$platforms"
+  VITYO_FLUTTER_HOME="$FLUTTER_HOME" "$ROOT/scripts/bootstrap-workspace.sh" --platforms "$platforms"
 }
 
 print_summary() {
@@ -290,7 +290,7 @@ print_summary() {
 
   cat <<EOF
 
-styio-view macOS bootstrap complete.
+Vityo macOS bootstrap complete.
 
 Profile:
   Host combo:     macos$( [[ $WITH_IOS -eq 1 ]] && printf '+ios' )$( [[ $WITH_ANDROID -eq 1 ]] && printf '+android' )
@@ -319,8 +319,8 @@ Typical next steps:
   ./scripts/android-sdk-profile.sh build --profiles $ANDROID_PROFILES --parallel --artifact apk --mode debug
   ./scripts/apple-platform-profile.sh build --profiles ios-13,ios-15 --parallel --mode debug --simulator --no-codesign
   ./scripts/apple-platform-profile.sh build --profiles macos-10.15,macos-12 --parallel --mode debug
-  cd "$ROOT/frontend/styio_view_app" && "\$FLUTTER_HOME/bin/flutter" analyze
-  cd "$ROOT/frontend/styio_view_app" && "\$FLUTTER_HOME/bin/flutter" test
+  cd "$ROOT/frontend/vityo_app" && "\$FLUTTER_HOME/bin/flutter" analyze
+  cd "$ROOT/frontend/vityo_app" && "\$FLUTTER_HOME/bin/flutter" test
   cd "$ROOT/prototype" && STYIO_CHROME_PATH="$browser_bin" STYIO_EDITOR_URL=http://127.0.0.1:4180/editor.html npm run selftest:editor
 EOF
 }

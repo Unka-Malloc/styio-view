@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FLUTTER_DIR_DEFAULT="$ROOT/frontend/styio_view_app"
+FLUTTER_DIR_DEFAULT="$ROOT/frontend/vityo_app"
 OUT_DIR_DEFAULT="$ROOT/build/android-device-verification"
 WORK_DIR_DEFAULT="$ROOT/build/android-device-workspaces"
-PACKAGE_NAME_DEFAULT="io.styio.view.styio_view_app"
+PACKAGE_NAME_DEFAULT="io.vityo.app"
 
 PROFILE=""
 DEVICE_ID=""
@@ -24,7 +24,7 @@ usage() {
   cat <<'EOF'
 Usage: verify-android-device.sh [options] [-- <extra flutter build args>]
 
-Build, install, and optionally launch styio-view on a real Android device using
+Build, install, and optionally launch Vityo on a real Android device using
 one of the standardized Android SDK profiles.
 
 Options:
@@ -35,7 +35,7 @@ Options:
   --flutter-dir <dir>      Flutter app directory
   --out-dir <dir>          Artifact output root
   --work-dir <dir>         Isolated workspace root
-  --package-name <name>    Android application id (default: io.styio.view.styio_view_app)
+  --package-name <name>    Android application id (default: io.vityo.app)
   --target-platform <csv>  Pass through Flutter --target-platform
   --build-only             Build the APK but skip adb install/launch
   --no-launch              Install the APK but skip app launch

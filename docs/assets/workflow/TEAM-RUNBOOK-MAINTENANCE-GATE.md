@@ -51,11 +51,11 @@ All non-coordination runbooks must follow [TEAM-RUNBOOK-TEMPLATE.md](./TEAM-RUNB
 
 | Team doc | Watched paths |
 |----------|---------------|
-| `SHELL-EDITOR-RUNBOOK.md` | `frontend/styio_view_app/lib/src/app/`, `frontend/styio_view_app/lib/src/editor/`, `frontend/styio_view_app/lib/src/frontend_shell/`, `frontend/styio_view_app/lib/src/language/`, `prototype/` |
-| `RUNTIME-AGENT-RUNBOOK.md` | `frontend/styio_view_app/lib/src/runtime/`, `frontend/styio_view_app/lib/src/agent/` |
-| `MODULE-PLATFORM-RUNBOOK.md` | `frontend/styio_view_app/lib/src/module_host/`, `frontend/styio_view_app/lib/src/platform/`, module manifests, capability matrices, platform bootstrap script |
-| `ADAPTER-CONTRACTS-RUNBOOK.md` | `frontend/styio_view_app/lib/src/backend_toolchain/`, legacy integration façade, `docs/contracts/`, `docs/external/for-styio/`, `docs/external/for-spio/` |
-| `THEME-UX-RUNBOOK.md` | `frontend/styio_view_app/lib/src/theme/`, shared prototype style files |
+| `SHELL-EDITOR-RUNBOOK.md` | `frontend/vityo_app/lib/src/app/`, `frontend/vityo_app/lib/src/view_render/shell/`, `frontend/vityo_app/lib/src/view_render/editor/`, `frontend/vityo_app/lib/src/view_render/runtime/`, `frontend/vityo_app/lib/src/view_render/agent/`, `frontend/vityo_app/lib/src/view_render/theme/`, `frontend/vityo_app/lib/src/view_render/platform/`, `frontend/vityo_app/lib/src/view_ide/editor/`, `frontend/vityo_app/lib/src/editor/`, `frontend/vityo_app/lib/src/frontend_shell/`, `frontend/vityo_app/lib/src/view_ide/language/`, `frontend/vityo_app/lib/src/language/`, `prototype/` |
+| `RUNTIME-AGENT-RUNBOOK.md` | `frontend/vityo_app/lib/src/view_ide/runtime/`, `frontend/vityo_app/lib/src/view_ide/agent/`, `frontend/vityo_app/lib/src/view_render/runtime/`, `frontend/vityo_app/lib/src/view_render/agent/`, `frontend/vityo_app/lib/src/runtime/`, `frontend/vityo_app/lib/src/agent/` |
+| `MODULE-PLATFORM-RUNBOOK.md` | `frontend/vityo_app/lib/src/module_host/`, `frontend/vityo_app/lib/src/platform/`, module manifests, capability matrices, platform bootstrap script |
+| `ADAPTER-CONTRACTS-RUNBOOK.md` | `frontend/vityo_app/lib/src/backend_toolchain/`, legacy integration façade, `docs/contracts/`, `docs/external/for-styio/`, `docs/external/for-spio/` |
+| `THEME-UX-RUNBOOK.md` | `frontend/vityo_app/lib/src/view_render/theme/`, `frontend/vityo_app/lib/src/view_render/platform/`, `frontend/vityo_app/lib/src/theme/`, `frontend/vityo_app/lib/src/platform/viewport_profile.dart`, shared prototype style files |
 | `DOCS-DELIVERY-RUNBOOK.md` | `README.md`, `docs/`, docs scripts, hygiene/docs/delivery gate scripts |
 
 Generated `docs/**/INDEX.md` files do not themselves require runbook updates.

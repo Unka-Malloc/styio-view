@@ -1,0 +1,149 @@
+name: local-ci-gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - nightly
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-ci-gate:
+    name: local-ci-gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      STYIO_PYTHON_VERSION: "3.13.5"
+      STYIO_NODE_VERSION: "24.15.0"
+      STYIO_FLUTTER_VERSION: "3.41.7"
+
+    steps:
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          path: vityo-nightly
+
+      - name: Resolve sibling checkout ref
+        id: sibling-ref
+        shell: bash
+        run: |
+          requested="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" || "${GITHUB_EVENT_NAME}" == "pull_request_target" ]]; then
+            requested="${{ github.base_ref }}"
+          fi
+
+          for ref in "$requested" nightly; do
+            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1 \
+              && git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-spio.git "$ref" >/dev/null 2>&1; then
+              echo "ref=$ref" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+
+          echo "No common sibling checkout ref found for '$requested' or fallback 'nightly'." >&2
+          exit 1
+
+      - name: Checkout styio-nightly sibling repository
+        uses: actions/checkout@v5
+        with:
+          repository: Unka-Malloc/styio-nightly
+          ref: ${{ steps.sibling-ref.outputs.ref }}
+          path: styio-nightly
+
+      - name: Checkout styio-spio sibling repository
+        uses: actions/checkout@v5
+        with:
+          repository: Unka-Malloc/styio-spio
+          ref: ${{ steps.sibling-ref.outputs.ref }}
+          path: styio-spio
+
+      - name: Set up standardized Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+
+      - name: Set up standardized Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.STYIO_NODE_VERSION }}
+
+      - name: Set up standardized Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
+
+      - name: Install CI Chrome
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+          install-dependencies: true
+
+      - name: Verify standardized toolchain
+        run: |
+          python3 --version | grep -F "${STYIO_PYTHON_VERSION}"
+          node --version | grep -F "v${STYIO_NODE_VERSION}"
+          npm --version
+          flutter --version | head -n1 | grep -F "${STYIO_FLUTTER_VERSION}"
+          "${{ steps.setup-chrome.outputs.chrome-path }}" --version
+
+      - name: Restore repository dependencies
+        working-directory: vityo-nightly
+        run: |
+          cd prototype && npm ci
+          cd ../frontend/vityo_app && flutter pub get
+
+      - name: Build Styio language fixture parser
+        working-directory: styio-nightly
+        run: |
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/default --target styio -j2
+
+      - name: Resolve CI refs
+        id: ci_refs
+        shell: bash
+        working-directory: vityo-nightly
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --no-tags origin "+refs/heads/${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}"
+            BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          elif [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+              BASE_REF="HEAD^"
+              RANGE="HEAD^..HEAD"
+            else
+              BASE_REF="HEAD"
+              RANGE="HEAD"
+            fi
+          elif [[ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
+            if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+              BASE_REF="HEAD^"
+            else
+              BASE_REF="HEAD"
+            fi
+            RANGE="HEAD"
+          else
+            BASE_REF="${{ github.event.before }}"
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+
+          echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
+          echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Run Vityo nightly local CI gate
+        working-directory: vityo-nightly
+        env:
+          STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          STYIO: ${{ github.workspace }}/styio-nightly/build/default/bin/styio
+        run: >
+          ./scripts/delivery-gate.sh
+          --mode push
+          --base "${{ steps.ci_refs.outputs.base_ref }}"
+          --range "${{ steps.ci_refs.outputs.range }}"
+          --skip-audit

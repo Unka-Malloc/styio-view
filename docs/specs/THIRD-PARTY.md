@@ -1,6 +1,6 @@
 # Third-Party Inventory
 
-**Purpose:** 记录 `styio-view` 当前接受、计划或明确暂缓的第三方依赖与运行时边界；第一方上游 `styio` 也在此登记，便于实现期核对。
+**Purpose:** 记录 `Vityo` 当前接受、计划或明确暂缓的第三方依赖与运行时边界；第一方上游 `styio` 也在此登记，便于实现期核对。
 
 **Last updated:** 2026-04-13
 

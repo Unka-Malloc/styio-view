@@ -43,6 +43,7 @@ class ShellModel extends ShellRuntimeModel {
     super.languageServiceStatus,
     super.toolchainStatusReport,
     super.clangCppVersionPreference,
+    super.workspaceDiagnosticsController,
   });
 
   BottomSurfaceTab _activeBottomTab = BottomSurfaceTab.runtime;

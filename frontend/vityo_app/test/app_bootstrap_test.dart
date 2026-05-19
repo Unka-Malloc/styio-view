@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/app/app_bootstrap.dart';
+import 'package:vityo_app/src/app/state/workspace_controller.dart';
 import 'package:vityo_app/src/integration/hosted_control_plane.dart';
 import 'package:vityo_app/src/integration/project_graph_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
@@ -112,6 +113,47 @@ void main() {
     expect(connector.documents.single.workingDirectory, '/workspace');
     expect(editorController.analysis.diagnostics.single.code, 'styio.app');
     expect(status.value.primaryCapabilityStates['diagnostics'], 'available');
+  });
+
+  test('app bootstrap creates workspace diagnostics request', () {
+    const activeDocument = DocumentState(
+      documentId: '/workspace/demo/src/main.styio',
+      text: '#main := () => {}',
+      revision: 1,
+    );
+    final projectGraph = _hostedProjectGraph();
+    final workspaceController = WorkspaceController(
+      projectSnapshot: projectGraph,
+    );
+    final editorController = EditorSessionController(
+      initialDocument: activeDocument,
+      languageService: createRoutedStyioLanguageService(
+        resultCache: StyioServiceResultCache(),
+      ),
+    );
+
+    final request = AppBootstrap.createWorkspaceDiagnosticsRequest(
+      editorController: editorController,
+      workspaceController: workspaceController,
+      workspaceDocuments: const <DocumentState>[
+        DocumentState(
+          documentId: '/workspace/demo/src/feature.styio',
+          text: '#feature := () => {}',
+          revision: 1,
+        ),
+      ],
+    );
+
+    expect(request.activeDocumentId, activeDocument.documentId);
+    expect(request.documentIds, contains(activeDocument.documentId));
+    expect(
+      request.documents.map((document) => document.documentId),
+      contains(activeDocument.documentId),
+    );
+    expect(
+      request.documents.map((document) => document.documentId),
+      contains('/workspace/demo/src/feature.styio'),
+    );
   });
 
   test(

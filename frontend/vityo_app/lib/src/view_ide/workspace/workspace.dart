@@ -6,3 +6,4 @@ export 'workspace_search_service.dart';
 export 'source_control_status.dart';
 export 'workspace_edit.dart';
 export 'workspace_diagnostics.dart';
+export 'workspace_diagnostics_controller.dart';

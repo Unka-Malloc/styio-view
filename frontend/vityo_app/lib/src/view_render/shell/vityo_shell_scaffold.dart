@@ -204,11 +204,23 @@ class VityoShellScaffold extends StatelessWidget {
           onOpenMatch: shell.openWorkspaceFileForAgent,
         );
       case BottomSurfaceTab.problems:
-        return ProblemsSurface(
-          viewportProfile: viewportProfile,
-          documentId: shell.editorController.document.documentId,
-          diagnostics: shell.editorController.analysis.diagnostics,
-          onSelectDiagnostic: shell.editorController.selectDiagnostic,
+        final diagnosticsController = shell.workspaceDiagnosticsController;
+        Widget buildProblemsSurface() {
+          return ProblemsSurface(
+            viewportProfile: viewportProfile,
+            documentId: shell.editorController.document.documentId,
+            diagnostics: shell.editorController.analysis.diagnostics,
+            workspaceDiagnostics: shell.workspaceDiagnosticsSnapshot,
+            onSelectDiagnostic: shell.editorController.selectDiagnostic,
+          );
+        }
+
+        if (diagnosticsController == null) {
+          return buildProblemsSurface();
+        }
+        return ListenableBuilder(
+          listenable: diagnosticsController,
+          builder: (_, _) => buildProblemsSurface(),
         );
       case BottomSurfaceTab.testing:
         return TestingSurface(

@@ -25,6 +25,7 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_executor.dart
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_policy.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/module_host/module_registry.dart';
@@ -174,6 +175,86 @@ void main() {
     );
   });
 
+  test('shell agent context includes cached workspace diagnostics', () async {
+    const documentPath = '/workspace/demo/src/main.styio';
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.1',
+      compilePlanReady: false,
+      editorFiles: const <String>[documentPath],
+    );
+    const snapshot = WorkspaceDiagnosticsSnapshot(
+      providerId: 'static',
+      diagnostics: <WorkspaceDiagnostic>[
+        WorkspaceDiagnostic(
+          documentId: documentPath,
+          diagnostic: Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'styio.shell',
+            message: 'shell diagnostic',
+            range: SourceRange(start: 0, end: 1),
+          ),
+        ),
+      ],
+    );
+    final diagnosticsController = WorkspaceDiagnosticsController(
+      provider: const StaticWorkspaceDiagnosticsProvider(
+        providerId: 'static',
+        snapshot: snapshot,
+      ),
+    );
+    addTearDown(diagnosticsController.dispose);
+    await diagnosticsController.refresh(
+      const WorkspaceDiagnosticsRequest(documentIds: <String>[documentPath]),
+    );
+    final shell = ShellModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _SequenceProjectGraphAdapter(
+        snapshots: <ProjectGraphSnapshot>[initialGraph],
+      ),
+      workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: documentPath,
+          text: '#main := () => {}',
+          revision: 1,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+      ),
+      executionAdapter: const _SuccessfulExecutionAdapter(
+        sessionId: 'shell-diagnostics',
+      ),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _SuccessfulExecutionAdapter(sessionId: 'shell-diagnostics'),
+      runtimeEventAdapter: createRuntimeEventAdapter(
+        platformTarget: PlatformTarget.macos,
+      ),
+      dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+      deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+      toolchainManagementAdapter: const _SuccessfulToolchainManagementAdapter(),
+      workspaceDiagnosticsController: diagnosticsController,
+    );
+    addTearDown(shell.dispose);
+
+    final workspaceJson =
+        shell.agentSessionContext.toJson()['workspace']!
+            as Map<String, Object?>;
+    final diagnosticsJson =
+        workspaceJson['diagnostics']! as Map<String, Object?>;
+
+    expect(shell.workspaceDiagnosticsSnapshot, same(snapshot));
+    expect(diagnosticsJson['providerId'], 'static');
+    expect(diagnosticsJson['totalCount'], 1);
+  });
+
   test(
     'restores editor session active document through workspace route',
     () async {
@@ -213,10 +294,7 @@ void main() {
         workspaceId: 'demo',
         snapshot: const EditorSessionSnapshot(
           activeDocumentId: secondDocumentPath,
-          openDocumentIds: <String>[
-            firstDocumentPath,
-            secondDocumentPath,
-          ],
+          openDocumentIds: <String>[firstDocumentPath, secondDocumentPath],
           dirtyDocumentIds: <String>[firstDocumentPath],
           cursorOffsets: <String, int>{
             firstDocumentPath: 5,
@@ -624,7 +702,10 @@ void main() {
     expect(shell.activeBottomTab, BottomSurfaceTab.settings);
     expect(result?.commandId, 'openSettings');
     expect(result?.metadata['recoveryForCommandId'], 'runBuild');
-    expect(result?.metadata.containsKey('completedRequiredCommandFor'), isFalse);
+    expect(
+      result?.metadata.containsKey('completedRequiredCommandFor'),
+      isFalse,
+    );
     expect(result?.metadata['settingsRoute'], 'settings');
     expect(result?.metadata['settingsSection'], 'toolchain');
   });

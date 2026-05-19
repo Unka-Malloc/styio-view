@@ -315,6 +315,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     this.refreshActiveLanguageService,
     ValueListenable<LanguageServiceStatusSurface>? languageServiceStatus,
     this.toolchainStatusReport,
+    this.workspaceDiagnosticsController,
     EditorDocumentResourceBinding? editorFileBinding,
     this.debugAdapterLauncher,
   }) : _activeDocumentPath = workspaceController.activeFilePath,
@@ -394,6 +395,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   final RuntimeEventAdapter runtimeEventAdapter;
   final ValueListenable<LanguageServiceStatusSurface> languageServiceStatus;
   final ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport;
+  final WorkspaceDiagnosticsController? workspaceDiagnosticsController;
   final DapDebugAdapterLauncher? debugAdapterLauncher;
   final bool _ownsLanguageServiceStatus;
   final bool _ownsAgentCodingController;
@@ -464,6 +466,9 @@ class ShellRuntimeModel extends ChangeNotifier {
         if (entry.key != editorController.document.documentId) entry.value,
     ];
   }
+
+  WorkspaceDiagnosticsSnapshot? get workspaceDiagnosticsSnapshot =>
+      workspaceDiagnosticsController?.snapshot;
 
   AgentSessionContext get agentSessionContext {
     final debugBreakpoints = _debugBreakpoints;
@@ -570,6 +575,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       dirtyDocumentIds: dirtyDocumentPaths,
       workspaceDocuments: _agentWorkspaceDocumentSamples,
       lastWorkspaceSearch: _lastAgentWorkspaceSearch,
+      workspaceDiagnostics: workspaceDiagnosticsSnapshot,
       activeFilePath: workspaceController.activeFilePath,
       toolchainSnapshot:
           toolchainStatusReport?.value.snapshot ?? _lastToolchainSnapshot,

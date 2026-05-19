@@ -118,4 +118,77 @@ void main() {
       expect(result.diagnostics.single.diagnostic.code, 'style');
     },
   );
+
+  test('workspace diagnostics controller caches provider snapshot', () async {
+    const snapshot = WorkspaceDiagnosticsSnapshot(
+      providerId: 'static',
+      diagnostics: <WorkspaceDiagnostic>[
+        WorkspaceDiagnostic(
+          documentId: 'main.styio',
+          diagnostic: Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'styio.controller',
+            message: 'controller diagnostic',
+            range: SourceRange(start: 0, end: 1),
+          ),
+        ),
+      ],
+    );
+    final controller = WorkspaceDiagnosticsController(
+      provider: const StaticWorkspaceDiagnosticsProvider(
+        providerId: 'static',
+        snapshot: snapshot,
+      ),
+    );
+    addTearDown(controller.dispose);
+    var notifications = 0;
+    controller.addListener(() {
+      notifications++;
+    });
+
+    final result = await controller.refresh(
+      const WorkspaceDiagnosticsRequest(documentIds: <String>['main.styio']),
+    );
+
+    expect(result, same(snapshot));
+    expect(controller.snapshot, same(snapshot));
+    expect(controller.hasSnapshot, isTrue);
+    expect(notifications, 1);
+
+    controller.clear();
+
+    expect(controller.snapshot, isNull);
+    expect(notifications, 2);
+  });
+
+  test('workspace diagnostics controller records provider failure', () async {
+    final controller = WorkspaceDiagnosticsController(
+      provider: const _FailingWorkspaceDiagnosticsProvider(),
+    );
+    addTearDown(controller.dispose);
+
+    final result = await controller.refresh(
+      const WorkspaceDiagnosticsRequest(documentIds: <String>['main.styio']),
+    );
+
+    expect(result.providerId, 'failing');
+    expect(result.totalCount, 0);
+    expect(result.message, contains('Workspace diagnostics unavailable'));
+    expect(controller.snapshot, same(result));
+  });
+}
+
+class _FailingWorkspaceDiagnosticsProvider
+    implements WorkspaceDiagnosticsProvider {
+  const _FailingWorkspaceDiagnosticsProvider();
+
+  @override
+  String get providerId => 'failing';
+
+  @override
+  Future<WorkspaceDiagnosticsSnapshot> collect(
+    WorkspaceDiagnosticsRequest request,
+  ) async {
+    throw StateError('fixture failure');
+  }
 }

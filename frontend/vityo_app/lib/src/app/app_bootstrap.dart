@@ -14,18 +14,22 @@ import '../backend_toolchain/runtime_event_adapter.dart';
 import '../backend_toolchain/toolchain_management_adapter.dart';
 import '../editor/editor_controller.dart';
 import '../view_ide/interaction/interaction.dart';
+import '../view_ide/editor/document_state.dart';
 import '../view_ide/environment/environment.dart';
 import '../view_ide/foundation/foundation.dart';
 import '../view_ide/language/service/language_service_foundation.dart';
 import '../view_ide/language/service/styio_service_capability_detector.dart';
 import '../view_ide/language/service/styio_service_connector.dart';
 import '../view_ide/language/service/styio_service_runtime.dart';
+import '../view_ide/language/service/styio_workspace_diagnostics_provider.dart';
 import '../view_ide/toolchain/clang_cpp_version_configuration.dart';
 import '../view_ide/toolchain/toolchain_catalog.dart';
 import '../view_ide/toolchain/toolchain_configuration_store.dart';
 import '../view_ide/toolchain/toolchain_manager.dart';
 import '../view_ide/toolchain/native_compiler_toolchain_discovery.dart';
 import '../view_ide/toolchain/styio_toolchain_discovery.dart';
+import '../view_ide/workspace/workspace_diagnostics.dart';
+import '../view_ide/workspace/workspace_diagnostics_controller.dart';
 import '../module_host/module_registry.dart';
 import '../platform/native_module_loader.dart';
 import '../platform/platform_target.dart';
@@ -73,6 +77,7 @@ class AppBootstrap {
     this.clangCppVersionPreference,
     this.toolchainCatalogSubscription,
     this.languageResultCacheBinding,
+    this.workspaceDiagnosticsController,
   }) : languageServiceStatus =
            languageServiceStatus ??
            ValueNotifier<LanguageServiceStatusSurface>(
@@ -104,10 +109,12 @@ class AppBootstrap {
   final StreamSubscription<ToolchainCatalogConfigurationChange>?
   toolchainCatalogSubscription;
   final StyioServiceToolchainCacheBinding? languageResultCacheBinding;
+  final WorkspaceDiagnosticsController? workspaceDiagnosticsController;
 
   void dispose() {
     unawaited(toolchainCatalogSubscription?.cancel());
     unawaited(languageResultCacheBinding?.dispose());
+    workspaceDiagnosticsController?.dispose();
     agentCodingController.dispose();
   }
 
@@ -264,6 +271,15 @@ class AppBootstrap {
         workingDirectory: languageProjectContext.workingDirectory,
       ),
     );
+    final workspaceDiagnosticsController = WorkspaceDiagnosticsController(
+      provider: StyioWorkspaceDiagnosticsProvider(
+        projectService: createRoutedProjectStyioLanguageService(
+          resultCache: languageResultCache,
+          configPath: languageProjectContext.configPath,
+          workingDirectory: languageProjectContext.workingDirectory,
+        ),
+      ),
+    );
     Future<void> refreshActiveLanguageService() async {
       try {
         await refreshLanguageServiceForEditor(
@@ -272,6 +288,13 @@ class AppBootstrap {
           workspaceDocumentStore: workspaceDocumentStore,
           projectContext: languageProjectContext,
           languageServiceStatus: languageServiceStatus,
+        );
+        await workspaceDiagnosticsController.refresh(
+          AppBootstrap.createWorkspaceDiagnosticsRequest(
+            editorController: editorController,
+            workspaceController: workspaceController,
+            workspaceDocuments: <DocumentState>[editorController.document],
+          ),
         );
       } on Object catch (error) {
         languageServiceStatus.value = LanguageServiceStatusSurface.failed(
@@ -322,6 +345,7 @@ class AppBootstrap {
         languageServiceStatus: languageServiceStatus.value,
         workspaceFiles: workspaceController.files,
         workspaceDocuments: [editorController.document],
+        workspaceDiagnostics: workspaceDiagnosticsController.snapshot,
         activeFilePath: workspaceController.activeFilePath,
         toolchainSnapshot: toolchainStatusReport.value.snapshot,
         clangCppVersionPreference: clangCppVersionPreference,
@@ -360,6 +384,7 @@ class AppBootstrap {
       clangCppVersionPreference: clangCppVersionPreference,
       toolchainCatalogSubscription: toolchainCatalogSubscription,
       languageResultCacheBinding: languageResultCacheBinding,
+      workspaceDiagnosticsController: workspaceDiagnosticsController,
     );
   }
 
@@ -382,6 +407,27 @@ class AppBootstrap {
     return ConfigurationStore(
       dataStore: dataStore,
       credentialDataStore: credentialDataStore,
+    );
+  }
+
+  @visibleForTesting
+  static WorkspaceDiagnosticsRequest createWorkspaceDiagnosticsRequest({
+    required EditorSessionController editorController,
+    required WorkspaceController workspaceController,
+    Iterable<DocumentState> workspaceDocuments = const <DocumentState>[],
+  }) {
+    final documentsById = <String, DocumentState>{
+      editorController.document.documentId: editorController.document,
+      for (final document in workspaceDocuments) document.documentId: document,
+    };
+    final documentIds = <String>{
+      ...workspaceController.openFilePaths,
+      editorController.document.documentId,
+    }.toList(growable: false);
+    return WorkspaceDiagnosticsRequest(
+      documentIds: documentIds,
+      activeDocumentId: editorController.document.documentId,
+      documents: documentsById.values.toList(growable: false),
     );
   }
 

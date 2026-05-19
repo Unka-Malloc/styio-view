@@ -693,7 +693,9 @@ class ShellRuntimeModel extends ChangeNotifier {
     return 'Source control refreshed: ${snapshot.changes.length} change(s).';
   }
 
-  Future<SourceControlDiffSnapshot> previewSourceControlDiff(String path) async {
+  Future<SourceControlDiffSnapshot> previewSourceControlDiff(
+    String path,
+  ) async {
     final controller = sourceControlStatusController;
     final snapshot = controller == null
         ? SourceControlDiffSnapshot(
@@ -707,6 +709,62 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(_sourceControlDiffPreviewMessage(snapshot));
     notifyListeners();
     return snapshot;
+  }
+
+  Future<SourceControlActionResult> runSourceControlAction(
+    SourceControlActionRequest request,
+  ) async {
+    final controller = sourceControlStatusController;
+    final result = controller == null
+        ? SourceControlActionResult(
+            kind: request.kind,
+            applied: false,
+            paths: request.paths,
+            message:
+                'Source control action skipped: no source control controller is configured.',
+          )
+        : await controller.runAction(request);
+    appendLog(_sourceControlActionMessage(result));
+    if (result.applied) {
+      await refreshSourceControlStatus();
+    } else {
+      notifyListeners();
+    }
+    return result;
+  }
+
+  Future<SourceControlActionResult> stageSourceControlPaths(
+    List<String> paths,
+  ) {
+    return runSourceControlAction(
+      SourceControlActionRequest(
+        kind: SourceControlActionKind.stage,
+        paths: paths,
+      ),
+    );
+  }
+
+  Future<SourceControlActionResult> unstageSourceControlPaths(
+    List<String> paths,
+  ) {
+    return runSourceControlAction(
+      SourceControlActionRequest(
+        kind: SourceControlActionKind.unstage,
+        paths: paths,
+      ),
+    );
+  }
+
+  String _sourceControlActionMessage(SourceControlActionResult result) {
+    final action = result.kind.wireValue;
+    if (!result.applied) {
+      return result.message.isEmpty
+          ? 'Source control $action failed.'
+          : 'Source control $action failed: ${result.message}';
+    }
+    return result.message.isEmpty
+        ? 'Source control $action applied to ${result.paths.length} path(s).'
+        : 'Source control $action applied: ${result.message}';
   }
 
   String _sourceControlDiffPreviewMessage(SourceControlDiffSnapshot snapshot) {
@@ -771,12 +829,15 @@ class ShellRuntimeModel extends ChangeNotifier {
       documentId: documentId,
       offset: offset,
     );
-    final references = projectLanguageService.referencesAt(
-      documents: documents,
-      documentId: documentId,
-      offset: offset,
-    ).toList(growable: false)
-      ..sort(_compareProjectSymbolReferences);
+    final references =
+        projectLanguageService
+            .referencesAt(
+              documents: documents,
+              documentId: documentId,
+              offset: offset,
+            )
+            .toList(growable: false)
+          ..sort(_compareProjectSymbolReferences);
     final completions = projectLanguageService.completionsAt(
       documents: documents,
       documentId: documentId,
@@ -826,11 +887,12 @@ class ShellRuntimeModel extends ChangeNotifier {
       }
     }
     final analysis = projectLanguageService.analyzeProject(documents);
-    final fixes = projectLanguageService.workspaceQuickFixesForProjectDiagnostics(
-      documents: documents,
-      diagnostics: analysis.diagnostics,
-      analysis: analysis,
-    );
+    final fixes = projectLanguageService
+        .workspaceQuickFixesForProjectDiagnostics(
+          documents: documents,
+          diagnostics: analysis.diagnostics,
+          analysis: analysis,
+        );
     appendLog(
       'Project workspace quick fixes collected: ${fixes.length} candidate(s).',
     );
@@ -851,11 +913,12 @@ class ShellRuntimeModel extends ChangeNotifier {
   Future<WorkspaceEditPreview?> previewFirstProjectWorkspaceQuickFix() async {
     final documents = await _loadProjectLanguageDocuments();
     final analysis = projectLanguageService.analyzeProject(documents);
-    final fixes = projectLanguageService.workspaceQuickFixesForProjectDiagnostics(
-      documents: documents,
-      diagnostics: analysis.diagnostics,
-      analysis: analysis,
-    );
+    final fixes = projectLanguageService
+        .workspaceQuickFixesForProjectDiagnostics(
+          documents: documents,
+          diagnostics: analysis.diagnostics,
+          analysis: analysis,
+        );
     if (fixes.isEmpty) {
       _lastWorkspaceEditPreview = null;
       appendLog(
@@ -876,9 +939,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     return preview;
   }
 
-  Future<bool> _applyProjectWorkspaceFix(
-    StyioProjectWorkspaceFix fix,
-  ) async {
+  Future<bool> _applyProjectWorkspaceFix(StyioProjectWorkspaceFix fix) async {
     _lastWorkspaceEditPreview = _workspaceEditPlanForProjectFix(
       fix,
     ).preview(_agentWorkspaceDocumentSamples);
@@ -906,17 +967,18 @@ class ShellRuntimeModel extends ChangeNotifier {
 
     var inactiveEditCount = 0;
     if (inactiveEditsByDocument.isNotEmpty) {
-      final result = await WorkspaceEditApplier(
-        workspaceDocumentStore: workspaceDocumentStore,
-      ).apply(
-        _workspaceEditPlanForProjectFix(
-          StyioProjectWorkspaceFix(
-            label: fix.label,
-            detail: fix.detail,
-            editsByDocument: inactiveEditsByDocument,
-          ),
-        ),
-      );
+      final result =
+          await WorkspaceEditApplier(
+            workspaceDocumentStore: workspaceDocumentStore,
+          ).apply(
+            _workspaceEditPlanForProjectFix(
+              StyioProjectWorkspaceFix(
+                label: fix.label,
+                detail: fix.detail,
+                editsByDocument: inactiveEditsByDocument,
+              ),
+            ),
+          );
       if (!result.applied) {
         appendLog('Project workspace quick fix skipped: ${result.message}');
         notifyListeners();
@@ -1271,17 +1333,18 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
     var inactiveEditCount = 0;
     if (inactiveEditsByDocument.isNotEmpty) {
-      final result = await WorkspaceEditApplier(
-        workspaceDocumentStore: workspaceDocumentStore,
-      ).apply(
-        WorkspaceEditPlan(
-          id: 'project-rename-${DateTime.now().microsecondsSinceEpoch}',
-          summary:
-              'Rename ${preview.oldName} to ${preview.newName} across project.',
-          source: WorkspaceEditSource.rename,
-          editsByDocument: inactiveEditsByDocument,
-        ),
-      );
+      final result =
+          await WorkspaceEditApplier(
+            workspaceDocumentStore: workspaceDocumentStore,
+          ).apply(
+            WorkspaceEditPlan(
+              id: 'project-rename-${DateTime.now().microsecondsSinceEpoch}',
+              summary:
+                  'Rename ${preview.oldName} to ${preview.newName} across project.',
+              source: WorkspaceEditSource.rename,
+              editsByDocument: inactiveEditsByDocument,
+            ),
+          );
       if (!result.applied) {
         appendLog('Project rename skipped: ${result.message}');
         notifyListeners();
@@ -1535,9 +1598,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           suggestion,
           applied: snapshot.available,
           message: _sourceControlDiffPreviewMessage(snapshot),
-          metadata: <String, Object?>{
-            'sourceControlDiff': snapshot.toJson(),
-          },
+          metadata: <String, Object?>{'sourceControlDiff': snapshot.toJson()},
         );
         return snapshot.available;
       case 'collectAgentCodingCheckpoint':
@@ -3742,12 +3803,15 @@ class ShellRuntimeModel extends ChangeNotifier {
     final activeDocumentId = editorController.document.documentId;
     final offset = editorController.selection.extentOffset;
     final documents = await _loadProjectLanguageDocuments();
-    final references = projectLanguageService.referencesAt(
-      documents: documents,
-      documentId: activeDocumentId,
-      offset: offset,
-    ).toList(growable: false)
-      ..sort(_compareProjectSymbolReferences);
+    final references =
+        projectLanguageService
+            .referencesAt(
+              documents: documents,
+              documentId: activeDocumentId,
+              offset: offset,
+            )
+            .toList(growable: false)
+          ..sort(_compareProjectSymbolReferences);
     if (references.isEmpty) {
       appendLog(
         'Project reference skipped: no visible project references at selection.',
@@ -3908,19 +3972,20 @@ class ShellRuntimeModel extends ChangeNotifier {
       query: normalizedQuery,
       documents: documents,
     );
-    final symbolResult = await WorkspaceSymbolSearchService(
-      documentStore: InMemoryWorkspaceDocumentStore(
-        seededDocuments: <String, DocumentState>{
-          for (final document in documents) document.documentId: document,
-        },
-      ),
-      semanticSnapshotProvider: SemanticSnapshotProvider(
-        languageService: projectLanguageService.documentService,
-      ),
-    ).searchSymbols(
-      documentIds: documents.map((document) => document.documentId),
-      query: normalizedQuery,
-    );
+    final symbolResult =
+        await WorkspaceSymbolSearchService(
+          documentStore: InMemoryWorkspaceDocumentStore(
+            seededDocuments: <String, DocumentState>{
+              for (final document in documents) document.documentId: document,
+            },
+          ),
+          semanticSnapshotProvider: SemanticSnapshotProvider(
+            languageService: projectLanguageService.documentService,
+          ),
+        ).searchSymbols(
+          documentIds: documents.map((document) => document.documentId),
+          query: normalizedQuery,
+        );
     _lastAgentWorkspaceSymbolSearch =
         AgentWorkspaceSymbolSearchResultContext.fromWorkspaceResult(
           query: normalizedQuery,
@@ -3945,13 +4010,14 @@ class ShellRuntimeModel extends ChangeNotifier {
       appendLog('Workspace replace preview skipped: missing search query.');
       return null;
     }
-    final preview = await WorkspaceSearchService(
-      documentStore: workspaceDocumentStore,
-    ).previewReplaceAll(
-      documentIds: workspaceController.files,
-      query: normalizedQuery,
-      replacement: replacement,
-    );
+    final preview =
+        await WorkspaceSearchService(
+          documentStore: workspaceDocumentStore,
+        ).previewReplaceAll(
+          documentIds: workspaceController.files,
+          query: normalizedQuery,
+          replacement: replacement,
+        );
     _lastWorkspaceReplacePreview = preview;
     appendLog(
       'Workspace replace preview found ${preview.replacementCount} '
@@ -4585,9 +4651,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           AgentIdeCommandSuggestion(commandId: commandId.name),
           applied: snapshot.available,
           message: _sourceControlDiffPreviewMessage(snapshot),
-          metadata: <String, Object?>{
-            'sourceControlDiff': snapshot.toJson(),
-          },
+          metadata: <String, Object?>{'sourceControlDiff': snapshot.toJson()},
         );
         return;
       case AppCommandId.collectAgentCodingCheckpoint:

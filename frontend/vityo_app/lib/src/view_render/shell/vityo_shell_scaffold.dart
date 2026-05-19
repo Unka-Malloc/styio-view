@@ -202,6 +202,8 @@ class VityoShellScaffold extends StatelessWidget {
               return shell.executeCommand(AppCommandId.refreshSourceControl);
             },
             onPreviewDiff: shell.previewSourceControlDiff,
+            onStagePaths: shell.stageSourceControlPaths,
+            onUnstagePaths: shell.unstageSourceControlPaths,
           );
         }
 
@@ -229,12 +231,10 @@ class VityoShellScaffold extends StatelessWidget {
               replacement: replacement,
             );
           },
-          onOpenMatch: (match) => shell.openWorkspaceFileForAgent(
-            match.documentId,
-          ),
-          onOpenSymbolMatch: (match) => shell.openWorkspaceFileForAgent(
-            match.documentId,
-          ),
+          onOpenMatch: (match) =>
+              shell.openWorkspaceFileForAgent(match.documentId),
+          onOpenSymbolMatch: (match) =>
+              shell.openWorkspaceFileForAgent(match.documentId),
         );
       case BottomSurfaceTab.problems:
         final diagnosticsController = shell.workspaceDiagnosticsController;

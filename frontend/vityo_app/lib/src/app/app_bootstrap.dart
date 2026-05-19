@@ -442,10 +442,9 @@ class AppBootstrap {
       processManager: platformManagers.process,
     ).call;
     return SourceControlStatusController(
-      provider: GitPorcelainStatusProvider(
-        runner: runner,
-      ),
+      provider: GitPorcelainStatusProvider(runner: runner),
       diffProvider: GitSourceControlDiffProvider(runner: runner),
+      actionProvider: GitSourceControlActionProvider(runner: runner),
       workspaceRoot: workspaceRoot,
     );
   }

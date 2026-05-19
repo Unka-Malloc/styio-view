@@ -67,39 +67,167 @@ R  lib/old.styio -> lib/renamed.styio
     },
   );
 
-  test('git diff provider requests file diff through injected runner', () async {
-    SourceControlCommandRequest? capturedRequest;
-    final provider = GitSourceControlDiffProvider(
-      runner: (request) async {
-        capturedRequest = request;
-        return const SourceControlCommandResult(
-          exitCode: 0,
-          stdout: '''
+  test(
+    'git diff provider requests file diff through injected runner',
+    () async {
+      SourceControlCommandRequest? capturedRequest;
+      final provider = GitSourceControlDiffProvider(
+        runner: (request) async {
+          capturedRequest = request;
+          return const SourceControlCommandResult(
+            exitCode: 0,
+            stdout: '''
 diff --git a/lib/main.styio b/lib/main.styio
 @@ -1 +1 @@
 -old
 +new
 ''',
+          );
+        },
+      );
+
+      final snapshot = await provider.diff(
+        workspaceRoot: '/workspace/vityo',
+        path: 'lib/main.styio',
+      );
+
+      expect(capturedRequest?.executable, 'git');
+      expect(capturedRequest?.arguments, <String>[
+        'diff',
+        '--',
+        'lib/main.styio',
+      ]);
+      expect(capturedRequest?.workingDirectory, '/workspace/vityo');
+      expect(snapshot.available, isTrue);
+      expect(snapshot.path, 'lib/main.styio');
+      expect(snapshot.unifiedDiff, contains('+new'));
+      expect(snapshot.toJson()['diffTruncated'], isFalse);
+    },
+  );
+
+  test(
+    'git action provider stages and commits through injected runner',
+    () async {
+      final requests = <SourceControlCommandRequest>[];
+      final provider = GitSourceControlActionProvider(
+        runner: (request) async {
+          requests.add(request);
+          return const SourceControlCommandResult(exitCode: 0, stdout: 'ok\n');
+        },
+      );
+
+      final stage = await provider.runAction(
+        workspaceRoot: '/workspace/vityo',
+        request: const SourceControlActionRequest(
+          kind: SourceControlActionKind.stage,
+          paths: <String>[' src/main.styio ', ''],
+        ),
+      );
+      final commit = await provider.runAction(
+        workspaceRoot: '/workspace/vityo',
+        request: const SourceControlActionRequest(
+          kind: SourceControlActionKind.commit,
+          message: ' checkpoint ',
+        ),
+      );
+
+      expect(stage.applied, isTrue);
+      expect(stage.paths, <String>['src/main.styio']);
+      expect(requests.first.arguments, <String>['add', '--', 'src/main.styio']);
+      expect(commit.applied, isTrue);
+      expect(requests.last.arguments, <String>['commit', '-m', 'checkpoint']);
+      expect(requests.last.workingDirectory, '/workspace/vityo');
+    },
+  );
+
+  test('git action provider rejects unsafe incomplete requests', () async {
+    var invoked = false;
+    final provider = GitSourceControlActionProvider(
+      runner: (_) async {
+        invoked = true;
+        return const SourceControlCommandResult(exitCode: 0);
+      },
+    );
+
+    final stage = await provider.runAction(
+      workspaceRoot: '/workspace/vityo',
+      request: const SourceControlActionRequest(
+        kind: SourceControlActionKind.stage,
+      ),
+    );
+    final commit = await provider.runAction(
+      workspaceRoot: '/workspace/vityo',
+      request: const SourceControlActionRequest(
+        kind: SourceControlActionKind.commit,
+      ),
+    );
+
+    expect(stage.applied, isFalse);
+    expect(stage.message, contains('no paths'));
+    expect(commit.applied, isFalse);
+    expect(commit.message, contains('commit message is required'));
+    expect(invoked, isFalse);
+  });
+
+  test('git branch provider loads current branch and branch list', () async {
+    final requests = <SourceControlCommandRequest>[];
+    final provider = GitSourceControlBranchProvider(
+      runner: (request) async {
+        requests.add(request);
+        if (requests.length == 1) {
+          return const SourceControlCommandResult(
+            exitCode: 0,
+            stdout: 'ai-dev\n',
+          );
+        }
+        return const SourceControlCommandResult(
+          exitCode: 0,
+          stdout: 'main\nai-dev\nfeature/scm\n',
         );
       },
     );
 
-    final snapshot = await provider.diff(
-      workspaceRoot: '/workspace/vityo',
-      path: 'lib/main.styio',
+    final snapshot = await provider.branches(workspaceRoot: '/workspace/vityo');
+
+    expect(requests.first.arguments, <String>['branch', '--show-current']);
+    expect(
+      requests.last.arguments,
+      GitSourceControlBranchProvider.branchArguments,
+    );
+    expect(snapshot.available, isTrue);
+    expect(snapshot.currentBranch, 'ai-dev');
+    expect(snapshot.branches, <String>['main', 'ai-dev', 'feature/scm']);
+    expect(snapshot.toJson()['branchCount'], 3);
+  });
+
+  test('git history provider parses log entries', () async {
+    SourceControlCommandRequest? capturedRequest;
+    final provider = GitSourceControlHistoryProvider(
+      runner: (request) async {
+        capturedRequest = request;
+        return const SourceControlCommandResult(
+          exitCode: 0,
+          stdout:
+              'abc123def\u001fabcd123\u001fUnka\u001f2026-05-20T10:00:00+08:00\u001fAdd SCM provider\n',
+        );
+      },
     );
 
-    expect(capturedRequest?.executable, 'git');
-    expect(capturedRequest?.arguments, <String>[
-      'diff',
-      '--',
-      'lib/main.styio',
-    ]);
-    expect(capturedRequest?.workingDirectory, '/workspace/vityo');
+    final snapshot = await provider.history(
+      workspaceRoot: '/workspace/vityo',
+      limit: 10,
+    );
+
+    expect(
+      capturedRequest?.arguments,
+      GitSourceControlHistoryProvider.historyArgumentsFor(10),
+    );
     expect(snapshot.available, isTrue);
-    expect(snapshot.path, 'lib/main.styio');
-    expect(snapshot.unifiedDiff, contains('+new'));
-    expect(snapshot.toJson()['diffTruncated'], isFalse);
+    expect(snapshot.entries.single.revision, 'abc123def');
+    expect(snapshot.entries.single.shortRevision, 'abcd123');
+    expect(snapshot.entries.single.author, 'Unka');
+    expect(snapshot.entries.single.summary, 'Add SCM provider');
+    expect(snapshot.toJson()['entryCount'], 1);
   });
 
   test(
@@ -285,29 +413,32 @@ diff --git a/lib/main.styio b/lib/main.styio
     expect(result.toJson()['kind'], 'stage');
   });
 
-  test('source control status controller reports missing action provider', () async {
-    final controller = SourceControlStatusController(
-      provider: const StaticSourceControlStatusProvider(
-        SourceControlStatusSnapshot(
-          providerKind: SourceControlProviderKind.git,
-          changes: <SourceControlFileChange>[],
+  test(
+    'source control status controller reports missing action provider',
+    () async {
+      final controller = SourceControlStatusController(
+        provider: const StaticSourceControlStatusProvider(
+          SourceControlStatusSnapshot(
+            providerKind: SourceControlProviderKind.git,
+            changes: <SourceControlFileChange>[],
+          ),
         ),
-      ),
-      workspaceRoot: '/workspace/vityo',
-    );
-    addTearDown(controller.dispose);
+        workspaceRoot: '/workspace/vityo',
+      );
+      addTearDown(controller.dispose);
 
-    final result = await controller.runAction(
-      const SourceControlActionRequest(
-        kind: SourceControlActionKind.commit,
-        message: 'checkpoint',
-      ),
-    );
+      final result = await controller.runAction(
+        const SourceControlActionRequest(
+          kind: SourceControlActionKind.commit,
+          message: 'checkpoint',
+        ),
+      );
 
-    expect(result.applied, isFalse);
-    expect(result.message, contains('no action provider'));
-    expect(controller.lastActionResult, same(result));
-  });
+      expect(result.applied, isFalse);
+      expect(result.message, contains('no action provider'));
+      expect(controller.lastActionResult, same(result));
+    },
+  );
 }
 
 class _FakeSourceControlActionProvider extends SourceControlActionProvider {

@@ -95,6 +95,83 @@ class SourceControlActionResult {
   }
 }
 
+class SourceControlBranchSnapshot {
+  const SourceControlBranchSnapshot({
+    required this.providerKind,
+    this.available = true,
+    this.currentBranch = '',
+    this.branches = const <String>[],
+    this.message = '',
+  });
+
+  final SourceControlProviderKind providerKind;
+  final bool available;
+  final String currentBranch;
+  final List<String> branches;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerKind': providerKind.wireValue,
+      'available': available,
+      if (currentBranch.isNotEmpty) 'currentBranch': currentBranch,
+      if (message.isNotEmpty) 'message': message,
+      'branchCount': branches.length,
+      'branches': branches,
+    };
+  }
+}
+
+class SourceControlHistoryEntry {
+  const SourceControlHistoryEntry({
+    required this.revision,
+    required this.shortRevision,
+    required this.summary,
+    this.author = '',
+    this.authoredAt = '',
+  });
+
+  final String revision;
+  final String shortRevision;
+  final String summary;
+  final String author;
+  final String authoredAt;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'revision': revision,
+      'shortRevision': shortRevision,
+      'summary': summary,
+      if (author.isNotEmpty) 'author': author,
+      if (authoredAt.isNotEmpty) 'authoredAt': authoredAt,
+    };
+  }
+}
+
+class SourceControlHistorySnapshot {
+  const SourceControlHistorySnapshot({
+    required this.providerKind,
+    this.available = true,
+    this.entries = const <SourceControlHistoryEntry>[],
+    this.message = '',
+  });
+
+  final SourceControlProviderKind providerKind;
+  final bool available;
+  final List<SourceControlHistoryEntry> entries;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerKind': providerKind.wireValue,
+      'available': available,
+      if (message.isNotEmpty) 'message': message,
+      'entryCount': entries.length,
+      'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+    };
+  }
+}
+
 class SourceControlFileChange {
   const SourceControlFileChange({
     required this.path,
@@ -302,6 +379,25 @@ abstract class SourceControlActionProvider {
   });
 }
 
+abstract class SourceControlBranchProvider {
+  const SourceControlBranchProvider();
+
+  SourceControlProviderKind get providerKind;
+
+  Future<SourceControlBranchSnapshot> branches({required String workspaceRoot});
+}
+
+abstract class SourceControlHistoryProvider {
+  const SourceControlHistoryProvider();
+
+  SourceControlProviderKind get providerKind;
+
+  Future<SourceControlHistorySnapshot> history({
+    required String workspaceRoot,
+    int limit = 25,
+  });
+}
+
 class StaticSourceControlStatusProvider extends SourceControlStatusProvider {
   const StaticSourceControlStatusProvider(this.snapshot);
 
@@ -458,16 +554,288 @@ class GitSourceControlDiffProvider extends SourceControlDiffProvider {
   }
 }
 
+class GitSourceControlActionProvider extends SourceControlActionProvider {
+  const GitSourceControlActionProvider({
+    required this.runner,
+    this.executable = 'git',
+  });
+
+  final SourceControlCommandRunner runner;
+  final String executable;
+
+  static List<String> actionArgumentsFor(SourceControlActionRequest request) {
+    final paths = request.paths
+        .map((path) => path.trim())
+        .where((path) => path.isNotEmpty)
+        .toList(growable: false);
+    return switch (request.kind) {
+      SourceControlActionKind.stage => <String>['add', '--', ...paths],
+      SourceControlActionKind.unstage => <String>[
+        'restore',
+        '--staged',
+        '--',
+        ...paths,
+      ],
+      SourceControlActionKind.discard => <String>['restore', '--', ...paths],
+      SourceControlActionKind.commit => <String>[
+        'commit',
+        '-m',
+        request.message.trim(),
+        if (paths.isNotEmpty) '--',
+        ...paths,
+      ],
+    };
+  }
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlActionResult> runAction({
+    required String workspaceRoot,
+    required SourceControlActionRequest request,
+  }) async {
+    final normalizedPaths = request.paths
+        .map((path) => path.trim())
+        .where((path) => path.isNotEmpty)
+        .toList(growable: false);
+    final validationMessage = _validateActionRequest(request, normalizedPaths);
+    if (validationMessage.isNotEmpty) {
+      return SourceControlActionResult(
+        kind: request.kind,
+        applied: false,
+        paths: normalizedPaths,
+        message: validationMessage,
+      );
+    }
+
+    try {
+      final result = await runner(
+        SourceControlCommandRequest(
+          executable: executable,
+          arguments: actionArgumentsFor(
+            SourceControlActionRequest(
+              kind: request.kind,
+              paths: normalizedPaths,
+              message: request.message.trim(),
+            ),
+          ),
+          workingDirectory: workspaceRoot,
+        ),
+      );
+      final actionLabel = request.kind.wireValue;
+      if (result.exitCode == 0) {
+        return SourceControlActionResult(
+          kind: request.kind,
+          applied: true,
+          paths: normalizedPaths,
+          message: _commandSuccessMessage(
+            'Git $actionLabel',
+            stdout: result.stdout,
+            stderr: result.stderr,
+          ),
+        );
+      }
+      return SourceControlActionResult(
+        kind: request.kind,
+        applied: false,
+        paths: normalizedPaths,
+        message: _commandFailureMessage(
+          'Git $actionLabel',
+          result.exitCode,
+          stderr: result.stderr,
+          stdout: result.stdout,
+        ),
+      );
+    } on Object catch (error) {
+      return SourceControlActionResult(
+        kind: request.kind,
+        applied: false,
+        paths: normalizedPaths,
+        message: 'Git ${request.kind.wireValue} unavailable: $error',
+      );
+    }
+  }
+
+  String _validateActionRequest(
+    SourceControlActionRequest request,
+    List<String> normalizedPaths,
+  ) {
+    return switch (request.kind) {
+      SourceControlActionKind.stage ||
+      SourceControlActionKind.unstage ||
+      SourceControlActionKind.discard =>
+        normalizedPaths.isEmpty
+            ? 'Git ${request.kind.wireValue} skipped: no paths were provided.'
+            : '',
+      SourceControlActionKind.commit =>
+        request.message.trim().isEmpty
+            ? 'Git commit skipped: commit message is required.'
+            : '',
+    };
+  }
+}
+
+class GitSourceControlBranchProvider extends SourceControlBranchProvider {
+  const GitSourceControlBranchProvider({
+    required this.runner,
+    this.executable = 'git',
+  });
+
+  final SourceControlCommandRunner runner;
+  final String executable;
+
+  static const List<String> branchArguments = <String>[
+    'branch',
+    '--format=%(refname:short)',
+  ];
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlBranchSnapshot> branches({
+    required String workspaceRoot,
+  }) async {
+    try {
+      final currentResult = await runner(
+        SourceControlCommandRequest(
+          executable: executable,
+          arguments: const <String>['branch', '--show-current'],
+          workingDirectory: workspaceRoot,
+        ),
+      );
+      if (currentResult.exitCode != 0) {
+        return _unavailable(
+          _commandFailureMessage(
+            'Git branch',
+            currentResult.exitCode,
+            stderr: currentResult.stderr,
+            stdout: currentResult.stdout,
+          ),
+        );
+      }
+      final branchesResult = await runner(
+        SourceControlCommandRequest(
+          executable: executable,
+          arguments: branchArguments,
+          workingDirectory: workspaceRoot,
+        ),
+      );
+      if (branchesResult.exitCode != 0) {
+        return _unavailable(
+          _commandFailureMessage(
+            'Git branch list',
+            branchesResult.exitCode,
+            stderr: branchesResult.stderr,
+            stdout: branchesResult.stdout,
+          ),
+        );
+      }
+      final branches = branchesResult.stdout
+          .split('\n')
+          .map((branch) => branch.trim())
+          .where((branch) => branch.isNotEmpty)
+          .toList(growable: false);
+      return SourceControlBranchSnapshot(
+        providerKind: SourceControlProviderKind.git,
+        currentBranch: currentResult.stdout.trim(),
+        branches: List<String>.unmodifiable(branches),
+        message: 'Git branch list loaded.',
+      );
+    } on Object catch (error) {
+      return _unavailable('Git branch unavailable: $error');
+    }
+  }
+
+  SourceControlBranchSnapshot _unavailable(String message) {
+    return SourceControlBranchSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      available: false,
+      message: message,
+    );
+  }
+}
+
+class GitSourceControlHistoryProvider extends SourceControlHistoryProvider {
+  const GitSourceControlHistoryProvider({
+    required this.runner,
+    this.executable = 'git',
+  });
+
+  final SourceControlCommandRunner runner;
+  final String executable;
+
+  static List<String> historyArgumentsFor(int limit) {
+    final normalizedLimit = limit <= 0 ? 25 : limit;
+    return <String>[
+      'log',
+      '--date=iso-strict',
+      '-n',
+      '$normalizedLimit',
+      '--format=%H%x1f%h%x1f%an%x1f%ad%x1f%s',
+    ];
+  }
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlHistorySnapshot> history({
+    required String workspaceRoot,
+    int limit = 25,
+  }) async {
+    try {
+      final result = await runner(
+        SourceControlCommandRequest(
+          executable: executable,
+          arguments: historyArgumentsFor(limit),
+          workingDirectory: workspaceRoot,
+        ),
+      );
+      if (result.exitCode != 0) {
+        return _unavailable(
+          _commandFailureMessage(
+            'Git history',
+            result.exitCode,
+            stderr: result.stderr,
+            stdout: result.stdout,
+          ),
+        );
+      }
+      final entries = const GitLogHistoryParser().parse(result.stdout);
+      return SourceControlHistorySnapshot(
+        providerKind: SourceControlProviderKind.git,
+        entries: entries,
+        message: entries.isEmpty
+            ? 'Git history is empty.'
+            : 'Git history loaded.',
+      );
+    } on Object catch (error) {
+      return _unavailable('Git history unavailable: $error');
+    }
+  }
+
+  SourceControlHistorySnapshot _unavailable(String message) {
+    return SourceControlHistorySnapshot(
+      providerKind: SourceControlProviderKind.git,
+      available: false,
+      message: message,
+    );
+  }
+}
+
 String _failureMessage(
   int exitCode, {
   required String stderr,
   required String stdout,
 }) {
-  final detail = stderr.trim().isNotEmpty ? stderr.trim() : stdout.trim();
-  if (detail.isEmpty) {
-    return 'Git status failed with exit code $exitCode.';
-  }
-  return 'Git status failed with exit code $exitCode: $detail';
+  return _commandFailureMessage(
+    'Git status',
+    exitCode,
+    stderr: stderr,
+    stdout: stdout,
+  );
 }
 
 String _diffFailureMessage(
@@ -475,11 +843,37 @@ String _diffFailureMessage(
   required String stderr,
   required String stdout,
 }) {
+  return _commandFailureMessage(
+    'Git diff',
+    exitCode,
+    stderr: stderr,
+    stdout: stdout,
+  );
+}
+
+String _commandFailureMessage(
+  String commandLabel,
+  int exitCode, {
+  required String stderr,
+  required String stdout,
+}) {
   final detail = stderr.trim().isNotEmpty ? stderr.trim() : stdout.trim();
   if (detail.isEmpty) {
-    return 'Git diff failed with exit code $exitCode.';
+    return '$commandLabel failed with exit code $exitCode.';
   }
-  return 'Git diff failed with exit code $exitCode: $detail';
+  return '$commandLabel failed with exit code $exitCode: $detail';
+}
+
+String _commandSuccessMessage(
+  String commandLabel, {
+  required String stdout,
+  required String stderr,
+}) {
+  final detail = stdout.trim().isNotEmpty ? stdout.trim() : stderr.trim();
+  if (detail.isEmpty) {
+    return '$commandLabel applied.';
+  }
+  return '$commandLabel applied: $detail';
 }
 
 class GitPorcelainStatusParser {
@@ -529,6 +923,41 @@ class GitPorcelainStatusParser {
       changes: List<SourceControlFileChange>.unmodifiable(changes),
       message: changes.isEmpty ? 'Git workspace is clean.' : 'Git changes.',
     );
+  }
+}
+
+class GitLogHistoryParser {
+  const GitLogHistoryParser();
+
+  List<SourceControlHistoryEntry> parse(String output) {
+    final entries = <SourceControlHistoryEntry>[];
+    for (final rawLine in output.split('\n')) {
+      final line = rawLine.trimRight();
+      if (line.isEmpty) {
+        continue;
+      }
+      final parts = line.split('\x1f');
+      if (parts.length < 5) {
+        entries.add(
+          SourceControlHistoryEntry(
+            revision: parts.isEmpty ? line : parts.first,
+            shortRevision: parts.length > 1 ? parts[1] : '',
+            summary: parts.length > 4 ? parts.sublist(4).join(' ') : line,
+          ),
+        );
+        continue;
+      }
+      entries.add(
+        SourceControlHistoryEntry(
+          revision: parts[0],
+          shortRevision: parts[1],
+          author: parts[2],
+          authoredAt: parts[3],
+          summary: parts.sublist(4).join('\x1f'),
+        ),
+      );
+    }
+    return List<SourceControlHistoryEntry>.unmodifiable(entries);
   }
 }
 

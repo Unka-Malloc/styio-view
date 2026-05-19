@@ -569,9 +569,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/module_host',
           summary:
-              'Extensions surface is wired to visible and mounted module manifests with refreshModules handoff.',
+              'Extensions surface is wired to visible and mounted module manifests, lifecycle state, enable/disable/trust actions, update flags, and refreshModules handoff.',
           todo:
-              'TODO: add install, enable, disable, trust, update, and marketplace/index contracts for product extensions.',
+              'TODO: add install, update download, marketplace index, extension host isolation, and persisted lifecycle policy.',
           references: <String>[
             'VS Code extension gallery',
             'IntelliJ plugin repository',

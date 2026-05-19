@@ -19,6 +19,28 @@ void main() {
     expect(plan.reclaimData, isFalse);
   });
 
+  test('module lifecycle state blocks untrusted activation', () {
+    final module = _module(kind: ModuleKind.optional);
+    final state = defaultModuleLifecycleState(module).copyWith(
+      trustState: ModuleTrustState.untrusted,
+      message: 'Requires user trust.',
+    );
+
+    final plan = planModuleLifecycle(
+      module: module,
+      platformTarget: PlatformTarget.macos,
+      trustState: state.trustState,
+    );
+    final json = state.toJson();
+
+    expect(state.enabled, isTrue);
+    expect(state.trusted, isFalse);
+    expect(state.canMount, isFalse);
+    expect(json['trustState'], 'untrusted');
+    expect(plan.action, ModuleLifecycleAction.blocked);
+    expect(plan.reason, contains('requires user trust'));
+  });
+
   test('mobile optional module uninstall reclaims package cache and data', () {
     final plan = planModuleLifecycle(
       module: _module(kind: ModuleKind.optional),

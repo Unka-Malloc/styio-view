@@ -104,6 +104,10 @@ void main() {
       IdeCapabilityStatus.scaffolded,
     );
     expect(
+      entriesById['extension.marketplace']?.summary,
+      contains('enable/disable/trust actions'),
+    );
+    expect(
       entriesById['interaction.command-palette']?.status,
       IdeCapabilityStatus.wired,
     );

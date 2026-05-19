@@ -7,6 +7,18 @@ enum ModuleLifecycleAction { install, mount, leaveUnmounted, uninstall, blocked 
 
 enum ModuleUninstallDataPolicy { platformDefault, clearData, keepData }
 
+enum ModuleTrustState { trusted, untrusted, blocked }
+
+extension ModuleTrustStateX on ModuleTrustState {
+  String get wireValue {
+    return switch (this) {
+      ModuleTrustState.trusted => 'trusted',
+      ModuleTrustState.untrusted => 'untrusted',
+      ModuleTrustState.blocked => 'blocked',
+    };
+  }
+}
+
 class ModuleLifecyclePlan {
   const ModuleLifecyclePlan({
     required this.moduleId,
@@ -25,6 +37,57 @@ class ModuleLifecyclePlan {
   final bool reclaimPackage;
   final bool reclaimCache;
   final bool reclaimData;
+}
+
+class ModuleLifecycleState {
+  const ModuleLifecycleState({
+    required this.moduleId,
+    this.installed = true,
+    this.enabled = true,
+    this.trustState = ModuleTrustState.trusted,
+    this.updateAvailable = false,
+    this.message = '',
+  });
+
+  final String moduleId;
+  final bool installed;
+  final bool enabled;
+  final ModuleTrustState trustState;
+  final bool updateAvailable;
+  final String message;
+
+  bool get trusted => trustState == ModuleTrustState.trusted;
+  bool get canMount => installed && enabled && trusted;
+
+  ModuleLifecycleState copyWith({
+    bool? installed,
+    bool? enabled,
+    ModuleTrustState? trustState,
+    bool? updateAvailable,
+    String? message,
+  }) {
+    return ModuleLifecycleState(
+      moduleId: moduleId,
+      installed: installed ?? this.installed,
+      enabled: enabled ?? this.enabled,
+      trustState: trustState ?? this.trustState,
+      updateAvailable: updateAvailable ?? this.updateAvailable,
+      message: message ?? this.message,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'moduleId': moduleId,
+      'installed': installed,
+      'enabled': enabled,
+      'trustState': trustState.wireValue,
+      'trusted': trusted,
+      'canMount': canMount,
+      'updateAvailable': updateAvailable,
+      if (message.isNotEmpty) 'message': message,
+    };
+  }
 }
 
 class ModuleWorkspaceReference {
@@ -69,11 +132,20 @@ class ModuleStagedUpdateResolution {
   bool get requiresRestart => pendingRestartModuleIds.isNotEmpty;
 }
 
+ModuleLifecycleState defaultModuleLifecycleState(ModuleDefinition module) {
+  return ModuleLifecycleState(
+    moduleId: module.manifest.moduleId,
+    installed: true,
+    enabled: module.manifest.enabledByDefault,
+  );
+}
+
 ModuleLifecyclePlan planModuleLifecycle({
   required ModuleDefinition module,
   required PlatformTarget platformTarget,
   bool installed = true,
   bool userEnabled = true,
+  ModuleTrustState trustState = ModuleTrustState.trusted,
   bool updateAvailable = false,
   bool uninstallRequested = false,
   ModuleUninstallDataPolicy uninstallDataPolicy =
@@ -105,6 +177,16 @@ ModuleLifecyclePlan planModuleLifecycle({
       moduleId: manifest.moduleId,
       action: ModuleLifecycleAction.leaveUnmounted,
       reason: 'Module is not installed.',
+    );
+  }
+
+  if (trustState != ModuleTrustState.trusted) {
+    return ModuleLifecyclePlan(
+      moduleId: manifest.moduleId,
+      action: ModuleLifecycleAction.blocked,
+      reason: trustState == ModuleTrustState.blocked
+          ? 'Module trust policy blocks activation.'
+          : 'Module requires user trust before activation.',
     );
   }
 

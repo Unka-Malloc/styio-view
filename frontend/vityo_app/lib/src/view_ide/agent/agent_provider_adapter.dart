@@ -836,6 +836,12 @@ class LocalOnlyAgentProviderAdapter implements AgentProviderAdapter {
         if (request.context.language.serviceStatus != null)
           'languageServiceLocalFallbackEnabled':
               request.context.language.serviceStatus!.localFallbackEnabled,
+        if (request.context.language.serviceStatus?.parserEngine != null)
+          'languageServiceParserEngine':
+              request.context.language.serviceStatus!.parserEngine,
+        if (request.context.language.serviceStatus?.grammarVersion != null)
+          'languageServiceGrammarVersion':
+              request.context.language.serviceStatus!.grammarVersion,
         if (request.context.language.serviceStatus != null)
           'languageServicePrimaryCapabilityStates':
               request.context.language.serviceStatus!.primaryCapabilityStates,
@@ -1002,6 +1008,12 @@ Map<String, Object?> _openAICompatibleRequestBody(
       if (request.context.language.serviceStatus != null)
         'languageServiceLocalFallbackEnabled':
             request.context.language.serviceStatus!.localFallbackEnabled,
+      if (request.context.language.serviceStatus?.parserEngine != null)
+        'languageServiceParserEngine':
+            request.context.language.serviceStatus!.parserEngine,
+      if (request.context.language.serviceStatus?.grammarVersion != null)
+        'languageServiceGrammarVersion':
+            request.context.language.serviceStatus!.grammarVersion,
       if (request.context.language.serviceStatus != null)
         'languageServicePrimaryCapabilityStates':
             request.context.language.serviceStatus!.primaryCapabilityStates,
@@ -1161,8 +1173,7 @@ Map<String, Object?> _lastCommandResultMetadata(
         'lastCommandBackendRouteBlockedReason': backendRoute.blockedReason,
     },
     if (settingsRoute != null) 'lastCommandSettingsRoute': settingsRoute,
-    if (settingsSection != null)
-      'lastCommandSettingsSection': settingsSection,
+    if (settingsSection != null) 'lastCommandSettingsSection': settingsSection,
     if (toolchainSelectionStatus != null)
       'lastCommandToolchainSelectionStatus': toolchainSelectionStatus,
     if (toolchainSelectionMessage != null)
@@ -1328,6 +1339,7 @@ Vityo structured response contract:
 - If the IDE context includes language.surroundTemplates, use those IDE-produced templates before inventing surround-with edits for the current selection.
 - If the IDE context includes language.hoverMarkdown, language.definition, language.references, language.completions, language.codeActions, language.semanticSpans, language.documentSymbols, language.inlayHints, language.semanticBlocks, language.refactorPreviews, or language.surroundTemplates, treat them as compiler-derived facts for the current selection or document.
 - If the IDE context includes language.serviceStatus, inspect capability states before using language facts; treat derived or fallback-backed facts as weaker evidence than available StyioService payloads, and do not present unsupported or unavailable capabilities as real compiler truth.
+- If language.serviceStatus includes parserEngine or grammarVersion, treat them as the active Styio syntax contract before making syntax-sensitive edits; do not invent syntax outside that reported contract.
 - If the IDE context includes debug.status, debug.launch.ready, debug.breakpoints, debug.threads, debug.stackFrames, or debug.variables, treat them as the latest IDE debugger facts before proposing debug commands or patches. Do not propose launch, continue, or step actions when debug.launch.ready is false.
 - When proposing selectDebugThread or selectDebugStackFrame, use an id from debug.threads or debug.stackFrames instead of inventing thread or frame ids.
 - If the IDE context includes commands.persistenceCommands, commands.diagnosticCommands, commands.navigationCommands, commands.refactorCommands, commands.toolchainCommands, commands.nativeToolCommands, commands.debugCommands, or commands.settingsCommands, prefer those registered IDE actions for save/save-all, diagnostics, quick fixes, definitions, references, refactors, toolchain selection, native tool actions, debug actions, and settings/profile recovery instead of inventing unsupported commands.

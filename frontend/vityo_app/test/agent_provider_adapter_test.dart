@@ -587,7 +587,9 @@ void main() {
       );
       expect(
         systemMessage['content'],
-        contains('toolchains.clangCpp.selection.candidate.metadata.clangVendor'),
+        contains(
+          'toolchains.clangCpp.selection.candidate.metadata.clangVendor',
+        ),
       );
       expect(
         systemMessage['content'],
@@ -634,10 +636,7 @@ void main() {
       expect(systemMessage['content'], contains('commands.toolchainCommands'));
       expect(systemMessage['content'], contains('requiresInput true'));
       expect(systemMessage['content'], contains('missing-input commands'));
-      expect(
-        systemMessage['content'],
-        contains('selectClangCppVersion'),
-      );
+      expect(systemMessage['content'], contains('selectClangCppVersion'));
       expect(systemMessage['content'], contains('commands.nativeToolCommands'));
       expect(
         systemMessage['content'],
@@ -646,10 +645,7 @@ void main() {
       expect(systemMessage['content'], contains('requiredToolFamilies'));
       expect(systemMessage['content'], contains('toolFamily'));
       expect(systemMessage['content'], contains('requiredCommandId'));
-      expect(
-        systemMessage['content'],
-        contains('before the blocked command'),
-      );
+      expect(systemMessage['content'], contains('before the blocked command'));
       expect(systemMessage['content'], contains('has no requiredCommandId'));
       expect(
         systemMessage['content'],
@@ -765,10 +761,7 @@ void main() {
         metadata['activeSkillIds'],
         contains('cpp-clang-toolchain-defaults'),
       );
-      expect(
-        metadata['activeSkillIds'],
-        contains('cpp-clang-version-handoff'),
-      );
+      expect(metadata['activeSkillIds'], contains('cpp-clang-version-handoff'));
       expect(
         metadata['activeSkillIds'],
         contains('styio-cpp-compiler-project'),
@@ -827,6 +820,8 @@ void main() {
       expect(metadata['languageServiceUsableCapabilityCount'], 2);
       expect(metadata['languageServiceFreshCapabilityCount'], 1);
       expect(metadata['languageServiceLocalFallbackEnabled'], isTrue);
+      expect(metadata['languageServiceParserEngine'], 'nightly');
+      expect(metadata['languageServiceGrammarVersion'], '2026.05');
       expect(
         (metadata['languageServicePrimaryCapabilityStates']!
             as Map<String, Object?>)['hover'],
@@ -2426,6 +2421,8 @@ const _agentLanguageServiceStatus = LanguageServiceStatusSurface(
   title: 'StyioService ready',
   message: 'StyioService has 2 usable capability result(s).',
   toolchainId: 'styio-cli-nightly',
+  parserEngine: 'nightly',
+  grammarVersion: '2026.05',
   usableCapabilityCount: 2,
   freshCapabilityCount: 1,
   primaryCapabilityStates: <String, String>{

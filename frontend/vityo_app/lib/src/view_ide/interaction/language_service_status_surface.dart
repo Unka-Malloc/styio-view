@@ -43,6 +43,8 @@ class LanguageServiceStatusSurface {
     required this.primaryCapabilityStates,
     required this.capabilities,
     this.toolchainId = '',
+    this.parserEngine,
+    this.grammarVersion,
     this.localFallbackEnabled = true,
   });
 
@@ -111,6 +113,8 @@ class LanguageServiceStatusSurface {
       title: _titleFor(severity),
       message: _messageFor(snapshot, severity),
       toolchainId: capabilitySnapshot?.toolchainId ?? '',
+      parserEngine: capabilitySnapshot?.parserEngine,
+      grammarVersion: capabilitySnapshot?.grammarVersion,
       usableCapabilityCount: snapshot.usableCapabilityCount,
       freshCapabilityCount: snapshot.freshCapabilityCount,
       primaryCapabilityStates: snapshot.primaryCapabilityStates,
@@ -130,6 +134,8 @@ class LanguageServiceStatusSurface {
   final String title;
   final String message;
   final String toolchainId;
+  final String? parserEngine;
+  final String? grammarVersion;
   final int usableCapabilityCount;
   final int freshCapabilityCount;
   final Map<String, String> primaryCapabilityStates;
@@ -148,6 +154,8 @@ class LanguageServiceStatusSurface {
       'title': title,
       'message': message,
       if (toolchainId.isNotEmpty) 'toolchainId': toolchainId,
+      if (parserEngine != null) 'parserEngine': parserEngine,
+      if (grammarVersion != null) 'grammarVersion': grammarVersion,
       'usableCapabilityCount': usableCapabilityCount,
       'freshCapabilityCount': freshCapabilityCount,
       'localFallbackEnabled': localFallbackEnabled,

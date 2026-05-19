@@ -51,12 +51,16 @@ class StyioServiceCapabilitySnapshot {
     required this.protocolVersion,
     required this.statuses,
     this.toolchainId = '',
+    this.parserEngine,
+    this.grammarVersion,
   });
 
   final String documentId;
   final int revision;
   final String protocolVersion;
   final String toolchainId;
+  final String? parserEngine;
+  final String? grammarVersion;
   final Map<StyioServiceCapability, StyioServiceCapabilityStatus> statuses;
 
   StyioServiceCapabilityState stateOf(StyioServiceCapability capability) {
@@ -128,6 +132,8 @@ class StyioServiceCapabilitySnapshot {
       'revision': revision,
       'protocolVersion': protocolVersion,
       'toolchainId': toolchainId,
+      if (parserEngine != null) 'parserEngine': parserEngine,
+      if (grammarVersion != null) 'grammarVersion': grammarVersion,
       'statuses': statuses.values
           .map((status) => status.toJson())
           .toList(growable: false),
@@ -181,6 +187,8 @@ class StyioServiceCapabilityDetector {
       revision: response.revision,
       protocolVersion: response.protocolVersion,
       toolchainId: toolchainId ?? response.toolchainId,
+      parserEngine: response.parserEngine,
+      grammarVersion: response.grammarVersion,
       statuses:
           Map<
             StyioServiceCapability,

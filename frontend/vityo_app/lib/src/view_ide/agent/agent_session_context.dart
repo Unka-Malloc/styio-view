@@ -2236,6 +2236,8 @@ class AgentLanguageServiceStatusContext {
     required this.localFallbackEnabled,
     required this.actionable,
     this.toolchainId = '',
+    this.parserEngine,
+    this.grammarVersion,
   });
 
   final String runtimeState;
@@ -2243,6 +2245,8 @@ class AgentLanguageServiceStatusContext {
   final String title;
   final String message;
   final String toolchainId;
+  final String? parserEngine;
+  final String? grammarVersion;
   final int usableCapabilityCount;
   final int freshCapabilityCount;
   final Map<String, String> primaryCapabilityStates;
@@ -2259,6 +2263,8 @@ class AgentLanguageServiceStatusContext {
       title: surface.title,
       message: surface.message,
       toolchainId: surface.toolchainId,
+      parserEngine: surface.parserEngine,
+      grammarVersion: surface.grammarVersion,
       usableCapabilityCount: surface.usableCapabilityCount,
       freshCapabilityCount: surface.freshCapabilityCount,
       primaryCapabilityStates: Map<String, String>.unmodifiable(
@@ -2279,6 +2285,8 @@ class AgentLanguageServiceStatusContext {
       'title': title,
       'message': message,
       if (toolchainId.isNotEmpty) 'toolchainId': toolchainId,
+      if (parserEngine != null) 'parserEngine': parserEngine,
+      if (grammarVersion != null) 'grammarVersion': grammarVersion,
       'usableCapabilityCount': usableCapabilityCount,
       'freshCapabilityCount': freshCapabilityCount,
       'primaryCapabilityStates': primaryCapabilityStates,

@@ -361,8 +361,7 @@ void main() {
     final debugCommands = commandsJson['debugCommands']! as List<Object?>;
     final debugCommandReadiness =
         commandsJson['debugCommandReadiness']! as List<Object?>;
-    final settingsCommands =
-        commandsJson['settingsCommands']! as List<Object?>;
+    final settingsCommands = commandsJson['settingsCommands']! as List<Object?>;
     final debugBreakpoints = debugJson['breakpoints']! as List<Object?>;
     final debugThreads = debugJson['threads']! as List<Object?>;
     final debugStackFrames = debugJson['stackFrames']! as List<Object?>;
@@ -778,6 +777,8 @@ void main() {
     );
     expect(languageServiceStatus['severity'], 'ready');
     expect(languageServiceStatus['toolchainId'], 'styio-cli-nightly');
+    expect(languageServiceStatus['parserEngine'], 'nightly');
+    expect(languageServiceStatus['grammarVersion'], '2026.05');
     expect(languageServiceStatus['usableCapabilityCount'], 2);
     expect(languageServiceStatus['freshCapabilityCount'], 1);
     expect(languageServiceStatus['localFallbackEnabled'], isTrue);
@@ -1076,10 +1077,7 @@ void main() {
       document: document,
       selection: selection,
       diagnostics: const <Diagnostic>[],
-      workspaceFiles: const <String>[
-        'CMakeLists.txt',
-        'src/main.cc',
-      ],
+      workspaceFiles: const <String>['CMakeLists.txt', 'src/main.cc'],
       activeFilePath: 'src/main.cc',
       toolchainSnapshot: nativeTools,
     );
@@ -1090,8 +1088,7 @@ void main() {
     final missingByCommandId = <String, Map<String, Object?>>{};
     for (final entry in missingReadiness) {
       final readinessJson = entry! as Map<String, Object?>;
-      missingByCommandId[readinessJson['commandId']! as String] =
-          readinessJson;
+      missingByCommandId[readinessJson['commandId']! as String] = readinessJson;
     }
 
     expect(missingByCommandId['runBuild']!['ready'], isTrue);
@@ -1974,10 +1971,7 @@ void main() {
       skillsJson['activeSkillIds'],
       contains('cpp-clang-toolchain-defaults'),
     );
-    expect(
-      skillsJson['activeSkillIds'],
-      contains('cpp-clang-version-handoff'),
-    );
+    expect(skillsJson['activeSkillIds'], contains('cpp-clang-version-handoff'));
     expect(skillsJson['activeSkillIds'], contains('cpp-compilation-database'));
     expect(skillsJson['activeSkillIds'], contains('cpp-clang-format-tidy'));
     expect(skillsJson['activeSkillIds'], contains('cpp-cmake-build-graph'));
@@ -1990,83 +1984,92 @@ void main() {
     expect(skillsJson['activationReasons'], isA<Map<String, Object?>>());
   });
 
-  test('agent workspace context activates native skills for Ninja build files', () {
-    final context = AgentSessionContext.fromEditorState(
-      document: const DocumentState(
-        documentId: 'README.md',
-        text: '# Demo\n',
-        revision: 1,
-      ),
-      selection: const SelectionState.collapsed(0),
-      diagnostics: const <Diagnostic>[],
-      workspaceFiles: const <String>['build/build.ninja'],
-      activeFilePath: 'README.md',
-    );
+  test(
+    'agent workspace context activates native skills for Ninja build files',
+    () {
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: 'README.md',
+          text: '# Demo\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        workspaceFiles: const <String>['build/build.ninja'],
+        activeFilePath: 'README.md',
+      );
 
-    final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
-    final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
-    final activationReasons =
-        skillsJson['activationReasons']! as Map<String, Object?>;
+      final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+      final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
+      final activationReasons =
+          skillsJson['activationReasons']! as Map<String, Object?>;
 
-    expect(activeSkillIds, contains('cpp-clang-toolchain-defaults'));
-    expect(activeSkillIds, contains('cpp-clang-version-handoff'));
-    expect(activeSkillIds, contains('cpp-cmake-build-graph'));
-    expect(
-      activationReasons['cpp-cmake-build-graph'],
-      contains(
-        'Ninja build files are present and configured native build targets should guide build edits.',
-      ),
-    );
-  });
+      expect(activeSkillIds, contains('cpp-clang-toolchain-defaults'));
+      expect(activeSkillIds, contains('cpp-clang-version-handoff'));
+      expect(activeSkillIds, contains('cpp-cmake-build-graph'));
+      expect(
+        activationReasons['cpp-cmake-build-graph'],
+        contains(
+          'Ninja build files are present and configured native build targets should guide build edits.',
+        ),
+      );
+    },
+  );
 
-  test('agent workspace context activates clang tooling skill for underscore clang-format', () {
-    final context = AgentSessionContext.fromEditorState(
-      document: const DocumentState(
-        documentId: 'README.md',
-        text: '# Demo\n',
-        revision: 1,
-      ),
-      selection: const SelectionState.collapsed(0),
-      diagnostics: const <Diagnostic>[],
-      workspaceFiles: const <String>['_clang-format'],
-      activeFilePath: 'README.md',
-    );
+  test(
+    'agent workspace context activates clang tooling skill for underscore clang-format',
+    () {
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: 'README.md',
+          text: '# Demo\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        workspaceFiles: const <String>['_clang-format'],
+        activeFilePath: 'README.md',
+      );
 
-    final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
-    final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
-    final activationReasons =
-        skillsJson['activationReasons']! as Map<String, Object?>;
+      final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+      final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
+      final activationReasons =
+          skillsJson['activationReasons']! as Map<String, Object?>;
 
-    expect(activeSkillIds, contains('cpp-clang-format-tidy'));
-    expect(
-      activationReasons['cpp-clang-format-tidy'],
-      contains(
-        'A clang-format configuration file is present and should guide formatting commands.',
-      ),
-    );
-  });
+      expect(activeSkillIds, contains('cpp-clang-format-tidy'));
+      expect(
+        activationReasons['cpp-clang-format-tidy'],
+        contains(
+          'A clang-format configuration file is present and should guide formatting commands.',
+        ),
+      );
+    },
+  );
 
-  test('agent workspace context activates native skills for C++ module files', () {
-    final context = AgentSessionContext.fromEditorState(
-      document: const DocumentState(
-        documentId: 'README.md',
-        text: '# Demo\n',
-        revision: 1,
-      ),
-      selection: const SelectionState.collapsed(0),
-      diagnostics: const <Diagnostic>[],
-      workspaceFiles: const <String>['src/parser.cppm', 'src/runtime.mpp'],
-      activeFilePath: 'README.md',
-    );
+  test(
+    'agent workspace context activates native skills for C++ module files',
+    () {
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: 'README.md',
+          text: '# Demo\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        workspaceFiles: const <String>['src/parser.cppm', 'src/runtime.mpp'],
+        activeFilePath: 'README.md',
+      );
 
-    final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
-    final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
+      final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+      final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
 
-    expect(activeSkillIds, contains('cpp-clang-toolchain-defaults'));
-    expect(activeSkillIds, contains('cpp-clang-version-handoff'));
-    expect(activeSkillIds, contains('cpp-project-orientation'));
-    expect(activeSkillIds, contains('cpp-safe-editing'));
-  });
+      expect(activeSkillIds, contains('cpp-clang-toolchain-defaults'));
+      expect(activeSkillIds, contains('cpp-clang-version-handoff'));
+      expect(activeSkillIds, contains('cpp-project-orientation'));
+      expect(activeSkillIds, contains('cpp-safe-editing'));
+    },
+  );
 
   test('agent workspace context serializes latest workspace search result', () {
     final search = AgentWorkspaceSearchResultContext.fromDocuments(
@@ -2225,6 +2228,8 @@ const _agentLanguageServiceStatus = LanguageServiceStatusSurface(
   title: 'StyioService ready',
   message: 'StyioService has 2 usable capability result(s).',
   toolchainId: 'styio-cli-nightly',
+  parserEngine: 'nightly',
+  grammarVersion: '2026.05',
   usableCapabilityCount: 2,
   freshCapabilityCount: 1,
   primaryCapabilityStates: <String, String>{

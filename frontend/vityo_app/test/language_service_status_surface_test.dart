@@ -13,6 +13,8 @@ void main() {
       documentId: 'fixture://status',
       revision: 1,
       toolchainId: 'styio-nightly',
+      parserEngine: 'nightly',
+      grammarVersion: '2026.05',
       completions: <CompletionItem>[
         CompletionItem(
           label: 'value',
@@ -49,6 +51,8 @@ void main() {
     expect(surface.severity, LanguageServiceStatusSeverity.ready);
     expect(surface.localFallbackEnabled, isFalse);
     expect(surface.toolchainId, 'styio-nightly');
+    expect(surface.parserEngine, 'nightly');
+    expect(surface.grammarVersion, '2026.05');
     expect(surface.usableCapabilityCount, 3);
     expect(
       surface.primaryCapabilityStates[StyioServiceCapability
@@ -77,6 +81,8 @@ void main() {
     expect(surface.capabilities.where((item) => item.usable), hasLength(3));
     expect(surface.toJson()['actionable'], isFalse);
     expect(surface.toJson()['localFallbackEnabled'], isFalse);
+    expect(surface.toJson()['parserEngine'], 'nightly');
+    expect(surface.toJson()['grammarVersion'], '2026.05');
   });
 
   test('language service status surface treats clean diagnostics as ready', () {

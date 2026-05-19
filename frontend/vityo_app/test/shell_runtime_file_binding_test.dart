@@ -1875,6 +1875,12 @@ void main() {
       expect(directCommandResult?.commandId, 'runBuild');
       expect(directCommandResult?.applied, isFalse);
       expect(directCommandResult?.message, contains('no toolchain manager'));
+      final directRouteSelection =
+          directCommandResult?.metadata['backendRouteSelection']
+              as Map<String, Object?>?;
+      expect(directRouteSelection, isNotNull);
+      expect(directRouteSelection?['routeKind'], isA<String>());
+      expect(directRouteSelection?['allowed'], isA<bool>());
       expect(shell.lastNativeToolResult?.command, AppCommandId.runBuild);
       expect(
         shell.nativeToolResults.map((result) => result.command),
@@ -2658,6 +2664,12 @@ printf '100%% tests passed, 0 tests failed out of 2\\n'
       expect(testResult['totalCount'], 2);
       expect(testResult['passedCount'], 2);
       expect(testResult['failedCount'], 0);
+      final testsRouteSelection =
+          testsResult?.metadata['backendRouteSelection']
+              as Map<String, Object?>?;
+      expect(testsRouteSelection, isNotNull);
+      expect(testsRouteSelection?['routeKind'], isA<String>());
+      expect(testsRouteSelection?['allowed'], isA<bool>());
       expect(
         shell.nativeToolResults.map((result) => result.command),
         <AppCommandId>[
@@ -3104,7 +3116,13 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
     final testResult =
         shell.lastNativeToolResult!.metadata['testResult']!
             as Map<String, Object?>;
+    final routeSelection =
+        shell.lastNativeToolResult!.metadata['backendRouteSelection']
+            as Map<String, Object?>?;
     expect(shell.lastNativeToolResult?.applied, isTrue);
+    expect(routeSelection, isNotNull);
+    expect(routeSelection?['routeKind'], isA<String>());
+    expect(routeSelection?['allowed'], isA<bool>());
     expect(testResult['runner'], 'ctest');
     expect(testResult['status'], 'passed');
     expect(testResult['totalCount'], 3);

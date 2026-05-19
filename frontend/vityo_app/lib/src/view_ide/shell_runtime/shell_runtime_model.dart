@@ -1170,11 +1170,16 @@ class ShellRuntimeModel extends ChangeNotifier {
   Future<_NativeToolCommandResult> _runNativeToolCommand(
     AppCommandId commandId,
   ) async {
+    final backendRouteMetadata = _nativeToolBackendRouteMetadata(commandId);
     final manager = toolchainManager;
     if (manager == null) {
       final message =
           '${_nativeToolCommandLabel(commandId)} skipped: no toolchain manager is available.';
-      final result = _NativeToolCommandResult(applied: false, message: message);
+      final result = _NativeToolCommandResult(
+        applied: false,
+        message: message,
+        metadata: backendRouteMetadata,
+      );
       _recordNativeToolResult(commandId, result);
       appendLog(message);
       notifyListeners();
@@ -1225,7 +1230,10 @@ class ShellRuntimeModel extends ChangeNotifier {
           final commandResult = _NativeToolCommandResult(
             applied: result.succeeded,
             message: message,
-            metadata: <String, Object?>{'buildResult': buildResult},
+            metadata: <String, Object?>{
+              'buildResult': buildResult,
+              ...backendRouteMetadata,
+            },
             diagnostics: diagnostics,
           );
           _recordNativeToolResult(commandId, commandResult);
@@ -1272,6 +1280,7 @@ class ShellRuntimeModel extends ChangeNotifier {
                   'configureResult': configureResult,
                   'diagnosticCount': 0,
                 },
+                ...backendRouteMetadata,
               },
             );
             _recordNativeToolResult(commandId, commandResult);
@@ -1317,7 +1326,10 @@ class ShellRuntimeModel extends ChangeNotifier {
         final commandResult = _NativeToolCommandResult(
           applied: result.succeeded,
           message: message,
-          metadata: <String, Object?>{'buildResult': buildResult},
+          metadata: <String, Object?>{
+            'buildResult': buildResult,
+            ...backendRouteMetadata,
+          },
           diagnostics: diagnostics,
         );
         _recordNativeToolResult(commandId, commandResult);
@@ -1472,7 +1484,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           final commandResult = _NativeToolCommandResult(
             applied: false,
             message: message,
-            metadata: const <String, Object?>{
+            metadata: <String, Object?>{
               'requiredCommand': 'runBuild',
               'testResult': <String, Object?>{
                 'runner': 'ctest',
@@ -1480,6 +1492,7 @@ class ShellRuntimeModel extends ChangeNotifier {
                 'reason': 'missing-ctest-build-directory',
                 'requiredCommand': 'runBuild',
               },
+              ...backendRouteMetadata,
             },
           );
           _recordNativeToolResult(commandId, commandResult);
@@ -1516,7 +1529,10 @@ class ShellRuntimeModel extends ChangeNotifier {
         final commandResult = _NativeToolCommandResult(
           applied: result.succeeded,
           message: message,
-          metadata: <String, Object?>{'testResult': testResult},
+          metadata: <String, Object?>{
+            'testResult': testResult,
+            ...backendRouteMetadata,
+          },
         );
         _recordNativeToolResult(commandId, commandResult);
         appendLog(message);
@@ -1566,6 +1582,59 @@ class ShellRuntimeModel extends ChangeNotifier {
         appendLog(message);
         notifyListeners();
         return commandResult;
+    }
+  }
+
+  Map<String, Object?> _nativeToolBackendRouteMetadata(
+    AppCommandId commandId,
+  ) {
+    switch (commandId) {
+      case AppCommandId.runBuild:
+      case AppCommandId.runTests:
+        return <String, Object?>{
+          'backendRouteSelection': selectBackendExecutionRoute(
+            platformTarget: platformTarget,
+            projectGraph: workspaceController.activeProject,
+            adapterCapabilities: adapterCapabilities,
+          ).toJson(),
+        };
+      case AppCommandId.formatActiveDocument:
+      case AppCommandId.runStaticAnalysis:
+      case AppCommandId.save:
+      case AppCommandId.saveAll:
+      case AppCommandId.run:
+      case AppCommandId.fetchDependencies:
+      case AppCommandId.vendorDependencies:
+      case AppCommandId.useActiveCompiler:
+      case AppCommandId.pinActiveCompiler:
+      case AppCommandId.clearPinnedCompiler:
+      case AppCommandId.packProject:
+      case AppCommandId.preparePublish:
+      case AppCommandId.showRuntime:
+      case AppCommandId.showAgent:
+      case AppCommandId.showDebug:
+      case AppCommandId.toggleBreakpoint:
+      case AppCommandId.startDebugging:
+      case AppCommandId.stopDebugging:
+      case AppCommandId.continueDebugging:
+      case AppCommandId.stepOver:
+      case AppCommandId.selectDebugThread:
+      case AppCommandId.selectDebugStackFrame:
+      case AppCommandId.nextDiagnostic:
+      case AppCommandId.previousDiagnostic:
+      case AppCommandId.applyQuickFix:
+      case AppCommandId.refreshLanguageService:
+      case AppCommandId.openWorkspaceFile:
+      case AppCommandId.searchWorkspace:
+      case AppCommandId.goToDefinition:
+      case AppCommandId.nextReference:
+      case AppCommandId.previousReference:
+      case AppCommandId.renameSymbol:
+      case AppCommandId.safeDelete:
+      case AppCommandId.inlineVariable:
+      case AppCommandId.refreshModules:
+      case AppCommandId.openSettings:
+        return const <String, Object?>{};
     }
   }
 

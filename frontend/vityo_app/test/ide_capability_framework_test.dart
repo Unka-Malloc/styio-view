@@ -72,6 +72,10 @@ void main() {
       IdeCapabilityStatus.scaffolded,
     );
     expect(
+      entriesById['runtime.terminal']?.summary,
+      contains('TerminalInteractionController'),
+    );
+    expect(
       entriesById['interaction.testing']?.status,
       IdeCapabilityStatus.scaffolded,
     );

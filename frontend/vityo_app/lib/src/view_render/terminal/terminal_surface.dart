@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../view_ide/toolchain/toolchain.dart';
 import '../platform/viewport_profile.dart';
 
 class TerminalSurface extends StatelessWidget {
@@ -8,13 +9,17 @@ class TerminalSurface extends StatelessWidget {
     required this.viewportProfile,
     required this.logEntries,
     required this.runtimeEventSummaries,
+    this.sessionSnapshot,
     this.onRunActiveTarget,
+    this.onSendInput,
   });
 
   final ViewportProfile viewportProfile;
   final List<String> logEntries;
   final List<String> runtimeEventSummaries;
+  final TerminalSessionSnapshot? sessionSnapshot;
   final Future<void> Function()? onRunActiveTarget;
+  final Future<void> Function(String input)? onSendInput;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +27,8 @@ class TerminalSurface extends StatelessWidget {
     final compact = viewportProfile.isMobile;
     final combinedEntries = <String>[
       for (final event in runtimeEventSummaries) 'runtime  $event',
+      for (final output in sessionSnapshot?.outputLines ?? const <String>[])
+        'pty      $output',
       for (final log in logEntries) 'shell    $log',
     ];
 
@@ -47,22 +54,34 @@ class TerminalSurface extends StatelessWidget {
                 Chip(
                   label: Text('runtime-events ${runtimeEventSummaries.length}'),
                 ),
-                const Chip(label: Text('pty scaffolded')),
+                if (sessionSnapshot == null)
+                  const Chip(label: Text('pty scaffolded'))
+                else ...[
+                  Chip(label: Text('pty-state ${sessionSnapshot!.state.name}')),
+                  Chip(
+                    label: Text(
+                      'pty-lines ${sessionSnapshot!.outputLines.length}',
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: TextField(
-                    key: ValueKey('terminal-command-input'),
-                    enabled: false,
+                    key: const ValueKey('terminal-command-input'),
+                    enabled: onSendInput != null,
+                    textInputAction: TextInputAction.send,
                     decoration: InputDecoration(
                       labelText: 'Terminal input',
-                      helperText:
-                          'TODO: enable after interactive PTY sessions are wired.',
-                      border: OutlineInputBorder(),
+                      helperText: onSendInput == null
+                          ? 'TODO: enable after interactive PTY sessions are wired.'
+                          : 'Send input to the active PTY session.',
+                      border: const OutlineInputBorder(),
                     ),
+                    onSubmitted: onSendInput,
                   ),
                 ),
                 const SizedBox(width: 10),

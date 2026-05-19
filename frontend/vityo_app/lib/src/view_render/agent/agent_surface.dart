@@ -718,13 +718,28 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     });
     try {
       final applied = await callback(command);
+      final message = applied
+          ? _appliedIdeCommandMessage(command)
+          : 'Command ${command.commandId} was not applied.';
+      widget.controller.recordIdeCommandResult(
+        AgentCommandResultContext(
+          commandId: command.commandId,
+          input: command.input,
+          applied: applied,
+          message: message,
+          metadata: <String, Object?>{
+            'source': 'agent-surface',
+            if (command.prerequisiteForCommandId != null)
+              'prerequisiteForCommandId': command.prerequisiteForCommandId,
+          },
+          completedAt: DateTime.now().toUtc(),
+        ),
+      );
       if (!mounted) {
         return;
       }
       setState(() {
-        _lastCommandApplicationMessage = applied
-            ? _appliedIdeCommandMessage(command)
-            : 'Command ${command.commandId} was not applied.';
+        _lastCommandApplicationMessage = message;
         _lastRetryableCommandSuggestion =
             applied && command.prerequisiteForCommandId != null
             ? AgentIdeCommandSuggestion(
@@ -737,6 +752,20 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
       if (!mounted) {
         return;
       }
+      widget.controller.recordIdeCommandResult(
+        AgentCommandResultContext(
+          commandId: command.commandId,
+          input: command.input,
+          applied: false,
+          message: 'Command ${command.commandId} failed.',
+          metadata: <String, Object?>{
+            'source': 'agent-surface',
+            if (command.prerequisiteForCommandId != null)
+              'prerequisiteForCommandId': command.prerequisiteForCommandId,
+          },
+          completedAt: DateTime.now().toUtc(),
+        ),
+      );
       setState(() {
         _lastCommandApplicationMessage = 'Command ${command.commandId} failed.';
         _lastRetryableCommandSuggestion = null;

@@ -420,9 +420,11 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
     _lastIdeCommandResultContext = result;
     _recordRecentIdeCommandResultContext(result);
-    _completedIdeCommandSuggestionKeys.add(
-      _ideCommandSuggestionKey(result.commandId, result.input),
-    );
+    if (result.applied) {
+      _completedIdeCommandSuggestionKeys.add(
+        _ideCommandSuggestionKey(result.commandId, result.input),
+      );
+    }
     _appendConversationTurn(
       role: AgentConversationRole.user,
       text: _ideCommandResultConversationText(result),

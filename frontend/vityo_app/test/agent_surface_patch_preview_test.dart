@@ -326,6 +326,71 @@ void main() {
     );
   });
 
+  testWidgets(
+    'agent applied IDE command result reaches next provider request',
+    (tester) async {
+      final adapter = _RecordingCommandSuggestionAgentProviderAdapter();
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+
+      controller.updatePrompt('Rename value.');
+      await controller.sendPrompt();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1200,
+              height: 900,
+              child: AgentSurface(
+                platformTarget: PlatformTarget.web,
+                viewportProfile: const ViewportProfile(
+                  family: ViewportFamily.desktop,
+                  width: 1200,
+                  height: 900,
+                ),
+                visibleModules: const [],
+                adapterCapabilities: const [],
+                sessionContext: _context(),
+                codingController: controller,
+                onApplyPendingPatch: () async {},
+                onApplyIdeCommandSuggestion: (command) async => true,
+                onSaveProviderProfile: (profile, {bearerToken}) async {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await _tapVisible(
+        tester,
+        find.widgetWithText(OutlinedButton, 'Apply Command'),
+      );
+      await tester.pump();
+
+      controller.updatePrompt('Continue after command.');
+      await controller.sendPrompt();
+
+      expect(adapter.requests.length, 2);
+      final nextContext = adapter.requests.last.context;
+      expect(nextContext.agent.pendingIdeCommands, isEmpty);
+      expect(nextContext.commands.lastResult?.commandId, 'renameSymbol');
+      expect(nextContext.commands.lastResult?.input, 'price');
+      expect(nextContext.commands.lastResult?.applied, isTrue);
+      expect(
+        nextContext.commands.lastResult?.message,
+        'Command renameSymbol applied.',
+      );
+      expect(
+        nextContext.commands.lastResult?.metadata['source'],
+        'agent-surface',
+      );
+    },
+  );
+
   testWidgets('agent preserves pending IDE command when follow-up fails', (
     tester,
   ) async {
@@ -527,7 +592,9 @@ void main() {
     );
     expect(find.textContaining('Command not ready'), findsOneWidget);
     expect(
-      find.textContaining('Requires a registered cmake build-tool toolchain.'),
+      find.textContaining(
+        'Requires a registered cmake or ninja build-tool toolchain.',
+      ),
       findsOneWidget,
     );
     expect(find.widgetWithText(OutlinedButton, 'Apply Command'), findsNothing);

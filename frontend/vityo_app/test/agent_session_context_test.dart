@@ -1017,6 +1017,115 @@ void main() {
     );
   });
 
+  test('agent command readiness requires CMake build artifacts', () {
+    const document = DocumentState(
+      documentId: '/workspace/demo/src/main.cc',
+      text: 'int main() { return 0; }\n',
+      revision: 1,
+    );
+    const selection = SelectionState(baseOffset: 0, extentOffset: 0);
+    const nativeTools = ToolchainStateSnapshot(
+      targetId: 'agent-cmake-native-tools',
+      entries: <ToolchainStateEntry>[
+        ToolchainStateEntry(
+          id: 'native-cmake-build-tool',
+          kind: ToolchainKind.buildTool,
+          displayName: 'CMake Build System',
+          executablePath: '/usr/bin/cmake',
+          active: true,
+          metadata: <String, Object?>{'toolFamily': 'cmake'},
+        ),
+        ToolchainStateEntry(
+          id: 'native-clang-tidy-static-analyzer',
+          kind: ToolchainKind.staticAnalyzer,
+          displayName: 'clang-tidy Static Analyzer',
+          executablePath: '/usr/bin/clang-tidy',
+          active: true,
+          metadata: <String, Object?>{'toolFamily': 'clang-tidy'},
+        ),
+        ToolchainStateEntry(
+          id: 'native-ctest-test-runner',
+          kind: ToolchainKind.testRunner,
+          displayName: 'CTest Test Runner',
+          executablePath: '/usr/bin/ctest',
+          active: true,
+          metadata: <String, Object?>{'toolFamily': 'ctest'},
+        ),
+      ],
+    );
+
+    final missingArtifacts = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: selection,
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>[
+        'CMakeLists.txt',
+        'src/main.cc',
+      ],
+      activeFilePath: 'src/main.cc',
+      toolchainSnapshot: nativeTools,
+    );
+    final missingReadiness =
+        (missingArtifacts.toJson()['commands']!
+                as Map<String, Object?>)['nativeToolCommandReadiness']!
+            as List<Object?>;
+    final missingByCommandId = <String, Map<String, Object?>>{};
+    for (final entry in missingReadiness) {
+      final readinessJson = entry! as Map<String, Object?>;
+      missingByCommandId[readinessJson['commandId']! as String] =
+          readinessJson;
+    }
+
+    expect(missingByCommandId['runBuild']!['ready'], isTrue);
+    expect(missingByCommandId['runStaticAnalysis']!['ready'], isFalse);
+    expect(
+      missingByCommandId['runStaticAnalysis']!['requiredCommandId'],
+      'runBuild',
+    );
+    expect(
+      missingByCommandId['runStaticAnalysis']!['reason'],
+      contains('compile_commands.json is missing'),
+    );
+    expect(missingByCommandId['runTests']!['ready'], isFalse);
+    expect(missingByCommandId['runTests']!['requiredCommandId'], 'runBuild');
+    expect(
+      missingByCommandId['runTests']!['reason'],
+      contains('CTest build files are missing'),
+    );
+
+    final registeredArtifacts = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: selection,
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>[
+        'CMakeLists.txt',
+        'build/compile_commands.json',
+        'build/CTestTestfile.cmake',
+        'src/main.cc',
+      ],
+      activeFilePath: 'src/main.cc',
+      toolchainSnapshot: nativeTools,
+    );
+    final registeredReadiness =
+        (registeredArtifacts.toJson()['commands']!
+                as Map<String, Object?>)['nativeToolCommandReadiness']!
+            as List<Object?>;
+    final registeredByCommandId = <String, Map<String, Object?>>{};
+    for (final entry in registeredReadiness) {
+      final readinessJson = entry! as Map<String, Object?>;
+      registeredByCommandId[readinessJson['commandId']! as String] =
+          readinessJson;
+    }
+
+    expect(registeredByCommandId['runStaticAnalysis']!['ready'], isTrue);
+    expect(
+      registeredByCommandId['runStaticAnalysis']!['requiredCommandId'],
+      isNull,
+    );
+    expect(registeredByCommandId['runTests']!['ready'], isTrue);
+    expect(registeredByCommandId['runTests']!['requiredCommandId'], isNull);
+  });
+
   test('agent command context accepts Ninja as build tool readiness', () {
     const document = DocumentState(
       documentId: '/workspace/demo/main.cc',

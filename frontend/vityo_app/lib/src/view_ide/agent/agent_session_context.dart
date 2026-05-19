@@ -163,6 +163,7 @@ class AgentSessionContext {
         toolchains: toolchainContext,
         debug: debug,
         dirtyDocumentIds: workspaceContext.dirtyDocumentIds,
+        buildFacts: workspaceContext.buildFacts,
       ),
       language: AgentLanguageContext.fromSelection(
         document: document,
@@ -2795,6 +2796,7 @@ class AgentCommandCatalogContext {
     ),
     AgentDebugContext debug = const AgentDebugContext.idle(),
     Iterable<String> dirtyDocumentIds = const <String>[],
+    AgentWorkspaceBuildFactsContext? buildFacts,
   }) {
     final nativeToolCommands = StyioCommandRegistry.nativeToolCommands
         .map(AgentCommandContext.fromDescriptor)
@@ -2827,6 +2829,7 @@ class AgentCommandCatalogContext {
         nativeToolCommands: nativeToolCommands,
         toolchains: toolchains,
         dirtyDocumentIds: dirtyDocumentIds,
+        buildFacts: buildFacts,
       ),
       debugCommands: debugCommands,
       debugCommandReadiness: _debugCommandReadinessFor(
@@ -2899,12 +2902,13 @@ class AgentCommandCatalogContext {
     required List<AgentCommandContext> nativeToolCommands,
     required AgentToolchainContext toolchains,
     required Iterable<String> dirtyDocumentIds,
+    AgentWorkspaceBuildFactsContext? buildFacts,
   }) {
     final registeredCommandIds = nativeToolCommands
         .map((command) => command.id)
         .toSet();
     final nativeTools = toolchains.nativeTools;
-    return <AgentNativeToolCommandReadinessContext>[
+    final readiness = <AgentNativeToolCommandReadinessContext>[
       AgentNativeToolCommandReadinessContext.fromCandidates(
         commandId: AppCommandId.runBuild.name,
         registered: registeredCommandIds.contains(AppCommandId.runBuild.name),
@@ -2945,6 +2949,41 @@ class AgentCommandCatalogContext {
         dirtyDocumentIds: dirtyDocumentIds,
       ),
     ];
+    return readiness
+        .map(
+          (entry) => _nativeToolCommandReadinessWithBuildFacts(
+            readiness: entry,
+            buildFacts: buildFacts,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  static AgentNativeToolCommandReadinessContext
+  _nativeToolCommandReadinessWithBuildFacts({
+    required AgentNativeToolCommandReadinessContext readiness,
+    required AgentWorkspaceBuildFactsContext? buildFacts,
+  }) {
+    if (!readiness.ready || buildFacts == null || !buildFacts.hasCMakeLists) {
+      return readiness;
+    }
+    if (readiness.commandId == AppCommandId.runStaticAnalysis.name &&
+        !buildFacts.hasCompilationDatabase) {
+      return readiness.blockedByRequiredCommand(
+        requiredCommandId: AppCommandId.runBuild.name,
+        reason:
+            'Requires runBuild before runStaticAnalysis because compile_commands.json is missing for this CMake workspace.',
+      );
+    }
+    if (readiness.commandId == AppCommandId.runTests.name &&
+        !buildFacts.hasCTestConfig) {
+      return readiness.blockedByRequiredCommand(
+        requiredCommandId: AppCommandId.runBuild.name,
+        reason:
+            'Requires runBuild before runTests because CTest build files are missing for this CMake workspace.',
+      );
+    }
+    return readiness;
   }
 
   static List<AgentDebugCommandReadinessContext> _debugCommandReadinessFor({
@@ -3210,6 +3249,26 @@ class AgentNativeToolCommandReadinessContext {
   final List<String> dirtyDocumentIds;
   final List<String> candidateToolchainIds;
   final String reason;
+
+  AgentNativeToolCommandReadinessContext blockedByRequiredCommand({
+    required String requiredCommandId,
+    required String reason,
+  }) {
+    return AgentNativeToolCommandReadinessContext(
+      commandId: commandId,
+      registered: registered,
+      requiredKind: requiredKind,
+      requiredToolFamily: requiredToolFamily,
+      requiredToolFamilies: requiredToolFamilies,
+      ready: false,
+      toolFamily: toolFamily,
+      toolchainId: toolchainId,
+      requiredCommandId: requiredCommandId,
+      dirtyDocumentIds: dirtyDocumentIds,
+      candidateToolchainIds: candidateToolchainIds,
+      reason: reason,
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{

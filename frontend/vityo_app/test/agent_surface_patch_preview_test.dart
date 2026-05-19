@@ -1175,6 +1175,61 @@ void main() {
     expect(appliedCommands.single.prerequisiteForCommandId, 'runBuild');
   });
 
+  testWidgets('agent surface explains recent retry missing input', (
+    tester,
+  ) async {
+    final context = _dirtyNativeBuildReadyContext(
+      recentCommandResults: const <AgentCommandResultContext>[
+        AgentCommandResultContext(
+          commandId: 'renameSymbol',
+          applied: false,
+          message: 'Rename skipped.',
+        ),
+      ],
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: () => context,
+    );
+    final appliedCommands = <AgentIdeCommandSuggestion>[];
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: context,
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) async {
+                appliedCommands.add(command);
+                return true;
+              },
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('renameSymbol · not applied'), findsOneWidget);
+    expect(find.text('Retry requires input: New symbol name'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Retry Command'), findsNothing);
+    expect(appliedCommands, isEmpty);
+  });
+
   testWidgets('agent surface applies required command from recent metadata', (
     tester,
   ) async {

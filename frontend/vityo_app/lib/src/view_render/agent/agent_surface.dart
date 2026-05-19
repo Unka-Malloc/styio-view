@@ -1557,6 +1557,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   results: recentCommandResults,
                   registeredCommandIds: registeredCommandIds,
                   commandRequiresInputById: commandRequiresInputById,
+                  commandInputLabelById: commandInputLabelById,
                   commandReadiness: commandReadiness,
                   applying: applyingIdeCommand,
                   onRetry: widget.onApplyIdeCommandSuggestion == null
@@ -1893,6 +1894,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
     required this.results,
     required this.registeredCommandIds,
     required this.commandRequiresInputById,
+    required this.commandInputLabelById,
     required this.commandReadiness,
     required this.applying,
     this.onRetry,
@@ -1903,6 +1905,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
   final List<AgentCommandResultContext> results;
   final Set<String> registeredCommandIds;
   final Map<String, bool> commandRequiresInputById;
+  final Map<String, String> commandInputLabelById;
   final Map<String, _AgentCommandReadinessStatus> commandReadiness;
   final bool applying;
   final void Function(AgentCommandResultContext result)? onRetry;
@@ -1940,6 +1943,8 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                   result.input,
                   commandRequiresInputById,
                 );
+                final missingInputLabel =
+                    commandInputLabelById[result.commandId];
                 final requiredCommandId =
                     readiness?.requiredCommandId ??
                     requiredCommandIdFromAgentMetadata(result.metadata);
@@ -2018,6 +2023,15 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                     if (!commandReady)
                       Text(
                         'Retry not ready: ${readiness!.reason}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    if (missingRequiredInput)
+                      Text(
+                        missingInputLabel == null || missingInputLabel.isEmpty
+                            ? 'Retry requires input'
+                            : 'Retry requires input: $missingInputLabel',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.error,
                         ),

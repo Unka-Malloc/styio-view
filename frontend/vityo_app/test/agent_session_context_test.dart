@@ -365,7 +365,7 @@ void main() {
     final debugVariables = debugJson['variables']! as List<Object?>;
     final debugLaunch = debugJson['launch']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 39);
+    expect(json['schemaVersion'], 40);
     expect(documentJson['documentId'], '/workspace/demo/src/main.styio');
     expect(documentJson['revision'], 4);
     expect(documentJson['text'], 'value = 1\nvalue\n');
@@ -1200,7 +1200,7 @@ void main() {
       'toolchains',
     ]);
 
-    expect(json['schemaVersion'], 39);
+    expect(json['schemaVersion'], 40);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);

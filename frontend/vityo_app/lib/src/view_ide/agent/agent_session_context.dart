@@ -120,7 +120,7 @@ class AgentSessionContext {
       lastSearch: lastWorkspaceSearch,
     );
     return AgentSessionContext(
-      schemaVersion: 39,
+      schemaVersion: 40,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,

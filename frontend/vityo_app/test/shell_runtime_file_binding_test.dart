@@ -2717,6 +2717,8 @@ printf '100%% tests passed, 0 tests failed out of 2\\n'
       final cmakeLog = File('${tempRoot.path}/cmake-args.log');
       final cmake = File('${tempRoot.path}/fake-cmake.sh');
       final ninja = File('${tempRoot.path}/fake-ninja.sh');
+      final analyzerLog = File('${tempRoot.path}/clang-tidy-args.log');
+      final analyzer = File('${tempRoot.path}/fake-clang-tidy.sh');
       final clang = File('${tempRoot.path}/clang');
       final clangxx = File('${tempRoot.path}/clang++');
       await cmake.writeAsString('''
@@ -2730,12 +2732,18 @@ fi
 printf 'src/main.cc:1:5: warning: configured build warning\\n'
 ''');
       await ninja.writeAsString('#!/bin/sh\nexit 0\n');
+      await analyzer.writeAsString('''
+#!/bin/sh
+printf '%s\\n' "\$*" >> '${analyzerLog.path}'
+printf 'src/main.cc:1:5: warning: tidy after configure [readability-demo]\\n'
+''');
       await clang.writeAsString('#!/bin/sh\nexit 0\n');
       await clangxx.writeAsString('#!/bin/sh\nexit 0\n');
       await Process.run('chmod', <String>[
         '+x',
         cmake.path,
         ninja.path,
+        analyzer.path,
         clang.path,
         clangxx.path,
       ]);
@@ -2780,6 +2788,16 @@ printf 'src/main.cc:1:5: warning: configured build warning\\n'
             executablePath: ninja.path,
             metadata: const <String, Object?>{'toolFamily': 'ninja'},
           ),
+        )
+        ..register(
+          ToolchainDescriptor(
+            id: 'fake-clang-tidy',
+            kind: ToolchainKind.staticAnalyzer,
+            displayName: 'Fake clang-tidy',
+            executablePath: analyzer.path,
+            metadata: const <String, Object?>{'toolFamily': 'clang-tidy'},
+          ),
+          activate: true,
         );
       await toolchainStore.saveCatalog(
         catalog,
@@ -2874,6 +2892,18 @@ printf 'src/main.cc:1:5: warning: configured build warning\\n'
           'build/build.ninja',
         ]),
       );
+
+      await shell.executeCommand(AppCommandId.runStaticAnalysis);
+      final analysisResult =
+          shell.lastNativeToolResult!.metadata['staticAnalysisResult']!
+              as Map<String, Object?>;
+      expect(analysisResult['compilationDatabase'], 'build');
+      expect(analysisResult['arguments'], <Object?>[
+        '-p',
+        'build',
+        'src/main.cc',
+      ]);
+      expect(await analyzerLog.readAsString(), '-p build src/main.cc\n');
     },
   );
 

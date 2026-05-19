@@ -3101,6 +3101,26 @@ class ShellRuntimeModel extends ChangeNotifier {
       return null;
     }
 
+    final snapshotBeforeSelection =
+        toolchainStatusReport?.value.snapshot ?? await manager.snapshot();
+    final clangCppManager = ClangCppVersionManager.fromSnapshot(
+      snapshotBeforeSelection,
+      preference: _clangCppVersionPreference,
+    );
+    if (clangCppManager.candidateFor(versionId) == null) {
+      final message =
+          'Clang/C++ version selection failed: $versionId is not a registered Clang/C++ compiler candidate.';
+      appendLog(message);
+      notifyListeners();
+      return ToolchainSelectionResult(
+        status: ToolchainSelectionStatus.missing,
+        kind: ToolchainKind.compiler,
+        toolchainId: versionId,
+        message: message,
+        snapshot: snapshotBeforeSelection,
+      );
+    }
+
     final result = await manager.selectToolchain(versionId);
     if (result.succeeded) {
       final preference = ClangCppVersionPreference(

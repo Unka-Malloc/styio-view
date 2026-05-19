@@ -1177,6 +1177,23 @@ void main() {
     );
     addTearDown(shell.dispose);
 
+    final rejected = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(
+        commandId: 'selectClangCppVersion',
+        input: 'fake-cmake c++23',
+      ),
+    );
+    final rejectedResult = shell.agentSessionContext.commands.lastResult;
+    final rejectedPreference = await manager.loadClangCppVersionPreference();
+
+    expect(rejected, isFalse);
+    expect(rejectedResult?.commandId, 'selectClangCppVersion');
+    expect(rejectedResult?.applied, isFalse);
+    expect(rejectedResult?.metadata['toolchainId'], 'fake-cmake');
+    expect(rejectedResult?.metadata['toolchainSelectionStatus'], 'missing');
+    expect(rejectedResult?.message, contains('failed for fake-cmake'));
+    expect(rejectedPreference, isNull);
+
     final applied = await shell.applyAgentIdeCommandSuggestion(
       const AgentIdeCommandSuggestion(
         commandId: 'selectClangCppVersion',

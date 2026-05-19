@@ -627,7 +627,7 @@ void main() {
     addTearDown(controller.dispose);
     controller.updatePrompt('Build without tools.');
     await controller.sendPrompt();
-    var applied = false;
+    final appliedCommands = <AgentIdeCommandSuggestion>[];
 
     await tester.pumpWidget(
       MaterialApp(
@@ -648,7 +648,7 @@ void main() {
               codingController: controller,
               onApplyPendingPatch: () async {},
               onApplyIdeCommandSuggestion: (command) async {
-                applied = true;
+                appliedCommands.add(command);
                 return true;
               },
               onSaveProviderProfile: (profile, {bearerToken}) async {},
@@ -670,7 +670,19 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(OutlinedButton, 'Apply Command'), findsNothing);
-    expect(applied, isFalse);
+    expect(
+      find.widgetWithText(OutlinedButton, 'Open Settings'),
+      findsOneWidget,
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-recover-command-runBuild-openSettings')),
+    );
+    await tester.pump();
+
+    expect(appliedCommands.single.commandId, 'openSettings');
+    expect(appliedCommands.single.prerequisiteForCommandId, 'runBuild');
   });
 
   testWidgets('agent surface offers required command for dirty native tools', (

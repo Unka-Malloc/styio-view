@@ -750,6 +750,8 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
     required this.applying,
     required this.onApply,
     required this.onApplyRequiredCommand,
+    this.recoveryCommandId,
+    this.onApplyRecoveryCommand,
   });
 
   final AgentIdeCommandSuggestion command;
@@ -759,6 +761,8 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
   final bool applying;
   final VoidCallback? onApply;
   final VoidCallback? onApplyRequiredCommand;
+  final String? recoveryCommandId;
+  final VoidCallback? onApplyRecoveryCommand;
 
   @override
   Widget build(BuildContext context) {
@@ -807,6 +811,19 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
               applying
                   ? 'Applying Command...'
                   : 'Apply Required Command: $requiredCommandId',
+            ),
+          ),
+        if (!commandReady &&
+            requiredCommandId == null &&
+            recoveryCommandId != null &&
+            onApplyRecoveryCommand != null)
+          OutlinedButton(
+            key: ValueKey(
+              'agent-recover-command-${command.commandId}-$recoveryCommandId',
+            ),
+            onPressed: applying ? null : onApplyRecoveryCommand,
+            child: Text(
+              applying ? 'Applying Command...' : 'Open Settings',
             ),
           ),
       ],
@@ -1080,6 +1097,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final registeredCommandIds = _registeredAgentCommandIds(
           widget.sessionContext.commands,
         );
+        final nativeToolCommandIds = widget
+            .sessionContext
+            .commands
+            .nativeToolCommands
+            .map((command) => command.id)
+            .toSet();
         final commandReadiness = _commandReadinessById(
           widget.sessionContext.commands,
         );
@@ -1346,6 +1369,15 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                       builder: (context) {
                         final readiness = commandReadiness[command.commandId];
                         final requiredCommandId = readiness?.requiredCommandId;
+                        final recoveryCommandId =
+                            readiness?.ready == false &&
+                                requiredCommandId == null &&
+                                nativeToolCommandIds.contains(
+                                  command.commandId,
+                                ) &&
+                                registeredCommandIds.contains('openSettings')
+                            ? 'openSettings'
+                            : null;
                         return _AgentIdeCommandSuggestionRow(
                           command: command,
                           registered: registeredCommandIds.contains(
@@ -1378,6 +1410,22 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                                           command.commandId,
                                       reason:
                                           'Required before ${command.commandId}.',
+                                    ),
+                                  ),
+                                ),
+                          recoveryCommandId: recoveryCommandId,
+                          onApplyRecoveryCommand:
+                              widget.onApplyIdeCommandSuggestion == null ||
+                                  recoveryCommandId == null
+                              ? null
+                              : () => unawaited(
+                                  _applyIdeCommandSuggestion(
+                                    AgentIdeCommandSuggestion(
+                                      commandId: recoveryCommandId,
+                                      prerequisiteForCommandId:
+                                          command.commandId,
+                                      reason:
+                                          'Recover not-ready ${command.commandId}.',
                                     ),
                                   ),
                                 ),

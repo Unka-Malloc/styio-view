@@ -554,6 +554,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('toolchains.clangCpp.selection.candidate.metadata.clangVendor'),
+      );
+      expect(
+        systemMessage['content'],
         contains('toolchains.clangCpp.selection.preferredBuildEngineHandoff'),
       );
       expect(

@@ -115,6 +115,10 @@ void main() {
       );
       expect(
         decoded.systemPrompt,
+        contains('toolchains.clangCpp.selection.candidate.metadata.clangVendor'),
+      );
+      expect(
+        decoded.systemPrompt,
         contains('toolchains.clangCpp.selection.preferredBuildEngineHandoff'),
       );
       expect(

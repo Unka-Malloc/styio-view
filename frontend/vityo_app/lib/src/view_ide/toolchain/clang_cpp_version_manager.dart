@@ -2,6 +2,14 @@ import 'clang_cpp_version_configuration.dart';
 import 'toolchain_catalog.dart';
 import 'toolchain_manager.dart';
 
+enum ClangCppVersionPreferenceStatus {
+  configured,
+  activeDefault,
+  missingPreferred,
+  unselected,
+  unavailable,
+}
+
 class ClangCppVersionCandidate {
   const ClangCppVersionCandidate({
     required this.versionId,
@@ -120,6 +128,9 @@ class ClangCppVersionManager {
     required this.cmakeAvailable,
     required this.ninjaAvailable,
     this.defaultCppStandard = CppLanguageStandard.cpp20,
+    this.requestedVersionId,
+    this.preferenceStatus = ClangCppVersionPreferenceStatus.activeDefault,
+    this.preferenceMessage,
   }) : candidates = List<ClangCppVersionCandidate>.unmodifiable(candidates);
 
   factory ClangCppVersionManager.fromCatalog(
@@ -141,16 +152,20 @@ class ClangCppVersionManager {
             executablePath: '',
           ),
     );
+    final resolution = _resolvePreference(
+      candidates,
+      preference?.versionId,
+      fallbackVersionId: activeCandidate?.versionId,
+    );
     return ClangCppVersionManager(
       candidates: candidates,
-      activeVersionId: _preferredVersionId(
-        candidates,
-        preference?.versionId,
-        fallbackVersionId: activeCandidate?.versionId,
-      ),
+      activeVersionId: resolution.selectedVersionId,
       cmakeAvailable: _hasBuildTool(catalog, 'cmake'),
       ninjaAvailable: _hasBuildTool(catalog, 'ninja'),
       defaultCppStandard: preference?.cppStandard ?? defaultCppStandard,
+      requestedVersionId: preference?.versionId,
+      preferenceStatus: resolution.status,
+      preferenceMessage: resolution.message,
     );
   }
 
@@ -166,6 +181,9 @@ class ClangCppVersionManager {
         cmakeAvailable: false,
         ninjaAvailable: false,
         defaultCppStandard: preference?.cppStandard ?? defaultCppStandard,
+        requestedVersionId: preference?.versionId,
+        preferenceStatus: ClangCppVersionPreferenceStatus.unavailable,
+        preferenceMessage: 'No toolchain snapshot is available.',
       );
     }
     final candidates = snapshot
@@ -180,24 +198,31 @@ class ClangCppVersionManager {
         : ClangCppVersionCandidate.fromDescriptor(
             _descriptorFromStateEntry(activeEntry),
           );
+    final resolution = _resolvePreference(
+      candidates,
+      preference?.versionId,
+      fallbackVersionId: activeCandidate?.versionId,
+    );
     return ClangCppVersionManager(
       candidates: candidates,
-      activeVersionId: _preferredVersionId(
-        candidates,
-        preference?.versionId,
-        fallbackVersionId: activeCandidate?.versionId,
-      ),
+      activeVersionId: resolution.selectedVersionId,
       cmakeAvailable: _snapshotHasBuildTool(snapshot, 'cmake'),
       ninjaAvailable: _snapshotHasBuildTool(snapshot, 'ninja'),
       defaultCppStandard: preference?.cppStandard ?? defaultCppStandard,
+      requestedVersionId: preference?.versionId,
+      preferenceStatus: resolution.status,
+      preferenceMessage: resolution.message,
     );
   }
 
   final List<ClangCppVersionCandidate> candidates;
   final String? activeVersionId;
+  final String? requestedVersionId;
   final bool cmakeAvailable;
   final bool ninjaAvailable;
   final CppLanguageStandard defaultCppStandard;
+  final ClangCppVersionPreferenceStatus preferenceStatus;
+  final String? preferenceMessage;
 
   bool get hasCandidates => candidates.isNotEmpty;
 
@@ -238,6 +263,9 @@ class ClangCppVersionManager {
   Map<String, Object?> toManifest() {
     return <String, Object?>{
       'activeVersionId': activeVersionId,
+      if (requestedVersionId != null) 'requestedVersionId': requestedVersionId,
+      'preferenceStatus': preferenceStatus.name,
+      if (preferenceMessage != null) 'preferenceMessage': preferenceMessage,
       'defaultCppStandard': defaultCppStandard.cmakeValue,
       'cmakeAvailable': cmakeAvailable,
       'ninjaAvailable': ninjaAvailable,
@@ -262,20 +290,78 @@ class ClangCppVersionManager {
     });
   }
 
-  static String? _preferredVersionId(
+  static _ClangCppPreferenceResolution _resolvePreference(
     Iterable<ClangCppVersionCandidate> candidates,
     String? preferredVersionId, {
     String? fallbackVersionId,
   }) {
+    final candidateList = candidates.toList(growable: false);
+    if (candidateList.isEmpty) {
+      return const _ClangCppPreferenceResolution(
+        status: ClangCppVersionPreferenceStatus.unavailable,
+        selectedVersionId: null,
+        message: 'No Clang/C++ compiler candidates are registered.',
+      );
+    }
     if (preferredVersionId != null) {
-      for (final candidate in candidates) {
+      for (final candidate in candidateList) {
         if (candidate.versionId == preferredVersionId) {
-          return preferredVersionId;
+          return _ClangCppPreferenceResolution(
+            status: ClangCppVersionPreferenceStatus.configured,
+            selectedVersionId: preferredVersionId,
+            message: null,
+          );
         }
       }
+      if (fallbackVersionId != null) {
+        return _ClangCppPreferenceResolution(
+          status: ClangCppVersionPreferenceStatus.missingPreferred,
+          selectedVersionId: fallbackVersionId,
+          message:
+              'Configured Clang/C++ version $preferredVersionId is not available; using active compiler $fallbackVersionId.',
+        );
+      }
+      return _ClangCppPreferenceResolution(
+        status: ClangCppVersionPreferenceStatus.missingPreferred,
+        selectedVersionId: candidateList.length == 1
+            ? candidateList.single.versionId
+            : null,
+        message:
+            'Configured Clang/C++ version $preferredVersionId is not available.',
+      );
     }
-    return fallbackVersionId;
+    if (fallbackVersionId != null) {
+      return _ClangCppPreferenceResolution(
+        status: ClangCppVersionPreferenceStatus.activeDefault,
+        selectedVersionId: fallbackVersionId,
+        message: null,
+      );
+    }
+    if (candidateList.length == 1) {
+      return _ClangCppPreferenceResolution(
+        status: ClangCppVersionPreferenceStatus.activeDefault,
+        selectedVersionId: candidateList.single.versionId,
+        message: null,
+      );
+    }
+    return const _ClangCppPreferenceResolution(
+      status: ClangCppVersionPreferenceStatus.unselected,
+      selectedVersionId: null,
+      message: 'Multiple Clang/C++ candidates exist, but none is active.',
+    );
   }
+}
+
+class _ClangCppPreferenceResolution {
+  const _ClangCppPreferenceResolution({
+    required this.status,
+    required this.selectedVersionId,
+    required this.message,
+  });
+
+  final ClangCppVersionPreferenceStatus status;
+  final String? selectedVersionId;
+  final String? message;
 }
 
 ToolchainDescriptor _descriptorFromStateEntry(ToolchainStateEntry entry) {

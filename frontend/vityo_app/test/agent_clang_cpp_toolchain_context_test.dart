@@ -63,6 +63,8 @@ void main() {
 
     expect(clangCppJson['candidateCount'], 1);
     expect(clangCppJson['activeVersionId'], 'native-clang-cpp-compiler');
+    expect(clangCppJson['requestedVersionId'], 'native-clang-cpp-compiler');
+    expect(clangCppJson['preferenceStatus'], 'configured');
     expect(clangCppJson['cmakeAvailable'], isTrue);
     expect(clangCppJson['ninjaAvailable'], isTrue);
     expect(selectionJson['cmakeConfigureArguments'], <String>[

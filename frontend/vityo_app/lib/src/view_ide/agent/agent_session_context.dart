@@ -940,7 +940,10 @@ class AgentClangCppToolchainContext {
     required this.defaultCppStandard,
     required this.cmakeAvailable,
     required this.ninjaAvailable,
+    required this.preferenceStatus,
     this.activeVersionId,
+    this.requestedVersionId,
+    this.preferenceMessage,
     this.selection,
   });
 
@@ -958,18 +961,24 @@ class AgentClangCppToolchainContext {
     return AgentClangCppToolchainContext(
       candidates: manager.candidates,
       activeVersionId: manager.activeVersionId,
+      requestedVersionId: manager.requestedVersionId,
       defaultCppStandard: manager.defaultCppStandard,
       cmakeAvailable: manager.cmakeAvailable,
       ninjaAvailable: manager.ninjaAvailable,
+      preferenceStatus: manager.preferenceStatus,
+      preferenceMessage: manager.preferenceMessage,
       selection: manager.select(),
     );
   }
 
   final List<ClangCppVersionCandidate> candidates;
   final String? activeVersionId;
+  final String? requestedVersionId;
   final CppLanguageStandard defaultCppStandard;
   final bool cmakeAvailable;
   final bool ninjaAvailable;
+  final ClangCppVersionPreferenceStatus preferenceStatus;
+  final String? preferenceMessage;
   final ClangCppVersionSelection? selection;
 
   Map<String, Object?> toJson() {
@@ -979,6 +988,9 @@ class AgentClangCppToolchainContext {
           .map((candidate) => candidate.toManifest())
           .toList(growable: false),
       if (activeVersionId != null) 'activeVersionId': activeVersionId,
+      if (requestedVersionId != null) 'requestedVersionId': requestedVersionId,
+      'preferenceStatus': preferenceStatus.name,
+      if (preferenceMessage != null) 'preferenceMessage': preferenceMessage,
       'defaultCppStandard': <String, Object?>{
         'cmakeValue': defaultCppStandard.cmakeValue,
         'compilerFlag': defaultCppStandard.compilerFlag,

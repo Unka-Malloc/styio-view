@@ -168,7 +168,47 @@ void main() {
     expect(selection, isNotNull);
     expect(selection!.candidate.versionId, 'clang-18');
     expect(selection.cppStandard, CppLanguageStandard.cpp23);
+    expect(
+      manager.preferenceStatus,
+      ClangCppVersionPreferenceStatus.configured,
+    );
   });
+
+  test(
+    'reports missing Clang C++ preference while falling back to active compiler',
+    () {
+      final catalog = ToolchainCatalog()
+        ..register(
+          const ToolchainDescriptor(
+            id: 'clang-17',
+            kind: ToolchainKind.compiler,
+            displayName: 'Clang 17',
+            executablePath: '/opt/clang-17/bin/clang++',
+            metadata: <String, Object?>{
+              'compilerFamily': 'clang',
+              'cCompilerPath': '/opt/clang-17/bin/clang',
+              'cxxCompilerPath': '/opt/clang-17/bin/clang++',
+            },
+          ),
+          activate: true,
+        );
+
+      final manager = ClangCppVersionManager.fromCatalog(
+        catalog,
+        preference: const ClangCppVersionPreference(versionId: 'clang-99'),
+      );
+      final selection = manager.select();
+
+      expect(manager.requestedVersionId, 'clang-99');
+      expect(
+        manager.preferenceStatus,
+        ClangCppVersionPreferenceStatus.missingPreferred,
+      );
+      expect(manager.preferenceMessage, contains('clang-99'));
+      expect(selection, isNotNull);
+      expect(selection!.candidate.versionId, 'clang-17');
+    },
+  );
 
   test('ignores non-Clang and incomplete compiler descriptors', () {
     final catalog = ToolchainCatalog()

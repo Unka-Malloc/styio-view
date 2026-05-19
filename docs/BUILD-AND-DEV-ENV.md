@@ -154,13 +154,13 @@ flutter test
 flutter build web
 ```
 
-Flutter Web local preview with the required hosted control-plane mock:
+Focused editor local preview:
 
 ```bash
 ./scripts/serve-flutter-web-preview.sh
 ```
 
-This is the preferred one-command browser startup path for local UI and language-service validation. It builds `frontend/vityo_app/build/web`, starts `frontend/vityo_app/scripts/serve_web_preview.py`, verifies the Flutter bootstrap resources and `/api/styio-hosted/v1/workspaces/open`, then prints the URL. The hosted route in this mode is a local preview mock and does not represent real Styio compile/run/package execution.
+This is the preferred one-command browser startup path for local editor review. It starts `prototype/dev_server.py` on port `8080`, redirects `/` to `/editor`, and serves the canonical focused editor from `prototype/editor.html`. The legacy script name is kept for compatibility, but this path no longer builds or serves the Flutter integration shell as the default visible page.
 
 Handwritten prototype:
 
@@ -170,11 +170,11 @@ npm ci
 npm run selftest:editor
 ```
 
-If you use the bundled `dev_server.py`, set the focused editor URL explicitly because the server listens on port `4180`:
+If you use the bundled `dev_server.py` directly, set the focused editor URL explicitly because the default server port is `4180`:
 
 ```bash
 cd prototype
-STYIO_EDITOR_URL=http://127.0.0.1:4180/editor.html npm run selftest:editor
+STYIO_EDITOR_URL=http://127.0.0.1:4180/editor npm run selftest:editor
 ```
 
 Repository docs and hygiene checks:

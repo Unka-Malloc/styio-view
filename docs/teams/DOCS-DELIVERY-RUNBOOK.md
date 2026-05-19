@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-05-10
+**Last updated:** 2026-05-19
 
 ## Mission
 
@@ -74,6 +74,7 @@ Key SSOTs:
 19. External audit shard updates must name the remediated finding, the changed security boundary, and the exact validation command; if code and audit evidence move together, update the owning team runbook in the same change.
 20. Checkpoint health documentation must list every command run by `scripts/checkpoint-health.sh`; when prototype governance or selftest routing changes, update `docs/assets/workflow/CHECKPOINT-HEALTH.md` and the affected owner runbook in the same change.
 21. Language-service ADR or contract updates must refresh both the owning contract runbook and generated docs indexes in the same worktree pass; do not rely on passing Flutter tests as evidence that docs ownership is closed.
+22. Agent/toolchain test-catalog or gap-ledger updates must refresh generated docs indexes and the owning team runbook in the same pass; code tests prove behavior, while docs gates prove delivery ownership is still routable.
 
 ## Change Classes
 

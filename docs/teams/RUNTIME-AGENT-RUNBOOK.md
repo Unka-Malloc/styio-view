@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 runtime surface、debug/agent 面板、prompt/profile 入口与执行态 UI 的日常维护入口。
 
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-19
 
 ## Mission
 
@@ -33,9 +33,10 @@ Key SSOTs:
 2. 若变更依赖新 adapter payload，先转到 Adapter / Contracts owner 文档确认边界。
 3. 变更 agent panel 时，避免把它退化成外挂聊天框；保持 IDE 内建能力定位。
 4. 变更 profile/prompt 流程时，同步检查本地持久化和 sync adapter 语义。
-5. `agent_profile.dart` 只冻结 provider route、默认 endpoint、profile JSON 和 local-bridge eligibility；本轮不新增真实 AI provider 调用、账号策略或云端 secret 管理。
+5. `agent_profile.dart` 冻结 provider route、默认 endpoint、profile JSON、local-bridge eligibility、context channel 和默认 coding skill；真实 provider 调用必须继续通过 configured provider factory、credential resolver 与 `NetworkAgentProviderTransport` 进入 controller，不得绕过 Environment NetworkManager。
 6. runtime replay、debug lane 和 hosted execution 摘要必须消费 `backend_toolchain` adapter payload，不得回读 legacy integration façade 或上游 human stderr。
 7. runtime/agent 的纯状态归 `view_ide`，Flutter surface 和 debug/agent panel 呈现归 `view_render`；legacy `src/runtime/` 与 `src/agent/` 只能保留 façade。
+8. Agent coding 主路径必须覆盖 provider response -> structured code patch -> pending patch -> workspace patch application；新增 provider 能力、workspace documentSamples 或 context schema 时同步测试目录并跑对应 controller / transport / workspace 集成测试。
 
 ## Change Classes
 

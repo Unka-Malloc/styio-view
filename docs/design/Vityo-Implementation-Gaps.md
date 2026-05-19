@@ -91,7 +91,7 @@ Status values:
 
 | Gap | Status | Owner | Required closure |
 |---|---|---|---|
-| Real AI provider call | Implementation needed | Vityo | Provider HTTP call, structured errors, timeout/cancel behavior, and UI recovery. |
+| Real AI provider call | Partially implemented | Vityo | Configured provider profiles can route OpenAI-compatible requests through `NetworkAgentProviderTransport`, credential-backed provider factory wiring, and `AgentCodingSessionController`; stale responses after provider switch or user cancel are ignored, provider HTTP failures now surface as structured `AgentProviderTransportException` values for http status, timeout, cancel, and invalid response cases, the controller preserves the latest structured provider failure for recovery UI, retry strategy, and telemetry, Agent Surface renders failure kind/status/recovery hint plus retry and local-fallback actions, Provider Profile renders reconfiguration guidance for base URL/model/token fixes, provider reconfiguration can save/remount after failure, cancellable provider transports can propagate cancel to a `CancellableNetworkManager` token, and live local provider E2E is covered through a loopback OpenAI-compatible HTTP route. Remaining closure: optional live cloud-provider validation with real credentials outside default CI. |
 | Secret injection | Implementation needed | Vityo | Safe local/remote secret references without writing raw secrets into ordinary config. |
 | Local bridge / cloud execution for AI | Implementation needed | Vityo | End-to-end provider route execution and result handling. |
 | Theme editor UI | Implementation needed | Vityo | Visual theme editing panel and live preview. |

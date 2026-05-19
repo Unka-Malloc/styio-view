@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 theme、视觉系统、样式层和 UX guardrail 的日常维护入口。
 
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-19
 
 ## Mission
 
@@ -40,6 +40,7 @@ Key SSOTs:
 6. 默认 palette、font size、chip/button/card constraints 变化必须通过 Flutter widget tests 或明确的视觉验收说明确认，不把产品 gate 截图测试写成默认必过项。
 7. `prototype/styio-*.html` 只作为 `style-experiment` 视觉参考存在；新增或删除这些页面时，必须同步 `prototype/prototype-manifest.json`，并且不得在样式实验里新增产品语义、workspace mutation 或 dev-server API 合同。
 8. Flutter theme 和 viewport profile 的实现归 `view_render/theme` 与 `view_render/platform`；legacy `src/theme/` 和 `src/platform/viewport_profile.dart` 只能做兼容导出。
+9. Theme persistence 和 prototype style 变更只能改变视觉 token、布局约束或呈现状态；不得在 `prototype/styles.css` 或 theme façade 中塞入编辑、runtime、agent 或 workspace 语义。
 
 ## Change Classes
 

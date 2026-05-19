@@ -74,6 +74,11 @@ String? nativeToolMetadataSummaryText(
     return 'completed required command for $completedRequiredCommandFor';
   }
 
+  final toolchainSelectionSummary = _toolchainSelectionSummary(metadata);
+  if (toolchainSelectionSummary != null) {
+    return _withRouteSelection(toolchainSelectionSummary, routeSummary);
+  }
+
   final requiredCommand = _stringValue(metadata['requiredCommand']);
   if (requiredCommand != null) {
     return _withRouteSelection('requires $requiredCommand', routeSummary);
@@ -137,6 +142,46 @@ String? _backendRouteSelectionSummary(Object? value) {
     }
   }
   return summary.toString();
+}
+
+String? _toolchainSelectionSummary(Map<String, Object?> metadata) {
+  final status = _stringValue(metadata['toolchainSelectionStatus']);
+  if (status == null) {
+    return null;
+  }
+  final parts = <String>['toolchain selection $status'];
+  final toolchainId = _stringValue(metadata['toolchainId']);
+  if (toolchainId != null) {
+    parts.add(toolchainId);
+  }
+  final cppStandard = _stringValue(metadata['cppStandard']);
+  if (cppStandard != null) {
+    parts.add(cppStandard);
+  }
+  final preferredHandoff = _buildEngineHandoffSummary(
+    metadata['preferredBuildEngineHandoff'],
+  );
+  if (preferredHandoff != null) {
+    parts.add('handoff $preferredHandoff');
+  } else {
+    final handoffCount = metadata['buildEngineHandoffCount'];
+    if (handoffCount is int) {
+      parts.add('handoffs $handoffCount');
+    }
+  }
+  return parts.join(' · ');
+}
+
+String? _buildEngineHandoffSummary(Object? value) {
+  if (value is! Map<String, Object?>) {
+    return null;
+  }
+  final engine = _stringValue(value['engineFamily']);
+  if (engine == null) {
+    return null;
+  }
+  final generator = _stringValue(value['generatorFamily']);
+  return generator == null ? engine : '$engine+$generator';
 }
 
 String? _stringValue(Object? value) {

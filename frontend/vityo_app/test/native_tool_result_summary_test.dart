@@ -54,4 +54,29 @@ void main() {
       'requires saveAll',
     );
   });
+
+  test('native tool summary explains Clang C++ selection handoff', () {
+    expect(
+      nativeToolMetadataSummaryText(const <String, Object?>{
+        'toolchainSelectionStatus': 'selected',
+        'toolchainId': 'fake-clang-18',
+        'cppStandard': 'c++23',
+        'buildEngineHandoffCount': 3,
+        'preferredBuildEngineHandoff': <String, Object?>{
+          'engineFamily': 'cmake',
+          'generatorFamily': 'ninja',
+        },
+      }),
+      'toolchain selection selected · fake-clang-18 · c++23 · handoff cmake+ninja',
+    );
+    expect(
+      nativeToolMetadataSummaryText(const <String, Object?>{
+        'toolchainSelectionStatus': 'missing',
+        'toolchainId': 'missing-clang',
+        'cppStandard': 'c++23',
+        'buildEngineHandoffCount': 0,
+      }),
+      'toolchain selection missing · missing-clang · c++23 · handoffs 0',
+    );
+  });
 }

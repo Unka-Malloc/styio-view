@@ -46,4 +46,24 @@ void main() {
       isNull,
     );
   });
+
+  test('agent command metadata resolves backend route selection', () {
+    final route = backendRouteFromAgentMetadata(const <String, Object?>{
+      'backendRouteSelection': <String, Object?>{
+        'routeKind': 'blocked',
+        'adapterKind': 'none',
+        'allowed': false,
+        'previewOnly': false,
+        'blockedReason': 'no-backend-route',
+      },
+    });
+
+    expect(route, isNotNull);
+    expect(route?.routeKind, 'blocked');
+    expect(route?.adapterKind, 'none');
+    expect(route?.allowed, isFalse);
+    expect(route?.previewOnly, isFalse);
+    expect(route?.blocked, isTrue);
+    expect(route?.blockedReason, 'no-backend-route');
+  });
 }

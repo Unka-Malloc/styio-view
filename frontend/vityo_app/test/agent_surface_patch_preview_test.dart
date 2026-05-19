@@ -1147,6 +1147,93 @@ void main() {
     expect(appliedCommands.single.prerequisiteForCommandId, 'runTests');
   });
 
+  testWidgets('agent surface blocks retry for route-blocked recent command', (
+    tester,
+  ) async {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      recentCommandResults: const <AgentCommandResultContext>[
+        AgentCommandResultContext(
+          commandId: 'runBuild',
+          applied: false,
+          message: 'Run Build blocked by backend route.',
+          metadata: <String, Object?>{
+            'backendRouteSelection': <String, Object?>{
+              'routeKind': 'blocked',
+              'adapterKind': 'none',
+              'allowed': false,
+              'previewOnly': false,
+              'blockedReason': 'no-backend-route',
+            },
+          },
+        ),
+      ],
+      toolchainSnapshot: const ToolchainStateSnapshot(
+        targetId: 'agent-route-blocked-retry',
+        entries: <ToolchainStateEntry>[
+          ToolchainStateEntry(
+            id: 'native-cmake-build-tool',
+            kind: ToolchainKind.buildTool,
+            displayName: 'CMake Build Tool',
+            executablePath: '/usr/bin/cmake',
+            active: true,
+            metadata: <String, Object?>{'toolFamily': 'cmake'},
+          ),
+        ],
+      ),
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: () => context,
+    );
+    final appliedCommands = <AgentIdeCommandSuggestion>[];
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: context,
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) async {
+                appliedCommands.add(command);
+                return true;
+              },
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('runBuild · not applied'), findsOneWidget);
+    expect(
+      find.text('route blocked via none · blocked no-backend-route'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(OutlinedButton, 'Retry Command'), findsNothing);
+    expect(appliedCommands, isEmpty);
+  });
+
   testWidgets('agent surface blocks debug commands that are not ready', (
     tester,
   ) async {

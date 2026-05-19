@@ -1776,6 +1776,9 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                     readiness?.requiredCommandId ??
                     requiredCommandIdFromAgentMetadata(result.metadata);
                 final hasRequiredCommand = requiredCommandId != null;
+                final routeBlocked =
+                    backendRouteFromAgentMetadata(result.metadata)?.blocked ??
+                    false;
                 final metadataSummary = nativeToolMetadataSummaryText(
                   result.metadata,
                 );
@@ -1797,6 +1800,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                         if (onRetry != null &&
                             commandReady &&
                             !hasRequiredCommand &&
+                            !routeBlocked &&
                             registeredCommandIds.contains(result.commandId))
                           OutlinedButton(
                             key: ValueKey(

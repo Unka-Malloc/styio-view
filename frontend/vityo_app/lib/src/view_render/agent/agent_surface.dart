@@ -673,6 +673,12 @@ class _AgentProviderExecutionStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selected = resolution.selectedEndpoint;
+    final missingRequiredCredentialEndpoints = resolution.endpoints.where(
+      (endpoint) =>
+          endpoint.endpoint.requiresCredential &&
+          endpoint.credentialReadiness ==
+              AgentProviderCredentialReadiness.unavailable,
+    );
     return Container(
       key: const ValueKey('agent-provider-execution-status'),
       padding: const EdgeInsets.all(10),
@@ -704,6 +710,19 @@ class _AgentProviderExecutionStatusCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
+          if (missingRequiredCredentialEndpoints.isNotEmpty) ...[
+            Text(
+              'Credential required: add a bearer token for endpoint(s) ${missingRequiredCredentialEndpoints.map((endpoint) => endpoint.endpointIndex).join(', ')} before using real cloud agent providers.',
+              key: const ValueKey(
+                'agent-provider-execution-credential-guidance',
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
           for (final endpoint in resolution.endpoints)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),

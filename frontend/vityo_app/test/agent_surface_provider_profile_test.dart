@@ -141,19 +141,18 @@ void main() {
           endpointIndex: 0,
           fallback: false,
           endpoint: AgentProviderEndpoint(
-            route: AgentProviderRoute.desktopLocalBridge,
-            baseUrl: 'http://127.0.0.1:11434/v1',
-            model: 'gpt-local',
+            route: AgentProviderRoute.webHosted,
+            baseUrl: 'https://primary-agent.example.test/v1',
+            model: 'gpt-primary',
+            requiresCredential: true,
           ),
           plan: AgentProviderExecutionPlan(
-            routeKind: AgentProviderExecutionRouteKind.blocked,
-            providerKind: AgentProviderKind.localOnlyFallback,
-            route: AgentProviderRoute.desktopLocalBridge,
-            endpointBaseUrl: 'http://127.0.0.1:11434/v1',
-            blockReason:
-                AgentProviderExecutionBlockReason.localBridgeUnavailable,
+            routeKind: AgentProviderExecutionRouteKind.cloud,
+            providerKind: AgentProviderKind.cloudOpenAICompatible,
+            route: AgentProviderRoute.webHosted,
+            endpointBaseUrl: 'https://primary-agent.example.test/v1',
           ),
-          credentialReadiness: AgentProviderCredentialReadiness.notReferenced,
+          credentialReadiness: AgentProviderCredentialReadiness.unavailable,
         ),
         AgentProviderEndpointReadiness(
           endpointIndex: 1,
@@ -219,6 +218,12 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey('agent-provider-execution-endpoint-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('agent-provider-execution-credential-guidance'),
+      ),
       findsOneWidget,
     );
     expect(

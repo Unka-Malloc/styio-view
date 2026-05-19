@@ -268,7 +268,7 @@ void main() {
   testWidgets('settings surface renders Clang C++ version manager', (
     tester,
   ) async {
-    final selectedToolchains = <String>[];
+    final selectedClangCppVersions = <String>[];
 
     await tester.pumpWidget(
       MaterialApp(
@@ -348,8 +348,8 @@ void main() {
                 ),
               ),
             ),
-            onSelectToolchain: (id) async {
-              selectedToolchains.add(id);
+            onSelectClangCppVersion: (versionId) async {
+              selectedClangCppVersions.add(versionId);
             },
           ),
         ),
@@ -375,6 +375,6 @@ void main() {
     await tester.tap(selectClang18Button);
     await tester.pump();
 
-    expect(selectedToolchains, <String>['clang-18']);
+    expect(selectedClangCppVersions, <String>['clang-18']);
   });
 }

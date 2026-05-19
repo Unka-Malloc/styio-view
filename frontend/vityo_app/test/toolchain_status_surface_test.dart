@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
+import 'package:vityo_app/src/view_ide/toolchain/clang_cpp_version_configuration.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_configuration_store.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
@@ -171,7 +172,13 @@ void main() {
       ),
     );
 
-    final surface = ToolchainSettingsSurface.fromManagerStatusReport(report);
+    final surface = ToolchainSettingsSurface.fromManagerStatusReport(
+      report,
+      clangCppVersionPreference: const ClangCppVersionPreference(
+        versionId: 'clang-18',
+        cppStandard: CppLanguageStandard.cpp23,
+      ),
+    );
 
     expect(surface.targetId, 'test-target');
     expect(surface.workspaceId, 'demo');
@@ -248,20 +255,28 @@ void main() {
       ),
     );
 
-    final surface = ToolchainSettingsSurface.fromManagerStatusReport(report);
+    final surface = ToolchainSettingsSurface.fromManagerStatusReport(
+      report,
+      clangCppVersionPreference: const ClangCppVersionPreference(
+        versionId: 'clang-18',
+        cppStandard: CppLanguageStandard.cpp23,
+      ),
+    );
     final clangCpp = surface.clangCppVersions;
     final json = surface.toJson();
 
     expect(clangCpp, isNotNull);
-    expect(clangCpp!.activeVersionId, 'clang-17');
-    expect(clangCpp.preferenceStatus, 'activeDefault');
-    expect(clangCpp.defaultCppStandard, '20');
-    expect(clangCpp.defaultCompilerFlag, '-std=c++20');
+    expect(clangCpp!.activeVersionId, 'clang-18');
+    expect(clangCpp.requestedVersionId, 'clang-18');
+    expect(clangCpp.preferenceStatus, 'configured');
+    expect(clangCpp.defaultCppStandard, '23');
+    expect(clangCpp.defaultCompilerFlag, '-std=c++23');
     expect(
       clangCpp.candidates.map((candidate) => candidate.versionId),
       <String>['clang-17', 'clang-18'],
     );
-    expect(clangCpp.candidates.first.active, isTrue);
+    expect(clangCpp.candidates.first.active, isFalse);
+    expect(clangCpp.candidates.last.active, isTrue);
     expect(clangCpp.cmakeAvailable, isTrue);
     expect(clangCpp.ninjaAvailable, isTrue);
     expect(clangCpp.preferredBuildEngineHandoff?.label, 'cmake+ninja');

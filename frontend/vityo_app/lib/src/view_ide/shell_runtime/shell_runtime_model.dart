@@ -15,6 +15,7 @@ import '../interaction/interaction.dart';
 import '../language/language_contract.dart';
 import '../module_host/module_host.dart';
 import '../platform/platform.dart';
+import '../toolchain/clang_cpp_version_configuration.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_install_executor.dart'
     hide ToolchainRecoveryAction;
@@ -249,6 +250,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     this.editorSessionWorkspaceId = 'default',
     this.documentCacheLimit = 32,
     this.themeOverrideStore,
+    ClangCppVersionPreference? clangCppVersionPreference,
     AgentCodingSessionController? agentCodingController,
     this.agentProviderConfigurator,
     this.refreshActiveLanguageService,
@@ -281,7 +283,8 @@ class ShellRuntimeModel extends ChangeNotifier {
          executionAdapter.capabilitySnapshot,
          runtimeEventAdapter.capabilitySnapshot,
          ...supplementalAdapterCapabilities,
-       ]) {
+       ]),
+       _clangCppVersionPreference = clangCppVersionPreference {
     this.agentCodingController =
         agentCodingController ??
         AgentCodingSessionController(
@@ -324,6 +327,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   final String editorSessionWorkspaceId;
   final int documentCacheLimit;
   final VityoThemeOverrideStore? themeOverrideStore;
+  ClangCppVersionPreference? _clangCppVersionPreference;
   late final AgentCodingSessionController agentCodingController;
   final AgentProviderConfigurator? agentProviderConfigurator;
   final Future<void> Function()? refreshActiveLanguageService;
@@ -508,6 +512,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       lastWorkspaceSearch: _lastAgentWorkspaceSearch,
       activeFilePath: workspaceController.activeFilePath,
       toolchainSnapshot: toolchainStatusReport?.value.snapshot,
+      clangCppVersionPreference: _clangCppVersionPreference,
     );
   }
 
@@ -2572,6 +2577,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return ToolchainSettingsSurface.fromManagerStatusReport(
         report,
         lastCommand: _lastToolchainCommand,
+        clangCppVersionPreference: _clangCppVersionPreference,
       );
     }
     return ToolchainSettingsSurface.fromStatus(toolchainStatusSurface);
@@ -2592,6 +2598,39 @@ class ShellRuntimeModel extends ChangeNotifier {
       result.succeeded
           ? 'Toolchain selected: ${result.toolchainId} (${result.kind?.wireValue ?? "unknown"}).'
           : 'Toolchain selection failed: ${result.message ?? result.status.name}.',
+    );
+    await _refreshToolchainStatusReportAfterSelection(result);
+    notifyListeners();
+    return result;
+  }
+
+  Future<ToolchainSelectionResult?> selectClangCppVersion(
+    String versionId,
+  ) async {
+    final manager = toolchainManager;
+    if (manager == null) {
+      appendLog(
+        'Clang/C++ version selection unavailable: no ToolchainManager is wired.',
+      );
+      notifyListeners();
+      return null;
+    }
+
+    final result = await manager.selectToolchain(versionId);
+    if (result.succeeded) {
+      final preference = ClangCppVersionPreference(
+        versionId: versionId,
+        cppStandard:
+            _clangCppVersionPreference?.cppStandard ??
+            CppLanguageStandard.cpp20,
+      );
+      await manager.saveClangCppVersionPreference(preference);
+      _clangCppVersionPreference = preference;
+    }
+    appendLog(
+      result.succeeded
+          ? 'Clang/C++ version selected: ${result.toolchainId}.'
+          : 'Clang/C++ version selection failed: ${result.message ?? result.status.name}.',
     );
     await _refreshToolchainStatusReportAfterSelection(result);
     notifyListeners();

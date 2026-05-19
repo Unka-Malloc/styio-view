@@ -1,5 +1,6 @@
 import '../backend_toolchain/project_graph_contract.dart';
 import '../backend_toolchain/toolchain_management_adapter.dart';
+import '../toolchain/clang_cpp_version_configuration.dart';
 import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_configuration_store.dart';
@@ -275,6 +276,7 @@ class ToolchainSettingsSurface {
   factory ToolchainSettingsSurface.fromManagerStatusReport(
     ToolchainManagerStatusReport report, {
     ToolchainCommandResult? lastCommand,
+    ClangCppVersionPreference? clangCppVersionPreference,
   }) {
     return ToolchainSettingsSurface(
       status: ToolchainStatusSurface.fromManagerStatusReport(
@@ -291,6 +293,7 @@ class ToolchainSettingsSurface {
           .toList(growable: false),
       clangCppVersions: ClangCppVersionSettingsSurface.fromSnapshot(
         report.snapshot,
+        preference: clangCppVersionPreference,
       ),
       recoveryState: ToolchainRecoveryStateSurface.fromState(
         report.recoveryState,
@@ -352,9 +355,13 @@ class ClangCppVersionSettingsSurface {
   });
 
   static ClangCppVersionSettingsSurface? fromSnapshot(
-    ToolchainStateSnapshot snapshot,
-  ) {
-    final manager = ClangCppVersionManager.fromSnapshot(snapshot);
+    ToolchainStateSnapshot snapshot, {
+    ClangCppVersionPreference? preference,
+  }) {
+    final manager = ClangCppVersionManager.fromSnapshot(
+      snapshot,
+      preference: preference,
+    );
     if (!manager.hasCandidates) {
       return null;
     }

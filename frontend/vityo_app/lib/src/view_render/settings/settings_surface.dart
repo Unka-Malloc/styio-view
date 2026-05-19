@@ -15,6 +15,7 @@ class SettingsSurface extends StatelessWidget {
     this.toolchainInstallExecution,
     this.onToolchainRecoveryAction,
     this.onSelectToolchain,
+    this.onSelectClangCppVersion,
     this.onClearToolchain,
     this.onExecuteToolchainInstallPlan,
     this.themeOverride = const VityoThemeOverride(),
@@ -29,6 +30,7 @@ class SettingsSurface extends StatelessWidget {
   final Future<void> Function(ToolchainRecoveryAction action)?
   onToolchainRecoveryAction;
   final Future<void> Function(String id)? onSelectToolchain;
+  final Future<void> Function(String versionId)? onSelectClangCppVersion;
   final Future<void> Function(ToolchainKind kind)? onClearToolchain;
   final Future<void> Function()? onExecuteToolchainInstallPlan;
   final VityoThemeOverride themeOverride;
@@ -63,6 +65,7 @@ class SettingsSurface extends StatelessWidget {
                 installExecution: toolchainInstallExecution,
                 onRecoveryAction: onToolchainRecoveryAction,
                 onSelectToolchain: onSelectToolchain,
+                onSelectClangCppVersion: onSelectClangCppVersion,
                 onClearToolchain: onClearToolchain,
                 onExecuteToolchainInstallPlan: onExecuteToolchainInstallPlan,
               ),
@@ -221,6 +224,7 @@ class _ToolchainSettingsCard extends StatelessWidget {
     required this.installExecution,
     required this.onRecoveryAction,
     required this.onSelectToolchain,
+    required this.onSelectClangCppVersion,
     required this.onClearToolchain,
     required this.onExecuteToolchainInstallPlan,
   });
@@ -230,6 +234,7 @@ class _ToolchainSettingsCard extends StatelessWidget {
   final ToolchainInstallExecutionSurface? installExecution;
   final Future<void> Function(ToolchainRecoveryAction action)? onRecoveryAction;
   final Future<void> Function(String id)? onSelectToolchain;
+  final Future<void> Function(String versionId)? onSelectClangCppVersion;
   final Future<void> Function(ToolchainKind kind)? onClearToolchain;
   final Future<void> Function()? onExecuteToolchainInstallPlan;
 
@@ -301,7 +306,8 @@ class _ToolchainSettingsCard extends StatelessWidget {
             const SizedBox(height: 14),
             _ClangCppVersionManagerView(
               versions: settings.clangCppVersions!,
-              onSelectToolchain: onSelectToolchain,
+              onSelectClangCppVersion:
+                  onSelectClangCppVersion ?? onSelectToolchain,
             ),
           ],
           const SizedBox(height: 14),
@@ -336,11 +342,11 @@ class _ToolchainSettingsCard extends StatelessWidget {
 class _ClangCppVersionManagerView extends StatelessWidget {
   const _ClangCppVersionManagerView({
     required this.versions,
-    required this.onSelectToolchain,
+    required this.onSelectClangCppVersion,
   });
 
   final ClangCppVersionSettingsSurface versions;
-  final Future<void> Function(String id)? onSelectToolchain;
+  final Future<void> Function(String versionId)? onSelectClangCppVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -391,10 +397,10 @@ class _ClangCppVersionManagerView extends StatelessWidget {
                   deleteIcon: candidate.active
                       ? null
                       : const Icon(Icons.check_circle_outline),
-                  onDeleted: candidate.active || onSelectToolchain == null
+                  onDeleted: candidate.active || onSelectClangCppVersion == null
                       ? null
                       : () {
-                          onSelectToolchain!(candidate.versionId);
+                          onSelectClangCppVersion!(candidate.versionId);
                         },
                   deleteButtonTooltipMessage: candidate.active
                       ? null

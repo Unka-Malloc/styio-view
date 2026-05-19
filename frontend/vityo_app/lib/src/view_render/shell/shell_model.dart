@@ -20,11 +20,17 @@ class ShellModel extends ShellRuntimeModel {
     required super.dependencySourceAdapter,
     required super.deploymentAdapter,
     required super.toolchainManagementAdapter,
+    super.agentCodingController,
+    super.agentProviderConfigurator,
+    super.refreshActiveLanguageService,
     super.toolchainManager,
     super.editorSessionDataStore,
     super.editorSessionWorkspaceId,
+    super.documentCacheLimit,
+    super.themeOverrideStore,
     super.languageServiceStatus,
     super.toolchainStatusReport,
+    super.clangCppVersionPreference,
   });
 
   BottomSurfaceTab _activeBottomTab = BottomSurfaceTab.runtime;
@@ -66,7 +72,31 @@ class ShellModel extends ShellRuntimeModel {
         appendLog('Settings surface opened.');
         return;
       case AppCommandId.save:
+      case AppCommandId.saveAll:
       case AppCommandId.run:
+      case AppCommandId.toggleBreakpoint:
+      case AppCommandId.startDebugging:
+      case AppCommandId.stopDebugging:
+      case AppCommandId.continueDebugging:
+      case AppCommandId.stepOver:
+      case AppCommandId.selectDebugThread:
+      case AppCommandId.selectDebugStackFrame:
+      case AppCommandId.nextDiagnostic:
+      case AppCommandId.previousDiagnostic:
+      case AppCommandId.applyQuickFix:
+      case AppCommandId.refreshLanguageService:
+      case AppCommandId.goToDefinition:
+      case AppCommandId.openWorkspaceFile:
+      case AppCommandId.searchWorkspace:
+      case AppCommandId.runBuild:
+      case AppCommandId.formatActiveDocument:
+      case AppCommandId.runStaticAnalysis:
+      case AppCommandId.runTests:
+      case AppCommandId.nextReference:
+      case AppCommandId.previousReference:
+      case AppCommandId.renameSymbol:
+      case AppCommandId.safeDelete:
+      case AppCommandId.inlineVariable:
       case AppCommandId.fetchDependencies:
       case AppCommandId.vendorDependencies:
       case AppCommandId.useActiveCompiler:

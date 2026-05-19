@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../environment/configuration/environment_variable_configuration.dart';
 import '../environment/system_compatibility/platform_manager/platform_manager.dart';
+import 'clang_cpp_version_configuration.dart';
 import 'toolchain_catalog.dart';
 import 'toolchain_configuration_store.dart';
 import 'toolchain_environment.dart';
@@ -354,6 +355,30 @@ class ToolchainManager {
 
   Future<bool> clearCatalog() {
     return _configurationStore.deleteCatalog(
+      workspaceId: workspaceId,
+      targetId: _targetId,
+    );
+  }
+
+  Future<void> saveClangCppVersionPreference(
+    ClangCppVersionPreference preference,
+  ) {
+    return _configurationStore.saveClangCppVersionPreference(
+      preference,
+      workspaceId: workspaceId,
+      targetId: _targetId,
+    );
+  }
+
+  Future<ClangCppVersionPreference?> loadClangCppVersionPreference() {
+    return _configurationStore.loadClangCppVersionPreference(
+      workspaceId: workspaceId,
+      targetId: _targetId,
+    );
+  }
+
+  Future<bool> clearClangCppVersionPreference() {
+    return _configurationStore.deleteClangCppVersionPreference(
       workspaceId: workspaceId,
       targetId: _targetId,
     );
@@ -852,7 +877,7 @@ class ToolchainManager {
     final catalog = await loadCatalog();
     final effectiveRequirement =
         requirement ?? ToolchainRequirement(kind: kind);
-    final snapshot = await this.snapshot(kind: kind);
+    final snapshot = await this.snapshot();
     final installHistory = await _configurationStore.loadInstallHistory(
       workspaceId: workspaceId,
       targetId: _targetId,

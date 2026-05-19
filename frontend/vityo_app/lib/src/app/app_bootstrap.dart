@@ -20,6 +20,7 @@ import '../view_ide/language/service/language_service_foundation.dart';
 import '../view_ide/language/service/styio_service_capability_detector.dart';
 import '../view_ide/language/service/styio_service_connector.dart';
 import '../view_ide/language/service/styio_service_runtime.dart';
+import '../view_ide/toolchain/clang_cpp_version_configuration.dart';
 import '../view_ide/toolchain/toolchain_catalog.dart';
 import '../view_ide/toolchain/toolchain_configuration_store.dart';
 import '../view_ide/toolchain/toolchain_manager.dart';
@@ -69,6 +70,7 @@ class AppBootstrap {
     ValueNotifier<LanguageServiceStatusSurface>? languageServiceStatus,
     this.toolchainManager,
     this.toolchainStatusReport,
+    this.clangCppVersionPreference,
     this.toolchainCatalogSubscription,
     this.languageResultCacheBinding,
   }) : languageServiceStatus =
@@ -95,6 +97,7 @@ class AppBootstrap {
   final AgentProviderConfigurator agentProviderConfigurator;
   final VityoThemeOverrideStore? themeOverrideStore;
   final ToolchainManager? toolchainManager;
+  final ClangCppVersionPreference? clangCppVersionPreference;
   final Future<void> Function()? refreshActiveLanguageService;
   final ValueNotifier<LanguageServiceStatusSurface> languageServiceStatus;
   final ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport;
@@ -170,6 +173,8 @@ class AppBootstrap {
       platformManagers: platformManagers,
       workspaceId: projectSnapshot.id,
     );
+    final clangCppVersionPreference = await toolchainManager
+        .loadClangCppVersionPreference();
     final toolchainStatusReport = ValueNotifier<ToolchainManagerStatusReport>(
       await toolchainManager.statusReport(kind: ToolchainKind.languageService),
     );
@@ -317,6 +322,7 @@ class AppBootstrap {
         workspaceDocuments: [editorController.document],
         activeFilePath: workspaceController.activeFilePath,
         toolchainSnapshot: toolchainStatusReport.value.snapshot,
+        clangCppVersionPreference: clangCppVersionPreference,
       ),
     );
     final agentProviderConfigurator = AgentProviderConfigurator.fromStores(
@@ -349,6 +355,7 @@ class AppBootstrap {
       toolchainManager: toolchainManager,
       languageServiceStatus: languageServiceStatus,
       toolchainStatusReport: toolchainStatusReport,
+      clangCppVersionPreference: clangCppVersionPreference,
       toolchainCatalogSubscription: toolchainCatalogSubscription,
       languageResultCacheBinding: languageResultCacheBinding,
     );

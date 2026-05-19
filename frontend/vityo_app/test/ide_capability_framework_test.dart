@@ -84,6 +84,10 @@ void main() {
       contains('blocked command availability reasons'),
     );
     expect(
+      entriesById['interaction.command-palette']?.summary,
+      contains('category contribution manifests'),
+    );
+    expect(
       entriesById['workspace.edit-application']?.status,
       IdeCapabilityStatus.wired,
     );

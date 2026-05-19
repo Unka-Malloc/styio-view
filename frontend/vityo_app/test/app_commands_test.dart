@@ -114,6 +114,7 @@ void main() {
 
       expect(save.label, 'Save');
       expect(save.shortcutHint, 'Cmd/Ctrl+S');
+      expect(save.category, AppCommandCategory.persistence);
       expect(save.primary, isTrue);
       expect(save.shortcuts, hasLength(2));
 
@@ -158,16 +159,19 @@ void main() {
       expect(refreshWorkspaceDiagnostics.requiresInput, isFalse);
 
       expect(openWorkspaceFile.label, 'Open Workspace File');
+      expect(openWorkspaceFile.category, AppCommandCategory.navigation);
       expect(openWorkspaceFile.shortcutHint, 'Route');
       expect(openWorkspaceFile.requiresInput, isTrue);
       expect(openWorkspaceFile.inputLabel, 'Workspace file path');
 
       expect(searchWorkspace.label, 'Search Workspace');
+      expect(searchWorkspace.category, AppCommandCategory.navigation);
       expect(searchWorkspace.shortcutHint, 'Route');
       expect(searchWorkspace.requiresInput, isTrue);
       expect(searchWorkspace.inputLabel, 'Search query');
 
       expect(runBuild.label, 'Run Build');
+      expect(runBuild.category, AppCommandCategory.execution);
       expect(runBuild.shortcutHint, 'Route');
       expect(formatActiveDocument.label, 'Format Active Document');
       expect(formatActiveDocument.shortcutHint, 'Route');
@@ -248,6 +252,18 @@ void main() {
 
   test('command registry exposes editor assist command groups', () {
     expect(
+      StyioCommandRegistry.commandsForCategory(
+        AppCommandCategory.navigation,
+      ).map((command) => command.id),
+      <AppCommandId>[
+        AppCommandId.goToDefinition,
+        AppCommandId.openWorkspaceFile,
+        AppCommandId.searchWorkspace,
+        AppCommandId.nextReference,
+        AppCommandId.previousReference,
+      ],
+    );
+    expect(
       StyioCommandRegistry.persistenceCommands.map((command) => command.id),
       <AppCommandId>[AppCommandId.save, AppCommandId.saveAll],
     );
@@ -319,6 +335,30 @@ void main() {
         AppCommandId.collectProjectLanguageContext,
       ],
     );
+  });
+
+  test('command registry exports stable contribution manifest', () {
+    final manifest = StyioCommandRegistry.contributionManifest;
+    final commands = manifest['commands']! as List<Object?>;
+    final save = commands.cast<Map<String, Object?>>().firstWhere(
+      (command) => command['id'] == AppCommandId.save.name,
+    );
+    final searchWorkspace = commands.cast<Map<String, Object?>>().firstWhere(
+      (command) => command['id'] == AppCommandId.searchWorkspace.name,
+    );
+
+    expect(manifest['schema'], 'vityo.command-contributions.v1');
+    expect(
+      manifest['categories'],
+      contains(AppCommandCategory.navigation.wireValue),
+    );
+    expect(commands.length, StyioCommandRegistry.commands.length);
+    expect(save['category'], AppCommandCategory.persistence.wireValue);
+    expect(save['shortcutHint'], 'Cmd/Ctrl+S');
+    expect(save['shortcuts'], hasLength(2));
+    expect(searchWorkspace['category'], AppCommandCategory.navigation.wireValue);
+    expect(searchWorkspace['requiresInput'], isTrue);
+    expect(searchWorkspace['inputLabel'], 'Search query');
   });
 
   test('command registry exposes toolchain and deployment route commands', () {

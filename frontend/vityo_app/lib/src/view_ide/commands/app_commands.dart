@@ -46,6 +46,100 @@ enum AppCommandId {
   openSettings,
 }
 
+enum AppCommandCategory {
+  persistence,
+  execution,
+  dependency,
+  toolchain,
+  deployment,
+  surface,
+  diagnostics,
+  languageService,
+  sourceControl,
+  agentCoding,
+  navigation,
+  refactor,
+  debug,
+  module,
+  settings,
+}
+
+extension AppCommandCategoryX on AppCommandCategory {
+  String get wireValue {
+    return switch (this) {
+      AppCommandCategory.persistence => 'persistence',
+      AppCommandCategory.execution => 'execution',
+      AppCommandCategory.dependency => 'dependency',
+      AppCommandCategory.toolchain => 'toolchain',
+      AppCommandCategory.deployment => 'deployment',
+      AppCommandCategory.surface => 'surface',
+      AppCommandCategory.diagnostics => 'diagnostics',
+      AppCommandCategory.languageService => 'language-service',
+      AppCommandCategory.sourceControl => 'source-control',
+      AppCommandCategory.agentCoding => 'agent-coding',
+      AppCommandCategory.navigation => 'navigation',
+      AppCommandCategory.refactor => 'refactor',
+      AppCommandCategory.debug => 'debug',
+      AppCommandCategory.module => 'module',
+      AppCommandCategory.settings => 'settings',
+    };
+  }
+}
+
+extension AppCommandIdX on AppCommandId {
+  AppCommandCategory get category {
+    return switch (this) {
+      AppCommandId.save || AppCommandId.saveAll =>
+        AppCommandCategory.persistence,
+      AppCommandId.run => AppCommandCategory.execution,
+      AppCommandId.fetchDependencies || AppCommandId.vendorDependencies =>
+        AppCommandCategory.dependency,
+      AppCommandId.useActiveCompiler ||
+      AppCommandId.pinActiveCompiler ||
+      AppCommandId.clearPinnedCompiler ||
+      AppCommandId.selectClangCppVersion => AppCommandCategory.toolchain,
+      AppCommandId.packProject || AppCommandId.preparePublish =>
+        AppCommandCategory.deployment,
+      AppCommandId.showRuntime || AppCommandId.showAgent ||
+      AppCommandId.showDebug => AppCommandCategory.surface,
+      AppCommandId.nextDiagnostic ||
+      AppCommandId.previousDiagnostic ||
+      AppCommandId.applyQuickFix ||
+      AppCommandId.previewQuickFix ||
+      AppCommandId.refreshWorkspaceDiagnostics =>
+        AppCommandCategory.diagnostics,
+      AppCommandId.refreshLanguageService =>
+        AppCommandCategory.languageService,
+      AppCommandId.refreshSourceControl ||
+      AppCommandId.previewSourceControlDiff => AppCommandCategory.sourceControl,
+      AppCommandId.collectAgentCodingCheckpoint ||
+      AppCommandId.collectProjectLanguageContext =>
+        AppCommandCategory.agentCoding,
+      AppCommandId.openWorkspaceFile ||
+      AppCommandId.searchWorkspace ||
+      AppCommandId.goToDefinition ||
+      AppCommandId.nextReference ||
+      AppCommandId.previousReference => AppCommandCategory.navigation,
+      AppCommandId.renameSymbol ||
+      AppCommandId.safeDelete ||
+      AppCommandId.inlineVariable => AppCommandCategory.refactor,
+      AppCommandId.toggleBreakpoint ||
+      AppCommandId.startDebugging ||
+      AppCommandId.stopDebugging ||
+      AppCommandId.continueDebugging ||
+      AppCommandId.stepOver ||
+      AppCommandId.selectDebugThread ||
+      AppCommandId.selectDebugStackFrame => AppCommandCategory.debug,
+      AppCommandId.runBuild ||
+      AppCommandId.formatActiveDocument ||
+      AppCommandId.runStaticAnalysis ||
+      AppCommandId.runTests => AppCommandCategory.execution,
+      AppCommandId.refreshModules => AppCommandCategory.module,
+      AppCommandId.openSettings => AppCommandCategory.settings,
+    };
+  }
+}
+
 class AppCommandShortcutSpec {
   const AppCommandShortcutSpec(
     this.key, {
@@ -58,6 +152,15 @@ class AppCommandShortcutSpec {
   final bool control;
   final bool meta;
   final bool shift;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'key': key,
+      'control': control,
+      'meta': meta,
+      'shift': shift,
+    };
+  }
 }
 
 class AppCommandDescriptor {
@@ -80,6 +183,23 @@ class AppCommandDescriptor {
   final bool requiresInput;
   final String inputLabel;
   final List<AppCommandShortcutSpec> shortcuts;
+
+  AppCommandCategory get category => id.category;
+
+  Map<String, Object?> toContributionJson() {
+    return <String, Object?>{
+      'id': id.name,
+      'category': category.wireValue,
+      'label': label,
+      'description': description,
+      'shortcutHint': shortcutHint,
+      'primary': primary,
+      'requiresInput': requiresInput,
+      if (inputLabel.isNotEmpty) 'inputLabel': inputLabel,
+      if (shortcuts.isNotEmpty)
+        'shortcuts': shortcuts.map((shortcut) => shortcut.toJson()).toList(),
+    };
+  }
 }
 
 class StyioCommandRegistry {
@@ -454,58 +574,45 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get primaryCommands =>
       commands.where((command) => command.primary);
 
+  static Iterable<AppCommandDescriptor> commandsForCategory(
+    AppCommandCategory category,
+  ) {
+    return commands.where((command) => command.category == category);
+  }
+
+  static Map<String, Object?> get contributionManifest {
+    return <String, Object?>{
+      'schema': 'vityo.command-contributions.v1',
+      'categories': AppCommandCategory.values
+          .map((category) => category.wireValue)
+          .toList(growable: false),
+      'commands': commands
+          .map((command) => command.toContributionJson())
+          .toList(growable: false),
+    };
+  }
+
   static Iterable<AppCommandDescriptor> get executionCommands => commands.where(
-    (command) => switch (command.id) {
-      AppCommandId.run => true,
-      _ => false,
-    },
+    (command) => command.id == AppCommandId.run,
   );
 
   static Iterable<AppCommandDescriptor> get persistenceCommands =>
-      commands.where(
-        (command) => switch (command.id) {
-          AppCommandId.save || AppCommandId.saveAll => true,
-          _ => false,
-        },
-      );
+      commandsForCategory(AppCommandCategory.persistence);
 
   static Iterable<AppCommandDescriptor> get diagnosticCommands =>
-      commands.where(
-        (command) => switch (command.id) {
-          AppCommandId.nextDiagnostic ||
-          AppCommandId.previousDiagnostic ||
-          AppCommandId.applyQuickFix ||
-          AppCommandId.previewQuickFix ||
-          AppCommandId.refreshWorkspaceDiagnostics => true,
-          _ => false,
-        },
-      );
+      commandsForCategory(AppCommandCategory.diagnostics);
 
   static Iterable<AppCommandDescriptor> get languageServiceCommands =>
-      commands.where(
-        (command) => switch (command.id) {
-          AppCommandId.refreshLanguageService => true,
-          _ => false,
-        },
-      );
+      commandsForCategory(AppCommandCategory.languageService);
 
   static Iterable<AppCommandDescriptor> get sourceControlCommands =>
-      commands.where(
-        (command) => switch (command.id) {
-          AppCommandId.refreshSourceControl ||
-          AppCommandId.previewSourceControlDiff => true,
-          _ => false,
-        },
-      );
+      commandsForCategory(AppCommandCategory.sourceControl);
 
   static Iterable<AppCommandDescriptor> get agentCodingCommands =>
       commands.where(
-        (command) => switch (command.id) {
-          AppCommandId.collectAgentCodingCheckpoint ||
-          AppCommandId.previewQuickFix ||
-          AppCommandId.collectProjectLanguageContext => true,
-          _ => false,
-        },
+        (command) =>
+            command.category == AppCommandCategory.agentCoding ||
+            command.id == AppCommandId.previewQuickFix,
       );
 
   static Iterable<AppCommandDescriptor> get debugCommands => commands.where(
@@ -522,24 +629,10 @@ class StyioCommandRegistry {
   );
 
   static Iterable<AppCommandDescriptor> get navigationCommands =>
-      commands.where(
-        (command) => switch (command.id) {
-          AppCommandId.goToDefinition ||
-          AppCommandId.openWorkspaceFile ||
-          AppCommandId.searchWorkspace ||
-          AppCommandId.nextReference ||
-          AppCommandId.previousReference => true,
-          _ => false,
-        },
-      );
+      commandsForCategory(AppCommandCategory.navigation);
 
   static Iterable<AppCommandDescriptor> get refactorCommands => commands.where(
-    (command) => switch (command.id) {
-      AppCommandId.renameSymbol ||
-      AppCommandId.safeDelete ||
-      AppCommandId.inlineVariable => true,
-      _ => false,
-    },
+    (command) => command.category == AppCommandCategory.refactor,
   );
 
   static Iterable<AppCommandDescriptor> get nativeToolCommands =>
@@ -554,29 +647,14 @@ class StyioCommandRegistry {
       );
 
   static Iterable<AppCommandDescriptor> get dependencyCommands =>
-      commands.where(
-        (command) => switch (command.id) {
-          AppCommandId.fetchDependencies ||
-          AppCommandId.vendorDependencies => true,
-          _ => false,
-        },
-      );
+      commandsForCategory(AppCommandCategory.dependency);
 
   static Iterable<AppCommandDescriptor> get toolchainCommands => commands.where(
-    (command) => switch (command.id) {
-      AppCommandId.useActiveCompiler ||
-      AppCommandId.pinActiveCompiler ||
-      AppCommandId.clearPinnedCompiler ||
-      AppCommandId.selectClangCppVersion => true,
-      _ => false,
-    },
+    (command) => command.category == AppCommandCategory.toolchain,
   );
 
   static Iterable<AppCommandDescriptor> get settingsCommands => commands.where(
-    (command) => switch (command.id) {
-      AppCommandId.openSettings => true,
-      _ => false,
-    },
+    (command) => command.category == AppCommandCategory.settings,
   );
 
   static Iterable<AppCommandDescriptor> get workflowCommands => commands.where(

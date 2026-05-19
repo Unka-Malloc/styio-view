@@ -56,6 +56,8 @@ void main() {
     expect(find.text('registered 2'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
     expect(find.text('Rename Symbol'), findsOneWidget);
+    expect(find.text(AppCommandCategory.persistence.wireValue), findsOneWidget);
+    expect(find.text(AppCommandCategory.refactor.wireValue), findsOneWidget);
     expect(find.textContaining('Blocked: Needs input'), findsOneWidget);
 
     await tester.enterText(
@@ -84,5 +86,45 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('No commands match "missing".'), findsOneWidget);
+  });
+
+  testWidgets('command palette can filter by command category', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPaletteSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            commands: const <AppCommandDescriptor>[
+              AppCommandDescriptor(
+                id: AppCommandId.searchWorkspace,
+                label: 'Search Workspace',
+                shortcutHint: 'Route',
+                description: 'Search workspace files.',
+              ),
+              AppCommandDescriptor(
+                id: AppCommandId.renameSymbol,
+                label: 'Rename Symbol',
+                shortcutHint: 'Route',
+                description: 'Rename selected symbol.',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('command-palette-query-input')),
+      AppCommandCategory.navigation.wireValue,
+    );
+    await tester.pump();
+
+    expect(find.text('Search Workspace'), findsOneWidget);
+    expect(find.text('Rename Symbol'), findsNothing);
+    expect(find.text('visible 1'), findsOneWidget);
   });
 }

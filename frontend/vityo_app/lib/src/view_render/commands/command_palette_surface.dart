@@ -49,6 +49,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                 (command) =>
                     command.label.toLowerCase().contains(normalizedQuery) ||
                     command.id.name.toLowerCase().contains(normalizedQuery) ||
+                    command.category.wireValue.contains(normalizedQuery) ||
                     command.description.toLowerCase().contains(normalizedQuery),
               )
               .toList(growable: false);
@@ -124,6 +125,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                           trailing: Wrap(
                             spacing: 8,
                             children: [
+                              Chip(label: Text(command.category.wireValue)),
                               Chip(label: Text(command.shortcutHint)),
                               if (command.requiresInput)
                                 Chip(label: Text('input ${command.inputLabel}')),

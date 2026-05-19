@@ -388,7 +388,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/commands',
           summary:
-              'Command Palette surface is wired to StyioCommandRegistry, shell command execution, search filtering, keyboard shortcuts, and blocked command availability reasons.',
+              'Command Palette surface is wired to StyioCommandRegistry, category contribution manifests, shell command execution, search filtering, keyboard shortcuts, and blocked command availability reasons.',
           todo:
               'TODO: promote this panel to an overlay palette with typed command inputs, recent command ranking, and richer command categories.',
           references: <String>[

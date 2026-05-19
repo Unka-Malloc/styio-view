@@ -704,6 +704,7 @@ Set<String> _registeredAgentCommandIds(AgentCommandCatalogContext commands) {
     for (final command in commands.languageServiceCommands) command.id,
     for (final command in commands.navigationCommands) command.id,
     for (final command in commands.refactorCommands) command.id,
+    for (final command in commands.toolchainCommands) command.id,
     for (final command in commands.nativeToolCommands) command.id,
     for (final command in commands.debugCommands) command.id,
     for (final command in commands.settingsCommands) command.id,

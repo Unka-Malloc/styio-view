@@ -290,6 +290,69 @@ void main() {
     expect(find.text('Command renameSymbol applied.'), findsOneWidget);
   });
 
+  testWidgets('agent surface applies registered toolchain IDE commands', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: _ClangCppVersionCommandSuggestionAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.updatePrompt('Use Clang 18 with C++23.');
+    await controller.sendPrompt();
+    AgentIdeCommandSuggestion? appliedCommand;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) async {
+                appliedCommand = command;
+                return true;
+              },
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text(
+        'selectClangCppVersion · input fake-clang-18 c++23 · Use the registered Clang/C++ version manager.',
+      ),
+      findsOneWidget,
+    );
+
+    await _tapVisible(
+      tester,
+      find.widgetWithText(OutlinedButton, 'Apply Command'),
+    );
+    await tester.pump();
+
+    expect(appliedCommand?.commandId, 'selectClangCppVersion');
+    expect(appliedCommand?.input, 'fake-clang-18 c++23');
+    expect(
+      find.text('Command selectClangCppVersion applied.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent pending IDE command reaches next provider request', (
     tester,
   ) async {
@@ -3610,6 +3673,40 @@ class _CommandSuggestionAgentProviderAdapter implements AgentProviderAdapter {
             commandId: 'renameSymbol',
             input: 'price',
             reason: 'Use the safe rename refactor.',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ClangCppVersionCommandSuggestionAgentProviderAdapter
+    implements AgentProviderAdapter {
+  @override
+  String get adapterId => 'clang-cpp-version-command-suggestion';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.localOnlyFallback;
+
+  @override
+  bool get supportsCodePatch => false;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(
+    AgentProviderRequest request,
+  ) async {
+    return AgentProviderResponseEnvelope(
+      requestId: request.requestId,
+      role: 'assistant',
+      finishReason: 'stop',
+      contentParts: const <AgentContentPart>[
+        AgentContentPart(
+          kind: AgentContentPartKind.ideCommand,
+          text: 'Select Clang/C++ version.',
+          ideCommand: AgentIdeCommandSuggestion(
+            commandId: 'selectClangCppVersion',
+            input: 'fake-clang-18 c++23',
+            reason: 'Use the registered Clang/C++ version manager.',
           ),
         ),
       ],

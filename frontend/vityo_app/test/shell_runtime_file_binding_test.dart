@@ -1415,10 +1415,7 @@ void main() {
             ),
             references: <ReferenceSpan>[],
             edits: <FormattingEdit>[
-              FormattingEdit(
-                range: SourceRange(start: 0, end: 5),
-                newText: '',
-              ),
+              FormattingEdit(range: SourceRange(start: 0, end: 5), newText: ''),
             ],
           ),
           inlineVariablePlan: InlineVariablePlan(
@@ -1471,7 +1468,10 @@ void main() {
     expect(parameterInfo?.parameterCount, 2);
     expect(parameterInfo?.parametersTruncated, isFalse);
     expect(shell.agentSessionContext.language.inlayHintCount, 1);
-    expect(shell.agentSessionContext.language.inlayHints.single.label, 'right:');
+    expect(
+      shell.agentSessionContext.language.inlayHints.single.label,
+      'right:',
+    );
     expect(shell.agentSessionContext.language.semanticBlockCount, 1);
     expect(
       shell.agentSessionContext.language.semanticBlocks.single.label,
@@ -2704,6 +2704,168 @@ printf '100%% tests passed, 0 tests failed out of 2\\n'
         shell.debugLog.any((entry) => entry.contains('Run Tests completed.')),
         isTrue,
       );
+    },
+  );
+
+  test(
+    'shell configures CMake build with Clang C++ handoff before first build',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_shell_cmake_configure_handoff_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final cmakeLog = File('${tempRoot.path}/cmake-args.log');
+      final cmake = File('${tempRoot.path}/fake-cmake.sh');
+      final ninja = File('${tempRoot.path}/fake-ninja.sh');
+      final clang = File('${tempRoot.path}/clang');
+      final clangxx = File('${tempRoot.path}/clang++');
+      await cmake.writeAsString('''
+#!/bin/sh
+printf '%s\\n' "\$*" >> '${cmakeLog.path}'
+if [ "\$1" = "-S" ]; then
+  mkdir -p "\$4"
+  printf 'configured\\n'
+  exit 0
+fi
+printf 'src/main.cc:1:5: warning: configured build warning\\n'
+''');
+      await ninja.writeAsString('#!/bin/sh\nexit 0\n');
+      await clang.writeAsString('#!/bin/sh\nexit 0\n');
+      await clangxx.writeAsString('#!/bin/sh\nexit 0\n');
+      await Process.run('chmod', <String>[
+        '+x',
+        cmake.path,
+        ninja.path,
+        clang.path,
+        clangxx.path,
+      ]);
+      final configurationStore = await _createShellTestConfigurationStore(
+        tempRoot,
+      );
+      final platformManagers = await createDetectedPlatformManagerBundle();
+      final toolchainStore = ToolchainConfigurationStore(
+        configurationStore: configurationStore,
+      );
+      final catalog = ToolchainCatalog()
+        ..register(
+          ToolchainDescriptor(
+            id: 'fake-clang',
+            kind: ToolchainKind.compiler,
+            displayName: 'Fake Clang',
+            executablePath: clangxx.path,
+            version: '18.1.8',
+            metadata: <String, Object?>{
+              'compilerFamily': 'clang',
+              'cCompilerPath': clang.path,
+              'cxxCompilerPath': clangxx.path,
+            },
+          ),
+          activate: true,
+        )
+        ..register(
+          ToolchainDescriptor(
+            id: 'fake-cmake',
+            kind: ToolchainKind.buildTool,
+            displayName: 'Fake CMake',
+            executablePath: cmake.path,
+            metadata: const <String, Object?>{'toolFamily': 'cmake'},
+          ),
+          activate: true,
+        )
+        ..register(
+          ToolchainDescriptor(
+            id: 'fake-ninja',
+            kind: ToolchainKind.buildTool,
+            displayName: 'Fake Ninja',
+            executablePath: ninja.path,
+            metadata: const <String, Object?>{'toolFamily': 'ninja'},
+          ),
+        );
+      await toolchainStore.saveCatalog(
+        catalog,
+        targetId: platformManagers.context.targetId,
+      );
+      final projectGraph = ProjectGraphSnapshot.scratch(
+        workspaceRoot: tempRoot.path,
+        activeFilePath: 'src/main.cc',
+        title: 'Demo',
+        notes: const <String>[],
+      ).copyWith(editorFiles: <String>['src/main.cc', 'CMakeLists.txt']);
+      const initialDocument = DocumentState(
+        documentId: 'src/main.cc',
+        text: 'int main(){return 0;}\n',
+        revision: 0,
+      );
+      final shell = ShellRuntimeModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+        workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+          seededDocuments: const <String, DocumentState>{
+            'src/main.cc': initialDocument,
+            'CMakeLists.txt': DocumentState(
+              documentId: 'CMakeLists.txt',
+              text: 'cmake_minimum_required(VERSION 3.20)\n',
+              revision: 0,
+            ),
+          },
+        ),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: initialDocument,
+          languageService: const _NoopStyioLanguageService(),
+        ),
+        executionAdapter: const _NoopExecutionAdapter(),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            const _NoopExecutionAdapter(),
+        runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+        dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+        deploymentAdapter: const _NoopDeploymentAdapter(),
+        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+        toolchainManager: ToolchainManager(
+          configurationStore: toolchainStore,
+          platformManagers: platformManagers,
+        ),
+        clangCppVersionPreference: const ClangCppVersionPreference(
+          versionId: 'fake-clang',
+          cppStandard: CppLanguageStandard.cpp23,
+        ),
+      );
+      addTearDown(shell.dispose);
+
+      await shell.executeCommand(AppCommandId.runBuild);
+
+      final buildResult =
+          shell.lastNativeToolResult!.metadata['buildResult']!
+              as Map<String, Object?>;
+      final configureResult =
+          buildResult['configureResult']! as Map<String, Object?>;
+      final configureArguments = configureResult['arguments']! as List<Object?>;
+      final cmakeCalls = await cmakeLog.readAsLines();
+      expect(shell.lastNativeToolResult?.applied, isTrue);
+      expect(buildResult['configuredBeforeBuild'], isTrue);
+      expect(buildResult['buildDirectory'], 'build');
+      expect(buildResult['status'], 'passed');
+      expect(buildResult['diagnosticCount'], 1);
+      expect(configureResult['status'], 'passed');
+      expect(configureArguments, contains('-G'));
+      expect(configureArguments, contains('Ninja'));
+      expect(configureArguments, contains('-DCMAKE_CXX_STANDARD=23'));
+      expect(
+        configureArguments,
+        contains('-DCMAKE_CXX_COMPILER=${clangxx.path}'),
+      );
+      expect(cmakeCalls, hasLength(2));
+      expect(cmakeCalls.first, contains('-S . -B build -G Ninja'));
+      expect(cmakeCalls.first, contains('-DCMAKE_MAKE_PROGRAM=${ninja.path}'));
+      expect(cmakeCalls.last, '--build build');
     },
   );
 

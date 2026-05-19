@@ -16,6 +16,7 @@ import '../language/language_contract.dart';
 import '../module_host/module_host.dart';
 import '../platform/platform.dart';
 import '../toolchain/clang_cpp_version_configuration.dart';
+import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_install_executor.dart'
     hide ToolchainRecoveryAction;
@@ -1181,13 +1182,65 @@ class ShellRuntimeModel extends ChangeNotifier {
 
     switch (commandId) {
       case AppCommandId.runBuild:
+        final needsConfigure =
+            _hasWorkspaceFile('CMakeLists.txt') && !_hasConfiguredCMakeBuild();
+        final buildDirectory = needsConfigure
+            ? 'build'
+            : _nativeBuildDirectoryArgument();
+        Map<String, Object?>? configureResult;
+        if (needsConfigure) {
+          final configureArguments = await _nativeCMakeConfigureArguments(
+            manager,
+            buildDirectory: buildDirectory,
+          );
+          final configure = await manager.run(
+            kind: ToolchainKind.buildTool,
+            requirement: const ToolchainRequirement(
+              kind: ToolchainKind.buildTool,
+              metadata: <String, Object?>{'toolFamily': 'cmake'},
+            ),
+            arguments: configureArguments,
+            workingDirectory: workspaceController.activeProject.workspaceRoot,
+            timeout: const Duration(minutes: 5),
+          );
+          configureResult = <String, Object?>{
+            'runner': 'cmake',
+            'status': configure.succeeded ? 'passed' : 'failed',
+            'arguments': configureArguments,
+          };
+          if (!configure.succeeded) {
+            final message = _nativeToolFailureMessage(
+              commandId,
+              configure.message,
+            );
+            final commandResult = _NativeToolCommandResult(
+              applied: false,
+              message: message,
+              metadata: <String, Object?>{
+                'buildResult': <String, Object?>{
+                  'runner': 'cmake',
+                  'status': 'failed',
+                  'buildDirectory': buildDirectory,
+                  'configuredBeforeBuild': true,
+                  'configureResult': configureResult,
+                  'diagnosticCount': 0,
+                },
+              },
+            );
+            _recordNativeToolResult(commandId, commandResult);
+            appendLog(message);
+            notifyListeners();
+            return commandResult;
+          }
+        }
+        final buildArguments = <String>['--build', buildDirectory];
         final result = await manager.run(
           kind: ToolchainKind.buildTool,
           requirement: const ToolchainRequirement(
             kind: ToolchainKind.buildTool,
             metadata: <String, Object?>{'toolFamily': 'cmake'},
           ),
-          arguments: <String>['--build', _nativeBuildDirectoryArgument()],
+          arguments: buildArguments,
           workingDirectory: workspaceController.activeProject.workspaceRoot,
           timeout: const Duration(minutes: 5),
         );
@@ -1200,6 +1253,10 @@ class ShellRuntimeModel extends ChangeNotifier {
         final buildResult = <String, Object?>{
           'runner': 'cmake',
           'status': result.succeeded ? 'passed' : 'failed',
+          'buildDirectory': buildDirectory,
+          'configuredBeforeBuild': configureResult != null,
+          if (configureResult != null) 'configureResult': configureResult,
+          'arguments': buildArguments,
           'diagnosticCount': diagnostics.length,
         };
         final message = result.succeeded
@@ -2203,17 +2260,57 @@ class ShellRuntimeModel extends ChangeNotifier {
   }
 
   String _nativeBuildDirectoryArgument() {
-    final files = workspaceController.files.map((path) {
-      return path.replaceAll('\\', '/');
-    });
+    final files = _normalizedWorkspaceFiles();
     if (files.any(
       (path) =>
           path == 'build/compile_commands.json' ||
-          path == 'build/CMakeCache.txt',
+          path == 'build/CMakeCache.txt' ||
+          path == 'build/build.ninja',
     )) {
       return 'build';
     }
     return '.';
+  }
+
+  Set<String> _normalizedWorkspaceFiles() {
+    return workspaceController.files
+        .map((path) => path.replaceAll('\\', '/'))
+        .toSet();
+  }
+
+  bool _hasWorkspaceFile(String filePath) {
+    return _normalizedWorkspaceFiles().contains(filePath);
+  }
+
+  bool _hasConfiguredCMakeBuild() {
+    final files = _normalizedWorkspaceFiles();
+    return files.contains('build/compile_commands.json') ||
+        files.contains('build/CMakeCache.txt');
+  }
+
+  Future<List<String>> _nativeCMakeConfigureArguments(
+    ToolchainManager manager, {
+    required String buildDirectory,
+  }) async {
+    final selection = await _loadClangCppSelection(manager);
+    return <String>[
+      '-S',
+      '.',
+      '-B',
+      buildDirectory,
+      ...?selection?.cmakeNinjaConfigureArguments,
+    ];
+  }
+
+  Future<ClangCppVersionSelection?> _loadClangCppSelection(
+    ToolchainManager manager,
+  ) async {
+    final snapshot =
+        toolchainStatusReport?.value.snapshot ?? await manager.snapshot();
+    return ClangCppVersionManager.fromSnapshot(
+      snapshot,
+      preference: _clangCppVersionPreference,
+    ).select();
   }
 
   List<Diagnostic> _clangBuildDiagnosticsFromOutput(String output) {

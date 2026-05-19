@@ -1033,7 +1033,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
       setState(() {
         _lastCommandApplicationMessage = result.message;
         _lastRetryableCommandSuggestion =
-            result.applied && command.prerequisiteForCommandId != null
+            result.applied && _commandCompletesPrerequisite(command)
             ? AgentIdeCommandSuggestion(
                 commandId: command.prerequisiteForCommandId!,
                 reason: 'Retry after ${command.commandId}.',
@@ -1072,8 +1072,17 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     if (prerequisiteForCommandId == null) {
       return 'Command ${command.commandId} applied.';
     }
+    if (!_commandCompletesPrerequisite(command)) {
+      return 'Command ${command.commandId} applied. '
+          'Review Settings before retrying $prerequisiteForCommandId.';
+    }
     return 'Command ${command.commandId} applied. '
         '$prerequisiteForCommandId may now be retried.';
+  }
+
+  bool _commandCompletesPrerequisite(AgentIdeCommandSuggestion command) {
+    return command.prerequisiteForCommandId != null &&
+        command.commandId != 'openSettings';
   }
 
   AgentCommandResultContext _resolvedIdeCommandResult({

@@ -795,6 +795,14 @@ void main() {
 
     expect(appliedCommands.single.commandId, 'openSettings');
     expect(appliedCommands.single.prerequisiteForCommandId, 'runBuild');
+    expect(
+      find.text('Command openSettings applied. Review Settings before retrying runBuild.'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(OutlinedButton, 'Retry Original Command'),
+      findsNothing,
+    );
   });
 
   testWidgets('agent surface offers required command for dirty native tools', (
@@ -1427,6 +1435,14 @@ void main() {
 
     expect(appliedCommands.single.commandId, 'openSettings');
     expect(appliedCommands.single.prerequisiteForCommandId, 'runBuild');
+    expect(
+      find.text('Command openSettings applied. Review Settings before retrying runBuild.'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(OutlinedButton, 'Retry Original Command'),
+      findsNothing,
+    );
   });
 
   testWidgets(
@@ -1512,6 +1528,16 @@ void main() {
       expect(
         appliedCommands.single.prerequisiteForCommandId,
         'selectClangCppVersion',
+      );
+      expect(
+        find.text(
+          'Command openSettings applied. Review Settings before retrying selectClangCppVersion.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(OutlinedButton, 'Retry Original Command'),
+        findsNothing,
       );
     },
   );

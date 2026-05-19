@@ -1279,6 +1279,10 @@ class ShellRuntimeModel extends ChangeNotifier {
             notifyListeners();
             return commandResult;
           }
+          _registerGeneratedCMakeBuildArtifacts(
+            buildDirectory: buildDirectory,
+            configureArguments: configureArguments,
+          );
         }
         final buildArguments = <String>['--build', buildDirectory];
         final result = await manager.run(
@@ -2454,6 +2458,20 @@ class ShellRuntimeModel extends ChangeNotifier {
       buildDirectory,
       ...?selection?.cmakeNinjaConfigureArguments,
     ];
+  }
+
+  void _registerGeneratedCMakeBuildArtifacts({
+    required String buildDirectory,
+    required List<String> configureArguments,
+  }) {
+    if (buildDirectory == '.') {
+      return;
+    }
+    workspaceController.registerFile('$buildDirectory/CMakeCache.txt');
+    workspaceController.registerFile('$buildDirectory/compile_commands.json');
+    if (configureArguments.contains('Ninja')) {
+      workspaceController.registerFile('$buildDirectory/build.ninja');
+    }
   }
 
   Future<ClangCppVersionSelection?> _loadClangCppSelection(

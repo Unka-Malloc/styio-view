@@ -2866,6 +2866,14 @@ printf 'src/main.cc:1:5: warning: configured build warning\\n'
       expect(cmakeCalls.first, contains('-S . -B build -G Ninja'));
       expect(cmakeCalls.first, contains('-DCMAKE_MAKE_PROGRAM=${ninja.path}'));
       expect(cmakeCalls.last, '--build build');
+      expect(
+        shell.workspaceController.files,
+        containsAll(<String>[
+          'build/CMakeCache.txt',
+          'build/compile_commands.json',
+          'build/build.ninja',
+        ]),
+      );
     },
   );
 

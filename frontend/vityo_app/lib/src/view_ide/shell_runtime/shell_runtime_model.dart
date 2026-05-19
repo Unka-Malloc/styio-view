@@ -23,6 +23,7 @@ import '../toolchain/toolchain_install_executor.dart'
 import '../toolchain/toolchain_install_policy.dart';
 import '../toolchain/toolchain_manager.dart';
 import '../toolchain/toolchain_resolver.dart';
+import '../toolchain/toolchain_runtime.dart';
 import '../workspace/workspace.dart';
 import '../../view_render/theme/vityo_theme.dart';
 
@@ -1216,6 +1217,7 @@ class ShellRuntimeModel extends ChangeNotifier {
             'configuredBeforeBuild': false,
             'arguments': ninjaArguments,
             'diagnosticCount': diagnostics.length,
+            ..._nativeToolProcessMetadata(result),
           };
           final message = result.succeeded
               ? 'Run Build completed.'
@@ -1251,6 +1253,7 @@ class ShellRuntimeModel extends ChangeNotifier {
             'runner': 'cmake',
             'status': configure.succeeded ? 'passed' : 'failed',
             'arguments': configureArguments,
+            ..._nativeToolProcessMetadata(configure),
           };
           if (!configure.succeeded) {
             final message = _nativeToolFailureMessage(
@@ -1302,6 +1305,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           if (configureResult != null) 'configureResult': configureResult,
           'arguments': buildArguments,
           'diagnosticCount': diagnostics.length,
+          ..._nativeToolProcessMetadata(result),
         };
         final message = result.succeeded
             ? 'Run Build completed.'
@@ -1338,6 +1342,7 @@ class ShellRuntimeModel extends ChangeNotifier {
                 'status': 'failed',
                 'changed': false,
                 'outputLength': result.stdout.length,
+                ..._nativeToolProcessMetadata(result),
               },
             },
           );
@@ -1375,6 +1380,7 @@ class ShellRuntimeModel extends ChangeNotifier {
               'status': 'passed',
               'changed': changed,
               'outputLength': formattedText.length,
+              ..._nativeToolProcessMetadata(result),
             },
           },
         );
@@ -1420,6 +1426,7 @@ class ShellRuntimeModel extends ChangeNotifier {
               'compilationDatabase': compilationDatabase,
               'arguments': analysisArguments,
               'diagnosticCount': diagnostics.length,
+              ..._nativeToolProcessMetadata(result),
             },
           },
           diagnostics: diagnostics,
@@ -1451,6 +1458,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           ),
           'testDirectory': testDirectory,
           'arguments': testArguments,
+          ..._nativeToolProcessMetadata(result),
         };
         final message = result.succeeded
             ? 'Run Tests completed.'
@@ -2320,6 +2328,28 @@ class ShellRuntimeModel extends ChangeNotifier {
         ? ''
         : ': ${detail.trim()}';
     return '${_nativeToolCommandLabel(commandId)} failed$suffix.';
+  }
+
+  Map<String, Object?> _nativeToolProcessMetadata(
+    ToolchainRuntimeResult result,
+  ) {
+    return <String, Object?>{
+      if (result.exitCode != null) 'exitCode': result.exitCode,
+      'stdoutLength': result.stdout.length,
+      'stderrLength': result.stderr.length,
+      if (result.stdout.trim().isNotEmpty)
+        'stdoutPreview': _nativeToolOutputPreview(result.stdout),
+      if (result.stderr.trim().isNotEmpty)
+        'stderrPreview': _nativeToolOutputPreview(result.stderr),
+    };
+  }
+
+  String _nativeToolOutputPreview(String output, {int limit = 4000}) {
+    final normalized = output.trim();
+    if (normalized.length <= limit) {
+      return normalized;
+    }
+    return '${normalized.substring(0, limit)}...';
   }
 
   String _nativeBuildDirectoryArgument() {

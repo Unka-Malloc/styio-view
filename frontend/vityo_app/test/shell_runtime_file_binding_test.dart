@@ -2967,6 +2967,8 @@ printf 'src/main.cc:1:5: warning: ninja build warning\\n'
     expect(buildResult['configuredBeforeBuild'], isFalse);
     expect(buildResult['arguments'], <Object?>['-C', 'build']);
     expect(buildResult['diagnosticCount'], 1);
+    expect(buildResult['exitCode'], 0);
+    expect(buildResult['stdoutPreview'], contains('ninja build warning'));
     expect(await ninjaLog.readAsString(), '-C build\n');
   });
 
@@ -3074,6 +3076,8 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
       'build',
       '--output-on-failure',
     ]);
+    expect(testResult['exitCode'], 0);
+    expect(testResult['stdoutPreview'], contains('100% tests passed'));
     expect(
       await ctestLog.readAsString(),
       '--test-dir build --output-on-failure\n',
@@ -3184,6 +3188,8 @@ printf 'src/main.cc:1:5: warning: tidy warning [readability-demo]\\n'
       'src/main.cc',
     ]);
     expect(analysisResult['diagnosticCount'], 1);
+    expect(analysisResult['exitCode'], 0);
+    expect(analysisResult['stdoutPreview'], contains('tidy warning'));
     expect(await analyzerLog.readAsString(), '-p build src/main.cc\n');
   });
 

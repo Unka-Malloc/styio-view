@@ -176,6 +176,8 @@ class _AgentProviderProfileSectionState
   late final TextEditingController _displayNameController;
   late final TextEditingController _baseUrlController;
   late final TextEditingController _modelController;
+  late final TextEditingController _fallbackBaseUrlController;
+  late final TextEditingController _fallbackModelController;
   late final TextEditingController _systemPromptController;
   late final TextEditingController _bearerTokenController;
   late Set<String> _contextChannels;
@@ -192,6 +194,16 @@ class _AgentProviderProfileSectionState
     _displayNameController = TextEditingController(text: profile.displayName);
     _baseUrlController = TextEditingController(text: profile.endpoint.baseUrl);
     _modelController = TextEditingController(text: profile.endpoint.model);
+    _fallbackBaseUrlController = TextEditingController(
+      text: profile.fallbackEndpoints.isEmpty
+          ? ''
+          : profile.fallbackEndpoints.first.baseUrl,
+    );
+    _fallbackModelController = TextEditingController(
+      text: profile.fallbackEndpoints.isEmpty
+          ? ''
+          : profile.fallbackEndpoints.first.model,
+    );
     _systemPromptController = TextEditingController(text: profile.systemPrompt);
     _bearerTokenController = TextEditingController();
     _contextChannels = profile.contextChannels.toSet();
@@ -220,6 +232,8 @@ class _AgentProviderProfileSectionState
     _displayNameController.dispose();
     _baseUrlController.dispose();
     _modelController.dispose();
+    _fallbackBaseUrlController.dispose();
+    _fallbackModelController.dispose();
     _systemPromptController.dispose();
     _bearerTokenController.dispose();
     super.dispose();
@@ -255,6 +269,12 @@ class _AgentProviderProfileSectionState
     _displayNameController.text = profile.displayName;
     _baseUrlController.text = profile.endpoint.baseUrl;
     _modelController.text = profile.endpoint.model;
+    _fallbackBaseUrlController.text = profile.fallbackEndpoints.isEmpty
+        ? ''
+        : profile.fallbackEndpoints.first.baseUrl;
+    _fallbackModelController.text = profile.fallbackEndpoints.isEmpty
+        ? ''
+        : profile.fallbackEndpoints.first.model;
     _systemPromptController.text = profile.systemPrompt;
     _bearerTokenController.clear();
     _contextChannels = profile.contextChannels.toSet();
@@ -266,6 +286,10 @@ class _AgentProviderProfileSectionState
       profile.displayName,
       profile.endpoint.baseUrl,
       profile.endpoint.model,
+      if (profile.fallbackEndpoints.isNotEmpty)
+        profile.fallbackEndpoints.first.baseUrl,
+      if (profile.fallbackEndpoints.isNotEmpty)
+        profile.fallbackEndpoints.first.model,
       profile.systemPrompt,
       ...profile.contextChannels,
     ].join('\n');
@@ -424,6 +448,28 @@ class _AgentProviderProfileSectionState
           ),
           const SizedBox(height: 10),
           TextFormField(
+            key: const ValueKey('agent-profile-fallback-base-url-input'),
+            controller: _fallbackBaseUrlController,
+            enabled: !locked,
+            decoration: const InputDecoration(
+              labelText: 'Fallback cloud base URL (optional)',
+              helperText:
+                  'Used when the primary endpoint is blocked or unavailable.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            key: const ValueKey('agent-profile-fallback-model-input'),
+            controller: _fallbackModelController,
+            enabled: !locked,
+            decoration: const InputDecoration(
+              labelText: 'Fallback cloud model (optional)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
             key: const ValueKey('agent-profile-system-prompt-input'),
             controller: _systemPromptController,
             enabled: !locked,
@@ -455,23 +501,33 @@ class _AgentProviderProfileSectionState
   Future<void> _saveProfile() async {
     final baseUrl = _baseUrlController.text.trim();
     final model = _modelController.text.trim();
+    final fallbackBaseUrl = _fallbackBaseUrlController.text.trim();
+    final fallbackModel = _fallbackModelController.text.trim();
     if (baseUrl.isEmpty || model.isEmpty) {
       setState(() {
         _errorMessage = 'Base URL and model are required.';
       });
       return;
     }
-    final endpointUri = Uri.tryParse(baseUrl);
-    final isRootRelativePath =
-        baseUrl.startsWith('/') && !baseUrl.startsWith('//');
-    final isHttpUrl =
-        endpointUri != null &&
-        endpointUri.hasScheme &&
-        (endpointUri.scheme == 'http' || endpointUri.scheme == 'https');
-    if (!isRootRelativePath && !isHttpUrl) {
+    if (!_isValidProviderBaseUrl(baseUrl)) {
       setState(() {
         _errorMessage =
             'Base URL must be an http(s) URL or root-relative path.';
+      });
+      return;
+    }
+    final hasFallback = fallbackBaseUrl.isNotEmpty || fallbackModel.isNotEmpty;
+    if (hasFallback && (fallbackBaseUrl.isEmpty || fallbackModel.isEmpty)) {
+      setState(() {
+        _errorMessage =
+            'Fallback base URL and model must both be provided.';
+      });
+      return;
+    }
+    if (hasFallback && !_isValidProviderBaseUrl(fallbackBaseUrl)) {
+      setState(() {
+        _errorMessage =
+            'Fallback base URL must be an http(s) URL or root-relative path.';
       });
       return;
     }
@@ -501,6 +557,17 @@ class _AgentProviderProfileSectionState
         protocol: current.endpoint.protocol,
         credentialReference: current.endpoint.credentialReference,
       ),
+      fallbackEndpoints: hasFallback
+          ? <AgentProviderEndpoint>[
+              AgentProviderEndpoint(
+                route: AgentProviderRoute.webHosted,
+                baseUrl: fallbackBaseUrl,
+                model: fallbackModel,
+                apiKeyEnvironmentName: current.endpoint.apiKeyEnvironmentName,
+                protocol: current.endpoint.protocol,
+              ),
+            ]
+          : const <AgentProviderEndpoint>[],
       contextChannels: _contextChannels.toList(growable: false),
     );
 
@@ -529,6 +596,16 @@ class _AgentProviderProfileSectionState
       }
     }
   }
+}
+
+bool _isValidProviderBaseUrl(String value) {
+  final endpointUri = Uri.tryParse(value);
+  final isRootRelativePath = value.startsWith('/') && !value.startsWith('//');
+  final isHttpUrl =
+      endpointUri != null &&
+      endpointUri.hasScheme &&
+      (endpointUri.scheme == 'http' || endpointUri.scheme == 'https');
+  return isRootRelativePath || isHttpUrl;
 }
 
 class _AgentProviderExecutionStatusCard extends StatelessWidget {

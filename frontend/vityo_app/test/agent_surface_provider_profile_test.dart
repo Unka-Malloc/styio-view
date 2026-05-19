@@ -87,6 +87,14 @@ void main() {
       'gpt-test',
     );
     await tester.enterText(
+      find.byKey(const ValueKey('agent-profile-fallback-base-url-input')),
+      'https://fallback-agent.example.test/v1',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('agent-profile-fallback-model-input')),
+      'gpt-fallback-test',
+    );
+    await tester.enterText(
       find.byKey(const ValueKey('agent-profile-system-prompt-input')),
       'Use Vityo IDE context.',
     );
@@ -108,6 +116,12 @@ void main() {
     expect(savedProfile?.displayName, 'Cloud Agent');
     expect(savedProfile?.endpoint.baseUrl, 'https://agent.example.test/v1');
     expect(savedProfile?.endpoint.model, 'gpt-test');
+    expect(savedProfile?.fallbackEndpoints, hasLength(1));
+    expect(
+      savedProfile?.fallbackEndpoints.single.baseUrl,
+      'https://fallback-agent.example.test/v1',
+    );
+    expect(savedProfile?.fallbackEndpoints.single.model, 'gpt-fallback-test');
     expect(savedProfile?.systemPrompt, 'Use Vityo IDE context.');
     expect(savedProfile?.contextChannels, isNot(contains('runtime')));
     expect(savedBearerToken, 'test-token');

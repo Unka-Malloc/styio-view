@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..");
 const manifestPath = path.join(root, "prototype-manifest.json");
 const governancePath = path.join(root, "PROTOTYPE-GOVERNANCE.md");
-const allowedStatuses = new Set(["canonical", "gallery-index", "style-experiment"]);
+const allowedStatuses = new Set(["canonical", "style-experiment"]);
 const allowedOwners = new Set(["Shell / Editor", "Theme / UX"]);
 
 function readJson(filePath) {
@@ -128,7 +128,7 @@ function main() {
     if (!hasMetadata(text)) {
       errors.push("PROTOTYPE-GOVERNANCE.md must include H1, Purpose, and Last updated metadata");
     }
-    for (const required of ["canonical", "gallery-index", "style-experiment", "npm run governance"]) {
+    for (const required of ["canonical", "style-experiment", "npm run governance"]) {
       if (!text.includes(required)) {
         errors.push(`PROTOTYPE-GOVERNANCE.md must document ${required}`);
       }

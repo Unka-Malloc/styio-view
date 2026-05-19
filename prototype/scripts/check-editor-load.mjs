@@ -11,7 +11,7 @@ import { chromium } from "playwright-core";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROTOTYPE_ROOT = path.resolve(__dirname, "..");
-const DEFAULT_URL = process.env.STYIO_EDITOR_URL ?? "http://127.0.0.1:4173/editor.html";
+const DEFAULT_URL = process.env.STYIO_EDITOR_URL ?? "http://127.0.0.1:4180/editor";
 const CHROME_PATH =
   process.env.STYIO_CHROME_PATH ??
   process.env.CHROME_EXECUTABLE ??

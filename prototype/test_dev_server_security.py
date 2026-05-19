@@ -60,6 +60,7 @@ class DevServerSecurityBoundaryTest(unittest.TestCase):
         *,
         body: dict | None = None,
         headers: dict[str, str] | None = None,
+        follow_redirects: bool = True,
     ) -> tuple[int, dict[str, str], bytes]:
         request_headers = headers.copy() if headers else {}
         data = None
@@ -73,15 +74,18 @@ class DevServerSecurityBoundaryTest(unittest.TestCase):
             headers=request_headers,
             method=method,
         )
+        opener = urllib.request.build_opener()
+        if not follow_redirects:
+            opener = urllib.request.build_opener(_NoRedirectHandler)
 
         try:
-            with urllib.request.urlopen(request, timeout=5) as response:
+            with opener.open(request, timeout=5) as response:
                 return response.status, dict(response.headers), response.read()
         except urllib.error.HTTPError as error:
             return error.code, dict(error.headers), error.read()
 
     def load_session_cookie(self) -> str:
-        status, headers, _ = self.request("GET", "/editor.html")
+        status, headers, _ = self.request("GET", "/editor")
         self.assertEqual(status, 200)
 
         set_cookie = headers.get("Set-Cookie")
@@ -90,6 +94,55 @@ class DevServerSecurityBoundaryTest(unittest.TestCase):
         self.assertIn("HttpOnly", set_cookie)
         self.assertIn("SameSite=Strict", set_cookie)
         return set_cookie.split(";", 1)[0]
+
+    def header_value(self, headers: dict[str, str], name: str) -> str:
+        for header_name, value in headers.items():
+            if header_name.casefold() == name.casefold():
+                return value
+        return ""
+
+    def test_root_redirects_to_canonical_editor_route(self) -> None:
+        status, headers, body = self.request(
+            "GET",
+            "/",
+            follow_redirects=False,
+        )
+
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("Location"), "/editor")
+        self.assertEqual(body, b"")
+
+    def test_editor_route_serves_focused_editor_page(self) -> None:
+        status, headers, body = self.request("GET", "/editor")
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", self.header_value(headers, "Content-Type"))
+        self.assertIn(b'id="editorInput"', body)
+        self.assertIn(b'./editor.js', body)
+        self.assertNotIn(b"Design Repository", body)
+
+    def test_removed_legacy_entrypoint_is_not_served(self) -> None:
+        for route in ("/index", "/index.html"):
+            with self.subTest(route=route):
+                status, _, body = self.request(
+                    "GET",
+                    route,
+                    follow_redirects=False,
+                )
+
+                self.assertEqual(status, 404)
+                self.assertNotIn(b"Design Repository", body)
+
+    def test_removed_legacy_entrypoint_assets_are_not_served(self) -> None:
+        for route in ("/app.js", "/styles.css"):
+            with self.subTest(route=route):
+                status, _, _ = self.request(
+                    "GET",
+                    route,
+                    follow_redirects=False,
+                )
+
+                self.assertEqual(status, 404)
 
     def authenticated_headers(self, *, origin: str | None = None) -> dict[str, str]:
         headers = {"Cookie": self.session_cookie}
@@ -196,6 +249,11 @@ class DevServerSecurityBoundaryTest(unittest.TestCase):
         self.assertEqual(status, 403)
         self.assertIn(b"origin is not allowed", body)
         self.assertFalse((dev_server.WORKSPACE_ROOT / "created.styio").exists())
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 **Purpose:** Describe the handwritten `Vityo` prototype surfaces, their local server, and the repo-local governance checks that keep them owned and testable.
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-18
 
 当前目录是 `Vityo` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。
 
@@ -15,19 +15,16 @@
 
 ## Files
 
-1. `index.html`: 页面结构
-2. `styles.css`: 视觉系统与布局
-3. `app.js`: 编辑器、模块、runtime 与保存交互
-4. `dev_server.py`: 本地开发服务，提供静态资源和受保护的工作区 API
-5. `workspace/*.styio`: 原型编辑器真实加载和保存的本地文件
-6. `CHANGELOG.md`: 每轮页面可见变化记录
-7. `editor.html` / `editor.css` / `editor.js`: 当前人工维护的 focused Web Editor 页面
-8. `editor-modules/*.js`: focused editor 的配置、枚举、主题模板、渲染调度与默认状态模块
-9. `GRID-STYLE-REFERENCE.md`: `Grid` 风格的布局结构、共享变量、几何约束与自测规则
-10. `GRID-STYLE-PRACTICE.md`: `Grid` 风格在重构、调样和验证过程中沉淀下来的工程经验与维护方法
-11. `PROTOTYPE-GOVERNANCE.md`: top-level HTML 原型的治理规则、分类和 gate
-12. `prototype-manifest.json`: top-level HTML 原型清单，声明 canonical / gallery / style experiment 边界
-13. `scripts/check-prototype-governance.mjs`: manifest 与治理文档的可执行校验
+1. `editor.html` / `editor.css` / `editor.js`: 当前人工维护的 focused Web Editor 页面
+2. `editor-modules/*.js`: focused editor 的配置、枚举、主题模板、渲染调度与默认状态模块
+3. `dev_server.py`: 本地开发服务，提供静态资源和受保护的工作区 API；`/` 跳转 `/editor`，`/editor` 绑定 `editor.html`
+4. `workspace/*.styio`: 原型编辑器真实加载和保存的本地文件
+5. `CHANGELOG.md`: 每轮页面可见变化记录
+6. `GRID-STYLE-REFERENCE.md`: `Grid` 风格的布局结构、共享变量、几何约束与自测规则
+7. `GRID-STYLE-PRACTICE.md`: `Grid` 风格在重构、调样和验证过程中沉淀下来的工程经验与维护方法
+8. `PROTOTYPE-GOVERNANCE.md`: top-level HTML 原型的治理规则、分类和 gate
+9. `prototype-manifest.json`: top-level HTML 原型清单，声明 canonical / style experiment 边界
+10. `scripts/check-prototype-governance.mjs`: manifest 与治理文档的可执行校验
 
 ## Current Focus
 
@@ -63,7 +60,7 @@
 14. 在左侧 `Raw Source Buffer` 里直接输入源码，右侧 `Render Projection` 会实时重绘符号和函数块表面
 15. 当前 `Ctrl+Enter` 会先检查最小可编译单元；未闭合的函数块会直接给出 compile blocked
 16. 启动服务时显式设置 `STYIO_DEV_SERVER_ENABLE_MUTATION=1` 后，点击 `Save` 或按 `Command/Ctrl+S` 会把当前文件写回 `prototype/workspace/<file>.styio`
-17. 访问 `http://127.0.0.1:4173/editor.html` 可以打开只保留单一编辑面的 focused editor 版本
+17. 访问 `http://127.0.0.1:4180/editor` 可以打开真正的 focused editor 页面；`/` 会重定向到 `/editor`，旧引导页不再作为可访问入口保留
 18. focused editor 右上角按钮会呼出右侧抽屉，里面分成 `目录树` 和 `设置` 两个 Tab
 19. focused editor 当前固定只维护 `main.styio`，不再混入其它非主线示例文件
 20. 当前默认视觉基线为 `Graphite` 壳层，并以 `#F4C76A` 作为默认强调色和 symbol 高亮色
@@ -98,8 +95,8 @@
 
 1. 在 `prototype/` 下运行 `npm run governance`，确认 top-level HTML 原型都被 `prototype-manifest.json` 声明并归属到 owner。
 2. 运行 `npm run selftest:editor`，检查当前 canonical focused editor。
-3. 若使用仓库内的 `dev_server.py`，请显式设置 `STYIO_EDITOR_URL=http://127.0.0.1:4180/editor.html`
-4. 这条脚本会自动检查 `editor.html` 是否可打开，并在需要时自动启动 `dev_server.py`
+3. 若使用仓库内的 `dev_server.py`，请显式设置 `STYIO_EDITOR_URL=http://127.0.0.1:4180/editor`
+4. 这条脚本会自动检查 `/editor` 是否可打开，并在需要时自动启动 `dev_server.py`
 5. 自测会覆盖：
    - 页面基础资源加载
    - 侧边栏展开
@@ -125,3 +122,4 @@
 5. 默认界面字体、编辑器字体、数学 glyph 字体和用户可见主题预设名必须优先采用开源、低争议来源；不得把商业专有字体作为默认值，也不得把第三方商业产品名直接当作默认主题标签
 6. 新增、删除或重命名 top-level `*.html` 原型时，必须同步更新 `prototype-manifest.json` 并运行 `npm run governance`
 7. 只有 `prototype-manifest.json` 中的 `canonical` entry 可以定义当前产品行为；`style-experiment` 页面只提供视觉参考，不能引入 workspace mutation、adapter contract 或 dev-server API 语义
+8. 不再保留 gallery/index 引导页及其 `app.js` / `styles.css` 入口资源；默认入口和人工调试入口都必须落到 `/editor`

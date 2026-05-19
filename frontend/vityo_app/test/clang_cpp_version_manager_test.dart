@@ -54,6 +54,10 @@ void main() {
       expect(selection!.candidate.versionId, 'clang-18');
       expect(selection.cmakeAvailable, isTrue);
       expect(selection.ninjaAvailable, isTrue);
+      expect(manager.cmakeToolchainId, 'cmake');
+      expect(manager.cmakeExecutablePath, '/usr/bin/cmake');
+      expect(manager.ninjaToolchainId, 'ninja');
+      expect(manager.ninjaExecutablePath, '/usr/bin/ninja');
       expect(selection.cmakeConfigureArguments, <String>[
         '-DCMAKE_C_COMPILER=/opt/clang-18/bin/clang',
         '-DCMAKE_CXX_COMPILER=/opt/clang-18/bin/clang++',

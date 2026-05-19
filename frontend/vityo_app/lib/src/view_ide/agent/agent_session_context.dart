@@ -944,6 +944,10 @@ class AgentClangCppToolchainContext {
     this.activeVersionId,
     this.requestedVersionId,
     this.preferenceMessage,
+    this.cmakeToolchainId,
+    this.cmakeExecutablePath,
+    this.ninjaToolchainId,
+    this.ninjaExecutablePath,
     this.selection,
   });
 
@@ -967,6 +971,10 @@ class AgentClangCppToolchainContext {
       ninjaAvailable: manager.ninjaAvailable,
       preferenceStatus: manager.preferenceStatus,
       preferenceMessage: manager.preferenceMessage,
+      cmakeToolchainId: manager.cmakeToolchainId,
+      cmakeExecutablePath: manager.cmakeExecutablePath,
+      ninjaToolchainId: manager.ninjaToolchainId,
+      ninjaExecutablePath: manager.ninjaExecutablePath,
       selection: manager.select(),
     );
   }
@@ -979,6 +987,10 @@ class AgentClangCppToolchainContext {
   final bool ninjaAvailable;
   final ClangCppVersionPreferenceStatus preferenceStatus;
   final String? preferenceMessage;
+  final String? cmakeToolchainId;
+  final String? cmakeExecutablePath;
+  final String? ninjaToolchainId;
+  final String? ninjaExecutablePath;
   final ClangCppVersionSelection? selection;
 
   Map<String, Object?> toJson() {
@@ -996,7 +1008,13 @@ class AgentClangCppToolchainContext {
         'compilerFlag': defaultCppStandard.compilerFlag,
       },
       'cmakeAvailable': cmakeAvailable,
+      if (cmakeToolchainId != null) 'cmakeToolchainId': cmakeToolchainId,
+      if (cmakeExecutablePath != null)
+        'cmakeExecutablePath': cmakeExecutablePath,
       'ninjaAvailable': ninjaAvailable,
+      if (ninjaToolchainId != null) 'ninjaToolchainId': ninjaToolchainId,
+      if (ninjaExecutablePath != null)
+        'ninjaExecutablePath': ninjaExecutablePath,
       if (selection != null) 'selection': selection!.toManifest(),
     };
   }

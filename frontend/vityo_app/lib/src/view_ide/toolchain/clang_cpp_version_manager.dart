@@ -131,6 +131,10 @@ class ClangCppVersionManager {
     this.requestedVersionId,
     this.preferenceStatus = ClangCppVersionPreferenceStatus.activeDefault,
     this.preferenceMessage,
+    this.cmakeToolchainId,
+    this.cmakeExecutablePath,
+    this.ninjaToolchainId,
+    this.ninjaExecutablePath,
   }) : candidates = List<ClangCppVersionCandidate>.unmodifiable(candidates);
 
   factory ClangCppVersionManager.fromCatalog(
@@ -157,15 +161,21 @@ class ClangCppVersionManager {
       preference?.versionId,
       fallbackVersionId: activeCandidate?.versionId,
     );
+    final cmake = _selectCatalogBuildTool(catalog, 'cmake');
+    final ninja = _selectCatalogBuildTool(catalog, 'ninja');
     return ClangCppVersionManager(
       candidates: candidates,
       activeVersionId: resolution.selectedVersionId,
-      cmakeAvailable: _hasBuildTool(catalog, 'cmake'),
-      ninjaAvailable: _hasBuildTool(catalog, 'ninja'),
+      cmakeAvailable: cmake != null,
+      ninjaAvailable: ninja != null,
       defaultCppStandard: preference?.cppStandard ?? defaultCppStandard,
       requestedVersionId: preference?.versionId,
       preferenceStatus: resolution.status,
       preferenceMessage: resolution.message,
+      cmakeToolchainId: cmake?.id,
+      cmakeExecutablePath: cmake?.executablePath,
+      ninjaToolchainId: ninja?.id,
+      ninjaExecutablePath: ninja?.executablePath,
     );
   }
 
@@ -203,15 +213,21 @@ class ClangCppVersionManager {
       preference?.versionId,
       fallbackVersionId: activeCandidate?.versionId,
     );
+    final cmake = _selectSnapshotBuildTool(snapshot, 'cmake');
+    final ninja = _selectSnapshotBuildTool(snapshot, 'ninja');
     return ClangCppVersionManager(
       candidates: candidates,
       activeVersionId: resolution.selectedVersionId,
-      cmakeAvailable: _snapshotHasBuildTool(snapshot, 'cmake'),
-      ninjaAvailable: _snapshotHasBuildTool(snapshot, 'ninja'),
+      cmakeAvailable: cmake != null,
+      ninjaAvailable: ninja != null,
       defaultCppStandard: preference?.cppStandard ?? defaultCppStandard,
       requestedVersionId: preference?.versionId,
       preferenceStatus: resolution.status,
       preferenceMessage: resolution.message,
+      cmakeToolchainId: cmake?.id,
+      cmakeExecutablePath: cmake?.executablePath,
+      ninjaToolchainId: ninja?.id,
+      ninjaExecutablePath: ninja?.executablePath,
     );
   }
 
@@ -223,6 +239,10 @@ class ClangCppVersionManager {
   final CppLanguageStandard defaultCppStandard;
   final ClangCppVersionPreferenceStatus preferenceStatus;
   final String? preferenceMessage;
+  final String? cmakeToolchainId;
+  final String? cmakeExecutablePath;
+  final String? ninjaToolchainId;
+  final String? ninjaExecutablePath;
 
   bool get hasCandidates => candidates.isNotEmpty;
 
@@ -268,26 +288,49 @@ class ClangCppVersionManager {
       if (preferenceMessage != null) 'preferenceMessage': preferenceMessage,
       'defaultCppStandard': defaultCppStandard.cmakeValue,
       'cmakeAvailable': cmakeAvailable,
+      if (cmakeToolchainId != null) 'cmakeToolchainId': cmakeToolchainId,
+      if (cmakeExecutablePath != null)
+        'cmakeExecutablePath': cmakeExecutablePath,
       'ninjaAvailable': ninjaAvailable,
+      if (ninjaToolchainId != null) 'ninjaToolchainId': ninjaToolchainId,
+      if (ninjaExecutablePath != null)
+        'ninjaExecutablePath': ninjaExecutablePath,
       'candidates': candidates
           .map((candidate) => candidate.toManifest())
           .toList(growable: false),
     };
   }
 
-  static bool _hasBuildTool(ToolchainCatalog catalog, String toolFamily) {
-    return catalog.list(kind: ToolchainKind.buildTool).any((descriptor) {
-      return _stringValue(descriptor.metadata['toolFamily']) == toolFamily;
-    });
+  static ToolchainDescriptor? _selectCatalogBuildTool(
+    ToolchainCatalog catalog,
+    String toolFamily,
+  ) {
+    final active = catalog.active(ToolchainKind.buildTool);
+    if (_stringValue(active?.metadata['toolFamily']) == toolFamily) {
+      return active;
+    }
+    for (final descriptor in catalog.list(kind: ToolchainKind.buildTool)) {
+      if (_stringValue(descriptor.metadata['toolFamily']) == toolFamily) {
+        return descriptor;
+      }
+    }
+    return null;
   }
 
-  static bool _snapshotHasBuildTool(
+  static ToolchainStateEntry? _selectSnapshotBuildTool(
     ToolchainStateSnapshot snapshot,
     String toolFamily,
   ) {
-    return snapshot.list(kind: ToolchainKind.buildTool).any((entry) {
-      return _stringValue(entry.metadata['toolFamily']) == toolFamily;
-    });
+    final active = snapshot.active(ToolchainKind.buildTool);
+    if (_stringValue(active?.metadata['toolFamily']) == toolFamily) {
+      return active;
+    }
+    for (final entry in snapshot.list(kind: ToolchainKind.buildTool)) {
+      if (_stringValue(entry.metadata['toolFamily']) == toolFamily) {
+        return entry;
+      }
+    }
+    return null;
   }
 
   static _ClangCppPreferenceResolution _resolvePreference(

@@ -66,7 +66,11 @@ void main() {
     expect(clangCppJson['requestedVersionId'], 'native-clang-cpp-compiler');
     expect(clangCppJson['preferenceStatus'], 'configured');
     expect(clangCppJson['cmakeAvailable'], isTrue);
+    expect(clangCppJson['cmakeToolchainId'], 'native-cmake-build-tool');
+    expect(clangCppJson['cmakeExecutablePath'], '/usr/bin/cmake');
     expect(clangCppJson['ninjaAvailable'], isTrue);
+    expect(clangCppJson['ninjaToolchainId'], 'native-ninja-build-tool');
+    expect(clangCppJson['ninjaExecutablePath'], '/usr/bin/ninja');
     expect(selectionJson['cmakeConfigureArguments'], <String>[
       '-DCMAKE_C_COMPILER=/usr/bin/clang',
       '-DCMAKE_CXX_COMPILER=/usr/bin/clang++',

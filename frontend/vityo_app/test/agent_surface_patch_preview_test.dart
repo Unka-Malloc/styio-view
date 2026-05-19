@@ -2015,6 +2015,63 @@ void main() {
     expect(find.text('Changed files: main.styio'), findsOneWidget);
   });
 
+  testWidgets('agent surface renders skipped no-op patch files', (
+    tester,
+  ) async {
+    final editorController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 4,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: _NoOpPatchAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.updatePrompt('Apply no-op.');
+    await controller.sendPrompt();
+    controller.applyPendingPatch(
+      AgentCodePatchApplier(editorController: editorController),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text(
+        'Agent patch patch-noop produced no text changes for the active document.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Skipped no-op files: main.styio'), findsOneWidget);
+  });
+
   testWidgets(
     'agent patch application feedback reaches next provider request',
     (tester) async {
@@ -4601,6 +4658,46 @@ class _RecordingFailedPatchFeedbackAgentProviderAdapter
       finishReason: 'stop',
       contentParts: const <AgentContentPart>[
         AgentContentPart(kind: AgentContentPartKind.text, text: 'Repairing.'),
+      ],
+    );
+  }
+}
+
+class _NoOpPatchAgentProviderAdapter implements AgentProviderAdapter {
+  @override
+  String get adapterId => 'noop-patch';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.cloudOpenAICompatible;
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(
+    AgentProviderRequest request,
+  ) async {
+    return const AgentProviderResponseEnvelope(
+      requestId: 'agent-request-noop',
+      role: 'assistant',
+      finishReason: 'stop',
+      contentParts: <AgentContentPart>[
+        AgentContentPart(
+          kind: AgentContentPartKind.codePatch,
+          text: 'Patch ready.',
+          patch: AgentCodePatch(
+            patchId: 'patch-noop',
+            summary: 'No-op value.',
+            edits: <AgentCodePatchEdit>[
+              AgentCodePatchEdit(
+                documentId: 'main.styio',
+                start: 0,
+                end: 5,
+                replacementText: 'value',
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

@@ -1738,6 +1738,13 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
+                if (patchResult.skippedNoOpDocumentIds.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Skipped no-op files: ${_documentListSummary(patchResult.skippedNoOpDocumentIds)}',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
               ],
             ],
           ),

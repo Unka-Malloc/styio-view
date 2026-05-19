@@ -11,8 +11,10 @@ class WorkspaceSearchSurface extends StatefulWidget {
     required this.workspaceFileCount,
     this.workspaceFiles = const <String>[],
     this.lastSearch,
+    this.lastReplacePreview,
     this.onSearch,
     this.onOpenFile,
+    this.onPreviewReplace,
     this.onOpenMatch,
   });
 
@@ -20,8 +22,11 @@ class WorkspaceSearchSurface extends StatefulWidget {
   final int workspaceFileCount;
   final List<String> workspaceFiles;
   final AgentWorkspaceSearchResultContext? lastSearch;
+  final WorkspaceReplacePreview? lastReplacePreview;
   final Future<void> Function(String query)? onSearch;
   final Future<void> Function(String documentId)? onOpenFile;
+  final Future<void> Function(String query, String replacement)?
+      onPreviewReplace;
   final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
       onOpenMatch;
 
@@ -32,8 +37,10 @@ class WorkspaceSearchSurface extends StatefulWidget {
 class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
   late final TextEditingController _queryController;
   late final TextEditingController _quickOpenController;
+  late final TextEditingController _replaceController;
   static const _quickOpenService = WorkspaceQuickOpenService();
   var _submitting = false;
+  var _previewingReplace = false;
   var _quickOpenQuery = '';
 
   @override
@@ -43,6 +50,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
       text: widget.lastSearch?.query ?? '',
     );
     _quickOpenController = TextEditingController();
+    _replaceController = TextEditingController();
   }
 
   @override
@@ -60,6 +68,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
   void dispose() {
     _queryController.dispose();
     _quickOpenController.dispose();
+    _replaceController.dispose();
     super.dispose();
   }
 
@@ -82,6 +91,27 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
     }
   }
 
+  Future<void> _previewReplace() async {
+    final query = _queryController.text.trim();
+    if (query.isEmpty ||
+        widget.onPreviewReplace == null ||
+        _previewingReplace) {
+      return;
+    }
+    setState(() {
+      _previewingReplace = true;
+    });
+    try {
+      await widget.onPreviewReplace!(query, _replaceController.text);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _previewingReplace = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -97,10 +127,15 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
       key: const ValueKey('workspace-search-surface'),
       child: Padding(
         padding: EdgeInsets.all(compact ? 14 : 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
           children: [
-            Text('Workspace Search', style: theme.textTheme.titleLarge),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Workspace Search',
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
             const SizedBox(height: 6),
             Text(
               'Text search entry for workspace-wide edits and agent-confirmed navigation. TODO: add indexed search, symbol search, replace preview, and persistent result filters.',
@@ -141,6 +176,40 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('workspace-replace-input'),
+                    controller: _replaceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Replacement preview',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilledButton.tonalIcon(
+                  key: const ValueKey('workspace-replace-preview-submit'),
+                  onPressed:
+                      widget.onPreviewReplace == null || _previewingReplace
+                      ? null
+                      : _previewReplace,
+                  icon: _previewingReplace
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.find_replace_rounded),
+                  label: Text(_previewingReplace ? 'Previewing' : 'Preview'),
+                ),
+              ],
+            ),
+            if (widget.lastReplacePreview != null) ...[
+              const SizedBox(height: 10),
+              _WorkspaceReplacePreviewView(preview: widget.lastReplacePreview!),
+            ],
             const SizedBox(height: 12),
             Text('Quick Open', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
@@ -215,6 +284,55 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
   }
 }
 
+class _WorkspaceReplacePreviewView extends StatelessWidget {
+  const _WorkspaceReplacePreviewView({required this.preview});
+
+  final WorkspaceReplacePreview preview;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      key: const ValueKey('workspace-replace-preview'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            Chip(label: Text('replacements ${preview.replacementCount}')),
+            Chip(label: Text('documents ${preview.documents.length}')),
+            Chip(label: Text('failures ${preview.failures.length}')),
+            Chip(label: Text('truncated ${preview.truncated}')),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (preview.documents.isEmpty)
+          Text('No replacement changes found.', style: theme.textTheme.bodySmall)
+        else
+          SizedBox(
+            height: 96,
+            child: ListView.separated(
+              key: const ValueKey('workspace-replace-preview-list'),
+              itemCount: preview.documents.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final document = preview.documents[index];
+                return ListTile(
+                  dense: true,
+                  title: Text(document.documentId),
+                  subtitle: Text(
+                    '${document.replacementCount} replacement(s), revision ${document.revision}',
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _WorkspaceSearchResultView extends StatelessWidget {
   const _WorkspaceSearchResultView({
     required this.result,
@@ -228,55 +346,52 @@ class _WorkspaceSearchResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Expanded(
-      child: Column(
-        key: const ValueKey('workspace-search-results'),
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            children: [
-              Chip(label: Text('query ${result.query}')),
-              Chip(label: Text('matches ${result.matchCount}')),
-              Chip(label: Text('scanned ${result.scannedDocumentCount}')),
-              Chip(label: Text('truncated ${result.matchesTruncated}')),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text('Matches', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          if (result.matches.isEmpty)
-            Text('No matches found.', style: theme.textTheme.bodySmall)
-          else
-            Expanded(
-              child: ListView.separated(
-                key: const ValueKey('workspace-search-match-list'),
-                itemCount: result.matches.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final match = result.matches[index];
-                  return ListTile(
-                    key: ValueKey(
-                      'workspace-search-match-${match.documentId}-${match.lineNumber}-${match.start}',
-                    ),
-                    dense: true,
-                    title: Text(match.documentId),
-                    subtitle: Text(
-                      'line ${match.lineNumber}: ${match.lineText}',
-                    ),
-                    trailing: const Icon(Icons.open_in_new_rounded),
-                    onTap: onOpenMatch == null
-                        ? null
-                        : () {
-                            onOpenMatch!(match);
-                          },
-                  );
-                },
-              ),
+    return Column(
+      key: const ValueKey('workspace-search-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            Chip(label: Text('query ${result.query}')),
+            Chip(label: Text('matches ${result.matchCount}')),
+            Chip(label: Text('scanned ${result.scannedDocumentCount}')),
+            Chip(label: Text('truncated ${result.matchesTruncated}')),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text('Matches', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        if (result.matches.isEmpty)
+          Text('No matches found.', style: theme.textTheme.bodySmall)
+        else
+          SizedBox(
+            height: 180,
+            child: ListView.separated(
+              key: const ValueKey('workspace-search-match-list'),
+              itemCount: result.matches.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final match = result.matches[index];
+                return ListTile(
+                  key: ValueKey(
+                    'workspace-search-match-${match.documentId}-${match.lineNumber}-${match.start}',
+                  ),
+                  dense: true,
+                  title: Text(match.documentId),
+                  subtitle: Text('line ${match.lineNumber}: ${match.lineText}'),
+                  trailing: const Icon(Icons.open_in_new_rounded),
+                  onTap: onOpenMatch == null
+                      ? null
+                      : () {
+                          onOpenMatch!(match);
+                        },
+                );
+              },
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

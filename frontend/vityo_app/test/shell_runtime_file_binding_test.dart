@@ -2055,6 +2055,88 @@ void main() {
     ]);
   });
 
+  test('shell stores workspace replace preview without applying it', () async {
+    final projectGraph =
+        ProjectGraphSnapshot.scratch(
+          workspaceRoot: '/workspace/demo',
+          activeFilePath: 'src/main.styio',
+          title: 'Demo',
+          notes: const <String>[],
+        ).copyWith(
+          editorFiles: const <String>[
+            'src/main.styio',
+            'src/lib.styio',
+            'src/extra.styio',
+          ],
+        );
+    const mainDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'needle := 1\n',
+      revision: 1,
+    );
+    const libDocument = DocumentState(
+      documentId: 'src/lib.styio',
+      text: 'lib := needle\n',
+      revision: 2,
+    );
+    const extraDocument = DocumentState(
+      documentId: 'src/extra.styio',
+      text: 'other := 3\n',
+      revision: 3,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': mainDocument,
+        'src/lib.styio': libDocument,
+        'src/extra.styio': extraDocument,
+      },
+    );
+    final workspaceController = WorkspaceController(
+      projectSnapshot: projectGraph,
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: workspaceController,
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: mainDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final preview = await shell.previewWorkspaceReplace(
+      query: 'needle',
+      replacement: 'value',
+    );
+    final storedMain = await documentStore.loadDocument('src/main.styio');
+
+    expect(preview, isNotNull);
+    expect(shell.lastWorkspaceReplacePreview, same(preview));
+    expect(preview?.replacementCount, 2);
+    expect(
+      preview?.documents.map((document) => document.documentId),
+      <String>['src/main.styio', 'src/lib.styio'],
+    );
+    expect(storedMain.text, 'needle := 1\n');
+  });
+
   test(
     'shell records blocked native tool commands without toolchain manager',
     () async {

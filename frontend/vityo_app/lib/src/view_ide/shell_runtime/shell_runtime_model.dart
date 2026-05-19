@@ -444,6 +444,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   AgentWorkspaceSearchResultContext? _lastAgentWorkspaceSearch;
   AgentCommandResultContext? _lastAgentIdeCommandResult;
   WorkspaceEditPreview? _lastWorkspaceEditPreview;
+  WorkspaceReplacePreview? _lastWorkspaceReplacePreview;
   final List<AgentCommandResultContext> _agentIdeCommandResults =
       <AgentCommandResultContext>[];
   DapDebugSessionHandle? _dapDebugSession;
@@ -1044,6 +1045,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastCloseRequestResult;
   WorkspaceEditPreview? get lastWorkspaceEditPreview =>
       _lastWorkspaceEditPreview;
+  WorkspaceReplacePreview? get lastWorkspaceReplacePreview =>
+      _lastWorkspaceReplacePreview;
   EditorCloseRequestSurface? get closeRequestSurface {
     final result = _lastCloseRequestResult;
     if (result == null) {
@@ -3907,6 +3910,31 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     notifyListeners();
     return true;
+  }
+
+  Future<WorkspaceReplacePreview?> previewWorkspaceReplace({
+    required String query,
+    required String replacement,
+  }) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) {
+      appendLog('Workspace replace preview skipped: missing search query.');
+      return null;
+    }
+    final preview = await WorkspaceSearchService(
+      documentStore: workspaceDocumentStore,
+    ).previewReplaceAll(
+      documentIds: workspaceController.files,
+      query: normalizedQuery,
+      replacement: replacement,
+    );
+    _lastWorkspaceReplacePreview = preview;
+    appendLog(
+      'Workspace replace preview found ${preview.replacementCount} '
+      'replacement(s) across ${preview.documents.length} document(s).',
+    );
+    notifyListeners();
+    return preview;
   }
 
   void _syncAgentPatchDocumentCache(AgentCodePatchApplicationResult? result) {

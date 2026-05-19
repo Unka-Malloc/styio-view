@@ -36,6 +36,10 @@ void main() {
       contains('file quick open service'),
     );
     expect(
+      entriesById['interaction.search']?.summary,
+      contains('replace preview contract'),
+    );
+    expect(
       entriesById['presentation.problems-panel']?.status,
       IdeCapabilityStatus.scaffolded,
     );

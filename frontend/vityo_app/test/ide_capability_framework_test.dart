@@ -28,6 +28,10 @@ void main() {
       IdeCapabilityStatus.scaffolded,
     );
     expect(
+      entriesById['interaction.search']?.summary,
+      contains('match-level navigation callback'),
+    );
+    expect(
       entriesById['presentation.problems-panel']?.status,
       IdeCapabilityStatus.scaffolded,
     );

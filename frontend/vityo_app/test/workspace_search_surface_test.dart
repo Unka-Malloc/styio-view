@@ -11,7 +11,7 @@ void main() {
     tester,
   ) async {
     String? submittedQuery;
-    String? openedDocumentId;
+    AgentWorkspaceSearchMatchContext? openedMatch;
     final lastSearch = AgentWorkspaceSearchResultContext.fromDocuments(
       query: 'needle',
       documents: const <DocumentState>[
@@ -42,8 +42,8 @@ void main() {
             onSearch: (query) async {
               submittedQuery = query;
             },
-            onOpenMatch: (documentId) async {
-              openedDocumentId = documentId;
+            onOpenMatch: (match) async {
+              openedMatch = match;
             },
           ),
         ),
@@ -71,6 +71,8 @@ void main() {
     await tester.tap(find.text('src/main.styio'));
     await tester.pump();
 
-    expect(openedDocumentId, 'src/main.styio');
+    expect(openedMatch?.documentId, 'src/main.styio');
+    expect(openedMatch?.lineNumber, 1);
+    expect(openedMatch?.start, 0);
   });
 }

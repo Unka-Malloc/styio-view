@@ -17,7 +17,8 @@ class WorkspaceSearchSurface extends StatefulWidget {
   final int workspaceFileCount;
   final AgentWorkspaceSearchResultContext? lastSearch;
   final Future<void> Function(String query)? onSearch;
-  final Future<void> Function(String documentId)? onOpenMatch;
+  final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
+      onOpenMatch;
 
   @override
   State<WorkspaceSearchSurface> createState() => _WorkspaceSearchSurfaceState();
@@ -150,7 +151,8 @@ class _WorkspaceSearchResultView extends StatelessWidget {
   });
 
   final AgentWorkspaceSearchResultContext result;
-  final Future<void> Function(String documentId)? onOpenMatch;
+  final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
+      onOpenMatch;
 
   @override
   Widget build(BuildContext context) {
@@ -196,7 +198,7 @@ class _WorkspaceSearchResultView extends StatelessWidget {
                     onTap: onOpenMatch == null
                         ? null
                         : () {
-                            onOpenMatch!(match.documentId);
+                            onOpenMatch!(match);
                           },
                   );
                 },

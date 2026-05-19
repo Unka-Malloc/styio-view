@@ -218,7 +218,9 @@ class VityoShellScaffold extends StatelessWidget {
           workspaceFileCount: shell.workspaceController.files.length,
           lastSearch: shell.agentSessionContext.workspace.lastSearch,
           onSearch: shell.searchWorkspaceForAgent,
-          onOpenMatch: shell.openWorkspaceFileForAgent,
+          onOpenMatch: (match) => shell.openWorkspaceFileForAgent(
+            match.documentId,
+          ),
         );
       case BottomSurfaceTab.problems:
         final diagnosticsController = shell.workspaceDiagnosticsController;

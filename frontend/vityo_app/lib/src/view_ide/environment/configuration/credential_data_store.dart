@@ -7,12 +7,7 @@ enum CredentialKind {
   genericSecret,
 }
 
-enum CredentialScope {
-  user,
-  workspace,
-  toolchain,
-  service,
-}
+enum CredentialScope { user, workspace, toolchain, service }
 
 extension CredentialKindX on CredentialKind {
   String get wireValue => switch (this) {
@@ -93,10 +88,8 @@ class CredentialReference {
           : keyJson is Map
           ? CredentialDataStoreKey.fromJson(
               keyJson.map(
-                (key, value) => MapEntry<String, Object?>(
-                  key.toString(),
-                  value,
-                ),
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
               ),
             )
           : CredentialDataStoreKey(
@@ -186,10 +179,8 @@ class CredentialSecretRecord {
           : keyJson is Map
           ? CredentialDataStoreKey.fromJson(
               keyJson.map(
-                (key, value) => MapEntry<String, Object?>(
-                  key.toString(),
-                  value,
-                ),
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
               ),
             )
           : CredentialDataStoreKey(
@@ -308,6 +299,49 @@ enum CredentialInjectionStatus {
   emptySecret,
 }
 
+enum CredentialStorageProtection {
+  volatileMemory,
+  foundationDataStore,
+  platformSecureStorage,
+  unknown,
+}
+
+extension CredentialStorageProtectionX on CredentialStorageProtection {
+  String get wireValue => switch (this) {
+    CredentialStorageProtection.volatileMemory => 'volatile-memory',
+    CredentialStorageProtection.foundationDataStore => 'foundation-data-store',
+    CredentialStorageProtection.platformSecureStorage =>
+      'platform-secure-storage',
+    CredentialStorageProtection.unknown => 'unknown',
+  };
+}
+
+class CredentialDataStoreHealth {
+  const CredentialDataStoreHealth({
+    required this.protection,
+    required this.persistent,
+    required this.safeForLongLivedSecrets,
+    required this.message,
+    this.todo = '',
+  });
+
+  final CredentialStorageProtection protection;
+  final bool persistent;
+  final bool safeForLongLivedSecrets;
+  final String message;
+  final String todo;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'protection': protection.wireValue,
+      'persistent': persistent,
+      'safeForLongLivedSecrets': safeForLongLivedSecrets,
+      'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
 class CredentialInjectionBinding {
   const CredentialInjectionBinding({
     required this.targetName,
@@ -403,7 +437,9 @@ class CredentialInjectionBatch {
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'ready': ready,
-      'results': results.map((result) => result.toJson()).toList(growable: false),
+      'results': results
+          .map((result) => result.toJson())
+          .toList(growable: false),
     };
   }
 }
@@ -496,6 +532,17 @@ abstract class CredentialDataStore {
   Future<CredentialDataStoreSnapshot> snapshot() async {
     return CredentialDataStoreSnapshot(credentials: await list());
   }
+
+  Future<CredentialDataStoreHealth> health() async {
+    return const CredentialDataStoreHealth(
+      protection: CredentialStorageProtection.unknown,
+      persistent: false,
+      safeForLongLivedSecrets: false,
+      message: 'Credential DataStore health is unknown.',
+      todo:
+          'TODO: implement a concrete credential storage health contract for this store.',
+    );
+  }
 }
 
 class InMemoryCredentialDataStore extends CredentialDataStore {
@@ -523,11 +570,28 @@ class InMemoryCredentialDataStore extends CredentialDataStore {
 
   @override
   Future<List<CredentialMetadata>> list({CredentialScope? scope}) async {
-    final records = _records.values.where((record) {
-      return scope == null || record.key.scope == scope;
-    }).toList(growable: false);
-    records.sort((left, right) => left.key.stableId.compareTo(right.key.stableId));
+    final records = _records.values
+        .where((record) {
+          return scope == null || record.key.scope == scope;
+        })
+        .toList(growable: false);
+    records.sort(
+      (left, right) => left.key.stableId.compareTo(right.key.stableId),
+    );
     return records.map((record) => record.toMetadata()).toList(growable: false);
+  }
+
+  @override
+  Future<CredentialDataStoreHealth> health() async {
+    return const CredentialDataStoreHealth(
+      protection: CredentialStorageProtection.volatileMemory,
+      persistent: false,
+      safeForLongLivedSecrets: false,
+      message:
+          'Credentials are kept in memory only and are suitable for tests or short-lived sessions.',
+      todo:
+          'TODO: use a platform secure storage adapter for persisted production tokens.',
+    );
   }
 }
 
@@ -604,11 +668,28 @@ class FoundationCredentialDataStore extends CredentialDataStore {
 
   @override
   Future<List<CredentialMetadata>> list({CredentialScope? scope}) async {
-    final records = (await _loadRecords()).values.where((record) {
-      return scope == null || record.key.scope == scope;
-    }).toList(growable: false);
-    records.sort((left, right) => left.key.stableId.compareTo(right.key.stableId));
+    final records = (await _loadRecords()).values
+        .where((record) {
+          return scope == null || record.key.scope == scope;
+        })
+        .toList(growable: false);
+    records.sort(
+      (left, right) => left.key.stableId.compareTo(right.key.stableId),
+    );
     return records.map((record) => record.toMetadata()).toList(growable: false);
+  }
+
+  @override
+  Future<CredentialDataStoreHealth> health() async {
+    return const CredentialDataStoreHealth(
+      protection: CredentialStorageProtection.foundationDataStore,
+      persistent: true,
+      safeForLongLivedSecrets: false,
+      message:
+          'Credentials are persisted through FoundationDataStore, not a platform secure secret store.',
+      todo:
+          'TODO: replace persisted secrets with OS-backed secure storage such as SecretStorage, Keychain, Credential Manager, or libsecret.',
+    );
   }
 
   Future<Map<String, CredentialSecretRecord>> _loadRecords() async {

@@ -261,8 +261,10 @@ class VityoIdeCapabilityFramework {
           title: 'Credential DataStore',
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/configuration',
+          summary:
+              'Credential references, redacted metadata, injection results, batch injection, persisted FoundationDataStore credentials, and credential storage health facts are wired.',
           todo:
-              'TODO: harden credential storage behind platform-specific secure storage adapters instead of ordinary settings files.',
+              'TODO: replace persisted FoundationDataStore secrets with platform-specific secure storage adapters.',
           references: <String>[
             'VS Code SecretStorage',
             'IntelliJ PasswordSafe',

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
+import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/search/search.dart';
@@ -13,6 +15,7 @@ void main() {
   ) async {
     String? submittedQuery;
     AgentWorkspaceSearchMatchContext? openedMatch;
+    AgentWorkspaceSymbolMatchContext? openedSymbolMatch;
     final lastSearch = AgentWorkspaceSearchResultContext.fromDocuments(
       query: 'needle',
       documents: const <DocumentState>[
@@ -28,6 +31,27 @@ void main() {
         ),
       ],
     );
+    const symbolResult = WorkspaceSymbolSearchResult(
+      matches: <WorkspaceSymbolMatch>[
+        WorkspaceSymbolMatch(
+          documentId: 'src/main.styio',
+          name: 'needle',
+          kind: ResolvedElementKind.variable,
+          nameRange: SourceRange(start: 0, end: 6),
+          declarationRange: SourceRange(start: 0, end: 11),
+          lineNumber: 1,
+          lineText: 'needle := 1',
+          score: 1000,
+          detail: 'Styio binding',
+        ),
+      ],
+    );
+    final lastSymbolSearch =
+        AgentWorkspaceSymbolSearchResultContext.fromWorkspaceResult(
+          query: 'needle',
+          scannedDocumentCount: 2,
+          result: symbolResult,
+        );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -40,11 +64,15 @@ void main() {
             ),
             workspaceFileCount: 2,
             lastSearch: lastSearch,
+            lastSymbolSearch: lastSymbolSearch,
             onSearch: (query) async {
               submittedQuery = query;
             },
             onOpenMatch: (match) async {
               openedMatch = match;
+            },
+            onOpenSymbolMatch: (match) async {
+              openedSymbolMatch = match;
             },
           ),
         ),
@@ -75,6 +103,22 @@ void main() {
     expect(openedMatch?.documentId, 'src/main.styio');
     expect(openedMatch?.lineNumber, 1);
     expect(openedMatch?.start, 0);
+
+    const symbolKey = ValueKey(
+      'workspace-symbol-search-match-src/main.styio-needle-0',
+    );
+    await tester.drag(
+      find.byKey(const ValueKey('workspace-search-surface')),
+      const Offset(0, -520),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('symbols 1'), findsOneWidget);
+    expect(find.text('needle · variable'), findsOneWidget);
+    await tester.tap(find.byKey(symbolKey));
+    await tester.pump();
+
+    expect(openedSymbolMatch?.documentId, 'src/main.styio');
+    expect(openedSymbolMatch?.name, 'needle');
   });
 
   testWidgets('workspace search surface filters and opens quick-open files', (

@@ -11,17 +11,20 @@ class WorkspaceSearchSurface extends StatefulWidget {
     required this.workspaceFileCount,
     this.workspaceFiles = const <String>[],
     this.lastSearch,
+    this.lastSymbolSearch,
     this.lastReplacePreview,
     this.onSearch,
     this.onOpenFile,
     this.onPreviewReplace,
     this.onOpenMatch,
+    this.onOpenSymbolMatch,
   });
 
   final ViewportProfile viewportProfile;
   final int workspaceFileCount;
   final List<String> workspaceFiles;
   final AgentWorkspaceSearchResultContext? lastSearch;
+  final AgentWorkspaceSymbolSearchResultContext? lastSymbolSearch;
   final WorkspaceReplacePreview? lastReplacePreview;
   final Future<void> Function(String query)? onSearch;
   final Future<void> Function(String documentId)? onOpenFile;
@@ -29,6 +32,8 @@ class WorkspaceSearchSurface extends StatefulWidget {
       onPreviewReplace;
   final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
       onOpenMatch;
+  final Future<void> Function(AgentWorkspaceSymbolMatchContext match)?
+      onOpenSymbolMatch;
 
   @override
   State<WorkspaceSearchSurface> createState() => _WorkspaceSearchSurfaceState();
@@ -117,6 +122,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
     final theme = Theme.of(context);
     final compact = widget.viewportProfile.isMobile;
     final lastSearch = widget.lastSearch;
+    final lastSymbolSearch = widget.lastSymbolSearch;
     final quickOpenResult = _quickOpenService.searchFiles(
       documentIds: widget.workspaceFiles,
       query: _quickOpenQuery,
@@ -138,7 +144,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Text search entry for workspace-wide edits and agent-confirmed navigation. TODO: add indexed search, symbol search, replace preview, and persistent result filters.',
+              'Text and symbol search entry for workspace-wide edits, quick navigation, and agent-confirmed code changes. TODO: add indexed search and persistent result filters.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -277,9 +283,81 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
                 result: lastSearch,
                 onOpenMatch: widget.onOpenMatch,
               ),
+            if (lastSymbolSearch != null) ...[
+              const SizedBox(height: 12),
+              _WorkspaceSymbolSearchResultView(
+                result: lastSymbolSearch,
+                onOpenMatch: widget.onOpenSymbolMatch,
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WorkspaceSymbolSearchResultView extends StatelessWidget {
+  const _WorkspaceSymbolSearchResultView({
+    required this.result,
+    required this.onOpenMatch,
+  });
+
+  final AgentWorkspaceSymbolSearchResultContext result;
+  final Future<void> Function(AgentWorkspaceSymbolMatchContext match)?
+      onOpenMatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      key: const ValueKey('workspace-symbol-search-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            Chip(label: Text('symbols ${result.matchCount}')),
+            Chip(label: Text('symbol query ${result.query}')),
+            Chip(label: Text('symbol scanned ${result.scannedDocumentCount}')),
+            Chip(label: Text('symbol truncated ${result.matchesTruncated}')),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text('Symbols', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        if (result.matches.isEmpty)
+          Text('No symbols found.', style: theme.textTheme.bodySmall)
+        else
+          SizedBox(
+            height: 132,
+            child: ListView.separated(
+              key: const ValueKey('workspace-symbol-search-match-list'),
+              itemCount: result.matches.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final match = result.matches[index];
+                return ListTile(
+                  key: ValueKey(
+                    'workspace-symbol-search-match-${match.documentId}-${match.name}-${match.start}',
+                  ),
+                  dense: true,
+                  title: Text('${match.name} · ${match.kind}'),
+                  subtitle: Text(
+                    '${match.documentId} · line ${match.lineNumber}: ${match.lineText}',
+                  ),
+                  trailing: const Icon(Icons.open_in_new_rounded),
+                  onTap: onOpenMatch == null
+                      ? null
+                      : () {
+                          onOpenMatch!(match);
+                        },
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }

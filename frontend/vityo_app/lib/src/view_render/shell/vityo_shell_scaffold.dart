@@ -218,6 +218,8 @@ class VityoShellScaffold extends StatelessWidget {
           workspaceFileCount: shell.workspaceController.files.length,
           workspaceFiles: shell.workspaceController.files,
           lastSearch: shell.agentSessionContext.workspace.lastSearch,
+          lastSymbolSearch:
+              shell.agentSessionContext.workspace.lastSymbolSearch,
           lastReplacePreview: shell.lastWorkspaceReplacePreview,
           onSearch: shell.searchWorkspaceForAgent,
           onOpenFile: shell.openWorkspaceFileForAgent,
@@ -228,6 +230,9 @@ class VityoShellScaffold extends StatelessWidget {
             );
           },
           onOpenMatch: (match) => shell.openWorkspaceFileForAgent(
+            match.documentId,
+          ),
+          onOpenSymbolMatch: (match) => shell.openWorkspaceFileForAgent(
             match.documentId,
           ),
         );

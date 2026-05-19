@@ -1056,6 +1056,7 @@ void main() {
         'runBuild',
       );
       expect(settingsResult?.metadata['settingsRoute'], 'settings');
+      expect(settingsResult?.metadata['settingsSection'], 'toolchain');
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Settings route is reserved'),

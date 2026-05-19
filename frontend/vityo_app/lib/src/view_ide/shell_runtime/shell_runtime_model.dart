@@ -264,6 +264,18 @@ _ClangCppVersionCommandInput? _parseClangCppVersionCommandInput(
   );
 }
 
+String? _settingsSectionForAgentRecovery(String? prerequisiteForCommandId) {
+  switch (prerequisiteForCommandId) {
+    case 'selectClangCppVersion':
+    case 'runBuild':
+    case 'runStaticAnalysis':
+    case 'runTests':
+    case 'formatActiveDocument':
+      return 'toolchain';
+  }
+  return null;
+}
+
 Map<String, Object?> _agentClangCppSelectionMetadata(
   ClangCppVersionSelection selection,
 ) {
@@ -1078,12 +1090,16 @@ class ShellRuntimeModel extends ChangeNotifier {
         return false;
       case 'openSettings':
         await executeCommand(AppCommandId.openSettings);
+        final settingsSection = _settingsSectionForAgentRecovery(
+          suggestion.prerequisiteForCommandId,
+        );
         _recordAgentIdeCommandResult(
           suggestion,
           applied: true,
           message: 'Agent command openSettings requested settings route.',
-          metadata: const <String, Object?>{
+          metadata: <String, Object?>{
             'settingsRoute': 'settings',
+            if (settingsSection != null) 'settingsSection': settingsSection,
           },
         );
         return true;

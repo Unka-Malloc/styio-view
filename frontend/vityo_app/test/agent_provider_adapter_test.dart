@@ -384,6 +384,8 @@ void main() {
               'generatorFamily': 'ninja',
               'arguments': <String>['-G', 'Ninja'],
             },
+            'settingsRoute': 'settings',
+            'settingsSection': 'toolchain',
           },
           completedAt: DateTime.utc(2026, 5, 19, 1, 2, 3),
         ),
@@ -839,6 +841,8 @@ void main() {
         'cppStandard',
         'buildEngineHandoffCount',
         'preferredBuildEngineHandoff',
+        'settingsRoute',
+        'settingsSection',
       ]);
       expect(metadata['lastCommandRequiredCommandId'], 'runBuild');
       expect(metadata['lastCommandBackendRouteKind'], 'blocked');
@@ -852,6 +856,8 @@ void main() {
       expect(metadata['lastCommandToolchainSelectionStatus'], 'selected');
       expect(metadata['lastCommandToolchainId'], 'native-clang-cpp-compiler');
       expect(metadata['lastCommandCppStandard'], 'c++23');
+      expect(metadata['lastCommandSettingsRoute'], 'settings');
+      expect(metadata['lastCommandSettingsSection'], 'toolchain');
       expect(metadata['lastCommandBuildEngineHandoffCount'], 3);
       expect(metadata['lastCommandPreferredBuildEngine'], 'cmake');
       expect(metadata['lastCommandPreferredBuildGenerator'], 'ninja');

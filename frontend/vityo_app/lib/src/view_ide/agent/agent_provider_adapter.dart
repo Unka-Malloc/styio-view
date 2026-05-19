@@ -1116,6 +1116,8 @@ Map<String, Object?> _lastCommandResultMetadata(
       .toList(growable: false);
   final requiredCommandId = requiredCommandIdFromAgentMetadata(result.metadata);
   final backendRoute = backendRouteFromAgentMetadata(result.metadata);
+  final settingsRoute = _metadataString(result.metadata['settingsRoute']);
+  final settingsSection = _metadataString(result.metadata['settingsSection']);
   final toolchainSelectionStatus = _metadataString(
     result.metadata['toolchainSelectionStatus'],
   );
@@ -1150,6 +1152,9 @@ Map<String, Object?> _lastCommandResultMetadata(
       if (backendRoute.blockedReason != null)
         'lastCommandBackendRouteBlockedReason': backendRoute.blockedReason,
     },
+    if (settingsRoute != null) 'lastCommandSettingsRoute': settingsRoute,
+    if (settingsSection != null)
+      'lastCommandSettingsSection': settingsSection,
     if (toolchainSelectionStatus != null)
       'lastCommandToolchainSelectionStatus': toolchainSelectionStatus,
     if (toolchainId != null) 'lastCommandToolchainId': toolchainId,

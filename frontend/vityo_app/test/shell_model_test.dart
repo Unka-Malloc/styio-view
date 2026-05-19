@@ -625,6 +625,7 @@ void main() {
     expect(result?.commandId, 'openSettings');
     expect(result?.metadata['completedRequiredCommandFor'], 'runBuild');
     expect(result?.metadata['settingsRoute'], 'settings');
+    expect(result?.metadata['settingsSection'], 'toolchain');
   });
 
   test(

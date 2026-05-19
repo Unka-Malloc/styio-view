@@ -491,7 +491,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/execution',
           summary:
-              'ExecutionSession, runtime events, and native tool results expose stable serializable execution result contracts for UI and Agent consumers.',
+              'ExecutionSession, runtime events, native tool results, and runtime task lifecycle snapshots expose stable serializable execution contracts for UI and Agent consumers.',
           todo:
               'TODO: persist execution result history and normalize hosted/toolchain-specific metadata fields.',
           references: <String>['VS Code tasks', 'Theia task service'],
@@ -503,9 +503,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/shell_runtime',
           summary:
-              'Terminal surface is wired to shell/runtime output, run handoff, PTY session snapshots, and TerminalInteractionController input/resize/close contracts.',
+              'Terminal surface is wired to shell/runtime output, run handoff, PTY session snapshots, TerminalInteractionController input/resize/close contracts, and shared runtime task lifecycle states.',
           todo:
-              'TODO: connect real UI session lifecycle controls, shell manager process execution, and task lifecycle into one terminal/runtime contract.',
+              'TODO: connect real UI session lifecycle controls, shell manager process execution, and persisted task history into one terminal/runtime contract.',
           references: <String>[
             'VS Code integrated terminal',
             'IntelliJ terminal and run tool windows',

@@ -15,11 +15,19 @@ class ModuleDefinition {
     return matrix.ruleFor(target);
   }
 
+  bool isDistributionAllowedOn(PlatformTarget target) {
+    final rule = ruleFor(target);
+    if (target != PlatformTarget.ios) {
+      return true;
+    }
+    return rule.iosSafe && rule.distributionChannel == 'app-store';
+  }
+
   bool isVisibleOn(PlatformTarget target) {
-    return matrix.isVisibleOn(target);
+    return matrix.isVisibleOn(target) && isDistributionAllowedOn(target);
   }
 
   bool isMountedOn(PlatformTarget target) {
-    return matrix.isMountedOn(target);
+    return matrix.isMountedOn(target) && isDistributionAllowedOn(target);
   }
 }

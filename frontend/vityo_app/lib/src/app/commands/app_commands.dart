@@ -43,6 +43,16 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.digit3;
       case 'enter':
         return LogicalKeyboardKey.enter;
+      case 'f5':
+        return LogicalKeyboardKey.f5;
+      case 'f8':
+        return LogicalKeyboardKey.f8;
+      case 'f9':
+        return LogicalKeyboardKey.f9;
+      case 'f10':
+        return LogicalKeyboardKey.f10;
+      case 'f12':
+        return LogicalKeyboardKey.f12;
       case 'keyF':
         return LogicalKeyboardKey.keyF;
       case 'keyR':
@@ -51,6 +61,8 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.keyS;
       case 'keyV':
         return LogicalKeyboardKey.keyV;
+      case 'period':
+        return LogicalKeyboardKey.period;
     }
     throw ArgumentError.value(key, 'key', 'Unsupported command shortcut key');
   }

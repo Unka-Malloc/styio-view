@@ -6,6 +6,8 @@ void main() {
     expect(
       StyioCommandRegistry.primaryCommands.map((command) => command.id),
       <AppCommandId>[
+        AppCommandId.save,
+        AppCommandId.saveAll,
         AppCommandId.run,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
@@ -17,12 +19,85 @@ void main() {
   test(
     'command registry resolves descriptors and shortcuts for source ops',
     () {
+      final save = StyioCommandRegistry.descriptorFor(AppCommandId.save);
       final fetch = StyioCommandRegistry.descriptorFor(
         AppCommandId.fetchDependencies,
       );
       final vendor = StyioCommandRegistry.descriptorFor(
         AppCommandId.vendorDependencies,
       );
+      final saveAll = StyioCommandRegistry.descriptorFor(AppCommandId.saveAll);
+      final nextDiagnostic = StyioCommandRegistry.descriptorFor(
+        AppCommandId.nextDiagnostic,
+      );
+      final previousDiagnostic = StyioCommandRegistry.descriptorFor(
+        AppCommandId.previousDiagnostic,
+      );
+      final applyQuickFix = StyioCommandRegistry.descriptorFor(
+        AppCommandId.applyQuickFix,
+      );
+      final refreshLanguageService = StyioCommandRegistry.descriptorFor(
+        AppCommandId.refreshLanguageService,
+      );
+      final openWorkspaceFile = StyioCommandRegistry.descriptorFor(
+        AppCommandId.openWorkspaceFile,
+      );
+      final searchWorkspace = StyioCommandRegistry.descriptorFor(
+        AppCommandId.searchWorkspace,
+      );
+      final runBuild = StyioCommandRegistry.descriptorFor(
+        AppCommandId.runBuild,
+      );
+      final formatActiveDocument = StyioCommandRegistry.descriptorFor(
+        AppCommandId.formatActiveDocument,
+      );
+      final runStaticAnalysis = StyioCommandRegistry.descriptorFor(
+        AppCommandId.runStaticAnalysis,
+      );
+      final runTests = StyioCommandRegistry.descriptorFor(
+        AppCommandId.runTests,
+      );
+      final toggleBreakpoint = StyioCommandRegistry.descriptorFor(
+        AppCommandId.toggleBreakpoint,
+      );
+      final startDebugging = StyioCommandRegistry.descriptorFor(
+        AppCommandId.startDebugging,
+      );
+      final stopDebugging = StyioCommandRegistry.descriptorFor(
+        AppCommandId.stopDebugging,
+      );
+      final stepOver = StyioCommandRegistry.descriptorFor(
+        AppCommandId.stepOver,
+      );
+      final selectDebugThread = StyioCommandRegistry.descriptorFor(
+        AppCommandId.selectDebugThread,
+      );
+      final selectDebugStackFrame = StyioCommandRegistry.descriptorFor(
+        AppCommandId.selectDebugStackFrame,
+      );
+      final goToDefinition = StyioCommandRegistry.descriptorFor(
+        AppCommandId.goToDefinition,
+      );
+      final nextReference = StyioCommandRegistry.descriptorFor(
+        AppCommandId.nextReference,
+      );
+      final previousReference = StyioCommandRegistry.descriptorFor(
+        AppCommandId.previousReference,
+      );
+      final renameSymbol = StyioCommandRegistry.descriptorFor(
+        AppCommandId.renameSymbol,
+      );
+      final safeDelete = StyioCommandRegistry.descriptorFor(
+        AppCommandId.safeDelete,
+      );
+      final inlineVariable = StyioCommandRegistry.descriptorFor(
+        AppCommandId.inlineVariable,
+      );
+
+      expect(save.label, 'Save');
+      expect(save.shortcutHint, 'Cmd/Ctrl+S');
+      expect(save.primary, isTrue);
+      expect(save.shortcuts, hasLength(2));
 
       expect(fetch.label, 'Fetch');
       expect(fetch.shortcutHint, 'Cmd/Ctrl+Shift+F');
@@ -33,8 +108,148 @@ void main() {
       expect(vendor.shortcutHint, 'Cmd/Ctrl+Shift+V');
       expect(vendor.primary, isTrue);
       expect(vendor.shortcuts, hasLength(2));
+
+      expect(saveAll.label, 'Save All');
+      expect(saveAll.shortcutHint, 'Cmd/Ctrl+Shift+S');
+      expect(saveAll.primary, isTrue);
+      expect(saveAll.shortcuts, hasLength(2));
+
+      expect(nextDiagnostic.label, 'Next Diagnostic');
+      expect(nextDiagnostic.shortcutHint, 'F8');
+      expect(nextDiagnostic.shortcuts, hasLength(1));
+
+      expect(previousDiagnostic.label, 'Previous Diagnostic');
+      expect(previousDiagnostic.shortcutHint, 'Shift+F8');
+      expect(previousDiagnostic.shortcuts, hasLength(1));
+
+      expect(applyQuickFix.label, 'Quick Fix');
+      expect(applyQuickFix.shortcutHint, 'Cmd/Ctrl+.');
+      expect(applyQuickFix.shortcuts, hasLength(2));
+
+      expect(refreshLanguageService.label, 'Refresh Language Service');
+      expect(refreshLanguageService.shortcutHint, 'Route');
+      expect(refreshLanguageService.requiresInput, isFalse);
+
+      expect(openWorkspaceFile.label, 'Open Workspace File');
+      expect(openWorkspaceFile.shortcutHint, 'Route');
+      expect(openWorkspaceFile.requiresInput, isTrue);
+      expect(openWorkspaceFile.inputLabel, 'Workspace file path');
+
+      expect(searchWorkspace.label, 'Search Workspace');
+      expect(searchWorkspace.shortcutHint, 'Route');
+      expect(searchWorkspace.requiresInput, isTrue);
+      expect(searchWorkspace.inputLabel, 'Search query');
+
+      expect(runBuild.label, 'Run Build');
+      expect(runBuild.shortcutHint, 'Route');
+      expect(formatActiveDocument.label, 'Format Active Document');
+      expect(formatActiveDocument.shortcutHint, 'Route');
+      expect(runStaticAnalysis.label, 'Run Static Analysis');
+      expect(runStaticAnalysis.shortcutHint, 'Route');
+      expect(runTests.label, 'Run Tests');
+      expect(runTests.shortcutHint, 'Route');
+      expect(toggleBreakpoint.label, 'Toggle Breakpoint');
+      expect(toggleBreakpoint.shortcutHint, 'F9');
+      expect(startDebugging.label, 'Start Debugging');
+      expect(startDebugging.shortcutHint, 'F5');
+      expect(stopDebugging.label, 'Stop Debugging');
+      expect(stopDebugging.shortcutHint, 'Shift+F5');
+      expect(stepOver.label, 'Step Over');
+      expect(stepOver.shortcutHint, 'F10');
+      expect(selectDebugThread.label, 'Select Debug Thread');
+      expect(selectDebugThread.shortcutHint, 'Route');
+      expect(selectDebugThread.requiresInput, isTrue);
+      expect(selectDebugThread.inputLabel, 'DAP thread id');
+      expect(selectDebugStackFrame.label, 'Select Debug Stack Frame');
+      expect(selectDebugStackFrame.shortcutHint, 'Route');
+      expect(selectDebugStackFrame.requiresInput, isTrue);
+      expect(selectDebugStackFrame.inputLabel, 'DAP stack frame id');
+
+      expect(goToDefinition.label, 'Go to Definition');
+      expect(goToDefinition.shortcutHint, 'F12');
+      expect(goToDefinition.shortcuts, hasLength(1));
+
+      expect(nextReference.label, 'Next Reference');
+      expect(nextReference.shortcutHint, 'Shift+F12');
+      expect(nextReference.shortcuts, hasLength(1));
+
+      expect(previousReference.label, 'Previous Reference');
+      expect(previousReference.shortcutHint, 'Cmd/Ctrl+Shift+F12');
+      expect(previousReference.shortcuts, hasLength(2));
+
+      expect(renameSymbol.label, 'Rename Symbol');
+      expect(renameSymbol.shortcutHint, 'Route');
+      expect(renameSymbol.requiresInput, isTrue);
+      expect(renameSymbol.inputLabel, 'New symbol name');
+
+      expect(safeDelete.label, 'Safe Delete');
+      expect(safeDelete.shortcutHint, 'Route');
+      expect(safeDelete.requiresInput, isFalse);
+      expect(safeDelete.shortcuts, isEmpty);
+
+      expect(inlineVariable.label, 'Inline Variable');
+      expect(inlineVariable.shortcutHint, 'Route');
+      expect(inlineVariable.shortcuts, isEmpty);
     },
   );
+
+  test('command registry exposes editor assist command groups', () {
+    expect(
+      StyioCommandRegistry.persistenceCommands.map((command) => command.id),
+      <AppCommandId>[AppCommandId.save, AppCommandId.saveAll],
+    );
+    expect(
+      StyioCommandRegistry.diagnosticCommands.map((command) => command.id),
+      <AppCommandId>[
+        AppCommandId.nextDiagnostic,
+        AppCommandId.previousDiagnostic,
+        AppCommandId.applyQuickFix,
+      ],
+    );
+    expect(
+      StyioCommandRegistry.languageServiceCommands.map((command) => command.id),
+      <AppCommandId>[AppCommandId.refreshLanguageService],
+    );
+    expect(
+      StyioCommandRegistry.navigationCommands.map((command) => command.id),
+      <AppCommandId>[
+        AppCommandId.goToDefinition,
+        AppCommandId.openWorkspaceFile,
+        AppCommandId.searchWorkspace,
+        AppCommandId.nextReference,
+        AppCommandId.previousReference,
+      ],
+    );
+    expect(
+      StyioCommandRegistry.refactorCommands.map((command) => command.id),
+      <AppCommandId>[
+        AppCommandId.renameSymbol,
+        AppCommandId.safeDelete,
+        AppCommandId.inlineVariable,
+      ],
+    );
+    expect(
+      StyioCommandRegistry.debugCommands.map((command) => command.id),
+      <AppCommandId>[
+        AppCommandId.toggleBreakpoint,
+        AppCommandId.startDebugging,
+        AppCommandId.stopDebugging,
+        AppCommandId.continueDebugging,
+        AppCommandId.stepOver,
+        AppCommandId.selectDebugThread,
+        AppCommandId.selectDebugStackFrame,
+      ],
+    );
+    expect(
+      StyioCommandRegistry.nativeToolCommands.map((command) => command.id),
+      <AppCommandId>[
+        AppCommandId.runBuild,
+        AppCommandId.formatActiveDocument,
+        AppCommandId.runStaticAnalysis,
+        AppCommandId.runTests,
+      ],
+    );
+  });
 
   test('command registry exposes toolchain and deployment route commands', () {
     expect(
@@ -92,6 +307,13 @@ void main() {
 
     expect(intents, contains(AppCommandId.run));
     expect(intents, contains(AppCommandId.save));
+    expect(intents, contains(AppCommandId.saveAll));
+    expect(intents, contains(AppCommandId.nextDiagnostic));
+    expect(intents, contains(AppCommandId.previousDiagnostic));
+    expect(intents, contains(AppCommandId.applyQuickFix));
+    expect(intents, contains(AppCommandId.goToDefinition));
+    expect(intents, contains(AppCommandId.nextReference));
+    expect(intents, contains(AppCommandId.previousReference));
     expect(intents, contains(AppCommandId.refreshModules));
   });
 }

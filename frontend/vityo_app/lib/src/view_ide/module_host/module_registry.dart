@@ -53,6 +53,32 @@ class ModuleRegistry {
     return definition.isMountedOn(platformTarget);
   }
 
+  ModuleRegistry withoutModules(Iterable<String> moduleIds) {
+    final removed = moduleIds.toSet();
+    return ModuleRegistry(
+      platformTarget: platformTarget,
+      definitions: _definitions
+          .where((definition) => !removed.contains(definition.manifest.moduleId))
+          .toList(growable: false),
+    );
+  }
+
+  ModuleRegistry withReplacedModules(Iterable<ModuleDefinition> replacements) {
+    final replacementById = <String, ModuleDefinition>{
+      for (final replacement in replacements)
+        replacement.manifest.moduleId: replacement,
+    };
+    return ModuleRegistry(
+      platformTarget: platformTarget,
+      definitions: _definitions
+          .map(
+            (definition) =>
+                replacementById[definition.manifest.moduleId] ?? definition,
+          )
+          .toList(growable: false),
+    );
+  }
+
   static Future<ModuleRegistry> loadFromAssets({
     required String indexAssetPath,
     required PlatformTarget platformTarget,

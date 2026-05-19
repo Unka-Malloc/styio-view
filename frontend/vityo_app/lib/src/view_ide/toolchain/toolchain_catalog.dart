@@ -1,6 +1,11 @@
 enum ToolchainKind {
   compiler,
   runner,
+  buildTool,
+  debugger,
+  formatter,
+  staticAnalyzer,
+  testRunner,
   packageManager,
   terminal,
   languageService,
@@ -10,6 +15,11 @@ extension ToolchainKindX on ToolchainKind {
   String get wireValue => switch (this) {
     ToolchainKind.compiler => 'compiler',
     ToolchainKind.runner => 'runner',
+    ToolchainKind.buildTool => 'build-tool',
+    ToolchainKind.debugger => 'debugger',
+    ToolchainKind.formatter => 'formatter',
+    ToolchainKind.staticAnalyzer => 'static-analyzer',
+    ToolchainKind.testRunner => 'test-runner',
     ToolchainKind.packageManager => 'package-manager',
     ToolchainKind.terminal => 'terminal',
     ToolchainKind.languageService => 'language-service',
@@ -20,6 +30,11 @@ ToolchainKind toolchainKindFromWireValue(String? value) {
   return switch (value) {
     'compiler' => ToolchainKind.compiler,
     'runner' => ToolchainKind.runner,
+    'build-tool' => ToolchainKind.buildTool,
+    'debugger' => ToolchainKind.debugger,
+    'formatter' => ToolchainKind.formatter,
+    'static-analyzer' => ToolchainKind.staticAnalyzer,
+    'test-runner' => ToolchainKind.testRunner,
     'package-manager' => ToolchainKind.packageManager,
     'terminal' => ToolchainKind.terminal,
     'language-service' => ToolchainKind.languageService,
@@ -59,10 +74,7 @@ class ToolchainDescriptor {
           ? metadata
           : metadata is Map
           ? metadata.map(
-              (key, value) => MapEntry<String, Object?>(
-                key.toString(),
-                value,
-              ),
+              (key, value) => MapEntry<String, Object?>(key.toString(), value),
             )
           : const <String, Object?>{},
     );
@@ -93,10 +105,10 @@ class ToolchainCatalogSnapshot {
     return ToolchainCatalogSnapshot(
       descriptors: descriptors is List
           ? descriptors
-              .map(_descriptorFromJson)
-              .whereType<ToolchainDescriptor>()
-              .where((descriptor) => descriptor.id.isNotEmpty)
-              .toList(growable: false)
+                .map(_descriptorFromJson)
+                .whereType<ToolchainDescriptor>()
+                .where((descriptor) => descriptor.id.isNotEmpty)
+                .toList(growable: false)
           : const <ToolchainDescriptor>[],
       activeToolchainIds: activeToolchainIds is Map<String, Object?>
           ? activeToolchainIds.map(
@@ -174,9 +186,11 @@ class ToolchainCatalog {
   ToolchainDescriptor? lookup(String id) => _descriptors[id];
 
   List<ToolchainDescriptor> list({ToolchainKind? kind}) {
-    final values = _descriptors.values.where((descriptor) {
-      return kind == null || descriptor.kind == kind;
-    }).toList(growable: false);
+    final values = _descriptors.values
+        .where((descriptor) {
+          return kind == null || descriptor.kind == kind;
+        })
+        .toList(growable: false);
     values.sort((left, right) => left.id.compareTo(right.id));
     return values;
   }

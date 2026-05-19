@@ -9,12 +9,19 @@ class TestingSessionController extends ChangeNotifier {
     this.runProvider,
     this.rerunPlanner = const FailedTestRerunPlanner(),
     RuntimeTaskLifecycleController? runtimeTaskLifecycleController,
-  }) : _runtimeTaskLifecycleController = runtimeTaskLifecycleController;
+    RuntimeTaskHistoryStore? runtimeTaskHistoryStore,
+    this.runtimeTaskHistoryWorkspaceId = 'default',
+    this.runtimeTaskHistoryMaxEntries = 50,
+  }) : _runtimeTaskLifecycleController = runtimeTaskLifecycleController,
+       _runtimeTaskHistoryStore = runtimeTaskHistoryStore;
 
   final TestDiscoveryProvider? discoveryProvider;
   final TestRunProvider? runProvider;
   final FailedTestRerunPlanner rerunPlanner;
   final RuntimeTaskLifecycleController? _runtimeTaskLifecycleController;
+  final RuntimeTaskHistoryStore? _runtimeTaskHistoryStore;
+  final String runtimeTaskHistoryWorkspaceId;
+  final int runtimeTaskHistoryMaxEntries;
 
   TestDiscoveryResult? _discovery;
   TestRunResult? _lastRun;
@@ -91,6 +98,12 @@ class TestingSessionController extends ChangeNotifier {
       runnable: provider != null,
     );
     if (provider == null) {
+      final finishedTask = _finishRuntimeTask(
+        runtimeTask,
+        status: TestRunStatus.error,
+        message: 'Test run task blocked: provider is not configured.',
+      );
+      await _persistRuntimeTask(finishedTask);
       final result = _attachRuntimeTask(
         const TestRunResult(
           providerId: 'unavailable',
@@ -99,11 +112,7 @@ class TestingSessionController extends ChangeNotifier {
               'Test run provider is not configured. '
               'TODO: register Styio, CTest, and custom task adapters.',
         ),
-        _finishRuntimeTask(
-          runtimeTask,
-          status: TestRunStatus.error,
-          message: 'Test run task blocked: provider is not configured.',
-        ),
+        finishedTask,
       );
       _storeRun(result, generation);
       return result;
@@ -111,17 +120,22 @@ class TestingSessionController extends ChangeNotifier {
 
     try {
       final providerResult = await provider.run(request);
-      final result = _attachRuntimeTask(
-        providerResult,
-        _finishRuntimeTask(
-          runtimeTask,
-          status: providerResult.status,
-          message: providerResult.message,
-        ),
+      final finishedTask = _finishRuntimeTask(
+        runtimeTask,
+        status: providerResult.status,
+        message: providerResult.message,
       );
+      await _persistRuntimeTask(finishedTask);
+      final result = _attachRuntimeTask(providerResult, finishedTask);
       _storeRun(result, generation);
       return result;
     } on Object catch (error) {
+      final finishedTask = _finishRuntimeTask(
+        runtimeTask,
+        status: TestRunStatus.error,
+        message: 'Test run task failed: $error',
+      );
+      await _persistRuntimeTask(finishedTask);
       final result = _attachRuntimeTask(
         TestRunResult(
           providerId: provider.providerId,
@@ -130,11 +144,7 @@ class TestingSessionController extends ChangeNotifier {
               'Test run unavailable: $error. '
               'TODO: expose runner logs and retry actions.',
         ),
-        _finishRuntimeTask(
-          runtimeTask,
-          status: TestRunStatus.error,
-          message: 'Test run task failed: $error',
-        ),
+        finishedTask,
       );
       _storeRun(result, generation);
       return result;
@@ -146,6 +156,7 @@ class TestingSessionController extends ChangeNotifier {
   ) async {
     if (!configuration.ready) {
       final runtimeTask = _blockConfigurationRuntimeTask(configuration);
+      await _persistRuntimeTask(runtimeTask);
       final result = _attachRuntimeTask(
         TestRunResult(
           providerId: configuration.providerId.isEmpty
@@ -359,6 +370,18 @@ class TestingSessionController extends ChangeNotifier {
         ...result.metadata,
         'runtimeTask': runtimeTask.toJson(),
       },
+    );
+  }
+
+  Future<void> _persistRuntimeTask(RuntimeTaskSnapshot? runtimeTask) async {
+    final store = _runtimeTaskHistoryStore;
+    if (store == null || runtimeTask == null) {
+      return;
+    }
+    await store.appendTask(
+      workspaceId: runtimeTaskHistoryWorkspaceId,
+      task: runtimeTask,
+      maxEntries: runtimeTaskHistoryMaxEntries,
     );
   }
 }

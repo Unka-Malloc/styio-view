@@ -15,6 +15,10 @@ void main() {
       ),
       selection: const SelectionState(baseOffset: 0, extentOffset: 0),
       diagnostics: const <Diagnostic>[],
+      clangCppVersionPreference: const ClangCppVersionPreference(
+        versionId: 'native-clang-cpp-compiler',
+        cppStandard: CppLanguageStandard.cpp23,
+      ),
       toolchainSnapshot: const ToolchainStateSnapshot(
         targetId: 'agent-clang-cpp-toolchains',
         entries: <ToolchainStateEntry>[
@@ -64,14 +68,14 @@ void main() {
     expect(selectionJson['cmakeConfigureArguments'], <String>[
       '-DCMAKE_C_COMPILER=/usr/bin/clang',
       '-DCMAKE_CXX_COMPILER=/usr/bin/clang++',
-      '-DCMAKE_CXX_STANDARD=20',
+      '-DCMAKE_CXX_STANDARD=23',
       '-DCMAKE_CXX_STANDARD_REQUIRED=ON',
       '-DCMAKE_CXX_EXTENSIONS=OFF',
     ]);
     expect(selectionJson['ninjaEnvironment'], <String, String>{
       'CC': '/usr/bin/clang',
       'CXX': '/usr/bin/clang++',
-      'CXXFLAGS': '-std=c++20',
+      'CXXFLAGS': '-std=c++23',
     });
   });
 }

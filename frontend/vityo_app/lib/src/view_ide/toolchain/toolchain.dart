@@ -1,5 +1,6 @@
 export 'toolchain_codec.dart';
 export 'toolchain_environment.dart';
+export 'clang_cpp_version_configuration.dart';
 export 'clang_cpp_version_manager.dart';
 export 'styio_toolchain_discovery.dart';
 export 'native_compiler_toolchain_discovery.dart';

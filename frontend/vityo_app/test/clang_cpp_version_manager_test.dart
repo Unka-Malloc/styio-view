@@ -125,6 +125,51 @@ void main() {
     },
   );
 
+  test('applies persisted Clang C++ version preference when available', () {
+    final catalog = ToolchainCatalog();
+    catalog
+      ..register(
+        const ToolchainDescriptor(
+          id: 'clang-17',
+          kind: ToolchainKind.compiler,
+          displayName: 'Clang 17',
+          executablePath: '/opt/clang-17/bin/clang++',
+          metadata: <String, Object?>{
+            'compilerFamily': 'clang',
+            'cCompilerPath': '/opt/clang-17/bin/clang',
+            'cxxCompilerPath': '/opt/clang-17/bin/clang++',
+          },
+        ),
+        activate: true,
+      )
+      ..register(
+        const ToolchainDescriptor(
+          id: 'clang-18',
+          kind: ToolchainKind.compiler,
+          displayName: 'Clang 18',
+          executablePath: '/opt/clang-18/bin/clang++',
+          metadata: <String, Object?>{
+            'compilerFamily': 'clang',
+            'cCompilerPath': '/opt/clang-18/bin/clang',
+            'cxxCompilerPath': '/opt/clang-18/bin/clang++',
+          },
+        ),
+      );
+
+    final manager = ClangCppVersionManager.fromCatalog(
+      catalog,
+      preference: const ClangCppVersionPreference(
+        versionId: 'clang-18',
+        cppStandard: CppLanguageStandard.cpp23,
+      ),
+    );
+    final selection = manager.select();
+
+    expect(selection, isNotNull);
+    expect(selection!.candidate.versionId, 'clang-18');
+    expect(selection.cppStandard, CppLanguageStandard.cpp23);
+  });
+
   test('ignores non-Clang and incomplete compiler descriptors', () {
     final catalog = ToolchainCatalog()
       ..register(

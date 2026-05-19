@@ -1,21 +1,6 @@
+import 'clang_cpp_version_configuration.dart';
 import 'toolchain_catalog.dart';
 import 'toolchain_manager.dart';
-
-enum CppLanguageStandard {
-  cpp14(cmakeValue: '14', compilerFlag: '-std=c++14'),
-  cpp17(cmakeValue: '17', compilerFlag: '-std=c++17'),
-  cpp20(cmakeValue: '20', compilerFlag: '-std=c++20'),
-  cpp23(cmakeValue: '23', compilerFlag: '-std=c++23'),
-  cpp26(cmakeValue: '26', compilerFlag: '-std=c++26');
-
-  const CppLanguageStandard({
-    required this.cmakeValue,
-    required this.compilerFlag,
-  });
-
-  final String cmakeValue;
-  final String compilerFlag;
-}
 
 class ClangCppVersionCandidate {
   const ClangCppVersionCandidate({
@@ -140,6 +125,7 @@ class ClangCppVersionManager {
   factory ClangCppVersionManager.fromCatalog(
     ToolchainCatalog catalog, {
     CppLanguageStandard defaultCppStandard = CppLanguageStandard.cpp20,
+    ClangCppVersionPreference? preference,
   }) {
     final candidates = catalog
         .list(kind: ToolchainKind.compiler)
@@ -157,16 +143,21 @@ class ClangCppVersionManager {
     );
     return ClangCppVersionManager(
       candidates: candidates,
-      activeVersionId: activeCandidate?.versionId,
+      activeVersionId: _preferredVersionId(
+        candidates,
+        preference?.versionId,
+        fallbackVersionId: activeCandidate?.versionId,
+      ),
       cmakeAvailable: _hasBuildTool(catalog, 'cmake'),
       ninjaAvailable: _hasBuildTool(catalog, 'ninja'),
-      defaultCppStandard: defaultCppStandard,
+      defaultCppStandard: preference?.cppStandard ?? defaultCppStandard,
     );
   }
 
   factory ClangCppVersionManager.fromSnapshot(
     ToolchainStateSnapshot? snapshot, {
     CppLanguageStandard defaultCppStandard = CppLanguageStandard.cpp20,
+    ClangCppVersionPreference? preference,
   }) {
     if (snapshot == null) {
       return ClangCppVersionManager(
@@ -174,7 +165,7 @@ class ClangCppVersionManager {
         activeVersionId: null,
         cmakeAvailable: false,
         ninjaAvailable: false,
-        defaultCppStandard: defaultCppStandard,
+        defaultCppStandard: preference?.cppStandard ?? defaultCppStandard,
       );
     }
     final candidates = snapshot
@@ -191,10 +182,14 @@ class ClangCppVersionManager {
           );
     return ClangCppVersionManager(
       candidates: candidates,
-      activeVersionId: activeCandidate?.versionId,
+      activeVersionId: _preferredVersionId(
+        candidates,
+        preference?.versionId,
+        fallbackVersionId: activeCandidate?.versionId,
+      ),
       cmakeAvailable: _snapshotHasBuildTool(snapshot, 'cmake'),
       ninjaAvailable: _snapshotHasBuildTool(snapshot, 'ninja'),
-      defaultCppStandard: defaultCppStandard,
+      defaultCppStandard: preference?.cppStandard ?? defaultCppStandard,
     );
   }
 
@@ -265,6 +260,21 @@ class ClangCppVersionManager {
     return snapshot.list(kind: ToolchainKind.buildTool).any((entry) {
       return _stringValue(entry.metadata['toolFamily']) == toolFamily;
     });
+  }
+
+  static String? _preferredVersionId(
+    Iterable<ClangCppVersionCandidate> candidates,
+    String? preferredVersionId, {
+    String? fallbackVersionId,
+  }) {
+    if (preferredVersionId != null) {
+      for (final candidate in candidates) {
+        if (candidate.versionId == preferredVersionId) {
+          return preferredVersionId;
+        }
+      }
+    }
+    return fallbackVersionId;
   }
 }
 

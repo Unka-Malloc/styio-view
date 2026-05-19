@@ -5,6 +5,7 @@ import '../editor/selection_state.dart';
 import '../interaction/language_service_status_surface.dart';
 import '../language/language_contract.dart';
 import '../language/service/language_service_foundation.dart';
+import '../toolchain/clang_cpp_version_configuration.dart';
 import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_manager.dart';
@@ -78,6 +79,7 @@ class AgentSessionContext {
     Iterable<SemanticBlockRange> semanticBlocks = const <SemanticBlockRange>[],
     LanguageServiceStatusSurface? languageServiceStatus,
     ToolchainStateSnapshot? toolchainSnapshot,
+    ClangCppVersionPreference? clangCppVersionPreference,
     AgentCommandResultContext? lastCommandResult,
     Iterable<AgentCommandResultContext> recentCommandResults =
         const <AgentCommandResultContext>[],
@@ -104,6 +106,7 @@ class AgentSessionContext {
     final diagnosticsTruncated = diagnosticList.length > maxDiagnostics;
     final toolchainContext = AgentToolchainContext.fromSnapshot(
       toolchainSnapshot,
+      clangCppVersionPreference: clangCppVersionPreference,
     );
     final workspaceContext = AgentWorkspaceContext.fromWorkspaceState(
       activeFilePath: activeFilePath ?? document.documentId,
@@ -883,6 +886,7 @@ class AgentToolchainContext {
   factory AgentToolchainContext.fromSnapshot(
     ToolchainStateSnapshot? snapshot, {
     int maxEntries = 20,
+    ClangCppVersionPreference? clangCppVersionPreference,
   }) {
     if (snapshot == null) {
       return const AgentToolchainContext(
@@ -900,7 +904,10 @@ class AgentToolchainContext {
       activeCompiler: activeCompiler == null
           ? null
           : AgentToolchainEntryContext.fromStateEntry(activeCompiler),
-      clangCpp: AgentClangCppToolchainContext.fromSnapshot(snapshot),
+      clangCpp: AgentClangCppToolchainContext.fromSnapshot(
+        snapshot,
+        preference: clangCppVersionPreference,
+      ),
     );
   }
 
@@ -938,9 +945,13 @@ class AgentClangCppToolchainContext {
   });
 
   static AgentClangCppToolchainContext? fromSnapshot(
-    ToolchainStateSnapshot snapshot,
-  ) {
-    final manager = ClangCppVersionManager.fromSnapshot(snapshot);
+    ToolchainStateSnapshot snapshot, {
+    ClangCppVersionPreference? preference,
+  }) {
+    final manager = ClangCppVersionManager.fromSnapshot(
+      snapshot,
+      preference: preference,
+    );
     if (!manager.hasCandidates) {
       return null;
     }

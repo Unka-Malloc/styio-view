@@ -78,12 +78,16 @@ class ClangCppVersionSelection {
     required this.cppStandard,
     required this.cmakeAvailable,
     required this.ninjaAvailable,
+    this.cmakeExecutablePath,
+    this.ninjaExecutablePath,
   });
 
   final ClangCppVersionCandidate candidate;
   final CppLanguageStandard cppStandard;
   final bool cmakeAvailable;
   final bool ninjaAvailable;
+  final String? cmakeExecutablePath;
+  final String? ninjaExecutablePath;
 
   List<String> get cmakeConfigureArguments {
     return <String>[
@@ -92,6 +96,18 @@ class ClangCppVersionSelection {
       '-DCMAKE_CXX_STANDARD=${cppStandard.cmakeValue}',
       '-DCMAKE_CXX_STANDARD_REQUIRED=ON',
       '-DCMAKE_CXX_EXTENSIONS=OFF',
+    ];
+  }
+
+  List<String> get cmakeNinjaConfigureArguments {
+    if (ninjaExecutablePath == null) {
+      return cmakeConfigureArguments;
+    }
+    return <String>[
+      '-G',
+      'Ninja',
+      ...cmakeConfigureArguments,
+      '-DCMAKE_MAKE_PROGRAM=$ninjaExecutablePath',
     ];
   }
 
@@ -114,8 +130,14 @@ class ClangCppVersionSelection {
       'candidate': candidate.toManifest(),
       'cppStandard': cppStandard.cmakeValue,
       'cmakeAvailable': cmakeAvailable,
+      if (cmakeExecutablePath != null)
+        'cmakeExecutablePath': cmakeExecutablePath,
       'ninjaAvailable': ninjaAvailable,
+      if (ninjaExecutablePath != null)
+        'ninjaExecutablePath': ninjaExecutablePath,
       'cmakeConfigureArguments': cmakeConfigureArguments,
+      if (ninjaExecutablePath != null)
+        'cmakeNinjaConfigureArguments': cmakeNinjaConfigureArguments,
       'ninjaEnvironment': ninjaEnvironment(),
     };
   }
@@ -277,6 +299,8 @@ class ClangCppVersionManager {
       cppStandard: cppStandard ?? defaultCppStandard,
       cmakeAvailable: cmakeAvailable,
       ninjaAvailable: ninjaAvailable,
+      cmakeExecutablePath: cmakeExecutablePath,
+      ninjaExecutablePath: ninjaExecutablePath,
     );
   }
 

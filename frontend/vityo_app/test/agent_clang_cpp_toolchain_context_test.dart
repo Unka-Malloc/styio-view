@@ -78,6 +78,16 @@ void main() {
       '-DCMAKE_CXX_STANDARD_REQUIRED=ON',
       '-DCMAKE_CXX_EXTENSIONS=OFF',
     ]);
+    expect(selectionJson['cmakeNinjaConfigureArguments'], <String>[
+      '-G',
+      'Ninja',
+      '-DCMAKE_C_COMPILER=/usr/bin/clang',
+      '-DCMAKE_CXX_COMPILER=/usr/bin/clang++',
+      '-DCMAKE_CXX_STANDARD=23',
+      '-DCMAKE_CXX_STANDARD_REQUIRED=ON',
+      '-DCMAKE_CXX_EXTENSIONS=OFF',
+      '-DCMAKE_MAKE_PROGRAM=/usr/bin/ninja',
+    ]);
     expect(selectionJson['ninjaEnvironment'], <String, String>{
       'CC': '/usr/bin/clang',
       'CXX': '/usr/bin/clang++',

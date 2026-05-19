@@ -1,3 +1,5 @@
+import '../environment/system_compatibility/process/process_manager.dart';
+
 enum SourceControlProviderKind { localDirtyDocuments, git }
 
 enum SourceControlFileStatus {
@@ -132,6 +134,43 @@ typedef SourceControlCommandRunner =
     Future<SourceControlCommandResult> Function(
       SourceControlCommandRequest request,
     );
+
+class ProcessSourceControlCommandRunner {
+  const ProcessSourceControlCommandRunner({
+    required this.processManager,
+    this.timeout = const Duration(seconds: 10),
+  });
+
+  final ProcessManager processManager;
+  final Duration timeout;
+
+  Future<SourceControlCommandResult> call(
+    SourceControlCommandRequest request,
+  ) async {
+    final result = await processManager.run(
+      ProcessCommandRequest(
+        executablePath: request.executable,
+        arguments: request.arguments,
+        workingDirectory: request.workingDirectory,
+        timeout: timeout,
+      ),
+    );
+    return SourceControlCommandResult(
+      exitCode: result.exitCode ?? _exitCodeForProcessStatus(result.status),
+      stdout: result.stdout,
+      stderr: result.stderr.isNotEmpty ? result.stderr : result.message ?? '',
+    );
+  }
+}
+
+int _exitCodeForProcessStatus(ProcessCommandStatus status) {
+  return switch (status) {
+    ProcessCommandStatus.succeeded => 0,
+    ProcessCommandStatus.failed => 1,
+    ProcessCommandStatus.timedOut => 124,
+    ProcessCommandStatus.blocked => 126,
+  };
+}
 
 abstract class SourceControlStatusProvider {
   const SourceControlStatusProvider();

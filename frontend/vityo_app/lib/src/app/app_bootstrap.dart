@@ -31,6 +31,7 @@ import '../view_ide/toolchain/styio_toolchain_discovery.dart';
 import '../view_ide/testing/testing.dart';
 import '../view_ide/workspace/workspace_diagnostics.dart';
 import '../view_ide/workspace/workspace_diagnostics_controller.dart';
+import '../view_ide/workspace/source_control_status.dart';
 import '../view_ide/workspace/source_control_status_controller.dart';
 import '../module_host/module_registry.dart';
 import '../platform/native_module_loader.dart';
@@ -289,6 +290,12 @@ class AppBootstrap {
       ),
     );
     final testingSessionController = TestingSessionController();
+    final sourceControlStatusController =
+        AppBootstrap.createSourceControlStatusController(
+          platformManagers: platformManagers,
+          workspaceRoot: projectSnapshot.workspaceRoot,
+        );
+    unawaited(sourceControlStatusController.refresh());
     Future<void> refreshActiveLanguageService() async {
       try {
         await refreshLanguageServiceForEditor(
@@ -395,6 +402,7 @@ class AppBootstrap {
       languageResultCacheBinding: languageResultCacheBinding,
       workspaceDiagnosticsController: workspaceDiagnosticsController,
       testingSessionController: testingSessionController,
+      sourceControlStatusController: sourceControlStatusController,
     );
   }
 
@@ -417,6 +425,21 @@ class AppBootstrap {
     return ConfigurationStore(
       dataStore: dataStore,
       credentialDataStore: credentialDataStore,
+    );
+  }
+
+  @visibleForTesting
+  static SourceControlStatusController createSourceControlStatusController({
+    required PlatformManagerBundle platformManagers,
+    required String workspaceRoot,
+  }) {
+    return SourceControlStatusController(
+      provider: GitPorcelainStatusProvider(
+        runner: ProcessSourceControlCommandRunner(
+          processManager: platformManagers.process,
+        ).call,
+      ),
+      workspaceRoot: workspaceRoot,
     );
   }
 

@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/environment/system_compatibility/process/process_adapter.dart';
+import 'package:vityo_app/src/view_ide/environment/system_compatibility/process/process_facts.dart';
+import 'package:vityo_app/src/view_ide/environment/system_compatibility/process/process_manager.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -63,6 +66,75 @@ R  lib/old.styio -> lib/renamed.styio
       expect(snapshot.changes.single.path, 'lib/main.styio');
     },
   );
+
+  test(
+    'process source control runner executes through process manager',
+    () async {
+      final processManager = _FakeProcessManager(
+        const ProcessCommandResult(
+          status: ProcessCommandStatus.succeeded,
+          executablePath: 'git',
+          arguments: <String>['status'],
+          exitCode: 0,
+          stdout: '## ai-dev\n',
+          stderr: '',
+          duration: Duration(milliseconds: 12),
+        ),
+      );
+      final runner = ProcessSourceControlCommandRunner(
+        processManager: processManager,
+        timeout: const Duration(seconds: 3),
+      );
+
+      final result = await runner(
+        const SourceControlCommandRequest(
+          executable: 'git',
+          arguments: <String>['status', '--porcelain=v1', '--branch'],
+          workingDirectory: '/workspace/vityo',
+        ),
+      );
+
+      expect(processManager.lastRequest?.executablePath, 'git');
+      expect(processManager.lastRequest?.arguments, <String>[
+        'status',
+        '--porcelain=v1',
+        '--branch',
+      ]);
+      expect(processManager.lastRequest?.workingDirectory, '/workspace/vityo');
+      expect(processManager.lastRequest?.timeout, const Duration(seconds: 3));
+      expect(result.exitCode, 0);
+      expect(result.stdout, '## ai-dev\n');
+    },
+  );
+
+  test('process source control runner maps blocked process status', () async {
+    final processManager = _FakeProcessManager(
+      const ProcessCommandResult(
+        status: ProcessCommandStatus.blocked,
+        executablePath: 'git',
+        arguments: <String>['status'],
+        exitCode: null,
+        stdout: '',
+        stderr: '',
+        duration: Duration.zero,
+        message: 'Process execution is not available.',
+      ),
+    );
+
+    final result =
+        await ProcessSourceControlCommandRunner(
+          processManager: processManager,
+        ).call(
+          const SourceControlCommandRequest(
+            executable: 'git',
+            arguments: <String>['status'],
+            workingDirectory: '/workspace/vityo',
+          ),
+        );
+
+    expect(result.exitCode, 126);
+    expect(result.stderr, 'Process execution is not available.');
+  });
 
   test(
     'git status provider reports unavailable status on command failure',
@@ -135,4 +207,34 @@ R  lib/old.styio -> lib/renamed.styio
     expect(controller.snapshot, isNull);
     expect(notifications, 2);
   });
+}
+
+class _FakeProcessManager implements ProcessManager {
+  _FakeProcessManager(this.result)
+    : facts = ProcessFacts.linuxDebianArm(),
+      compatibility = ProcessAdapter(ProcessFacts.linuxDebianArm()).adapt();
+
+  final ProcessCommandResult result;
+  ProcessCommandRequest? lastRequest;
+
+  @override
+  final ProcessFacts facts;
+
+  @override
+  final ProcessCompatibility compatibility;
+
+  @override
+  Future<ProcessCommandResult> run(ProcessCommandRequest request) async {
+    lastRequest = request;
+    return result;
+  }
+
+  @override
+  ProcessOperationFailure? failureFor(
+    ProcessCommandResult result, {
+    String operation = 'process.spawn',
+    String? recoveryHint,
+  }) {
+    return null;
+  }
 }

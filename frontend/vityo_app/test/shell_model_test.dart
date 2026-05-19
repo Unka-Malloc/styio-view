@@ -595,6 +595,15 @@ void main() {
 
       shell.editorController.selectCollapsed(mainText.indexOf('blend()') + 1);
 
+      await shell.executeCommand(AppCommandId.collectProjectLanguageContext);
+      final projectLanguage =
+          shell.agentSessionContext.commands.lastResult?.metadata['projectLanguage']
+              as Map<String, Object?>;
+      final hover = projectLanguage['hover']! as Map<String, Object?>;
+      expect(projectLanguage['definitionCount'], 1);
+      expect(projectLanguage['referenceCount'], 2);
+      expect(hover['label'], contains('function blend'));
+
       await shell.executeCommand(AppCommandId.nextReference);
 
       final definitionStart = libText.indexOf('blend');

@@ -913,8 +913,12 @@ void main() {
       'refreshLanguageService',
     );
     expect(
-      (codingCommands.single! as Map<String, Object?>)['id'],
+      (codingCommands.first! as Map<String, Object?>)['id'],
       'collectAgentCodingCheckpoint',
+    );
+    expect(
+      (codingCommands[1]! as Map<String, Object?>)['id'],
+      'collectProjectLanguageContext',
     );
     expect(
       (navigationCommands.first! as Map<String, Object?>)['id'],

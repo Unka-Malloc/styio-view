@@ -693,6 +693,106 @@ class ShellRuntimeModel extends ChangeNotifier {
     return metadata;
   }
 
+  Future<Map<String, Object?>> collectProjectLanguageContext() async {
+    final documents = await _loadProjectLanguageDocuments();
+    final documentId = editorController.document.documentId;
+    final offset = editorController.selection.extentOffset;
+    final hover = projectLanguageService.hoverAt(
+      documents: documents,
+      documentId: documentId,
+      offset: offset,
+    );
+    final definitions = projectLanguageService.definitionsAt(
+      documents: documents,
+      documentId: documentId,
+      offset: offset,
+    );
+    final references = projectLanguageService.referencesAt(
+      documents: documents,
+      documentId: documentId,
+      offset: offset,
+    ).toList(growable: false)
+      ..sort(_compareProjectSymbolReferences);
+    final completions = projectLanguageService.completionsAt(
+      documents: documents,
+      documentId: documentId,
+      offset: offset,
+    );
+    final metadata = <String, Object?>{
+      'documentId': documentId,
+      'offset': offset,
+      'documentCount': documents.length,
+      if (hover != null)
+        'hover': <String, Object?>{
+          'label': hover.label,
+          'definitionCount': hover.definitions.length,
+        },
+      'definitionCount': definitions.length,
+      'definitions': definitions
+          .take(20)
+          .map(_projectSymbolDefinitionToJson)
+          .toList(growable: false),
+      'referenceCount': references.length,
+      'references': references
+          .take(50)
+          .map(_projectSymbolReferenceToJson)
+          .toList(growable: false),
+      'completionCount': completions.length,
+      'completions': completions
+          .take(50)
+          .map(_completionItemToJson)
+          .toList(growable: false),
+    };
+    appendLog(
+      'Project language context collected: '
+      '${definitions.length} definition(s), '
+      '${references.length} reference(s), '
+      '${completions.length} completion(s).',
+    );
+    notifyListeners();
+    return metadata;
+  }
+
+  Map<String, Object?> _projectSymbolDefinitionToJson(
+    StyioProjectSymbolDefinition definition,
+  ) {
+    return <String, Object?>{
+      'documentId': definition.documentId,
+      'kind': definition.kind.name,
+      'name': definition.name,
+      'range': _sourceRangeToJson(definition.range),
+      if (definition.type != null) 'type': definition.type,
+    };
+  }
+
+  Map<String, Object?> _projectSymbolReferenceToJson(
+    StyioProjectSymbolReference reference,
+  ) {
+    return <String, Object?>{
+      'documentId': reference.documentId,
+      'name': reference.name,
+      'range': _sourceRangeToJson(reference.range),
+      'isDefinition': reference.isDefinition,
+    };
+  }
+
+  Map<String, Object?> _completionItemToJson(CompletionItem completion) {
+    return <String, Object?>{
+      'label': completion.label,
+      'kind': completion.kind.name,
+      'insertText': completion.insertText,
+      if (completion.detail.isNotEmpty) 'detail': completion.detail,
+      if (completion.documentation.isNotEmpty)
+        'documentation': completion.documentation,
+      if (completion.replacementRange != null)
+        'replacementRange': _sourceRangeToJson(completion.replacementRange!),
+    };
+  }
+
+  Map<String, Object?> _sourceRangeToJson(SourceRange range) {
+    return <String, Object?>{'start': range.start, 'end': range.end};
+  }
+
   WorkspaceDiagnosticsRequest _createWorkspaceDiagnosticsRequest() {
     final documentsById = <String, DocumentState>{
       editorController.document.documentId: editorController.document,
@@ -1218,6 +1318,15 @@ class ShellRuntimeModel extends ChangeNotifier {
           applied: true,
           message: 'Agent command collectAgentCodingCheckpoint completed.',
           metadata: metadata,
+        );
+        return true;
+      case 'collectProjectLanguageContext':
+        final metadata = await collectProjectLanguageContext();
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: true,
+          message: 'Agent command collectProjectLanguageContext completed.',
+          metadata: <String, Object?>{'projectLanguage': metadata},
         );
         return true;
       case 'goToDefinition':
@@ -2013,6 +2122,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshSourceControl:
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.collectAgentCodingCheckpoint:
+      case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
@@ -2078,6 +2188,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshSourceControl:
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.collectAgentCodingCheckpoint:
+      case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
@@ -4190,6 +4301,15 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: metadata,
         );
         return;
+      case AppCommandId.collectProjectLanguageContext:
+        final metadata = await collectProjectLanguageContext();
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: true,
+          message: 'Project language context collected.',
+          metadata: <String, Object?>{'projectLanguage': metadata},
+        );
+        return;
       case AppCommandId.run:
         final routeSelection = selectBackendExecutionRoute(
           platformTarget: platformTarget,
@@ -4506,6 +4626,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshSourceControl:
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.collectAgentCodingCheckpoint:
+      case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:

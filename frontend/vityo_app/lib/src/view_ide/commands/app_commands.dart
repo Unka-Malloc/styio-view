@@ -27,6 +27,7 @@ enum AppCommandId {
   refreshSourceControl,
   previewSourceControlDiff,
   collectAgentCodingCheckpoint,
+  collectProjectLanguageContext,
   openWorkspaceFile,
   searchWorkspace,
   runBuild,
@@ -320,6 +321,13 @@ class StyioCommandRegistry {
           'Refresh diagnostics, source-control status, and first diff preview for the Agent coding loop.',
     ),
     AppCommandDescriptor(
+      id: AppCommandId.collectProjectLanguageContext,
+      label: 'Collect Project Language Context',
+      shortcutHint: 'Route',
+      description:
+          'Collect project-level Styio definitions, references, hover, and completion facts for the Agent coding loop.',
+    ),
+    AppCommandDescriptor(
       id: AppCommandId.goToDefinition,
       label: 'Go to Definition',
       shortcutHint: 'F12',
@@ -484,7 +492,8 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get agentCodingCommands =>
       commands.where(
         (command) => switch (command.id) {
-          AppCommandId.collectAgentCodingCheckpoint => true,
+          AppCommandId.collectAgentCodingCheckpoint ||
+          AppCommandId.collectProjectLanguageContext => true,
           _ => false,
         },
       );

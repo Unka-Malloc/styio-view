@@ -1993,6 +1993,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.difference_outlined;
     case AppCommandId.collectAgentCodingCheckpoint:
       return Icons.assignment_turned_in_outlined;
+    case AppCommandId.collectProjectLanguageContext:
+      return Icons.schema_outlined;
     case AppCommandId.goToDefinition:
       return Icons.subdirectory_arrow_right_rounded;
     case AppCommandId.openWorkspaceFile:

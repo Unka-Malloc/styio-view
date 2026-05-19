@@ -105,6 +105,9 @@ void main() {
       final collectAgentCodingCheckpoint = StyioCommandRegistry.descriptorFor(
         AppCommandId.collectAgentCodingCheckpoint,
       );
+      final collectProjectLanguageContext = StyioCommandRegistry.descriptorFor(
+        AppCommandId.collectProjectLanguageContext,
+      );
 
       expect(save.label, 'Save');
       expect(save.shortcutHint, 'Cmd/Ctrl+S');
@@ -228,6 +231,12 @@ void main() {
       );
       expect(collectAgentCodingCheckpoint.shortcutHint, 'Route');
       expect(collectAgentCodingCheckpoint.requiresInput, isFalse);
+      expect(
+        collectProjectLanguageContext.label,
+        'Collect Project Language Context',
+      );
+      expect(collectProjectLanguageContext.shortcutHint, 'Route');
+      expect(collectProjectLanguageContext.requiresInput, isFalse);
     },
   );
 
@@ -297,7 +306,10 @@ void main() {
     );
     expect(
       StyioCommandRegistry.agentCodingCommands.map((command) => command.id),
-      <AppCommandId>[AppCommandId.collectAgentCodingCheckpoint],
+      <AppCommandId>[
+        AppCommandId.collectAgentCodingCheckpoint,
+        AppCommandId.collectProjectLanguageContext,
+      ],
     );
   });
 

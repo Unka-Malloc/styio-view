@@ -350,6 +350,9 @@ class WorkspaceEditApplier {
     for (final entry in normalizedEditsByDocument.entries) {
       final document = loadedDocuments[entry.key]!;
       final nextDocument = _applyEditsToDocument(document, entry.value);
+      if (nextDocument.text == document.text) {
+        continue;
+      }
       try {
         await workspaceDocumentStore.saveDocument(nextDocument);
       } on Object catch (error) {
@@ -363,6 +366,15 @@ class WorkspaceEditApplier {
       }
       appliedDocumentIds.add(entry.key);
       appliedEditCount += entry.value.length;
+    }
+
+    if (appliedEditCount == 0) {
+      return WorkspaceEditApplicationResult(
+        applied: false,
+        message:
+            'Workspace edit plan ${plan.id} produced no text changes.',
+        appliedDocumentIds: const <String>[],
+      );
     }
 
     appliedDocumentIds.sort();

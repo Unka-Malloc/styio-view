@@ -178,6 +178,44 @@ void main() {
     },
   );
 
+  test(
+    'workspace edit applier skips no-op edits without saving',
+    () async {
+      final store = InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'main.styio': DocumentState(
+            documentId: 'main.styio',
+            text: 'value = 1\n',
+            revision: 9,
+          ),
+        },
+      );
+      final applier = WorkspaceEditApplier(workspaceDocumentStore: store);
+      final plan = WorkspaceEditPlan.singleDocument(
+        id: 'noop',
+        summary: 'No-op.',
+        source: WorkspaceEditSource.codeAction,
+        documentId: 'main.styio',
+        edits: const <FormattingEdit>[
+          FormattingEdit(
+            range: SourceRange(start: 0, end: 5),
+            newText: 'value',
+          ),
+        ],
+      );
+
+      final result = await applier.apply(plan);
+      final document = await store.loadDocument('main.styio');
+
+      expect(result.applied, isFalse);
+      expect(result.appliedEditCount, 0);
+      expect(result.appliedDocumentIds, isEmpty);
+      expect(result.message, contains('produced no text changes'));
+      expect(document.text, 'value = 1\n');
+      expect(document.revision, 9);
+    },
+  );
+
   test('workspace edit plan can be created from quick fix', () {
     const quickFix = DiagnosticQuickFix(
       label: 'Insert missing import.',

@@ -552,6 +552,11 @@ class StyioServiceCapabilityNegotiationResult<T> {
       'report': <String, Object?>{
         'documentId': report.documentId,
         'revision': report.revision,
+        'protocolVersion': report.response.protocolVersion,
+        if (report.response.parserEngine != null)
+          'parserEngine': report.response.parserEngine,
+        if (report.response.grammarVersion != null)
+          'grammarVersion': report.response.grammarVersion,
         'serviceSucceeded': report.serviceSucceeded,
         'cachedResponseStored': report.cachedResponseStored,
       },

@@ -1438,6 +1438,9 @@ void main() {
           status: StyioServiceStatus.succeeded,
           documentId: 'fixture://negotiation',
           revision: 9,
+          protocolVersion: 'styio-service-facts-v1',
+          parserEngine: 'nightly',
+          grammarVersion: '2026.05',
           documentSymbols: <DocumentSymbol>[
             DocumentSymbol(
               name: 'value',
@@ -1480,9 +1483,14 @@ void main() {
           );
 
       expect(result.report.cachedResponseStored, isTrue);
+      final resultJson = result.toJson();
+      final reportJson = resultJson['report']! as Map<String, Object?>;
       expect(connector.documents.single.filePath, '/workspace/main.styio');
       expect(connector.documents.single.configPath, '/workspace/styio.toml');
       expect(connector.documents.single.workingDirectory, '/workspace');
+      expect(reportJson['protocolVersion'], 'styio-service-facts-v1');
+      expect(reportJson['parserEngine'], 'nightly');
+      expect(reportJson['grammarVersion'], '2026.05');
       expect(result.registration.descriptor.priority, 30);
       expect(
         registry.resolve(
@@ -1491,7 +1499,7 @@ void main() {
         ),
         'negotiated-provider',
       );
-      expect(result.toJson()['registration'], isA<Map<String, Object?>>());
+      expect(resultJson['registration'], isA<Map<String, Object?>>());
     },
   );
 
@@ -3255,12 +3263,12 @@ void main() {
         connector: const _FakeStyioServiceConnector(
           StyioServiceResponse(
             status: StyioServiceStatus.succeeded,
-          documentId: 'fixture://driver-manifest',
-          revision: 8,
-          toolchainId: 'styio-nightly',
-          parserEngine: 'nightly',
-          grammarVersion: '2026.05',
-          diagnostics: <StyioServiceDiagnosticDto>[
+            documentId: 'fixture://driver-manifest',
+            revision: 8,
+            toolchainId: 'styio-nightly',
+            parserEngine: 'nightly',
+            grammarVersion: '2026.05',
+            diagnostics: <StyioServiceDiagnosticDto>[
               StyioServiceDiagnosticDto(
                 severity: DiagnosticSeverity.error,
                 code: 'styio.driver.raw',

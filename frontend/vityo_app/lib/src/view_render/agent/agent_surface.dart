@@ -736,6 +736,31 @@ Map<String, bool> _agentCommandRequiresInputById(
   };
 }
 
+Map<String, String> _agentCommandInputLabelById(
+  AgentCommandCatalogContext commands,
+) {
+  return <String, String>{
+    for (final command in commands.persistenceCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.diagnosticCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.languageServiceCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.navigationCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.refactorCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.toolchainCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.nativeToolCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.debugCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.settingsCommands)
+      command.id: command.inputLabel,
+  };
+}
+
 bool _agentCommandMissingRequiredInput(
   String commandId,
   String? input,
@@ -783,6 +808,7 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
     required this.command,
     required this.registered,
     required this.missingRequiredInput,
+    this.missingRequiredInputLabel,
     required this.readiness,
     required this.requiredCommandRegistered,
     required this.applying,
@@ -795,6 +821,7 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
   final AgentIdeCommandSuggestion command;
   final bool registered;
   final bool missingRequiredInput;
+  final String? missingRequiredInputLabel;
   final _AgentCommandReadinessStatus? readiness;
   final bool requiredCommandRegistered;
   final bool applying;
@@ -833,7 +860,10 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
           )
         else if (missingRequiredInput)
           Text(
-            'Missing required input',
+            missingRequiredInputLabel == null ||
+                    missingRequiredInputLabel!.isEmpty
+                ? 'Missing required input'
+                : 'Missing required input: $missingRequiredInputLabel',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.error,
             ),
@@ -1146,6 +1176,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final commandRequiresInputById = _agentCommandRequiresInputById(
           widget.sessionContext.commands,
         );
+        final commandInputLabelById = _agentCommandInputLabelById(
+          widget.sessionContext.commands,
+        );
         final nativeToolCommandIds = widget
             .sessionContext
             .commands
@@ -1439,6 +1472,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                             command.commandId,
                           ),
                           missingRequiredInput: missingRequiredInput,
+                          missingRequiredInputLabel:
+                              commandInputLabelById[command.commandId],
                           readiness: readiness,
                           requiredCommandRegistered:
                               requiredCommandId != null &&

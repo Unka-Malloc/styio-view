@@ -396,7 +396,7 @@ void main() {
     );
 
     expect(find.textContaining('renameSymbol'), findsOneWidget);
-    expect(find.text('Missing required input'), findsOneWidget);
+    expect(find.text('Missing required input: New symbol name'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Apply Command'), findsNothing);
     expect(applied, isFalse);
   });

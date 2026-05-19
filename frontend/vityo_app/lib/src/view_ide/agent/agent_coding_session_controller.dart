@@ -222,7 +222,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       return response;
     } on Object catch (error) {
       if (requestSerial == _activeRequestSerial) {
-        _clearPreservedAgentState();
+        _restorePreservedActionableAgentState();
         _lastError = sanitizeAgentError(error.toString());
         _lastProviderFailure = error is AgentProviderTransportException
             ? error
@@ -423,11 +423,33 @@ class AgentCodingSessionController extends ChangeNotifier {
     _clearPreservedAgentState();
   }
 
+  void _restorePreservedActionableAgentState() {
+    if (!_hasPreservedAgentState) {
+      return;
+    }
+    final preservedResponse = _preservedLastResponse;
+    final preservedPendingPatch = _preservedPendingPatch;
+    final shouldRestoreResponse =
+        preservedPendingPatch != null ||
+        _hasIdeCommandSuggestion(preservedResponse);
+    _lastResponse = shouldRestoreResponse ? preservedResponse : null;
+    _pendingPatch = preservedPendingPatch;
+    _lastPatchApplicationResult = _preservedLastPatchApplicationResult;
+    _clearPreservedAgentState();
+  }
+
   void _clearPreservedAgentState() {
     _hasPreservedAgentState = false;
     _preservedLastResponse = null;
     _preservedPendingPatch = null;
     _preservedLastPatchApplicationResult = null;
+  }
+
+  bool _hasIdeCommandSuggestion(AgentProviderResponseEnvelope? response) {
+    if (response == null) {
+      return false;
+    }
+    return response.contentParts.any((part) => part.ideCommand != null);
   }
 
   AgentSessionContext _contextForProviderRequest() {

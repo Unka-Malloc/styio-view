@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../environment/environment.dart';
+import '../runtime/runtime.dart';
 
 class TerminalSessionSnapshot {
   const TerminalSessionSnapshot({
@@ -11,6 +12,7 @@ class TerminalSessionSnapshot {
     this.outputLines = const <String>[],
     this.lastInput = '',
     this.lastResize,
+    this.taskSnapshot,
   });
 
   final String sessionId;
@@ -18,6 +20,7 @@ class TerminalSessionSnapshot {
   final List<String> outputLines;
   final String lastInput;
   final PtyResizeResult? lastResize;
+  final RuntimeTaskSnapshot? taskSnapshot;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -32,6 +35,22 @@ class TerminalSessionSnapshot {
           'cols': lastResize!.cols,
           if (lastResize!.message != null) 'message': lastResize!.message,
         },
+      if (taskSnapshot != null) 'task': taskSnapshot!.toJson(),
+    };
+  }
+}
+
+class TerminalRuntimeStartResult {
+  const TerminalRuntimeStartResult({required this.session, this.taskSnapshot});
+
+  final PtySession session;
+  final RuntimeTaskSnapshot? taskSnapshot;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'sessionId': session.id,
+      'state': session.state.name,
+      if (taskSnapshot != null) 'task': taskSnapshot!.toJson(),
     };
   }
 }
@@ -46,6 +65,7 @@ class TerminalInteractionController extends ChangeNotifier {
   List<String> _outputLines = const <String>[];
   String _lastInput = '';
   PtyResizeResult? _lastResize;
+  RuntimeTaskSnapshot? _taskSnapshot;
 
   TerminalSessionSnapshot? get snapshot {
     final session = _session;
@@ -58,12 +78,15 @@ class TerminalInteractionController extends ChangeNotifier {
       outputLines: List<String>.unmodifiable(_outputLines),
       lastInput: _lastInput,
       lastResize: _lastResize,
+      taskSnapshot: _taskSnapshot,
     );
   }
 
   Future<TerminalSessionSnapshot> start({
     ShellProfileConfiguration? profile,
     String? workingDirectory,
+    String? taskId,
+    String? taskLabel,
     int rows = 24,
     int cols = 80,
   }) async {
@@ -71,12 +94,17 @@ class TerminalInteractionController extends ChangeNotifier {
     _outputLines = const <String>[];
     _lastInput = '';
     _lastResize = null;
-    final session = await runtime.start(
+    _taskSnapshot = null;
+    final startResult = await runtime.startWithLifecycle(
       profile: profile,
       workingDirectory: workingDirectory,
+      taskId: taskId,
+      taskLabel: taskLabel,
       rows: rows,
       cols: cols,
     );
+    final session = startResult.session;
+    _taskSnapshot = startResult.taskSnapshot;
     _session = session;
     _outputSubscription = session.output.listen((chunk) {
       _outputLines = List<String>.unmodifiable(<String>[
@@ -99,7 +127,10 @@ class TerminalInteractionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<PtyResizeResult?> resize({required int rows, required int cols}) async {
+  Future<PtyResizeResult?> resize({
+    required int rows,
+    required int cols,
+  }) async {
     final session = _session;
     if (session == null) {
       return null;
@@ -117,6 +148,10 @@ class TerminalInteractionController extends ChangeNotifier {
     await _outputSubscription?.cancel();
     _outputSubscription = null;
     final exitCode = await session.close(force: force);
+    final taskId = _taskSnapshot?.definition.id;
+    if (taskId != null) {
+      _taskSnapshot = runtime.completeTask(taskId, exitCode: exitCode);
+    }
     notifyListeners();
     return exitCode;
   }
@@ -132,12 +167,14 @@ class TerminalRuntime {
   const TerminalRuntime({
     required PtyManager ptyManager,
     required ShellConfiguration shellConfiguration,
+    RuntimeTaskLifecycleController? taskLifecycleController,
     EnvironmentVariableResolver environmentResolver =
         const EnvironmentVariableResolver(),
     Map<String, String> inheritedEnvironment = const <String, String>{},
     String pathSeparator = ':',
   }) : _ptyManager = ptyManager,
        _shellConfiguration = shellConfiguration,
+       _taskLifecycleController = taskLifecycleController,
        _environmentResolver = environmentResolver,
        _inheritedEnvironment = inheritedEnvironment,
        _pathSeparator = pathSeparator;
@@ -146,6 +183,7 @@ class TerminalRuntime {
     required PlatformContextSnapshot platformContext,
     required PtyManager ptyManager,
     required ShellConfiguration shellConfiguration,
+    RuntimeTaskLifecycleController? taskLifecycleController,
     EnvironmentVariableResolver environmentResolver =
         const EnvironmentVariableResolver(),
     Map<String, String> inheritedEnvironment = const <String, String>{},
@@ -153,6 +191,7 @@ class TerminalRuntime {
     return TerminalRuntime(
       ptyManager: ptyManager,
       shellConfiguration: shellConfiguration,
+      taskLifecycleController: taskLifecycleController,
       environmentResolver: environmentResolver,
       inheritedEnvironment: inheritedEnvironment,
       pathSeparator: pathListSeparatorForPlatformContext(platformContext),
@@ -162,6 +201,7 @@ class TerminalRuntime {
   factory TerminalRuntime.fromPlatformManagers({
     required PlatformManagerBundle platformManagers,
     required ShellConfiguration shellConfiguration,
+    RuntimeTaskLifecycleController? taskLifecycleController,
     EnvironmentVariableResolver environmentResolver =
         const EnvironmentVariableResolver(),
     Map<String, String> inheritedEnvironment = const <String, String>{},
@@ -170,6 +210,7 @@ class TerminalRuntime {
       platformContext: platformManagers.context,
       ptyManager: platformManagers.pty,
       shellConfiguration: shellConfiguration,
+      taskLifecycleController: taskLifecycleController,
       environmentResolver: environmentResolver,
       inheritedEnvironment: inheritedEnvironment,
     );
@@ -177,6 +218,7 @@ class TerminalRuntime {
 
   final PtyManager _ptyManager;
   final ShellConfiguration _shellConfiguration;
+  final RuntimeTaskLifecycleController? _taskLifecycleController;
   final EnvironmentVariableResolver _environmentResolver;
   final Map<String, String> _inheritedEnvironment;
   final String _pathSeparator;
@@ -239,5 +281,104 @@ class TerminalRuntime {
         cols: cols,
       ),
     );
+  }
+
+  Future<TerminalRuntimeStartResult> startWithLifecycle({
+    ShellProfileConfiguration? profile,
+    Iterable<Map<String, String?>> envFileVariables =
+        const <Map<String, String?>>[],
+    Iterable<EnvironmentVariableOverlay> environmentOverlays =
+        const <EnvironmentVariableOverlay>[],
+    Map<String, String> environment = const <String, String>{},
+    String? workingDirectory,
+    String? taskId,
+    String? taskLabel,
+    int rows = 24,
+    int cols = 80,
+  }) async {
+    final selectedProfile = profile ?? _shellConfiguration.defaultProfile;
+    final taskSnapshot = _startTaskSnapshot(
+      profile: selectedProfile,
+      environment: environment,
+      workingDirectory: workingDirectory,
+      taskId: taskId,
+      taskLabel: taskLabel,
+    );
+    try {
+      final session = await start(
+        profile: profile,
+        envFileVariables: envFileVariables,
+        environmentOverlays: environmentOverlays,
+        environment: environment,
+        workingDirectory: workingDirectory,
+        rows: rows,
+        cols: cols,
+      );
+      return TerminalRuntimeStartResult(
+        session: session,
+        taskSnapshot: taskSnapshot,
+      );
+    } catch (error) {
+      final failedTaskId = taskSnapshot?.definition.id;
+      if (failedTaskId != null) {
+        _taskLifecycleController?.fail(
+          failedTaskId,
+          message: 'Terminal task $failedTaskId failed to start: $error',
+          metadata: <String, Object?>{'phase': 'pty-start'},
+        );
+      }
+      rethrow;
+    }
+  }
+
+  RuntimeTaskSnapshot? completeTask(String taskId, {int? exitCode}) {
+    final controller = _taskLifecycleController;
+    if (controller == null) {
+      return null;
+    }
+    return controller.complete(
+      taskId,
+      exitCode: exitCode ?? 0,
+      message: 'Terminal task $taskId closed.',
+    );
+  }
+
+  RuntimeTaskSnapshot? _startTaskSnapshot({
+    required ShellProfileConfiguration? profile,
+    required Map<String, String> environment,
+    required String? workingDirectory,
+    required String? taskId,
+    required String? taskLabel,
+  }) {
+    final controller = _taskLifecycleController;
+    if (controller == null) {
+      return null;
+    }
+    final id = taskId ?? 'terminal.${profile?.id ?? 'unsupported'}';
+    final definition = RuntimeTaskDefinition(
+      id: id,
+      label: taskLabel ?? 'Terminal ${profile?.id ?? 'unsupported'}',
+      kind: RuntimeTaskKind.shell,
+      command: profile?.executablePath ?? '',
+      arguments: profile?.arguments ?? const <String>[],
+      workingDirectory: workingDirectory,
+      environment: environment,
+      group: 'terminal',
+      terminalProfileId: profile?.id,
+      metadata: const <String, Object?>{
+        'source': 'TerminalRuntime',
+        'todo':
+            'TODO: attach terminal task history to persisted runtime store.',
+      },
+    );
+    controller.register(definition);
+    if (!definition.runnable) {
+      return controller.block(
+        id,
+        message: 'Terminal task $id has no runnable shell profile.',
+        metadata: const <String, Object?>{'phase': 'profile-selection'},
+      );
+    }
+    return controller.start(id, message: 'Terminal task $id started.');
   }
 }

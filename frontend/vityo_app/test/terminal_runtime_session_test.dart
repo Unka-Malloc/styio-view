@@ -2,42 +2,72 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
 void main() {
-  test('terminal interaction controller records output input and resize', () async {
-    final session = _FakePtySession();
-    final runtime = TerminalRuntime(
-      ptyManager: _FakePtyManager(session),
-      shellConfiguration: const ShellConfiguration(
-        defaultProfileId: 'sh',
-        profiles: <ShellProfileConfiguration>[
-          ShellProfileConfiguration(
-            id: 'sh',
-            executablePath: '/bin/sh',
-            family: ShellFamily.sh,
-          ),
-        ],
-      ),
-    );
-    final controller = TerminalInteractionController(runtime: runtime);
-    addTearDown(controller.dispose);
+  test(
+    'terminal interaction controller records output input and resize',
+    () async {
+      final session = _FakePtySession();
+      final taskController = RuntimeTaskLifecycleController(
+        clock: () => DateTime.utc(2026, 5, 20),
+      );
+      final runtime = TerminalRuntime(
+        ptyManager: _FakePtyManager(session),
+        taskLifecycleController: taskController,
+        shellConfiguration: const ShellConfiguration(
+          defaultProfileId: 'sh',
+          profiles: <ShellProfileConfiguration>[
+            ShellProfileConfiguration(
+              id: 'sh',
+              executablePath: '/bin/sh',
+              family: ShellFamily.sh,
+            ),
+          ],
+        ),
+      );
+      final controller = TerminalInteractionController(runtime: runtime);
+      addTearDown(controller.dispose);
 
-    final started = await controller.start(rows: 30, cols: 100);
-    session.emit('hello\n');
-    await Future<void>.delayed(Duration.zero);
-    await controller.sendInput('echo ok\n');
-    final resize = await controller.resize(rows: 40, cols: 120);
+      final started = await controller.start(
+        rows: 30,
+        cols: 100,
+        taskId: 'terminal.sh',
+        taskLabel: 'Shell terminal',
+      );
+      session.emit('hello\n');
+      await Future<void>.delayed(Duration.zero);
+      await controller.sendInput('echo ok\n');
+      final resize = await controller.resize(rows: 40, cols: 120);
+      final exitCode = await controller.close();
 
-    expect(started.sessionId, 'fake-pty');
-    expect(controller.snapshot?.state, PtySessionState.running);
-    expect(controller.snapshot?.outputLines, <String>['hello\n']);
-    expect(controller.snapshot?.lastInput, 'echo ok\n');
-    expect(session.writes, <String>['echo ok\n']);
-    expect(resize?.applied, isTrue);
-    expect(controller.snapshot?.lastResize?.cols, 120);
-    expect(controller.snapshot?.toJson()['state'], 'running');
-  });
+      expect(started.sessionId, 'fake-pty');
+      expect(started.taskSnapshot?.status, RuntimeTaskStatus.running);
+      expect(started.taskSnapshot?.definition.command, '/bin/sh');
+      expect(controller.snapshot?.state, PtySessionState.running);
+      expect(controller.snapshot?.outputLines, <String>['hello\n']);
+      expect(controller.snapshot?.lastInput, 'echo ok\n');
+      expect(session.writes, <String>['echo ok\n']);
+      expect(resize?.applied, isTrue);
+      expect(controller.snapshot?.lastResize?.cols, 120);
+      expect(exitCode, 0);
+      expect(
+        controller.snapshot?.taskSnapshot?.status,
+        RuntimeTaskStatus.succeeded,
+      );
+      expect(
+        taskController.snapshotFor('terminal.sh')?.status,
+        RuntimeTaskStatus.succeeded,
+      );
+      expect(controller.snapshot?.toJson()['state'], 'running');
+      expect(
+        (controller.snapshot?.toJson()['task']!
+            as Map<String, Object?>)['status'],
+        'succeeded',
+      );
+    },
+  );
 }
 
 class _FakePtyManager implements PtyManager {

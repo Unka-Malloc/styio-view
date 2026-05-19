@@ -1,3 +1,4 @@
+import '../foundation/foundation.dart';
 import 'module_manifest.dart';
 
 enum ExtensionContributionKind {
@@ -174,6 +175,20 @@ class ExtensionManifest {
 }
 
 class ExtensionManifestRegistry {
+  ExtensionManifestRegistry([
+    Iterable<ExtensionManifest> manifests = const <ExtensionManifest>[],
+  ]) {
+    for (final manifest in manifests) {
+      register(manifest);
+    }
+  }
+
+  factory ExtensionManifestRegistry.fromJson(Map<String, Object?> json) {
+    return ExtensionManifestRegistry(
+      _jsonExtensionManifests(json['manifests']),
+    );
+  }
+
   final Map<String, ExtensionManifest> _manifests =
       <String, ExtensionManifest>{};
 
@@ -230,6 +245,83 @@ class ExtensionManifestRegistry {
           .map((manifest) => manifest.toJson())
           .toList(growable: false),
     };
+  }
+}
+
+class ExtensionManifestRegistryStore {
+  ExtensionManifestRegistryStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'extension.manifest-registry',
+             layer: 'extension',
+             stateFamily: 'extension-manifest',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const ExtensionManifestRegistryStore({
+    required FoundationDataStoreOwner owner,
+  }) : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'extension.manifest-registry';
+  static const String _key = 'manifests';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<void> saveRegistry({
+    required String workspaceId,
+    required ExtensionManifestRegistry registry,
+  }) {
+    return _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: registry.toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+
+  Future<ExtensionManifestRegistry> readRegistry({
+    required String workspaceId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    return value == null
+        ? ExtensionManifestRegistry()
+        : ExtensionManifestRegistry.fromJson(value);
+  }
+
+  Future<bool> deleteRegistry({required String workspaceId}) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+
+  Stream<FoundationDataStoreChange> watchRegistry({
+    required String workspaceId,
+  }) {
+    return _owner.watchJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
   }
 }
 
@@ -298,5 +390,22 @@ List<ExtensionContributionPoint> _jsonContributionPoints(Object? value) {
           ),
         ),
       )
+      .toList(growable: false);
+}
+
+List<ExtensionManifest> _jsonExtensionManifests(Object? value) {
+  if (value is! List) {
+    return const <ExtensionManifest>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (manifest) => ExtensionManifest.fromJson(
+          manifest.map(
+            (key, value) => MapEntry<String, Object?>(key.toString(), value),
+          ),
+        ),
+      )
+      .where((manifest) => manifest.valid)
       .toList(growable: false);
 }

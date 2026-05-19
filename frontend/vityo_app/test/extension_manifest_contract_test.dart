@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
 
 void main() {
@@ -98,6 +102,73 @@ void main() {
       expect(registry.toJson()['extensionCount'], 2);
       expect(registry.unregister('command.palette'), isTrue);
       expect(registry.lookup('command.palette'), isNull);
+    },
+  );
+
+  test(
+    'extension manifest registry persists through Foundation DataStore',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_extension_manifest_registry_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final dataStore = FoundationDataStore(
+        resourceCoordinator: FoundationResourceCoordinator(
+          resourceManager: resourceManager,
+          fileSystemManager: fileSystemManager,
+        ),
+        fileSystemManager: fileSystemManager,
+      );
+      final store = ExtensionManifestRegistryStore.fromDataStore(
+        dataStore: dataStore,
+      );
+      final registry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'styio.language',
+            displayName: 'Styio Language',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'styio_language.dart',
+            activationEvents: <String>['onLanguage:styio'],
+            contributions: <ExtensionContributionPoint>[
+              ExtensionContributionPoint(
+                kind: ExtensionContributionKind.language,
+                id: 'styio',
+                target: 'service.styio-language',
+              ),
+            ],
+          ),
+        );
+
+      await store.saveRegistry(workspaceId: 'demo', registry: registry);
+      final restored = await store.readRegistry(workspaceId: 'demo');
+
+      expect(restored.lookup('styio.language'), isNotNull);
+      expect(
+        restored.activationCandidates('onLanguage:styio').single.extensionId,
+        'styio.language',
+      );
+      expect(
+        restored
+            .contributionsFor(ExtensionContributionKind.language)
+            .single
+            .target,
+        'service.styio-language',
+      );
+      expect(await store.deleteRegistry(workspaceId: 'demo'), isTrue);
+      expect((await store.readRegistry(workspaceId: 'demo')).list(), isEmpty);
     },
   );
 }

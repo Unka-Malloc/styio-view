@@ -123,6 +123,11 @@ void main() {
         decoded.systemPrompt,
         contains('before the blocked native command'),
       );
+      expect(decoded.systemPrompt, contains('has no requiredCommandId'));
+      expect(
+        decoded.systemPrompt,
+        contains('before retrying the missing-tool command'),
+      );
       expect(
         decoded.systemPrompt,
         contains('toolchains.clangCpp.cmakeExecutablePath'),

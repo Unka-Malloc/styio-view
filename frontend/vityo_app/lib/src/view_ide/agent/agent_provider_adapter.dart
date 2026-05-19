@@ -1263,6 +1263,7 @@ Vityo structured response contract:
 - If commands.nativeToolCommandReadiness is present, inspect each entry's ready flag, requiredKind, requiredToolFamily, requiredToolFamilies, toolFamily, toolchainId, requiredCommandId, dirtyDocumentIds, and reason before proposing runBuild, formatActiveDocument, runStaticAnalysis, or runTests.
 - If commands.debugCommandReadiness is present, inspect each entry's ready flag, requiredState, requiredCommandId, dirtyDocumentIds, candidateIds, and reason before proposing startDebugging, continueDebugging, stepOver, selectDebugThread, selectDebugStackFrame, or stopDebugging.
 - If a command readiness entry is not ready and includes requiredCommandId, propose that registered required command before the blocked command.
+- If a native tool command readiness entry is not ready, has no requiredCommandId, and commands.settingsCommands includes openSettings, propose openSettings before retrying the missing-tool command.
 - If language.serviceStatus is stale, unavailable, failed, or missing usable facts and commands.languageServiceCommands includes refreshLanguageService, propose that registered command before making language-fact-sensitive edits.
 - Before proposing build, test, static-analysis, or debug commands for dirty workspace documents, prefer commands.persistenceCommands save or saveAll when the user needs disk-backed tool feedback.
 - If the IDE context includes commands.recentResults, read it as newest-first user-confirmed IDE command outcomes before deciding the next step.

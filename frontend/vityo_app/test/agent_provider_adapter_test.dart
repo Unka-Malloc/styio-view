@@ -622,6 +622,11 @@ void main() {
         systemMessage['content'],
         contains('before the blocked command'),
       );
+      expect(systemMessage['content'], contains('has no requiredCommandId'));
+      expect(
+        systemMessage['content'],
+        contains('before retrying the missing-tool command'),
+      );
       expect(systemMessage['content'], contains('commands.debugCommands'));
       expect(systemMessage['content'], contains('commands.settingsCommands'));
       expect(

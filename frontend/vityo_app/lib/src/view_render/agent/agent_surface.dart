@@ -361,6 +361,9 @@ class _AgentProviderProfileSectionState
             const SizedBox(height: 8),
             _AgentProviderExecutionStatusCard(
               resolution: executionResolution,
+              onPromoteSelectedFallback: locked
+                  ? null
+                  : _promoteSelectedFallback,
             ),
           ],
           const SizedBox(height: 8),
@@ -596,6 +599,21 @@ class _AgentProviderProfileSectionState
       }
     }
   }
+
+  void _promoteSelectedFallback() {
+    final selected = widget.controller.providerExecutionResolution
+        ?.selectedEndpoint;
+    if (selected == null || !selected.fallback) {
+      return;
+    }
+    setState(() {
+      _baseUrlController.text = selected.endpoint.baseUrl;
+      _modelController.text = selected.endpoint.model;
+      _fallbackBaseUrlController.clear();
+      _fallbackModelController.clear();
+      _errorMessage = null;
+    });
+  }
 }
 
 bool _isValidProviderBaseUrl(String value) {
@@ -609,9 +627,13 @@ bool _isValidProviderBaseUrl(String value) {
 }
 
 class _AgentProviderExecutionStatusCard extends StatelessWidget {
-  const _AgentProviderExecutionStatusCard({required this.resolution});
+  const _AgentProviderExecutionStatusCard({
+    required this.resolution,
+    this.onPromoteSelectedFallback,
+  });
 
   final AgentProviderExecutionResolution resolution;
+  final VoidCallback? onPromoteSelectedFallback;
 
   @override
   Widget build(BuildContext context) {
@@ -661,6 +683,14 @@ class _AgentProviderExecutionStatusCard extends StatelessWidget {
                 ),
               ),
             ),
+          if (selected != null && selected.fallback) ...[
+            const SizedBox(height: 6),
+            OutlinedButton(
+              key: const ValueKey('agent-provider-promote-fallback-button'),
+              onPressed: onPromoteSelectedFallback,
+              child: const Text('Promote Selected Fallback'),
+            ),
+          ],
         ],
       ),
     );

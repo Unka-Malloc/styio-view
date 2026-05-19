@@ -223,6 +223,44 @@ void main() {
       find.byKey(const ValueKey('agent-provider-execution-endpoint-1')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('agent-provider-promote-fallback-button')),
+      findsOneWidget,
+    );
+
+    await _tapProfileControl(
+      tester,
+      find.byKey(const ValueKey('agent-provider-promote-fallback-button')),
+    );
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey('agent-profile-base-url-input')),
+          )
+          .controller
+          ?.text,
+      'https://agent.example.test/v1',
+    );
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey('agent-profile-model-input')),
+          )
+          .controller
+          ?.text,
+      'gpt-cloud',
+    );
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey('agent-profile-fallback-base-url-input')),
+          )
+          .controller
+          ?.text,
+      isEmpty,
+    );
   });
 
   testWidgets('agent surface rejects provider profile without context channels', (

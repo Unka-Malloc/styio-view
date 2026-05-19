@@ -28,6 +28,91 @@ class TestRunRequest {
   final bool debug;
 }
 
+class TestDiscoveryRequest {
+  const TestDiscoveryRequest({
+    required this.workspaceRoot,
+    this.targetId = '',
+    this.filter = '',
+  });
+
+  final String workspaceRoot;
+  final String targetId;
+  final String filter;
+}
+
+enum TestNodeKind { suite, test }
+
+extension TestNodeKindWire on TestNodeKind {
+  String get wireValue {
+    return switch (this) {
+      TestNodeKind.suite => 'suite',
+      TestNodeKind.test => 'test',
+    };
+  }
+}
+
+class TestNode {
+  const TestNode({
+    required this.id,
+    required this.label,
+    required this.kind,
+    this.uri = '',
+    this.children = const <TestNode>[],
+  });
+
+  final String id;
+  final String label;
+  final TestNodeKind kind;
+  final String uri;
+  final List<TestNode> children;
+
+  int get testCount {
+    if (kind == TestNodeKind.test) {
+      return 1;
+    }
+    return children.fold<int>(0, (total, child) => total + child.testCount);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'label': label,
+      'kind': kind.wireValue,
+      if (uri.isNotEmpty) 'uri': uri,
+      if (children.isNotEmpty)
+        'children': children
+            .map((child) => child.toJson())
+            .toList(growable: false),
+      'testCount': testCount,
+    };
+  }
+}
+
+class TestDiscoveryResult {
+  const TestDiscoveryResult({
+    required this.providerId,
+    required this.roots,
+    this.message = '',
+  });
+
+  final String providerId;
+  final List<TestNode> roots;
+  final String message;
+
+  int get testCount {
+    return roots.fold<int>(0, (total, root) => total + root.testCount);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerId': providerId,
+      'testCount': testCount,
+      if (message.isNotEmpty) 'message': message,
+      'roots': roots.map((root) => root.toJson()).toList(growable: false),
+    };
+  }
+}
+
 class TestCaseResult {
   const TestCaseResult({
     required this.name,
@@ -114,6 +199,14 @@ abstract class TestRunProvider {
   Future<TestRunResult> run(TestRunRequest request);
 }
 
+abstract class TestDiscoveryProvider {
+  const TestDiscoveryProvider();
+
+  String get providerId;
+
+  Future<TestDiscoveryResult> discover(TestDiscoveryRequest request);
+}
+
 class StaticTestRunProvider extends TestRunProvider {
   const StaticTestRunProvider({required this.providerId, required this.result});
 
@@ -123,6 +216,22 @@ class StaticTestRunProvider extends TestRunProvider {
 
   @override
   Future<TestRunResult> run(TestRunRequest request) async {
+    return result;
+  }
+}
+
+class StaticTestDiscoveryProvider extends TestDiscoveryProvider {
+  const StaticTestDiscoveryProvider({
+    required this.providerId,
+    required this.result,
+  });
+
+  @override
+  final String providerId;
+  final TestDiscoveryResult result;
+
+  @override
+  Future<TestDiscoveryResult> discover(TestDiscoveryRequest request) async {
     return result;
   }
 }
@@ -184,6 +293,74 @@ class TestingProviderRegistry {
   }
 
   TestRunProvider? provider({bool activeOnly = true}) {
+    return resolve(activeOnly: activeOnly)?.value;
+  }
+
+  FoundationRegistryManifest manifest({FoundationRegistryEntryState? state}) {
+    return _registry.manifest(owner: owner, state: state);
+  }
+}
+
+class TestingDiscoveryProviderRegistration {
+  const TestingDiscoveryProviderRegistration({
+    required this.id,
+    required this.provider,
+    this.priority = 0,
+    this.state = FoundationRegistryEntryState.registered,
+    this.metadata = const <String, Object?>{},
+    this.todo = '',
+  });
+
+  final String id;
+  final TestDiscoveryProvider provider;
+  final int priority;
+  final FoundationRegistryEntryState state;
+  final Map<String, Object?> metadata;
+  final String todo;
+}
+
+class TestingDiscoveryProviderRegistry {
+  TestingDiscoveryProviderRegistry({
+    FoundationProviderRegistry<TestDiscoveryProvider>? registry,
+  }) : _registry =
+           registry ?? FoundationProviderRegistry<TestDiscoveryProvider>();
+
+  static const String owner = TestingProviderRegistry.owner;
+  static const String discoverCapability =
+      TestingProviderRegistry.discoverCapability;
+
+  final FoundationProviderRegistry<TestDiscoveryProvider> _registry;
+
+  void register(TestingDiscoveryProviderRegistration registration) {
+    _registry.register(
+      FoundationProviderRegistration<TestDiscoveryProvider>(
+        id: registration.id,
+        owner: owner,
+        provider: registration.provider,
+        layer: 'interaction',
+        priority: registration.priority,
+        state: registration.state,
+        capabilities: const <String>[discoverCapability],
+        metadata: <String, Object?>{
+          ...registration.metadata,
+          'providerContract': 'test-discovery-provider',
+        },
+        todo: registration.todo,
+      ),
+    );
+  }
+
+  FoundationRegistryEntry<TestDiscoveryProvider>? resolve({
+    bool activeOnly = true,
+  }) {
+    return _registry.resolve(
+      capability: discoverCapability,
+      owner: owner,
+      activeOnly: activeOnly,
+    );
+  }
+
+  TestDiscoveryProvider? provider({bool activeOnly = true}) {
     return resolve(activeOnly: activeOnly)?.value;
   }
 

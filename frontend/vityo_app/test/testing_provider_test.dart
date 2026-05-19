@@ -77,6 +77,85 @@ void main() {
     expect(result.toJson()['totalCount'], 2);
   });
 
+  test('test discovery result counts nested test tree', () {
+    const result = TestDiscoveryResult(
+      providerId: 'static',
+      roots: <TestNode>[
+        TestNode(
+          id: 'suite:language',
+          label: 'language',
+          kind: TestNodeKind.suite,
+          children: <TestNode>[
+            TestNode(
+              id: 'test:syntax',
+              label: 'syntax contract',
+              kind: TestNodeKind.test,
+              uri: 'test/syntax_test.dart',
+            ),
+            TestNode(
+              id: 'test:semantic',
+              label: 'semantic snapshot',
+              kind: TestNodeKind.test,
+              uri: 'test/semantic_test.dart',
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final json = result.toJson();
+    final roots = json['roots']! as List<Object?>;
+    final root = roots.single! as Map<String, Object?>;
+
+    expect(result.testCount, 2);
+    expect(json['testCount'], 2);
+    expect(root['kind'], 'suite');
+    expect(root['testCount'], 2);
+  });
+
+  test('testing discovery provider registry resolves active provider', () {
+    const result = TestDiscoveryResult(
+      providerId: 'discovery',
+      roots: <TestNode>[],
+    );
+    final registry = TestingDiscoveryProviderRegistry()
+      ..register(
+        const TestingDiscoveryProviderRegistration(
+          id: 'low-discovery',
+          provider: StaticTestDiscoveryProvider(
+            providerId: 'low-discovery',
+            result: result,
+          ),
+          priority: 1,
+          state: FoundationRegistryEntryState.active,
+        ),
+      )
+      ..register(
+        const TestingDiscoveryProviderRegistration(
+          id: 'high-discovery',
+          provider: StaticTestDiscoveryProvider(
+            providerId: 'high-discovery',
+            result: result,
+          ),
+          priority: 10,
+          state: FoundationRegistryEntryState.active,
+          metadata: <String, Object?>{'runner': 'ctest'},
+        ),
+      );
+
+    final resolved = registry.resolve();
+    final manifest = registry.manifest().toJson();
+    final entries = manifest['entries']! as List<Object?>;
+
+    expect(resolved?.id, 'high-discovery');
+    expect(registry.provider(), same(resolved?.value));
+    expect(
+      ((entries.first! as Map<String, Object?>)['metadata']!
+          as Map<String, Object?>)['providerContract'],
+      'test-discovery-provider',
+    );
+  });
+
   test('CTest output parser produces structured failed test result', () {
     final result = const CTestOutputParser().parse(
       providerId: 'ctest',

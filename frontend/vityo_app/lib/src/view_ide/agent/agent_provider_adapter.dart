@@ -1301,6 +1301,8 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
     'lastPatchApplicationAppliedEditCount': patchApplication.appliedEditCount,
     'lastPatchApplicationChangedDocumentCount':
         patchApplication.changedDocumentIds.length,
+    'lastPatchApplicationSkippedNoOpDocumentCount':
+        patchApplication.skippedNoOpDocumentIds.length,
   });
   return metadata;
 }
@@ -1385,6 +1387,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.providerExecution, read status, selectedEndpointIndex, credentialReadiness, requiresCredential, and missingCredentialEndpointCount before assuming the current assistant is backed by a real provider instead of fallback or local-only execution.
 - If the IDE context includes agent.recentPatchApplications, read it as newest-first structured IDE patch application outcomes before deciding whether to retry, repair, or continue after a patch.
 - If the IDE context includes agent.lastPatchApplication, treat it as the latest structured IDE patch application outcome.
+- If agent.lastPatchApplication.skippedNoOpDocumentIds is non-empty, treat those documents as unchanged by the last patch attempt before retrying or proposing another patch.
 - If agent.lastPatchApplication.pendingPatchRetained is true, repair, revise, explain, or discard the retained pending patch before proposing an unrelated new patch.
 - If commands.lastResult.metadata.requiredCommand is present, propose that registered command before retrying the blocked operation.
 - If commands.lastResult.metadata.completedRequiredCommandFor is present, treat that command ID as the previously blocked operation that may now be retried when still relevant.

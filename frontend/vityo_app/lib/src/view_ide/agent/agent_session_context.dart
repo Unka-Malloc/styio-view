@@ -829,6 +829,7 @@ class AgentPatchApplicationContext {
     this.changedDocumentIds = const <String>[],
     this.createdDocumentIds = const <String>[],
     this.deletedDocumentIds = const <String>[],
+    this.skippedNoOpDocumentIds = const <String>[],
     this.recordedAt,
   });
 
@@ -846,6 +847,7 @@ class AgentPatchApplicationContext {
   final List<String> changedDocumentIds;
   final List<String> createdDocumentIds;
   final List<String> deletedDocumentIds;
+  final List<String> skippedNoOpDocumentIds;
   final DateTime? recordedAt;
 
   Map<String, Object?> toJson() {
@@ -864,6 +866,7 @@ class AgentPatchApplicationContext {
       'changedDocumentIds': changedDocumentIds,
       'createdDocumentIds': createdDocumentIds,
       'deletedDocumentIds': deletedDocumentIds,
+      'skippedNoOpDocumentIds': skippedNoOpDocumentIds,
       if (recordedAt != null)
         'recordedAt': recordedAt!.toUtc().toIso8601String(),
     };

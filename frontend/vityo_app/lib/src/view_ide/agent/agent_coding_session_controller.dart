@@ -857,6 +857,8 @@ String _patchApplicationConversationText(
       'createdDocuments: ${result.createdDocumentIds.join(', ')}',
     if (result.deletedDocumentIds.isNotEmpty)
       'deletedDocuments: ${result.deletedDocumentIds.join(', ')}',
+    if (result.skippedNoOpDocumentIds.isNotEmpty)
+      'skippedNoOpDocuments: ${result.skippedNoOpDocumentIds.join(', ')}',
   ];
   return lines.join('\n');
 }
@@ -1034,6 +1036,9 @@ AgentPatchApplicationContext _patchApplicationContext({
     changedDocumentIds: List<String>.unmodifiable(result.appliedDocumentIds),
     createdDocumentIds: List<String>.unmodifiable(result.createdDocumentIds),
     deletedDocumentIds: List<String>.unmodifiable(result.deletedDocumentIds),
+    skippedNoOpDocumentIds: List<String>.unmodifiable(
+      result.skippedNoOpDocumentIds,
+    ),
     recordedAt: recordedAt,
   );
 }

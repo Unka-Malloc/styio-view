@@ -905,6 +905,10 @@ void main() {
       'applyQuickFix',
     );
     expect(
+      (diagnosticCommands[3]! as Map<String, Object?>)['id'],
+      'previewQuickFix',
+    );
+    expect(
       (diagnosticCommands.last! as Map<String, Object?>)['id'],
       'refreshWorkspaceDiagnostics',
     );
@@ -914,10 +918,14 @@ void main() {
     );
     expect(
       (codingCommands.first! as Map<String, Object?>)['id'],
-      'collectAgentCodingCheckpoint',
+      'previewQuickFix',
     );
     expect(
       (codingCommands[1]! as Map<String, Object?>)['id'],
+      'collectAgentCodingCheckpoint',
+    );
+    expect(
+      (codingCommands[2]! as Map<String, Object?>)['id'],
       'collectProjectLanguageContext',
     );
     expect(
@@ -1477,6 +1485,7 @@ void main() {
           appliedEditCount: 1,
           appliedOperationCounts: const <String, int>{'replace': 1},
           changedDocumentIds: const <String>['src/main.styio'],
+          skippedNoOpDocumentIds: const <String>['src/noop.styio'],
           recordedAt: recordedAt,
         ),
       );
@@ -1507,6 +1516,9 @@ void main() {
       ]);
       expect(patchApplication['createdDocumentIds'], <String>[]);
       expect(patchApplication['deletedDocumentIds'], <String>[]);
+      expect(patchApplication['skippedNoOpDocumentIds'], <String>[
+        'src/noop.styio',
+      ]);
       expect(patchApplication['recordedAt'], recordedAt.toIso8601String());
       expect(recentPatchApplications.length, 1);
       expect(

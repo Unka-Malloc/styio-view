@@ -526,6 +526,9 @@ void main() {
           appliedEditCount: 1,
           appliedOperationCounts: const <String, int>{'replace': 1},
           changedDocumentIds: const <String>['/workspace/demo/src/main.styio'],
+          skippedNoOpDocumentIds: const <String>[
+            '/workspace/demo/src/noop.styio',
+          ],
           recordedAt: DateTime.utc(2026, 5, 19, 2, 3, 4),
         ),
         languageServiceStatus: _agentLanguageServiceStatus,
@@ -739,6 +742,10 @@ void main() {
         contains('agent.recentPatchApplications'),
       );
       expect(systemMessage['content'], contains('agent.lastPatchApplication'));
+      expect(
+        systemMessage['content'],
+        contains('agent.lastPatchApplication.skippedNoOpDocumentIds'),
+      );
       expect(
         systemMessage['content'],
         contains('commands.lastResult.metadata.buildResult'),
@@ -987,6 +994,7 @@ void main() {
       expect(metadata['lastPatchApplicationEditCount'], 1);
       expect(metadata['lastPatchApplicationAppliedEditCount'], 1);
       expect(metadata['lastPatchApplicationChangedDocumentCount'], 1);
+      expect(metadata['lastPatchApplicationSkippedNoOpDocumentCount'], 1);
       final contextMessage = messages[1]! as Map<String, Object?>;
       expect(contextMessage['name'], 'vityo_ide_context');
       expect(

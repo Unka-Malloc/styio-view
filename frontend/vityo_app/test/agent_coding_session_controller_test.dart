@@ -645,6 +645,64 @@ void main() {
   });
 
   test(
+    'agent coding session records skipped no-op patch documents',
+    () async {
+      final editorController = EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: 'main.styio',
+          text: 'value = 1\n',
+          revision: 4,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+      );
+      const patch = AgentCodePatch(
+        patchId: 'patch-noop',
+        summary: 'No-op value edit.',
+        edits: <AgentCodePatchEdit>[
+          AgentCodePatchEdit(
+            documentId: 'main.styio',
+            start: 0,
+            end: 5,
+            replacementText: 'value',
+          ),
+        ],
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: _FakeAgentProviderAdapter(
+          response: const AgentProviderResponseEnvelope(
+            requestId: 'agent-request-noop',
+            role: 'assistant',
+            finishReason: 'stop',
+            contentParts: <AgentContentPart>[
+              AgentContentPart(
+                kind: AgentContentPartKind.codePatch,
+                text: 'Patch ready.',
+                patch: patch,
+              ),
+            ],
+          ),
+        ),
+        contextProvider: _context,
+      );
+
+      controller.updatePrompt('Apply no-op.');
+      await controller.sendPrompt();
+      final result = controller.applyPendingPatch(
+        AgentCodePatchApplier(editorController: editorController),
+      );
+
+      expect(result?.applied, isFalse);
+      expect(controller.pendingPatch, isNotNull);
+      expect(controller.lastPatchApplicationContext?.skippedNoOpDocumentIds, [
+        'main.styio',
+      ]);
+      expect(editorController.document.revision, 4);
+      expect(editorController.canUndo, isFalse);
+    },
+  );
+
+  test(
     'agent coding session clears patch result when pending patch is dismissed',
     () async {
       final editorController = EditorSessionController(

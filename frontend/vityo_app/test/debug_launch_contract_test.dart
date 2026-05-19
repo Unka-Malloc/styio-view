@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_launch_contract.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 
 void main() {
@@ -79,4 +83,114 @@ void main() {
     expect(launch.readiness, DebugLaunchReadiness.unsupportedProtocol);
     expect(launch.reason, contains('unsupported protocol custom'));
   });
+
+  test('debug launch profile set selects default and round trips JSON', () {
+    final launch = DebugLaunchConfiguration.fromToolchainDescriptor(
+      debugger: const ToolchainDescriptor(
+        id: 'styio-lldb-dap',
+        kind: ToolchainKind.debugger,
+        displayName: 'Styio LLDB DAP',
+        executablePath: '/usr/bin/lldb-dap',
+        metadata: <String, Object?>{
+          'adapterProtocol': 'dap',
+          'programPath': 'build/styio',
+          'debuggerArguments': <String>['--stdio'],
+        },
+      ),
+      workspaceRoot: '/workspace/vityo',
+    );
+    final profile = DebugLaunchProfile.fromConfiguration(
+      id: 'debug-styio',
+      displayName: 'Debug Styio',
+      configuration: launch,
+      isDefault: true,
+      preLaunchTaskId: 'build-styio',
+      metadata: const <String, Object?>{'source': 'workspace'},
+    );
+    final set = const DebugLaunchConfigurationSet(
+      workspaceId: 'demo',
+    ).upsertProfile(profile);
+    final restored = DebugLaunchConfigurationSet.fromJson(set.toJson());
+
+    expect(restored.workspaceId, 'demo');
+    expect(restored.selectedProfile!.id, 'debug-styio');
+    expect(restored.selectedProfile!.configuration.ready, isTrue);
+    expect(restored.selectedProfile!.configuration.debuggerArguments, <String>[
+      '--stdio',
+    ]);
+    expect(restored.selectedProfile!.preLaunchTaskId, 'build-styio');
+    expect(restored.hasRunnableProfile, isTrue);
+    expect(restored.toJson()['selectedProfileReady'], isTrue);
+  });
+
+  test(
+    'debug launch configuration store persists workspace profiles',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_debug_launch_store_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final dataStore = FoundationDataStore(
+        resourceCoordinator: FoundationResourceCoordinator(
+          resourceManager: resourceManager,
+          fileSystemManager: fileSystemManager,
+        ),
+        fileSystemManager: fileSystemManager,
+      );
+      final store = DebugLaunchConfigurationStore.fromDataStore(
+        dataStore: dataStore,
+      );
+      final launch = DebugLaunchConfiguration.fromToolchainDescriptor(
+        debugger: const ToolchainDescriptor(
+          id: 'lldb-dap',
+          kind: ToolchainKind.debugger,
+          displayName: 'LLDB DAP',
+          executablePath: '/usr/bin/lldb-dap',
+          metadata: <String, Object?>{
+            'adapterProtocol': 'dap',
+            'programPath': 'build/vityo',
+          },
+        ),
+        workspaceRoot: '/workspace/vityo',
+      );
+      final set = const DebugLaunchConfigurationSet(workspaceId: 'demo')
+          .upsertProfile(
+            DebugLaunchProfile.fromConfiguration(
+              id: 'default',
+              displayName: 'Debug current workspace',
+              configuration: launch,
+              isDefault: true,
+            ),
+          );
+
+      await store.saveConfigurationSet(set);
+      final restored = await store.loadConfigurationSet(workspaceId: 'demo');
+
+      expect(restored.workspaceId, 'demo');
+      expect(restored.selectedProfile!.id, 'default');
+      expect(
+        restored.selectedProfile!.configuration.programPath,
+        endsWith('vityo'),
+      );
+      expect(restored.updatedAt, isNotNull);
+
+      final deleted = await store.deleteConfigurationSet(workspaceId: 'demo');
+      expect(deleted, isTrue);
+      expect(
+        (await store.loadConfigurationSet(workspaceId: 'demo')).profiles,
+        isEmpty,
+      );
+    },
+  );
 }

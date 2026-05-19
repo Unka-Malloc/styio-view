@@ -1,3 +1,4 @@
+import '../foundation/foundation.dart';
 import '../toolchain/toolchain_catalog.dart';
 
 enum DebugLaunchReadiness { ready, missingProgram, unsupportedProtocol }
@@ -7,6 +8,15 @@ extension DebugLaunchReadinessX on DebugLaunchReadiness {
     DebugLaunchReadiness.ready => 'ready',
     DebugLaunchReadiness.missingProgram => 'missing-program',
     DebugLaunchReadiness.unsupportedProtocol => 'unsupported-protocol',
+  };
+}
+
+DebugLaunchReadiness _debugLaunchReadinessFromWire(Object? value) {
+  return switch (value) {
+    'ready' => DebugLaunchReadiness.ready,
+    'missing-program' => DebugLaunchReadiness.missingProgram,
+    'unsupported-protocol' => DebugLaunchReadiness.unsupportedProtocol,
+    _ => DebugLaunchReadiness.missingProgram,
   };
 }
 
@@ -20,6 +30,14 @@ class DebugLaunchBreakpoint {
   final String filePath;
   final int line;
   final bool enabled;
+
+  factory DebugLaunchBreakpoint.fromJson(Map<String, Object?> json) {
+    return DebugLaunchBreakpoint(
+      filePath: json['filePath'] as String? ?? '',
+      line: json['line'] as int? ?? 0,
+      enabled: json['enabled'] as bool? ?? true,
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -46,6 +64,24 @@ class DebugLaunchConfiguration {
     this.stopOnEntry = false,
     this.breakpoints = const <DebugLaunchBreakpoint>[],
   });
+
+  factory DebugLaunchConfiguration.fromJson(Map<String, Object?> json) {
+    return DebugLaunchConfiguration(
+      readiness: _debugLaunchReadinessFromWire(json['readiness']),
+      reason: json['reason'] as String? ?? '',
+      debuggerId: json['debuggerId'] as String? ?? '',
+      debuggerLabel: json['debuggerLabel'] as String? ?? '',
+      debuggerExecutablePath: json['debuggerExecutablePath'] as String? ?? '',
+      debuggerArguments: _jsonStringList(json['debuggerArguments']),
+      adapterProtocol: json['adapterProtocol'] as String? ?? 'dap',
+      programPath: json['programPath'] as String?,
+      cwd: json['cwd'] as String? ?? '',
+      arguments: _jsonStringList(json['arguments']),
+      environment: _jsonStringMap(json['environment']),
+      stopOnEntry: json['stopOnEntry'] as bool? ?? false,
+      breakpoints: _jsonBreakpoints(json['breakpoints']),
+    );
+  }
 
   factory DebugLaunchConfiguration.fromToolchainDescriptor({
     required ToolchainDescriptor debugger,
@@ -176,6 +212,303 @@ class DebugLaunchConfiguration {
   }
 }
 
+class DebugLaunchProfile {
+  const DebugLaunchProfile({
+    required this.id,
+    required this.displayName,
+    required this.configuration,
+    this.isDefault = false,
+    this.preLaunchTaskId,
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory DebugLaunchProfile.fromConfiguration({
+    required String id,
+    required String displayName,
+    required DebugLaunchConfiguration configuration,
+    bool isDefault = false,
+    String? preLaunchTaskId,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return DebugLaunchProfile(
+      id: id,
+      displayName: displayName,
+      configuration: configuration,
+      isDefault: isDefault,
+      preLaunchTaskId: preLaunchTaskId,
+      metadata: Map<String, Object?>.unmodifiable(metadata),
+    );
+  }
+
+  factory DebugLaunchProfile.fromJson(Map<String, Object?> json) {
+    final configuration = json['configuration'];
+    return DebugLaunchProfile(
+      id: json['id'] as String? ?? '',
+      displayName: json['displayName'] as String? ?? '',
+      configuration: configuration is Map<String, Object?>
+          ? DebugLaunchConfiguration.fromJson(configuration)
+          : configuration is Map
+          ? DebugLaunchConfiguration.fromJson(
+              configuration.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : const DebugLaunchConfiguration(
+              readiness: DebugLaunchReadiness.missingProgram,
+              reason: 'Debug launch profile is missing configuration.',
+              debuggerId: '',
+              debuggerLabel: '',
+              debuggerExecutablePath: '',
+              adapterProtocol: 'dap',
+              programPath: null,
+              cwd: '',
+            ),
+      isDefault: json['isDefault'] as bool? ?? false,
+      preLaunchTaskId: _jsonNullableString(json['preLaunchTaskId']),
+      metadata: _jsonObjectMap(json['metadata']),
+    );
+  }
+
+  final String id;
+  final String displayName;
+  final DebugLaunchConfiguration configuration;
+  final bool isDefault;
+  final String? preLaunchTaskId;
+  final Map<String, Object?> metadata;
+
+  DebugLaunchProfile copyWith({
+    String? id,
+    String? displayName,
+    DebugLaunchConfiguration? configuration,
+    bool? isDefault,
+    String? preLaunchTaskId,
+    bool clearPreLaunchTaskId = false,
+    Map<String, Object?>? metadata,
+  }) {
+    return DebugLaunchProfile(
+      id: id ?? this.id,
+      displayName: displayName ?? this.displayName,
+      configuration: configuration ?? this.configuration,
+      isDefault: isDefault ?? this.isDefault,
+      preLaunchTaskId: clearPreLaunchTaskId
+          ? null
+          : preLaunchTaskId ?? this.preLaunchTaskId,
+      metadata: metadata == null
+          ? this.metadata
+          : Map<String, Object?>.unmodifiable(metadata),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'displayName': displayName,
+      'configuration': configuration.toJson(),
+      'isDefault': isDefault,
+      if (preLaunchTaskId != null) 'preLaunchTaskId': preLaunchTaskId,
+      'metadata': metadata,
+    };
+  }
+}
+
+class DebugLaunchConfigurationSet {
+  const DebugLaunchConfigurationSet({
+    required this.workspaceId,
+    this.selectedProfileId,
+    this.profiles = const <DebugLaunchProfile>[],
+    this.updatedAt,
+  });
+
+  factory DebugLaunchConfigurationSet.fromJson(Map<String, Object?> json) {
+    return DebugLaunchConfigurationSet(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      selectedProfileId: _jsonNullableString(json['selectedProfileId']),
+      profiles: _jsonProfiles(json['profiles']),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final String? selectedProfileId;
+  final List<DebugLaunchProfile> profiles;
+  final DateTime? updatedAt;
+
+  DebugLaunchProfile? get selectedProfile {
+    final selectedId = selectedProfileId;
+    if (selectedId != null) {
+      for (final profile in profiles) {
+        if (profile.id == selectedId) {
+          return profile;
+        }
+      }
+    }
+    for (final profile in profiles) {
+      if (profile.isDefault) {
+        return profile;
+      }
+    }
+    return profiles.isEmpty ? null : profiles.first;
+  }
+
+  bool get hasRunnableProfile =>
+      profiles.any((profile) => profile.configuration.ready);
+
+  DebugLaunchConfigurationSet upsertProfile(DebugLaunchProfile profile) {
+    final nextProfiles = <DebugLaunchProfile>[];
+    var replaced = false;
+    for (final existing in profiles) {
+      if (existing.id == profile.id) {
+        nextProfiles.add(profile);
+        replaced = true;
+      } else if (profile.isDefault && existing.isDefault) {
+        nextProfiles.add(existing.copyWith(isDefault: false));
+      } else {
+        nextProfiles.add(existing);
+      }
+    }
+    if (!replaced) {
+      nextProfiles.add(profile);
+    }
+    return copyWith(
+      profiles: nextProfiles,
+      selectedProfileId: selectedProfileId ?? profile.id,
+      updatedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  DebugLaunchConfigurationSet selectProfile(String profileId) {
+    final exists = profiles.any((profile) => profile.id == profileId);
+    return exists
+        ? copyWith(
+            selectedProfileId: profileId,
+            updatedAt: DateTime.now().toUtc(),
+          )
+        : this;
+  }
+
+  DebugLaunchConfigurationSet removeProfile(String profileId) {
+    final nextProfiles = profiles
+        .where((profile) => profile.id != profileId)
+        .toList(growable: false);
+    final nextSelected = selectedProfileId == profileId
+        ? null
+        : selectedProfileId;
+    return copyWith(
+      profiles: nextProfiles,
+      selectedProfileId: nextSelected,
+      updatedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  DebugLaunchConfigurationSet copyWith({
+    String? workspaceId,
+    String? selectedProfileId,
+    bool clearSelectedProfileId = false,
+    List<DebugLaunchProfile>? profiles,
+    DateTime? updatedAt,
+  }) {
+    return DebugLaunchConfigurationSet(
+      workspaceId: workspaceId ?? this.workspaceId,
+      selectedProfileId: clearSelectedProfileId
+          ? null
+          : selectedProfileId ?? this.selectedProfileId,
+      profiles: profiles ?? this.profiles,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      if (selectedProfileId != null) 'selectedProfileId': selectedProfileId,
+      'profiles': profiles
+          .map((profile) => profile.toJson())
+          .toList(growable: false),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+      'hasRunnableProfile': hasRunnableProfile,
+      'selectedProfileReady': selectedProfile?.configuration.ready ?? false,
+    };
+  }
+}
+
+class DebugLaunchConfigurationStore {
+  DebugLaunchConfigurationStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'debug.launch-configuration',
+             layer: 'debugger',
+             stateFamily: 'launch-configuration',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const DebugLaunchConfigurationStore({required FoundationDataStoreOwner owner})
+    : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'debug.launch-configurations';
+  static const String _key = 'profiles';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<void> saveConfigurationSet(DebugLaunchConfigurationSet set) {
+    return _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: set.copyWith(updatedAt: DateTime.now().toUtc()).toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: set.workspaceId,
+    );
+  }
+
+  Future<DebugLaunchConfigurationSet> loadConfigurationSet({
+    required String workspaceId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return DebugLaunchConfigurationSet(workspaceId: workspaceId);
+    }
+    final set = DebugLaunchConfigurationSet.fromJson(value);
+    return set.workspaceId.isEmpty
+        ? set.copyWith(workspaceId: workspaceId)
+        : set;
+  }
+
+  Future<bool> deleteConfigurationSet({required String workspaceId}) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+
+  Stream<FoundationDataStoreChange> watchConfigurationSet({
+    required String workspaceId,
+  }) {
+    return _owner.watchJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+}
+
 String? _metadataString(Map<String, Object?> metadata, String key) {
   final value = metadata[key];
   if (value is! String) {
@@ -244,4 +577,78 @@ String? _resolveLaunchPath(String? path, String workspaceRoot) {
 
 bool _isAbsolutePath(String path) {
   return path.startsWith('/') || RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);
+}
+
+String? _jsonNullableString(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+List<String> _jsonStringList(Object? value) {
+  if (value is! List) {
+    return const <String>[];
+  }
+  return value
+      .whereType<String>()
+      .where((item) => item.trim().isNotEmpty)
+      .toList(growable: false);
+}
+
+Map<String, String> _jsonStringMap(Object? value) {
+  if (value is! Map) {
+    return const <String, String>{};
+  }
+  final result = <String, String>{};
+  for (final entry in value.entries) {
+    final key = entry.key;
+    final entryValue = entry.value;
+    if (key is String && entryValue is String && key.trim().isNotEmpty) {
+      result[key.trim()] = entryValue;
+    }
+  }
+  return Map<String, String>.unmodifiable(result);
+}
+
+Map<String, Object?> _jsonObjectMap(Object? value) {
+  if (value is! Map) {
+    return const <String, Object?>{};
+  }
+  return Map<String, Object?>.unmodifiable(
+    value.map((key, value) => MapEntry<String, Object?>(key.toString(), value)),
+  );
+}
+
+List<DebugLaunchBreakpoint> _jsonBreakpoints(Object? value) {
+  if (value is! List) {
+    return const <DebugLaunchBreakpoint>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (breakpoint) => DebugLaunchBreakpoint.fromJson(
+          breakpoint.map(
+            (key, value) => MapEntry<String, Object?>(key.toString(), value),
+          ),
+        ),
+      )
+      .toList(growable: false);
+}
+
+List<DebugLaunchProfile> _jsonProfiles(Object? value) {
+  if (value is! List) {
+    return const <DebugLaunchProfile>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (profile) => DebugLaunchProfile.fromJson(
+          profile.map(
+            (key, value) => MapEntry<String, Object?>(key.toString(), value),
+          ),
+        ),
+      )
+      .toList(growable: false);
 }

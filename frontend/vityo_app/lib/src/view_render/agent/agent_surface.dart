@@ -286,10 +286,13 @@ class _AgentProviderProfileSectionState
       profile.displayName,
       profile.endpoint.baseUrl,
       profile.endpoint.model,
+      profile.endpoint.requiresCredential,
       if (profile.fallbackEndpoints.isNotEmpty)
         profile.fallbackEndpoints.first.baseUrl,
       if (profile.fallbackEndpoints.isNotEmpty)
         profile.fallbackEndpoints.first.model,
+      if (profile.fallbackEndpoints.isNotEmpty)
+        profile.fallbackEndpoints.first.requiresCredential,
       profile.systemPrompt,
       ...profile.contextChannels,
     ].join('\n');
@@ -522,8 +525,7 @@ class _AgentProviderProfileSectionState
     final hasFallback = fallbackBaseUrl.isNotEmpty || fallbackModel.isNotEmpty;
     if (hasFallback && (fallbackBaseUrl.isEmpty || fallbackModel.isEmpty)) {
       setState(() {
-        _errorMessage =
-            'Fallback base URL and model must both be provided.';
+        _errorMessage = 'Fallback base URL and model must both be provided.';
       });
       return;
     }
@@ -559,6 +561,10 @@ class _AgentProviderProfileSectionState
         apiKeyEnvironmentName: current.endpoint.apiKeyEnvironmentName,
         protocol: current.endpoint.protocol,
         credentialReference: current.endpoint.credentialReference,
+        requiresCredential: _requiresCredentialForBaseUrl(
+          baseUrl,
+          currentValue: current.endpoint.requiresCredential,
+        ),
       ),
       fallbackEndpoints: hasFallback
           ? <AgentProviderEndpoint>[
@@ -568,6 +574,12 @@ class _AgentProviderProfileSectionState
                 model: fallbackModel,
                 apiKeyEnvironmentName: current.endpoint.apiKeyEnvironmentName,
                 protocol: current.endpoint.protocol,
+                requiresCredential: _requiresCredentialForBaseUrl(
+                  fallbackBaseUrl,
+                  currentValue: current.fallbackEndpoints.isNotEmpty
+                      ? current.fallbackEndpoints.first.requiresCredential
+                      : false,
+                ),
               ),
             ]
           : const <AgentProviderEndpoint>[],
@@ -601,8 +613,8 @@ class _AgentProviderProfileSectionState
   }
 
   void _promoteSelectedFallback() {
-    final selected = widget.controller.providerExecutionResolution
-        ?.selectedEndpoint;
+    final selected =
+        widget.controller.providerExecutionResolution?.selectedEndpoint;
     if (selected == null || !selected.fallback) {
       return;
     }
@@ -614,6 +626,28 @@ class _AgentProviderProfileSectionState
       _errorMessage = null;
     });
   }
+}
+
+bool _requiresCredentialForBaseUrl(
+  String baseUrl, {
+  required bool currentValue,
+}) {
+  if (currentValue) {
+    return true;
+  }
+  final trimmed = baseUrl.trim();
+  if (trimmed.isEmpty || trimmed.startsWith('/')) {
+    return false;
+  }
+  final uri = Uri.tryParse(trimmed);
+  if (uri == null || !uri.hasScheme) {
+    return false;
+  }
+  if (uri.scheme != 'http' && uri.scheme != 'https') {
+    return false;
+  }
+  final host = uri.host.toLowerCase();
+  return host != 'localhost' && host != '127.0.0.1' && host != '::1';
 }
 
 bool _isValidProviderBaseUrl(String value) {
@@ -898,9 +932,7 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
               'agent-recover-command-${command.commandId}-$recoveryCommandId',
             ),
             onPressed: applying ? null : onApplyRecoveryCommand,
-            child: Text(
-              applying ? 'Applying Command...' : 'Open Settings',
-            ),
+            child: Text(applying ? 'Applying Command...' : 'Open Settings'),
           ),
       ],
     );
@@ -2029,7 +2061,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                                 : () => onApplyRecoveryCommand!(
                                     result,
                                     'openSettings',
-                            ),
+                                  ),
                             child: const Text('Open Settings'),
                           ),
                         if (toolchainSelectionRecoverable &&

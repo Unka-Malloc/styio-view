@@ -116,12 +116,14 @@ void main() {
     expect(savedProfile?.displayName, 'Cloud Agent');
     expect(savedProfile?.endpoint.baseUrl, 'https://agent.example.test/v1');
     expect(savedProfile?.endpoint.model, 'gpt-test');
+    expect(savedProfile?.endpoint.requiresCredential, isTrue);
     expect(savedProfile?.fallbackEndpoints, hasLength(1));
     expect(
       savedProfile?.fallbackEndpoints.single.baseUrl,
       'https://fallback-agent.example.test/v1',
     );
     expect(savedProfile?.fallbackEndpoints.single.model, 'gpt-fallback-test');
+    expect(savedProfile?.fallbackEndpoints.single.requiresCredential, isTrue);
     expect(savedProfile?.systemPrompt, 'Use Vityo IDE context.');
     expect(savedProfile?.contextChannels, isNot(contains('runtime')));
     expect(savedBearerToken, 'test-token');
@@ -263,59 +265,63 @@ void main() {
     );
   });
 
-  testWidgets('agent surface rejects provider profile without context channels', (
-    tester,
-  ) async {
-    final controller = AgentCodingSessionController(
-      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
-      adapter: const LocalOnlyAgentProviderAdapter(),
-      contextProvider: _context,
-    );
-    addTearDown(controller.dispose);
-    var saveCalled = false;
+  testWidgets(
+    'agent surface rejects provider profile without context channels',
+    (tester) async {
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+      var saveCalled = false;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 1200,
-            height: 900,
-            child: AgentSurface(
-              platformTarget: PlatformTarget.web,
-              viewportProfile: const ViewportProfile(
-                family: ViewportFamily.desktop,
-                width: 1200,
-                height: 900,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1200,
+              height: 900,
+              child: AgentSurface(
+                platformTarget: PlatformTarget.web,
+                viewportProfile: const ViewportProfile(
+                  family: ViewportFamily.desktop,
+                  width: 1200,
+                  height: 900,
+                ),
+                visibleModules: const [],
+                adapterCapabilities: const [],
+                sessionContext: _context(),
+                codingController: controller,
+                onApplyPendingPatch: () async {},
+                onSaveProviderProfile: (profile, {bearerToken}) async {
+                  saveCalled = true;
+                },
               ),
-              visibleModules: const [],
-              adapterCapabilities: const [],
-              sessionContext: _context(),
-              codingController: controller,
-              onApplyPendingPatch: () async {},
-              onSaveProviderProfile: (profile, {bearerToken}) async {
-                saveCalled = true;
-              },
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    for (final channel in AgentPromptProfile.defaultContextChannels) {
+      for (final channel in AgentPromptProfile.defaultContextChannels) {
+        await _tapProfileControl(
+          tester,
+          find.byKey(ValueKey('agent-context-channel-$channel')),
+        );
+      }
       await _tapProfileControl(
         tester,
-        find.byKey(ValueKey('agent-context-channel-$channel')),
+        find.byKey(const ValueKey('agent-profile-save-button')),
       );
-    }
-    await _tapProfileControl(
-      tester,
-      find.byKey(const ValueKey('agent-profile-save-button')),
-    );
-    await tester.pump();
+      await tester.pump();
 
-    expect(saveCalled, isFalse);
-    expect(find.text('At least one context channel is required.'), findsOneWidget);
-  });
+      expect(saveCalled, isFalse);
+      expect(
+        find.text('At least one context channel is required.'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('agent surface rejects provider profile with invalid base URL', (
     tester,
@@ -522,27 +528,39 @@ void main() {
     await tester.pump();
 
     expect(
-      tester.widget<TextFormField>(
-        find.byKey(const ValueKey('agent-profile-display-name-input')),
-      ).controller?.text,
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey('agent-profile-display-name-input')),
+          )
+          .controller
+          ?.text,
       'Mounted Cloud',
     );
     expect(
-      tester.widget<TextFormField>(
-        find.byKey(const ValueKey('agent-profile-base-url-input')),
-      ).controller?.text,
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey('agent-profile-base-url-input')),
+          )
+          .controller
+          ?.text,
       'https://mounted.example.test/v1',
     );
     expect(
-      tester.widget<TextFormField>(
-        find.byKey(const ValueKey('agent-profile-model-input')),
-      ).controller?.text,
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey('agent-profile-model-input')),
+          )
+          .controller
+          ?.text,
       'mounted-model',
     );
     expect(
-      tester.widget<TextFormField>(
-        find.byKey(const ValueKey('agent-profile-bearer-token-input')),
-      ).controller?.text,
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey('agent-profile-bearer-token-input')),
+          )
+          .controller
+          ?.text,
       '',
     );
   });

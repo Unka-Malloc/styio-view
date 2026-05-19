@@ -2864,7 +2864,7 @@ class AgentCommandCatalogContext {
         commandId: AppCommandId.runBuild.name,
         registered: registeredCommandIds.contains(AppCommandId.runBuild.name),
         requiredKind: ToolchainKind.buildTool,
-        requiredToolFamily: 'cmake',
+        requiredToolFamilies: const <String>['cmake', 'ninja'],
         candidates: nativeTools.buildTools,
         requiresCleanWorkspace: true,
         dirtyDocumentIds: dirtyDocumentIds,
@@ -3071,6 +3071,7 @@ class AgentNativeToolCommandReadinessContext {
     required this.candidateToolchainIds,
     required this.reason,
     this.requiredToolFamily,
+    this.requiredToolFamilies = const <String>[],
     this.toolchainId,
     this.requiredCommandId,
     this.dirtyDocumentIds = const <String>[],
@@ -3082,16 +3083,21 @@ class AgentNativeToolCommandReadinessContext {
     required ToolchainKind requiredKind,
     required Iterable<AgentToolchainEntryContext> candidates,
     String? requiredToolFamily,
+    Iterable<String> requiredToolFamilies = const <String>[],
     bool requiresCleanWorkspace = false,
     Iterable<String> dirtyDocumentIds = const <String>[],
   }) {
     final dirtyDocumentIdList = _normalizedCommandDirtyDocumentIds(
       dirtyDocumentIds,
     );
+    final requiredToolFamilyList = _normalizedRequiredToolFamilies(
+      requiredToolFamily: requiredToolFamily,
+      requiredToolFamilies: requiredToolFamilies,
+    );
     final matchingCandidates = candidates
         .where((candidate) {
-          return requiredToolFamily == null ||
-              candidate.metadata['toolFamily'] == requiredToolFamily;
+          return requiredToolFamilyList.isEmpty ||
+              requiredToolFamilyList.contains(candidate.metadata['toolFamily']);
         })
         .toList(growable: false);
     AgentToolchainEntryContext? selectedCandidate;
@@ -3110,14 +3116,17 @@ class AgentNativeToolCommandReadinessContext {
         requiresCleanWorkspace &&
         dirtyDocumentIdList.isNotEmpty;
     final ready = toolchainReady && !blockedByDirtyWorkspace;
-    final requiredLabel = requiredToolFamily == null
+    final requiredLabel = requiredToolFamilyList.isEmpty
         ? requiredKind.wireValue
-        : '$requiredToolFamily ${requiredKind.wireValue}';
+        : '${_toolFamilyRequirementLabel(requiredToolFamilyList)} ${requiredKind.wireValue}';
     return AgentNativeToolCommandReadinessContext(
       commandId: commandId,
       registered: registered,
       requiredKind: requiredKind.wireValue,
-      requiredToolFamily: requiredToolFamily,
+      requiredToolFamily: requiredToolFamilyList.length == 1
+          ? requiredToolFamilyList.single
+          : null,
+      requiredToolFamilies: requiredToolFamilyList,
       ready: ready,
       toolchainId: selectedCandidate?.id,
       requiredCommandId: blockedByDirtyWorkspace
@@ -3146,6 +3155,7 @@ class AgentNativeToolCommandReadinessContext {
   final bool registered;
   final String requiredKind;
   final String? requiredToolFamily;
+  final List<String> requiredToolFamilies;
   final bool ready;
   final String? toolchainId;
   final String? requiredCommandId;
@@ -3159,6 +3169,8 @@ class AgentNativeToolCommandReadinessContext {
       'registered': registered,
       'requiredKind': requiredKind,
       if (requiredToolFamily != null) 'requiredToolFamily': requiredToolFamily,
+      if (requiredToolFamilies.length > 1)
+        'requiredToolFamilies': requiredToolFamilies,
       'ready': ready,
       if (toolchainId != null) 'toolchainId': toolchainId,
       if (requiredCommandId != null) 'requiredCommandId': requiredCommandId,
@@ -3167,6 +3179,35 @@ class AgentNativeToolCommandReadinessContext {
       'reason': reason,
     };
   }
+}
+
+List<String> _normalizedRequiredToolFamilies({
+  String? requiredToolFamily,
+  Iterable<String> requiredToolFamilies = const <String>[],
+}) {
+  final families = <String>[];
+  void addFamily(String? family) {
+    final normalized = family?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return;
+    }
+    if (!families.contains(normalized)) {
+      families.add(normalized);
+    }
+  }
+
+  addFamily(requiredToolFamily);
+  for (final family in requiredToolFamilies) {
+    addFamily(family);
+  }
+  return List<String>.unmodifiable(families);
+}
+
+String _toolFamilyRequirementLabel(List<String> families) {
+  if (families.length == 1) {
+    return families.single;
+  }
+  return '${families.take(families.length - 1).join(', ')} or ${families.last}';
 }
 
 class AgentDebugCommandReadinessContext {

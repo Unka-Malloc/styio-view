@@ -861,7 +861,7 @@ void main() {
     );
     expect(
       (nativeToolCommandReadiness.first! as Map<String, Object?>)['reason'],
-      contains('Requires a registered cmake build-tool toolchain.'),
+      contains('Requires a registered cmake or ninja build-tool toolchain.'),
     );
     expect(
       (debugCommands.first! as Map<String, Object?>)['id'],
@@ -998,6 +998,10 @@ void main() {
 
     expect(byCommandId['runBuild']!['ready'], isTrue);
     expect(byCommandId['runBuild']!['toolchainId'], 'native-cmake-build-tool');
+    expect(byCommandId['runBuild']!['requiredToolFamilies'], <String>[
+      'cmake',
+      'ninja',
+    ]);
     expect(byCommandId['formatActiveDocument']!['ready'], isTrue);
     expect(
       byCommandId['formatActiveDocument']!['toolchainId'],
@@ -1010,6 +1014,48 @@ void main() {
       byCommandId['runTests']!['reason'],
       'Requires a registered ctest test-runner toolchain.',
     );
+  });
+
+  test('agent command context accepts Ninja as build tool readiness', () {
+    const document = DocumentState(
+      documentId: '/workspace/demo/main.cc',
+      text: '',
+      revision: 1,
+    );
+    const selection = SelectionState(baseOffset: 0, extentOffset: 0);
+
+    final context = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: selection,
+      diagnostics: const <Diagnostic>[],
+      toolchainSnapshot: const ToolchainStateSnapshot(
+        targetId: 'agent-ninja-build-tool',
+        entries: <ToolchainStateEntry>[
+          ToolchainStateEntry(
+            id: 'native-ninja-build-tool',
+            kind: ToolchainKind.buildTool,
+            displayName: 'Ninja Build Tool',
+            executablePath: '/usr/bin/ninja',
+            active: true,
+            metadata: <String, Object?>{'toolFamily': 'ninja'},
+          ),
+        ],
+      ),
+    );
+
+    final commandsJson = context.toJson()['commands']! as Map<String, Object?>;
+    final readiness =
+        commandsJson['nativeToolCommandReadiness']! as List<Object?>;
+    final runBuild = readiness.whereType<Map<String, Object?>>().singleWhere(
+      (entry) => entry['commandId'] == 'runBuild',
+    );
+
+    expect(runBuild['ready'], isTrue);
+    expect(runBuild['toolchainId'], 'native-ninja-build-tool');
+    expect(runBuild['requiredToolFamilies'], <String>['cmake', 'ninja']);
+    expect(runBuild['candidateToolchainIds'], <String>[
+      'native-ninja-build-tool',
+    ]);
   });
 
   test('agent command readiness requires saveAll for dirty native tools', () {

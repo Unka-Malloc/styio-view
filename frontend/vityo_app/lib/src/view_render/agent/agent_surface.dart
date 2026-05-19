@@ -1442,6 +1442,19 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                             ),
                           ),
                         ),
+                  onApplyRecoveryCommand:
+                      widget.onApplyIdeCommandSuggestion == null
+                      ? null
+                      : (result, recoveryCommandId) => unawaited(
+                          _applyIdeCommandSuggestion(
+                            AgentIdeCommandSuggestion(
+                              commandId: recoveryCommandId,
+                              prerequisiteForCommandId: result.commandId,
+                              reason:
+                                  'Recover route-blocked ${result.commandId}.',
+                            ),
+                          ),
+                        ),
                 ),
               ],
               if (patch != null) ...[
@@ -1742,6 +1755,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
     required this.applying,
     this.onRetry,
     this.onApplyRequiredCommand,
+    this.onApplyRecoveryCommand,
   });
 
   final List<AgentCommandResultContext> results;
@@ -1754,6 +1768,11 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
     String requiredCommandId,
   )?
   onApplyRequiredCommand;
+  final void Function(
+    AgentCommandResultContext result,
+    String recoveryCommandId,
+  )?
+  onApplyRecoveryCommand;
 
   @override
   Widget build(BuildContext context) {
@@ -1828,6 +1847,22 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                             child: Text(
                               'Apply Required Command: $requiredCommandId',
                             ),
+                          ),
+                        if (routeBlocked &&
+                            registeredCommandIds.contains('openSettings') &&
+                            onApplyRecoveryCommand != null)
+                          OutlinedButton(
+                            key: ValueKey(
+                              'agent-recover-recent-command-'
+                              '${result.commandId}-openSettings-$index',
+                            ),
+                            onPressed: applying
+                                ? null
+                                : () => onApplyRecoveryCommand!(
+                                    result,
+                                    'openSettings',
+                                  ),
+                            child: const Text('Open Settings'),
                           ),
                       ],
                     ),

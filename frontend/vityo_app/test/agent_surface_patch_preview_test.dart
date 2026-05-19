@@ -1231,7 +1231,23 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(OutlinedButton, 'Retry Command'), findsNothing);
-    expect(appliedCommands, isEmpty);
+    expect(
+      find.widgetWithText(OutlinedButton, 'Open Settings'),
+      findsOneWidget,
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey(
+          'agent-recover-recent-command-runBuild-openSettings-0',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(appliedCommands.single.commandId, 'openSettings');
+    expect(appliedCommands.single.prerequisiteForCommandId, 'runBuild');
   });
 
   testWidgets('agent surface blocks debug commands that are not ready', (

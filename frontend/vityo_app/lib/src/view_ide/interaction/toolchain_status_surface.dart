@@ -345,6 +345,7 @@ class ClangCppVersionSettingsSurface {
     required this.preferenceStatus,
     required this.defaultCppStandard,
     required this.defaultCompilerFlag,
+    required this.supportedStandards,
     required this.cmakeAvailable,
     required this.ninjaAvailable,
     required this.buildEngineHandoffs,
@@ -387,6 +388,15 @@ class ClangCppVersionSettingsSurface {
       preferenceMessage: manager.preferenceMessage,
       defaultCppStandard: manager.defaultCppStandard.cmakeValue,
       defaultCompilerFlag: manager.defaultCppStandard.compilerFlag,
+      supportedStandards: CppLanguageStandard.values
+          .map(
+            (standard) => ClangCppStandardSettingsSurface(
+              cmakeValue: standard.cmakeValue,
+              compilerFlag: standard.compilerFlag,
+              active: standard == manager.defaultCppStandard,
+            ),
+          )
+          .toList(growable: false),
       cmakeAvailable: manager.cmakeAvailable,
       ninjaAvailable: manager.ninjaAvailable,
       buildEngineHandoffs: handoffs,
@@ -403,6 +413,7 @@ class ClangCppVersionSettingsSurface {
   final String? preferenceMessage;
   final String defaultCppStandard;
   final String defaultCompilerFlag;
+  final List<ClangCppStandardSettingsSurface> supportedStandards;
   final bool cmakeAvailable;
   final bool ninjaAvailable;
   final List<ClangCppBuildEngineHandoffSurface> buildEngineHandoffs;
@@ -420,6 +431,9 @@ class ClangCppVersionSettingsSurface {
       if (preferenceMessage != null) 'preferenceMessage': preferenceMessage,
       'defaultCppStandard': defaultCppStandard,
       'defaultCompilerFlag': defaultCompilerFlag,
+      'supportedStandards': supportedStandards
+          .map((standard) => standard.toJson())
+          .toList(growable: false),
       'cmakeAvailable': cmakeAvailable,
       'ninjaAvailable': ninjaAvailable,
       'buildEngineHandoffs': buildEngineHandoffs
@@ -427,6 +441,26 @@ class ClangCppVersionSettingsSurface {
           .toList(growable: false),
       if (preferredBuildEngineHandoff != null)
         'preferredBuildEngineHandoff': preferredBuildEngineHandoff!.toJson(),
+    };
+  }
+}
+
+class ClangCppStandardSettingsSurface {
+  const ClangCppStandardSettingsSurface({
+    required this.cmakeValue,
+    required this.compilerFlag,
+    required this.active,
+  });
+
+  final String cmakeValue;
+  final String compilerFlag;
+  final bool active;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'cmakeValue': cmakeValue,
+      'compilerFlag': compilerFlag,
+      'active': active,
     };
   }
 }

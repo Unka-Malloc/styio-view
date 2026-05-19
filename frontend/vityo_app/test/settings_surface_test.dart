@@ -348,8 +348,8 @@ void main() {
                 ),
               ),
             ),
-            onSelectClangCppVersion: (versionId) async {
-              selectedClangCppVersions.add(versionId);
+            onSelectClangCppVersion: (versionId, cppStandard) async {
+              selectedClangCppVersions.add('$versionId:$cppStandard');
             },
           ),
         ),
@@ -367,6 +367,13 @@ void main() {
     expect(find.text('active clang Clang 17 17.0.6 system'), findsOneWidget);
     expect(find.text('clang Clang 18 18.1.8 manual'), findsOneWidget);
 
+    final selectCpp23Button = find.byKey(
+      const ValueKey('settings-clang-cpp-standard-23'),
+    );
+    await tester.ensureVisible(selectCpp23Button);
+    await tester.tap(selectCpp23Button);
+    await tester.pump();
+
     final selectClang18Button = find.descendant(
       of: find.byKey(const ValueKey('settings-clang-cpp-version-clang-18')),
       matching: find.byTooltip('Select Clang 18'),
@@ -375,6 +382,6 @@ void main() {
     await tester.tap(selectClang18Button);
     await tester.pump();
 
-    expect(selectedClangCppVersions, <String>['clang-18']);
+    expect(selectedClangCppVersions, <String>['clang-17:23', 'clang-18:20']);
   });
 }

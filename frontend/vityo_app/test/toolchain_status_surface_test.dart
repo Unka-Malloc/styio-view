@@ -272,6 +272,12 @@ void main() {
     expect(clangCpp.defaultCppStandard, '23');
     expect(clangCpp.defaultCompilerFlag, '-std=c++23');
     expect(
+      clangCpp.supportedStandards
+          .where((standard) => standard.active)
+          .map((standard) => standard.cmakeValue),
+      <String>['23'],
+    );
+    expect(
       clangCpp.candidates.map((candidate) => candidate.versionId),
       <String>['clang-17', 'clang-18'],
     );

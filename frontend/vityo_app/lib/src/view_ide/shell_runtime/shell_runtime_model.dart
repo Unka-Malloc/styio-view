@@ -2605,8 +2605,9 @@ class ShellRuntimeModel extends ChangeNotifier {
   }
 
   Future<ToolchainSelectionResult?> selectClangCppVersion(
-    String versionId,
-  ) async {
+    String versionId, {
+    String? cppStandard,
+  }) async {
     final manager = toolchainManager;
     if (manager == null) {
       appendLog(
@@ -2621,6 +2622,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       final preference = ClangCppVersionPreference(
         versionId: versionId,
         cppStandard:
+            CppLanguageStandard.fromWireValue(cppStandard) ??
             _clangCppVersionPreference?.cppStandard ??
             CppLanguageStandard.cpp20,
       );

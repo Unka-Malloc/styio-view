@@ -30,7 +30,8 @@ class SettingsSurface extends StatelessWidget {
   final Future<void> Function(ToolchainRecoveryAction action)?
   onToolchainRecoveryAction;
   final Future<void> Function(String id)? onSelectToolchain;
-  final Future<void> Function(String versionId)? onSelectClangCppVersion;
+  final Future<void> Function(String versionId, String cppStandard)?
+  onSelectClangCppVersion;
   final Future<void> Function(ToolchainKind kind)? onClearToolchain;
   final Future<void> Function()? onExecuteToolchainInstallPlan;
   final VityoThemeOverride themeOverride;
@@ -234,7 +235,8 @@ class _ToolchainSettingsCard extends StatelessWidget {
   final ToolchainInstallExecutionSurface? installExecution;
   final Future<void> Function(ToolchainRecoveryAction action)? onRecoveryAction;
   final Future<void> Function(String id)? onSelectToolchain;
-  final Future<void> Function(String versionId)? onSelectClangCppVersion;
+  final Future<void> Function(String versionId, String cppStandard)?
+  onSelectClangCppVersion;
   final Future<void> Function(ToolchainKind kind)? onClearToolchain;
   final Future<void> Function()? onExecuteToolchainInstallPlan;
 
@@ -248,6 +250,13 @@ class _ToolchainSettingsCard extends StatelessWidget {
       ToolchainStatusSeverity.blocked => const Color(0xFFF4E8D8),
       ToolchainStatusSeverity.failed => const Color(0xFFF3D8D6),
     };
+    final selectClangCppVersion =
+        onSelectClangCppVersion ??
+        (onSelectToolchain == null
+            ? null
+            : (String versionId, String _) {
+                return onSelectToolchain!(versionId);
+              });
 
     return Container(
       key: const ValueKey('settings-toolchain-status-card'),
@@ -306,8 +315,7 @@ class _ToolchainSettingsCard extends StatelessWidget {
             const SizedBox(height: 14),
             _ClangCppVersionManagerView(
               versions: settings.clangCppVersions!,
-              onSelectClangCppVersion:
-                  onSelectClangCppVersion ?? onSelectToolchain,
+              onSelectClangCppVersion: selectClangCppVersion,
             ),
           ],
           const SizedBox(height: 14),
@@ -346,7 +354,8 @@ class _ClangCppVersionManagerView extends StatelessWidget {
   });
 
   final ClangCppVersionSettingsSurface versions;
-  final Future<void> Function(String versionId)? onSelectClangCppVersion;
+  final Future<void> Function(String versionId, String cppStandard)?
+  onSelectClangCppVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -379,6 +388,34 @@ class _ClangCppVersionManagerView extends StatelessWidget {
               ),
           ],
         ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: versions.supportedStandards
+              .map(
+                (standard) => ActionChip(
+                  key: ValueKey(
+                    'settings-clang-cpp-standard-${standard.cmakeValue}',
+                  ),
+                  label: Text('c++${standard.cmakeValue}'),
+                  avatar: standard.active
+                      ? const Icon(Icons.check, size: 16)
+                      : null,
+                  onPressed:
+                      onSelectClangCppVersion == null ||
+                          versions.activeVersionId == null
+                      ? null
+                      : () {
+                          onSelectClangCppVersion!(
+                            versions.activeVersionId!,
+                            standard.cmakeValue,
+                          );
+                        },
+                ),
+              )
+              .toList(growable: false),
+        ),
         if (versions.preferenceMessage != null) ...[
           const SizedBox(height: 8),
           Text(versions.preferenceMessage!, style: theme.textTheme.bodySmall),
@@ -400,7 +437,10 @@ class _ClangCppVersionManagerView extends StatelessWidget {
                   onDeleted: candidate.active || onSelectClangCppVersion == null
                       ? null
                       : () {
-                          onSelectClangCppVersion!(candidate.versionId);
+                          onSelectClangCppVersion!(
+                            candidate.versionId,
+                            versions.defaultCppStandard,
+                          );
                         },
                   deleteButtonTooltipMessage: candidate.active
                       ? null

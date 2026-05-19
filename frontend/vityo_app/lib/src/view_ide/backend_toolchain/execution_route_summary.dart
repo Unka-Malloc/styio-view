@@ -46,6 +46,80 @@ class ExecutionRouteGate {
 
 enum ExecutionRouteIntent { workflow, jit }
 
+enum BackendExecutionRouteKind { localCli, ffi, hosted, blocked }
+
+extension BackendExecutionRouteKindX on BackendExecutionRouteKind {
+  String get wireValue {
+    return switch (this) {
+      BackendExecutionRouteKind.localCli => 'local-cli',
+      BackendExecutionRouteKind.ffi => 'ffi',
+      BackendExecutionRouteKind.hosted => 'hosted',
+      BackendExecutionRouteKind.blocked => 'blocked',
+    };
+  }
+}
+
+class BackendExecutionRouteSelection {
+  const BackendExecutionRouteSelection({
+    required this.routeKind,
+    required this.intent,
+    required this.adapterKind,
+    required this.allowed,
+    required this.previewOnly,
+    required this.title,
+    required this.detail,
+    this.blockedReason,
+  });
+
+  final BackendExecutionRouteKind routeKind;
+  final ExecutionRouteIntent intent;
+  final AdapterKind adapterKind;
+  final bool allowed;
+  final bool previewOnly;
+  final String title;
+  final String detail;
+  final String? blockedReason;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'routeKind': routeKind.wireValue,
+      'intent': intent.name,
+      'adapterKind': adapterKind.wireValue,
+      'allowed': allowed,
+      'previewOnly': previewOnly,
+      'title': title,
+      'detail': detail,
+      if (blockedReason != null) 'blockedReason': blockedReason,
+    };
+  }
+}
+
+BackendExecutionRouteSelection selectBackendExecutionRoute({
+  required PlatformTarget platformTarget,
+  required ProjectGraphSnapshot projectGraph,
+  required List<AdapterCapabilitySnapshot> adapterCapabilities,
+  ExecutionRouteIntent routeIntent = ExecutionRouteIntent.workflow,
+}) {
+  final gate = evaluateExecutionRouteGate(
+    platformTarget: platformTarget,
+    projectGraph: projectGraph,
+    adapterCapabilities: adapterCapabilities,
+    routeIntent: routeIntent,
+  );
+  return BackendExecutionRouteSelection(
+    routeKind: gate.allowed
+        ? _routeKindForAdapter(gate.summary.primaryAdapterKind)
+        : BackendExecutionRouteKind.blocked,
+    intent: routeIntent,
+    adapterKind: gate.summary.primaryAdapterKind,
+    allowed: gate.allowed,
+    previewOnly: gate.summary.previewOnly,
+    title: gate.summary.title,
+    detail: gate.summary.body,
+    blockedReason: gate.blockedReason,
+  );
+}
+
 ExecutionRouteGate evaluateExecutionRouteGate({
   required PlatformTarget platformTarget,
   required ProjectGraphSnapshot projectGraph,
@@ -70,6 +144,14 @@ ExecutionRouteGate evaluateExecutionRouteGate({
     allowed: false,
     blockedReason: '${summary.title}. ${summary.body}',
   );
+}
+
+BackendExecutionRouteKind _routeKindForAdapter(AdapterKind adapterKind) {
+  return switch (adapterKind) {
+    AdapterKind.cli => BackendExecutionRouteKind.localCli,
+    AdapterKind.ffi => BackendExecutionRouteKind.ffi,
+    AdapterKind.cloud => BackendExecutionRouteKind.hosted,
+  };
 }
 
 ExecutionRouteSummary summarizeExecutionRoute({

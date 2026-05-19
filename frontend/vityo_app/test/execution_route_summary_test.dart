@@ -481,6 +481,81 @@ void main() {
     );
     expect(summary.jitRoute.blocked, isTrue);
   });
+
+  test('backend route selection normalizes live local CLI route', () {
+    final selection = selectBackendExecutionRoute(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: _packageGraphWithCompilePlan(),
+      adapterCapabilities: _capabilities(
+        cliExecution: AdapterCapabilityLevel.available,
+      ),
+    );
+
+    expect(selection.routeKind, BackendExecutionRouteKind.localCli);
+    expect(selection.adapterKind, AdapterKind.cli);
+    expect(selection.allowed, isTrue);
+    expect(selection.toJson()['routeKind'], 'local-cli');
+  });
+
+  test('backend route selection normalizes hosted route', () {
+    final selection = selectBackendExecutionRoute(
+      platformTarget: PlatformTarget.web,
+      projectGraph: ProjectGraphSnapshot(
+        id: 'hosted-selection',
+        title: 'Hosted Selection',
+        kind: ProjectKind.hosted,
+        workspaceRoot: '/workspace/hosted-selection',
+        workspaceMembers: const <String>[],
+        manifestPath: '/workspace/hosted-selection/spio.toml',
+        dependencies: const <ProjectDependencySnapshot>[],
+        packages: const <ProjectPackageSnapshot>[],
+        targets: const <ProjectTargetDescriptor>[],
+        editorFiles: const <String>['/workspace/hosted-selection/main.styio'],
+        toolchain: const ToolchainStatusSnapshot(
+          source: ToolchainResolutionSource.projectPin,
+          detail: 'hosted pin',
+        ),
+        lockState: ProjectLockState.fresh,
+        vendorState: ProjectVendorState.present,
+        hostedWorkspace: HostedWorkspaceRecordSnapshot(
+          workspaceId: 'hosted-selection',
+          schemaVersion: '1',
+          ownerRef: 'Vityo',
+          status: HostedWorkspaceStatus.active,
+          entryUrl: 'https://hosted.test/workspaces/hosted-selection',
+          createdAt: DateTime.utc(2026, 4, 18),
+          lastActiveAt: DateTime.utc(2026, 4, 18, 1),
+          retentionDays: 7,
+          exportState: HostedWorkspaceExportState.notRequested,
+        ),
+        notes: const <String>[],
+      ),
+      adapterCapabilities: _capabilities(
+        cloudExecution: AdapterCapabilityLevel.available,
+      ),
+    );
+
+    expect(selection.routeKind, BackendExecutionRouteKind.hosted);
+    expect(selection.adapterKind, AdapterKind.cloud);
+    expect(selection.allowed, isTrue);
+    expect(selection.toJson()['routeKind'], 'hosted');
+  });
+
+  test('backend route selection normalizes blocked route', () {
+    final selection = selectBackendExecutionRoute(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: _packageGraph(),
+      adapterCapabilities: _capabilities(
+        cliExecution: AdapterCapabilityLevel.partial,
+      ),
+    );
+
+    expect(selection.routeKind, BackendExecutionRouteKind.blocked);
+    expect(selection.adapterKind, AdapterKind.cli);
+    expect(selection.allowed, isFalse);
+    expect(selection.blockedReason, contains('build/run/test stays blocked'));
+    expect(selection.toJson()['routeKind'], 'blocked');
+  });
 }
 
 ProjectGraphSnapshot _packageGraph({bool jitReady = false}) {

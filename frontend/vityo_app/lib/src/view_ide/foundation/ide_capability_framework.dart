@@ -326,7 +326,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/commands',
           summary:
-              'Registered commands for persistence, language refresh, navigation, refactor, tools, settings, and debug.',
+              'Registered commands for persistence, language refresh, navigation, refactor, tools, settings, debug, and extension command contribution route consumption.',
           references: <String>[
             'VS Code command registry',
             'IntelliJ action system',

@@ -1446,7 +1446,7 @@ class ShellRuntimeModel extends ChangeNotifier {
         return false;
       case 'previewQuickFix':
         final preview = await previewFirstProjectWorkspaceQuickFix();
-        final applied = preview != null && preview.hasChanges;
+        final applied = preview?.canApply ?? false;
         _recordAgentIdeCommandResult(
           suggestion,
           applied: applied,
@@ -4704,8 +4704,8 @@ class ShellRuntimeModel extends ChangeNotifier {
         final preview = await previewFirstProjectWorkspaceQuickFix();
         _recordAgentIdeCommandResult(
           AgentIdeCommandSuggestion(commandId: commandId.name),
-          applied: preview != null && preview.hasChanges,
-          message: preview != null && preview.hasChanges
+          applied: preview?.canApply ?? false,
+          message: preview?.canApply ?? false
               ? 'Quick fix preview collected.'
               : 'Quick fix preview skipped: no action available.',
           metadata: <String, Object?>{

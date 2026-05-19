@@ -196,6 +196,18 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
             key: const ValueKey('problems-workspace-edit-preview-summary'),
             style: theme.textTheme.bodySmall,
           ),
+          const SizedBox(height: 4),
+          Text(
+            preview.canApply
+                ? 'Preview ready to apply.'
+                : 'Preview blocked until missing documents are loaded.',
+            key: const ValueKey('problems-workspace-edit-preview-status'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: preview.canApply
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.error,
+            ),
+          ),
           const SizedBox(height: 8),
           for (final document in sampleDocuments)
             Text(

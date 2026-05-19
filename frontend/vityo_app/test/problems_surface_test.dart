@@ -155,6 +155,10 @@ void main() {
       find.textContaining('Remove duplicate imports across workspace'),
       findsOneWidget,
     );
+    expect(
+      find.text('Preview blocked until missing documents are loaded.'),
+      findsOneWidget,
+    );
     expect(find.textContaining('src/missing.styio'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('problems-diagnostic-style')));

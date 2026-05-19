@@ -93,6 +93,7 @@ void main() {
     expect(preview.source, WorkspaceEditSource.rename);
     expect(preview.hasChanges, isTrue);
     expect(preview.hasMissingDocuments, isTrue);
+    expect(preview.canApply, isFalse);
     expect(preview.missingDocumentIds, <String>['missing.styio']);
     expect(preview.editCount, 1);
     expect(preview.documents.single.documentId, 'main.styio');
@@ -104,6 +105,7 @@ void main() {
     expect(previewJson['missingDocumentCount'], 1);
     expect(previewJson['missingDocumentIds'], <String>['missing.styio']);
     expect(previewJson['hasMissingDocuments'], isTrue);
+    expect(previewJson['canApply'], isFalse);
     final documentJson =
         (previewJson['documents']! as List<Object?>).single!
             as Map<String, Object?>;

@@ -146,6 +146,8 @@ class WorkspaceEditPreview {
 
   bool get hasMissingDocuments => missingDocumentIds.isNotEmpty;
 
+  bool get canApply => hasChanges && !hasMissingDocuments;
+
   int get editCount {
     return documents.fold<int>(
       0,
@@ -164,6 +166,7 @@ class WorkspaceEditPreview {
       'editCount': editCount,
       'hasChanges': hasChanges,
       'hasMissingDocuments': hasMissingDocuments,
+      'canApply': canApply,
       'documents': documents
           .map((document) => document.toJson())
           .toList(growable: false),

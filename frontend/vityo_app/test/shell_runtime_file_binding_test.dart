@@ -2869,6 +2869,107 @@ printf 'src/main.cc:1:5: warning: configured build warning\\n'
     },
   );
 
+  test('shell runs direct Ninja build when CMake is unavailable', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_shell_direct_ninja_build_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final ninjaLog = File('${tempRoot.path}/ninja-args.log');
+    final ninja = File('${tempRoot.path}/fake-ninja.sh');
+    await ninja.writeAsString('''
+#!/bin/sh
+printf '%s\\n' "\$*" >> '${ninjaLog.path}'
+printf 'src/main.cc:1:5: warning: ninja build warning\\n'
+''');
+    await Process.run('chmod', <String>['+x', ninja.path]);
+    final configurationStore = await _createShellTestConfigurationStore(
+      tempRoot,
+    );
+    final platformManagers = await createDetectedPlatformManagerBundle();
+    final toolchainStore = ToolchainConfigurationStore(
+      configurationStore: configurationStore,
+    );
+    final catalog = ToolchainCatalog()
+      ..register(
+        ToolchainDescriptor(
+          id: 'fake-ninja',
+          kind: ToolchainKind.buildTool,
+          displayName: 'Fake Ninja',
+          executablePath: ninja.path,
+          metadata: const <String, Object?>{'toolFamily': 'ninja'},
+        ),
+        activate: true,
+      );
+    await toolchainStore.saveCatalog(
+      catalog,
+      targetId: platformManagers.context.targetId,
+    );
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: tempRoot.path,
+      activeFilePath: 'src/main.cc',
+      title: 'Demo',
+      notes: const <String>[],
+    ).copyWith(editorFiles: <String>['src/main.cc', 'build/build.ninja']);
+    const initialDocument = DocumentState(
+      documentId: 'src/main.cc',
+      text: 'int main(){return 0;}\n',
+      revision: 0,
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.cc': initialDocument,
+          'build/build.ninja': DocumentState(
+            documentId: 'build/build.ninja',
+            text: 'rule cc\n  command = clang++ main.cc\n',
+            revision: 0,
+          ),
+        },
+      ),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      toolchainManager: ToolchainManager(
+        configurationStore: toolchainStore,
+        platformManagers: platformManagers,
+      ),
+    );
+    addTearDown(shell.dispose);
+
+    await shell.executeCommand(AppCommandId.runBuild);
+
+    final buildResult =
+        shell.lastNativeToolResult!.metadata['buildResult']!
+            as Map<String, Object?>;
+    expect(shell.lastNativeToolResult?.applied, isTrue);
+    expect(buildResult['runner'], 'ninja');
+    expect(buildResult['status'], 'passed');
+    expect(buildResult['buildDirectory'], 'build');
+    expect(buildResult['configuredBeforeBuild'], isFalse);
+    expect(buildResult['arguments'], <Object?>['-C', 'build']);
+    expect(buildResult['diagnosticCount'], 1);
+    expect(await ninjaLog.readAsString(), '-C build\n');
+  });
+
   test(
     'shell blocks active file close while editor binding is dirty',
     () async {

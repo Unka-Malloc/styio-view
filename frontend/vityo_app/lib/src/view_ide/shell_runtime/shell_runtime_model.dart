@@ -1187,6 +1187,50 @@ class ShellRuntimeModel extends ChangeNotifier {
         final buildDirectory = needsConfigure
             ? 'build'
             : _nativeBuildDirectoryArgument();
+        if (!needsConfigure &&
+            _hasNinjaBuild() &&
+            !await _hasBuildToolFamily(manager, 'cmake')) {
+          final ninjaArguments = buildDirectory == '.'
+              ? const <String>[]
+              : <String>['-C', buildDirectory];
+          final result = await manager.run(
+            kind: ToolchainKind.buildTool,
+            requirement: const ToolchainRequirement(
+              kind: ToolchainKind.buildTool,
+              metadata: <String, Object?>{'toolFamily': 'ninja'},
+            ),
+            arguments: ninjaArguments,
+            workingDirectory: workspaceController.activeProject.workspaceRoot,
+            timeout: const Duration(minutes: 5),
+          );
+          final diagnostics = _clangBuildDiagnosticsFromOutput(
+            '${result.stdout}\n${result.stderr}',
+          );
+          if (diagnostics.isNotEmpty) {
+            editorController.applyExternalDiagnostics(diagnostics);
+          }
+          final buildResult = <String, Object?>{
+            'runner': 'ninja',
+            'status': result.succeeded ? 'passed' : 'failed',
+            'buildDirectory': buildDirectory,
+            'configuredBeforeBuild': false,
+            'arguments': ninjaArguments,
+            'diagnosticCount': diagnostics.length,
+          };
+          final message = result.succeeded
+              ? 'Run Build completed.'
+              : _nativeToolFailureMessage(commandId, result.message);
+          final commandResult = _NativeToolCommandResult(
+            applied: result.succeeded,
+            message: message,
+            metadata: <String, Object?>{'buildResult': buildResult},
+            diagnostics: diagnostics,
+          );
+          _recordNativeToolResult(commandId, commandResult);
+          appendLog(message);
+          notifyListeners();
+          return commandResult;
+        }
         Map<String, Object?>? configureResult;
         if (needsConfigure) {
           final configureArguments = await _nativeCMakeConfigureArguments(
@@ -2286,6 +2330,21 @@ class ShellRuntimeModel extends ChangeNotifier {
     final files = _normalizedWorkspaceFiles();
     return files.contains('build/compile_commands.json') ||
         files.contains('build/CMakeCache.txt');
+  }
+
+  bool _hasNinjaBuild() {
+    final files = _normalizedWorkspaceFiles();
+    return files.contains('build/build.ninja') || files.contains('build.ninja');
+  }
+
+  Future<bool> _hasBuildToolFamily(
+    ToolchainManager manager,
+    String toolFamily,
+  ) async {
+    final catalog = await manager.loadCatalog();
+    return catalog.list(kind: ToolchainKind.buildTool).any((descriptor) {
+      return descriptor.metadata['toolFamily'] == toolFamily;
+    });
   }
 
   Future<List<String>> _nativeCMakeConfigureArguments(

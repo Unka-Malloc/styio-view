@@ -13,6 +13,7 @@ class ProblemsSurface extends StatelessWidget {
     this.workspaceDiagnostics,
     this.onSelectDiagnostic,
     this.onSelectWorkspaceDiagnostic,
+    this.onRefreshWorkspaceDiagnostics,
   });
 
   final ViewportProfile viewportProfile;
@@ -21,6 +22,7 @@ class ProblemsSurface extends StatelessWidget {
   final WorkspaceDiagnosticsSnapshot? workspaceDiagnostics;
   final ValueChanged<Diagnostic>? onSelectDiagnostic;
   final ValueChanged<WorkspaceDiagnostic>? onSelectWorkspaceDiagnostic;
+  final Future<void> Function()? onRefreshWorkspaceDiagnostics;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +53,20 @@ class ProblemsSurface extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Problems', style: theme.textTheme.titleLarge),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Problems', style: theme.textTheme.titleLarge),
+                ),
+                if (onRefreshWorkspaceDiagnostics != null)
+                  TextButton.icon(
+                    key: const ValueKey('problems-refresh-workspace'),
+                    onPressed: onRefreshWorkspaceDiagnostics,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Refresh'),
+                  ),
+              ],
+            ),
             const SizedBox(height: 6),
             Text(
               'Diagnostics surface backed by active document diagnostics or a workspace diagnostics snapshot. TODO: add grouping, filters, quick-fix preview, and persisted problem state.',

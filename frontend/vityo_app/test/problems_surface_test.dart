@@ -66,6 +66,7 @@ void main() {
     tester,
   ) async {
     WorkspaceDiagnostic? selectedWorkspaceDiagnostic;
+    var refreshCount = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -104,6 +105,9 @@ void main() {
             onSelectWorkspaceDiagnostic: (diagnostic) {
               selectedWorkspaceDiagnostic = diagnostic;
             },
+            onRefreshWorkspaceDiagnostics: () async {
+              refreshCount += 1;
+            },
           ),
         ),
       ),
@@ -120,5 +124,12 @@ void main() {
     await tester.pump();
 
     expect(selectedWorkspaceDiagnostic?.documentId, 'src/lib.styio');
+
+    await tester.tap(
+      find.byKey(const ValueKey('problems-refresh-workspace')),
+    );
+    await tester.pump();
+
+    expect(refreshCount, 1);
   });
 }

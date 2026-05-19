@@ -322,6 +322,33 @@ void main() {
       expect(sourceControlJson['branchName'], 'ai-dev');
       expect(sourceControlJson['changeCount'], 1);
 
+      await shell.executeCommand(AppCommandId.refreshWorkspaceDiagnostics);
+      final diagnosticsCommandResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(
+        diagnosticsCommandResult?.commandId,
+        'refreshWorkspaceDiagnostics',
+      );
+      expect(diagnosticsCommandResult?.applied, isTrue);
+      expect(
+        diagnosticsCommandResult?.metadata['workspaceDiagnostics'],
+        isA<Map<String, Object?>>(),
+      );
+
+      final agentDiagnosticsApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'refreshWorkspaceDiagnostics',
+        ),
+      );
+      final agentDiagnosticsResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(agentDiagnosticsApplied, isTrue);
+      expect(agentDiagnosticsResult?.commandId, 'refreshWorkspaceDiagnostics');
+      expect(
+        agentDiagnosticsResult?.message,
+        contains('Workspace diagnostics refreshed'),
+      );
+
       await shell.executeCommand(AppCommandId.refreshSourceControl);
       final refreshCommandResult =
           shell.agentSessionContext.commands.lastResult;

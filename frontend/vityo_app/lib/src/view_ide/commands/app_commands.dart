@@ -23,6 +23,7 @@ enum AppCommandId {
   previousDiagnostic,
   applyQuickFix,
   refreshLanguageService,
+  refreshWorkspaceDiagnostics,
   refreshSourceControl,
   openWorkspaceFile,
   searchWorkspace,
@@ -288,6 +289,13 @@ class StyioCommandRegistry {
       description: 'Refresh StyioService facts for the active editor document.',
     ),
     AppCommandDescriptor(
+      id: AppCommandId.refreshWorkspaceDiagnostics,
+      label: 'Refresh Workspace Diagnostics',
+      shortcutHint: 'Route',
+      description:
+          'Refresh cached workspace diagnostics for Agent, Problems, and code actions.',
+    ),
+    AppCommandDescriptor(
       id: AppCommandId.refreshSourceControl,
       label: 'Refresh Source Control',
       shortcutHint: 'Route',
@@ -432,7 +440,8 @@ class StyioCommandRegistry {
         (command) => switch (command.id) {
           AppCommandId.nextDiagnostic ||
           AppCommandId.previousDiagnostic ||
-          AppCommandId.applyQuickFix => true,
+          AppCommandId.applyQuickFix ||
+          AppCommandId.refreshWorkspaceDiagnostics => true,
           _ => false,
         },
       );

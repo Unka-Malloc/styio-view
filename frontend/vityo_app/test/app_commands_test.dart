@@ -39,6 +39,9 @@ void main() {
       final refreshLanguageService = StyioCommandRegistry.descriptorFor(
         AppCommandId.refreshLanguageService,
       );
+      final refreshWorkspaceDiagnostics = StyioCommandRegistry.descriptorFor(
+        AppCommandId.refreshWorkspaceDiagnostics,
+      );
       final openWorkspaceFile = StyioCommandRegistry.descriptorFor(
         AppCommandId.openWorkspaceFile,
       );
@@ -132,6 +135,12 @@ void main() {
       expect(refreshLanguageService.label, 'Refresh Language Service');
       expect(refreshLanguageService.shortcutHint, 'Route');
       expect(refreshLanguageService.requiresInput, isFalse);
+      expect(
+        refreshWorkspaceDiagnostics.label,
+        'Refresh Workspace Diagnostics',
+      );
+      expect(refreshWorkspaceDiagnostics.shortcutHint, 'Route');
+      expect(refreshWorkspaceDiagnostics.requiresInput, isFalse);
 
       expect(openWorkspaceFile.label, 'Open Workspace File');
       expect(openWorkspaceFile.shortcutHint, 'Route');
@@ -215,6 +224,7 @@ void main() {
         AppCommandId.nextDiagnostic,
         AppCommandId.previousDiagnostic,
         AppCommandId.applyQuickFix,
+        AppCommandId.refreshWorkspaceDiagnostics,
       ],
     );
     expect(

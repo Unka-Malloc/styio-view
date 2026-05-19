@@ -876,8 +876,12 @@ void main() {
       'nextDiagnostic',
     );
     expect(
-      (diagnosticCommands.last! as Map<String, Object?>)['id'],
+      (diagnosticCommands[2]! as Map<String, Object?>)['id'],
       'applyQuickFix',
+    );
+    expect(
+      (diagnosticCommands.last! as Map<String, Object?>)['id'],
+      'refreshWorkspaceDiagnostics',
     );
     expect(
       (languageServiceCommands.single! as Map<String, Object?>)['id'],

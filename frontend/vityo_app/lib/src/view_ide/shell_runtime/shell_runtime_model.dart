@@ -633,6 +633,47 @@ class ShellRuntimeModel extends ChangeNotifier {
     return 'Source control refreshed: ${snapshot.changes.length} change(s).';
   }
 
+  WorkspaceDiagnosticsRequest _createWorkspaceDiagnosticsRequest() {
+    final documentsById = <String, DocumentState>{
+      editorController.document.documentId: editorController.document,
+      for (final document in _agentWorkspaceDocumentSamples)
+        document.documentId: document,
+    };
+    final documentIds = <String>{
+      ...workspaceController.openFilePaths,
+      editorController.document.documentId,
+    }.toList(growable: false);
+    return WorkspaceDiagnosticsRequest(
+      documentIds: documentIds,
+      activeDocumentId: editorController.document.documentId,
+      documents: documentsById.values.toList(growable: false),
+    );
+  }
+
+  Future<WorkspaceDiagnosticsSnapshot> refreshWorkspaceDiagnostics() async {
+    final controller = workspaceDiagnosticsController;
+    final snapshot = controller == null
+        ? const WorkspaceDiagnosticsSnapshot(
+            providerId: 'unavailable',
+            diagnostics: <WorkspaceDiagnostic>[],
+            message:
+                'Workspace diagnostics refresh skipped: no provider is configured.',
+          )
+        : await controller.refresh(_createWorkspaceDiagnosticsRequest());
+    appendLog(_workspaceDiagnosticsRefreshMessage(snapshot));
+    notifyListeners();
+    return snapshot;
+  }
+
+  String _workspaceDiagnosticsRefreshMessage(
+    WorkspaceDiagnosticsSnapshot snapshot,
+  ) {
+    if (snapshot.message.isNotEmpty && snapshot.providerId == 'unavailable') {
+      return snapshot.message;
+    }
+    return 'Workspace diagnostics refreshed: ${snapshot.totalCount} problem(s).';
+  }
+
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
   DependencySourceCommandResult? get lastDependencySourceCommand =>
@@ -974,6 +1015,17 @@ class ShellRuntimeModel extends ChangeNotifier {
         return false;
       case 'refreshLanguageService':
         return _refreshLanguageServiceForCommand(suggestion: suggestion);
+      case 'refreshWorkspaceDiagnostics':
+        final snapshot = await refreshWorkspaceDiagnostics();
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: workspaceDiagnosticsController != null,
+          message: _workspaceDiagnosticsRefreshMessage(snapshot),
+          metadata: <String, Object?>{
+            'workspaceDiagnostics': snapshot.toJson(),
+          },
+        );
+        return workspaceDiagnosticsController != null;
       case 'refreshSourceControl':
         final snapshot = await refreshSourceControlStatus();
         _recordAgentIdeCommandResult(
@@ -1747,6 +1799,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
       case AppCommandId.refreshLanguageService:
+      case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
@@ -1809,6 +1862,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
       case AppCommandId.refreshLanguageService:
+      case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
@@ -3700,6 +3754,17 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshLanguageService:
         await _refreshLanguageServiceForCommand();
         return;
+      case AppCommandId.refreshWorkspaceDiagnostics:
+        final snapshot = await refreshWorkspaceDiagnostics();
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: workspaceDiagnosticsController != null,
+          message: _workspaceDiagnosticsRefreshMessage(snapshot),
+          metadata: <String, Object?>{
+            'workspaceDiagnostics': snapshot.toJson(),
+          },
+        );
+        return;
       case AppCommandId.refreshSourceControl:
         final snapshot = await refreshSourceControlStatus();
         _recordAgentIdeCommandResult(
@@ -4015,6 +4080,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
       case AppCommandId.refreshLanguageService:
+      case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:

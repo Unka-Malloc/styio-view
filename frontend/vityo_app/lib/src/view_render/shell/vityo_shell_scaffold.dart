@@ -227,6 +227,11 @@ class VityoShellScaffold extends StatelessWidget {
             diagnostics: shell.editorController.analysis.diagnostics,
             workspaceDiagnostics: shell.workspaceDiagnosticsSnapshot,
             onSelectDiagnostic: shell.editorController.selectDiagnostic,
+            onRefreshWorkspaceDiagnostics: () {
+              return shell.executeCommand(
+                AppCommandId.refreshWorkspaceDiagnostics,
+              );
+            },
           );
         }
 
@@ -1978,6 +1983,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.auto_fix_high_rounded;
     case AppCommandId.refreshLanguageService:
       return Icons.manage_search_rounded;
+    case AppCommandId.refreshWorkspaceDiagnostics:
+      return Icons.rule_folder_outlined;
     case AppCommandId.refreshSourceControl:
       return Icons.account_tree_rounded;
     case AppCommandId.goToDefinition:

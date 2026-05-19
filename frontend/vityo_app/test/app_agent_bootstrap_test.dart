@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/app/app_bootstrap.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -35,6 +36,29 @@ void main() {
       ),
     );
     final adapter = _FakeAgentProviderAdapter();
+    const executionResolution = AgentProviderExecutionResolution(
+      profileId: 'cloud',
+      status: AgentProviderExecutionResolutionStatus.ready,
+      selectedEndpointIndex: 0,
+      endpoints: <AgentProviderEndpointReadiness>[
+        AgentProviderEndpointReadiness(
+          endpointIndex: 0,
+          fallback: false,
+          endpoint: AgentProviderEndpoint(
+            route: AgentProviderRoute.webHosted,
+            baseUrl: 'https://agent.example.test/v1',
+            model: 'gpt-test',
+          ),
+          plan: AgentProviderExecutionPlan(
+            routeKind: AgentProviderExecutionRouteKind.cloud,
+            providerKind: AgentProviderKind.cloudOpenAICompatible,
+            route: AgentProviderRoute.webHosted,
+            endpointBaseUrl: 'https://agent.example.test/v1',
+          ),
+          credentialReadiness: AgentProviderCredentialReadiness.notReferenced,
+        ),
+      ],
+    );
 
     final controller = await AppBootstrap.createAgentCodingSessionController(
       platformTarget: PlatformTarget.web,
@@ -43,12 +67,17 @@ void main() {
         expect(profile.profileId, 'cloud');
         return adapter;
       },
+      resolveConfiguredExecution: (profile) async {
+        expect(profile.profileId, 'cloud');
+        return executionResolution;
+      },
       contextProvider: _context,
     );
     addTearDown(controller.dispose);
 
     expect(controller.profile.profileId, 'cloud');
     expect(controller.adapter, same(adapter));
+    expect(controller.providerExecutionResolution, same(executionResolution));
   });
 
   test('agent bootstrap falls back to local-only when provider mount fails', () async {

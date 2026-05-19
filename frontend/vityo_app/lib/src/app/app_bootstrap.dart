@@ -309,6 +309,7 @@ class AppBootstrap {
         return agentProfileStore.readProfile(workspaceId: projectSnapshot.id);
       },
       createConfiguredAdapter: agentProviderRegistry.createAdapter,
+      resolveConfiguredExecution: agentProviderFactory.resolveExecution,
       contextProvider: () => AgentSessionContext.fromEditorState(
         document: editorController.document,
         selection: editorController.selection,
@@ -391,6 +392,10 @@ class AppBootstrap {
     required Future<AgentPromptProfile?> Function() loadPersistedProfile,
     required Future<AgentProviderAdapter> Function(AgentPromptProfile profile)
     createConfiguredAdapter,
+    Future<AgentProviderExecutionResolution> Function(
+      AgentPromptProfile profile,
+    )?
+    resolveConfiguredExecution,
     required AgentSessionContextProvider contextProvider,
   }) async {
     final persistedProfile = await loadPersistedProfile();
@@ -403,9 +408,16 @@ class AppBootstrap {
             profile: profile,
             createConfiguredAdapter: createConfiguredAdapter,
           );
+    final executionResolution = persistedProfile == null
+        ? null
+        : await _resolveConfiguredAgentExecution(
+            profile: profile,
+            resolveConfiguredExecution: resolveConfiguredExecution,
+          );
     return AgentCodingSessionController(
       profile: profile,
       adapter: adapter,
+      providerExecutionResolution: executionResolution,
       contextProvider: contextProvider,
     );
   }
@@ -419,6 +431,24 @@ class AppBootstrap {
       return await createConfiguredAdapter(profile);
     } on Object {
       return const LocalOnlyAgentProviderAdapter();
+    }
+  }
+
+  static Future<AgentProviderExecutionResolution?>
+  _resolveConfiguredAgentExecution({
+    required AgentPromptProfile profile,
+    required Future<AgentProviderExecutionResolution> Function(
+      AgentPromptProfile profile,
+    )?
+    resolveConfiguredExecution,
+  }) async {
+    if (resolveConfiguredExecution == null) {
+      return null;
+    }
+    try {
+      return await resolveConfiguredExecution(profile);
+    } on Object {
+      return null;
     }
   }
 

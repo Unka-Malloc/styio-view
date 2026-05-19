@@ -4,6 +4,7 @@ import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_configurator.dart';
+import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
@@ -15,6 +16,29 @@ void main() {
     final savedTokens = <String>[];
     final adapter = const _FakeAgentProviderAdapter(
       kind: AgentProviderKind.cloudOpenAICompatible,
+    );
+    const executionResolution = AgentProviderExecutionResolution(
+      profileId: 'cloud',
+      status: AgentProviderExecutionResolutionStatus.ready,
+      selectedEndpointIndex: 0,
+      endpoints: <AgentProviderEndpointReadiness>[
+        AgentProviderEndpointReadiness(
+          endpointIndex: 0,
+          fallback: false,
+          endpoint: AgentProviderEndpoint(
+            route: AgentProviderRoute.webHosted,
+            baseUrl: 'https://agent.test/v1',
+            model: 'gpt-test',
+          ),
+          plan: AgentProviderExecutionPlan(
+            routeKind: AgentProviderExecutionRouteKind.cloud,
+            providerKind: AgentProviderKind.cloudOpenAICompatible,
+            route: AgentProviderRoute.webHosted,
+            endpointBaseUrl: 'https://agent.test/v1',
+          ),
+          credentialReadiness: AgentProviderCredentialReadiness.available,
+        ),
+      ],
     );
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
@@ -30,6 +54,10 @@ void main() {
         savedProfiles.add(profile);
       },
       createAdapter: (_) async => adapter,
+      resolveExecution: (profile) async {
+        expect(profile.profileId, 'cloud');
+        return executionResolution;
+      },
       saveBearerToken: ({
         required workspaceId,
         required profileId,
@@ -63,6 +91,8 @@ void main() {
     expect(controller.profile.endpoint.credentialReference?.kind, CredentialKind.token);
     expect(controller.adapter, same(adapter));
     expect(controller.providerMountMessage, 'Agent provider profile saved and mounted.');
+    expect(controller.providerExecutionResolution, same(executionResolution));
+    expect(result.executionResolution, same(executionResolution));
   });
 
   test('agent provider configurator saves profile and falls back on mount failure', () async {

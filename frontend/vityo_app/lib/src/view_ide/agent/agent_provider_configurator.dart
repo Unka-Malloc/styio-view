@@ -4,6 +4,7 @@ import 'agent_prompt_profile_store.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_credential_resolver.dart';
 import 'agent_provider_registry.dart';
+import 'agent_provider_route_executor.dart';
 import '../environment/configuration/configuration.dart';
 
 typedef AgentPromptProfileSaver =
@@ -15,6 +16,11 @@ typedef AgentPromptProfileSaver =
 
 typedef AgentProviderAdapterCreator =
     Future<AgentProviderAdapter> Function(AgentPromptProfile profile);
+
+typedef AgentProviderExecutionResolver =
+    Future<AgentProviderExecutionResolution> Function(
+      AgentPromptProfile profile,
+    );
 
 typedef AgentPromptProfileSync =
     Future<void> Function({
@@ -39,6 +45,7 @@ class AgentProviderConfigurationResult {
     required this.adapterId,
     required this.message,
     this.synced = false,
+    this.executionResolution,
   });
 
   final bool saved;
@@ -48,6 +55,7 @@ class AgentProviderConfigurationResult {
   final String adapterId;
   final String message;
   final bool synced;
+  final AgentProviderExecutionResolution? executionResolution;
 }
 
 class AgentProviderConfigurator {
@@ -55,10 +63,12 @@ class AgentProviderConfigurator {
     required this.workspaceId,
     required AgentPromptProfileSaver saveProfile,
     required AgentProviderAdapterCreator createAdapter,
+    AgentProviderExecutionResolver? resolveExecution,
     AgentPromptProfileSync? syncProfile,
     AgentBearerTokenSaver? saveBearerToken,
   }) : _saveProfile = saveProfile,
        _createAdapter = createAdapter,
+       _resolveExecution = resolveExecution,
        _syncProfile = syncProfile,
        _saveBearerToken = saveBearerToken;
 
@@ -80,6 +90,7 @@ class AgentProviderConfigurator {
         );
       },
       createAdapter: registry.createAdapter,
+      resolveExecution: providerFactory.resolveExecution,
       saveBearerToken:
           ({
             required workspaceId,
@@ -112,6 +123,7 @@ class AgentProviderConfigurator {
   final String workspaceId;
   final AgentPromptProfileSaver _saveProfile;
   final AgentProviderAdapterCreator _createAdapter;
+  final AgentProviderExecutionResolver? _resolveExecution;
   final AgentPromptProfileSync? _syncProfile;
   final AgentBearerTokenSaver? _saveBearerToken;
 
@@ -134,6 +146,7 @@ class AgentProviderConfigurator {
       key: key,
       profile: profileToSave,
     );
+    final executionResolution = await _resolveExecutionFor(profileToSave);
     try {
       final adapter = await _createAdapter(profileToSave);
       final message = synced
@@ -143,6 +156,7 @@ class AgentProviderConfigurator {
         profile: profileToSave,
         adapter: adapter,
         message: message,
+        executionResolution: executionResolution,
       );
       return AgentProviderConfigurationResult(
         saved: true,
@@ -152,6 +166,7 @@ class AgentProviderConfigurator {
         adapterId: adapter.adapterId,
         message: message,
         synced: synced,
+        executionResolution: executionResolution,
       );
     } on Object catch (error) {
       const adapter = LocalOnlyAgentProviderAdapter();
@@ -162,6 +177,7 @@ class AgentProviderConfigurator {
         profile: profileToSave,
         adapter: adapter,
         message: message,
+        executionResolution: executionResolution,
       );
       return AgentProviderConfigurationResult(
         saved: true,
@@ -171,7 +187,22 @@ class AgentProviderConfigurator {
         adapterId: adapter.adapterId,
         message: message,
         synced: synced,
+        executionResolution: executionResolution,
       );
+    }
+  }
+
+  Future<AgentProviderExecutionResolution?> _resolveExecutionFor(
+    AgentPromptProfile profile,
+  ) async {
+    final resolver = _resolveExecution;
+    if (resolver == null) {
+      return null;
+    }
+    try {
+      return await resolver(profile);
+    } on Object {
+      return null;
     }
   }
 

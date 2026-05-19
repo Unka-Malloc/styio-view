@@ -304,6 +304,7 @@ void main() {
                         'compilerFamily': 'clang',
                         'cCompilerPath': '/opt/clang-17/bin/clang',
                         'cxxCompilerPath': '/opt/clang-17/bin/clang++',
+                        'clangVendor': 'llvm',
                         'source': 'system',
                       },
                     ),
@@ -318,6 +319,7 @@ void main() {
                         'compilerFamily': 'clang',
                         'cCompilerPath': '/opt/clang-18/bin/clang',
                         'cxxCompilerPath': '/opt/clang-18/bin/clang++',
+                        'clangVendor': 'apple',
                         'source': 'manual',
                       },
                     ),
@@ -364,8 +366,11 @@ void main() {
     expect(find.text('standard c++20'), findsOneWidget);
     expect(find.text('flag -std=c++20'), findsOneWidget);
     expect(find.text('handoff cmake+ninja'), findsOneWidget);
-    expect(find.text('active clang Clang 17 17.0.6 system'), findsOneWidget);
-    expect(find.text('clang Clang 18 18.1.8 manual'), findsOneWidget);
+    expect(
+      find.text('active clang Clang 17 17.0.6 llvm system'),
+      findsOneWidget,
+    );
+    expect(find.text('clang Clang 18 18.1.8 apple manual'), findsOneWidget);
 
     final selectCpp23Button = find.byKey(
       const ValueKey('settings-clang-cpp-standard-23'),

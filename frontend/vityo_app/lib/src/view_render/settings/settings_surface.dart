@@ -477,6 +477,7 @@ String _clangCppCandidateLabel(ClangCppVersionCandidateSurface candidate) {
     'clang',
     candidate.displayName,
     if (candidate.version != null) candidate.version!,
+    if (candidate.vendor != null) candidate.vendor!,
     if (candidate.source != null) candidate.source!,
   ].join(' ');
 }

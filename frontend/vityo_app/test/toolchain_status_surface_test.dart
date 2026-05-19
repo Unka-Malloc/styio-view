@@ -213,6 +213,7 @@ void main() {
               'compilerFamily': 'clang',
               'cCompilerPath': '/opt/clang-17/bin/clang',
               'cxxCompilerPath': '/opt/clang-17/bin/clang++',
+              'clangVendor': 'llvm',
               'source': 'system',
             },
           ),
@@ -227,6 +228,7 @@ void main() {
               'compilerFamily': 'clang',
               'cCompilerPath': '/opt/clang-18/bin/clang',
               'cxxCompilerPath': '/opt/clang-18/bin/clang++',
+              'clangVendor': 'apple',
               'source': 'manual',
             },
           ),
@@ -281,11 +283,19 @@ void main() {
       clangCpp.candidates.map((candidate) => candidate.versionId),
       <String>['clang-17', 'clang-18'],
     );
+    expect(clangCpp.candidates.first.vendor, 'llvm');
+    expect(clangCpp.candidates.last.vendor, 'apple');
     expect(clangCpp.candidates.first.active, isFalse);
     expect(clangCpp.candidates.last.active, isTrue);
     expect(clangCpp.cmakeAvailable, isTrue);
     expect(clangCpp.ninjaAvailable, isTrue);
     expect(clangCpp.preferredBuildEngineHandoff?.label, 'cmake+ninja');
+    final clangCppJson = json['clangCppVersions']! as Map<String, Object?>;
+    final candidateJson = clangCppJson['candidates']! as List<Object?>;
+    expect(
+      (candidateJson.first! as Map<String, Object?>)['vendor'],
+      'llvm',
+    );
     expect(json['clangCppVersions'], isA<Map<String, Object?>>());
   });
 }

@@ -473,6 +473,7 @@ class ClangCppVersionCandidateSurface {
     required this.cxxCompilerPath,
     required this.active,
     this.version,
+    this.vendor,
     this.source,
   });
 
@@ -487,6 +488,7 @@ class ClangCppVersionCandidateSurface {
       cxxCompilerPath: candidate.cxxCompilerPath,
       active: active,
       version: candidate.version,
+      vendor: _stringValue(candidate.metadata['clangVendor']),
       source: candidate.source,
     );
   }
@@ -497,6 +499,7 @@ class ClangCppVersionCandidateSurface {
   final String cxxCompilerPath;
   final bool active;
   final String? version;
+  final String? vendor;
   final String? source;
 
   Map<String, Object?> toJson() {
@@ -507,9 +510,18 @@ class ClangCppVersionCandidateSurface {
       'cxxCompilerPath': cxxCompilerPath,
       'active': active,
       if (version != null) 'version': version,
+      if (vendor != null) 'vendor': vendor,
       if (source != null) 'source': source,
     };
   }
+}
+
+String? _stringValue(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }
 
 class ClangCppBuildEngineHandoffSurface {

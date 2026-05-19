@@ -9,6 +9,7 @@ import '../debugger/debug_adapter_launcher.dart';
 import '../debugger/debug_adapter_protocol.dart';
 import '../debugger/debug_adapter_session.dart';
 import '../debugger/debug_launch_contract.dart';
+import '../debugger/debug_runtime_task_history.dart';
 import '../editor/editor.dart';
 import '../environment/configuration/configuration.dart';
 import '../interaction/interaction.dart';
@@ -16,6 +17,7 @@ import '../language/language_contract.dart';
 import '../language/service/service.dart';
 import '../module_host/module_host.dart';
 import '../platform/platform.dart';
+import '../runtime/runtime.dart';
 import '../toolchain/clang_cpp_version_configuration.dart';
 import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
@@ -352,6 +354,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     ProjectStyioLanguageService? projectLanguageService,
     EditorDocumentResourceBinding? editorFileBinding,
     this.debugAdapterLauncher,
+    this.debugRuntimeTaskHistoryBinder = const DebugRuntimeTaskHistoryBinder(),
+    this.debugRuntimeTaskHistoryStore,
+    this.debugRuntimeTaskHistoryWorkspaceId = 'default',
+    this.debugRuntimeTaskHistoryMaxEntries = 50,
   }) : _activeDocumentPath = workspaceController.activeFilePath,
        projectLanguageService =
            projectLanguageService ?? const ProjectStyioLanguageService(),
@@ -436,6 +442,10 @@ class ShellRuntimeModel extends ChangeNotifier {
   final SourceControlStatusController? sourceControlStatusController;
   final ProjectStyioLanguageService projectLanguageService;
   final DapDebugAdapterLauncher? debugAdapterLauncher;
+  final DebugRuntimeTaskHistoryBinder debugRuntimeTaskHistoryBinder;
+  final RuntimeTaskHistoryStore? debugRuntimeTaskHistoryStore;
+  final String debugRuntimeTaskHistoryWorkspaceId;
+  final int debugRuntimeTaskHistoryMaxEntries;
   final bool _ownsLanguageServiceStatus;
   final bool _ownsAgentCodingController;
   StreamSubscription<DocumentResourceBindingSnapshot>?
@@ -479,6 +489,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       <AgentCommandResultContext>[];
   DapDebugSessionHandle? _dapDebugSession;
   StreamSubscription<DapSessionSnapshot>? _dapDebugSessionSubscription;
+  Future<void> _debugRuntimeTaskHistoryAppendQueue = Future<void>.value();
   bool _dapInspectionRequestInFlight = false;
 
   List<AdapterCapabilitySnapshot> get adapterCapabilities =>
@@ -3240,6 +3251,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       adapterSnapshot,
       message: 'Debug adapter session updated: ${adapterSnapshot.status.name}.',
     );
+    _queueDebugRuntimeTaskHistoryAppend(adapterSnapshot);
     if (adapterSnapshot.status == DapSessionStatus.terminated ||
         adapterSnapshot.status == DapSessionStatus.failed) {
       final sessionHandle = _dapDebugSession;
@@ -3254,6 +3266,35 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
     _requestPausedDapInspectionFacts(adapterSnapshot);
+  }
+
+  void _queueDebugRuntimeTaskHistoryAppend(DapSessionSnapshot adapterSnapshot) {
+    _debugRuntimeTaskHistoryAppendQueue = _debugRuntimeTaskHistoryAppendQueue
+        .then((_) => _appendDebugRuntimeTaskHistory(adapterSnapshot));
+    unawaited(_debugRuntimeTaskHistoryAppendQueue);
+  }
+
+  Future<void> _appendDebugRuntimeTaskHistory(
+    DapSessionSnapshot adapterSnapshot,
+  ) async {
+    final store = debugRuntimeTaskHistoryStore;
+    final launch = _debugSession.launchConfiguration;
+    if (store == null || launch == null) {
+      return;
+    }
+    try {
+      await debugRuntimeTaskHistoryBinder.appendSnapshot(
+        store: store,
+        workspaceId: debugRuntimeTaskHistoryWorkspaceId,
+        launch: launch,
+        adapterSnapshot: adapterSnapshot,
+        taskId: 'debug.${launch.debuggerId}',
+        maxEntries: debugRuntimeTaskHistoryMaxEntries,
+      );
+    } on Object {
+      // TODO: route async debug history persistence failures into a runtime
+      // diagnostics channel that is safe after ShellRuntimeModel disposal.
+    }
   }
 
   void _requestPausedDapInspectionFacts(DapSessionSnapshot adapterSnapshot) {

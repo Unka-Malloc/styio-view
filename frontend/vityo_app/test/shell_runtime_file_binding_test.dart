@@ -33,6 +33,7 @@ import 'package:vityo_app/src/view_ide/language/service/simple_styio_language_se
 import 'package:vityo_app/src/view_ide/module_host/module_registry.dart';
 import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/testing/testing.dart';
@@ -2138,10 +2139,10 @@ void main() {
     expect(preview, isNotNull);
     expect(shell.lastWorkspaceReplacePreview, same(preview));
     expect(preview?.replacementCount, 2);
-    expect(
-      preview?.documents.map((document) => document.documentId),
-      <String>['src/main.styio', 'src/lib.styio'],
-    );
+    expect(preview?.documents.map((document) => document.documentId), <String>[
+      'src/main.styio',
+      'src/lib.styio',
+    ]);
     expect(storedMain.text, 'needle := 1\n');
   });
 
@@ -2410,6 +2411,22 @@ printf 'int main() { return 0; }\\n'
         text: 'int main(){return 0;}\n',
         revision: 0,
       );
+      final debugHistoryFileSystem =
+          LocalFileSystemManager.linuxDebianArmForTest();
+      final debugHistoryStore = RuntimeTaskHistoryStore.fromDataStore(
+        dataStore: FoundationDataStore(
+          resourceCoordinator: FoundationResourceCoordinator(
+            resourceManager: LocalResourceManager(
+              facts: ResourceFacts.linuxDebianArm(
+                systemTempPath: tempRoot.path,
+                homePath: tempRoot.path,
+              ),
+            ),
+            fileSystemManager: debugHistoryFileSystem,
+          ),
+          fileSystemManager: debugHistoryFileSystem,
+        ),
+      );
       late _FakeDapByteTransport fakeTransport;
       final shell = ShellRuntimeModel(
         platformTarget: PlatformTarget.macos,
@@ -2449,6 +2466,8 @@ printf 'int main() { return 0; }\\n'
             return fakeTransport;
           },
         ),
+        debugRuntimeTaskHistoryStore: debugHistoryStore,
+        debugRuntimeTaskHistoryWorkspaceId: 'shell-dap-debug-test',
       );
       addTearDown(shell.dispose);
 
@@ -2804,6 +2823,30 @@ printf 'int main() { return 0; }\\n'
       expect(shell.debugSession.adapterSessionStatus, 'terminated');
       expect(terminatedDebugJson['status'], 'stopped');
       expect(terminatedDebugJson['adapterSessionStatus'], 'terminated');
+      var debugHistory = await debugHistoryStore.readHistory(
+        workspaceId: 'shell-dap-debug-test',
+      );
+      for (
+        var i = 0;
+        i < 50 &&
+            (debugHistory.tasks.isEmpty ||
+                debugHistory.tasks.single.status !=
+                    RuntimeTaskStatus.succeeded);
+        i += 1
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        debugHistory = await debugHistoryStore.readHistory(
+          workspaceId: 'shell-dap-debug-test',
+        );
+      }
+      expect(debugHistory.tasks.single.definition.id, 'debug.fake-lldb');
+      expect(debugHistory.tasks.single.status, RuntimeTaskStatus.succeeded);
+      expect(
+        debugHistory.tasks.single.events.map(
+          (event) => event.metadata['event'],
+        ),
+        contains('terminated'),
+      );
     },
   );
 

@@ -530,7 +530,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/toolchain',
           summary:
-              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, managed downloads, and Styio-first toolchain lifecycle reports are wired.',
+              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, managed downloads, Styio-first toolchain lifecycle reports, and extension toolchain route consumption are wired.',
           todo:
               'TODO: connect Styio toolchain lifecycle reports to settings UI, installer UX, and project bootstrap.',
           references: <String>[

@@ -1,5 +1,6 @@
 export 'toolchain_codec.dart';
 export 'toolchain_environment.dart';
+export 'extension_toolchain_contributions.dart';
 export 'clang_cpp_version_configuration.dart';
 export 'clang_cpp_version_manager.dart';
 export 'clang_cpp_version_parser.dart';

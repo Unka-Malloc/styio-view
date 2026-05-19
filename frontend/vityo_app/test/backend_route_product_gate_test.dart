@@ -5,6 +5,7 @@ import 'package:vityo_app/src/backend_toolchain/execution_route_summary.dart';
 import 'package:vityo_app/src/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/interaction/toolchain_status_surface.dart';
+import 'package:vityo_app/src/view_render/native_tool_result_summary.dart';
 import 'package:vityo_app/src/view_render/platform/viewport_profile.dart';
 import 'package:vityo_app/src/view_render/runtime/runtime_surface.dart';
 
@@ -74,6 +75,35 @@ void main() {
 
         expect(selection.routeKind, scenario.expectedRouteKind);
         expect(selection.allowed, scenario.expectedAllowed);
+        final buildSummary = nativeToolMetadataSummaryText(<String, Object?>{
+          'buildResult': const <String, Object?>{
+            'status': 'passed',
+            'diagnosticCount': 0,
+          },
+          'backendRouteSelection': selection.toJson(),
+        });
+        final testSummary = nativeToolMetadataSummaryText(<String, Object?>{
+          'testResult': const <String, Object?>{
+            'status': 'passed',
+            'passedCount': 2,
+            'totalCount': 2,
+          },
+          'backendRouteSelection': selection.toJson(),
+        });
+        expect(
+          buildSummary,
+          contains('route ${scenario.expectedRouteKind.wireValue}'),
+          reason: scenario.label,
+        );
+        expect(
+          testSummary,
+          contains('route ${scenario.expectedRouteKind.wireValue}'),
+          reason: scenario.label,
+        );
+        if (!scenario.expectedAllowed) {
+          expect(buildSummary, contains('blocked'), reason: scenario.label);
+          expect(testSummary, contains('blocked'), reason: scenario.label);
+        }
 
         await tester.pumpWidget(
           MaterialApp(

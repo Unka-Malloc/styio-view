@@ -20,8 +20,26 @@ void main() {
           'status': 'blocked',
           'requiredCommand': 'runBuild',
         },
+        'backendRouteSelection': <String, Object?>{
+          'routeKind': 'blocked',
+          'adapterKind': 'none',
+          'allowed': false,
+          'previewOnly': false,
+          'blockedReason': 'no-backend-route',
+        },
       }),
-      'tests blocked · requires runBuild',
+      'tests blocked · requires runBuild · route blocked via none · blocked no-backend-route',
+    );
+    expect(
+      nativeToolMetadataSummaryText(const <String, Object?>{
+        'backendRouteSelection': <String, Object?>{
+          'routeKind': 'hosted',
+          'adapterKind': 'hosted',
+          'allowed': true,
+          'previewOnly': true,
+        },
+      }),
+      'route hosted via hosted · preview',
     );
     expect(
       nativeToolMetadataSummaryText(const <String, Object?>{

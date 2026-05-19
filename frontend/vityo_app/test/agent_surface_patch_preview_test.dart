@@ -877,6 +877,12 @@ void main() {
               'status': 'failed',
               'diagnosticCount': 2,
             },
+            'backendRouteSelection': <String, Object?>{
+              'routeKind': 'local-cli',
+              'adapterKind': 'cli',
+              'allowed': true,
+              'previewOnly': false,
+            },
           },
           completedAt: saveAllCompletedAt,
         ),
@@ -954,7 +960,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Static analysis failed.'), findsOneWidget);
-    expect(find.text('static analysis failed · diagnostics 2'), findsOneWidget);
+    expect(
+      find.text('static analysis failed · diagnostics 2 · route local-cli via cli'),
+      findsOneWidget,
+    );
     expect(
       find.widgetWithText(OutlinedButton, 'Retry Command'),
       findsNWidgets(2),

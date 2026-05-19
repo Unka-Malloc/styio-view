@@ -522,6 +522,11 @@ void main() {
       expect(systemMessage['content'], contains('toolchains.clangCpp'));
       expect(
         systemMessage['content'],
+        contains('toolchains.clangCpp.preferenceStatus'),
+      );
+      expect(systemMessage['content'], contains('Ninja'));
+      expect(
+        systemMessage['content'],
         contains('Do not patch inactive dirty documents'),
       );
       expect(systemMessage['content'], contains('documentId must not contain'));

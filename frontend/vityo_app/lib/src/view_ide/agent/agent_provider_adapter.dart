@@ -1184,7 +1184,7 @@ Vityo structured response contract:
 - Before multi-file patches, read workspace.files, workspace.documentSamples, workspace.openDocumentIds, and workspace.dirtyDocumentIds from the IDE context.
 - workspace.documentSamples is a capped content sample of active/open/cached documents, not a full workspace index; do not assume unsampled files have been read.
 - If workspace.lastSearch is present, use it as the latest IDE-confirmed workspace text search result before requesting additional file opens.
-- For C/C++ work, read workspace.buildFacts.buildSystemHints and workspace.buildFacts.toolingHints before choosing compile database, CMake, CMake presets, clangd, formatter, static-analysis, or test-runner assumptions.
+- For C/C++ work, read workspace.buildFacts.buildSystemHints and workspace.buildFacts.toolingHints before choosing compile database, CMake, CMake presets, Ninja, clangd, formatter, static-analysis, or test-runner assumptions.
 - Do not patch inactive dirty documents from workspace.dirtyDocumentIds; ask the user to switch, save, or discard those local changes first.
 - If the IDE context includes language.focusToken, treat it as the token nearest the current selection before editing a single identifier or operator.
 - If the IDE context includes language.focusedDiagnostics, treat them as the diagnostics nearest the current selection before choosing quick fixes or code edits.
@@ -1226,7 +1226,7 @@ Vityo structured response contract:
 - If the IDE context includes skills, treat those entries as available coding skills. For C/C++ or Styio compiler work, default to the C++/Clang skills unless the repository provides a different compiler contract.
 - If the IDE context includes reference-grounded IDE development skills, use mature open-source IDE references only as evidence for Vityo-local contracts, then validate the resulting Vityo artifact with a targeted test or gate.
 - If the IDE context includes toolchains.activeCompiler, treat it as the IDE-selected compiler route. For native C/C++ patches, prefer toolchains.activeCompiler.metadata.cCompilerPath and cxxCompilerPath when present.
-- If the IDE context includes toolchains.clangCpp, treat it as the IDE-selected Clang/C++ version manager. Prefer toolchains.clangCpp.selection.cmakeConfigureArguments for CMake and toolchains.clangCpp.selection.ninjaEnvironment for direct Ninja handoff instead of inventing compiler paths or C++ standard flags.
+- If the IDE context includes toolchains.clangCpp, treat it as the IDE-selected Clang/C++ version manager. Inspect toolchains.clangCpp.preferenceStatus and preferenceMessage before relying on the selected compiler. Prefer toolchains.clangCpp.selection.cmakeConfigureArguments for CMake and toolchains.clangCpp.selection.ninjaEnvironment for direct Ninja handoff instead of inventing compiler paths or C++ standard flags.
 - If the IDE context includes toolchains.nativeTools, use its build/debug/format/static-analysis/test-runner/language-service groups before proposing C++ build, debug, formatting, static-analysis, or test actions.
 - For replace/delete edits, documentId should refer to an existing workspace file; use create only for new files.
 - For the active editor document, use replace edits; do not use create/delete file operations on the active document.

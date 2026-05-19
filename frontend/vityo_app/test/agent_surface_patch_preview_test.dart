@@ -967,6 +967,7 @@ void main() {
   ) async {
     final saveCompletedAt = DateTime.utc(2026, 5, 19, 1, 2, 3);
     final saveAllCompletedAt = DateTime.utc(2026, 5, 19, 1, 3, 4);
+    final checkpointCompletedAt = DateTime.utc(2026, 5, 19, 1, 4, 5);
     final context = AgentSessionContext.fromEditorState(
       document: const DocumentState(
         documentId: 'src/main.styio',
@@ -1014,6 +1015,24 @@ void main() {
               'adapterKind': 'cli',
               'allowed': true,
               'previewOnly': false,
+            },
+          },
+          completedAt: checkpointCompletedAt,
+        ),
+        AgentCommandResultContext(
+          commandId: 'collectAgentCodingCheckpoint',
+          applied: true,
+          message: 'Agent coding checkpoint collected.',
+          metadata: const <String, Object?>{
+            'workspaceDiagnostics': <String, Object?>{
+              'totalCount': 2,
+            },
+            'sourceControl': <String, Object?>{
+              'changeCount': 1,
+            },
+            'sourceControlDiff': <String, Object?>{
+              'path': 'src/main.styio',
+              'lineCount': 7,
             },
           },
           completedAt: saveAllCompletedAt,
@@ -1097,8 +1116,19 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.text('collectAgentCodingCheckpoint · applied'),
+      findsOneWidget,
+    );
+    expect(find.text('Agent coding checkpoint collected.'), findsOneWidget);
+    expect(
+      find.text(
+        'checkpoint diagnostics 2 · source changes 1 · diff src/main.styio 7 lines',
+      ),
+      findsOneWidget,
+    );
+    expect(
       find.widgetWithText(OutlinedButton, 'Retry Command'),
-      findsNWidgets(2),
+      findsNWidgets(3),
     );
 
     await _tapVisible(

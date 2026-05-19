@@ -755,6 +755,8 @@ Set<String> _registeredAgentCommandIds(AgentCommandCatalogContext commands) {
     for (final command in commands.persistenceCommands) command.id,
     for (final command in commands.diagnosticCommands) command.id,
     for (final command in commands.languageServiceCommands) command.id,
+    for (final command in commands.sourceControlCommands) command.id,
+    for (final command in commands.codingCommands) command.id,
     for (final command in commands.navigationCommands) command.id,
     for (final command in commands.refactorCommands) command.id,
     for (final command in commands.toolchainCommands) command.id,
@@ -773,6 +775,10 @@ Map<String, bool> _agentCommandRequiresInputById(
     for (final command in commands.diagnosticCommands)
       command.id: command.requiresInput,
     for (final command in commands.languageServiceCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.sourceControlCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.codingCommands)
       command.id: command.requiresInput,
     for (final command in commands.navigationCommands)
       command.id: command.requiresInput,
@@ -798,6 +804,10 @@ Map<String, String> _agentCommandInputLabelById(
     for (final command in commands.diagnosticCommands)
       command.id: command.inputLabel,
     for (final command in commands.languageServiceCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.sourceControlCommands)
+      command.id: command.inputLabel,
+    for (final command in commands.codingCommands)
       command.id: command.inputLabel,
     for (final command in commands.navigationCommands)
       command.id: command.inputLabel,

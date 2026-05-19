@@ -67,6 +67,23 @@ String? nativeToolMetadataSummaryText(
     );
   }
 
+  final workspaceDiagnostics = metadata['workspaceDiagnostics'];
+  final sourceControl = metadata['sourceControl'];
+  if (workspaceDiagnostics is Map<String, Object?> &&
+      sourceControl is Map<String, Object?>) {
+    final diagnosticCount = workspaceDiagnostics['totalCount'] as int? ?? 0;
+    final sourceChangeCount = sourceControl['changeCount'] as int? ?? 0;
+    final sourceControlDiff = metadata['sourceControlDiff'];
+    final diffSummary = sourceControlDiff is Map<String, Object?>
+        ? _checkpointDiffSummary(sourceControlDiff)
+        : null;
+    return <String>[
+      'checkpoint diagnostics $diagnosticCount',
+      'source changes $sourceChangeCount',
+      if (diffSummary != null) diffSummary,
+    ].join(' · ');
+  }
+
   final settingsRouteSummary = _settingsRouteSummary(metadata);
   if (settingsRouteSummary != null) {
     return settingsRouteSummary;
@@ -97,6 +114,18 @@ String? nativeToolMetadataSummaryText(
     return describeUnstructured ? 'no structured metadata' : null;
   }
   return describeUnstructured ? 'metadata ${metadata.keys.join(', ')}' : null;
+}
+
+String? _checkpointDiffSummary(Map<String, Object?> sourceControlDiff) {
+  final path = _stringValue(sourceControlDiff['path']);
+  if (path == null || path.isEmpty) {
+    return null;
+  }
+  final lineCount = sourceControlDiff['lineCount'] as int?;
+  if (lineCount == null) {
+    return 'diff $path';
+  }
+  return 'diff $path $lineCount lines';
 }
 
 int nativeToolMetadataDiagnosticCount(Map<String, Object?> metadata) {

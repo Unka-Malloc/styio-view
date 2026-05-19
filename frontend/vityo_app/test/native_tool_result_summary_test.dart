@@ -88,4 +88,22 @@ void main() {
       'toolchain selection missing · missing-clang · c++23 · unsupported C++ standard c++2b · handoffs 0',
     );
   });
+
+  test('native tool summary explains agent coding checkpoint metadata', () {
+    expect(
+      nativeToolMetadataSummaryText(const <String, Object?>{
+        'workspaceDiagnostics': <String, Object?>{
+          'totalCount': 2,
+        },
+        'sourceControl': <String, Object?>{
+          'changeCount': 1,
+        },
+        'sourceControlDiff': <String, Object?>{
+          'path': 'src/main.styio',
+          'lineCount': 7,
+        },
+      }),
+      'checkpoint diagnostics 2 · source changes 1 · diff src/main.styio 7 lines',
+    );
+  });
 }

@@ -1,0 +1,411 @@
+class AgentCodingSkill {
+  const AgentCodingSkill({
+    required this.skillId,
+    required this.title,
+    required this.appliesTo,
+    required this.toolchainDefaults,
+    required this.instructions,
+    required this.validationHints,
+  });
+
+  final String skillId;
+  final String title;
+  final List<String> appliesTo;
+  final List<String> toolchainDefaults;
+  final List<String> instructions;
+  final List<String> validationHints;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'skillId': skillId,
+      'title': title,
+      'appliesTo': appliesTo,
+      'toolchainDefaults': toolchainDefaults,
+      'instructions': instructions,
+      'validationHints': validationHints,
+    };
+  }
+}
+
+class AgentCodingSkillCatalog {
+  const AgentCodingSkillCatalog._();
+
+  static const List<AgentCodingSkill> defaultSkills = <AgentCodingSkill>[
+    AgentCodingSkill(
+      skillId: 'cpp-clang-toolchain-defaults',
+      title: 'C++ Clang Toolchain Defaults',
+      appliesTo: <String>['C++', 'C', 'Styio compiler', 'native build tooling'],
+      toolchainDefaults: <String>[
+        'Prefer clang for C compilation.',
+        'Prefer clang++ for C++ compilation.',
+        'Prefer compile_commands.json when available.',
+        'Prefer CMake compiler variables CMAKE_C_COMPILER=clang and CMAKE_CXX_COMPILER=clang++ when the project allows local compiler selection.',
+      ],
+      instructions: <String>[
+        'Treat Clang diagnostics as the default source of compiler truth for native code.',
+        'Do not replace an existing project compiler contract without explicit user approval.',
+        'Keep generated build directories, compile databases, and local artifacts out of source patches unless the repository already tracks them.',
+      ],
+      validationHints: <String>[
+        'Use targeted compiler or test commands that match the touched native files.',
+        'If validation is not allowed in the current session, describe the exact command that should be run later.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'cpp-project-orientation',
+      title: 'C++ Project Orientation',
+      appliesTo: <String>[
+        'C++',
+        'CMake',
+        'Ninja',
+        'Make',
+        'LLVM style repositories',
+      ],
+      toolchainDefaults: <String>[
+        'Inspect CMakeLists.txt, build scripts, and compile_commands.json before proposing broad native-code edits.',
+        'Use headers, source files, tests, and generated artifacts as distinct ownership surfaces.',
+      ],
+      instructions: <String>[
+        'Map the touched symbol across declarations, definitions, call sites, and tests before emitting multi-file patches.',
+        'Prefer small ownership-preserving edits over broad mechanical rewrites.',
+        'Respect public headers and ABI-sensitive boundaries.',
+      ],
+      validationHints: <String>[
+        'Prefer the narrowest test target that covers the edited component.',
+        'Prefer compile-only validation for parser, semantic, or lowering edits when a full test suite is too broad.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'cpp-safe-editing',
+      title: 'C++ Safe Editing',
+      appliesTo: <String>[
+        'C++',
+        'systems code',
+        'compiler frontend',
+        'runtime',
+      ],
+      toolchainDefaults: <String>[
+        'Assume C++17 or later only when the project manifest, build file, or existing code proves it.',
+      ],
+      instructions: <String>[
+        'Preserve RAII, ownership, const-correctness, exception-safety, and lifetime invariants.',
+        'Avoid introducing raw owning pointers when value types, references, smart pointers, or existing project abstractions fit.',
+        'Do not silence diagnostics with casts or broad pragmas unless the existing codebase has the same local pattern and the reason is explicit.',
+      ],
+      validationHints: <String>[
+        'When editing memory or ownership code, include a test or targeted runtime scenario that would fail on the old behavior.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'cpp-compilation-database',
+      title: 'C++ Compilation Database',
+      appliesTo: <String>['C++', 'C', 'compile_commands.json', 'clang tooling'],
+      toolchainDefaults: <String>[
+        'Prefer compile_commands.json as the authoritative per-file compiler argument source when it exists.',
+        'Treat missing compile database entries as uncertainty; do not invent include paths or feature macros.',
+      ],
+      instructions: <String>[
+        'Before changing a translation unit, account for its include paths, defines, language standard, and generated headers from the compile database when available.',
+        'Do not patch compile_commands.json as source unless the repository intentionally tracks it.',
+        'If a file is absent from the compile database, fall back to nearby CMake targets or existing build scripts and state the uncertainty.',
+      ],
+      validationHints: <String>[
+        'Prefer clang++ -fsyntax-only with the compile database arguments for the touched file when a narrow compile check is available.',
+        'For generated compile databases, validate by regenerating from the build system rather than editing the JSON by hand.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'cpp-cmake-build-graph',
+      title: 'C++ CMake Build Graph',
+      appliesTo: <String>['C++', 'CMake', 'Ninja', 'native build targets'],
+      toolchainDefaults: <String>[
+        'Prefer CMake target ownership over directory-wide assumptions.',
+        'Prefer Ninja target validation when the configured generator is Ninja.',
+      ],
+      instructions: <String>[
+        'Map source files to CMake targets before adding dependencies, include directories, compiler definitions, or tests.',
+        'Keep public include directories, private include directories, link libraries, and compile definitions in their target-appropriate scope.',
+        'Do not add global CMake flags when a target-local property is sufficient.',
+      ],
+      validationHints: <String>[
+        'Use the narrowest affected CMake target build when available.',
+        'When build files change, validate both configure and target build steps if the session permits validation.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'cpp-clangd-indexing',
+      title: 'C++ clangd Indexing',
+      appliesTo: <String>[
+        'C++',
+        'clangd',
+        'go to definition',
+        'references',
+        'rename',
+      ],
+      toolchainDefaults: <String>[
+        'Treat clangd facts as editor assistance and Clang compiler diagnostics as compiler truth.',
+        'Use compile_commands.json or clangd configuration as the indexing input when present.',
+      ],
+      instructions: <String>[
+        'For symbol edits, preserve declarations, definitions, overrides, template instantiations, and call sites as separate review surfaces.',
+        'Do not assume a textual match is a safe reference; prefer resolved symbol facts when available.',
+        'When rename/reference data is incomplete, keep edits local and state the missing index coverage.',
+      ],
+      validationHints: <String>[
+        'Prefer symbol-level tests or targeted compile checks after rename, signature, or include changes.',
+        'When semantic index validation is unavailable, include the exact unresolved risk in the response.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'cpp-test-debug-loop',
+      title: 'C++ Test and Debug Loop',
+      appliesTo: <String>[
+        'C++',
+        'unit tests',
+        'integration tests',
+        'debugging',
+      ],
+      toolchainDefaults: <String>[
+        'Prefer existing repo-local test runners and build presets over ad hoc commands.',
+        'Prefer sanitizer or debug builds only when the project already exposes them or the user asks for them.',
+      ],
+      instructions: <String>[
+        'Tie every behavior change to an existing or new test at the closest ownership boundary.',
+        'Separate compile failures, test failures, runtime crashes, and benchmark regressions in the diagnosis.',
+        'Do not hide flaky or environment-dependent failures behind broad retries.',
+      ],
+      validationHints: <String>[
+        'Run the smallest deterministic test that covers the changed behavior.',
+        'If a debugger or sanitizer is needed, state the exact configuration and why normal tests are insufficient.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'reference-grounded-ide-development',
+      title: 'Reference-Grounded IDE Development',
+      appliesTo: <String>[
+        'IDE architecture',
+        'editor features',
+        'language service',
+        'debug adapter',
+        'extension system',
+        'agent coding',
+      ],
+      toolchainDefaults: <String>[
+        'Use VS Code, IntelliJ Community, Eclipse Theia, Monaco Editor, LSP, clangd, and Tree-sitter as reference implementations for IDE-facing work.',
+        'Treat C++ language-service behavior as clangd-style unless the active language service provides stronger project-specific facts.',
+      ],
+      instructions: <String>[
+        'Before designing a new IDE feature, map the feature to an existing mature open-source precedent or state why Vityo intentionally differs.',
+        'Separate reference evidence from product-specific Vityo behavior; do not copy implementation details blindly across architecture boundaries.',
+        'Prefer stable contracts, explicit capability states, and verifiable degradation paths over hidden fallback behavior.',
+      ],
+      validationHints: <String>[
+        'Every code change must have a targeted test, integration test, or documented gate that covers the changed behavior.',
+        'When relying on an external reference design, name the reference surface and validate the Vityo artifact that implements the local contract.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'styio-cpp-compiler-project',
+      title: 'Styio C++ Compiler Project',
+      appliesTo: <String>[
+        'Styio',
+        'compiler parser',
+        'compiler semantic analysis',
+        'IR lowering',
+        'native runtime',
+      ],
+      toolchainDefaults: <String>[
+        'Treat Styio as a C++ compiler project by default.',
+        'Use Clang/clang++ as the preferred native compiler family unless the repository selects another compiler.',
+      ],
+      instructions: <String>[
+        'Do not invent Styio language syntax in tests; use repository fixtures or parser source of truth.',
+        'Keep parser, semantic analysis, lowering, runtime, and benchmark ownership separate.',
+        'For language-facing changes, prefer external fixture files and explicit expected-success or expected-failure names.',
+      ],
+      validationHints: <String>[
+        'Use the Styio parser or compiler fixture gate for syntax-sensitive changes.',
+        'Use repo-local checkpoint or feature gates when the user requests validation.',
+      ],
+    ),
+  ];
+
+  static AgentSkillContext defaultContext() {
+    return const AgentSkillContext(skills: defaultSkills);
+  }
+
+  static AgentSkillContext contextForWorkspace({
+    required String activeDocumentId,
+    required Iterable<String> workspaceFiles,
+  }) {
+    final normalizedPaths = <String>[
+      activeDocumentId,
+      ...workspaceFiles,
+    ].map(_normalizeSkillPath).toList(growable: false);
+    final hasStyio = normalizedPaths.any((path) => path.endsWith('.styio'));
+    final hasNativeSource = normalizedPaths.any(_isNativeSourcePath);
+    final hasCompilationDatabase = normalizedPaths.any(
+      (path) => path.endsWith('/compile_commands.json'),
+    );
+    final hasCMake = normalizedPaths.any(_isCMakePath);
+    final hasClangdConfig = normalizedPaths.any(
+      (path) => path.endsWith('/.clangd'),
+    );
+    final hasClangFormatConfig = normalizedPaths.any(
+      (path) => path.endsWith('/.clang-format'),
+    );
+    final hasClangTidyConfig = normalizedPaths.any(
+      (path) => path.endsWith('/.clang-tidy'),
+    );
+    final hasCTest = normalizedPaths.any(
+      (path) => path.endsWith('/ctesttestfile.cmake'),
+    );
+    final hasTestPath = normalizedPaths.any(_isTestPath);
+    final hasNativeProjectEvidence =
+        hasStyio ||
+        hasNativeSource ||
+        hasCompilationDatabase ||
+        hasCMake ||
+        hasClangdConfig ||
+        hasClangFormatConfig ||
+        hasClangTidyConfig;
+    final activationReasons = <String, List<String>>{};
+
+    void activate(String skillId, List<String> reasons) {
+      activationReasons.putIfAbsent(skillId, () => <String>[]).addAll(reasons);
+    }
+
+    activate('reference-grounded-ide-development', <String>[
+      'IDE-facing work should remain grounded in mature editor, language service, and agent coding references.',
+    ]);
+
+    if (hasNativeProjectEvidence) {
+      activate('cpp-clang-toolchain-defaults', <String>[
+        'The workspace has Styio, C/C++, CMake, Clang, or compile database evidence.',
+      ]);
+      activate('cpp-project-orientation', <String>[
+        'Native-code changes require target, source, header, and test ownership orientation.',
+      ]);
+      activate('cpp-safe-editing', <String>[
+        'Native-code edits must preserve ownership, lifetime, and diagnostic correctness.',
+      ]);
+    }
+
+    if (hasCompilationDatabase) {
+      activate('cpp-compilation-database', <String>[
+        'compile_commands.json is present and should guide per-file compiler arguments.',
+      ]);
+      activate('cpp-clangd-indexing', <String>[
+        'compile_commands.json can feed clangd-style symbol and reference facts.',
+      ]);
+    }
+
+    if (hasCMake) {
+      activate('cpp-cmake-build-graph', <String>[
+        'CMake project files are present and target ownership should guide build edits.',
+      ]);
+    }
+
+    if (hasClangdConfig) {
+      activate('cpp-clangd-indexing', <String>[
+        '.clangd is present and should guide language-service indexing assumptions.',
+      ]);
+    }
+
+    if (hasCTest || hasTestPath) {
+      activate('cpp-test-debug-loop', <String>[
+        'The workspace has CTest or test path evidence for targeted validation planning.',
+      ]);
+    }
+
+    if (hasStyio) {
+      activate('styio-cpp-compiler-project', <String>[
+        'Styio source files should be handled as part of the Styio C++ compiler project workflow.',
+      ]);
+    }
+
+    final activeSkillIds = defaultSkills
+        .map((skill) => skill.skillId)
+        .where(activationReasons.containsKey)
+        .toList(growable: false);
+    final orderedReasons = <String, List<String>>{
+      for (final skillId in activeSkillIds)
+        skillId: List<String>.unmodifiable(activationReasons[skillId]!),
+    };
+    return AgentSkillContext(
+      skills: defaultSkills,
+      activeSkillIds: activeSkillIds,
+      activationReasons: orderedReasons,
+    );
+  }
+}
+
+class AgentSkillContext {
+  const AgentSkillContext({
+    required this.skills,
+    this.activeSkillIds = const <String>[],
+    this.activationReasons = const <String, List<String>>{},
+  });
+
+  final List<AgentCodingSkill> skills;
+  final List<String> activeSkillIds;
+  final Map<String, List<String>> activationReasons;
+
+  int get skillCount => skills.length;
+  int get activeSkillCount => activeSkillIds.length;
+
+  List<String> get skillIds {
+    return skills.map((skill) => skill.skillId).toList(growable: false);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'skillCount': skillCount,
+      'skillIds': skillIds,
+      'activeSkillCount': activeSkillCount,
+      'activeSkillIds': activeSkillIds,
+      if (activationReasons.isNotEmpty) 'activationReasons': activationReasons,
+      'skills': skills.map((skill) => skill.toJson()).toList(growable: false),
+    };
+  }
+}
+
+String _normalizeSkillPath(String path) {
+  final normalized = path.trim().replaceAll('\\', '/').toLowerCase();
+  if (normalized.startsWith('/')) {
+    return normalized;
+  }
+  return '/$normalized';
+}
+
+bool _isNativeSourcePath(String path) {
+  return path.endsWith('.c') ||
+      path.endsWith('.cc') ||
+      path.endsWith('.cpp') ||
+      path.endsWith('.cxx') ||
+      path.endsWith('.h') ||
+      path.endsWith('.hh') ||
+      path.endsWith('.hpp') ||
+      path.endsWith('.hxx') ||
+      path.endsWith('.ixx');
+}
+
+bool _isCMakePath(String path) {
+  return path.endsWith('/cmakelists.txt') ||
+      path.endsWith('/cmakepresets.json') ||
+      path.endsWith('/cmakeuserpresets.json') ||
+      path.endsWith('.cmake');
+}
+
+bool _isTestPath(String path) {
+  return path.contains('/test/') ||
+      path.contains('/tests/') ||
+      path.contains('/testing/') ||
+      path.contains('/unittest/') ||
+      path.contains('/unittests/') ||
+      path.contains('/integration_test/') ||
+      path.endsWith('_test.cc') ||
+      path.endsWith('_test.cpp') ||
+      path.endsWith('_tests.cc') ||
+      path.endsWith('_tests.cpp');
+}

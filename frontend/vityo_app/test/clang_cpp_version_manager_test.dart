@@ -64,6 +64,7 @@ void main() {
         '-DCMAKE_CXX_STANDARD=23',
         '-DCMAKE_CXX_STANDARD_REQUIRED=ON',
         '-DCMAKE_CXX_EXTENSIONS=OFF',
+        '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON',
       ]);
       expect(selection.cmakeNinjaConfigureArguments, <String>[
         '-G',
@@ -73,6 +74,7 @@ void main() {
         '-DCMAKE_CXX_STANDARD=23',
         '-DCMAKE_CXX_STANDARD_REQUIRED=ON',
         '-DCMAKE_CXX_EXTENSIONS=OFF',
+        '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON',
         '-DCMAKE_MAKE_PROGRAM=/usr/bin/ninja',
       ]);
       expect(selection.buildEngineHandoffs.length, 3);

@@ -134,6 +134,7 @@ class ClangCppVersionSelection {
       '-DCMAKE_CXX_STANDARD=${cppStandard.cmakeValue}',
       '-DCMAKE_CXX_STANDARD_REQUIRED=ON',
       '-DCMAKE_CXX_EXTENSIONS=OFF',
+      '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON',
     ];
   }
 

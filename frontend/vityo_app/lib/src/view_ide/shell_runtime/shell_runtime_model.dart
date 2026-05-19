@@ -483,6 +483,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       workspaceDiagnosticsController?.snapshot;
   TestDiscoveryResult? get testDiscovery => testingSessionController?.discovery;
   TestRunResult? get lastTestRun => testingSessionController?.lastRun;
+  List<TestRunResult> get testRunHistory =>
+      testingSessionController?.runHistory ?? const <TestRunResult>[];
   SourceControlStatusSnapshot get sourceControlStatusSnapshot =>
       sourceControlStatusController?.snapshot ??
       _localDirtySourceControlStatusSnapshot();

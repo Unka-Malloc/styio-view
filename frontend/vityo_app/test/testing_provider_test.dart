@@ -128,12 +128,14 @@ void main() {
     expect(run.status, TestRunStatus.passed);
     expect(controller.discovery, same(discovery));
     expect(controller.lastRun, same(run));
+    expect(controller.runHistory, <TestRunResult>[run]);
     expect(notifications, 2);
 
     controller.clear();
 
     expect(controller.discovery, isNull);
     expect(controller.lastRun, isNull);
+    expect(controller.runHistory, isEmpty);
     expect(notifications, 3);
   });
 
@@ -186,6 +188,7 @@ void main() {
     expect(controller.discovery?.providerId, 'external-discovery');
     expect(controller.lastRun?.providerId, 'external-runner');
     expect(controller.lastRun?.status, TestRunStatus.notRun);
+    expect(controller.runHistory.single.providerId, 'external-runner');
     expect(notifications, 2);
   });
 

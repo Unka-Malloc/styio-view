@@ -10,11 +10,14 @@ class TestingSessionController extends ChangeNotifier {
 
   TestDiscoveryResult? _discovery;
   TestRunResult? _lastRun;
+  final List<TestRunResult> _runHistory = <TestRunResult>[];
   int _discoveryGeneration = 0;
   int _runGeneration = 0;
 
   TestDiscoveryResult? get discovery => _discovery;
   TestRunResult? get lastRun => _lastRun;
+  List<TestRunResult> get runHistory =>
+      List<TestRunResult>.unmodifiable(_runHistory);
   bool get hasDiscovery => _discovery != null;
   bool get hasLastRun => _lastRun != null;
 
@@ -26,7 +29,7 @@ class TestingSessionController extends ChangeNotifier {
 
   void recordRunResult(TestRunResult result) {
     _runGeneration++;
-    _lastRun = result;
+    _storeRunResult(result);
     notifyListeners();
   }
 
@@ -102,6 +105,7 @@ class TestingSessionController extends ChangeNotifier {
     _runGeneration++;
     _discovery = null;
     _lastRun = null;
+    _runHistory.clear();
     notifyListeners();
   }
 
@@ -117,7 +121,15 @@ class TestingSessionController extends ChangeNotifier {
     if (generation != _runGeneration) {
       return;
     }
-    _lastRun = result;
+    _storeRunResult(result);
     notifyListeners();
+  }
+
+  void _storeRunResult(TestRunResult result) {
+    _lastRun = result;
+    _runHistory.insert(0, result);
+    if (_runHistory.length > 20) {
+      _runHistory.removeRange(20, _runHistory.length);
+    }
   }
 }

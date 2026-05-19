@@ -13,7 +13,10 @@ class TestingSurface extends StatelessWidget {
     required this.nativeToolResults,
     this.discovery,
     this.lastRun,
+    this.runHistory = const <TestRunResult>[],
     this.onRunTests,
+    this.onRerunFailed,
+    this.onSelectFailedTest,
     this.onOpenDiagnostics,
   });
 
@@ -21,7 +24,10 @@ class TestingSurface extends StatelessWidget {
   final List<NativeToolResultRecord> nativeToolResults;
   final TestDiscoveryResult? discovery;
   final TestRunResult? lastRun;
+  final List<TestRunResult> runHistory;
   final Future<void> Function()? onRunTests;
+  final Future<void> Function()? onRerunFailed;
+  final ValueChanged<Map<String, Object?>>? onSelectFailedTest;
   final VoidCallback? onOpenDiagnostics;
 
   @override
@@ -55,6 +61,7 @@ class TestingSurface extends StatelessWidget {
               runSpacing: 8,
               children: [
                 Chip(label: Text('test-runs ${testResults.length}')),
+                Chip(label: Text('history ${runHistory.length}')),
                 if (discovery != null)
                   Chip(label: Text('discovered ${discovery!.testCount}')),
                 Chip(label: Text('status ${testResult['status'] ?? 'none'}')),
@@ -79,6 +86,13 @@ class TestingSurface extends StatelessWidget {
                   icon: const Icon(Icons.science_outlined),
                   label: const Text('Run Tests'),
                 ),
+                if (failedTests.isNotEmpty)
+                  OutlinedButton.icon(
+                    key: const ValueKey('testing-rerun-failed'),
+                    onPressed: onRerunFailed ?? onRunTests,
+                    icon: const Icon(Icons.replay_rounded),
+                    label: const Text('Rerun Failed'),
+                  ),
                 if (diagnosticCount > 0 && onOpenDiagnostics != null)
                   OutlinedButton.icon(
                     key: const ValueKey('testing-open-diagnostics'),
@@ -140,6 +154,34 @@ class TestingSurface extends StatelessWidget {
                               latest.message,
                         ),
                       ),
+                    if (runHistory.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          top: 8,
+                          bottom: 4,
+                        ),
+                        child: Text(
+                          'Run History',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      ),
+                      for (final entry in runHistory.take(5))
+                        ListTile(
+                          key: ValueKey(
+                            'testing-history-${entry.providerId}-${entry.status.wireValue}',
+                          ),
+                          dense: true,
+                          leading: const Icon(Icons.history_rounded),
+                          title: Text(entry.runner.isEmpty
+                              ? entry.providerId
+                              : entry.runner),
+                          subtitle: Text(
+                            '${entry.status.wireValue} · ${entry.message}',
+                          ),
+                        ),
+                    ],
                     if (failedTests.isNotEmpty) ...[
                       Padding(
                         padding: const EdgeInsets.only(
@@ -160,6 +202,11 @@ class TestingSurface extends StatelessWidget {
                           leading: const Icon(Icons.cancel_outlined),
                           title: Text('${failed['name'] ?? 'unknown'}'),
                           subtitle: Text('${failed['status'] ?? 'failed'}'),
+                          onTap: onSelectFailedTest == null
+                              ? null
+                              : () {
+                                  onSelectFailedTest!(failed);
+                                },
                         ),
                     ],
                   ],

@@ -13,7 +13,9 @@ void main() {
     tester,
   ) async {
     var runCount = 0;
+    var rerunFailedCount = 0;
     var diagnosticsOpenCount = 0;
+    Map<String, Object?>? selectedFailedTest;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -56,8 +58,25 @@ void main() {
                 completedAt: DateTime.utc(2026, 5, 20),
               ),
             ],
+            runHistory: const <TestRunResult>[
+              TestRunResult(
+                providerId: 'ctest',
+                runner: 'ctest',
+                status: TestRunStatus.failed,
+                message: 'One test failed.',
+                totalCount: 2,
+                passedCount: 1,
+                failedCount: 1,
+              ),
+            ],
             onRunTests: () async {
               runCount += 1;
+            },
+            onRerunFailed: () async {
+              rerunFailedCount += 1;
+            },
+            onSelectFailedTest: (failedTest) {
+              selectedFailedTest = failedTest;
             },
             onOpenDiagnostics: () {
               diagnosticsOpenCount += 1;
@@ -70,18 +89,34 @@ void main() {
     expect(find.byKey(const ValueKey('testing-surface')), findsOneWidget);
     expect(find.text('Testing'), findsOneWidget);
     expect(find.text('test-runs 1'), findsOneWidget);
+    expect(find.text('history 1'), findsOneWidget);
     expect(find.text('status failed'), findsOneWidget);
     expect(find.text('runner ctest'), findsOneWidget);
     expect(find.text('total 2'), findsOneWidget);
     expect(find.text('passed 1'), findsOneWidget);
     expect(find.text('failed 1'), findsOneWidget);
+    expect(find.text('Run History'), findsOneWidget);
     expect(find.text('parser rejects invalid resource'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('testing-run-tests')));
+    await tester.tap(find.byKey(const ValueKey('testing-rerun-failed')));
+    await tester.ensureVisible(
+      find.byKey(
+        const ValueKey('testing-failed-parser rejects invalid resource'),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(
+        const ValueKey('testing-failed-parser rejects invalid resource'),
+      ),
+    );
     await tester.tap(find.byKey(const ValueKey('testing-open-diagnostics')));
     await tester.pump();
 
     expect(runCount, 1);
+    expect(rerunFailedCount, 1);
+    expect(selectedFailedTest?['name'], 'parser rejects invalid resource');
     expect(diagnosticsOpenCount, 1);
   });
 

@@ -273,8 +273,15 @@ class VityoShellScaffold extends StatelessWidget {
             nativeToolResults: shell.nativeToolResults,
             discovery: shell.testDiscovery,
             lastRun: shell.lastTestRun,
+            runHistory: shell.testRunHistory,
             onRunTests: () {
               return shell.executeCommand(AppCommandId.runTests);
+            },
+            onRerunFailed: () {
+              return shell.executeCommand(AppCommandId.runTests);
+            },
+            onSelectFailedTest: (_) {
+              shell.openFirstNativeToolDiagnostic(AppCommandId.runTests);
             },
             onOpenDiagnostics: () {
               shell.openFirstNativeToolDiagnostic(AppCommandId.runTests);

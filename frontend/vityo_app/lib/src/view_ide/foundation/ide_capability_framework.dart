@@ -375,9 +375,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/testing',
           summary:
-              'Testing surface is wired to runTests, native tool testResult records, TestRunProvider registry, TestDiscoveryProvider registry, test tree model, and CTest result parsing.',
+              'Testing surface is wired to runTests, native tool testResult records, TestRunProvider registry, TestDiscoveryProvider registry, test tree model, run history, failed-test interaction, rerun-failed handoff, and CTest result parsing.',
           todo:
-              'TODO: connect test discovery/tree UI, run configuration, result history, per-test rerun, and failure navigation contracts.',
+              'TODO: connect run configuration, per-test rerun, debug-test launch, and richer failure navigation contracts.',
           dependencies: <String>['foundation.registry', 'runtime.execution'],
           references: <String>['VS Code Testing API', 'IntelliJ test runner'],
         ),

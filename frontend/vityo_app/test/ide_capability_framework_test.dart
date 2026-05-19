@@ -56,6 +56,10 @@ void main() {
       contains('TestRunProvider'),
     );
     expect(
+      entriesById['interaction.testing']?.summary,
+      contains('TestDiscoveryProvider'),
+    );
+    expect(
       entriesById['interaction.testing']?.dependencies,
       contains('runtime.execution'),
     );

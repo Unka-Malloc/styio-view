@@ -807,6 +807,14 @@ void main() {
       expect(preview?.summary, 'Clean up project imports');
       expect(preview?.editCount, greaterThan(0));
       expect(commandShell.lastWorkspaceEditPreview, same(preview));
+      await commandShell.executeCommand(AppCommandId.previewQuickFix);
+      final previewResult = commandShell.agentSessionContext.commands.lastResult;
+      expect(previewResult?.commandId, 'previewQuickFix');
+      expect(previewResult?.applied, isTrue);
+      expect(
+        previewResult?.metadata['workspaceEditPreview'],
+        isA<Map<String, Object?>>(),
+      );
       final checkpoint = await commandShell.collectAgentCodingCheckpoint();
       final workspaceEditPreview =
           checkpoint['workspaceEditPreview']! as Map<String, Object?>;
@@ -824,6 +832,18 @@ void main() {
 
       final agentShell = createShell('shell-project-workspace-fix-agent');
       addTearDown(agentShell.dispose);
+      final previewApplied = await agentShell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'previewQuickFix'),
+      );
+      expect(previewApplied, isTrue);
+      expect(
+        agentShell
+            .agentSessionContext
+            .commands
+            .lastResult
+            ?.metadata['workspaceEditPreview'],
+        isA<Map<String, Object?>>(),
+      );
       final applied = await agentShell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(commandId: 'applyQuickFix'),
       );

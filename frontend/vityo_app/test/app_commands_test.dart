@@ -36,6 +36,9 @@ void main() {
       final applyQuickFix = StyioCommandRegistry.descriptorFor(
         AppCommandId.applyQuickFix,
       );
+      final previewQuickFix = StyioCommandRegistry.descriptorFor(
+        AppCommandId.previewQuickFix,
+      );
       final refreshLanguageService = StyioCommandRegistry.descriptorFor(
         AppCommandId.refreshLanguageService,
       );
@@ -140,6 +143,9 @@ void main() {
       expect(applyQuickFix.label, 'Quick Fix');
       expect(applyQuickFix.shortcutHint, 'Cmd/Ctrl+.');
       expect(applyQuickFix.shortcuts, hasLength(2));
+      expect(previewQuickFix.label, 'Preview Quick Fix');
+      expect(previewQuickFix.shortcutHint, 'Route');
+      expect(previewQuickFix.requiresInput, isFalse);
 
       expect(refreshLanguageService.label, 'Refresh Language Service');
       expect(refreshLanguageService.shortcutHint, 'Route');
@@ -251,6 +257,7 @@ void main() {
         AppCommandId.nextDiagnostic,
         AppCommandId.previousDiagnostic,
         AppCommandId.applyQuickFix,
+        AppCommandId.previewQuickFix,
         AppCommandId.refreshWorkspaceDiagnostics,
       ],
     );
@@ -307,6 +314,7 @@ void main() {
     expect(
       StyioCommandRegistry.agentCodingCommands.map((command) => command.id),
       <AppCommandId>[
+        AppCommandId.previewQuickFix,
         AppCommandId.collectAgentCodingCheckpoint,
         AppCommandId.collectProjectLanguageContext,
       ],

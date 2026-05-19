@@ -22,6 +22,7 @@ enum AppCommandId {
   nextDiagnostic,
   previousDiagnostic,
   applyQuickFix,
+  previewQuickFix,
   refreshLanguageService,
   refreshWorkspaceDiagnostics,
   refreshSourceControl,
@@ -286,6 +287,13 @@ class StyioCommandRegistry {
       ],
     ),
     AppCommandDescriptor(
+      id: AppCommandId.previewQuickFix,
+      label: 'Preview Quick Fix',
+      shortcutHint: 'Route',
+      description:
+          'Preview the first deterministic project quick fix without applying edits.',
+    ),
+    AppCommandDescriptor(
       id: AppCommandId.refreshLanguageService,
       label: 'Refresh Language Service',
       shortcutHint: 'Route',
@@ -467,6 +475,7 @@ class StyioCommandRegistry {
           AppCommandId.nextDiagnostic ||
           AppCommandId.previousDiagnostic ||
           AppCommandId.applyQuickFix ||
+          AppCommandId.previewQuickFix ||
           AppCommandId.refreshWorkspaceDiagnostics => true,
           _ => false,
         },
@@ -493,6 +502,7 @@ class StyioCommandRegistry {
       commands.where(
         (command) => switch (command.id) {
           AppCommandId.collectAgentCodingCheckpoint ||
+          AppCommandId.previewQuickFix ||
           AppCommandId.collectProjectLanguageContext => true,
           _ => false,
         },

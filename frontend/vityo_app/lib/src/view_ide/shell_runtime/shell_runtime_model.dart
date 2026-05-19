@@ -1444,6 +1444,21 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
         notifyListeners();
         return false;
+      case 'previewQuickFix':
+        final preview = await previewFirstProjectWorkspaceQuickFix();
+        final applied = preview != null && preview.hasChanges;
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: applied,
+          message: applied
+              ? 'Agent command previewQuickFix collected workspace edit preview.'
+              : 'Agent command previewQuickFix skipped: no quick fix available.',
+          metadata: <String, Object?>{
+            if (preview != null) 'workspaceEditPreview': preview.toJson(),
+          },
+        );
+        notifyListeners();
+        return applied;
       case 'nextDiagnostic':
         if (editorController.selectNextDiagnosticAtSelection()) {
           appendLog('Agent command nextDiagnostic selected in editor.');
@@ -2324,6 +2339,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.nextDiagnostic:
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
+      case AppCommandId.previewQuickFix:
       case AppCommandId.refreshLanguageService:
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
@@ -2390,6 +2406,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.nextDiagnostic:
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
+      case AppCommandId.previewQuickFix:
       case AppCommandId.refreshLanguageService:
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
@@ -4683,6 +4700,20 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.selectClangCppVersion:
         appendLog('Select Clang/C++ Version requires caller-provided input.');
         return;
+      case AppCommandId.previewQuickFix:
+        final preview = await previewFirstProjectWorkspaceQuickFix();
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: preview != null && preview.hasChanges,
+          message: preview != null && preview.hasChanges
+              ? 'Quick fix preview collected.'
+              : 'Quick fix preview skipped: no action available.',
+          metadata: <String, Object?>{
+            if (preview != null) 'workspaceEditPreview': preview.toJson(),
+          },
+        );
+        notifyListeners();
+        return;
       case AppCommandId.applyQuickFix:
         if (editorController.applyFirstQuickFixAtSelection()) {
           _cacheDocument(_activeDocumentPath, editorController.document);
@@ -4852,6 +4883,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.nextDiagnostic:
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
+      case AppCommandId.previewQuickFix:
       case AppCommandId.refreshLanguageService:
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:

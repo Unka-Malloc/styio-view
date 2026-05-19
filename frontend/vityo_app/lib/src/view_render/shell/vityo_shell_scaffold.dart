@@ -239,7 +239,7 @@ class VityoShellScaffold extends StatelessWidget {
               );
             },
             onPreviewWorkspaceQuickFix: () async {
-              await shell.previewFirstProjectWorkspaceQuickFix();
+              await shell.executeCommand(AppCommandId.previewQuickFix);
             },
             onApplyWorkspaceQuickFix: () {
               return shell.executeCommand(AppCommandId.applyQuickFix);
@@ -2000,6 +2000,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.keyboard_double_arrow_up_rounded;
     case AppCommandId.applyQuickFix:
       return Icons.auto_fix_high_rounded;
+    case AppCommandId.previewQuickFix:
+      return Icons.difference_outlined;
     case AppCommandId.refreshLanguageService:
       return Icons.manage_search_rounded;
     case AppCommandId.refreshWorkspaceDiagnostics:

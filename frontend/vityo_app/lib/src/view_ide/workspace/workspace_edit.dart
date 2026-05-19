@@ -41,6 +41,34 @@ class WorkspaceEditPlan {
     );
   }
 
+  factory WorkspaceEditPlan.fromQuickFix({
+    required String id,
+    required String documentId,
+    required DiagnosticQuickFix quickFix,
+  }) {
+    return WorkspaceEditPlan.singleDocument(
+      id: id,
+      summary: quickFix.label,
+      source: WorkspaceEditSource.codeAction,
+      documentId: documentId,
+      edits: quickFix.edits,
+    );
+  }
+
+  factory WorkspaceEditPlan.fromRenamePlan({
+    required String id,
+    required String documentId,
+    required RenamePlan renamePlan,
+  }) {
+    return WorkspaceEditPlan.singleDocument(
+      id: id,
+      summary: 'Rename ${renamePlan.target.name} to ${renamePlan.newName}.',
+      source: WorkspaceEditSource.rename,
+      documentId: documentId,
+      edits: renamePlan.edits,
+    );
+  }
+
   final String id;
   final String summary;
   final WorkspaceEditSource source;

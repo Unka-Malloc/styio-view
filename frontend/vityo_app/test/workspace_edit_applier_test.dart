@@ -115,6 +115,60 @@ void main() {
       expect(document.revision, 1);
     },
   );
+
+  test('workspace edit plan can be created from quick fix', () {
+    const quickFix = DiagnosticQuickFix(
+      label: 'Insert missing import.',
+      edits: <FormattingEdit>[
+        FormattingEdit(
+          range: SourceRange(start: 0, end: 0),
+          newText: '@import { styio/core }\n',
+        ),
+      ],
+    );
+
+    final plan = WorkspaceEditPlan.fromQuickFix(
+      id: 'quick-fix-import',
+      documentId: 'main.styio',
+      quickFix: quickFix,
+    );
+
+    expect(plan.id, 'quick-fix-import');
+    expect(plan.summary, 'Insert missing import.');
+    expect(plan.source, WorkspaceEditSource.codeAction);
+    expect(plan.editCount, 1);
+    expect(
+      plan.editsByDocument['main.styio']!.single.newText,
+      contains('@import'),
+    );
+  });
+
+  test('workspace edit plan can be created from rename plan', () {
+    const renamePlan = RenamePlan(
+      target: DocumentSymbol(
+        name: 'value',
+        kind: SymbolKind.variable,
+        nameRange: SourceRange(start: 0, end: 5),
+        declarationRange: SourceRange(start: 0, end: 10),
+      ),
+      newName: 'count',
+      references: <ReferenceSpan>[],
+      edits: <FormattingEdit>[
+        FormattingEdit(range: SourceRange(start: 0, end: 5), newText: 'count'),
+      ],
+    );
+
+    final plan = WorkspaceEditPlan.fromRenamePlan(
+      id: 'rename-value',
+      documentId: 'main.styio',
+      renamePlan: renamePlan,
+    );
+
+    expect(plan.id, 'rename-value');
+    expect(plan.summary, 'Rename value to count.');
+    expect(plan.source, WorkspaceEditSource.rename);
+    expect(plan.editsByDocument['main.styio']!.single.newText, 'count');
+  });
 }
 
 class _AccessFailingWorkspaceDocumentStore implements WorkspaceDocumentStore {

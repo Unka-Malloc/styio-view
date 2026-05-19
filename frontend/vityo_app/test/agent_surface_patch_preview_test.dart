@@ -1052,6 +1052,102 @@ void main() {
     expect(appliedCommands.single.prerequisiteForCommandId, 'runBuild');
   });
 
+  testWidgets('agent surface applies required command from recent metadata', (
+    tester,
+  ) async {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      recentCommandResults: const <AgentCommandResultContext>[
+        AgentCommandResultContext(
+          commandId: 'runTests',
+          applied: false,
+          message: 'Run Tests blocked before build.',
+          metadata: <String, Object?>{
+            'requiredCommand': 'runBuild',
+            'testResult': <String, Object?>{
+              'status': 'blocked',
+              'requiredCommand': 'runBuild',
+            },
+          },
+        ),
+      ],
+      toolchainSnapshot: const ToolchainStateSnapshot(
+        targetId: 'agent-required-command-metadata',
+        entries: <ToolchainStateEntry>[
+          ToolchainStateEntry(
+            id: 'native-ctest-runner',
+            kind: ToolchainKind.testRunner,
+            displayName: 'CTest Runner',
+            executablePath: '/usr/bin/ctest',
+            active: true,
+            metadata: <String, Object?>{'toolFamily': 'ctest'},
+          ),
+        ],
+      ),
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: () => context,
+    );
+    final appliedCommands = <AgentIdeCommandSuggestion>[];
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: context,
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) async {
+                appliedCommands.add(command);
+                return true;
+              },
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('runTests · not applied'), findsOneWidget);
+    expect(find.text('tests blocked · requires runBuild'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Retry Command'), findsNothing);
+    expect(
+      find.widgetWithText(OutlinedButton, 'Apply Required Command: runBuild'),
+      findsOneWidget,
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey('agent-retry-recent-required-command-runTests-runBuild-0'),
+      ),
+    );
+    await tester.pump();
+
+    expect(appliedCommands.single.commandId, 'runBuild');
+    expect(appliedCommands.single.prerequisiteForCommandId, 'runTests');
+  });
+
   testWidgets('agent surface blocks debug commands that are not ready', (
     tester,
   ) async {

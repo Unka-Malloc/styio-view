@@ -1772,7 +1772,10 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                 final result = visibleResults[index];
                 final readiness = commandReadiness[result.commandId];
                 final commandReady = readiness?.ready ?? true;
-                final requiredCommandId = readiness?.requiredCommandId;
+                final requiredCommandId =
+                    readiness?.requiredCommandId ??
+                    _metadataRequiredCommandId(result.metadata);
+                final hasRequiredCommand = requiredCommandId != null;
                 final metadataSummary = nativeToolMetadataSummaryText(
                   result.metadata,
                 );
@@ -1793,6 +1796,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                         ),
                         if (onRetry != null &&
                             commandReady &&
+                            !hasRequiredCommand &&
                             registeredCommandIds.contains(result.commandId))
                           OutlinedButton(
                             key: ValueKey(
@@ -1802,8 +1806,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                             onPressed: applying ? null : () => onRetry!(result),
                             child: const Text('Retry Command'),
                           ),
-                        if (!commandReady &&
-                            requiredCommandId != null &&
+                        if (requiredCommandId != null &&
                             registeredCommandIds.contains(requiredCommandId) &&
                             onApplyRequiredCommand != null)
                           OutlinedButton(
@@ -1866,6 +1869,35 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
       ],
     );
   }
+}
+
+String? _metadataRequiredCommandId(Map<String, Object?> metadata) {
+  final topLevel = _metadataString(metadata['requiredCommand']);
+  if (topLevel != null) {
+    return topLevel;
+  }
+  for (final key in const <String>[
+    'buildResult',
+    'staticAnalysisResult',
+    'testResult',
+  ]) {
+    final value = metadata[key];
+    if (value is Map<String, Object?>) {
+      final nested = _metadataString(value['requiredCommand']);
+      if (nested != null) {
+        return nested;
+      }
+    }
+  }
+  return null;
+}
+
+String? _metadataString(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }
 
 class _AgentContextSection extends StatelessWidget {

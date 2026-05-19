@@ -89,11 +89,19 @@ void main() {
       expect(decoded.systemPrompt, contains('targeted test or gate'));
       expect(decoded.systemPrompt, contains('clang++'));
       expect(decoded.systemPrompt, contains('compile_commands.json'));
-      expect(decoded.systemPrompt, contains('CMake target ownership'));
+      expect(decoded.systemPrompt, contains('CMake or Ninja target ownership'));
       expect(decoded.systemPrompt, contains('clangd-style symbol facts'));
       expect(
         decoded.systemPrompt,
         contains('workspace.buildFacts.toolingHints'),
+      );
+      expect(
+        decoded.systemPrompt,
+        contains('toolchains.clangCpp.cmakeExecutablePath'),
+      );
+      expect(
+        decoded.systemPrompt,
+        contains('toolchains.clangCpp.ninjaExecutablePath'),
       );
       expect(decoded.systemPrompt, contains('toolchains.nativeTools'));
     },

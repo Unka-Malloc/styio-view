@@ -12,7 +12,18 @@ void main() {
     expect(ids, contains('service.styio-language'));
     expect(ids, contains('agent.coding-loop'));
     expect(ids, contains('editor.document-model'));
+    expect(ids, contains('interaction.search'));
+    expect(ids, contains('interaction.source-control'));
+    expect(ids, contains('interaction.testing'));
+    expect(ids, contains('runtime.terminal'));
+    expect(ids, contains('presentation.problems-panel'));
     expect(ids, contains('presentation.shell'));
+    expect(snapshot.missingRequiredCapabilityIds, isEmpty);
+    expect(json['missingRequiredCapabilityIds'], isEmpty);
+    expect(
+      json['requiredCapabilityIds'],
+      containsAll(requiredVityoIdeCapabilityIds),
+    );
     expect(snapshot.entriesForLayer(IdeCapabilityLayer.agent), isNotEmpty);
     expect(snapshot.entriesForLayer(IdeCapabilityLayer.service), isNotEmpty);
     expect(

@@ -45,6 +45,40 @@ extension IdeCapabilityStatusX on IdeCapabilityStatus {
   }
 }
 
+const List<String> requiredVityoIdeCapabilityIds = <String>[
+  'foundation.datastore',
+  'foundation.registry',
+  'environment.platform',
+  'environment.file-system',
+  'environment.configuration',
+  'environment.credential-store',
+  'service.styio-language',
+  'service.semantic-snapshot',
+  'service.language-result-cache',
+  'service.remote-service',
+  'interaction.commands',
+  'interaction.diagnostics',
+  'interaction.search',
+  'interaction.source-control',
+  'interaction.testing',
+  'interaction.command-palette',
+  'editor.document-model',
+  'editor.rendering',
+  'workspace.project-model',
+  'workspace.file-explorer',
+  'runtime.execution',
+  'runtime.terminal',
+  'debugger.dap',
+  'toolchain.manager',
+  'agent.provider',
+  'agent.coding-loop',
+  'extension.manifest',
+  'extension.marketplace',
+  'presentation.shell',
+  'presentation.problems-panel',
+  'presentation.output-panel',
+];
+
 class IdeCapabilityDescriptor {
   const IdeCapabilityDescriptor({
     required this.id,
@@ -112,6 +146,11 @@ class IdeCapabilityFrameworkSnapshot {
     return entries.where((entry) => entry.needsFollowUp);
   }
 
+  Iterable<String> get missingRequiredCapabilityIds {
+    final ids = entries.map((entry) => entry.id).toSet();
+    return requiredVityoIdeCapabilityIds.where((id) => !ids.contains(id));
+  }
+
   Map<String, int> get statusCounts {
     return <String, int>{
       for (final status in IdeCapabilityStatus.values)
@@ -133,6 +172,10 @@ class IdeCapabilityFrameworkSnapshot {
       'version': version,
       'references': references,
       'entryCount': entries.length,
+      'requiredCapabilityIds': requiredVityoIdeCapabilityIds,
+      'missingRequiredCapabilityIds': missingRequiredCapabilityIds.toList(
+        growable: false,
+      ),
       'statusCounts': statusCounts,
       'layerCounts': layerCounts,
       'followUpCount': followUps.length,
@@ -198,6 +241,32 @@ class VityoIdeCapabilityFramework {
               'System specific file access base for editor binding and DataStore.',
         ),
         IdeCapabilityDescriptor(
+          id: 'environment.configuration',
+          layer: IdeCapabilityLayer.environment,
+          title: 'Configuration and settings storage',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/environment/configuration',
+          summary:
+              'Configuration DataStore ownership for IDE settings, provider profiles, and toolchain preferences.',
+          references: <String>[
+            'VS Code configuration service',
+            'IntelliJ application and project settings',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'environment.credential-store',
+          layer: IdeCapabilityLayer.environment,
+          title: 'Credential DataStore',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/environment/configuration',
+          todo:
+              'TODO: harden credential storage behind platform-specific secure storage adapters instead of ordinary settings files.',
+          references: <String>[
+            'VS Code SecretStorage',
+            'IntelliJ PasswordSafe',
+          ],
+        ),
+        IdeCapabilityDescriptor(
           id: 'service.styio-language',
           layer: IdeCapabilityLayer.service,
           title: 'StyioService connector',
@@ -230,6 +299,19 @@ class VityoIdeCapabilityFramework {
               'Caches StyioService results with protocol, parser engine, and grammar version metadata.',
         ),
         IdeCapabilityDescriptor(
+          id: 'service.remote-service',
+          layer: IdeCapabilityLayer.service,
+          title: 'Remote service connector',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/agent',
+          todo:
+              'TODO: normalize remote service health, authentication, retry, and fallback contracts across agent and hosted backend connectors.',
+          references: <String>[
+            'VS Code remote authority and extension host services',
+            'Theia backend service connections',
+          ],
+        ),
+        IdeCapabilityDescriptor(
           id: 'interaction.commands',
           layer: IdeCapabilityLayer.interaction,
           title: 'IDE command catalog',
@@ -250,6 +332,55 @@ class VityoIdeCapabilityFramework {
           ownerPath: 'lib/src/view_ide/interaction',
           todo:
               'TODO: add workspace-wide diagnostics grouping, filtering, and quick-fix preview.',
+        ),
+        IdeCapabilityDescriptor(
+          id: 'interaction.search',
+          layer: IdeCapabilityLayer.interaction,
+          title: 'Search, symbols, and quick open',
+          status: IdeCapabilityStatus.todo,
+          ownerPath: 'lib/src/view_ide/workspace',
+          todo:
+              'TODO: add indexed workspace search, file quick open, symbol search, and result navigation contracts.',
+          references: <String>[
+            'VS Code search service',
+            'IntelliJ Search Everywhere',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'interaction.source-control',
+          layer: IdeCapabilityLayer.interaction,
+          title: 'Source control interaction',
+          status: IdeCapabilityStatus.todo,
+          ownerPath: 'lib/src/view_ide/workspace',
+          todo:
+              'TODO: add source-control status, diff, staging, commit, and history interaction contracts without coupling to Git-only UI.',
+          references: <String>[
+            'VS Code SCM provider API',
+            'IntelliJ VCS subsystem',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'interaction.testing',
+          layer: IdeCapabilityLayer.interaction,
+          title: 'Test explorer and results',
+          status: IdeCapabilityStatus.todo,
+          ownerPath: 'lib/src/view_ide/testing',
+          todo:
+              'TODO: add test discovery, test tree, run configuration, result history, and failure navigation contracts.',
+          references: <String>['VS Code Testing API', 'IntelliJ test runner'],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'interaction.command-palette',
+          layer: IdeCapabilityLayer.interaction,
+          title: 'Command palette and keybinding resolver',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/commands',
+          todo:
+              'TODO: expose registered commands through searchable palette, keyboard shortcuts, and command availability states.',
+          references: <String>[
+            'VS Code command palette',
+            'IntelliJ action search',
+          ],
         ),
         IdeCapabilityDescriptor(
           id: 'editor.document-model',
@@ -281,6 +412,19 @@ class VityoIdeCapabilityFramework {
               'Workspace documents, project graph, file lists, dirty state, and samples for agent context.',
         ),
         IdeCapabilityDescriptor(
+          id: 'workspace.file-explorer',
+          layer: IdeCapabilityLayer.workspace,
+          title: 'File explorer and workspace operations',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/workspace',
+          todo:
+              'TODO: connect file tree refresh, create, rename, delete, and reveal operations through File System Manager-backed commands.',
+          references: <String>[
+            'VS Code Explorer view',
+            'IntelliJ Project tool window',
+          ],
+        ),
+        IdeCapabilityDescriptor(
           id: 'runtime.execution',
           layer: IdeCapabilityLayer.runtime,
           title: 'Execution manager and shell runtime',
@@ -289,6 +433,19 @@ class VityoIdeCapabilityFramework {
           todo:
               'TODO: align run/test/build execution result contracts across hosted, local, and toolchain-backed routes.',
           references: <String>['VS Code tasks', 'Theia task service'],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'runtime.terminal',
+          layer: IdeCapabilityLayer.runtime,
+          title: 'Terminal, PTY, and task runner',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/shell_runtime',
+          todo:
+              'TODO: connect PTY manager, shell manager, process execution, terminal UI, and task lifecycle into one terminal/runtime contract.',
+          references: <String>[
+            'VS Code integrated terminal',
+            'IntelliJ terminal and run tool windows',
+          ],
         ),
         IdeCapabilityDescriptor(
           id: 'debugger.dap',
@@ -349,6 +506,19 @@ class VityoIdeCapabilityFramework {
           ],
         ),
         IdeCapabilityDescriptor(
+          id: 'extension.marketplace',
+          layer: IdeCapabilityLayer.extension,
+          title: 'Extension lifecycle and marketplace',
+          status: IdeCapabilityStatus.todo,
+          ownerPath: 'lib/src/view_ide/module_host',
+          todo:
+              'TODO: add install, enable, disable, trust, update, and marketplace/index contracts for product extensions.',
+          references: <String>[
+            'VS Code extension gallery',
+            'IntelliJ plugin repository',
+          ],
+        ),
+        IdeCapabilityDescriptor(
           id: 'presentation.shell',
           layer: IdeCapabilityLayer.presentation,
           title: 'IDE shell and panels',
@@ -357,6 +527,32 @@ class VityoIdeCapabilityFramework {
           todo:
               'TODO: finish mature IDE panels for diagnostics, search, settings, extensions, debug, and agent activity.',
           references: <String>['VS Code workbench', 'IntelliJ tool windows'],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'presentation.problems-panel',
+          layer: IdeCapabilityLayer.presentation,
+          title: 'Problems panel',
+          status: IdeCapabilityStatus.todo,
+          ownerPath: 'lib/src/view_render',
+          todo:
+              'TODO: add a workspace-wide problems panel with filters, grouping, quick-fix preview, and navigation.',
+          references: <String>[
+            'VS Code Problems panel',
+            'IntelliJ Problems tool window',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'presentation.output-panel',
+          layer: IdeCapabilityLayer.presentation,
+          title: 'Output, logs, and activity panel',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_render/runtime',
+          todo:
+              'TODO: consolidate runtime logs, task output, agent activity, language-service logs, and debug events into filtered output channels.',
+          references: <String>[
+            'VS Code Output panel',
+            'IntelliJ Run and Event Log tool windows',
+          ],
         ),
       ],
     );

@@ -44,6 +44,10 @@ void main() {
       IdeCapabilityStatus.scaffolded,
     );
     expect(
+      entriesById['presentation.problems-panel']?.summary,
+      contains('workspace diagnostics grouping'),
+    );
+    expect(
       entriesById['workspace.diagnostics']?.status,
       IdeCapabilityStatus.wired,
     );

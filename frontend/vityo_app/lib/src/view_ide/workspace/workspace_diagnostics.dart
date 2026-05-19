@@ -43,6 +43,42 @@ class WorkspaceDiagnostic {
   }
 }
 
+class WorkspaceDiagnosticsDocumentGroup {
+  const WorkspaceDiagnosticsDocumentGroup({
+    required this.documentId,
+    required this.diagnostics,
+  });
+
+  final String documentId;
+  final List<WorkspaceDiagnostic> diagnostics;
+
+  bool get hasErrors {
+    return diagnostics.any(
+      (entry) => entry.diagnostic.severity == DiagnosticSeverity.error,
+    );
+  }
+
+  int get totalCount => diagnostics.length;
+
+  Map<String, int> get severityCounts {
+    return <String, int>{
+      for (final severity in DiagnosticSeverity.values)
+        severity.name: diagnostics
+            .where((entry) => entry.diagnostic.severity == severity)
+            .length,
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'documentId': documentId,
+      'totalCount': totalCount,
+      'severityCounts': severityCounts,
+      'hasErrors': hasErrors,
+    };
+  }
+}
+
 class WorkspaceDiagnosticsSnapshot {
   const WorkspaceDiagnosticsSnapshot({
     required this.providerId,
@@ -77,9 +113,43 @@ class WorkspaceDiagnosticsSnapshot {
     return ids;
   }
 
+  List<WorkspaceDiagnosticsDocumentGroup> get documentGroups {
+    final groups = <String, List<WorkspaceDiagnostic>>{};
+    for (final diagnostic in diagnostics) {
+      groups.putIfAbsent(diagnostic.documentId, () => <WorkspaceDiagnostic>[]);
+      groups[diagnostic.documentId]!.add(diagnostic);
+    }
+    final result = groups.entries
+        .map(
+          (entry) => WorkspaceDiagnosticsDocumentGroup(
+            documentId: entry.key,
+            diagnostics: List<WorkspaceDiagnostic>.unmodifiable(entry.value),
+          ),
+        )
+        .toList(growable: false);
+    result.sort((left, right) {
+      final byErrors = right.hasErrors.toString().compareTo(
+        left.hasErrors.toString(),
+      );
+      if (byErrors != 0) {
+        return byErrors;
+      }
+      return left.documentId.compareTo(right.documentId);
+    });
+    return List<WorkspaceDiagnosticsDocumentGroup>.unmodifiable(result);
+  }
+
   List<WorkspaceDiagnostic> diagnosticsFor(String documentId) {
     return diagnostics
         .where((entry) => entry.documentId == documentId)
+        .toList(growable: false);
+  }
+
+  List<WorkspaceDiagnostic> diagnosticsForSeverity(
+    DiagnosticSeverity severity,
+  ) {
+    return diagnostics
+        .where((entry) => entry.diagnostic.severity == severity)
         .toList(growable: false);
   }
 
@@ -88,6 +158,9 @@ class WorkspaceDiagnosticsSnapshot {
       'providerId': providerId,
       'totalCount': totalCount,
       'documentIds': documentIds,
+      'documentGroups': documentGroups
+          .map((group) => group.toJson())
+          .toList(growable: false),
       'severityCounts': severityCounts,
       'hasErrors': hasErrors,
       if (message.isNotEmpty) 'message': message,

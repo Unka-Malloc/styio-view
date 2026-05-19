@@ -37,7 +37,13 @@ void main() {
     expect(snapshot.severityCounts['error'], 1);
     expect(snapshot.severityCounts['warning'], 1);
     expect(snapshot.diagnosticsFor('main.styio'), hasLength(1));
+    expect(snapshot.diagnosticsForSeverity(DiagnosticSeverity.error), hasLength(1));
+    expect(snapshot.documentGroups, hasLength(2));
+    expect(snapshot.documentGroups.first.documentId, 'main.styio');
+    expect(snapshot.documentGroups.first.hasErrors, isTrue);
+    expect(snapshot.documentGroups.first.severityCounts['error'], 1);
     expect(json['diagnostics'], isNotEmpty);
+    expect(json['documentGroups'], isNotEmpty);
   });
 
   test('workspace diagnostics provider registry resolves active provider', () {

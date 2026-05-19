@@ -49,6 +49,8 @@ void main() {
     expect(find.text('Problems'), findsOneWidget);
     expect(find.text('document src/main.styio'), findsOneWidget);
     expect(find.text('total 2'), findsOneWidget);
+    expect(find.text('visible 2'), findsOneWidget);
+    expect(find.text('groups 1'), findsOneWidget);
     expect(find.text('error 1'), findsOneWidget);
     expect(find.text('warning 1'), findsOneWidget);
     expect(find.text('Unexpected token.'), findsOneWidget);
@@ -143,6 +145,8 @@ void main() {
 
     expect(find.text('workspace-documents 2'), findsOneWidget);
     expect(find.text('total 2'), findsOneWidget);
+    expect(find.text('visible 2'), findsOneWidget);
+    expect(find.text('groups 2'), findsOneWidget);
     expect(find.text('error 1'), findsOneWidget);
     expect(find.text('hint 1'), findsOneWidget);
     expect(find.text('Prefer explicit name.'), findsOneWidget);
@@ -161,18 +165,28 @@ void main() {
     );
     expect(find.textContaining('src/missing.styio'), findsOneWidget);
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('problems-diagnostic-style')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('problems-diagnostic-style')));
     await tester.pump();
 
     expect(selectedWorkspaceDiagnostic?.documentId, 'src/lib.styio');
 
-    await tester.tap(
+    await tester.ensureVisible(
       find.byKey(const ValueKey('problems-refresh-workspace')),
     );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('problems-refresh-workspace')));
     await tester.pump();
 
     expect(refreshCount, 1);
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('problems-preview-workspace-quick-fix')),
+    );
+    await tester.pump();
     await tester.tap(
       find.byKey(const ValueKey('problems-preview-workspace-quick-fix')),
     );
@@ -180,11 +194,68 @@ void main() {
 
     expect(previewCount, 1);
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('problems-apply-workspace-quick-fix')),
+    );
+    await tester.pump();
     await tester.tap(
       find.byKey(const ValueKey('problems-apply-workspace-quick-fix')),
     );
     await tester.pump();
 
     expect(applyCount, 1);
+  });
+
+  testWidgets('problems surface filters workspace diagnostics by severity', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProblemsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            documentId: 'src/main.styio',
+            diagnostics: const <Diagnostic>[],
+            severityFilter: const <DiagnosticSeverity>[
+              DiagnosticSeverity.error,
+            ],
+            workspaceDiagnostics: const WorkspaceDiagnosticsSnapshot(
+              providerId: 'workspace',
+              diagnostics: <WorkspaceDiagnostic>[
+                WorkspaceDiagnostic(
+                  documentId: 'src/main.styio',
+                  diagnostic: Diagnostic(
+                    severity: DiagnosticSeverity.error,
+                    code: 'syntax-error',
+                    message: 'Unexpected token.',
+                    range: SourceRange(start: 0, end: 5),
+                  ),
+                ),
+                WorkspaceDiagnostic(
+                  documentId: 'src/lib.styio',
+                  diagnostic: Diagnostic(
+                    severity: DiagnosticSeverity.warning,
+                    code: 'unused-value',
+                    message: 'Unused value.',
+                    range: SourceRange(start: 6, end: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('total 2'), findsOneWidget);
+    expect(find.text('visible 1'), findsOneWidget);
+    expect(find.text('groups 1'), findsOneWidget);
+    expect(find.text('filter error'), findsOneWidget);
+    expect(find.text('Unexpected token.'), findsOneWidget);
+    expect(find.text('Unused value.'), findsNothing);
   });
 }

@@ -15,6 +15,7 @@ class ProblemsSurface extends StatelessWidget {
     this.onSelectWorkspaceDiagnostic,
     this.onRefreshWorkspaceDiagnostics,
     this.workspaceEditPreview,
+    this.severityFilter = const <DiagnosticSeverity>[],
     this.onPreviewWorkspaceQuickFix,
     this.onApplyWorkspaceQuickFix,
   });
@@ -27,6 +28,7 @@ class ProblemsSurface extends StatelessWidget {
   final ValueChanged<WorkspaceDiagnostic>? onSelectWorkspaceDiagnostic;
   final Future<void> Function()? onRefreshWorkspaceDiagnostics;
   final WorkspaceEditPreview? workspaceEditPreview;
+  final List<DiagnosticSeverity> severityFilter;
   final Future<void> Function()? onPreviewWorkspaceQuickFix;
   final Future<void> Function()? onApplyWorkspaceQuickFix;
 
@@ -44,6 +46,13 @@ class ProblemsSurface extends StatelessWidget {
               ),
             )
             .toList(growable: false);
+    final activeSeverityFilter = severityFilter.isEmpty
+        ? DiagnosticSeverity.values.toSet()
+        : severityFilter.toSet();
+    final visibleProblemEntries = problemEntries
+        .where((entry) => activeSeverityFilter.contains(entry.diagnostic.severity))
+        .toList(growable: false);
+    final documentGroups = _groupWorkspaceDiagnostics(visibleProblemEntries);
     final severityCounts = <DiagnosticSeverity, int>{
       for (final severity in DiagnosticSeverity.values) severity: 0,
     };
@@ -56,9 +65,10 @@ class ProblemsSurface extends StatelessWidget {
       key: const ValueKey('problems-surface'),
       child: Padding(
         padding: EdgeInsets.all(compact ? 14 : 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Wrap(
               spacing: 8,
               runSpacing: 6,
@@ -106,6 +116,14 @@ class ProblemsSurface extends StatelessWidget {
                     ),
                   ),
                 Chip(label: Text('total ${problemEntries.length}')),
+                Chip(label: Text('visible ${visibleProblemEntries.length}')),
+                Chip(label: Text('groups ${documentGroups.length}')),
+                if (severityFilter.isNotEmpty)
+                  Chip(
+                    label: Text(
+                      'filter ${severityFilter.map((severity) => severity.name).join(',')}',
+                    ),
+                  ),
                 for (final entry in severityCounts.entries)
                   Chip(label: Text('${entry.key.name} ${entry.value}')),
               ],
@@ -122,41 +140,108 @@ class ProblemsSurface extends StatelessWidget {
                     : 'No diagnostics for the workspace.',
                 style: theme.textTheme.bodySmall,
               )
+            else if (visibleProblemEntries.isEmpty)
+              Text(
+                'No diagnostics match the active severity filter.',
+                style: theme.textTheme.bodySmall,
+              )
             else
-              Expanded(
-                child: ListView.separated(
-                  key: const ValueKey('problems-diagnostic-list'),
-                  itemCount: problemEntries.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final entry = problemEntries[index];
-                    final diagnostic = entry.diagnostic;
-                    return ListTile(
-                      key: ValueKey('problems-diagnostic-${diagnostic.code}'),
-                      dense: true,
-                      leading: Icon(
-                        _diagnosticIcon(diagnostic.severity),
-                        color: _diagnosticColor(diagnostic.severity),
-                      ),
-                      title: Text(diagnostic.message),
-                      subtitle: Text(
-                        '${entry.documentId} · ${diagnostic.severity.name} · ${diagnostic.code} · offsets ${diagnostic.range.start}-${diagnostic.range.end}',
-                      ),
-                      trailing: const Icon(Icons.arrow_forward_rounded),
-                      onTap:
-                          onSelectDiagnostic == null &&
-                              onSelectWorkspaceDiagnostic == null
-                          ? null
-                          : () {
-                              onSelectWorkspaceDiagnostic?.call(entry);
-                              onSelectDiagnostic?.call(diagnostic);
-                            },
-                    );
-                  },
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ProblemsDocumentGroupSummary(groups: documentGroups),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: compact ? 180 : 220,
+                    child: ListView.separated(
+                      key: const ValueKey('problems-diagnostic-list'),
+                      itemCount: visibleProblemEntries.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final entry = visibleProblemEntries[index];
+                        final diagnostic = entry.diagnostic;
+                        return ListTile(
+                          key: ValueKey(
+                            'problems-diagnostic-${diagnostic.code}',
+                          ),
+                          dense: true,
+                          leading: Icon(
+                            _diagnosticIcon(diagnostic.severity),
+                            color: _diagnosticColor(diagnostic.severity),
+                          ),
+                          title: Text(diagnostic.message),
+                          subtitle: Text(
+                            '${entry.documentId} · ${diagnostic.severity.name} · ${diagnostic.code} · offsets ${diagnostic.range.start}-${diagnostic.range.end}',
+                          ),
+                          trailing: const Icon(Icons.arrow_forward_rounded),
+                          onTap:
+                              onSelectDiagnostic == null &&
+                                  onSelectWorkspaceDiagnostic == null
+                              ? null
+                              : () {
+                                  onSelectWorkspaceDiagnostic?.call(entry);
+                                  onSelectDiagnostic?.call(diagnostic);
+                                },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _ProblemsDocumentGroupSummary extends StatelessWidget {
+  const _ProblemsDocumentGroupSummary({required this.groups});
+
+  final List<WorkspaceDiagnosticsDocumentGroup> groups;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      key: const ValueKey('problems-document-group-summary'),
+      height: 112,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: groups.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final group = groups[index];
+          return Container(
+            width: 220,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  group.documentId,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'total ${group.totalCount} · '
+                  'error ${group.severityCounts['error']} · '
+                  'warning ${group.severityCounts['warning']} · '
+                  'hint ${group.severityCounts['hint']}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -247,4 +332,29 @@ Color _diagnosticColor(DiagnosticSeverity severity) {
     DiagnosticSeverity.warning => const Color(0xFFB7791F),
     DiagnosticSeverity.hint => const Color(0xFF2F6F87),
   };
+}
+
+List<WorkspaceDiagnosticsDocumentGroup> _groupWorkspaceDiagnostics(
+  List<WorkspaceDiagnostic> diagnostics,
+) {
+  final groups = <String, List<WorkspaceDiagnostic>>{};
+  for (final diagnostic in diagnostics) {
+    groups.putIfAbsent(diagnostic.documentId, () => <WorkspaceDiagnostic>[]);
+    groups[diagnostic.documentId]!.add(diagnostic);
+  }
+  final result = groups.entries
+      .map(
+        (entry) => WorkspaceDiagnosticsDocumentGroup(
+          documentId: entry.key,
+          diagnostics: List<WorkspaceDiagnostic>.unmodifiable(entry.value),
+        ),
+      )
+      .toList(growable: false);
+  result.sort((left, right) {
+    if (left.hasErrors != right.hasErrors) {
+      return left.hasErrors ? -1 : 1;
+    }
+    return left.documentId.compareTo(right.documentId);
+  });
+  return List<WorkspaceDiagnosticsDocumentGroup>.unmodifiable(result);
 }

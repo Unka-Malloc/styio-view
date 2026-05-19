@@ -546,6 +546,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('toolchains.clangCpp.selection.cmakeNinjaConfigureArguments'),
+      );
+      expect(
+        systemMessage['content'],
         contains('toolchains.clangCpp.ninjaExecutablePath'),
       );
       expect(systemMessage['content'], contains('Ninja'));

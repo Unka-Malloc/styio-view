@@ -106,6 +106,10 @@ void main() {
       );
       expect(
         decoded.systemPrompt,
+        contains('toolchains.clangCpp.selection.cmakeNinjaConfigureArguments'),
+      );
+      expect(
+        decoded.systemPrompt,
         contains('toolchains.clangCpp.ninjaExecutablePath'),
       );
       expect(decoded.systemPrompt, contains('toolchains.nativeTools'));

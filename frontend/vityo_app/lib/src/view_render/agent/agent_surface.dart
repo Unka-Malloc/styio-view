@@ -711,6 +711,42 @@ Set<String> _registeredAgentCommandIds(AgentCommandCatalogContext commands) {
   };
 }
 
+Map<String, bool> _agentCommandRequiresInputById(
+  AgentCommandCatalogContext commands,
+) {
+  return <String, bool>{
+    for (final command in commands.persistenceCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.diagnosticCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.languageServiceCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.navigationCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.refactorCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.toolchainCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.nativeToolCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.debugCommands)
+      command.id: command.requiresInput,
+    for (final command in commands.settingsCommands)
+      command.id: command.requiresInput,
+  };
+}
+
+bool _agentCommandMissingRequiredInput(
+  String commandId,
+  String? input,
+  Map<String, bool> commandRequiresInputById,
+) {
+  if (commandRequiresInputById[commandId] != true) {
+    return false;
+  }
+  return input == null || input.trim().isEmpty;
+}
+
 Map<String, _AgentCommandReadinessStatus> _commandReadinessById(
   AgentCommandCatalogContext commands,
 ) {
@@ -746,6 +782,7 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
   const _AgentIdeCommandSuggestionRow({
     required this.command,
     required this.registered,
+    required this.missingRequiredInput,
     required this.readiness,
     required this.requiredCommandRegistered,
     required this.applying,
@@ -757,6 +794,7 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
 
   final AgentIdeCommandSuggestion command;
   final bool registered;
+  final bool missingRequiredInput;
   final _AgentCommandReadinessStatus? readiness;
   final bool requiredCommandRegistered;
   final bool applying;
@@ -789,6 +827,13 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
         else if (!commandReady)
           Text(
             'Command not ready: ${readiness!.reason}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          )
+        else if (missingRequiredInput)
+          Text(
+            'Missing required input',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.error,
             ),
@@ -1098,6 +1143,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final registeredCommandIds = _registeredAgentCommandIds(
           widget.sessionContext.commands,
         );
+        final commandRequiresInputById = _agentCommandRequiresInputById(
+          widget.sessionContext.commands,
+        );
         final nativeToolCommandIds = widget
             .sessionContext
             .commands
@@ -1370,6 +1418,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                       builder: (context) {
                         final readiness = commandReadiness[command.commandId];
                         final requiredCommandId = readiness?.requiredCommandId;
+                        final missingRequiredInput =
+                            _agentCommandMissingRequiredInput(
+                              command.commandId,
+                              command.input,
+                              commandRequiresInputById,
+                            );
                         final recoveryCommandId =
                             readiness?.ready == false &&
                                 requiredCommandId == null &&
@@ -1384,6 +1438,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           registered: registeredCommandIds.contains(
                             command.commandId,
                           ),
+                          missingRequiredInput: missingRequiredInput,
                           readiness: readiness,
                           requiredCommandRegistered:
                               requiredCommandId != null &&
@@ -1391,7 +1446,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           applying: applyingIdeCommand,
                           onApply:
                               widget.onApplyIdeCommandSuggestion == null ||
-                                  readiness?.ready == false
+                                  readiness?.ready == false ||
+                                  missingRequiredInput
                               ? null
                               : () => unawaited(
                                   _applyIdeCommandSuggestion(command),
@@ -1465,6 +1521,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 _AgentRecentIdeCommandsSection(
                   results: recentCommandResults,
                   registeredCommandIds: registeredCommandIds,
+                  commandRequiresInputById: commandRequiresInputById,
                   commandReadiness: commandReadiness,
                   applying: applyingIdeCommand,
                   onRetry: widget.onApplyIdeCommandSuggestion == null
@@ -1800,6 +1857,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
   const _AgentRecentIdeCommandsSection({
     required this.results,
     required this.registeredCommandIds,
+    required this.commandRequiresInputById,
     required this.commandReadiness,
     required this.applying,
     this.onRetry,
@@ -1809,6 +1867,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
 
   final List<AgentCommandResultContext> results;
   final Set<String> registeredCommandIds;
+  final Map<String, bool> commandRequiresInputById;
   final Map<String, _AgentCommandReadinessStatus> commandReadiness;
   final bool applying;
   final void Function(AgentCommandResultContext result)? onRetry;
@@ -1841,6 +1900,11 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                 final result = visibleResults[index];
                 final readiness = commandReadiness[result.commandId];
                 final commandReady = readiness?.ready ?? true;
+                final missingRequiredInput = _agentCommandMissingRequiredInput(
+                  result.commandId,
+                  result.input,
+                  commandRequiresInputById,
+                );
                 final requiredCommandId =
                     readiness?.requiredCommandId ??
                     requiredCommandIdFromAgentMetadata(result.metadata);
@@ -1868,6 +1932,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                         ),
                         if (onRetry != null &&
                             commandReady &&
+                            !missingRequiredInput &&
                             !hasRequiredCommand &&
                             !routeBlocked &&
                             registeredCommandIds.contains(result.commandId))

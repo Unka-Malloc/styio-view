@@ -353,6 +353,54 @@ void main() {
     );
   });
 
+  testWidgets('agent surface blocks registered commands missing input', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: _MissingInputCommandSuggestionAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.updatePrompt('Rename without a target name.');
+    await controller.sendPrompt();
+    var applied = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) async {
+                applied = true;
+                return true;
+              },
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('renameSymbol'), findsOneWidget);
+    expect(find.text('Missing required input'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Apply Command'), findsNothing);
+    expect(applied, isFalse);
+  });
+
   testWidgets('agent pending IDE command reaches next provider request', (
     tester,
   ) async {
@@ -3707,6 +3755,39 @@ class _ClangCppVersionCommandSuggestionAgentProviderAdapter
             commandId: 'selectClangCppVersion',
             input: 'fake-clang-18 c++23',
             reason: 'Use the registered Clang/C++ version manager.',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MissingInputCommandSuggestionAgentProviderAdapter
+    implements AgentProviderAdapter {
+  @override
+  String get adapterId => 'missing-input-command-suggestion';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.localOnlyFallback;
+
+  @override
+  bool get supportsCodePatch => false;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(
+    AgentProviderRequest request,
+  ) async {
+    return AgentProviderResponseEnvelope(
+      requestId: request.requestId,
+      role: 'assistant',
+      finishReason: 'stop',
+      contentParts: const <AgentContentPart>[
+        AgentContentPart(
+          kind: AgentContentPartKind.ideCommand,
+          text: 'Rename without input.',
+          ideCommand: AgentIdeCommandSuggestion(
+            commandId: 'renameSymbol',
+            reason: 'Missing rename target.',
           ),
         ),
       ],

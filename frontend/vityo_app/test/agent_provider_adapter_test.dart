@@ -309,7 +309,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['diagnosticCommandCount'],
-      3,
+      5,
     );
     expect(
       (json['usage']! as Map<String, Object?>)['languageServiceCommandCount'],
@@ -594,6 +594,10 @@ void main() {
       expect(systemMessage['content'], contains('contentParts'));
       expect(systemMessage['content'], contains('"kind":"plan"'));
       expect(systemMessage['content'], contains('diagnostic_summary'));
+      expect(
+        systemMessage['content'],
+        contains('"suggestedCommandIds":["previewQuickFix","applyQuickFix"]'),
+      );
       expect(systemMessage['content'], contains('code_patch'));
       expect(systemMessage['content'], contains('ide_command'));
       expect(systemMessage['content'], contains('agent.recentCodingPlans'));
@@ -674,6 +678,11 @@ void main() {
         ),
       );
       expect(systemMessage['content'], contains('commands.diagnosticCommands'));
+      expect(systemMessage['content'], contains('previewQuickFix'));
+      expect(
+        systemMessage['content'],
+        contains('commands.lastResult.metadata.workspaceEditPreview'),
+      );
       expect(
         systemMessage['content'],
         contains('commands.languageServiceCommands'),
@@ -897,7 +906,7 @@ void main() {
       expect(metadata['debugStackFrameCount'], 0);
       expect(metadata['debugVariableCount'], 0);
       expect(metadata['persistenceCommandCount'], 2);
-      expect(metadata['diagnosticCommandCount'], 3);
+      expect(metadata['diagnosticCommandCount'], 5);
       expect(metadata['languageServiceCommandCount'], 1);
       expect(metadata['navigationCommandCount'], 5);
       expect(metadata['refactorCommandCount'], 3);

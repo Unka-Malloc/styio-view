@@ -1331,7 +1331,7 @@ Vityo structured response contract:
 - For normal explanation, return plain assistant text.
 - For code changes, return a JSON object with a top-level "contentParts" array.
 - A planning part may use {"kind":"plan","text":"...","plan":{"summary":"...","steps":["..."],"acceptanceCriteria":["..."],"risks":["..."]}} before code_patch or ide_command parts.
-- A diagnostic summary part may use {"kind":"diagnostic_summary","text":"...","diagnosticSummary":{"title":"...","summary":"...","severity":"warning","diagnosticCount":1,"affectedDocuments":["..."],"suggestedCommandIds":["applyQuickFix"]}}.
+- A diagnostic summary part may use {"kind":"diagnostic_summary","text":"...","diagnosticSummary":{"title":"...","summary":"...","severity":"warning","diagnosticCount":1,"affectedDocuments":["..."],"suggestedCommandIds":["previewQuickFix","applyQuickFix"]}}.
 - A code change part must use {"kind":"code_patch","text":"...","patch":{"patchId":"...","summary":"...","baseRevision":0,"edits":[{"documentId":"...","operation":"replace","start":0,"end":0,"replacementText":"..."}]}}.
 - To suggest a registered IDE command without directly patching files, use {"kind":"ide_command","text":"...","command":{"commandId":"renameSymbol","input":"...","reason":"..."}}. If a command is only a prerequisite for another command, include "prerequisiteForCommandId":"runBuild".
 - ide_command.commandId must come from the IDE context commands catalog; do not invent command IDs.
@@ -1352,6 +1352,7 @@ Vityo structured response contract:
 - If the IDE context includes language.resolvedElement or language.resolvedReference, treat them as the primary resolved symbol facts for the current selection.
 - If the IDE context includes language.parameterInfo, use its signature, activeParameterIndex, activeParameter, and parameter ranges as signature-help facts before changing a call expression.
 - If the IDE context includes language.codeActions.edits, treat those edits as IDE-produced quick-fix workspace edit facts before inventing a replacement patch.
+- If commands.diagnosticCommands includes previewQuickFix, suggest previewQuickFix before applyQuickFix for cross-file quick fixes and inspect commands.lastResult.metadata.workspaceEditPreview before applying.
 - If the IDE context includes language.documentSymbols, use them as the current document outline before planning broad edits.
 - If the IDE context includes language.inlayHints, use them as language-derived parameter/type hint facts before changing calls or inferred values.
 - If the IDE context includes language.semanticBlocks, use them as structural block ranges before extract, move, fold, or broad rewrite operations.

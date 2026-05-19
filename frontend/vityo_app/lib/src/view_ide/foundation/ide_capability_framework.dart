@@ -277,7 +277,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/language/service',
           summary:
-              'Styio-first parser, diagnostics, semantic facts, and grammar-version facts.',
+              'Styio-first parser, diagnostics, semantic facts, grammar-version facts, and extension language route consumption.',
           references: <String>['Language Server Protocol'],
         ),
         IdeCapabilityDescriptor(

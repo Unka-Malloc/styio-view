@@ -926,6 +926,7 @@ void main() {
       'openSettings',
     );
     expect(skillsJson['skillIds'], contains('cpp-clang-toolchain-defaults'));
+    expect(skillsJson['skillIds'], contains('cpp-clang-version-handoff'));
     expect(skillsJson['skillIds'], contains('cpp-compilation-database'));
     expect(skillsJson['skillIds'], contains('cpp-cmake-build-graph'));
     expect(skillsJson['skillIds'], contains('cpp-clangd-indexing'));
@@ -935,7 +936,7 @@ void main() {
       contains('reference-grounded-ide-development'),
     );
     expect(skillsJson['skillIds'], contains('styio-cpp-compiler-project'));
-    expect(skillsJson['skillCount'], 9);
+    expect(skillsJson['skillCount'], 10);
     final skills = skillsJson['skills']! as List<Object?>;
     final referenceSkill = skills.whereType<Map<String, Object?>>().singleWhere(
       (skill) => skill['skillId'] == 'reference-grounded-ide-development',
@@ -1971,6 +1972,10 @@ void main() {
     expect(
       skillsJson['activeSkillIds'],
       contains('cpp-clang-toolchain-defaults'),
+    );
+    expect(
+      skillsJson['activeSkillIds'],
+      contains('cpp-clang-version-handoff'),
     );
     expect(skillsJson['activeSkillIds'], contains('cpp-compilation-database'));
     expect(skillsJson['activeSkillIds'], contains('cpp-cmake-build-graph'));

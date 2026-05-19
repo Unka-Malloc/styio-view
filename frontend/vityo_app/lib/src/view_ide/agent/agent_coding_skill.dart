@@ -52,6 +52,30 @@ class AgentCodingSkillCatalog {
       ],
     ),
     AgentCodingSkill(
+      skillId: 'cpp-clang-version-handoff',
+      title: 'C++ Clang Version Handoff',
+      appliesTo: <String>[
+        'C++',
+        'Clang',
+        'CMake',
+        'Ninja',
+        'agent toolchain selection',
+      ],
+      toolchainDefaults: <String>[
+        'Use registered Clang/C++ version candidates instead of editing compiler configuration files by hand.',
+        'Prefer the IDE-provided preferredBuildEngineHandoff before composing CMake or Ninja commands.',
+      ],
+      instructions: <String>[
+        'Use selectClangCppVersion with a registered versionId and optional C++ standard before native build or test work that requires a different compiler version.',
+        'After selecting a Clang/C++ version, inspect commands.lastResult.metadata.preferredBuildEngineHandoff before proposing build commands.',
+        'If toolchainSelectionStatus is not selected, use the settings recovery route instead of guessing another compiler path.',
+      ],
+      validationHints: <String>[
+        'Validate handoff changes with the narrowest available CMake configure/build or Ninja build command.',
+        'When a build engine is unavailable, report the missing registered toolchain instead of inventing an executable path.',
+      ],
+    ),
+    AgentCodingSkill(
       skillId: 'cpp-project-orientation',
       title: 'C++ Project Orientation',
       appliesTo: <String>[
@@ -282,6 +306,9 @@ class AgentCodingSkillCatalog {
     if (hasNativeProjectEvidence) {
       activate('cpp-clang-toolchain-defaults', <String>[
         'The workspace has Styio, C/C++, CMake, Clang, or compile database evidence.',
+      ]);
+      activate('cpp-clang-version-handoff', <String>[
+        'Native-code work can use registered Clang/C++ version selection and IDE-provided CMake/Ninja handoff facts.',
       ]);
       activate('cpp-project-orientation', <String>[
         'Native-code changes require target, source, header, and test ownership orientation.',

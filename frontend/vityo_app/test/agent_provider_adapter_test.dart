@@ -319,10 +319,14 @@ void main() {
       (json['usage']! as Map<String, Object?>)['debugBlockedCommandCount'],
       6,
     );
-    expect((json['usage']! as Map<String, Object?>)['skillCount'], 9);
+    expect((json['usage']! as Map<String, Object?>)['skillCount'], 10);
     expect(
       (json['usage']! as Map<String, Object?>)['skillIds'],
       contains('cpp-clang-toolchain-defaults'),
+    );
+    expect(
+      (json['usage']! as Map<String, Object?>)['skillIds'],
+      contains('cpp-clang-version-handoff'),
     );
     expect(
       (json['usage']! as Map<String, Object?>)['skillIds'],
@@ -744,7 +748,7 @@ void main() {
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);
       expect(metadata['selectionEndColumn'], 0);
-      expect(metadata['skillCount'], 9);
+      expect(metadata['skillCount'], 10);
       expect(metadata['activeSkillCount'], greaterThan(0));
       expect(
         metadata['activeSkillIds'],
@@ -752,9 +756,14 @@ void main() {
       );
       expect(
         metadata['activeSkillIds'],
+        contains('cpp-clang-version-handoff'),
+      );
+      expect(
+        metadata['activeSkillIds'],
         contains('styio-cpp-compiler-project'),
       );
       expect(metadata['skillIds'], contains('styio-cpp-compiler-project'));
+      expect(metadata['skillIds'], contains('cpp-clang-version-handoff'));
       expect(metadata['skillIds'], contains('cpp-cmake-build-graph'));
       expect(metadata['skillIds'], contains('cpp-clangd-indexing'));
       expect(

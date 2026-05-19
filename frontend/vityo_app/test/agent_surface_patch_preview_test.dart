@@ -79,8 +79,9 @@ void main() {
     );
 
     expect(find.text('Active Coding Skills'), findsOneWidget);
-    expect(find.text('5 active / 9 available skills'), findsOneWidget);
+    expect(find.text('6 active / 10 available skills'), findsOneWidget);
     expect(find.text('C++ Clang Toolchain Defaults'), findsOneWidget);
+    expect(find.text('C++ Clang Version Handoff'), findsOneWidget);
     expect(find.text('C++ Project Orientation'), findsOneWidget);
     expect(find.text('C++ Safe Editing'), findsOneWidget);
     expect(find.text('Reference-Grounded IDE Development'), findsOneWidget);

@@ -99,6 +99,11 @@ class _IdeCapabilityFrameworkCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final followUps = snapshot.followUps.take(8).toList(growable: false);
+    final missingRequiredCapabilityIds = snapshot.missingRequiredCapabilityIds
+        .toList(growable: false);
+    final coveredRequiredCapabilityCount =
+        requiredVityoIdeCapabilityIds.length -
+        missingRequiredCapabilityIds.length;
 
     return Container(
       key: const ValueKey('settings-ide-capability-framework'),
@@ -124,6 +129,11 @@ class _IdeCapabilityFrameworkCard extends StatelessWidget {
             children: [
               Chip(label: Text('version ${snapshot.version}')),
               Chip(label: Text('entries ${snapshot.entries.length}')),
+              Chip(
+                label: Text(
+                  'required $coveredRequiredCapabilityCount/${requiredVityoIdeCapabilityIds.length}',
+                ),
+              ),
               Chip(label: Text('follow-ups ${snapshot.followUps.length}')),
               for (final statusCount in snapshot.statusCounts.entries)
                 Chip(label: Text('${statusCount.key} ${statusCount.value}')),
@@ -142,6 +152,26 @@ class _IdeCapabilityFrameworkCard extends StatelessWidget {
                 )
                 .toList(growable: false),
           ),
+          if (missingRequiredCapabilityIds.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Missing Required Capabilities',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: missingRequiredCapabilityIds
+                  .map(
+                    (id) => Chip(
+                      key: ValueKey('settings-ide-capability-missing-$id'),
+                      label: Text(id),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
           const SizedBox(height: 12),
           Text('TODO Follow-ups', style: theme.textTheme.titleSmall),
           const SizedBox(height: 8),

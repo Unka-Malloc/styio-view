@@ -192,6 +192,8 @@ void main() {
       find.text('version vityo-ide-capability-framework-v1'),
       findsOneWidget,
     );
+    expect(find.text('required 31/31'), findsOneWidget);
+    expect(find.text('Missing Required Capabilities'), findsNothing);
     expect(find.text('TODO Follow-ups'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('settings-toolchain-status-card')),

@@ -754,7 +754,80 @@ String _ideCommandResultConversationText(AgentCommandResultContext result) {
   if (metadataKeys.isNotEmpty) {
     lines.add('metadataKeys: ${metadataKeys.join(', ')}');
   }
+  final metadataSummaryLines = _ideCommandMetadataConversationLines(
+    result.metadata,
+  );
+  if (metadataSummaryLines.isNotEmpty) {
+    lines.add('metadata:');
+    lines.addAll(metadataSummaryLines.map((line) => '  $line'));
+  }
   return lines.join('\n');
+}
+
+const List<String> _ideCommandConversationMetadataKeys = <String>[
+  'requiredCommand',
+  'completedRequiredCommandFor',
+  'recoveryForCommandId',
+  'settingsRoute',
+  'settingsSection',
+  'toolchainSelectionStatus',
+  'toolchainId',
+  'clangCppSelection',
+  'cppStandard',
+  'preferredBuildEngineHandoff',
+  'cmakeExecutablePath',
+  'ninjaExecutablePath',
+];
+
+List<String> _ideCommandMetadataConversationLines(
+  Map<String, Object?> metadata,
+) {
+  if (metadata.isEmpty) {
+    return const <String>[];
+  }
+  final lines = <String>[];
+  for (final key in _ideCommandConversationMetadataKeys) {
+    final value = metadata[key];
+    final text = _conversationMetadataScalarText(value);
+    if (text != null) {
+      lines.add('$key: $text');
+    }
+  }
+  final backendRouteSelection = metadata['backendRouteSelection'];
+  if (backendRouteSelection is Map<String, Object?>) {
+    final routeKind = _conversationMetadataScalarText(
+      backendRouteSelection['routeKind'],
+    );
+    final allowed = _conversationMetadataScalarText(
+      backendRouteSelection['allowed'],
+    );
+    final blockedReason = _conversationMetadataScalarText(
+      backendRouteSelection['blockedReason'],
+    );
+    if (routeKind != null || allowed != null || blockedReason != null) {
+      final fields = <String>[
+        if (routeKind != null) 'routeKind=$routeKind',
+        if (allowed != null) 'allowed=$allowed',
+        if (blockedReason != null) 'blockedReason=$blockedReason',
+      ];
+      lines.add('backendRouteSelection: ${fields.join(', ')}');
+    }
+  }
+  return lines;
+}
+
+String? _conversationMetadataScalarText(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is String) {
+    final text = value.trim();
+    return text.isEmpty ? null : text;
+  }
+  if (value is num || value is bool) {
+    return value.toString();
+  }
+  return null;
 }
 
 String _patchApplicationConversationText(

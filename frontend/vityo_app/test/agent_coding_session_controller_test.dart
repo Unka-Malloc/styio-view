@@ -218,6 +218,21 @@ void main() {
           message: 'Build completed.',
           metadata: const <String, Object?>{
             'buildResult': <String, Object?>{'success': true},
+            'requiredCommand': 'selectClangCppVersion',
+            'recoveryForCommandId': 'runBuild',
+            'settingsRoute': 'settings',
+            'settingsSection': 'toolchain',
+            'toolchainSelectionStatus': 'missing',
+            'toolchainId': 'clang-cpp',
+            'clangCppSelection': 'clang++ 18.1.0',
+            'cppStandard': 'c++20',
+            'preferredBuildEngineHandoff': 'ninja',
+            'backendRouteSelection': <String, Object?>{
+              'routeKind': 'hosted',
+              'allowed': false,
+              'blockedReason': 'native route disabled',
+            },
+            'largeIgnored': <String, Object?>{'token': 'secret'},
           },
           completedAt: completedAt,
         ),
@@ -240,6 +255,35 @@ void main() {
         controller.conversationTurns.map((turn) => turn.text).join('\n'),
         contains('IDE command result:'),
       );
+      final commandResultTurn = controller.conversationTurns.firstWhere(
+        (turn) => turn.text.contains('IDE command result:'),
+      );
+      expect(
+        commandResultTurn.text,
+        contains('requiredCommand: selectClangCppVersion'),
+      );
+      expect(commandResultTurn.text, contains('recoveryForCommandId: runBuild'));
+      expect(commandResultTurn.text, contains('settingsRoute: settings'));
+      expect(commandResultTurn.text, contains('settingsSection: toolchain'));
+      expect(
+        commandResultTurn.text,
+        contains('toolchainSelectionStatus: missing'),
+      );
+      expect(commandResultTurn.text, contains('toolchainId: clang-cpp'));
+      expect(commandResultTurn.text, contains('clangCppSelection: clang++'));
+      expect(commandResultTurn.text, contains('cppStandard: c++20'));
+      expect(
+        commandResultTurn.text,
+        contains('preferredBuildEngineHandoff: ninja'),
+      );
+      expect(
+        commandResultTurn.text,
+        contains(
+          'backendRouteSelection: routeKind=hosted, allowed=false, '
+          'blockedReason=native route disabled',
+        ),
+      );
+      expect(commandResultTurn.text, isNot(contains('token: secret')));
     },
   );
 

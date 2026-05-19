@@ -79,7 +79,7 @@ void main() {
     );
 
     expect(find.text('Active Coding Skills'), findsOneWidget);
-    expect(find.text('6 active / 10 available skills'), findsOneWidget);
+    expect(find.text('6 active / 11 available skills'), findsOneWidget);
     expect(find.text('C++ Clang Toolchain Defaults'), findsOneWidget);
     expect(find.text('C++ Clang Version Handoff'), findsOneWidget);
     expect(find.text('C++ Project Orientation'), findsOneWidget);

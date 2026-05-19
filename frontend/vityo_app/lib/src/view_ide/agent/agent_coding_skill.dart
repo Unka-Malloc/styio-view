@@ -139,6 +139,30 @@ class AgentCodingSkillCatalog {
       ],
     ),
     AgentCodingSkill(
+      skillId: 'cpp-clang-format-tidy',
+      title: 'C++ clang-format and clang-tidy',
+      appliesTo: <String>[
+        'C++',
+        'C',
+        'clang-format',
+        'clang-tidy',
+        'native static analysis',
+      ],
+      toolchainDefaults: <String>[
+        'Prefer registered clang-format and clang-tidy toolchain commands when available.',
+        'Respect .clang-format and .clang-tidy configuration files instead of inventing style or analyzer rules.',
+      ],
+      instructions: <String>[
+        'Use formatActiveDocument for formatting-only work and runStaticAnalysis for clang-tidy-style diagnostics when the IDE command readiness is satisfied.',
+        'If runStaticAnalysis requires compile_commands.json, use the required build command before static analysis instead of inventing include paths or compile flags.',
+        'Keep formatting-only changes separate from semantic C++ fixes unless the user explicitly asks for a combined cleanup.',
+      ],
+      validationHints: <String>[
+        'For formatting work, validate through the registered formatter command rather than manually applying style guesses.',
+        'For static-analysis work, read the structured staticAnalysisResult diagnostics before proposing follow-up code edits.',
+      ],
+    ),
+    AgentCodingSkill(
       skillId: 'cpp-cmake-build-graph',
       title: 'C++ CMake Build Graph',
       appliesTo: <String>['C++', 'CMake', 'Ninja', 'native build targets'],
@@ -328,6 +352,16 @@ class AgentCodingSkillCatalog {
       ]);
       activate('cpp-clangd-indexing', <String>[
         'compile_commands.json can feed clangd-style symbol and reference facts.',
+      ]);
+    }
+
+    if (hasClangFormatConfig || hasClangTidyConfig) {
+      activate('cpp-clang-format-tidy', <String>[
+        hasClangFormatConfig && hasClangTidyConfig
+            ? '.clang-format and .clang-tidy are present and should guide formatting and static-analysis commands.'
+            : hasClangFormatConfig
+            ? '.clang-format is present and should guide formatting commands.'
+            : '.clang-tidy is present and should guide static-analysis commands.',
       ]);
     }
 

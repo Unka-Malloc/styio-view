@@ -928,6 +928,7 @@ void main() {
     expect(skillsJson['skillIds'], contains('cpp-clang-toolchain-defaults'));
     expect(skillsJson['skillIds'], contains('cpp-clang-version-handoff'));
     expect(skillsJson['skillIds'], contains('cpp-compilation-database'));
+    expect(skillsJson['skillIds'], contains('cpp-clang-format-tidy'));
     expect(skillsJson['skillIds'], contains('cpp-cmake-build-graph'));
     expect(skillsJson['skillIds'], contains('cpp-clangd-indexing'));
     expect(skillsJson['skillIds'], contains('cpp-test-debug-loop'));
@@ -936,7 +937,7 @@ void main() {
       contains('reference-grounded-ide-development'),
     );
     expect(skillsJson['skillIds'], contains('styio-cpp-compiler-project'));
-    expect(skillsJson['skillCount'], 10);
+    expect(skillsJson['skillCount'], 11);
     final skills = skillsJson['skills']! as List<Object?>;
     final referenceSkill = skills.whereType<Map<String, Object?>>().singleWhere(
       (skill) => skill['skillId'] == 'reference-grounded-ide-development',
@@ -1978,6 +1979,7 @@ void main() {
       contains('cpp-clang-version-handoff'),
     );
     expect(skillsJson['activeSkillIds'], contains('cpp-compilation-database'));
+    expect(skillsJson['activeSkillIds'], contains('cpp-clang-format-tidy'));
     expect(skillsJson['activeSkillIds'], contains('cpp-cmake-build-graph'));
     expect(skillsJson['activeSkillIds'], contains('cpp-clangd-indexing'));
     expect(skillsJson['activeSkillIds'], contains('cpp-test-debug-loop'));

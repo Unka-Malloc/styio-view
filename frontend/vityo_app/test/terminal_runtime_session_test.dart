@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
@@ -9,6 +11,31 @@ void main() {
   test(
     'terminal interaction controller records output input and resize',
     () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_terminal_runtime_history_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final dataStore = FoundationDataStore(
+        resourceCoordinator: FoundationResourceCoordinator(
+          resourceManager: resourceManager,
+          fileSystemManager: fileSystemManager,
+        ),
+        fileSystemManager: fileSystemManager,
+      );
+      final historyStore = RuntimeTaskHistoryStore.fromDataStore(
+        dataStore: dataStore,
+      );
       final session = _FakePtySession();
       final taskController = RuntimeTaskLifecycleController(
         clock: () => DateTime.utc(2026, 5, 20),
@@ -16,6 +43,8 @@ void main() {
       final runtime = TerminalRuntime(
         ptyManager: _FakePtyManager(session),
         taskLifecycleController: taskController,
+        taskHistoryStore: historyStore,
+        taskHistoryWorkspaceId: 'demo',
         shellConfiguration: const ShellConfiguration(
           defaultProfileId: 'sh',
           profiles: <ShellProfileConfiguration>[
@@ -66,6 +95,9 @@ void main() {
             as Map<String, Object?>)['status'],
         'succeeded',
       );
+      final history = await historyStore.readHistory(workspaceId: 'demo');
+      expect(history.tasks.single.definition.id, 'terminal.sh');
+      expect(history.tasks.single.status, RuntimeTaskStatus.succeeded);
     },
   );
 }

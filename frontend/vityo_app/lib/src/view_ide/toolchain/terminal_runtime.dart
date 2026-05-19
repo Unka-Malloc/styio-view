@@ -150,7 +150,7 @@ class TerminalInteractionController extends ChangeNotifier {
     final exitCode = await session.close(force: force);
     final taskId = _taskSnapshot?.definition.id;
     if (taskId != null) {
-      _taskSnapshot = runtime.completeTask(taskId, exitCode: exitCode);
+      _taskSnapshot = await runtime.completeTask(taskId, exitCode: exitCode);
     }
     notifyListeners();
     return exitCode;
@@ -168,6 +168,9 @@ class TerminalRuntime {
     required PtyManager ptyManager,
     required ShellConfiguration shellConfiguration,
     RuntimeTaskLifecycleController? taskLifecycleController,
+    RuntimeTaskHistoryStore? taskHistoryStore,
+    this.taskHistoryWorkspaceId = 'default',
+    this.taskHistoryMaxEntries = 50,
     EnvironmentVariableResolver environmentResolver =
         const EnvironmentVariableResolver(),
     Map<String, String> inheritedEnvironment = const <String, String>{},
@@ -175,6 +178,7 @@ class TerminalRuntime {
   }) : _ptyManager = ptyManager,
        _shellConfiguration = shellConfiguration,
        _taskLifecycleController = taskLifecycleController,
+       _taskHistoryStore = taskHistoryStore,
        _environmentResolver = environmentResolver,
        _inheritedEnvironment = inheritedEnvironment,
        _pathSeparator = pathSeparator;
@@ -184,6 +188,9 @@ class TerminalRuntime {
     required PtyManager ptyManager,
     required ShellConfiguration shellConfiguration,
     RuntimeTaskLifecycleController? taskLifecycleController,
+    RuntimeTaskHistoryStore? taskHistoryStore,
+    String taskHistoryWorkspaceId = 'default',
+    int taskHistoryMaxEntries = 50,
     EnvironmentVariableResolver environmentResolver =
         const EnvironmentVariableResolver(),
     Map<String, String> inheritedEnvironment = const <String, String>{},
@@ -192,6 +199,9 @@ class TerminalRuntime {
       ptyManager: ptyManager,
       shellConfiguration: shellConfiguration,
       taskLifecycleController: taskLifecycleController,
+      taskHistoryStore: taskHistoryStore,
+      taskHistoryWorkspaceId: taskHistoryWorkspaceId,
+      taskHistoryMaxEntries: taskHistoryMaxEntries,
       environmentResolver: environmentResolver,
       inheritedEnvironment: inheritedEnvironment,
       pathSeparator: pathListSeparatorForPlatformContext(platformContext),
@@ -202,6 +212,9 @@ class TerminalRuntime {
     required PlatformManagerBundle platformManagers,
     required ShellConfiguration shellConfiguration,
     RuntimeTaskLifecycleController? taskLifecycleController,
+    RuntimeTaskHistoryStore? taskHistoryStore,
+    String taskHistoryWorkspaceId = 'default',
+    int taskHistoryMaxEntries = 50,
     EnvironmentVariableResolver environmentResolver =
         const EnvironmentVariableResolver(),
     Map<String, String> inheritedEnvironment = const <String, String>{},
@@ -211,6 +224,9 @@ class TerminalRuntime {
       ptyManager: platformManagers.pty,
       shellConfiguration: shellConfiguration,
       taskLifecycleController: taskLifecycleController,
+      taskHistoryStore: taskHistoryStore,
+      taskHistoryWorkspaceId: taskHistoryWorkspaceId,
+      taskHistoryMaxEntries: taskHistoryMaxEntries,
       environmentResolver: environmentResolver,
       inheritedEnvironment: inheritedEnvironment,
     );
@@ -219,6 +235,9 @@ class TerminalRuntime {
   final PtyManager _ptyManager;
   final ShellConfiguration _shellConfiguration;
   final RuntimeTaskLifecycleController? _taskLifecycleController;
+  final RuntimeTaskHistoryStore? _taskHistoryStore;
+  final String taskHistoryWorkspaceId;
+  final int taskHistoryMaxEntries;
   final EnvironmentVariableResolver _environmentResolver;
   final Map<String, String> _inheritedEnvironment;
   final String _pathSeparator;
@@ -331,16 +350,21 @@ class TerminalRuntime {
     }
   }
 
-  RuntimeTaskSnapshot? completeTask(String taskId, {int? exitCode}) {
+  Future<RuntimeTaskSnapshot?> completeTask(
+    String taskId, {
+    int? exitCode,
+  }) async {
     final controller = _taskLifecycleController;
     if (controller == null) {
       return null;
     }
-    return controller.complete(
+    final completed = controller.complete(
       taskId,
       exitCode: exitCode ?? 0,
       message: 'Terminal task $taskId closed.',
     );
+    await _persistTask(completed);
+    return completed;
   }
 
   RuntimeTaskSnapshot? _startTaskSnapshot({
@@ -380,5 +404,17 @@ class TerminalRuntime {
       );
     }
     return controller.start(id, message: 'Terminal task $id started.');
+  }
+
+  Future<void> _persistTask(RuntimeTaskSnapshot task) async {
+    final store = _taskHistoryStore;
+    if (store == null) {
+      return;
+    }
+    await store.appendTask(
+      workspaceId: taskHistoryWorkspaceId,
+      task: task,
+      maxEntries: taskHistoryMaxEntries,
+    );
   }
 }

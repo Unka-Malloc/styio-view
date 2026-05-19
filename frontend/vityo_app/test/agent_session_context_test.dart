@@ -2046,6 +2046,28 @@ void main() {
     );
   });
 
+  test('agent workspace context activates native skills for C++ module files', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'README.md',
+        text: '# Demo\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>['src/parser.cppm', 'src/runtime.mpp'],
+      activeFilePath: 'README.md',
+    );
+
+    final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+    final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
+
+    expect(activeSkillIds, contains('cpp-clang-toolchain-defaults'));
+    expect(activeSkillIds, contains('cpp-clang-version-handoff'));
+    expect(activeSkillIds, contains('cpp-project-orientation'));
+    expect(activeSkillIds, contains('cpp-safe-editing'));
+  });
+
   test('agent workspace context serializes latest workspace search result', () {
     final search = AgentWorkspaceSearchResultContext.fromDocuments(
       query: 'needle',

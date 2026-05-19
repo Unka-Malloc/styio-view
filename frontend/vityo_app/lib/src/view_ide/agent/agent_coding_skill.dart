@@ -455,7 +455,11 @@ bool _isNativeSourcePath(String path) {
       path.endsWith('.hh') ||
       path.endsWith('.hpp') ||
       path.endsWith('.hxx') ||
-      path.endsWith('.ixx');
+      path.endsWith('.ixx') ||
+      path.endsWith('.cppm') ||
+      path.endsWith('.ccm') ||
+      path.endsWith('.cxxm') ||
+      path.endsWith('.mpp');
 }
 
 bool _isCMakePath(String path) {

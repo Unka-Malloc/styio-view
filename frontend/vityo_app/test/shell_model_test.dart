@@ -321,6 +321,24 @@ void main() {
       expect(sourceControlJson['providerKind'], 'git');
       expect(sourceControlJson['branchName'], 'ai-dev');
       expect(sourceControlJson['changeCount'], 1);
+
+      await shell.executeCommand(AppCommandId.refreshSourceControl);
+      final refreshCommandResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(refreshCommandResult?.commandId, 'refreshSourceControl');
+      expect(refreshCommandResult?.applied, isTrue);
+      expect(
+        refreshCommandResult?.metadata['sourceControl'],
+        isA<Map<String, Object?>>(),
+      );
+
+      final agentRefreshApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'refreshSourceControl'),
+      );
+      final agentRefreshResult = shell.agentSessionContext.commands.lastResult;
+      expect(agentRefreshApplied, isTrue);
+      expect(agentRefreshResult?.commandId, 'refreshSourceControl');
+      expect(agentRefreshResult?.message, contains('Source control refreshed'));
     },
   );
 

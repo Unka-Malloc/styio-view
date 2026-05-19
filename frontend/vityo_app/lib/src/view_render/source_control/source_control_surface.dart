@@ -12,6 +12,7 @@ class SourceControlSurface extends StatelessWidget {
     this.status,
     this.onOpenFile,
     this.onSaveAll,
+    this.onRefresh,
   });
 
   final ViewportProfile viewportProfile;
@@ -20,6 +21,7 @@ class SourceControlSurface extends StatelessWidget {
   final SourceControlStatusSnapshot? status;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function()? onSaveAll;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +81,12 @@ class SourceControlSurface extends StatelessWidget {
                   onPressed: changedDocumentIds.isEmpty ? null : onSaveAll,
                   icon: const Icon(Icons.save_outlined),
                   label: const Text('Save All'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('source-control-refresh'),
+                  onPressed: onRefresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Refresh'),
                 ),
               ],
             ),

@@ -197,6 +197,9 @@ class VityoShellScaffold extends StatelessWidget {
             onSaveAll: () {
               return shell.executeCommand(AppCommandId.saveAll);
             },
+            onRefresh: () {
+              return shell.executeCommand(AppCommandId.refreshSourceControl);
+            },
           );
         }
 
@@ -1975,6 +1978,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.auto_fix_high_rounded;
     case AppCommandId.refreshLanguageService:
       return Icons.manage_search_rounded;
+    case AppCommandId.refreshSourceControl:
+      return Icons.account_tree_rounded;
     case AppCommandId.goToDefinition:
       return Icons.subdirectory_arrow_right_rounded;
     case AppCommandId.openWorkspaceFile:

@@ -104,6 +104,7 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
       case AppCommandId.refreshLanguageService:
+      case AppCommandId.refreshSourceControl:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.runBuild:

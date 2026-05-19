@@ -11,6 +11,7 @@ void main() {
   ) async {
     String? openedDocumentId;
     var saveAllCount = 0;
+    var refreshCount = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -36,6 +37,9 @@ R  src/old.styio -> src/new.styio
             },
             onSaveAll: () async {
               saveAllCount += 1;
+            },
+            onRefresh: () async {
+              refreshCount += 1;
             },
           ),
         ),
@@ -66,10 +70,12 @@ R  src/old.styio -> src/new.styio
       find.byKey(const ValueKey('source-control-change-src/main.styio')),
     );
     await tester.tap(find.byKey(const ValueKey('source-control-save-all')));
+    await tester.tap(find.byKey(const ValueKey('source-control-refresh')));
     await tester.pump();
 
     expect(openedDocumentId, 'src/main.styio');
     expect(saveAllCount, 1);
+    expect(refreshCount, 1);
   });
 
   testWidgets('source control surface renders unavailable provider state', (

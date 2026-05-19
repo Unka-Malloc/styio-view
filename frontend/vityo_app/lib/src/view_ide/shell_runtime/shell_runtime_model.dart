@@ -614,6 +614,25 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
   }
 
+  Future<SourceControlStatusSnapshot> refreshSourceControlStatus() async {
+    final controller = sourceControlStatusController;
+    final snapshot = controller == null
+        ? _localDirtySourceControlStatusSnapshot()
+        : await controller.refresh();
+    appendLog(_sourceControlRefreshMessage(snapshot));
+    notifyListeners();
+    return snapshot;
+  }
+
+  String _sourceControlRefreshMessage(SourceControlStatusSnapshot snapshot) {
+    if (!snapshot.available) {
+      return snapshot.message.isEmpty
+          ? 'Source control refresh failed.'
+          : 'Source control refresh failed: ${snapshot.message}';
+    }
+    return 'Source control refreshed: ${snapshot.changes.length} change(s).';
+  }
+
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
   DependencySourceCommandResult? get lastDependencySourceCommand =>
@@ -955,6 +974,15 @@ class ShellRuntimeModel extends ChangeNotifier {
         return false;
       case 'refreshLanguageService':
         return _refreshLanguageServiceForCommand(suggestion: suggestion);
+      case 'refreshSourceControl':
+        final snapshot = await refreshSourceControlStatus();
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: snapshot.available,
+          message: _sourceControlRefreshMessage(snapshot),
+          metadata: <String, Object?>{'sourceControl': snapshot.toJson()},
+        );
+        return snapshot.available;
       case 'goToDefinition':
         if (editorController.selectDefinitionAtSelection()) {
           appendLog('Agent command goToDefinition selected in editor.');
@@ -1719,6 +1747,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
       case AppCommandId.refreshLanguageService:
+      case AppCommandId.refreshSourceControl:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
@@ -1780,6 +1809,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
       case AppCommandId.refreshLanguageService:
+      case AppCommandId.refreshSourceControl:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
@@ -3670,6 +3700,15 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshLanguageService:
         await _refreshLanguageServiceForCommand();
         return;
+      case AppCommandId.refreshSourceControl:
+        final snapshot = await refreshSourceControlStatus();
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: snapshot.available,
+          message: _sourceControlRefreshMessage(snapshot),
+          metadata: <String, Object?>{'sourceControl': snapshot.toJson()},
+        );
+        return;
       case AppCommandId.run:
         final routeSelection = selectBackendExecutionRoute(
           platformTarget: platformTarget,
@@ -3976,6 +4015,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previousDiagnostic:
       case AppCommandId.applyQuickFix:
       case AppCommandId.refreshLanguageService:
+      case AppCommandId.refreshSourceControl:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:

@@ -23,6 +23,7 @@ enum AppCommandId {
   previousDiagnostic,
   applyQuickFix,
   refreshLanguageService,
+  refreshSourceControl,
   openWorkspaceFile,
   searchWorkspace,
   runBuild,
@@ -287,6 +288,12 @@ class StyioCommandRegistry {
       description: 'Refresh StyioService facts for the active editor document.',
     ),
     AppCommandDescriptor(
+      id: AppCommandId.refreshSourceControl,
+      label: 'Refresh Source Control',
+      shortcutHint: 'Route',
+      description: 'Refresh source-control status for the active workspace.',
+    ),
+    AppCommandDescriptor(
       id: AppCommandId.goToDefinition,
       label: 'Go to Definition',
       shortcutHint: 'F12',
@@ -434,6 +441,14 @@ class StyioCommandRegistry {
       commands.where(
         (command) => switch (command.id) {
           AppCommandId.refreshLanguageService => true,
+          _ => false,
+        },
+      );
+
+  static Iterable<AppCommandDescriptor> get sourceControlCommands =>
+      commands.where(
+        (command) => switch (command.id) {
+          AppCommandId.refreshSourceControl => true,
           _ => false,
         },
       );

@@ -13,6 +13,7 @@ import '../editor/editor.dart';
 import '../environment/configuration/configuration.dart';
 import '../interaction/interaction.dart';
 import '../language/language_contract.dart';
+import '../language/service/service.dart';
 import '../module_host/module_host.dart';
 import '../platform/platform.dart';
 import '../toolchain/clang_cpp_version_configuration.dart';
@@ -319,9 +320,12 @@ class ShellRuntimeModel extends ChangeNotifier {
     this.workspaceDiagnosticsController,
     this.testingSessionController,
     this.sourceControlStatusController,
+    ProjectStyioLanguageService? projectLanguageService,
     EditorDocumentResourceBinding? editorFileBinding,
     this.debugAdapterLauncher,
   }) : _activeDocumentPath = workspaceController.activeFilePath,
+       projectLanguageService =
+           projectLanguageService ?? const ProjectStyioLanguageService(),
        languageServiceStatus =
            languageServiceStatus ??
            ValueNotifier<LanguageServiceStatusSurface>(
@@ -401,6 +405,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   final WorkspaceDiagnosticsController? workspaceDiagnosticsController;
   final TestingSessionController? testingSessionController;
   final SourceControlStatusController? sourceControlStatusController;
+  final ProjectStyioLanguageService projectLanguageService;
   final DapDebugAdapterLauncher? debugAdapterLauncher;
   final bool _ownsLanguageServiceStatus;
   final bool _ownsAgentCodingController;
@@ -1122,6 +1127,14 @@ class ShellRuntimeModel extends ChangeNotifier {
             message: 'Agent command goToDefinition selected in editor.',
           );
           notifyListeners();
+          return true;
+        }
+        if (await goToProjectDefinitionAtSelection()) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: true,
+            message: 'Agent command goToDefinition opened project definition.',
+          );
           return true;
         }
         appendLog(
@@ -3202,6 +3215,63 @@ class ShellRuntimeModel extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> goToProjectDefinitionAtSelection() async {
+    final activeDocumentId = editorController.document.documentId;
+    final offset = editorController.selection.extentOffset;
+    final documents = await _loadProjectLanguageDocuments();
+    final definitions = projectLanguageService.definitionsAt(
+      documents: documents,
+      documentId: activeDocumentId,
+      offset: offset,
+    );
+    if (definitions.isEmpty) {
+      appendLog(
+        'Project definition skipped: no visible project definition at selection.',
+      );
+      notifyListeners();
+      return false;
+    }
+    final definition = definitions.first;
+    if (definition.documentId != workspaceController.activeFilePath) {
+      final opened = await openWorkspaceFileForAgent(definition.documentId);
+      if (!opened) {
+        appendLog(
+          'Project definition skipped: ${definition.documentId} could not be opened.',
+        );
+        notifyListeners();
+        return false;
+      }
+    }
+    editorController.selectRange(
+      baseOffset: definition.range.start,
+      extentOffset: definition.range.end,
+    );
+    appendLog(
+      'Project definition selected: ${definition.name} in ${definition.documentId}.',
+    );
+    notifyListeners();
+    return true;
+  }
+
+  Future<List<DocumentState>> _loadProjectLanguageDocuments() async {
+    final documentsById = <String, DocumentState>{
+      for (final document in _agentWorkspaceDocumentSamples)
+        document.documentId: document,
+    };
+    for (final filePath in workspaceController.files) {
+      if (documentsById.containsKey(filePath)) {
+        continue;
+      }
+      if (!await workspaceDocumentStore.documentExists(filePath)) {
+        continue;
+      }
+      documentsById[filePath] = await workspaceDocumentStore.loadDocument(
+        filePath,
+      );
+    }
+    return documentsById.values.toList(growable: false);
+  }
+
   Future<bool> searchWorkspaceForAgent(String query) async {
     final normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) {
@@ -4035,6 +4105,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.goToDefinition:
         if (editorController.selectDefinitionAtSelection()) {
           appendLog('Definition selected in editor.');
+        } else if (await goToProjectDefinitionAtSelection()) {
+          appendLog('Project definition selected in editor.');
         } else {
           appendLog('Definition skipped: no resolved definition at selection.');
         }

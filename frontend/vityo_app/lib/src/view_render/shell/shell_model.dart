@@ -46,6 +46,7 @@ class ShellModel extends ShellRuntimeModel {
     super.workspaceDiagnosticsController,
     super.testingSessionController,
     super.sourceControlStatusController,
+    super.projectLanguageService,
   });
 
   BottomSurfaceTab _activeBottomTab = BottomSurfaceTab.runtime;

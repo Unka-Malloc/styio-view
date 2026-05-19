@@ -18,6 +18,7 @@ import '../view_ide/editor/document_state.dart';
 import '../view_ide/environment/environment.dart';
 import '../view_ide/foundation/foundation.dart';
 import '../view_ide/language/service/language_service_foundation.dart';
+import '../view_ide/language/service/project_styio_language_service.dart';
 import '../view_ide/language/service/styio_service_capability_detector.dart';
 import '../view_ide/language/service/styio_service_connector.dart';
 import '../view_ide/language/service/styio_service_runtime.dart';
@@ -83,6 +84,7 @@ class AppBootstrap {
     this.workspaceDiagnosticsController,
     this.testingSessionController,
     this.sourceControlStatusController,
+    this.projectLanguageService,
   }) : languageServiceStatus =
            languageServiceStatus ??
            ValueNotifier<LanguageServiceStatusSurface>(
@@ -117,6 +119,7 @@ class AppBootstrap {
   final WorkspaceDiagnosticsController? workspaceDiagnosticsController;
   final TestingSessionController? testingSessionController;
   final SourceControlStatusController? sourceControlStatusController;
+  final ProjectStyioLanguageService? projectLanguageService;
 
   void dispose() {
     unawaited(toolchainCatalogSubscription?.cancel());
@@ -280,13 +283,14 @@ class AppBootstrap {
         workingDirectory: languageProjectContext.workingDirectory,
       ),
     );
+    final projectLanguageService = createRoutedProjectStyioLanguageService(
+      resultCache: languageResultCache,
+      configPath: languageProjectContext.configPath,
+      workingDirectory: languageProjectContext.workingDirectory,
+    );
     final workspaceDiagnosticsController = WorkspaceDiagnosticsController(
       provider: StyioWorkspaceDiagnosticsProvider(
-        projectService: createRoutedProjectStyioLanguageService(
-          resultCache: languageResultCache,
-          configPath: languageProjectContext.configPath,
-          workingDirectory: languageProjectContext.workingDirectory,
-        ),
+        projectService: projectLanguageService,
       ),
     );
     final testingSessionController = TestingSessionController();
@@ -403,6 +407,7 @@ class AppBootstrap {
       workspaceDiagnosticsController: workspaceDiagnosticsController,
       testingSessionController: testingSessionController,
       sourceControlStatusController: sourceControlStatusController,
+      projectLanguageService: projectLanguageService,
     );
   }
 

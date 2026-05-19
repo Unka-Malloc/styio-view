@@ -436,6 +436,94 @@ void main() {
   );
 
   test(
+    'go to definition opens project definition across workspace documents',
+    () async {
+      const mainPath = '/workspace/demo/src/main.styio';
+      const libPath = '/workspace/demo/src/lib/math.styio';
+      final mainText = File(
+        'test/fixtures/styio_language/project_definition/main.true.styio',
+      ).readAsStringSync();
+      final libText = File(
+        'test/fixtures/styio_language/project_definition/lib_math.true.styio',
+      ).readAsStringSync();
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+        editorFiles: const <String>[mainPath, libPath],
+      );
+      final workspaceDocumentStore = InMemoryWorkspaceDocumentStore(
+        seededDocuments: <String, DocumentState>{
+          mainPath: DocumentState(
+            documentId: mainPath,
+            text: mainText,
+            revision: 1,
+          ),
+          libPath: DocumentState(
+            documentId: libPath,
+            text: libText,
+            revision: 1,
+          ),
+        },
+      );
+      final shell = ShellModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[initialGraph],
+        ),
+        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+        workspaceDocumentStore: workspaceDocumentStore,
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: DocumentState(
+            documentId: mainPath,
+            text: mainText,
+            revision: 1,
+          ),
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: const _SuccessfulExecutionAdapter(
+          sessionId: 'shell-project-definition',
+        ),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            const _SuccessfulExecutionAdapter(
+              sessionId: 'shell-project-definition',
+            ),
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        toolchainManagementAdapter:
+            const _SuccessfulToolchainManagementAdapter(),
+      );
+      addTearDown(shell.dispose);
+
+      shell.editorController.selectCollapsed(mainText.indexOf('blend()') + 1);
+
+      await shell.executeCommand(AppCommandId.goToDefinition);
+
+      final definitionStart = libText.indexOf('blend');
+      expect(shell.workspaceController.activeFilePath, libPath);
+      expect(shell.editorController.document.documentId, libPath);
+      expect(shell.editorController.selection.start, definitionStart);
+      expect(shell.editorController.selection.end, definitionStart + 'blend'.length);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Project definition selected: blend'),
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
     'restores editor session active document through workspace route',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(

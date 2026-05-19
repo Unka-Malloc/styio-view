@@ -726,13 +726,13 @@ void main() {
     );
     expect(find.widgetWithText(OutlinedButton, 'Apply Command'), findsNothing);
     expect(
-      find.widgetWithText(OutlinedButton, 'Apply Required Command'),
+      find.widgetWithText(OutlinedButton, 'Apply Required Command: saveAll'),
       findsOneWidget,
     );
 
     await _tapVisible(
       tester,
-      find.widgetWithText(OutlinedButton, 'Apply Required Command'),
+      find.widgetWithText(OutlinedButton, 'Apply Required Command: saveAll'),
     );
     await tester.pump();
 
@@ -754,6 +754,80 @@ void main() {
       'runBuild',
     ]);
     expect(appliedCommands.last.prerequisiteForCommandId, isNull);
+  });
+
+  testWidgets('agent surface offers runBuild for CMake static analysis', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: _StaticAnalysisCommandSuggestionAgentProviderAdapter(),
+      contextProvider: _cmakeStaticAnalysisBlockedContext,
+    );
+    addTearDown(controller.dispose);
+    controller.updatePrompt('Analyze CMake project.');
+    await controller.sendPrompt();
+    final appliedCommands = <AgentIdeCommandSuggestion>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _cmakeStaticAnalysisBlockedContext(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) async {
+                appliedCommands.add(command);
+                return true;
+              },
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('runStaticAnalysis · Run clang-tidy through IDE command.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Command not ready'), findsOneWidget);
+    expect(
+      find.textContaining('compile_commands.json is missing'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(OutlinedButton, 'Apply Command'), findsNothing);
+    expect(
+      find.widgetWithText(OutlinedButton, 'Apply Required Command: runBuild'),
+      findsOneWidget,
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey(
+          'agent-apply-required-command-runStaticAnalysis-runBuild',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(appliedCommands.single.commandId, 'runBuild');
+    expect(
+      appliedCommands.single.prerequisiteForCommandId,
+      'runStaticAnalysis',
+    );
   });
 
   testWidgets('agent surface displays recent IDE command results', (
@@ -951,7 +1025,7 @@ void main() {
     expect(find.textContaining('Retry not ready'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Retry Command'), findsNothing);
     expect(
-      find.widgetWithText(OutlinedButton, 'Apply Required Command'),
+      find.widgetWithText(OutlinedButton, 'Apply Required Command: saveAll'),
       findsOneWidget,
     );
 
@@ -3019,6 +3093,41 @@ AgentSessionContext _dirtyNativeBuildReadyContext({
   );
 }
 
+AgentSessionContext _cmakeStaticAnalysisBlockedContext() {
+  return AgentSessionContext.fromEditorState(
+    document: const DocumentState(
+      documentId: 'src/main.cc',
+      text: 'int main() { return 0; }\n',
+      revision: 1,
+    ),
+    selection: const SelectionState.collapsed(0),
+    diagnostics: const [],
+    workspaceFiles: const <String>['CMakeLists.txt', 'src/main.cc'],
+    activeFilePath: 'src/main.cc',
+    toolchainSnapshot: const ToolchainStateSnapshot(
+      targetId: 'agent-cmake-static-analysis-blocked',
+      entries: <ToolchainStateEntry>[
+        ToolchainStateEntry(
+          id: 'native-cmake-build-tool',
+          kind: ToolchainKind.buildTool,
+          displayName: 'CMake Build System',
+          executablePath: '/usr/bin/cmake',
+          active: true,
+          metadata: <String, Object?>{'toolFamily': 'cmake'},
+        ),
+        ToolchainStateEntry(
+          id: 'native-clang-tidy-static-analyzer',
+          kind: ToolchainKind.staticAnalyzer,
+          displayName: 'clang-tidy Static Analyzer',
+          executablePath: '/usr/bin/clang-tidy',
+          active: true,
+          metadata: <String, Object?>{'toolFamily': 'clang-tidy'},
+        ),
+      ],
+    ),
+  );
+}
+
 AgentSessionContext _selectionContext() {
   return AgentSessionContext.fromEditorState(
     document: const DocumentState(
@@ -3526,6 +3635,39 @@ class _RunBuildCommandSuggestionAgentProviderAdapter
           ideCommand: AgentIdeCommandSuggestion(
             commandId: 'runBuild',
             reason: 'Use the registered build command.',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StaticAnalysisCommandSuggestionAgentProviderAdapter
+    implements AgentProviderAdapter {
+  @override
+  String get adapterId => 'static-analysis-command-suggestion';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.localOnlyFallback;
+
+  @override
+  bool get supportsCodePatch => false;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(
+    AgentProviderRequest request,
+  ) async {
+    return AgentProviderResponseEnvelope(
+      requestId: request.requestId,
+      role: 'assistant',
+      finishReason: 'stop',
+      contentParts: const <AgentContentPart>[
+        AgentContentPart(
+          kind: AgentContentPartKind.ideCommand,
+          text: 'Run static analysis.',
+          ideCommand: AgentIdeCommandSuggestion(
+            commandId: 'runStaticAnalysis',
+            reason: 'Run clang-tidy through IDE command.',
           ),
         ),
       ],

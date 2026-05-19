@@ -630,7 +630,9 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
             ),
             onPressed: applying ? null : onApplyRequiredCommand,
             child: Text(
-              applying ? 'Applying Command...' : 'Apply Required Command',
+              applying
+                  ? 'Applying Command...'
+                  : 'Apply Required Command: $requiredCommandId',
             ),
           ),
       ],
@@ -1642,7 +1644,9 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                                     result,
                                     requiredCommandId,
                                   ),
-                            child: const Text('Apply Required Command'),
+                            child: Text(
+                              'Apply Required Command: $requiredCommandId',
+                            ),
                           ),
                       ],
                     ),

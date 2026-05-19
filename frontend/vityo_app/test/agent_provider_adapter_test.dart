@@ -43,6 +43,11 @@ void main() {
     final profileJson = json['profile']! as Map<String, Object?>;
     final contextJson = json['context']! as Map<String, Object?>;
     final documentJson = contextJson['document']! as Map<String, Object?>;
+    final ideCapabilitiesJson =
+        contextJson['ideCapabilities']! as Map<String, Object?>;
+    final ideCapabilityIds = (ideCapabilitiesJson['entries']! as List<Object?>)
+        .map((entry) => (entry! as Map<String, Object?>)['id'])
+        .toSet();
 
     expect(json['requestId'], 'agent-request-1');
     expect(json['userPrompt'], 'Explain this file.');
@@ -51,6 +56,10 @@ void main() {
       'web-hosted',
     );
     expect(documentJson['documentId'], '/workspace/demo/src/main.styio');
+    expect(ideCapabilitiesJson['version'], 'vityo-ide-capability-framework-v1');
+    expect(ideCapabilitiesJson['missingRequiredCapabilityIds'], isEmpty);
+    expect(ideCapabilityIds, contains('interaction.search'));
+    expect(ideCapabilityIds, contains('agent.coding-loop'));
   });
 
   test('agent code patch edit parses delete operation from JSON', () {

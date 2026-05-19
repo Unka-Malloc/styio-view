@@ -661,6 +661,33 @@ class ShellRuntimeModel extends ChangeNotifier {
     return 'Source control diff previewed for ${snapshot.path}: ${snapshot.lineCount} line(s).';
   }
 
+  Future<Map<String, Object?>> collectAgentCodingCheckpoint() async {
+    final diagnosticsSnapshot = await refreshWorkspaceDiagnostics();
+    final sourceControlSnapshot = await refreshSourceControlStatus();
+    final changedPath = sourceControlSnapshot.changes.isNotEmpty
+        ? sourceControlSnapshot.changes.first.path
+        : dirtyDocumentPaths.isNotEmpty
+        ? dirtyDocumentPaths.first
+        : '';
+    final diffSnapshot = changedPath.isEmpty
+        ? null
+        : await previewSourceControlDiff(changedPath);
+    final metadata = <String, Object?>{
+      'workspaceDiagnostics': diagnosticsSnapshot.toJson(),
+      'sourceControl': sourceControlSnapshot.toJson(),
+      'dirtyDocumentIds': dirtyDocumentPaths,
+      'openDocumentIds': workspaceController.openFilePaths,
+      if (diffSnapshot != null) 'sourceControlDiff': diffSnapshot.toJson(),
+    };
+    appendLog(
+      'Agent coding checkpoint collected: '
+      '${diagnosticsSnapshot.totalCount} diagnostic(s), '
+      '${sourceControlSnapshot.changes.length} source change(s).',
+    );
+    notifyListeners();
+    return metadata;
+  }
+
   WorkspaceDiagnosticsRequest _createWorkspaceDiagnosticsRequest() {
     final documentsById = <String, DocumentState>{
       editorController.document.documentId: editorController.document,
@@ -1077,6 +1104,15 @@ class ShellRuntimeModel extends ChangeNotifier {
           },
         );
         return snapshot.available;
+      case 'collectAgentCodingCheckpoint':
+        final metadata = await collectAgentCodingCheckpoint();
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: true,
+          message: 'Agent command collectAgentCodingCheckpoint completed.',
+          metadata: metadata,
+        );
+        return true;
       case 'goToDefinition':
         if (editorController.selectDefinitionAtSelection()) {
           appendLog('Agent command goToDefinition selected in editor.');
@@ -1844,6 +1880,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
       case AppCommandId.previewSourceControlDiff:
+      case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
@@ -1908,6 +1945,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
       case AppCommandId.previewSourceControlDiff:
+      case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
@@ -3831,6 +3869,15 @@ class ShellRuntimeModel extends ChangeNotifier {
           },
         );
         return;
+      case AppCommandId.collectAgentCodingCheckpoint:
+        final metadata = await collectAgentCodingCheckpoint();
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: true,
+          message: 'Agent coding checkpoint collected.',
+          metadata: metadata,
+        );
+        return;
       case AppCommandId.run:
         final routeSelection = selectBackendExecutionRoute(
           platformTarget: platformTarget,
@@ -4140,6 +4187,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
       case AppCommandId.previewSourceControlDiff:
+      case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:

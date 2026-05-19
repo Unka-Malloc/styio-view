@@ -354,6 +354,40 @@ void main() {
         isA<Map<String, Object?>>(),
       );
 
+      await shell.executeCommand(AppCommandId.collectAgentCodingCheckpoint);
+      final checkpointCommandResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(
+        checkpointCommandResult?.commandId,
+        'collectAgentCodingCheckpoint',
+      );
+      expect(checkpointCommandResult?.applied, isTrue);
+      expect(
+        checkpointCommandResult?.metadata['workspaceDiagnostics'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(
+        checkpointCommandResult?.metadata['sourceControl'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(
+        checkpointCommandResult?.metadata['sourceControlDiff'],
+        isA<Map<String, Object?>>(),
+      );
+
+      final agentCheckpointApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'collectAgentCodingCheckpoint',
+        ),
+      );
+      final agentCheckpointResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(agentCheckpointApplied, isTrue);
+      expect(
+        agentCheckpointResult?.commandId,
+        'collectAgentCodingCheckpoint',
+      );
+
       await shell.executeCommand(AppCommandId.refreshWorkspaceDiagnostics);
       final diagnosticsCommandResult =
           shell.agentSessionContext.commands.lastResult;

@@ -379,6 +379,7 @@ class AgentSessionContext {
         diagnosticCommands: commands.diagnosticCommands,
         languageServiceCommands: commands.languageServiceCommands,
         sourceControlCommands: commands.sourceControlCommands,
+        codingCommands: commands.codingCommands,
         navigationCommands: commands.navigationCommands,
         refactorCommands: commands.refactorCommands,
         toolchainCommands: commands.toolchainCommands,
@@ -2954,6 +2955,7 @@ class AgentCommandCatalogContext {
     required this.diagnosticCommands,
     required this.languageServiceCommands,
     required this.sourceControlCommands,
+    required this.codingCommands,
     required this.navigationCommands,
     required this.refactorCommands,
     required this.toolchainCommands,
@@ -2970,6 +2972,7 @@ class AgentCommandCatalogContext {
   final List<AgentCommandContext> diagnosticCommands;
   final List<AgentCommandContext> languageServiceCommands;
   final List<AgentCommandContext> sourceControlCommands;
+  final List<AgentCommandContext> codingCommands;
   final List<AgentCommandContext> navigationCommands;
   final List<AgentCommandContext> refactorCommands;
   final List<AgentCommandContext> toolchainCommands;
@@ -3016,6 +3019,9 @@ class AgentCommandCatalogContext {
       sourceControlCommands: StyioCommandRegistry.sourceControlCommands
           .map(AgentCommandContext.fromDescriptor)
           .toList(growable: false),
+      codingCommands: StyioCommandRegistry.agentCodingCommands
+          .map(AgentCommandContext.fromDescriptor)
+          .toList(growable: false),
       navigationCommands: StyioCommandRegistry.navigationCommands
           .map(AgentCommandContext.fromDescriptor)
           .toList(growable: false),
@@ -3058,6 +3064,9 @@ class AgentCommandCatalogContext {
           .map((command) => command.toJson())
           .toList(growable: false),
       'sourceControlCommands': sourceControlCommands
+          .map((command) => command.toJson())
+          .toList(growable: false),
+      'codingCommands': codingCommands
           .map((command) => command.toJson())
           .toList(growable: false),
       'navigationCommands': navigationCommands

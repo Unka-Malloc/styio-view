@@ -414,6 +414,7 @@ void main() {
         commandsJson['diagnosticCommands']! as List<Object?>;
     final languageServiceCommands =
         commandsJson['languageServiceCommands']! as List<Object?>;
+    final codingCommands = commandsJson['codingCommands']! as List<Object?>;
     final navigationCommands =
         commandsJson['navigationCommands']! as List<Object?>;
     final refactorCommands = commandsJson['refactorCommands']! as List<Object?>;
@@ -910,6 +911,10 @@ void main() {
     expect(
       (languageServiceCommands.single! as Map<String, Object?>)['id'],
       'refreshLanguageService',
+    );
+    expect(
+      (codingCommands.single! as Map<String, Object?>)['id'],
+      'collectAgentCodingCheckpoint',
     );
     expect(
       (navigationCommands.first! as Map<String, Object?>)['id'],

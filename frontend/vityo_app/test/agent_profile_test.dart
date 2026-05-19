@@ -97,6 +97,14 @@ void main() {
       );
       expect(
         decoded.systemPrompt,
+        contains('workspace.buildFacts.hasCompilationDatabase'),
+      );
+      expect(
+        decoded.systemPrompt,
+        contains('toolchains.nativeTools.languageServices'),
+      );
+      expect(
+        decoded.systemPrompt,
         contains('commands.nativeToolCommandReadiness.toolFamily'),
       );
       expect(decoded.systemPrompt, contains('requiredToolFamilies'));

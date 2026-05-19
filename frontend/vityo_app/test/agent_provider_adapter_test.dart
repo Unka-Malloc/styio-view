@@ -539,6 +539,10 @@ void main() {
         systemMessage['content'],
         contains('workspace.buildFacts.toolingHints'),
       );
+      expect(
+        systemMessage['content'],
+        contains('workspace.buildFacts.hasCompilationDatabase'),
+      );
       expect(systemMessage['content'], contains('toolchains.clangCpp'));
       expect(
         systemMessage['content'],
@@ -571,6 +575,10 @@ void main() {
       expect(
         systemMessage['content'],
         contains('toolchains.clangCpp.ninjaExecutablePath'),
+      );
+      expect(
+        systemMessage['content'],
+        contains('toolchains.nativeTools.languageServices'),
       );
       expect(systemMessage['content'], contains('Ninja'));
       expect(

@@ -3190,6 +3190,17 @@ printf 'src/main.cc:1:5: warning: tidy warning [readability-demo]\\n'
     expect(analysisResult['diagnosticCount'], 1);
     expect(analysisResult['exitCode'], 0);
     expect(analysisResult['stdoutPreview'], contains('tidy warning'));
+    final agentCommandResult = shell.agentSessionContext.commands.lastResult;
+    final agentAnalysisResult =
+        agentCommandResult?.metadata['staticAnalysisResult']!
+            as Map<String, Object?>;
+    expect(agentCommandResult?.commandId, 'runStaticAnalysis');
+    expect(agentAnalysisResult['stdoutPreview'], contains('tidy warning'));
+    expect(agentAnalysisResult['arguments'], <Object?>[
+      '-p',
+      'build',
+      'src/main.cc',
+    ]);
     expect(await analyzerLog.readAsString(), '-p build src/main.cc\n');
   });
 

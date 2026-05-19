@@ -243,6 +243,27 @@ void main() {
     },
   );
 
+  test('agent coding session gates prompt send while IDE command applies', () {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+
+    controller.updatePrompt('Continue after command.');
+    expect(controller.canSend, isTrue);
+    expect(controller.beginIdeCommandApplication(), isTrue);
+    expect(controller.applyingIdeCommand, isTrue);
+    expect(controller.canSend, isFalse);
+    expect(controller.beginIdeCommandApplication(), isFalse);
+
+    controller.endIdeCommandApplication();
+
+    expect(controller.applyingIdeCommand, isFalse);
+    expect(controller.canSend, isTrue);
+  });
+
   test(
     'agent coding session clear conversation resets stale error state',
     () async {

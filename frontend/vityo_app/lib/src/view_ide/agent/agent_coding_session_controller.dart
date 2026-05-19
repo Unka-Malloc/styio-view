@@ -40,6 +40,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   String _draftPrompt = '';
   bool _sending = false;
   bool _applyingPatch = false;
+  bool _applyingIdeCommand = false;
   AgentProviderResponseEnvelope? _lastResponse;
   AgentCodePatch? _pendingPatch;
   AgentCodePatchApplicationResult? _lastPatchApplicationResult;
@@ -73,6 +74,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   String get draftPrompt => _draftPrompt;
   bool get sending => _sending;
   bool get applyingPatch => _applyingPatch;
+  bool get applyingIdeCommand => _applyingIdeCommand;
   AgentProviderResponseEnvelope? get lastResponse => _lastResponse;
   AgentCodePatch? get pendingPatch => _pendingPatch;
   AgentCodePatchApplicationResult? get lastPatchApplicationResult =>
@@ -98,7 +100,10 @@ class AgentCodingSessionController extends ChangeNotifier {
   List<AgentConversationTurn> get conversationTurns =>
       List<AgentConversationTurn>.unmodifiable(_conversationTurns);
   bool get canSend =>
-      !_sending && !_applyingPatch && _draftPrompt.trim().isNotEmpty;
+      !_sending &&
+      !_applyingPatch &&
+      !_applyingIdeCommand &&
+      _draftPrompt.trim().isNotEmpty;
 
   void mountProvider({
     required AgentPromptProfile profile,
@@ -112,6 +117,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _cancelActiveProviderRequest();
     _sending = false;
     _applyingPatch = false;
+    _applyingIdeCommand = false;
     _providerMountMessage = message == null
         ? null
         : sanitizeAgentError(message);
@@ -303,6 +309,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       _patchApplicationSerial += 1;
       _applyingPatch = false;
     }
+    _applyingIdeCommand = false;
     _conversationTurns.clear();
     _lastResponse = null;
     _pendingPatch = null;
@@ -411,6 +418,23 @@ class AgentCodingSessionController extends ChangeNotifier {
     } else {
       _recordPatchApplicationResult(patch, result);
     }
+    notifyListeners();
+  }
+
+  bool beginIdeCommandApplication() {
+    if (_sending || _applyingPatch || _applyingIdeCommand) {
+      return false;
+    }
+    _applyingIdeCommand = true;
+    notifyListeners();
+    return true;
+  }
+
+  void endIdeCommandApplication() {
+    if (!_applyingIdeCommand) {
+      return;
+    }
+    _applyingIdeCommand = false;
     notifyListeners();
   }
 

@@ -647,7 +647,6 @@ class _AgentPromptSection extends StatefulWidget {
 class _AgentPromptSectionState extends State<_AgentPromptSection> {
   late final TextEditingController _promptController;
   bool _applyingPatch = false;
-  bool _applyingIdeCommand = false;
   String? _lastCommandApplicationMessage;
   AgentIdeCommandSuggestion? _lastRetryableCommandSuggestion;
 
@@ -715,19 +714,19 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
   Future<void> _applyIdeCommandSuggestion(
     AgentIdeCommandSuggestion command,
   ) async {
-    if (_applyingIdeCommand) {
+    if (!widget.controller.beginIdeCommandApplication()) {
       return;
     }
     final callback = widget.onApplyIdeCommandSuggestion;
     if (callback == null) {
+      widget.controller.endIdeCommandApplication();
       return;
     }
-    setState(() {
-      _applyingIdeCommand = true;
-      if (command.prerequisiteForCommandId == null) {
+    if (mounted && command.prerequisiteForCommandId == null) {
+      setState(() {
         _lastRetryableCommandSuggestion = null;
-      }
-    });
+      });
+    }
     try {
       final applied = await callback(command);
       final message = applied
@@ -754,9 +753,6 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
             : null;
       });
     } on Object {
-      if (!mounted) {
-        return;
-      }
       widget.controller.recordIdeCommandResult(
         AgentCommandResultContext(
           commandId: command.commandId,
@@ -771,16 +767,15 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
           completedAt: DateTime.now().toUtc(),
         ),
       );
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _lastCommandApplicationMessage = 'Command ${command.commandId} failed.';
         _lastRetryableCommandSuggestion = null;
       });
     } finally {
-      if (mounted) {
-        setState(() {
-          _applyingIdeCommand = false;
-        });
-      }
+      widget.controller.endIdeCommandApplication();
     }
   }
 
@@ -906,7 +901,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final conversationTurns = controller.conversationTurns;
         final attachments = controller.attachments;
         final applyingPatch = _applyingPatch || controller.applyingPatch;
-        final applyingAction = applyingPatch || _applyingIdeCommand;
+        final applyingIdeCommand = controller.applyingIdeCommand;
+        final applyingAction = applyingPatch || applyingIdeCommand;
         final canApplyPendingPatch =
             !applyingPatch &&
             inactiveDirtyPatchTargets.isEmpty &&
@@ -1164,7 +1160,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           requiredCommandRegistered:
                               requiredCommandId != null &&
                               registeredCommandIds.contains(requiredCommandId),
-                          applying: _applyingIdeCommand,
+                          applying: applyingIdeCommand,
                           onApply:
                               widget.onApplyIdeCommandSuggestion == null ||
                                   readiness?.ready == false
@@ -1209,7 +1205,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                     'agent-retry-original-command-'
                     '${_lastRetryableCommandSuggestion!.commandId}',
                   ),
-                  onPressed: _applyingIdeCommand
+                  onPressed: applyingIdeCommand
                       ? null
                       : () => unawaited(
                           _applyIdeCommandSuggestion(
@@ -1226,7 +1222,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   results: recentCommandResults,
                   registeredCommandIds: registeredCommandIds,
                   commandReadiness: commandReadiness,
-                  applying: _applyingIdeCommand,
+                  applying: applyingIdeCommand,
                   onRetry: widget.onApplyIdeCommandSuggestion == null
                       ? null
                       : (result) => unawaited(

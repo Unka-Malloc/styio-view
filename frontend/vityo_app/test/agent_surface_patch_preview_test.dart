@@ -1069,7 +1069,6 @@ void main() {
           applied: false,
           message: 'Run Tests blocked before build.',
           metadata: <String, Object?>{
-            'requiredCommand': 'runBuild',
             'testResult': <String, Object?>{
               'status': 'blocked',
               'requiredCommand': 'runBuild',

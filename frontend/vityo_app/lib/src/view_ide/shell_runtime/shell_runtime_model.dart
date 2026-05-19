@@ -1126,7 +1126,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     if (previousResult.commandId == commandId) {
       return null;
     }
-    return previousResult.metadata['requiredCommand'] == commandId
+    return requiredCommandIdFromAgentMetadata(previousResult.metadata) ==
+            commandId
         ? previousResult.commandId
         : null;
   }

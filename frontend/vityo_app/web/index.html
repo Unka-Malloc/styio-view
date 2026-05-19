@@ -15,6 +15,13 @@
     <title>Vityo</title>
   </head>
   <body>
+    <script>
+      (function () {
+        if (window.location.pathname === "/" || window.location.pathname === "") {
+          window.location.replace("/editor" + window.location.search + window.location.hash);
+        }
+      })();
+    </script>
     <script src="flutter_bootstrap.js" async></script>
   </body>
   </html>

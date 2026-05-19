@@ -1052,8 +1052,12 @@ void main() {
       expect(settingsResult?.commandId, 'openSettings');
       expect(settingsResult?.applied, isTrue);
       expect(
-        settingsResult?.metadata['completedRequiredCommandFor'],
+        settingsResult?.metadata['recoveryForCommandId'],
         'runBuild',
+      );
+      expect(
+        settingsResult?.metadata.containsKey('completedRequiredCommandFor'),
+        isFalse,
       );
       expect(settingsResult?.metadata['settingsRoute'], 'settings');
       expect(settingsResult?.metadata['settingsSection'], 'toolchain');

@@ -623,7 +623,8 @@ void main() {
     expect(applied, isTrue);
     expect(shell.activeBottomTab, BottomSurfaceTab.settings);
     expect(result?.commandId, 'openSettings');
-    expect(result?.metadata['completedRequiredCommandFor'], 'runBuild');
+    expect(result?.metadata['recoveryForCommandId'], 'runBuild');
+    expect(result?.metadata.containsKey('completedRequiredCommandFor'), isFalse);
     expect(result?.metadata['settingsRoute'], 'settings');
     expect(result?.metadata['settingsSection'], 'toolchain');
   });

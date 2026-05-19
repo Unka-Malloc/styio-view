@@ -165,6 +165,10 @@ String? _settingsRouteSummary(Map<String, Object?> metadata) {
   if (completedRequiredCommandFor != null) {
     parts.add('completed required command for $completedRequiredCommandFor');
   }
+  final recoveryForCommandId = _stringValue(metadata['recoveryForCommandId']);
+  if (recoveryForCommandId != null) {
+    parts.add('recovery for $recoveryForCommandId');
+  }
   return parts.join(' · ');
 }
 

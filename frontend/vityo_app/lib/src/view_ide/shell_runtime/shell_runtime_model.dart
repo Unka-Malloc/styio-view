@@ -1212,8 +1212,12 @@ class ShellRuntimeModel extends ChangeNotifier {
     final prerequisiteForCommandId = suggestion.prerequisiteForCommandId;
     if (prerequisiteForCommandId != null &&
         prerequisiteForCommandId.isNotEmpty) {
-      effectiveMetadata['completedRequiredCommandFor'] =
-          prerequisiteForCommandId;
+      if (suggestion.commandId == 'openSettings') {
+        effectiveMetadata['recoveryForCommandId'] = prerequisiteForCommandId;
+      } else {
+        effectiveMetadata['completedRequiredCommandFor'] =
+            prerequisiteForCommandId;
+      }
     }
     final result = AgentCommandResultContext(
       commandId: suggestion.commandId,

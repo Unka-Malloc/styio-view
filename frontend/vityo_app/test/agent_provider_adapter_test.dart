@@ -390,6 +390,7 @@ void main() {
             },
             'settingsRoute': 'settings',
             'settingsSection': 'toolchain',
+            'recoveryForCommandId': 'runBuild',
           },
           completedAt: DateTime.utc(2026, 5, 19, 1, 2, 3),
         ),
@@ -695,6 +696,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('commands.lastResult.metadata.recoveryForCommandId'),
+      );
+      expect(
+        systemMessage['content'],
         contains('commands.lastResult.metadata.backendRouteSelection'),
       );
       expect(
@@ -852,8 +857,10 @@ void main() {
         'preferredBuildEngineHandoff',
         'settingsRoute',
         'settingsSection',
+        'recoveryForCommandId',
       ]);
       expect(metadata['lastCommandRequiredCommandId'], 'runBuild');
+      expect(metadata['lastCommandRecoveryForCommandId'], 'runBuild');
       expect(metadata['lastCommandBackendRouteKind'], 'blocked');
       expect(metadata['lastCommandBackendRouteAdapterKind'], 'none');
       expect(metadata['lastCommandBackendRouteAllowed'], isFalse);

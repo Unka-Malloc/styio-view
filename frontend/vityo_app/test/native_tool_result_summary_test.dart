@@ -57,9 +57,9 @@ void main() {
       nativeToolMetadataSummaryText(const <String, Object?>{
         'settingsRoute': 'settings',
         'settingsSection': 'toolchain',
-        'completedRequiredCommandFor': 'runBuild',
+        'recoveryForCommandId': 'runBuild',
       }),
-      'settings route settings · section toolchain · completed required command for runBuild',
+      'settings route settings · section toolchain · recovery for runBuild',
     );
   });
 

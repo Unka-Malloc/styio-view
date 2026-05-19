@@ -1115,6 +1115,9 @@ Map<String, Object?> _lastCommandResultMetadata(
       .where((key) => key.trim().isNotEmpty)
       .toList(growable: false);
   final requiredCommandId = requiredCommandIdFromAgentMetadata(result.metadata);
+  final recoveryForCommandId = _metadataString(
+    result.metadata['recoveryForCommandId'],
+  );
   final backendRoute = backendRouteFromAgentMetadata(result.metadata);
   final settingsRoute = _metadataString(result.metadata['settingsRoute']);
   final settingsSection = _metadataString(result.metadata['settingsSection']);
@@ -1143,6 +1146,8 @@ Map<String, Object?> _lastCommandResultMetadata(
     if (metadataKeys.isNotEmpty) 'lastCommandMetadataKeys': metadataKeys,
     if (requiredCommandId != null)
       'lastCommandRequiredCommandId': requiredCommandId,
+    if (recoveryForCommandId != null)
+      'lastCommandRecoveryForCommandId': recoveryForCommandId,
     if (backendRoute != null) ...<String, Object?>{
       'lastCommandBackendRouteKind': backendRoute.routeKind,
       if (backendRoute.adapterKind != null)
@@ -1340,6 +1345,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.lastPatchApplication, treat it as the latest structured IDE patch application outcome.
 - If commands.lastResult.metadata.requiredCommand is present, propose that registered command before retrying the blocked operation.
 - If commands.lastResult.metadata.completedRequiredCommandFor is present, treat that command ID as the previously blocked operation that may now be retried when still relevant.
+- If commands.lastResult.metadata.recoveryForCommandId is present, treat that command ID as still blocked until the user or settings flow changes the underlying readiness facts.
 - If commands.lastResult.metadata.backendRouteSelection is present, inspect routeKind, adapterKind, allowed, previewOnly, and blockedReason before proposing build, run, test, retry, or provider/toolchain reconfiguration.
 - If commands.lastResult.metadata.backendRouteSelection.allowed is false and commands.settingsCommands includes openSettings, propose openSettings before retrying the blocked route.
 - If commands.lastResult.metadata.toolchainSelectionStatus is present, inspect toolchainId, cppStandard, and status before proposing build, test, or another selectClangCppVersion command.

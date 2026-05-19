@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
@@ -24,6 +25,7 @@ import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/view_ide/editor/selection/selection_state.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
+import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_language_service.dart';
@@ -1051,10 +1053,7 @@ void main() {
       final settingsResult = shell.agentSessionContext.commands.lastResult;
       expect(settingsResult?.commandId, 'openSettings');
       expect(settingsResult?.applied, isTrue);
-      expect(
-        settingsResult?.metadata['recoveryForCommandId'],
-        'runBuild',
-      );
+      expect(settingsResult?.metadata['recoveryForCommandId'], 'runBuild');
       expect(
         settingsResult?.metadata.containsKey('completedRequiredCommandFor'),
         isFalse,
@@ -1236,8 +1235,7 @@ void main() {
     final toolchainsJson =
         shell.agentSessionContext.toJson()['toolchains']!
             as Map<String, Object?>;
-    final clangCppJson =
-        toolchainsJson['clangCpp']! as Map<String, Object?>;
+    final clangCppJson = toolchainsJson['clangCpp']! as Map<String, Object?>;
 
     expect(applied, isTrue);
     expect(result?.commandId, 'selectClangCppVersion');
@@ -1737,6 +1735,22 @@ void main() {
         'src/main.styio': initialDocument,
       },
     );
+    final languageServiceStatus = ValueNotifier<LanguageServiceStatusSurface>(
+      const LanguageServiceStatusSurface(
+        runtimeState: 'active',
+        severity: LanguageServiceStatusSeverity.ready,
+        title: 'StyioService ready',
+        message: 'StyioService has fresh diagnostics.',
+        toolchainId: 'styio-cli-nightly',
+        parserEngine: 'nightly',
+        grammarVersion: '2026.05',
+        usableCapabilityCount: 1,
+        freshCapabilityCount: 1,
+        primaryCapabilityStates: <String, String>{'diagnostics': 'available'},
+        capabilities: <LanguageServiceCapabilityStatusItem>[],
+      ),
+    );
+    addTearDown(languageServiceStatus.dispose);
     var refreshCount = 0;
     final shell = ShellRuntimeModel(
       platformTarget: PlatformTarget.macos,
@@ -1765,6 +1779,7 @@ void main() {
       refreshActiveLanguageService: () async {
         refreshCount += 1;
       },
+      languageServiceStatus: languageServiceStatus,
     );
     addTearDown(shell.dispose);
 
@@ -1777,7 +1792,9 @@ void main() {
     expect(refreshCount, 1);
     expect(lastResult?.commandId, 'refreshLanguageService');
     expect(lastResult?.applied, isTrue);
-    expect(lastResult?.metadata['languageServiceSeverity'], 'unavailable');
+    expect(lastResult?.metadata['languageServiceSeverity'], 'ready');
+    expect(lastResult?.metadata['languageServiceParserEngine'], 'nightly');
+    expect(lastResult?.metadata['languageServiceGrammarVersion'], '2026.05');
     expect(
       lastResult?.metadata['languageServicePrimaryCapabilityStates'],
       isA<Map<String, String>>(),

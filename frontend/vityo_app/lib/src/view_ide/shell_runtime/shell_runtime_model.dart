@@ -241,9 +241,7 @@ class _ClangCppVersionCommandInput {
   final String? cppStandard;
 }
 
-_ClangCppVersionCommandInput? _parseClangCppVersionCommandInput(
-  String? input,
-) {
+_ClangCppVersionCommandInput? _parseClangCppVersionCommandInput(String? input) {
   final trimmed = input?.trim();
   if (trimmed == null || trimmed.isEmpty) {
     return null;
@@ -253,9 +251,7 @@ _ClangCppVersionCommandInput? _parseClangCppVersionCommandInput(
   if (versionId.isEmpty) {
     return null;
   }
-  final cppStandard = parts.length <= 1
-      ? null
-      : parts.skip(1).join(' ').trim();
+  final cppStandard = parts.length <= 1 ? null : parts.skip(1).join(' ').trim();
   return _ClangCppVersionCommandInput(
     versionId: versionId,
     cppStandard: cppStandard == null || cppStandard.isEmpty
@@ -1709,9 +1705,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
   }
 
-  Map<String, Object?> _nativeToolBackendRouteMetadata(
-    AppCommandId commandId,
-  ) {
+  Map<String, Object?> _nativeToolBackendRouteMetadata(AppCommandId commandId) {
     switch (commandId) {
       case AppCommandId.runBuild:
       case AppCommandId.runTests:
@@ -3928,6 +3922,10 @@ class ShellRuntimeModel extends ChangeNotifier {
         'languageServiceFreshCapabilityCount': status.freshCapabilityCount,
         'languageServicePrimaryCapabilityStates':
             status.primaryCapabilityStates,
+        if (status.parserEngine != null)
+          'languageServiceParserEngine': status.parserEngine,
+        if (status.grammarVersion != null)
+          'languageServiceGrammarVersion': status.grammarVersion,
       };
       const message = 'Language service refresh requested.';
       appendLog(message);
@@ -4471,6 +4469,7 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
       }
     }
+
     final restoredOpenDocumentIds = snapshot.openDocumentIds
         .where(workspaceController.files.contains)
         .toList(growable: false);

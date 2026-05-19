@@ -111,6 +111,10 @@ void main() {
       );
       expect(
         decoded.systemPrompt,
+        contains('toolchains.clangCpp.selection.candidate.version'),
+      );
+      expect(
+        decoded.systemPrompt,
         contains('toolchains.clangCpp.selection.preferredBuildEngineHandoff'),
       );
       expect(

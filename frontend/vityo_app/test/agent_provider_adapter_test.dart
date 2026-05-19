@@ -550,6 +550,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('toolchains.clangCpp.selection.candidate.version'),
+      );
+      expect(
+        systemMessage['content'],
         contains('toolchains.clangCpp.selection.preferredBuildEngineHandoff'),
       );
       expect(

@@ -33,6 +33,7 @@ void main() {
               'compilerFamily': 'clang',
               'cCompilerPath': '/usr/bin/clang',
               'cxxCompilerPath': '/usr/bin/clang++',
+              'clangVendor': 'llvm',
               'defaultForNativeCode': true,
             },
           ),
@@ -59,9 +60,21 @@ void main() {
     final json = context.toJson();
     final toolchainsJson = json['toolchains']! as Map<String, Object?>;
     final clangCppJson = toolchainsJson['clangCpp']! as Map<String, Object?>;
+    final candidatesJson = clangCppJson['candidates']! as List<Object?>;
     final selectionJson = clangCppJson['selection']! as Map<String, Object?>;
+    final selectedCandidateJson =
+        selectionJson['candidate']! as Map<String, Object?>;
 
     expect(clangCppJson['candidateCount'], 1);
+    expect(
+      (candidatesJson.single! as Map<String, Object?>)['version'],
+      '18.1.8',
+    );
+    expect(
+      ((candidatesJson.single! as Map<String, Object?>)['metadata']!
+          as Map<String, Object?>)['clangVendor'],
+      'llvm',
+    );
     expect(clangCppJson['activeVersionId'], 'native-clang-cpp-compiler');
     expect(clangCppJson['requestedVersionId'], 'native-clang-cpp-compiler');
     expect(clangCppJson['preferenceStatus'], 'configured');
@@ -71,6 +84,7 @@ void main() {
     expect(clangCppJson['ninjaAvailable'], isTrue);
     expect(clangCppJson['ninjaToolchainId'], 'native-ninja-build-tool');
     expect(clangCppJson['ninjaExecutablePath'], '/usr/bin/ninja');
+    expect(selectedCandidateJson['version'], '18.1.8');
     expect(selectionJson['cmakeConfigureArguments'], <String>[
       '-DCMAKE_C_COMPILER=/usr/bin/clang',
       '-DCMAKE_CXX_COMPILER=/usr/bin/clang++',

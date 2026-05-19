@@ -1988,6 +1988,35 @@ void main() {
     expect(skillsJson['activationReasons'], isA<Map<String, Object?>>());
   });
 
+  test('agent workspace context activates native skills for Ninja build files', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'README.md',
+        text: '# Demo\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>['build/build.ninja'],
+      activeFilePath: 'README.md',
+    );
+
+    final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+    final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
+    final activationReasons =
+        skillsJson['activationReasons']! as Map<String, Object?>;
+
+    expect(activeSkillIds, contains('cpp-clang-toolchain-defaults'));
+    expect(activeSkillIds, contains('cpp-clang-version-handoff'));
+    expect(activeSkillIds, contains('cpp-cmake-build-graph'));
+    expect(
+      activationReasons['cpp-cmake-build-graph'],
+      contains(
+        'Ninja build files are present and configured native build targets should guide build edits.',
+      ),
+    );
+  });
+
   test('agent workspace context serializes latest workspace search result', () {
     final search = AgentWorkspaceSearchResultContext.fromDocuments(
       query: 'needle',

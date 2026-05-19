@@ -272,6 +272,9 @@ class AgentCodingSkillCatalog {
       (path) => path.endsWith('/compile_commands.json'),
     );
     final hasCMake = normalizedPaths.any(_isCMakePath);
+    final hasNinjaBuild = normalizedPaths.any(
+      (path) => path.endsWith('/build.ninja'),
+    );
     final hasClangdConfig = normalizedPaths.any(
       (path) => path.endsWith('/.clangd'),
     );
@@ -290,6 +293,7 @@ class AgentCodingSkillCatalog {
         hasNativeSource ||
         hasCompilationDatabase ||
         hasCMake ||
+        hasNinjaBuild ||
         hasClangdConfig ||
         hasClangFormatConfig ||
         hasClangTidyConfig;
@@ -327,9 +331,11 @@ class AgentCodingSkillCatalog {
       ]);
     }
 
-    if (hasCMake) {
+    if (hasCMake || hasNinjaBuild) {
       activate('cpp-cmake-build-graph', <String>[
-        'CMake project files are present and target ownership should guide build edits.',
+        hasCMake
+            ? 'CMake project files are present and target ownership should guide build edits.'
+            : 'Ninja build files are present and configured native build targets should guide build edits.',
       ]);
     }
 

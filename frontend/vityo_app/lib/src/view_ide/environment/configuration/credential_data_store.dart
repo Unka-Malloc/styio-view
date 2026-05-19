@@ -300,6 +300,190 @@ class CredentialDataStoreSnapshot {
   }
 }
 
+enum CredentialInjectionStatus {
+  injected,
+  missingCredential,
+  expiredCredential,
+  kindMismatch,
+  emptySecret,
+}
+
+class CredentialInjectionBinding {
+  const CredentialInjectionBinding({
+    required this.targetName,
+    required this.reference,
+    this.valuePrefix = '',
+  });
+
+  final String targetName;
+  final CredentialReference reference;
+  final String valuePrefix;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'targetName': targetName,
+      'reference': reference.toJson(),
+      if (valuePrefix.isNotEmpty) 'valuePrefix': valuePrefix,
+    };
+  }
+}
+
+class CredentialInjectedValue {
+  const CredentialInjectedValue({
+    required this.targetName,
+    required this.reference,
+    required this.value,
+    required this.redactedValue,
+  });
+
+  final String targetName;
+  final CredentialReference reference;
+  final String value;
+  final String redactedValue;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'targetName': targetName,
+      'reference': reference.toJson(),
+      'redactedValue': redactedValue,
+    };
+  }
+}
+
+class CredentialInjectionResult {
+  const CredentialInjectionResult({
+    required this.binding,
+    required this.status,
+    this.injectedValue,
+    this.metadata,
+  });
+
+  final CredentialInjectionBinding binding;
+  final CredentialInjectionStatus status;
+  final CredentialInjectedValue? injectedValue;
+  final CredentialMetadata? metadata;
+
+  bool get injected => status == CredentialInjectionStatus.injected;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'binding': binding.toJson(),
+      'status': status.name,
+      if (injectedValue != null) 'injectedValue': injectedValue!.toJson(),
+      if (metadata != null) 'metadata': metadata!.toJson(),
+    };
+  }
+}
+
+class CredentialInjectionBatch {
+  const CredentialInjectionBatch({required this.results});
+
+  final List<CredentialInjectionResult> results;
+
+  bool get ready {
+    return results.every((result) => result.injected);
+  }
+
+  Map<String, String> get injectedValues {
+    return <String, String>{
+      for (final result in results)
+        if (result.injectedValue != null)
+          result.injectedValue!.targetName: result.injectedValue!.value,
+    };
+  }
+
+  Map<String, String> get redactedValues {
+    return <String, String>{
+      for (final result in results)
+        if (result.injectedValue != null)
+          result.injectedValue!.targetName: result.injectedValue!.redactedValue,
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'results': results.map((result) => result.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class CredentialSecretInjector {
+  const CredentialSecretInjector({required this.credentialDataStore});
+
+  final CredentialDataStore credentialDataStore;
+
+  Future<CredentialInjectionResult> inject(
+    CredentialInjectionBinding binding,
+  ) async {
+    final record = await credentialDataStore.read(binding.reference.key);
+    final metadata = await _metadataFor(binding.reference.key);
+    if (record == null) {
+      return CredentialInjectionResult(
+        binding: binding,
+        status: metadata?.expired == true
+            ? CredentialInjectionStatus.expiredCredential
+            : CredentialInjectionStatus.missingCredential,
+        metadata: metadata,
+      );
+    }
+    if (record.kind != binding.reference.kind) {
+      return CredentialInjectionResult(
+        binding: binding,
+        status: CredentialInjectionStatus.kindMismatch,
+        metadata: record.toMetadata(),
+      );
+    }
+    final secret = record.secretValue.trim();
+    if (secret.isEmpty) {
+      return CredentialInjectionResult(
+        binding: binding,
+        status: CredentialInjectionStatus.emptySecret,
+        metadata: record.toMetadata(),
+      );
+    }
+    final redacted = _redactSecret(secret);
+    return CredentialInjectionResult(
+      binding: binding,
+      status: CredentialInjectionStatus.injected,
+      injectedValue: CredentialInjectedValue(
+        targetName: binding.targetName,
+        reference: binding.reference,
+        value: '${binding.valuePrefix}$secret',
+        redactedValue: '${binding.valuePrefix}$redacted',
+      ),
+      metadata: record.toMetadata(),
+    );
+  }
+
+  String _redactSecret(String value) {
+    if (value.length <= 4) {
+      return '****';
+    }
+    return '${value.substring(0, 2)}****${value.substring(value.length - 2)}';
+  }
+
+  Future<CredentialInjectionBatch> injectAll(
+    Iterable<CredentialInjectionBinding> bindings,
+  ) async {
+    final results = <CredentialInjectionResult>[];
+    for (final binding in bindings) {
+      results.add(await inject(binding));
+    }
+    return CredentialInjectionBatch(results: results);
+  }
+
+  Future<CredentialMetadata?> _metadataFor(CredentialDataStoreKey key) async {
+    final credentials = await credentialDataStore.list(scope: key.scope);
+    for (final credential in credentials) {
+      if (credential.key.stableId == key.stableId) {
+        return credential;
+      }
+    }
+    return null;
+  }
+}
+
 abstract class CredentialDataStore {
   Future<void> write(CredentialSecretRecord record);
 

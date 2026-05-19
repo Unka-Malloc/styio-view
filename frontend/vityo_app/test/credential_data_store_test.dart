@@ -72,6 +72,140 @@ void main() {
     expect(jsonText, isNot(contains('secret')));
   });
 
+  test('credential secret injector resolves values without serializing secrets', () async {
+    final store = InMemoryCredentialDataStore();
+    const key = CredentialDataStoreKey(
+      namespace: 'agent.provider',
+      name: 'openai',
+      scope: CredentialScope.user,
+    );
+    const reference = CredentialReference(
+      key: key,
+      kind: CredentialKind.token,
+      displayName: 'OpenAI token',
+    );
+    await store.write(
+      CredentialSecretRecord(
+        key: key,
+        kind: CredentialKind.token,
+        secretValue: '  live-token-value  ',
+      ),
+    );
+
+    final batch = await CredentialSecretInjector(
+      credentialDataStore: store,
+    ).injectAll(
+      const <CredentialInjectionBinding>[
+        CredentialInjectionBinding(
+          targetName: 'Authorization',
+          reference: reference,
+          valuePrefix: 'Bearer ',
+        ),
+      ],
+    );
+    final jsonText = batch.toJson().toString();
+
+    expect(batch.ready, isTrue);
+    expect(batch.injectedValues['Authorization'], 'Bearer live-token-value');
+    expect(batch.redactedValues['Authorization'], 'Bearer li****ue');
+    expect(jsonText, contains('redactedValue'));
+    expect(jsonText, isNot(contains('live-token-value')));
+  });
+
+  test('credential secret injector fails closed for unsafe references', () async {
+    final store = InMemoryCredentialDataStore();
+    final expiredAt = DateTime.now().toUtc().subtract(const Duration(minutes: 1));
+    const expiredKey = CredentialDataStoreKey(
+      namespace: 'agent.provider',
+      name: 'expired',
+      scope: CredentialScope.user,
+    );
+    const emptyKey = CredentialDataStoreKey(
+      namespace: 'agent.provider',
+      name: 'empty',
+      scope: CredentialScope.user,
+    );
+    const mismatchedKey = CredentialDataStoreKey(
+      namespace: 'agent.provider',
+      name: 'mismatched',
+      scope: CredentialScope.user,
+    );
+    await store.write(
+      CredentialSecretRecord(
+        key: expiredKey,
+        kind: CredentialKind.token,
+        secretValue: 'expired-token',
+        expiresAt: expiredAt,
+      ),
+    );
+    await store.write(
+      CredentialSecretRecord(
+        key: emptyKey,
+        kind: CredentialKind.token,
+        secretValue: '   ',
+      ),
+    );
+    await store.write(
+      CredentialSecretRecord(
+        key: mismatchedKey,
+        kind: CredentialKind.remoteServiceCredential,
+        secretValue: 'service-token',
+      ),
+    );
+
+    final batch = await CredentialSecretInjector(
+      credentialDataStore: store,
+    ).injectAll(
+      const <CredentialInjectionBinding>[
+        CredentialInjectionBinding(
+          targetName: 'expired',
+          reference: CredentialReference(
+            key: expiredKey,
+            kind: CredentialKind.token,
+          ),
+        ),
+        CredentialInjectionBinding(
+          targetName: 'missing',
+          reference: CredentialReference(
+            key: CredentialDataStoreKey(
+              namespace: 'agent.provider',
+              name: 'missing',
+              scope: CredentialScope.user,
+            ),
+            kind: CredentialKind.token,
+          ),
+        ),
+        CredentialInjectionBinding(
+          targetName: 'empty',
+          reference: CredentialReference(
+            key: emptyKey,
+            kind: CredentialKind.token,
+          ),
+        ),
+        CredentialInjectionBinding(
+          targetName: 'mismatched',
+          reference: CredentialReference(
+            key: mismatchedKey,
+            kind: CredentialKind.token,
+          ),
+        ),
+      ],
+    );
+    final statuses = <String, CredentialInjectionStatus>{
+      for (final result in batch.results) result.binding.targetName: result.status,
+    };
+    final jsonText = batch.toJson().toString();
+
+    expect(batch.ready, isFalse);
+    expect(batch.injectedValues, isEmpty);
+    expect(statuses['expired'], CredentialInjectionStatus.expiredCredential);
+    expect(statuses['missing'], CredentialInjectionStatus.missingCredential);
+    expect(statuses['empty'], CredentialInjectionStatus.emptySecret);
+    expect(statuses['mismatched'], CredentialInjectionStatus.kindMismatch);
+    expect(jsonText, isNot(contains('expired-token')));
+    expect(jsonText, isNot(contains('service-token')));
+  });
+
   test('credential data store deletes credentials by stable key', () async {
     final store = InMemoryCredentialDataStore();
     const key = CredentialDataStoreKey(

@@ -13,12 +13,16 @@ class AgentProviderCredentialResolver {
     if (reference == null) {
       return null;
     }
-    final record = await configurationStore.resolveCredential(reference);
-    final token = record?.secretValue.trim();
-    if (token == null || token.isEmpty) {
+    final result = await configurationStore.injectCredential(
+      CredentialInjectionBinding(
+        targetName: 'Authorization',
+        reference: reference,
+      ),
+    );
+    if (!result.injected) {
       return null;
     }
-    return token;
+    return result.injectedValue!.value;
   }
 }
 

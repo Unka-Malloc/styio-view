@@ -314,6 +314,22 @@ class ConfigurationStore {
     return _credentialDataStore.read(reference.key);
   }
 
+  Future<CredentialInjectionResult> injectCredential(
+    CredentialInjectionBinding binding,
+  ) {
+    return CredentialSecretInjector(
+      credentialDataStore: _credentialDataStore,
+    ).inject(binding);
+  }
+
+  Future<CredentialInjectionBatch> injectCredentials(
+    Iterable<CredentialInjectionBinding> bindings,
+  ) {
+    return CredentialSecretInjector(
+      credentialDataStore: _credentialDataStore,
+    ).injectAll(bindings);
+  }
+
   FoundationDataStoreNamespace _namespaceFor(ConfigurationSettingKey key) {
     return FoundationDataStoreNamespace(
       name: 'configuration.${key.namespace}',

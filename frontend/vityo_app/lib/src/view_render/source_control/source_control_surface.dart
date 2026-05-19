@@ -28,6 +28,7 @@ class SourceControlSurface extends StatelessWidget {
     final providerKind =
         status?.providerKind.wireValue ?? 'local-dirty-documents';
     final gitChanges = status?.changes ?? const <SourceControlFileChange>[];
+    final statusAvailable = status?.available ?? true;
 
     return Card(
       key: const ValueKey('source-control-surface'),
@@ -39,7 +40,7 @@ class SourceControlSurface extends StatelessWidget {
             Text('Source Control', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              'Local IDE change surface backed by dirty editor documents. TODO: add Git provider detection, status, staging, commit, diff, branch, and history contracts.',
+              'Local IDE change surface backed by dirty editor documents and injectable SCM providers. TODO: wire Git runner through Platform/Process Manager, staging, commit, diff, branch, and history contracts.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -50,6 +51,8 @@ class SourceControlSurface extends StatelessWidget {
                 Chip(label: Text('workspace-files $workspaceFileCount')),
                 Chip(label: Text('changed ${changedDocumentIds.length}')),
                 Chip(label: Text('provider $providerKind')),
+                if (!statusAvailable)
+                  const Chip(label: Text('provider unavailable')),
                 if (status?.branchName.isNotEmpty == true)
                   Chip(label: Text('branch ${status!.branchName}')),
                 if (status != null)
@@ -57,6 +60,16 @@ class SourceControlSurface extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            if (!statusAvailable && status?.message.isNotEmpty == true) ...[
+              Text(
+                status!.message,
+                key: const ValueKey('source-control-provider-message'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Wrap(
               spacing: 10,
               runSpacing: 8,

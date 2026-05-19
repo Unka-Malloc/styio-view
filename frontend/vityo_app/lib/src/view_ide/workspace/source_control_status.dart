@@ -66,16 +66,140 @@ class SourceControlStatusSnapshot {
   const SourceControlStatusSnapshot({
     required this.providerKind,
     required this.changes,
+    this.available = true,
     this.branchName = '',
     this.message = '',
   });
 
   final SourceControlProviderKind providerKind;
   final List<SourceControlFileChange> changes;
+  final bool available;
   final String branchName;
   final String message;
 
   bool get clean => changes.isEmpty;
+}
+
+class SourceControlCommandRequest {
+  const SourceControlCommandRequest({
+    required this.executable,
+    required this.arguments,
+    required this.workingDirectory,
+  });
+
+  final String executable;
+  final List<String> arguments;
+  final String workingDirectory;
+}
+
+class SourceControlCommandResult {
+  const SourceControlCommandResult({
+    required this.exitCode,
+    this.stdout = '',
+    this.stderr = '',
+  });
+
+  final int exitCode;
+  final String stdout;
+  final String stderr;
+}
+
+typedef SourceControlCommandRunner =
+    Future<SourceControlCommandResult> Function(
+      SourceControlCommandRequest request,
+    );
+
+abstract class SourceControlStatusProvider {
+  const SourceControlStatusProvider();
+
+  SourceControlProviderKind get providerKind;
+
+  Future<SourceControlStatusSnapshot> status({required String workspaceRoot});
+}
+
+class StaticSourceControlStatusProvider extends SourceControlStatusProvider {
+  const StaticSourceControlStatusProvider(this.snapshot);
+
+  final SourceControlStatusSnapshot snapshot;
+
+  @override
+  SourceControlProviderKind get providerKind => snapshot.providerKind;
+
+  @override
+  Future<SourceControlStatusSnapshot> status({
+    required String workspaceRoot,
+  }) async {
+    return snapshot;
+  }
+}
+
+class GitPorcelainStatusProvider extends SourceControlStatusProvider {
+  const GitPorcelainStatusProvider({
+    required this.runner,
+    this.parser = const GitPorcelainStatusParser(),
+    this.executable = 'git',
+  });
+
+  final SourceControlCommandRunner runner;
+  final GitPorcelainStatusParser parser;
+  final String executable;
+
+  static const List<String> statusArguments = <String>[
+    'status',
+    '--porcelain=v1',
+    '--branch',
+  ];
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlStatusSnapshot> status({
+    required String workspaceRoot,
+  }) async {
+    try {
+      final result = await runner(
+        SourceControlCommandRequest(
+          executable: executable,
+          arguments: statusArguments,
+          workingDirectory: workspaceRoot,
+        ),
+      );
+      if (result.exitCode == 0) {
+        return parser.parse(result.stdout);
+      }
+      return _unavailable(
+        _failureMessage(
+          result.exitCode,
+          stderr: result.stderr,
+          stdout: result.stdout,
+        ),
+      );
+    } on Object catch (error) {
+      return _unavailable('Git status unavailable: $error');
+    }
+  }
+
+  SourceControlStatusSnapshot _unavailable(String message) {
+    return SourceControlStatusSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      available: false,
+      changes: const <SourceControlFileChange>[],
+      message: message,
+    );
+  }
+}
+
+String _failureMessage(
+  int exitCode, {
+  required String stderr,
+  required String stdout,
+}) {
+  final detail = stderr.trim().isNotEmpty ? stderr.trim() : stdout.trim();
+  if (detail.isEmpty) {
+    return 'Git status failed with exit code $exitCode.';
+  }
+  return 'Git status failed with exit code $exitCode: $detail';
 }
 
 class GitPorcelainStatusParser {

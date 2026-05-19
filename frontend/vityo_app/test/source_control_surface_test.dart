@@ -71,4 +71,38 @@ R  src/old.styio -> src/new.styio
     expect(openedDocumentId, 'src/main.styio');
     expect(saveAllCount, 1);
   });
+
+  testWidgets('source control surface renders unavailable provider state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SourceControlSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            workspaceFileCount: 3,
+            changedDocumentIds: const <String>[],
+            status: const SourceControlStatusSnapshot(
+              providerKind: SourceControlProviderKind.git,
+              available: false,
+              changes: <SourceControlFileChange>[],
+              message: 'Git status failed with exit code 128.',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('provider git'), findsOneWidget);
+    expect(find.text('provider unavailable'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('source-control-provider-message')),
+      findsOneWidget,
+    );
+    expect(find.text('Git status failed with exit code 128.'), findsOneWidget);
+  });
 }

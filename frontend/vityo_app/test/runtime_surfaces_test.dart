@@ -416,6 +416,7 @@ void main() {
   ) async {
     String? selectedFrameId;
     String? selectedThreadId;
+    final debugCommands = <String>[];
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -559,6 +560,12 @@ void main() {
                 payload: const <String, Object?>{'success': true},
               ),
             ],
+            onStartDebugging: () async {
+              debugCommands.add('start');
+            },
+            onStopDebugging: () async {
+              debugCommands.add('stop');
+            },
             onSelectStackFrame: (frameId) {
               selectedFrameId = frameId;
             },
@@ -574,6 +581,20 @@ void main() {
     expect(find.text('Debugger Session'), findsOneWidget);
     expect(find.text('status configured'), findsOneWidget);
     expect(find.text('debugger Fake LLDB'), findsOneWidget);
+    expect(find.text('Debug Controls'), findsOneWidget);
+    expect(
+      find.text('adapter not attached · pending 0 · events 0'),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('debug-control-start')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('debug-control-start')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('debug-control-stop')));
+    await tester.pump();
+    expect(debugCommands, <String>['start', 'stop']);
     expect(find.text('breakpoints 1'), findsOneWidget);
     expect(find.text('src/main.cc:1'), findsOneWidget);
     expect(find.text('Threads'), findsOneWidget);
@@ -659,6 +680,60 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('filter family=log · stream=stdout'), findsOneWidget);
+  });
+
+  testWidgets('debug console exposes paused session stepping controls', (
+    tester,
+  ) async {
+    final debugCommands = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DebugConsoleSurface(
+            viewportProfile: const ViewportProfile(
+              family: ViewportFamily.desktop,
+              width: 1440,
+              height: 900,
+            ),
+            entries: const <String>[],
+            runtimeEvents: const <RuntimeEventEnvelope>[],
+            debugSession: const DebugSessionSnapshot(
+              status: DebugSessionStatus.paused,
+              message: 'Paused on breakpoint.',
+              debuggerId: 'lldb-dap',
+              debuggerLabel: 'LLDB DAP',
+              adapterSessionStatus: 'paused',
+              adapterPendingRequestCount: 1,
+              adapterEventCount: 2,
+            ),
+            onContinueDebugging: () async {
+              debugCommands.add('continue');
+            },
+            onStepOver: () async {
+              debugCommands.add('step-over');
+            },
+            onStopDebugging: () async {
+              debugCommands.add('stop');
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('status paused'), findsOneWidget);
+    expect(find.text('adapter paused · pending 1 · events 2'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('debug-control-continue')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('debug-control-continue')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('debug-control-step-over')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('debug-control-stop')));
+    await tester.pump();
+
+    expect(debugCommands, <String>['continue', 'step-over', 'stop']);
   });
 
   testWidgets('runtime surface route text uses primary adapter detail', (

@@ -15,6 +15,10 @@ class DebugConsoleSurface extends StatelessWidget {
       status: DebugSessionStatus.idle,
       message: 'No debug session has been started.',
     ),
+    this.onStartDebugging,
+    this.onStopDebugging,
+    this.onContinueDebugging,
+    this.onStepOver,
     this.onSelectStackFrame,
     this.onSelectThread,
   });
@@ -23,6 +27,10 @@ class DebugConsoleSurface extends StatelessWidget {
   final List<String> entries;
   final List<RuntimeEventEnvelope> runtimeEvents;
   final DebugSessionSnapshot debugSession;
+  final Future<void> Function()? onStartDebugging;
+  final Future<void> Function()? onStopDebugging;
+  final Future<void> Function()? onContinueDebugging;
+  final Future<void> Function()? onStepOver;
   final ValueChanged<String>? onSelectStackFrame;
   final ValueChanged<String>? onSelectThread;
 
@@ -250,6 +258,10 @@ class DebugConsoleSurface extends StatelessWidget {
                     child: SingleChildScrollView(
                       child: _DebuggerSessionSection(
                         session: debugSession,
+                        onStartDebugging: onStartDebugging,
+                        onStopDebugging: onStopDebugging,
+                        onContinueDebugging: onContinueDebugging,
+                        onStepOver: onStepOver,
                         onSelectStackFrame: onSelectStackFrame,
                         onSelectThread: onSelectThread,
                       ),
@@ -295,11 +307,19 @@ class DebugConsoleSurface extends StatelessWidget {
 class _DebuggerSessionSection extends StatelessWidget {
   const _DebuggerSessionSection({
     required this.session,
+    this.onStartDebugging,
+    this.onStopDebugging,
+    this.onContinueDebugging,
+    this.onStepOver,
     this.onSelectStackFrame,
     this.onSelectThread,
   });
 
   final DebugSessionSnapshot session;
+  final Future<void> Function()? onStartDebugging;
+  final Future<void> Function()? onStopDebugging;
+  final Future<void> Function()? onContinueDebugging;
+  final Future<void> Function()? onStepOver;
   final ValueChanged<String>? onSelectStackFrame;
   final ValueChanged<String>? onSelectThread;
 
@@ -335,6 +355,14 @@ class _DebuggerSessionSection extends StatelessWidget {
               style: theme.textTheme.bodySmall,
             ),
           ],
+          const SizedBox(height: 8),
+          _DebugControlStrip(
+            session: session,
+            onStartDebugging: onStartDebugging,
+            onStopDebugging: onStopDebugging,
+            onContinueDebugging: onContinueDebugging,
+            onStepOver: onStepOver,
+          ),
           const SizedBox(height: 4),
           Text(
             'breakpoints ${breakpoints.length}',
@@ -417,4 +445,128 @@ class _DebuggerSessionSection extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DebugControlStrip extends StatelessWidget {
+  const _DebugControlStrip({
+    required this.session,
+    this.onStartDebugging,
+    this.onStopDebugging,
+    this.onContinueDebugging,
+    this.onStepOver,
+  });
+
+  final DebugSessionSnapshot session;
+  final Future<void> Function()? onStartDebugging;
+  final Future<void> Function()? onStopDebugging;
+  final Future<void> Function()? onContinueDebugging;
+  final Future<void> Function()? onStepOver;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final status = session.status;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Debug Controls', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _DebugControlButton(
+              key: const ValueKey('debug-control-start'),
+              label: 'Start',
+              enabled: _canStartDebugging(status),
+              onPressed: onStartDebugging,
+            ),
+            _DebugControlButton(
+              key: const ValueKey('debug-control-continue'),
+              label: 'Continue',
+              enabled: _canContinueDebugging(status),
+              onPressed: onContinueDebugging,
+            ),
+            _DebugControlButton(
+              key: const ValueKey('debug-control-step-over'),
+              label: 'Step Over',
+              enabled: _canStepOver(status),
+              onPressed: onStepOver,
+            ),
+            _DebugControlButton(
+              key: const ValueKey('debug-control-stop'),
+              label: 'Stop',
+              enabled: _canStopDebugging(status),
+              onPressed: onStopDebugging,
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'adapter ${session.adapterSessionStatus ?? 'not attached'} · '
+          'pending ${session.adapterPendingRequestCount} · '
+          'events ${session.adapterEventCount}',
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
+class _DebugControlButton extends StatelessWidget {
+  const _DebugControlButton({
+    super.key,
+    required this.label,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool enabled;
+  final Future<void> Function()? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final callback = onPressed;
+    return OutlinedButton(
+      onPressed: enabled && callback != null
+          ? () async {
+              await callback();
+            }
+          : null,
+      child: Text(label),
+    );
+  }
+}
+
+bool _canStartDebugging(DebugSessionStatus status) {
+  return switch (status) {
+    DebugSessionStatus.idle ||
+    DebugSessionStatus.blocked ||
+    DebugSessionStatus.configured ||
+    DebugSessionStatus.stopped => true,
+    DebugSessionStatus.launching ||
+    DebugSessionStatus.running ||
+    DebugSessionStatus.paused => false,
+  };
+}
+
+bool _canStopDebugging(DebugSessionStatus status) {
+  return switch (status) {
+    DebugSessionStatus.configured ||
+    DebugSessionStatus.launching ||
+    DebugSessionStatus.running ||
+    DebugSessionStatus.paused => true,
+    DebugSessionStatus.idle ||
+    DebugSessionStatus.blocked ||
+    DebugSessionStatus.stopped => false,
+  };
+}
+
+bool _canContinueDebugging(DebugSessionStatus status) {
+  return status == DebugSessionStatus.paused;
+}
+
+bool _canStepOver(DebugSessionStatus status) {
+  return status == DebugSessionStatus.paused;
 }

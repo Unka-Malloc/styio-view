@@ -43,6 +43,54 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  testWidgets('agent surface displays active workspace coding skills', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Active Coding Skills'), findsOneWidget);
+    expect(find.text('5 active / 9 available skills'), findsOneWidget);
+    expect(find.text('C++ Clang Toolchain Defaults'), findsOneWidget);
+    expect(find.text('C++ Project Orientation'), findsOneWidget);
+    expect(find.text('C++ Safe Editing'), findsOneWidget);
+    expect(find.text('Reference-Grounded IDE Development'), findsOneWidget);
+    expect(find.text('Styio C++ Compiler Project'), findsOneWidget);
+    expect(
+      find.textContaining('The workspace has Styio, C/C++, CMake, Clang'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent surface previews pending patch edit ranges', (
     tester,
   ) async {

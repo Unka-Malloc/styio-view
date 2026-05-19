@@ -56,87 +56,91 @@ class AgentSurface extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-            Text(
-              'Agent Surface',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${platformTarget.label} agent route aligned to the ${viewportProfile.label.toLowerCase()} shell.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 18),
-            _AgentProviderProfileSection(
-              controller: codingController,
-              onSaveProviderProfile: onSaveProviderProfile,
-            ),
-            const SizedBox(height: 14),
-            if (viewportProfile.isMobile) ...[
-              _AgentSection(
-                title: 'Provider Route',
-                body:
-                    '$providerRoute. Mobile and narrow Web keep the same provider contract, but compress the presentation into a single vertical stack.',
-                accent: const Color(0xFFE1E8F5),
+              Text(
+                'Agent Surface',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 12),
-              const _AgentSection(
-                title: 'Context Injection',
-                body:
-                    'Current file, selection, diagnostics, and runtime context stay as separate injection channels for M6.',
-                accent: Color(0xFFEDE6D9),
+              const SizedBox(height: 6),
+              Text(
+                '${platformTarget.label} agent route aligned to the ${viewportProfile.label.toLowerCase()} shell.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              const SizedBox(height: 12),
-              _AgentContextSection(context: sessionContext),
-              const SizedBox(height: 12),
-              _AgentPromptSection(
-                platformTarget: platformTarget,
+              const SizedBox(height: 18),
+              _AgentProviderProfileSection(
                 controller: codingController,
-                sessionContext: sessionContext,
-                onApplyPendingPatch: onApplyPendingPatch,
-                onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
+                onSaveProviderProfile: onSaveProviderProfile,
               ),
-              const SizedBox(height: 12),
-              _AdapterSection(adapterCapabilities: adapterCapabilities),
-              const SizedBox(height: 12),
-              _AgentModuleSection(modules: agentModules),
-            ] else ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _AgentSection(
-                      title: 'Provider Route',
-                      body:
-                          '$providerRoute. Desktop and wide Web keep the prompt/profile surface adjacent to runtime panels while sharing the same adapter contract.',
-                      accent: const Color(0xFFE1E8F5),
+              const SizedBox(height: 14),
+              if (viewportProfile.isMobile) ...[
+                _AgentSection(
+                  title: 'Provider Route',
+                  body:
+                      '$providerRoute. Mobile and narrow Web keep the same provider contract, but compress the presentation into a single vertical stack.',
+                  accent: const Color(0xFFE1E8F5),
+                ),
+                const SizedBox(height: 12),
+                const _AgentSection(
+                  title: 'Context Injection',
+                  body:
+                      'Current file, selection, diagnostics, and runtime context stay as separate injection channels for M6.',
+                  accent: Color(0xFFEDE6D9),
+                ),
+                const SizedBox(height: 12),
+                _AgentContextSection(context: sessionContext),
+                const SizedBox(height: 12),
+                _AgentSkillSection(context: sessionContext),
+                const SizedBox(height: 12),
+                _AgentPromptSection(
+                  platformTarget: platformTarget,
+                  controller: codingController,
+                  sessionContext: sessionContext,
+                  onApplyPendingPatch: onApplyPendingPatch,
+                  onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
+                ),
+                const SizedBox(height: 12),
+                _AdapterSection(adapterCapabilities: adapterCapabilities),
+                const SizedBox(height: 12),
+                _AgentModuleSection(modules: agentModules),
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _AgentSection(
+                        title: 'Provider Route',
+                        body:
+                            '$providerRoute. Desktop and wide Web keep the prompt/profile surface adjacent to runtime panels while sharing the same adapter contract.',
+                        accent: const Color(0xFFE1E8F5),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: _AgentSection(
-                      title: 'Context Injection',
-                      body:
-                          'Current file, selection, diagnostics, and runtime context remain independent channels so agent prompts do not collapse language-service boundaries.',
-                      accent: Color(0xFFEDE6D9),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: _AgentSection(
+                        title: 'Context Injection',
+                        body:
+                            'Current file, selection, diagnostics, and runtime context remain independent channels so agent prompts do not collapse language-service boundaries.',
+                        accent: Color(0xFFEDE6D9),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _AgentContextSection(context: sessionContext),
-              const SizedBox(height: 14),
-              _AgentPromptSection(
-                platformTarget: platformTarget,
-                controller: codingController,
-                sessionContext: sessionContext,
-                onApplyPendingPatch: onApplyPendingPatch,
-                onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
-              ),
-              const SizedBox(height: 14),
-              _AdapterSection(adapterCapabilities: adapterCapabilities),
-              const SizedBox(height: 14),
-              _AgentModuleSection(modules: agentModules),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _AgentContextSection(context: sessionContext),
+                const SizedBox(height: 14),
+                _AgentSkillSection(context: sessionContext),
+                const SizedBox(height: 14),
+                _AgentPromptSection(
+                  platformTarget: platformTarget,
+                  controller: codingController,
+                  sessionContext: sessionContext,
+                  onApplyPendingPatch: onApplyPendingPatch,
+                  onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
+                ),
+                const SizedBox(height: 14),
+                _AdapterSection(adapterCapabilities: adapterCapabilities),
+                const SizedBox(height: 14),
+                _AgentModuleSection(modules: agentModules),
+              ],
             ],
           ),
         ),
@@ -1557,6 +1561,86 @@ String? _agentLanguageFactLabel({
     parts.add('$semanticSpanCount semantic');
   }
   return parts.isEmpty ? null : parts.join(' · ');
+}
+
+class _AgentSkillSection extends StatelessWidget {
+  const _AgentSkillSection({required this.context});
+
+  final AgentSessionContext context;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final skills = this.context.skills;
+    final activeSkillIds = skills.activeSkillIds.toSet();
+    final activeSkills = skills.skills
+        .where((skill) => activeSkillIds.contains(skill.skillId))
+        .toList(growable: false);
+
+    return Container(
+      key: const ValueKey('agent-active-skills-section'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDE8F1),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Active Coding Skills', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            '${skills.activeSkillCount} active / ${skills.skillCount} available skills',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          if (activeSkills.isEmpty)
+            Text(
+              'No workspace-activated coding skills are available for this context.',
+              style: theme.textTheme.bodySmall,
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final skill in activeSkills.take(8))
+                  Tooltip(
+                    message: skill.skillId,
+                    child: Chip(
+                      key: ValueKey('agent-active-skill-${skill.skillId}'),
+                      label: Text(skill.title),
+                    ),
+                  ),
+              ],
+            ),
+          if (activeSkills.length > 8) ...[
+            const SizedBox(height: 8),
+            Text(
+              '+ ${activeSkills.length - 8} more active skill(s)',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+          if (skills.activationReasons.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            for (final skill in activeSkills.take(3))
+              if ((skills.activationReasons[skill.skillId] ?? const <String>[])
+                  .isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '${skill.title}: ${skills.activationReasons[skill.skillId]!.join(' ')}',
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _AgentSection extends StatelessWidget {

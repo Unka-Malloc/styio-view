@@ -16,6 +16,7 @@ class AgentCodePatchApplicationResult {
     this.appliedDocumentIds = const <String>[],
     this.createdDocumentIds = const <String>[],
     this.deletedDocumentIds = const <String>[],
+    this.skippedNoOpDocumentIds = const <String>[],
   });
 
   final bool applied;
@@ -25,6 +26,7 @@ class AgentCodePatchApplicationResult {
   final List<String> appliedDocumentIds;
   final List<String> createdDocumentIds;
   final List<String> deletedDocumentIds;
+  final List<String> skippedNoOpDocumentIds;
 }
 
 class AgentCodePatchApplier {
@@ -73,6 +75,18 @@ class AgentCodePatchApplier {
       );
     }
     final sortedEdits = _sortedEdits(relevantEdits);
+    final nextDocument = _applyEditsToDocument(
+      editorController.document,
+      sortedEdits,
+    );
+    if (nextDocument.text == editorController.document.text) {
+      return AgentCodePatchApplicationResult(
+        applied: false,
+        message:
+            'Agent patch ${patch.patchId} produced no text changes for the active document.',
+        skippedNoOpDocumentIds: <String>[activeDocumentId],
+      );
+    }
 
     final formattingEdits = sortedEdits
         .map(
@@ -274,6 +288,7 @@ class AgentWorkspaceCodePatchApplier {
     final appliedDocumentIds = <String>{};
     final createdDocumentIds = <String>{};
     final deletedDocumentIds = <String>{};
+    final skippedNoOpDocumentIds = <String>{};
     final rollbackEntries = <_WorkspacePatchRollbackEntry>[];
     final activeDocumentId = editorController.document.documentId;
     final activeEntry = groupedEdits[activeDocumentId];
@@ -313,7 +328,12 @@ class AgentWorkspaceCodePatchApplier {
         continue;
       }
 
+      final isCreateDocumentEdit = _isSingleCreateDocumentEdit(entry.value);
       final nextDocument = _applyEditsToDocument(document, entry.value);
+      if (!isCreateDocumentEdit && nextDocument.text == document.text) {
+        skippedNoOpDocumentIds.add(entry.key);
+        continue;
+      }
       try {
         await workspaceDocumentStore.saveDocument(nextDocument);
       } on Object catch (error) {
@@ -326,15 +346,13 @@ class AgentWorkspaceCodePatchApplier {
       rollbackEntries.add(
         _WorkspacePatchRollbackEntry(
           documentId: entry.key,
-          previousDocument: _isSingleCreateDocumentEdit(entry.value)
-              ? null
-              : document,
+          previousDocument: isCreateDocumentEdit ? null : document,
         ),
       );
       appliedEditCount += entry.value.length;
       _addOperationCounts(appliedOperationCounts, entry.value);
       appliedDocumentIds.add(entry.key);
-      if (_isSingleCreateDocumentEdit(entry.value)) {
+      if (isCreateDocumentEdit) {
         createdDocumentIds.add(entry.key);
       }
     }
@@ -350,19 +368,36 @@ class AgentWorkspaceCodePatchApplier {
             ),
           );
       if (!result.applied) {
-        return _failWithRollback(
-          message: result.message,
-          rollbackEntries: rollbackEntries,
+        if (result.skippedNoOpDocumentIds.isNotEmpty) {
+          skippedNoOpDocumentIds.addAll(result.skippedNoOpDocumentIds);
+        } else {
+          return _failWithRollback(
+            message: result.message,
+            rollbackEntries: rollbackEntries,
+          );
+        }
+      } else {
+        appliedEditCount += result.appliedEditCount;
+        appliedDocumentIds.addAll(result.appliedDocumentIds);
+        _mergeOperationCounts(
+          appliedOperationCounts,
+          result.appliedOperationCounts,
         );
       }
-      appliedEditCount += result.appliedEditCount;
-      appliedDocumentIds.addAll(result.appliedDocumentIds);
-      _mergeOperationCounts(
-        appliedOperationCounts,
-        result.appliedOperationCounts,
+    }
+
+    if (appliedEditCount == 0) {
+      return AgentCodePatchApplicationResult(
+        applied: false,
+        message: 'Agent patch ${patch.patchId} produced no text changes.',
+        skippedNoOpDocumentIds: List<String>.unmodifiable(
+          skippedNoOpDocumentIds,
+        ),
       );
     }
 
+    final skippedNoOpIds = skippedNoOpDocumentIds.toList(growable: false)
+      ..sort();
     final operationCounts = Map<String, int>.unmodifiable(
       appliedOperationCounts,
     );
@@ -373,6 +408,7 @@ class AgentWorkspaceCodePatchApplier {
       appliedDocumentIds: List<String>.unmodifiable(appliedDocumentIds),
       createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
       deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
+      skippedNoOpDocumentIds: List<String>.unmodifiable(skippedNoOpIds),
       message: _withOperationCounts(
         'Applied $appliedEditCount agent workspace patch edit(s).',
         operationCounts,

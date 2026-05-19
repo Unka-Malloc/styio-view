@@ -43,6 +43,42 @@ void main() {
     expect(controller.canUndo, isTrue);
   });
 
+  test('agent code patch skips active no-op edits without undo', () {
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: '/workspace/demo/src/main.styio',
+        text: 'value = 1\n',
+        revision: 5,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+    final applier = AgentCodePatchApplier(editorController: controller);
+    const patch = AgentCodePatch(
+      patchId: 'patch-noop-active',
+      summary: 'No-op active edit.',
+      edits: <AgentCodePatchEdit>[
+        AgentCodePatchEdit(
+          documentId: '/workspace/demo/src/main.styio',
+          start: 0,
+          end: 5,
+          replacementText: 'value',
+        ),
+      ],
+    );
+
+    final result = applier.apply(patch);
+
+    expect(result.applied, isFalse);
+    expect(result.appliedEditCount, 0);
+    expect(result.skippedNoOpDocumentIds, <String>[
+      '/workspace/demo/src/main.styio',
+    ]);
+    expect(result.message, contains('produced no text changes'));
+    expect(controller.document.text, 'value = 1\n');
+    expect(controller.document.revision, 5);
+    expect(controller.canUndo, isFalse);
+  });
+
   test('agent code patch applies multiple non-overlapping edits', () {
     final controller = EditorSessionController(
       initialDocument: const DocumentState(
@@ -532,6 +568,54 @@ void main() {
     expect(controller.document.text, 'value = 2\n');
     expect(otherDocument.text, 'name = new\n');
     expect(otherDocument.revision, 8);
+  });
+
+  test('agent workspace code patch skips inactive no-op edits', () async {
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 1,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'other.styio': DocumentState(
+          documentId: 'other.styio',
+          text: 'name = old\n',
+          revision: 7,
+        ),
+      },
+    );
+    final applier = AgentWorkspaceCodePatchApplier(
+      editorController: controller,
+      workspaceDocumentStore: store,
+    );
+    const patch = AgentCodePatch(
+      patchId: 'patch-workspace-noop',
+      summary: 'No-op inactive edit.',
+      edits: <AgentCodePatchEdit>[
+        AgentCodePatchEdit(
+          documentId: 'other.styio',
+          baseRevision: 7,
+          start: 7,
+          end: 10,
+          replacementText: 'old',
+        ),
+      ],
+    );
+
+    final result = await applier.apply(patch);
+    final otherDocument = await store.loadDocument('other.styio');
+
+    expect(result.applied, isFalse);
+    expect(result.appliedEditCount, 0);
+    expect(result.skippedNoOpDocumentIds, <String>['other.styio']);
+    expect(result.message, contains('produced no text changes'));
+    expect(otherDocument.text, 'name = old\n');
+    expect(otherDocument.revision, 7);
+    expect(controller.canUndo, isFalse);
   });
 
   test('agent workspace code patch creates a missing workspace document', () async {

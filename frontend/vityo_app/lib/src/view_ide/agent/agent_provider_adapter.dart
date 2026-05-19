@@ -865,10 +865,7 @@ class LocalOnlyAgentProviderAdapter implements AgentProviderAdapter {
           'recentCommandIds': request.context.commands.recentResults
               .map((result) => result.commandId)
               .toList(growable: false),
-        if (request.context.commands.lastResult != null)
-          'lastCommandId': request.context.commands.lastResult!.commandId,
-        if (request.context.commands.lastResult != null)
-          'lastCommandApplied': request.context.commands.lastResult!.applied,
+        ..._lastCommandResultMetadata(request.context.commands.lastResult),
         'skillCount': request.context.skills.skillCount,
         'skillIds': request.context.skills.skillIds,
         'toolchainCount': request.context.toolchains.entryCount,
@@ -1021,10 +1018,7 @@ Map<String, Object?> _openAICompatibleRequestBody(
       'debugReadyCommandCount': request.context.commands.debugReadyCommandCount,
       'debugBlockedCommandCount':
           request.context.commands.debugBlockedCommandCount,
-      if (request.context.commands.lastResult != null)
-        'lastCommandId': request.context.commands.lastResult!.commandId,
-      if (request.context.commands.lastResult != null)
-        'lastCommandApplied': request.context.commands.lastResult!.applied,
+      ..._lastCommandResultMetadata(request.context.commands.lastResult),
       'recentCommandResultCount': request.context.commands.recentResults.length,
       if (request.context.commands.recentResults.isNotEmpty)
         'recentCommandIds': request.context.commands.recentResults
@@ -1095,6 +1089,26 @@ List<String> _toolFamilies(Iterable<AgentToolchainEntryContext> entries) {
     }
   }
   return List<String>.unmodifiable(families);
+}
+
+Map<String, Object?> _lastCommandResultMetadata(
+  AgentCommandResultContext? result,
+) {
+  if (result == null) {
+    return const <String, Object?>{};
+  }
+  final metadataKeys = result.metadata.keys
+      .where((key) => key.trim().isNotEmpty)
+      .toList(growable: false);
+  return <String, Object?>{
+    'lastCommandId': result.commandId,
+    if (result.input != null) 'lastCommandInput': result.input,
+    'lastCommandApplied': result.applied,
+    'lastCommandMessage': result.message,
+    if (metadataKeys.isNotEmpty) 'lastCommandMetadataKeys': metadataKeys,
+    if (result.completedAt != null)
+      'lastCommandCompletedAt': result.completedAt!.toUtc().toIso8601String(),
+  };
 }
 
 Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {

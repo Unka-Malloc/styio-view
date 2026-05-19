@@ -360,11 +360,15 @@ void main() {
         document: document,
         selection: const SelectionState.collapsed(0),
         diagnostics: const [],
-        lastCommandResult: const AgentCommandResultContext(
+        lastCommandResult: AgentCommandResultContext(
           commandId: 'searchWorkspace',
           input: 'value',
           applied: true,
           message: 'Agent command searchWorkspace completed for value.',
+          metadata: <String, Object?>{
+            'searchResult': <String, Object?>{'matchCount': 1},
+          },
+          completedAt: DateTime.utc(2026, 5, 19, 1, 2, 3),
         ),
         pendingPatch: const AgentPendingPatchContext(
           patchId: 'patch-pending',
@@ -747,7 +751,14 @@ void main() {
       expect(metadata['recentCommandResultCount'], 1);
       expect(metadata['recentCommandIds'], <String>['searchWorkspace']);
       expect(metadata['lastCommandId'], 'searchWorkspace');
+      expect(metadata['lastCommandInput'], 'value');
       expect(metadata['lastCommandApplied'], isTrue);
+      expect(
+        metadata['lastCommandMessage'],
+        'Agent command searchWorkspace completed for value.',
+      );
+      expect(metadata['lastCommandMetadataKeys'], <String>['searchResult']);
+      expect(metadata['lastCommandCompletedAt'], '2026-05-19T01:02:03.000Z');
       expect(metadata['pendingPatchId'], 'patch-pending');
       expect(metadata['pendingPatchEditCount'], 1);
       expect(metadata['pendingPatchDocumentCount'], 1);

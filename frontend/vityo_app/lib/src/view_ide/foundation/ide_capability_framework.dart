@@ -282,10 +282,12 @@ class VityoIdeCapabilityFramework {
           id: 'service.semantic-snapshot',
           layer: IdeCapabilityLayer.service,
           title: 'Semantic snapshot and resolved symbols',
-          status: IdeCapabilityStatus.scaffolded,
-          ownerPath: 'lib/src/view_ide/language/semantic',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/language/service',
+          summary:
+              'SemanticSnapshotProvider converts StyioService analysis into resolved elements/references and only falls back to local snapshots when service semantic facts are missing.',
           todo:
-              'TODO: expand semantic snapshots to cover rename safety, references, and code actions from StyioService facts.',
+              'TODO: make StyioService the complete source for rename safety, references, and code action semantic facts.',
           references: <String>[
             'LSP textDocument/semanticTokens',
             'IntelliJ PSI and symbol resolve',

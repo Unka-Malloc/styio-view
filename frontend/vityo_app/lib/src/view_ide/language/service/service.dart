@@ -8,6 +8,7 @@ export 'project_document_rule_provider.dart';
 export 'project_styio_language_service.dart';
 export 'project_styio_document_service.dart';
 export 'language_service_foundation.dart';
+export 'semantic_snapshot_provider.dart';
 export 'local_styio_language_service.dart';
 export 'styio_service_capability.dart';
 export 'styio_service_capability_detector.dart';

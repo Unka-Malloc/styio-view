@@ -52,6 +52,14 @@ void main() {
       IdeCapabilityStatus.wired,
     );
     expect(
+      entriesById['service.semantic-snapshot']?.status,
+      IdeCapabilityStatus.wired,
+    );
+    expect(
+      entriesById['service.semantic-snapshot']?.summary,
+      contains('SemanticSnapshotProvider'),
+    );
+    expect(
       entriesById['workspace.file-explorer']?.summary,
       contains('create, rename, delete, and reveal contracts'),
     );

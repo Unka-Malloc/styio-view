@@ -186,6 +186,10 @@ String? _toolchainSelectionSummary(Map<String, Object?> metadata) {
   if (cppStandard != null) {
     parts.add(cppStandard);
   }
+  final selectionMessage = _stringValue(metadata['toolchainSelectionMessage']);
+  if (selectionMessage != null) {
+    parts.add(selectionMessage);
+  }
   final preferredHandoff = _buildEngineHandoffSummary(
     metadata['preferredBuildEngineHandoff'],
   );

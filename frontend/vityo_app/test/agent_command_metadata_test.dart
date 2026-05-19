@@ -73,6 +73,7 @@ void main() {
         'toolchainSelectionStatus': ' missing ',
         'toolchainId': ' clang-18 ',
         'cppStandard': ' c++23 ',
+        'toolchainSelectionMessage': ' unsupported standard ',
       },
     );
 
@@ -80,6 +81,7 @@ void main() {
     expect(selection?.status, 'missing');
     expect(selection?.toolchainId, 'clang-18');
     expect(selection?.cppStandard, 'c++23');
+    expect(selection?.selectionMessage, 'unsupported standard');
     expect(selection?.selected, isFalse);
     expect(selection?.settingsRecoveryRecommended, isTrue);
   });

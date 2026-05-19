@@ -42,11 +42,13 @@ class AgentCommandToolchainSelectionMetadata {
     required this.status,
     this.toolchainId,
     this.cppStandard,
+    this.selectionMessage,
   });
 
   final String status;
   final String? toolchainId;
   final String? cppStandard;
+  final String? selectionMessage;
 
   bool get selected => status == 'selected' || status == 'cleared';
 
@@ -84,6 +86,7 @@ AgentCommandToolchainSelectionMetadata? toolchainSelectionFromAgentMetadata(
     status: status,
     toolchainId: _metadataString(metadata['toolchainId']),
     cppStandard: _metadataString(metadata['cppStandard']),
+    selectionMessage: _metadataString(metadata['toolchainSelectionMessage']),
   );
 }
 

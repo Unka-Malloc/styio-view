@@ -82,9 +82,10 @@ void main() {
         'toolchainSelectionStatus': 'missing',
         'toolchainId': 'missing-clang',
         'cppStandard': 'c++23',
+        'toolchainSelectionMessage': 'unsupported C++ standard c++2b',
         'buildEngineHandoffCount': 0,
       }),
-      'toolchain selection missing · missing-clang · c++23 · handoffs 0',
+      'toolchain selection missing · missing-clang · c++23 · unsupported C++ standard c++2b · handoffs 0',
     );
   });
 }

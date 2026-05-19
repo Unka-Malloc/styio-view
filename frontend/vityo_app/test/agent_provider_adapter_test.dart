@@ -551,6 +551,7 @@ void main() {
         systemMessage['content'],
         contains('commands.nativeToolCommandReadiness'),
       );
+      expect(systemMessage['content'], contains('requiredToolFamilies'));
       expect(systemMessage['content'], contains('commands.debugCommands'));
       expect(
         systemMessage['content'],

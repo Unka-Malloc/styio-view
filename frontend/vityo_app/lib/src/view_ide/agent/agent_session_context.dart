@@ -114,7 +114,7 @@ class AgentSessionContext {
       lastSearch: lastWorkspaceSearch,
     );
     return AgentSessionContext(
-      schemaVersion: 37,
+      schemaVersion: 38,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -973,6 +973,7 @@ class AgentLanguageContext {
     this.hoverMarkdown,
     this.hoverStart,
     this.hoverEnd,
+    this.hoverRange,
     this.definition,
     this.resolvedElement,
     this.resolvedReference,
@@ -1014,6 +1015,7 @@ class AgentLanguageContext {
   final String? hoverMarkdown;
   final int? hoverStart;
   final int? hoverEnd;
+  final AgentSourceRangeContext? hoverRange;
   final AgentDefinitionContext? definition;
   final AgentResolvedElementContext? resolvedElement;
   final AgentResolvedReferenceContext? resolvedReference;
@@ -1109,6 +1111,13 @@ class AgentLanguageContext {
       hoverMarkdown: hover?.markdown,
       hoverStart: hover?.range.start,
       hoverEnd: hover?.range.end,
+      hoverRange: hover == null
+          ? null
+          : AgentSourceRangeContext.fromOffsets(
+              document: document,
+              start: hover.range.start,
+              end: hover.range.end,
+            ),
       definition: definition == null
           ? null
           : AgentDefinitionContext.fromDefinitionTarget(
@@ -1129,11 +1138,15 @@ class AgentLanguageContext {
             ),
       parameterInfo: parameterInfo == null
           ? null
-          : AgentParameterInfoContext.fromParameterInfoPayload(parameterInfo),
+          : AgentParameterInfoContext.fromParameterInfoPayload(
+              parameterInfo,
+              document: document,
+            ),
       focusToken: focusToken == null
           ? null
           : AgentFocusTokenContext.fromTokenSpan(
               focusToken,
+              document: document,
               semanticKind: focusSemanticKind,
             ),
       focusedDiagnosticCount: focusedDiagnosticList.length,
@@ -1162,7 +1175,12 @@ class AgentLanguageContext {
       completionCount: completionList.length,
       completions: completionList
           .take(maxCompletions)
-          .map(AgentCompletionContext.fromCompletionItem)
+          .map(
+            (completion) => AgentCompletionContext.fromCompletionItem(
+              completion,
+              document: document,
+            ),
+          )
           .toList(growable: false),
       completionsTruncated: completionList.length > maxCompletions,
       codeActionCount: codeActionList.length,
@@ -1179,7 +1197,12 @@ class AgentLanguageContext {
       semanticSpanCount: semanticSpanList.length,
       semanticSpans: semanticSpanList
           .take(maxSemanticSpans)
-          .map(AgentSemanticSpanContext.fromSemanticSpan)
+          .map(
+            (span) => AgentSemanticSpanContext.fromSemanticSpan(
+              span,
+              document: document,
+            ),
+          )
           .toList(growable: false),
       semanticSpansTruncated: semanticSpanList.length > maxSemanticSpans,
       documentSymbolCount: documentSymbolList.length,
@@ -1197,13 +1220,23 @@ class AgentLanguageContext {
       inlayHintCount: inlayHintList.length,
       inlayHints: inlayHintList
           .take(maxInlayHints)
-          .map(AgentInlayHintContext.fromInlayHint)
+          .map(
+            (hint) => AgentInlayHintContext.fromInlayHint(
+              hint,
+              document: document,
+            ),
+          )
           .toList(growable: false),
       inlayHintsTruncated: inlayHintList.length > maxInlayHints,
       semanticBlockCount: semanticBlockList.length,
       semanticBlocks: semanticBlockList
           .take(maxSemanticBlocks)
-          .map(AgentSemanticBlockContext.fromSemanticBlockRange)
+          .map(
+            (block) => AgentSemanticBlockContext.fromSemanticBlockRange(
+              block,
+              document: document,
+            ),
+          )
           .toList(growable: false),
       semanticBlocksTruncated:
           semanticBlockList.length > maxSemanticBlocks,
@@ -1226,6 +1259,7 @@ class AgentLanguageContext {
       if (hoverMarkdown != null) 'hoverMarkdown': hoverMarkdown,
       if (hoverStart != null) 'hoverStart': hoverStart,
       if (hoverEnd != null) 'hoverEnd': hoverEnd,
+      if (hoverRange != null) 'hoverRange': hoverRange!.toJson(),
       if (definition != null) 'definition': definition!.toJson(),
       if (resolvedElement != null) 'resolvedElement': resolvedElement!.toJson(),
       if (resolvedReference != null)
@@ -1296,6 +1330,8 @@ class AgentParameterInfoContext {
     required this.invocationEnd,
     required this.callableStart,
     required this.callableEnd,
+    required this.invocationRange,
+    required this.callableRange,
     required this.parameterCount,
     required this.parameters,
     required this.parametersTruncated,
@@ -1310,6 +1346,8 @@ class AgentParameterInfoContext {
   final int invocationEnd;
   final int callableStart;
   final int callableEnd;
+  final AgentSourceRangeContext invocationRange;
+  final AgentSourceRangeContext callableRange;
   final int parameterCount;
   final List<AgentParameterInfoParameterContext> parameters;
   final bool parametersTruncated;
@@ -1317,6 +1355,7 @@ class AgentParameterInfoContext {
 
   factory AgentParameterInfoContext.fromParameterInfoPayload(
     ParameterInfoPayload payload, {
+    required DocumentState document,
     int maxParameters = 24,
   }) {
     final activeParameter = payload.activeParameter;
@@ -1329,16 +1368,33 @@ class AgentParameterInfoContext {
       invocationEnd: payload.invocationRange.end,
       callableStart: payload.callableRange.start,
       callableEnd: payload.callableRange.end,
+      invocationRange: AgentSourceRangeContext.fromOffsets(
+        document: document,
+        start: payload.invocationRange.start,
+        end: payload.invocationRange.end,
+      ),
+      callableRange: AgentSourceRangeContext.fromOffsets(
+        document: document,
+        start: payload.callableRange.start,
+        end: payload.callableRange.end,
+      ),
       parameterCount: payload.parameters.length,
       parameters: payload.parameters
           .take(maxParameters)
-          .map(AgentParameterInfoParameterContext.fromParameterInfoParameter)
+          .map(
+            (parameter) =>
+                AgentParameterInfoParameterContext.fromParameterInfoParameter(
+                  parameter,
+                  document: document,
+                ),
+          )
           .toList(growable: false),
       parametersTruncated: payload.parameters.length > maxParameters,
       activeParameter: activeParameter == null
           ? null
           : AgentParameterInfoParameterContext.fromParameterInfoParameter(
               activeParameter,
+              document: document,
             ),
     );
   }
@@ -1353,6 +1409,8 @@ class AgentParameterInfoContext {
       'invocationEnd': invocationEnd,
       'callableStart': callableStart,
       'callableEnd': callableEnd,
+      'invocationRange': invocationRange.toJson(),
+      'callableRange': callableRange.toJson(),
       'parameterCount': parameterCount,
       'parameters': parameters
           .map((parameter) => parameter.toJson())
@@ -1368,6 +1426,7 @@ class AgentParameterInfoParameterContext {
     required this.name,
     required this.start,
     required this.end,
+    required this.range,
     required this.type,
     required this.defaultValue,
     required this.documentation,
@@ -1377,18 +1436,25 @@ class AgentParameterInfoParameterContext {
   final String name;
   final int start;
   final int end;
+  final AgentSourceRangeContext range;
   final String type;
   final String defaultValue;
   final String documentation;
   final String displayText;
 
   factory AgentParameterInfoParameterContext.fromParameterInfoParameter(
-    ParameterInfoParameter parameter,
-  ) {
+    ParameterInfoParameter parameter, {
+    required DocumentState document,
+  }) {
     return AgentParameterInfoParameterContext(
       name: parameter.name,
       start: parameter.range.start,
       end: parameter.range.end,
+      range: AgentSourceRangeContext.fromOffsets(
+        document: document,
+        start: parameter.range.start,
+        end: parameter.range.end,
+      ),
       type: parameter.type,
       defaultValue: parameter.defaultValue,
       documentation: parameter.documentation,
@@ -1401,6 +1467,7 @@ class AgentParameterInfoParameterContext {
       'name': name,
       'start': start,
       'end': end,
+      'range': range.toJson(),
       if (type.isNotEmpty) 'type': type,
       if (defaultValue.isNotEmpty) 'defaultValue': defaultValue,
       if (documentation.isNotEmpty) 'documentation': documentation,
@@ -1415,6 +1482,7 @@ class AgentFocusTokenContext {
     required this.kind,
     required this.start,
     required this.end,
+    required this.range,
     this.semanticKind,
   });
 
@@ -1422,10 +1490,12 @@ class AgentFocusTokenContext {
   final String kind;
   final int start;
   final int end;
+  final AgentSourceRangeContext range;
   final String? semanticKind;
 
   factory AgentFocusTokenContext.fromTokenSpan(
     TokenSpan token, {
+    required DocumentState document,
     SemanticKind? semanticKind,
   }) {
     return AgentFocusTokenContext(
@@ -1433,6 +1503,11 @@ class AgentFocusTokenContext {
       kind: token.kind.name,
       start: token.range.start,
       end: token.range.end,
+      range: AgentSourceRangeContext.fromOffsets(
+        document: document,
+        start: token.range.start,
+        end: token.range.end,
+      ),
       semanticKind: semanticKind?.name,
     );
   }
@@ -1443,6 +1518,7 @@ class AgentFocusTokenContext {
       'kind': kind,
       'start': start,
       'end': end,
+      'range': range.toJson(),
       if (semanticKind != null) 'semanticKind': semanticKind,
     };
   }
@@ -1453,19 +1529,29 @@ class AgentSemanticSpanContext {
     required this.kind,
     required this.start,
     required this.end,
+    required this.range,
     required this.modifiers,
   });
 
   final String kind;
   final int start;
   final int end;
+  final AgentSourceRangeContext range;
   final List<String> modifiers;
 
-  factory AgentSemanticSpanContext.fromSemanticSpan(SemanticSpan span) {
+  factory AgentSemanticSpanContext.fromSemanticSpan(
+    SemanticSpan span, {
+    required DocumentState document,
+  }) {
     return AgentSemanticSpanContext(
       kind: span.kind.name,
       start: span.range.start,
       end: span.range.end,
+      range: AgentSourceRangeContext.fromOffsets(
+        document: document,
+        start: span.range.start,
+        end: span.range.end,
+      ),
       modifiers: span.modifiers,
     );
   }
@@ -1475,6 +1561,7 @@ class AgentSemanticSpanContext {
       'kind': kind,
       'start': start,
       'end': end,
+      'range': range.toJson(),
       if (modifiers.isNotEmpty) 'modifiers': modifiers,
     };
   }
@@ -1606,23 +1693,42 @@ class AgentInlayHintContext {
     required this.label,
     required this.kind,
     required this.position,
+    required this.positionLine,
+    required this.positionColumn,
     required this.start,
     required this.end,
+    required this.range,
   });
 
   final String label;
   final String kind;
   final int position;
+  final int positionLine;
+  final int positionColumn;
   final int start;
   final int end;
+  final AgentSourceRangeContext range;
 
-  factory AgentInlayHintContext.fromInlayHint(InlayHint hint) {
+  factory AgentInlayHintContext.fromInlayHint(
+    InlayHint hint, {
+    required DocumentState document,
+  }) {
+    final position = document.positionForOffset(
+      _clampOffset(hint.position, document.length),
+    );
     return AgentInlayHintContext(
       label: hint.label,
       kind: hint.kind.name,
       position: hint.position,
+      positionLine: position.line,
+      positionColumn: position.column,
       start: hint.range.start,
       end: hint.range.end,
+      range: AgentSourceRangeContext.fromOffsets(
+        document: document,
+        start: hint.range.start,
+        end: hint.range.end,
+      ),
     );
   }
 
@@ -1631,8 +1737,11 @@ class AgentInlayHintContext {
       'label': label,
       'kind': kind,
       'position': position,
+      'positionLine': positionLine,
+      'positionColumn': positionColumn,
       'start': start,
       'end': end,
+      'range': range.toJson(),
     };
   }
 }
@@ -1642,19 +1751,27 @@ class AgentSemanticBlockContext {
     required this.label,
     required this.start,
     required this.end,
+    required this.range,
   });
 
   final String label;
   final int start;
   final int end;
+  final AgentSourceRangeContext range;
 
   factory AgentSemanticBlockContext.fromSemanticBlockRange(
-    SemanticBlockRange block,
-  ) {
+    SemanticBlockRange block, {
+    required DocumentState document,
+  }) {
     return AgentSemanticBlockContext(
       label: block.label,
       start: block.range.start,
       end: block.range.end,
+      range: AgentSourceRangeContext.fromOffsets(
+        document: document,
+        start: block.range.start,
+        end: block.range.end,
+      ),
     );
   }
 
@@ -1663,6 +1780,7 @@ class AgentSemanticBlockContext {
       'label': label,
       'start': start,
       'end': end,
+      'range': range.toJson(),
     };
   }
 }
@@ -2109,6 +2227,7 @@ class AgentCompletionContext {
     required this.documentation,
     this.replacementStart,
     this.replacementEnd,
+    this.replacementRange,
   });
 
   final String label;
@@ -2118,8 +2237,12 @@ class AgentCompletionContext {
   final String documentation;
   final int? replacementStart;
   final int? replacementEnd;
+  final AgentSourceRangeContext? replacementRange;
 
-  factory AgentCompletionContext.fromCompletionItem(CompletionItem item) {
+  factory AgentCompletionContext.fromCompletionItem(
+    CompletionItem item, {
+    required DocumentState document,
+  }) {
     return AgentCompletionContext(
       label: item.label,
       kind: item.kind.name,
@@ -2128,6 +2251,13 @@ class AgentCompletionContext {
       documentation: item.documentation,
       replacementStart: item.replacementRange?.start,
       replacementEnd: item.replacementRange?.end,
+      replacementRange: item.replacementRange == null
+          ? null
+          : AgentSourceRangeContext.fromOffsets(
+              document: document,
+              start: item.replacementRange!.start,
+              end: item.replacementRange!.end,
+            ),
     );
   }
 
@@ -2140,6 +2270,8 @@ class AgentCompletionContext {
       'documentation': documentation,
       if (replacementStart != null) 'replacementStart': replacementStart,
       if (replacementEnd != null) 'replacementEnd': replacementEnd,
+      if (replacementRange != null)
+        'replacementRange': replacementRange!.toJson(),
     };
   }
 }

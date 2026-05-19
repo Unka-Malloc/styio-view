@@ -128,7 +128,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      37,
+      38,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -556,7 +556,7 @@ void main() {
       expect(systemMessage['content'], contains('toolchains.nativeTools'));
       expect(systemMessage['content'], contains('skills.activeSkillIds'));
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 37);
+      expect(metadata['contextSchemaVersion'], 38);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

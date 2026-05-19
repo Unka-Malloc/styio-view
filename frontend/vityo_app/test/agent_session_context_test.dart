@@ -371,7 +371,7 @@ void main() {
     final debugVariables = debugJson['variables']! as List<Object?>;
     final debugLaunch = debugJson['launch']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 37);
+    expect(json['schemaVersion'], 38);
     expect(documentJson['documentId'], '/workspace/demo/src/main.styio');
     expect(documentJson['revision'], 4);
     expect(documentJson['text'], 'value = 1\nvalue\n');
@@ -492,10 +492,18 @@ void main() {
     expect(agentJson['lastPatchApplication'], isNull);
     expect(languageJson['hasHover'], isTrue);
     expect(languageJson['hoverMarkdown'], '**value**: i64');
+    expect(
+      (languageJson['hoverRange']! as Map<String, Object?>)['endColumn'],
+      5,
+    );
     expect(languageFocusToken['lexeme'], 'value');
     expect(languageFocusToken['kind'], 'identifier');
     expect(languageFocusToken['semanticKind'], 'variable');
     expect(languageFocusToken['start'], 0);
+    expect(
+      (languageFocusToken['range']! as Map<String, Object?>)['endColumn'],
+      5,
+    );
     expect(languageDefinition['name'], 'value');
     expect(languageDefinition['kind'], 'state');
     expect(
@@ -556,9 +564,24 @@ void main() {
     expect(languageParameterInfo['invocationStart'], 160);
     expect(languageParameterInfo['callableEnd'], 165);
     expect(
+      (languageParameterInfo['invocationRange']! as Map<String, Object?>)
+          ['coordinateBase'],
+      'zero-based',
+    );
+    expect(
+      (languageParameterInfo['callableRange']! as Map<String, Object?>)
+          ['coordinateBase'],
+      'zero-based',
+    );
+    expect(
       (languageParameterInfo['activeParameter']! as Map<String, Object?>)
           ['name'],
       'right',
+    );
+    expect(
+      ((languageParameterInfo['activeParameter']! as Map<String, Object?>)
+          ['range']! as Map<String, Object?>)['coordinateBase'],
+      'zero-based',
     );
     expect(
       (languageParameterInfoParameters.last! as Map<String, Object?>)
@@ -590,6 +613,11 @@ void main() {
     expect(
       (languageCompletions.single! as Map<String, Object?>)['replacementStart'],
       10,
+    );
+    expect(
+      ((languageCompletions.single! as Map<String, Object?>)
+          ['replacementRange']! as Map<String, Object?>)['startLine'],
+      1,
     );
     expect(languageJson['codeActionCount'], 1);
     expect(languageJson['codeActionsTruncated'], isFalse);
@@ -652,6 +680,11 @@ void main() {
       (languageSemanticSpans.first! as Map<String, Object?>)['modifiers'],
       <String>['declaration'],
     );
+    expect(
+      ((languageSemanticSpans.first! as Map<String, Object?>)['range']!
+          as Map<String, Object?>)['startLine'],
+      0,
+    );
     expect(languageJson['documentSymbolCount'], 1);
     expect(languageJson['documentSymbolsTruncated'], isFalse);
     expect(
@@ -686,6 +719,15 @@ void main() {
       (languageInlayHints.single! as Map<String, Object?>)['position'],
       170,
     );
+    expect(
+      (languageInlayHints.single! as Map<String, Object?>)['positionLine'],
+      isA<int>(),
+    );
+    expect(
+      ((languageInlayHints.single! as Map<String, Object?>)['range']!
+          as Map<String, Object?>)['coordinateBase'],
+      'zero-based',
+    );
     expect(languageJson['semanticBlockCount'], 1);
     expect(languageJson['semanticBlocksTruncated'], isFalse);
     expect(
@@ -695,6 +737,11 @@ void main() {
     expect(
       (languageSemanticBlocks.single! as Map<String, Object?>)['end'],
       16,
+    );
+    expect(
+      ((languageSemanticBlocks.single! as Map<String, Object?>)['range']!
+          as Map<String, Object?>)['startLine'],
+      0,
     );
     expect(languageJson['refactorPreviewCount'], 2);
     final safeDeletePreview =
@@ -1112,7 +1159,7 @@ void main() {
       'toolchains',
     ]);
 
-    expect(json['schemaVersion'], 37);
+    expect(json['schemaVersion'], 38);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);

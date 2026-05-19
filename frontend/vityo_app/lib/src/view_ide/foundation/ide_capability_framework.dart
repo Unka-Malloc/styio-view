@@ -517,8 +517,10 @@ class VityoIdeCapabilityFramework {
           id: 'extension.marketplace',
           layer: IdeCapabilityLayer.extension,
           title: 'Extension lifecycle and marketplace',
-          status: IdeCapabilityStatus.todo,
+          status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/module_host',
+          summary:
+              'Extensions surface is wired to visible and mounted module manifests with refreshModules handoff.',
           todo:
               'TODO: add install, enable, disable, trust, update, and marketplace/index contracts for product extensions.',
           references: <String>[

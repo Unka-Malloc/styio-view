@@ -10,6 +10,7 @@ enum BottomSurfaceTab {
   search,
   problems,
   testing,
+  extensions,
   debug,
   settings,
 }

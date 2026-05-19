@@ -3,6 +3,7 @@ export '../app/vityo_app.dart';
 export '../frontend_shell/frontend_shell.dart';
 export 'agent/agent.dart';
 export 'editor/editor.dart';
+export 'extensions/extensions.dart';
 export 'platform/platform.dart';
 export 'problems/problems.dart';
 export 'runtime/runtime.dart';

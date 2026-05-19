@@ -41,6 +41,10 @@ void main() {
       entriesById['interaction.source-control']?.status,
       IdeCapabilityStatus.scaffolded,
     );
+    expect(
+      entriesById['extension.marketplace']?.status,
+      IdeCapabilityStatus.scaffolded,
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

@@ -384,6 +384,7 @@ void main() {
               'blockedReason': 'no-backend-route',
             },
             'toolchainSelectionStatus': 'selected',
+            'toolchainSelectionMessage': 'Clang/C++ version selected.',
             'toolchainId': 'native-clang-cpp-compiler',
             'cppStandard': 'c++23',
             'buildEngineHandoffCount': 3,
@@ -856,6 +857,7 @@ void main() {
         'requiredCommand',
         'backendRouteSelection',
         'toolchainSelectionStatus',
+        'toolchainSelectionMessage',
         'toolchainId',
         'cppStandard',
         'buildEngineHandoffCount',
@@ -875,6 +877,10 @@ void main() {
         'no-backend-route',
       );
       expect(metadata['lastCommandToolchainSelectionStatus'], 'selected');
+      expect(
+        metadata['lastCommandToolchainSelectionMessage'],
+        'Clang/C++ version selected.',
+      );
       expect(metadata['lastCommandToolchainId'], 'native-clang-cpp-compiler');
       expect(metadata['lastCommandCppStandard'], 'c++23');
       expect(metadata['lastCommandSettingsRoute'], 'settings');

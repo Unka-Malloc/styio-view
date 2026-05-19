@@ -1124,6 +1124,9 @@ Map<String, Object?> _lastCommandResultMetadata(
   final toolchainSelectionStatus = _metadataString(
     result.metadata['toolchainSelectionStatus'],
   );
+  final toolchainSelectionMessage = _metadataString(
+    result.metadata['toolchainSelectionMessage'],
+  );
   final toolchainId = _metadataString(result.metadata['toolchainId']);
   final cppStandard = _metadataString(result.metadata['cppStandard']);
   final preferredBuildEngineHandoff = _metadataMap(
@@ -1162,6 +1165,8 @@ Map<String, Object?> _lastCommandResultMetadata(
       'lastCommandSettingsSection': settingsSection,
     if (toolchainSelectionStatus != null)
       'lastCommandToolchainSelectionStatus': toolchainSelectionStatus,
+    if (toolchainSelectionMessage != null)
+      'lastCommandToolchainSelectionMessage': toolchainSelectionMessage,
     if (toolchainId != null) 'lastCommandToolchainId': toolchainId,
     if (cppStandard != null) 'lastCommandCppStandard': cppStandard,
     if (buildEngineHandoffCount != null)

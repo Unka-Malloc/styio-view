@@ -3309,30 +3309,36 @@ class ShellRuntimeModel extends ChangeNotifier {
         await _refreshLanguageServiceForCommand();
         return;
       case AppCommandId.run:
-        final routeGate = evaluateExecutionRouteGate(
+        final routeSelection = selectBackendExecutionRoute(
           platformTarget: platformTarget,
           projectGraph: workspaceController.activeProject,
           adapterCapabilities: adapterCapabilities,
         );
-        if (!routeGate.allowed) {
+        if (!routeSelection.allowed) {
           _lastExecutionSession = ExecutionSession(
             sessionId: 'route-gate:${workspaceController.activeProject.id}',
             kind: 'run',
             status: ExecutionSessionStatus.blocked,
             statusMessage:
-                routeGate.blockedReason ?? 'Execution route blocked.',
+                routeSelection.blockedReason ?? 'Execution route blocked.',
             diagnostics: const <Diagnostic>[],
             stdoutEvents: const <ExecutionLogEvent>[],
             stderrEvents: const <ExecutionLogEvent>[],
           );
           _lastRuntimeEvents = const <RuntimeEventEnvelope>[];
           appendLog(
-            'Run blocked by route snapshot: '
+            'Run blocked by backend route selection '
+            '(${routeSelection.routeKind.wireValue}/'
+            '${routeSelection.adapterKind.wireValue}): '
             '${_lastExecutionSession!.statusMessage}',
           );
           notifyListeners();
           return;
         }
+        appendLog(
+          'Run route selected: ${routeSelection.routeKind.wireValue} '
+          'via ${routeSelection.adapterKind.wireValue}.',
+        );
         final runUnit = selectRunUnitForEditor(
           document: editorController.document,
           selection: editorController.selection,

@@ -269,7 +269,7 @@ void main() {
     expect(shell.lastExecutionSession!.status, ExecutionSessionStatus.blocked);
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('Run blocked by route snapshot'),
+        (entry) => entry.contains('Run blocked by backend route selection'),
       ),
       isTrue,
     );

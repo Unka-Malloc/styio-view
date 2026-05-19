@@ -378,6 +378,12 @@ void main() {
             'toolchainSelectionStatus': 'selected',
             'toolchainId': 'native-clang-cpp-compiler',
             'cppStandard': 'c++23',
+            'buildEngineHandoffCount': 3,
+            'preferredBuildEngineHandoff': <String, Object?>{
+              'engineFamily': 'cmake',
+              'generatorFamily': 'ninja',
+              'arguments': <String>['-G', 'Ninja'],
+            },
           },
           completedAt: DateTime.utc(2026, 5, 19, 1, 2, 3),
         ),
@@ -826,6 +832,8 @@ void main() {
         'toolchainSelectionStatus',
         'toolchainId',
         'cppStandard',
+        'buildEngineHandoffCount',
+        'preferredBuildEngineHandoff',
       ]);
       expect(metadata['lastCommandRequiredCommandId'], 'runBuild');
       expect(metadata['lastCommandBackendRouteKind'], 'blocked');
@@ -839,6 +847,9 @@ void main() {
       expect(metadata['lastCommandToolchainSelectionStatus'], 'selected');
       expect(metadata['lastCommandToolchainId'], 'native-clang-cpp-compiler');
       expect(metadata['lastCommandCppStandard'], 'c++23');
+      expect(metadata['lastCommandBuildEngineHandoffCount'], 3);
+      expect(metadata['lastCommandPreferredBuildEngine'], 'cmake');
+      expect(metadata['lastCommandPreferredBuildGenerator'], 'ninja');
       expect(metadata['lastCommandCompletedAt'], '2026-05-19T01:02:03.000Z');
       expect(metadata['pendingPatchId'], 'patch-pending');
       expect(metadata['pendingPatchEditCount'], 1);

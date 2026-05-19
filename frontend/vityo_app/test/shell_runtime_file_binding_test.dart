@@ -1072,8 +1072,12 @@ void main() {
     addTearDown(() => tempRoot.delete(recursive: true));
     final clang = File('${tempRoot.path}/clang');
     final clangxx = File('${tempRoot.path}/clang++');
+    final cmake = File('${tempRoot.path}/cmake');
+    final ninja = File('${tempRoot.path}/ninja');
     await clang.writeAsString('#!/bin/sh\nexit 0\n');
     await clangxx.writeAsString('#!/bin/sh\nexit 0\n');
+    await cmake.writeAsString('#!/bin/sh\nexit 0\n');
+    await ninja.writeAsString('#!/bin/sh\nexit 0\n');
     final configurationStore = await _createShellTestConfigurationStore(
       tempRoot,
     );
@@ -1096,6 +1100,25 @@ void main() {
             'clangVendor': 'llvm',
             'defaultForNativeCode': true,
           },
+        ),
+      )
+      ..register(
+        ToolchainDescriptor(
+          id: 'fake-cmake',
+          kind: ToolchainKind.buildTool,
+          displayName: 'Fake CMake',
+          executablePath: cmake.path,
+          metadata: const <String, Object?>{'toolFamily': 'cmake'},
+        ),
+        activate: true,
+      )
+      ..register(
+        ToolchainDescriptor(
+          id: 'fake-ninja',
+          kind: ToolchainKind.buildTool,
+          displayName: 'Fake Ninja',
+          executablePath: ninja.path,
+          metadata: const <String, Object?>{'toolFamily': 'ninja'},
         ),
       );
     await toolchainStore.saveCatalog(
@@ -1169,6 +1192,18 @@ void main() {
     expect(result?.metadata['toolchainId'], 'fake-clang-18');
     expect(result?.metadata['cppStandard'], 'c++23');
     expect(result?.metadata['toolchainSelectionStatus'], 'selected');
+    expect(result?.metadata['buildEngineHandoffCount'], 3);
+    expect(result?.metadata['cmakeExecutablePath'], cmake.path);
+    expect(result?.metadata['ninjaExecutablePath'], ninja.path);
+    final preferredHandoff =
+        result?.metadata['preferredBuildEngineHandoff']!
+            as Map<String, Object?>;
+    expect(preferredHandoff['engineFamily'], 'cmake');
+    expect(preferredHandoff['generatorFamily'], 'ninja');
+    expect(preferredHandoff['arguments'], contains('-G'));
+    final clangCppSelection =
+        result?.metadata['clangCppSelection']! as Map<String, Object?>;
+    expect(clangCppSelection['cppStandard'], '23');
     expect(preference?.versionId, 'fake-clang-18');
     expect(preference?.cppStandard, CppLanguageStandard.cpp23);
     expect(clangCppJson['requestedVersionId'], 'fake-clang-18');

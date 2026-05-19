@@ -264,6 +264,22 @@ _ClangCppVersionCommandInput? _parseClangCppVersionCommandInput(
   );
 }
 
+Map<String, Object?> _agentClangCppSelectionMetadata(
+  ClangCppVersionSelection selection,
+) {
+  final preferredHandoff = selection.preferredBuildEngineHandoff;
+  return <String, Object?>{
+    'clangCppSelection': selection.toManifest(),
+    'buildEngineHandoffCount': selection.buildEngineHandoffs.length,
+    if (preferredHandoff != null)
+      'preferredBuildEngineHandoff': preferredHandoff.toManifest(),
+    if (selection.cmakeExecutablePath != null)
+      'cmakeExecutablePath': selection.cmakeExecutablePath,
+    if (selection.ninjaExecutablePath != null)
+      'ninjaExecutablePath': selection.ninjaExecutablePath,
+  };
+}
+
 class ShellRuntimeModel extends ChangeNotifier {
   ShellRuntimeModel({
     required this.platformTarget,
@@ -1088,6 +1104,12 @@ class ShellRuntimeModel extends ChangeNotifier {
           cppStandard: parsed.cppStandard,
         );
         final applied = result?.succeeded ?? false;
+        final selection = result?.succeeded == true
+            ? ClangCppVersionManager.fromSnapshot(
+                result!.snapshot,
+                preference: _clangCppVersionPreference,
+              ).select()
+            : null;
         _recordAgentIdeCommandResult(
           suggestion,
           applied: applied,
@@ -1098,6 +1120,8 @@ class ShellRuntimeModel extends ChangeNotifier {
             'toolchainId': parsed.versionId,
             if (parsed.cppStandard != null) 'cppStandard': parsed.cppStandard,
             if (result != null) 'toolchainSelectionStatus': result.status.name,
+            if (selection != null)
+              ..._agentClangCppSelectionMetadata(selection),
           },
         );
         return applied;

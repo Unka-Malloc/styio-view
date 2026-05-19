@@ -1121,6 +1121,18 @@ Map<String, Object?> _lastCommandResultMetadata(
   );
   final toolchainId = _metadataString(result.metadata['toolchainId']);
   final cppStandard = _metadataString(result.metadata['cppStandard']);
+  final preferredBuildEngineHandoff = _metadataMap(
+    result.metadata['preferredBuildEngineHandoff'],
+  );
+  final preferredBuildEngine = _metadataString(
+    preferredBuildEngineHandoff?['engineFamily'],
+  );
+  final preferredBuildGenerator = _metadataString(
+    preferredBuildEngineHandoff?['generatorFamily'],
+  );
+  final buildEngineHandoffCount = _metadataInt(
+    result.metadata['buildEngineHandoffCount'],
+  );
   return <String, Object?>{
     'lastCommandId': result.commandId,
     if (result.input != null) 'lastCommandInput': result.input,
@@ -1142,9 +1154,29 @@ Map<String, Object?> _lastCommandResultMetadata(
       'lastCommandToolchainSelectionStatus': toolchainSelectionStatus,
     if (toolchainId != null) 'lastCommandToolchainId': toolchainId,
     if (cppStandard != null) 'lastCommandCppStandard': cppStandard,
+    if (buildEngineHandoffCount != null)
+      'lastCommandBuildEngineHandoffCount': buildEngineHandoffCount,
+    if (preferredBuildEngine != null)
+      'lastCommandPreferredBuildEngine': preferredBuildEngine,
+    if (preferredBuildGenerator != null)
+      'lastCommandPreferredBuildGenerator': preferredBuildGenerator,
     if (result.completedAt != null)
       'lastCommandCompletedAt': result.completedAt!.toUtc().toIso8601String(),
   };
+}
+
+Map<Object?, Object?>? _metadataMap(Object? value) {
+  if (value is Map) {
+    return value;
+  }
+  return null;
+}
+
+int? _metadataInt(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  return null;
 }
 
 String? _metadataString(Object? value) {
@@ -1306,6 +1338,7 @@ Vityo structured response contract:
 - If commands.lastResult.metadata.backendRouteSelection is present, inspect routeKind, adapterKind, allowed, previewOnly, and blockedReason before proposing build, run, test, retry, or provider/toolchain reconfiguration.
 - If commands.lastResult.metadata.backendRouteSelection.allowed is false and commands.settingsCommands includes openSettings, propose openSettings before retrying the blocked route.
 - If commands.lastResult.metadata.toolchainSelectionStatus is present, inspect toolchainId, cppStandard, and status before proposing build, test, or another selectClangCppVersion command.
+- If commands.lastResult.metadata.preferredBuildEngineHandoff is present, use its engineFamily, generatorFamily, arguments, and environment for the next CMake/Ninja handoff instead of inventing build flags.
 - If commands.lastResult.metadata.buildResult is present, treat it as the latest structured build outcome before proposing another build, test, debug, or code patch step.
 - If commands.lastResult.metadata.formatResult is present, treat it as the latest structured formatting outcome before proposing another formatter run or patch cleanup.
 - If commands.lastResult.metadata.staticAnalysisResult is present, treat it as the latest structured static-analysis outcome before proposing another analysis run, test, or code patch step.

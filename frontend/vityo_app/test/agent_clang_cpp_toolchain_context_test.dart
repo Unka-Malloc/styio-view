@@ -93,5 +93,17 @@ void main() {
       'CXX': '/usr/bin/clang++',
       'CXXFLAGS': '-std=c++23',
     });
+    final handoffs = selectionJson['buildEngineHandoffs']! as List<Object?>;
+    final preferredHandoff =
+        selectionJson['preferredBuildEngineHandoff']! as Map<String, Object?>;
+
+    expect(handoffs.length, 3);
+    expect(preferredHandoff['engineFamily'], 'cmake');
+    expect(preferredHandoff['generatorFamily'], 'ninja');
+    expect(preferredHandoff['executablePath'], '/usr/bin/cmake');
+    expect(
+      preferredHandoff['arguments'],
+      selectionJson['cmakeNinjaConfigureArguments'],
+    );
   });
 }

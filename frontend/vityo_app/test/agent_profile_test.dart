@@ -106,6 +106,14 @@ void main() {
       );
       expect(
         decoded.systemPrompt,
+        contains('toolchains.clangCpp.selection.preferredBuildEngineHandoff'),
+      );
+      expect(
+        decoded.systemPrompt,
+        contains('toolchains.clangCpp.selection.buildEngineHandoffs'),
+      );
+      expect(
+        decoded.systemPrompt,
         contains('toolchains.clangCpp.selection.cmakeNinjaConfigureArguments'),
       );
       expect(

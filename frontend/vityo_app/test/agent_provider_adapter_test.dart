@@ -546,6 +546,14 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('toolchains.clangCpp.selection.preferredBuildEngineHandoff'),
+      );
+      expect(
+        systemMessage['content'],
+        contains('toolchains.clangCpp.selection.buildEngineHandoffs'),
+      );
+      expect(
+        systemMessage['content'],
         contains('toolchains.clangCpp.selection.cmakeNinjaConfigureArguments'),
       );
       expect(

@@ -352,8 +352,10 @@ class VityoIdeCapabilityFramework {
           id: 'interaction.source-control',
           layer: IdeCapabilityLayer.interaction,
           title: 'Source control interaction',
-          status: IdeCapabilityStatus.todo,
+          status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
+          summary:
+              'Source Control surface is wired to dirty editor documents, file open, and save-all handoff.',
           todo:
               'TODO: add source-control status, diff, staging, commit, and history interaction contracts without coupling to Git-only UI.',
           references: <String>[

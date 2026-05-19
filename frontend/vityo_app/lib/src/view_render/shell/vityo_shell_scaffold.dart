@@ -18,6 +18,7 @@ import '../problems/problems.dart';
 import '../runtime/runtime.dart';
 import '../search/search.dart';
 import '../settings/settings_surface.dart';
+import '../source_control/source_control.dart';
 import '../terminal/terminal.dart';
 import '../testing/testing.dart';
 import '../../view_ide/workspace/workspace.dart';
@@ -174,6 +175,16 @@ class VityoShellScaffold extends StatelessWidget {
               profile,
               bearerToken: bearerToken,
             );
+          },
+        );
+      case BottomSurfaceTab.sourceControl:
+        return SourceControlSurface(
+          viewportProfile: viewportProfile,
+          workspaceFileCount: shell.workspaceController.files.length,
+          changedDocumentIds: shell.dirtyDocumentPaths,
+          onOpenFile: shell.openWorkspaceFileForAgent,
+          onSaveAll: () {
+            return shell.executeCommand(AppCommandId.saveAll);
           },
         );
       case BottomSurfaceTab.search:
@@ -1733,6 +1744,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
       ),
       _SurfaceTabChip(
+        label: 'SCM',
+        active: shell.activeBottomTab == BottomSurfaceTab.sourceControl,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.sourceControl),
+      ),
+      _SurfaceTabChip(
         label: 'Search',
         active: shell.activeBottomTab == BottomSurfaceTab.search,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
@@ -1767,7 +1783,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, terminal, agent, search, problems, testing, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
+            'Mobile shell keeps runtime, terminal, agent, source control, search, problems, testing, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

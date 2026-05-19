@@ -6,6 +6,7 @@ enum BottomSurfaceTab {
   runtime,
   terminal,
   agent,
+  sourceControl,
   search,
   problems,
   testing,

@@ -37,6 +37,10 @@ void main() {
       entriesById['interaction.testing']?.status,
       IdeCapabilityStatus.scaffolded,
     );
+    expect(
+      entriesById['interaction.source-control']?.status,
+      IdeCapabilityStatus.scaffolded,
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

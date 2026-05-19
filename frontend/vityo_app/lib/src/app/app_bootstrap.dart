@@ -433,12 +433,14 @@ class AppBootstrap {
     required PlatformManagerBundle platformManagers,
     required String workspaceRoot,
   }) {
+    final runner = ProcessSourceControlCommandRunner(
+      processManager: platformManagers.process,
+    ).call;
     return SourceControlStatusController(
       provider: GitPorcelainStatusProvider(
-        runner: ProcessSourceControlCommandRunner(
-          processManager: platformManagers.process,
-        ).call,
+        runner: runner,
       ),
+      diffProvider: GitSourceControlDiffProvider(runner: runner),
       workspaceRoot: workspaceRoot,
     );
   }

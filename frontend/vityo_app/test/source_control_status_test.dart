@@ -67,6 +67,41 @@ R  lib/old.styio -> lib/renamed.styio
     },
   );
 
+  test('git diff provider requests file diff through injected runner', () async {
+    SourceControlCommandRequest? capturedRequest;
+    final provider = GitSourceControlDiffProvider(
+      runner: (request) async {
+        capturedRequest = request;
+        return const SourceControlCommandResult(
+          exitCode: 0,
+          stdout: '''
+diff --git a/lib/main.styio b/lib/main.styio
+@@ -1 +1 @@
+-old
++new
+''',
+        );
+      },
+    );
+
+    final snapshot = await provider.diff(
+      workspaceRoot: '/workspace/vityo',
+      path: 'lib/main.styio',
+    );
+
+    expect(capturedRequest?.executable, 'git');
+    expect(capturedRequest?.arguments, <String>[
+      'diff',
+      '--',
+      'lib/main.styio',
+    ]);
+    expect(capturedRequest?.workingDirectory, '/workspace/vityo');
+    expect(snapshot.available, isTrue);
+    expect(snapshot.path, 'lib/main.styio');
+    expect(snapshot.unifiedDiff, contains('+new'));
+    expect(snapshot.toJson()['diffTruncated'], isFalse);
+  });
+
   test(
     'process source control runner executes through process manager',
     () async {
@@ -188,6 +223,13 @@ R  lib/old.styio -> lib/renamed.styio
     );
     final controller = SourceControlStatusController(
       provider: const StaticSourceControlStatusProvider(snapshot),
+      diffProvider: const StaticSourceControlDiffProvider(
+        SourceControlDiffSnapshot(
+          providerKind: SourceControlProviderKind.git,
+          path: 'src/main.styio',
+          unifiedDiff: 'diff --git a/src/main.styio b/src/main.styio\n',
+        ),
+      ),
       workspaceRoot: '/workspace/vityo',
     );
     addTearDown(controller.dispose);
@@ -202,10 +244,18 @@ R  lib/old.styio -> lib/renamed.styio
     expect(controller.snapshot, same(snapshot));
     expect(notifications, 1);
 
+    final diff = await controller.previewDiff('src/main.styio');
+
+    expect(controller.diffPreview, same(diff));
+    expect(controller.hasDiffPreview, isTrue);
+    expect(diff.unifiedDiff, contains('diff --git'));
+    expect(notifications, 2);
+
     controller.clear();
 
     expect(controller.snapshot, isNull);
-    expect(notifications, 2);
+    expect(controller.diffPreview, isNull);
+    expect(notifications, 3);
   });
 }
 

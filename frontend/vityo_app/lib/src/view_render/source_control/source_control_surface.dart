@@ -10,18 +10,22 @@ class SourceControlSurface extends StatelessWidget {
     required this.workspaceFileCount,
     required this.changedDocumentIds,
     this.status,
+    this.diffPreview,
     this.onOpenFile,
     this.onSaveAll,
     this.onRefresh,
+    this.onPreviewDiff,
   });
 
   final ViewportProfile viewportProfile;
   final int workspaceFileCount;
   final List<String> changedDocumentIds;
   final SourceControlStatusSnapshot? status;
+  final SourceControlDiffSnapshot? diffPreview;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function()? onSaveAll;
   final Future<void> Function()? onRefresh;
+  final Future<void> Function(String documentId)? onPreviewDiff;
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +40,10 @@ class SourceControlSurface extends StatelessWidget {
       key: const ValueKey('source-control-surface'),
       child: Padding(
         padding: EdgeInsets.all(compact ? 14 : 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Text('Source Control', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
@@ -94,7 +99,8 @@ class SourceControlSurface extends StatelessWidget {
             if (gitChanges.isNotEmpty) ...[
               Text('Git Changes', style: theme.textTheme.titleSmall),
               const SizedBox(height: 8),
-              Expanded(
+              SizedBox(
+                height: compact ? 160 : 220,
                 child: ListView.separated(
                   key: const ValueKey('source-control-git-change-list'),
                   itemCount: gitChanges.length,
@@ -107,9 +113,28 @@ class SourceControlSurface extends StatelessWidget {
                       leading: const Icon(Icons.account_tree_outlined),
                       title: Text(change.path),
                       subtitle: Text(change.summary),
-                      trailing: change.originalPath.isEmpty
-                          ? null
-                          : Text('from ${change.originalPath}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (change.originalPath.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Text('from ${change.originalPath}'),
+                            ),
+                          IconButton(
+                            key: ValueKey(
+                              'source-control-preview-diff-${change.path}',
+                            ),
+                            tooltip: 'Preview diff',
+                            onPressed: onPreviewDiff == null
+                                ? null
+                                : () {
+                                    onPreviewDiff!(change.path);
+                                  },
+                            icon: const Icon(Icons.difference_outlined),
+                          ),
+                        ],
+                      ),
                       onTap: onOpenFile == null
                           ? null
                           : () {
@@ -117,6 +142,31 @@ class SourceControlSurface extends StatelessWidget {
                             },
                     );
                   },
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (diffPreview != null) ...[
+              Text('Diff Preview', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Container(
+                key: const ValueKey('source-control-diff-preview'),
+                width: double.infinity,
+                constraints: const BoxConstraints(maxHeight: 180),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    diffPreview!.available
+                        ? (diffPreview!.unifiedDiff.trim().isEmpty
+                              ? diffPreview!.message
+                              : diffPreview!.unifiedDiff)
+                        : diffPreview!.message,
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -129,7 +179,8 @@ class SourceControlSurface extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               )
             else
-              Expanded(
+              SizedBox(
+                height: compact ? 160 : 220,
                 child: ListView.separated(
                   key: const ValueKey('source-control-change-list'),
                   itemCount: changedDocumentIds.length,
@@ -152,7 +203,8 @@ class SourceControlSurface extends StatelessWidget {
                   },
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

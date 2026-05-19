@@ -99,6 +99,9 @@ void main() {
       final selectClangCppVersion = StyioCommandRegistry.descriptorFor(
         AppCommandId.selectClangCppVersion,
       );
+      final previewSourceControlDiff = StyioCommandRegistry.descriptorFor(
+        AppCommandId.previewSourceControlDiff,
+      );
 
       expect(save.label, 'Save');
       expect(save.shortcutHint, 'Cmd/Ctrl+S');
@@ -210,6 +213,11 @@ void main() {
         selectClangCppVersion.inputLabel,
         'Clang/C++ version id and optional C++ standard',
       );
+
+      expect(previewSourceControlDiff.label, 'Preview Source Control Diff');
+      expect(previewSourceControlDiff.shortcutHint, 'Route');
+      expect(previewSourceControlDiff.requiresInput, isTrue);
+      expect(previewSourceControlDiff.inputLabel, 'Changed file path');
     },
   );
 
@@ -268,6 +276,13 @@ void main() {
         AppCommandId.formatActiveDocument,
         AppCommandId.runStaticAnalysis,
         AppCommandId.runTests,
+      ],
+    );
+    expect(
+      StyioCommandRegistry.sourceControlCommands.map((command) => command.id),
+      <AppCommandId>[
+        AppCommandId.refreshSourceControl,
+        AppCommandId.previewSourceControlDiff,
       ],
     );
   });

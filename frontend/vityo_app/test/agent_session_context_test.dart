@@ -298,6 +298,22 @@ void main() {
           ),
         ],
       ),
+      sourceControlStatus: const SourceControlStatusSnapshot(
+        providerKind: SourceControlProviderKind.git,
+        branchName: 'ai-dev',
+        changes: <SourceControlFileChange>[
+          SourceControlFileChange(
+            path: '/workspace/demo/src/main.styio',
+            unstagedStatus: SourceControlFileStatus.modified,
+          ),
+        ],
+      ),
+      sourceControlDiff: const SourceControlDiffSnapshot(
+        providerKind: SourceControlProviderKind.git,
+        path: '/workspace/demo/src/main.styio',
+        unifiedDiff:
+            'diff --git a/src/main.styio b/src/main.styio\n+value\n',
+      ),
       testDiscovery: const TestDiscoveryResult(
         providerId: 'ctest-discovery',
         roots: <TestNode>[
@@ -418,12 +434,20 @@ void main() {
     final debugLaunch = debugJson['launch']! as Map<String, Object?>;
     final workspaceDiagnostics =
         workspaceJson['diagnostics']! as Map<String, Object?>;
+    final sourceControl =
+        workspaceJson['sourceControl']! as Map<String, Object?>;
+    final sourceControlDiff =
+        workspaceJson['sourceControlDiff']! as Map<String, Object?>;
     final testingDiscovery = testingJson['discovered']! as Map<String, Object?>;
     final testingLastRun = testingJson['lastRun']! as Map<String, Object?>;
 
     expect(json['schemaVersion'], 42);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
+    expect(sourceControl['providerKind'], 'git');
+    expect(sourceControl['branchName'], 'ai-dev');
+    expect(sourceControlDiff['path'], '/workspace/demo/src/main.styio');
+    expect(sourceControlDiff['unifiedDiff'], contains('+value'));
     expect(testingJson['hasDiscovery'], isTrue);
     expect(testingJson['hasLastRun'], isTrue);
     expect(testingDiscovery['testCount'], 1);

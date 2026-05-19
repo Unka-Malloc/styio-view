@@ -10,6 +10,7 @@ void main() {
     tester,
   ) async {
     String? openedDocumentId;
+    String? previewedDocumentId;
     var saveAllCount = 0;
     var refreshCount = 0;
 
@@ -32,6 +33,12 @@ void main() {
  M src/main.styio
 R  src/old.styio -> src/new.styio
 '''),
+            diffPreview: const SourceControlDiffSnapshot(
+              providerKind: SourceControlProviderKind.git,
+              path: 'src/main.styio',
+              unifiedDiff:
+                  'diff --git a/src/main.styio b/src/main.styio\n+value\n',
+            ),
             onOpenFile: (documentId) async {
               openedDocumentId = documentId;
             },
@@ -40,6 +47,9 @@ R  src/old.styio -> src/new.styio
             },
             onRefresh: () async {
               refreshCount += 1;
+            },
+            onPreviewDiff: (documentId) async {
+              previewedDocumentId = documentId;
             },
           ),
         ),
@@ -59,6 +69,9 @@ R  src/old.styio -> src/new.styio
     expect(find.text('src/new.styio'), findsOneWidget);
     expect(find.text('src/main.styio'), findsWidgets);
     expect(find.text('src/lib.styio'), findsOneWidget);
+    expect(find.byKey(const ValueKey('source-control-diff-preview')), findsOneWidget);
+    expect(find.text('Diff Preview'), findsOneWidget);
+    expect(find.textContaining('+value'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('source-control-git-change-src/new.styio')),
@@ -67,13 +80,24 @@ R  src/old.styio -> src/new.styio
     expect(openedDocumentId, 'src/new.styio');
 
     await tester.tap(
-      find.byKey(const ValueKey('source-control-change-src/main.styio')),
+      find.byKey(
+        const ValueKey('source-control-preview-diff-src/main.styio'),
+      ),
     );
     await tester.tap(find.byKey(const ValueKey('source-control-save-all')));
     await tester.tap(find.byKey(const ValueKey('source-control-refresh')));
+    await tester.drag(
+      find.byKey(const ValueKey('source-control-surface')),
+      const Offset(0, -320),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('source-control-change-src/main.styio')),
+    );
     await tester.pump();
 
     expect(openedDocumentId, 'src/main.styio');
+    expect(previewedDocumentId, 'src/main.styio');
     expect(saveAllCount, 1);
     expect(refreshCount, 1);
   });

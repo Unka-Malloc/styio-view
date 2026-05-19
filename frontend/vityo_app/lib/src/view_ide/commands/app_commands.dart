@@ -25,6 +25,7 @@ enum AppCommandId {
   refreshLanguageService,
   refreshWorkspaceDiagnostics,
   refreshSourceControl,
+  previewSourceControlDiff,
   openWorkspaceFile,
   searchWorkspace,
   runBuild,
@@ -302,6 +303,15 @@ class StyioCommandRegistry {
       description: 'Refresh source-control status for the active workspace.',
     ),
     AppCommandDescriptor(
+      id: AppCommandId.previewSourceControlDiff,
+      label: 'Preview Source Control Diff',
+      shortcutHint: 'Route',
+      description:
+          'Preview the current unified diff for a changed workspace file.',
+      requiresInput: true,
+      inputLabel: 'Changed file path',
+    ),
+    AppCommandDescriptor(
       id: AppCommandId.goToDefinition,
       label: 'Go to Definition',
       shortcutHint: 'F12',
@@ -457,7 +467,8 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get sourceControlCommands =>
       commands.where(
         (command) => switch (command.id) {
-          AppCommandId.refreshSourceControl => true,
+          AppCommandId.refreshSourceControl ||
+          AppCommandId.previewSourceControlDiff => true,
           _ => false,
         },
       );

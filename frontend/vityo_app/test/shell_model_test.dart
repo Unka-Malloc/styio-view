@@ -255,6 +255,14 @@ void main() {
             ],
           ),
         ),
+        diffProvider: const StaticSourceControlDiffProvider(
+          SourceControlDiffSnapshot(
+            providerKind: SourceControlProviderKind.git,
+            path: documentPath,
+            unifiedDiff:
+                'diff --git a/src/main.styio b/src/main.styio\n+changed\n',
+          ),
+        ),
         workspaceRoot: '/workspace/demo',
       );
       addTearDown(sourceControlController.dispose);
@@ -321,6 +329,30 @@ void main() {
       expect(sourceControlJson['providerKind'], 'git');
       expect(sourceControlJson['branchName'], 'ai-dev');
       expect(sourceControlJson['changeCount'], 1);
+
+      final diffPreview = await shell.previewSourceControlDiff(documentPath);
+      final diffJson =
+          shell.agentSessionContext.toJson()['workspace']!
+                  as Map<String, Object?>;
+      final sourceControlDiffJson =
+          diffJson['sourceControlDiff']! as Map<String, Object?>;
+      expect(diffPreview.available, isTrue);
+      expect(sourceControlDiffJson['path'], documentPath);
+      expect(sourceControlDiffJson['unifiedDiff'], contains('+changed'));
+
+      final agentDiffApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'previewSourceControlDiff',
+          input: documentPath,
+        ),
+      );
+      final agentDiffResult = shell.agentSessionContext.commands.lastResult;
+      expect(agentDiffApplied, isTrue);
+      expect(agentDiffResult?.commandId, 'previewSourceControlDiff');
+      expect(
+        agentDiffResult?.metadata['sourceControlDiff'],
+        isA<Map<String, Object?>>(),
+      );
 
       await shell.executeCommand(AppCommandId.refreshWorkspaceDiagnostics);
       final diagnosticsCommandResult =

@@ -479,6 +479,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   SourceControlStatusSnapshot get sourceControlStatusSnapshot =>
       sourceControlStatusController?.snapshot ??
       _localDirtySourceControlStatusSnapshot();
+  SourceControlDiffSnapshot? get sourceControlDiffPreview =>
+      sourceControlStatusController?.diffPreview;
 
   AgentSessionContext get agentSessionContext {
     final debugBreakpoints = _debugBreakpoints;
@@ -587,6 +589,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       lastWorkspaceSearch: _lastAgentWorkspaceSearch,
       workspaceDiagnostics: workspaceDiagnosticsSnapshot,
       sourceControlStatus: sourceControlStatusSnapshot,
+      sourceControlDiff: sourceControlDiffPreview,
       testDiscovery: testDiscovery,
       lastTestRun: lastTestRun,
       activeFilePath: workspaceController.activeFilePath,
@@ -631,6 +634,31 @@ class ShellRuntimeModel extends ChangeNotifier {
           : 'Source control refresh failed: ${snapshot.message}';
     }
     return 'Source control refreshed: ${snapshot.changes.length} change(s).';
+  }
+
+  Future<SourceControlDiffSnapshot> previewSourceControlDiff(String path) async {
+    final controller = sourceControlStatusController;
+    final snapshot = controller == null
+        ? SourceControlDiffSnapshot(
+            providerKind: SourceControlProviderKind.localDirtyDocuments,
+            path: path.trim(),
+            available: false,
+            message:
+                'Source control diff skipped: no source control controller is configured.',
+          )
+        : await controller.previewDiff(path);
+    appendLog(_sourceControlDiffPreviewMessage(snapshot));
+    notifyListeners();
+    return snapshot;
+  }
+
+  String _sourceControlDiffPreviewMessage(SourceControlDiffSnapshot snapshot) {
+    if (!snapshot.available) {
+      return snapshot.message.isEmpty
+          ? 'Source control diff preview failed for ${snapshot.path}.'
+          : 'Source control diff preview failed for ${snapshot.path}: ${snapshot.message}';
+    }
+    return 'Source control diff previewed for ${snapshot.path}: ${snapshot.lineCount} line(s).';
   }
 
   WorkspaceDiagnosticsRequest _createWorkspaceDiagnosticsRequest() {
@@ -1033,6 +1061,20 @@ class ShellRuntimeModel extends ChangeNotifier {
           applied: snapshot.available,
           message: _sourceControlRefreshMessage(snapshot),
           metadata: <String, Object?>{'sourceControl': snapshot.toJson()},
+        );
+        return snapshot.available;
+      case 'previewSourceControlDiff':
+        final path = suggestion.input?.trim().isNotEmpty == true
+            ? suggestion.input!.trim()
+            : workspaceController.activeFilePath;
+        final snapshot = await previewSourceControlDiff(path);
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: snapshot.available,
+          message: _sourceControlDiffPreviewMessage(snapshot),
+          metadata: <String, Object?>{
+            'sourceControlDiff': snapshot.toJson(),
+          },
         );
         return snapshot.available;
       case 'goToDefinition':
@@ -1801,6 +1843,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshLanguageService:
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
+      case AppCommandId.previewSourceControlDiff:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
@@ -1864,6 +1907,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshLanguageService:
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
+      case AppCommandId.previewSourceControlDiff:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
@@ -3774,6 +3818,19 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: <String, Object?>{'sourceControl': snapshot.toJson()},
         );
         return;
+      case AppCommandId.previewSourceControlDiff:
+        final snapshot = await previewSourceControlDiff(
+          workspaceController.activeFilePath,
+        );
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: snapshot.available,
+          message: _sourceControlDiffPreviewMessage(snapshot),
+          metadata: <String, Object?>{
+            'sourceControlDiff': snapshot.toJson(),
+          },
+        );
+        return;
       case AppCommandId.run:
         final routeSelection = selectBackendExecutionRoute(
           platformTarget: platformTarget,
@@ -4082,6 +4139,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshLanguageService:
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
+      case AppCommandId.previewSourceControlDiff:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:

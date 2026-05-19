@@ -72,6 +72,7 @@ class AgentSessionContext {
     AgentWorkspaceSearchResultContext? lastWorkspaceSearch,
     WorkspaceDiagnosticsSnapshot? workspaceDiagnostics,
     SourceControlStatusSnapshot? sourceControlStatus,
+    SourceControlDiffSnapshot? sourceControlDiff,
     TestDiscoveryResult? testDiscovery,
     TestRunResult? lastTestRun,
     TokenSpan? focusToken,
@@ -136,6 +137,7 @@ class AgentSessionContext {
       lastSearch: lastWorkspaceSearch,
       diagnostics: workspaceDiagnostics,
       sourceControlStatus: sourceControlStatus,
+      sourceControlDiff: sourceControlDiff,
     );
     return AgentSessionContext(
       schemaVersion: 42,
@@ -3704,6 +3706,7 @@ class AgentWorkspaceContext {
     this.lastSearch,
     this.diagnostics,
     this.sourceControlStatus,
+    this.sourceControlDiff,
   });
 
   final String activeFilePath;
@@ -3719,6 +3722,7 @@ class AgentWorkspaceContext {
   final AgentWorkspaceSearchResultContext? lastSearch;
   final WorkspaceDiagnosticsSnapshot? diagnostics;
   final SourceControlStatusSnapshot? sourceControlStatus;
+  final SourceControlDiffSnapshot? sourceControlDiff;
 
   factory AgentWorkspaceContext.fromWorkspaceState({
     required String activeFilePath,
@@ -3729,6 +3733,7 @@ class AgentWorkspaceContext {
     AgentWorkspaceSearchResultContext? lastSearch,
     WorkspaceDiagnosticsSnapshot? diagnostics,
     SourceControlStatusSnapshot? sourceControlStatus,
+    SourceControlDiffSnapshot? sourceControlDiff,
     int maxFiles = 200,
     int maxDocumentSamples = 10,
   }) {
@@ -3796,6 +3801,7 @@ class AgentWorkspaceContext {
       lastSearch: lastSearch,
       diagnostics: diagnostics,
       sourceControlStatus: sourceControlStatus,
+      sourceControlDiff: sourceControlDiff,
     );
   }
 
@@ -3817,6 +3823,8 @@ class AgentWorkspaceContext {
       if (diagnostics != null) 'diagnostics': diagnostics!.toJson(),
       if (sourceControlStatus != null)
         'sourceControl': sourceControlStatus!.toJson(),
+      if (sourceControlDiff != null)
+        'sourceControlDiff': sourceControlDiff!.toJson(),
     };
   }
 }

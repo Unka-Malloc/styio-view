@@ -106,6 +106,50 @@ class SourceControlStatusSnapshot {
   }
 }
 
+class SourceControlDiffSnapshot {
+  const SourceControlDiffSnapshot({
+    required this.providerKind,
+    required this.path,
+    this.available = true,
+    this.unifiedDiff = '',
+    this.message = '',
+  });
+
+  static const int maxSerializedDiffChars = 12000;
+
+  final SourceControlProviderKind providerKind;
+  final String path;
+  final bool available;
+  final String unifiedDiff;
+  final String message;
+
+  bool get empty => unifiedDiff.trim().isEmpty;
+
+  int get lineCount {
+    if (unifiedDiff.isEmpty) {
+      return 0;
+    }
+    return unifiedDiff.split('\n').length;
+  }
+
+  Map<String, Object?> toJson() {
+    final truncated = unifiedDiff.length > maxSerializedDiffChars;
+    final visibleDiff = truncated
+        ? unifiedDiff.substring(0, maxSerializedDiffChars)
+        : unifiedDiff;
+    return <String, Object?>{
+      'providerKind': providerKind.wireValue,
+      'path': path,
+      'available': available,
+      'empty': empty,
+      'lineCount': lineCount,
+      if (message.isNotEmpty) 'message': message,
+      'diffTruncated': truncated,
+      'unifiedDiff': visibleDiff,
+    };
+  }
+}
+
 class SourceControlCommandRequest {
   const SourceControlCommandRequest({
     required this.executable,
@@ -180,6 +224,17 @@ abstract class SourceControlStatusProvider {
   Future<SourceControlStatusSnapshot> status({required String workspaceRoot});
 }
 
+abstract class SourceControlDiffProvider {
+  const SourceControlDiffProvider();
+
+  SourceControlProviderKind get providerKind;
+
+  Future<SourceControlDiffSnapshot> diff({
+    required String workspaceRoot,
+    required String path,
+  });
+}
+
 class StaticSourceControlStatusProvider extends SourceControlStatusProvider {
   const StaticSourceControlStatusProvider(this.snapshot);
 
@@ -191,6 +246,23 @@ class StaticSourceControlStatusProvider extends SourceControlStatusProvider {
   @override
   Future<SourceControlStatusSnapshot> status({
     required String workspaceRoot,
+  }) async {
+    return snapshot;
+  }
+}
+
+class StaticSourceControlDiffProvider extends SourceControlDiffProvider {
+  const StaticSourceControlDiffProvider(this.snapshot);
+
+  final SourceControlDiffSnapshot snapshot;
+
+  @override
+  SourceControlProviderKind get providerKind => snapshot.providerKind;
+
+  @override
+  Future<SourceControlDiffSnapshot> diff({
+    required String workspaceRoot,
+    required String path,
   }) async {
     return snapshot;
   }
@@ -253,6 +325,72 @@ class GitPorcelainStatusProvider extends SourceControlStatusProvider {
   }
 }
 
+class GitSourceControlDiffProvider extends SourceControlDiffProvider {
+  const GitSourceControlDiffProvider({
+    required this.runner,
+    this.executable = 'git',
+  });
+
+  final SourceControlCommandRunner runner;
+  final String executable;
+
+  static List<String> diffArgumentsFor(String path) {
+    return <String>['diff', '--', path];
+  }
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlDiffSnapshot> diff({
+    required String workspaceRoot,
+    required String path,
+  }) async {
+    final normalizedPath = path.trim();
+    if (normalizedPath.isEmpty) {
+      return _unavailable(normalizedPath, 'Git diff skipped: missing path.');
+    }
+    try {
+      final result = await runner(
+        SourceControlCommandRequest(
+          executable: executable,
+          arguments: diffArgumentsFor(normalizedPath),
+          workingDirectory: workspaceRoot,
+        ),
+      );
+      if (result.exitCode == 0) {
+        return SourceControlDiffSnapshot(
+          providerKind: SourceControlProviderKind.git,
+          path: normalizedPath,
+          unifiedDiff: result.stdout,
+          message: result.stdout.trim().isEmpty
+              ? 'No unstaged Git diff for $normalizedPath.'
+              : 'Git diff for $normalizedPath.',
+        );
+      }
+      return _unavailable(
+        normalizedPath,
+        _diffFailureMessage(
+          result.exitCode,
+          stderr: result.stderr,
+          stdout: result.stdout,
+        ),
+      );
+    } on Object catch (error) {
+      return _unavailable(normalizedPath, 'Git diff unavailable: $error');
+    }
+  }
+
+  SourceControlDiffSnapshot _unavailable(String path, String message) {
+    return SourceControlDiffSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      path: path,
+      available: false,
+      message: message,
+    );
+  }
+}
+
 String _failureMessage(
   int exitCode, {
   required String stderr,
@@ -263,6 +401,18 @@ String _failureMessage(
     return 'Git status failed with exit code $exitCode.';
   }
   return 'Git status failed with exit code $exitCode: $detail';
+}
+
+String _diffFailureMessage(
+  int exitCode, {
+  required String stderr,
+  required String stdout,
+}) {
+  final detail = stderr.trim().isNotEmpty ? stderr.trim() : stdout.trim();
+  if (detail.isEmpty) {
+    return 'Git diff failed with exit code $exitCode.';
+  }
+  return 'Git diff failed with exit code $exitCode: $detail';
 }
 
 class GitPorcelainStatusParser {

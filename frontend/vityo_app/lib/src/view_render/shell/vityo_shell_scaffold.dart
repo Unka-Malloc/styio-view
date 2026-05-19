@@ -193,6 +193,7 @@ class VityoShellScaffold extends StatelessWidget {
             workspaceFileCount: shell.workspaceController.files.length,
             changedDocumentIds: shell.dirtyDocumentPaths,
             status: shell.sourceControlStatusSnapshot,
+            diffPreview: shell.sourceControlDiffPreview,
             onOpenFile: shell.openWorkspaceFileForAgent,
             onSaveAll: () {
               return shell.executeCommand(AppCommandId.saveAll);
@@ -200,6 +201,7 @@ class VityoShellScaffold extends StatelessWidget {
             onRefresh: () {
               return shell.executeCommand(AppCommandId.refreshSourceControl);
             },
+            onPreviewDiff: shell.previewSourceControlDiff,
           );
         }
 
@@ -1987,6 +1989,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.rule_folder_outlined;
     case AppCommandId.refreshSourceControl:
       return Icons.account_tree_rounded;
+    case AppCommandId.previewSourceControlDiff:
+      return Icons.difference_outlined;
     case AppCommandId.goToDefinition:
       return Icons.subdirectory_arrow_right_rounded;
     case AppCommandId.openWorkspaceFile:

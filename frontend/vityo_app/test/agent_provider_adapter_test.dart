@@ -104,6 +104,38 @@ void main() {
     expect(planJson['acceptanceCriteria'], <String>['Widget test passes.']);
   });
 
+  test('agent diagnostic summary content part preserves triage facts', () {
+    final part = AgentContentPart.fromJson(<String, Object?>{
+      'kind': 'diagnostic_summary',
+      'text': 'Diagnostics summarized.',
+      'diagnostic_summary': <String, Object?>{
+        'title': 'Build failed.',
+        'summary': 'Parser target failed with one error.',
+        'severity': 'error',
+        'diagnostic_count': 1,
+        'affected_documents': <String>['src/parser.cc'],
+        'suggested_command_ids': <String>['runBuild'],
+      },
+    });
+    final json = part.toJson();
+    final summaryJson = json['diagnosticSummary']! as Map<String, Object?>;
+
+    expect(part.kind, AgentContentPartKind.diagnosticSummary);
+    expect(part.diagnosticSummary?.title, 'Build failed.');
+    expect(
+      part.diagnosticSummary?.summary,
+      'Parser target failed with one error.',
+    );
+    expect(part.diagnosticSummary?.severity, 'error');
+    expect(part.diagnosticSummary?.diagnosticCount, 1);
+    expect(part.diagnosticSummary?.affectedDocuments, <String>[
+      'src/parser.cc',
+    ]);
+    expect(part.diagnosticSummary?.suggestedCommandIds, <String>['runBuild']);
+    expect(summaryJson['diagnosticCount'], 1);
+    expect(summaryJson['suggestedCommandIds'], <String>['runBuild']);
+  });
+
   test('local-only adapter returns configuration fallback response', () async {
     const document = DocumentState(
       documentId: '/workspace/demo/src/main.styio',
@@ -462,9 +494,14 @@ void main() {
       final systemMessage = messages.first! as Map<String, Object?>;
       expect(systemMessage['content'], contains('contentParts'));
       expect(systemMessage['content'], contains('"kind":"plan"'));
+      expect(systemMessage['content'], contains('diagnostic_summary'));
       expect(systemMessage['content'], contains('code_patch'));
       expect(systemMessage['content'], contains('ide_command'));
       expect(systemMessage['content'], contains('agent.recentCodingPlans'));
+      expect(
+        systemMessage['content'],
+        contains('agent.recentDiagnosticSummaries'),
+      );
       expect(systemMessage['content'], contains('commands catalog'));
       expect(systemMessage['content'], contains('C++/Clang skills'));
       expect(systemMessage['content'], contains('reference-grounded IDE'));
@@ -1055,6 +1092,47 @@ void main() {
   });
 
   test(
+    'OpenAI-compatible adapter parses structured diagnostic summary content',
+    () async {
+      final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+      final request = AgentProviderRequest(
+        requestId: 'agent-request-diagnostic-summary',
+        profile: profile,
+        context: AgentSessionContext.fromEditorState(
+          document: const DocumentState(
+            documentId: '/workspace/demo/src/main.styio',
+            text: 'value = 1\n',
+            revision: 1,
+          ),
+          selection: const SelectionState.collapsed(0),
+          diagnostics: const [],
+        ),
+        userPrompt: 'Summarize diagnostics.',
+      );
+      final adapter = OpenAICompatibleAgentProviderAdapter(
+        transport: _StructuredDiagnosticSummaryTransport(),
+        endpoint: profile.endpoint,
+      );
+
+      final response = await adapter.send(request);
+      final summaryPart = response.contentParts.singleWhere(
+        (part) => part.kind == AgentContentPartKind.diagnosticSummary,
+      );
+
+      expect(summaryPart.text, 'Diagnostics summarized.');
+      expect(summaryPart.diagnosticSummary?.title, 'Build failed.');
+      expect(summaryPart.diagnosticSummary?.severity, 'error');
+      expect(summaryPart.diagnosticSummary?.diagnosticCount, 1);
+      expect(summaryPart.diagnosticSummary?.affectedDocuments, <String>[
+        'src/parser.cc',
+      ]);
+      expect(summaryPart.diagnosticSummary?.suggestedCommandIds, <String>[
+        'runBuild',
+      ]);
+    },
+  );
+
+  test(
     'OpenAI-compatible adapter parses fenced structured code patch content',
     () async {
       final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
@@ -1619,6 +1697,45 @@ class _StructuredPlanTransport implements AgentProviderTransport {
         "summary": "Update active document safely.",
         "steps": ["Inspect IDE facts.", "Prepare patch."],
         "acceptanceCriteria": ["Patch preview is shown."]
+      }
+    }
+  ]
+}
+''',
+          },
+        },
+      ],
+    };
+  }
+}
+
+class _StructuredDiagnosticSummaryTransport implements AgentProviderTransport {
+  @override
+  Future<Map<String, Object?>> postJson({
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  }) async {
+    return <String, Object?>{
+      'id': 'chatcmpl-diagnostic-summary',
+      'choices': <Object?>[
+        <String, Object?>{
+          'finish_reason': 'stop',
+          'message': <String, Object?>{
+            'role': 'assistant',
+            'content': '''
+{
+  "contentParts": [
+    {
+      "kind": "diagnostic_summary",
+      "text": "Diagnostics summarized.",
+      "diagnosticSummary": {
+        "title": "Build failed.",
+        "summary": "Parser target failed with one error.",
+        "severity": "error",
+        "diagnosticCount": 1,
+        "affectedDocuments": ["src/parser.cc"],
+        "suggestedCommandIds": ["runBuild"]
       }
     }
   ]

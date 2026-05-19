@@ -14,6 +14,7 @@ const int _maxAgentPendingPatchReplacementTextSampleLength = 2000;
 const int _maxAgentPendingIdeCommandContexts = 10;
 const int _maxAgentRecentIdeCommandSuggestionContexts = 12;
 const int _maxAgentRecentCodingPlanContexts = 8;
+const int _maxAgentRecentDiagnosticSummaryContexts = 8;
 
 class AgentCodingSessionController extends ChangeNotifier {
   AgentCodingSessionController({
@@ -54,6 +55,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   _recentIdeCommandSuggestionContexts = <AgentPendingIdeCommandContext>[];
   final List<AgentCodingPlanContext> _recentCodingPlanContexts =
       <AgentCodingPlanContext>[];
+  final List<AgentDiagnosticSummaryContext> _recentDiagnosticSummaryContexts =
+      <AgentDiagnosticSummaryContext>[];
   String? _providerMountMessage;
   String? _lastError;
   AgentProviderTransportException? _lastProviderFailure;
@@ -116,6 +119,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _recentPatchProposalContexts.clear();
     _recentIdeCommandSuggestionContexts.clear();
     _recentCodingPlanContexts.clear();
+    _recentDiagnosticSummaryContexts.clear();
     _attachments.clear();
     _conversationTurns.clear();
     notifyListeners();
@@ -212,6 +216,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       _pendingPatch = _firstPatch(response);
       _recordRecentPatchProposalContext(_pendingPatch);
       _recordRecentCodingPlanContexts(response);
+      _recordRecentDiagnosticSummaryContexts(response);
       _recordRecentIdeCommandSuggestionContexts(response);
       _clearPreservedAgentState();
       if (identical(
@@ -455,7 +460,10 @@ class AgentCodingSessionController extends ChangeNotifier {
       return false;
     }
     return response.contentParts.any(
-      (part) => part.ideCommand != null || part.plan != null,
+      (part) =>
+          part.ideCommand != null ||
+          part.plan != null ||
+          part.diagnosticSummary != null,
     );
   }
 
@@ -473,6 +481,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       lastPatchApplication: _lastPatchApplicationContext,
       recentPatchApplications: _recentPatchApplicationContexts,
       recentCodingPlans: _recentCodingPlanContexts,
+      recentDiagnosticSummaries: _recentDiagnosticSummaryContexts,
     );
   }
 
@@ -530,6 +539,23 @@ class AgentCodingSessionController extends ChangeNotifier {
       _recentCodingPlanContexts.removeRange(
         _maxAgentRecentCodingPlanContexts,
         _recentCodingPlanContexts.length,
+      );
+    }
+  }
+
+  void _recordRecentDiagnosticSummaryContexts(
+    AgentProviderResponseEnvelope response,
+  ) {
+    final summaries = _diagnosticSummaryContexts(response);
+    if (summaries.isEmpty) {
+      return;
+    }
+    _recentDiagnosticSummaryContexts.insertAll(0, summaries);
+    if (_recentDiagnosticSummaryContexts.length >
+        _maxAgentRecentDiagnosticSummaryContexts) {
+      _recentDiagnosticSummaryContexts.removeRange(
+        _maxAgentRecentDiagnosticSummaryContexts,
+        _recentDiagnosticSummaryContexts.length,
       );
     }
   }
@@ -731,6 +757,33 @@ List<AgentCodingPlanContext> _codingPlanContexts(
     }
   }
   return List<AgentCodingPlanContext>.unmodifiable(plans);
+}
+
+List<AgentDiagnosticSummaryContext> _diagnosticSummaryContexts(
+  AgentProviderResponseEnvelope response,
+) {
+  final summaries = <AgentDiagnosticSummaryContext>[];
+  for (final part in response.contentParts) {
+    final diagnosticSummary = part.diagnosticSummary;
+    if (diagnosticSummary == null) {
+      continue;
+    }
+    summaries.add(
+      AgentDiagnosticSummaryContext(
+        title: diagnosticSummary.title,
+        summary: diagnosticSummary.summary,
+        severity: diagnosticSummary.severity,
+        diagnosticCount: diagnosticSummary.diagnosticCount,
+        affectedDocuments: diagnosticSummary.affectedDocuments,
+        suggestedCommandIds: diagnosticSummary.suggestedCommandIds,
+        text: part.text,
+      ),
+    );
+    if (summaries.length >= _maxAgentRecentDiagnosticSummaryContexts) {
+      break;
+    }
+  }
+  return List<AgentDiagnosticSummaryContext>.unmodifiable(summaries);
 }
 
 AgentPendingPatchContext _pendingPatchContext(AgentCodePatch patch) {

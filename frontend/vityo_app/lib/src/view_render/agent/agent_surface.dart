@@ -821,6 +821,11 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 .where((part) => part.plan != null)
                 .toList(growable: false) ??
             const <AgentContentPart>[];
+        final diagnosticSummaryParts =
+            response?.contentParts
+                .where((part) => part.diagnosticSummary != null)
+                .toList(growable: false) ??
+            const <AgentContentPart>[];
         final registeredCommandIds = _registeredAgentCommandIds(
           widget.sessionContext.commands,
         );
@@ -1064,6 +1069,14 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _AgentCodingPlanSection(part: part),
+                  ),
+              ],
+              if (diagnosticSummaryParts.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                for (final part in diagnosticSummaryParts)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _AgentDiagnosticSummarySection(part: part),
                   ),
               ],
               if (commandSuggestions.isNotEmpty) ...[
@@ -1399,6 +1412,68 @@ class _AgentCodingPlanSection extends StatelessWidget {
             const SizedBox(height: 4),
             for (final risk in plan.risks)
               Text('- $risk', style: theme.textTheme.bodySmall),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AgentDiagnosticSummarySection extends StatelessWidget {
+  const _AgentDiagnosticSummarySection({required this.part});
+
+  final AgentContentPart part;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final summary = part.diagnosticSummary!;
+    return Container(
+      key: const ValueKey('agent-diagnostic-summary-section'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0E8E0),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Agent Diagnostic Summary', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text(summary.severity)),
+              Chip(label: Text('${summary.diagnosticCount} diagnostic(s)')),
+              for (final documentId in summary.affectedDocuments.take(3))
+                Chip(label: Text(documentId)),
+            ],
+          ),
+          if (summary.title.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(summary.title, style: theme.textTheme.labelMedium),
+          ],
+          if (summary.summary.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(summary.summary, style: theme.textTheme.bodySmall),
+          ],
+          if (summary.suggestedCommandIds.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Suggested Commands', style: theme.textTheme.labelMedium),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final commandId in summary.suggestedCommandIds)
+                  Chip(label: Text(commandId)),
+              ],
+            ),
           ],
         ],
       ),

@@ -1387,6 +1387,42 @@ void main() {
     expect(plan['text'], 'Plan before patch.');
   });
 
+  test('agent session context serializes recent diagnostic summaries', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      recentDiagnosticSummaries: const <AgentDiagnosticSummaryContext>[
+        AgentDiagnosticSummaryContext(
+          title: 'Build failed.',
+          summary: 'Parser target failed with one error.',
+          severity: 'error',
+          diagnosticCount: 1,
+          affectedDocuments: <String>['src/parser.cc'],
+          suggestedCommandIds: <String>['runBuild'],
+          text: 'Diagnostics summarized.',
+        ),
+      ],
+    );
+
+    final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final recentDiagnosticSummaries =
+        agentJson['recentDiagnosticSummaries']! as List<Object?>;
+    final summary = recentDiagnosticSummaries.single! as Map<String, Object?>;
+
+    expect(summary['title'], 'Build failed.');
+    expect(summary['summary'], 'Parser target failed with one error.');
+    expect(summary['severity'], 'error');
+    expect(summary['diagnosticCount'], 1);
+    expect(summary['affectedDocuments'], <String>['src/parser.cc']);
+    expect(summary['suggestedCommandIds'], <String>['runBuild']);
+    expect(summary['text'], 'Diagnostics summarized.');
+  });
+
   test('agent session context serializes last provider failure', () {
     final context = AgentSessionContext.fromEditorState(
       document: const DocumentState(

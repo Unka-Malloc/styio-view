@@ -93,6 +93,8 @@ class AgentSessionContext {
         const <AgentPatchApplicationContext>[],
     Iterable<AgentCodingPlanContext> recentCodingPlans =
         const <AgentCodingPlanContext>[],
+    Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
+        const <AgentDiagnosticSummaryContext>[],
     AgentDebugContext debug = const AgentDebugContext.idle(),
     String? activeFilePath,
     int maxDiagnostics = 100,
@@ -149,6 +151,7 @@ class AgentSessionContext {
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
         recentCodingPlans: recentCodingPlans,
+        recentDiagnosticSummaries: recentDiagnosticSummaries,
       ),
       commands: AgentCommandCatalogContext.fromRegistry(
         lastResult: lastCommandResult,
@@ -257,6 +260,8 @@ class AgentSessionContext {
         const <AgentPatchApplicationContext>[],
     Iterable<AgentCodingPlanContext> recentCodingPlans =
         const <AgentCodingPlanContext>[],
+    Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
+        const <AgentDiagnosticSummaryContext>[],
   }) {
     final pendingIdeCommandList = pendingIdeCommands.toList(growable: false);
     final recentPatchProposalList = recentPatchProposals.toList(
@@ -266,11 +271,15 @@ class AgentSessionContext {
       growable: false,
     );
     final recentCodingPlanList = recentCodingPlans.toList(growable: false);
+    final recentDiagnosticSummaryList = recentDiagnosticSummaries.toList(
+      growable: false,
+    );
     if (pendingPatch == null &&
         recentPatchProposalList.isEmpty &&
         pendingIdeCommandList.isEmpty &&
         recentIdeCommandSuggestionList.isEmpty &&
         recentCodingPlanList.isEmpty &&
+        recentDiagnosticSummaryList.isEmpty &&
         lastProviderFailure == null &&
         lastPatchApplication == null) {
       final recentPatchApplicationList = recentPatchApplications.toList(
@@ -299,6 +308,7 @@ class AgentSessionContext {
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
         recentCodingPlans: recentCodingPlanList,
+        recentDiagnosticSummaries: recentDiagnosticSummaryList,
       ),
       commands: commands,
       language: language,
@@ -318,6 +328,7 @@ class AgentCodingLoopContext {
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
     this.recentCodingPlans = const <AgentCodingPlanContext>[],
+    this.recentDiagnosticSummaries = const <AgentDiagnosticSummaryContext>[],
   });
 
   factory AgentCodingLoopContext.fromPatchApplications({
@@ -334,6 +345,8 @@ class AgentCodingLoopContext {
         const <AgentPatchApplicationContext>[],
     Iterable<AgentCodingPlanContext> recentCodingPlans =
         const <AgentCodingPlanContext>[],
+    Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
+        const <AgentDiagnosticSummaryContext>[],
   }) {
     final history = _agentPatchApplicationHistory(
       lastPatchApplication: lastPatchApplication,
@@ -350,6 +363,9 @@ class AgentCodingLoopContext {
       lastPatchApplication: history.isEmpty ? null : history.first,
       recentPatchApplications: history,
       recentCodingPlans: recentCodingPlans.toList(growable: false),
+      recentDiagnosticSummaries: recentDiagnosticSummaries.toList(
+        growable: false,
+      ),
     );
   }
 
@@ -361,6 +377,7 @@ class AgentCodingLoopContext {
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
   final List<AgentCodingPlanContext> recentCodingPlans;
+  final List<AgentDiagnosticSummaryContext> recentDiagnosticSummaries;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -389,6 +406,10 @@ class AgentCodingLoopContext {
         'recentCodingPlans': recentCodingPlans
             .map((plan) => plan.toJson())
             .toList(growable: false),
+      if (recentDiagnosticSummaries.isNotEmpty)
+        'recentDiagnosticSummaries': recentDiagnosticSummaries
+            .map((summary) => summary.toJson())
+            .toList(growable: false),
     };
   }
 }
@@ -414,6 +435,39 @@ class AgentCodingPlanContext {
       'steps': steps,
       'acceptanceCriteria': acceptanceCriteria,
       if (risks.isNotEmpty) 'risks': risks,
+      if (text.trim().isNotEmpty) 'text': text,
+    };
+  }
+}
+
+class AgentDiagnosticSummaryContext {
+  const AgentDiagnosticSummaryContext({
+    required this.title,
+    required this.summary,
+    this.severity = 'info',
+    this.diagnosticCount = 0,
+    this.affectedDocuments = const <String>[],
+    this.suggestedCommandIds = const <String>[],
+    this.text = '',
+  });
+
+  final String title;
+  final String summary;
+  final String severity;
+  final int diagnosticCount;
+  final List<String> affectedDocuments;
+  final List<String> suggestedCommandIds;
+  final String text;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      if (title.trim().isNotEmpty) 'title': title,
+      if (summary.trim().isNotEmpty) 'summary': summary,
+      'severity': severity,
+      'diagnosticCount': diagnosticCount,
+      if (affectedDocuments.isNotEmpty) 'affectedDocuments': affectedDocuments,
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
       if (text.trim().isNotEmpty) 'text': text,
     };
   }

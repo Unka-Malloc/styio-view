@@ -241,6 +241,7 @@ class AgentContentPart {
     required this.kind,
     required this.text,
     this.plan,
+    this.diagnosticSummary,
     this.patch,
     this.ideCommand,
   });
@@ -248,6 +249,7 @@ class AgentContentPart {
   final AgentContentPartKind kind;
   final String text;
   final AgentCodingPlan? plan;
+  final AgentDiagnosticSummary? diagnosticSummary;
   final AgentCodePatch? patch;
   final AgentIdeCommandSuggestion? ideCommand;
 
@@ -256,6 +258,8 @@ class AgentContentPart {
       'kind': kind.wireValue,
       'text': text,
       if (plan != null) 'plan': plan!.toJson(),
+      if (diagnosticSummary != null)
+        'diagnosticSummary': diagnosticSummary!.toJson(),
       if (patch != null) 'patch': patch!.toJson(),
       if (ideCommand != null) 'ideCommand': ideCommand!.toJson(),
     };
@@ -263,6 +267,8 @@ class AgentContentPart {
 
   factory AgentContentPart.fromJson(Map<String, Object?> json) {
     final planJson = json['plan'] ?? json['codingPlan'];
+    final diagnosticSummaryJson =
+        json['diagnosticSummary'] ?? json['diagnostic_summary'];
     final patchJson = json['patch'] ?? json['codePatch'];
     final ideCommandJson = json['ideCommand'] ?? json['command'];
     return AgentContentPart(
@@ -273,6 +279,16 @@ class AgentContentPart {
           : planJson is Map
           ? AgentCodingPlan.fromJson(
               planJson.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : null,
+      diagnosticSummary: diagnosticSummaryJson is Map<String, Object?>
+          ? AgentDiagnosticSummary.fromJson(diagnosticSummaryJson)
+          : diagnosticSummaryJson is Map
+          ? AgentDiagnosticSummary.fromJson(
+              diagnosticSummaryJson.map(
                 (key, value) =>
                     MapEntry<String, Object?>(key.toString(), value),
               ),
@@ -334,6 +350,66 @@ class AgentCodingPlan {
       risks: _stringListFromJson(json['risks'] ?? json['riskNotes']),
     );
   }
+}
+
+class AgentDiagnosticSummary {
+  const AgentDiagnosticSummary({
+    required this.title,
+    required this.summary,
+    this.severity = 'info',
+    this.diagnosticCount = 0,
+    this.affectedDocuments = const <String>[],
+    this.suggestedCommandIds = const <String>[],
+  });
+
+  final String title;
+  final String summary;
+  final String severity;
+  final int diagnosticCount;
+  final List<String> affectedDocuments;
+  final List<String> suggestedCommandIds;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'title': title,
+      'summary': summary,
+      'severity': severity,
+      'diagnosticCount': diagnosticCount,
+      if (affectedDocuments.isNotEmpty) 'affectedDocuments': affectedDocuments,
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
+    };
+  }
+
+  factory AgentDiagnosticSummary.fromJson(Map<String, Object?> json) {
+    return AgentDiagnosticSummary(
+      title: json['title'] as String? ?? '',
+      summary: json['summary'] as String? ?? '',
+      severity: json['severity'] as String? ?? 'info',
+      diagnosticCount: _intFromJson(
+        json['diagnosticCount'] ?? json['diagnostic_count'],
+      ),
+      affectedDocuments: _stringListFromJson(
+        json['affectedDocuments'] ?? json['affected_documents'],
+      ),
+      suggestedCommandIds: _stringListFromJson(
+        json['suggestedCommandIds'] ?? json['suggested_command_ids'],
+      ),
+    );
+  }
+}
+
+int _intFromJson(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value.trim()) ?? 0;
+  }
+  return 0;
 }
 
 List<String> _stringListFromJson(Object? value) {
@@ -1094,6 +1170,7 @@ Vityo structured response contract:
 - For normal explanation, return plain assistant text.
 - For code changes, return a JSON object with a top-level "contentParts" array.
 - A planning part may use {"kind":"plan","text":"...","plan":{"summary":"...","steps":["..."],"acceptanceCriteria":["..."],"risks":["..."]}} before code_patch or ide_command parts.
+- A diagnostic summary part may use {"kind":"diagnostic_summary","text":"...","diagnosticSummary":{"title":"...","summary":"...","severity":"warning","diagnosticCount":1,"affectedDocuments":["..."],"suggestedCommandIds":["applyQuickFix"]}}.
 - A code change part must use {"kind":"code_patch","text":"...","patch":{"patchId":"...","summary":"...","baseRevision":0,"edits":[{"documentId":"...","operation":"replace","start":0,"end":0,"replacementText":"..."}]}}.
 - To suggest a registered IDE command without directly patching files, use {"kind":"ide_command","text":"...","command":{"commandId":"renameSymbol","input":"...","reason":"..."}}. If a command is only a prerequisite for another command, include "prerequisiteForCommandId":"runBuild".
 - ide_command.commandId must come from the IDE context commands catalog; do not invent command IDs.
@@ -1133,6 +1210,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.pendingPatch, treat it as the current unapplied structured patch that the user may want to apply, revise, explain, or discard.
 - If the IDE context includes agent.recentPatchProposals, read it as newest-first structured code patch proposals from recent assistant responses.
 - If the IDE context includes agent.recentCodingPlans, read it as newest-first structured plan, step, acceptance, and risk evidence from recent assistant responses.
+- If the IDE context includes agent.recentDiagnosticSummaries, read it as newest-first structured diagnostic triage from recent assistant responses.
 - If the IDE context includes agent.pendingIdeCommands, treat them as current unapplied IDE command suggestions waiting for user confirmation or revision.
 - If the IDE context includes agent.recentIdeCommandSuggestions, read it as newest-first structured IDE command suggestions from recent assistant responses.
 - If the IDE context includes agent.lastProviderFailure, read it as the latest structured provider transport failure before proposing retry, failover, or provider reconfiguration.

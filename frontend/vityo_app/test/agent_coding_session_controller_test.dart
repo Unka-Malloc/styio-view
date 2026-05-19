@@ -130,6 +130,57 @@ void main() {
   );
 
   test(
+    'agent coding session sends recent diagnostic summaries with next prompt',
+    () async {
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-1',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(
+              kind: AgentContentPartKind.diagnosticSummary,
+              text: 'Diagnostics summarized.',
+              diagnosticSummary: AgentDiagnosticSummary(
+                title: 'Build failed.',
+                summary: 'Parser target failed with one error.',
+                severity: 'error',
+                diagnosticCount: 1,
+                affectedDocuments: <String>['src/parser.cc'],
+                suggestedCommandIds: <String>['runBuild'],
+              ),
+            ),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+      );
+
+      controller.updatePrompt('Summarize diagnostics.');
+      await controller.sendPrompt();
+      controller.updatePrompt('Continue from diagnostics.');
+      await controller.sendPrompt();
+
+      expect(
+        adapter.requests.first.context.agent.recentDiagnosticSummaries,
+        isEmpty,
+      );
+      final summary =
+          adapter.requests.last.context.agent.recentDiagnosticSummaries.single;
+      expect(summary.title, 'Build failed.');
+      expect(summary.summary, 'Parser target failed with one error.');
+      expect(summary.severity, 'error');
+      expect(summary.diagnosticCount, 1);
+      expect(summary.affectedDocuments, <String>['src/parser.cc']);
+      expect(summary.suggestedCommandIds, <String>['runBuild']);
+      expect(summary.text, 'Diagnostics summarized.');
+    },
+  );
+
+  test(
     'agent coding session clear conversation resets stale error state',
     () async {
       final controller = AgentCodingSessionController(

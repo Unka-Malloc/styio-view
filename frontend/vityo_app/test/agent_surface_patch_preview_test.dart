@@ -135,6 +135,53 @@ void main() {
     expect(find.text('- Patch preview is shown.'), findsOneWidget);
   });
 
+  testWidgets('agent surface displays structured diagnostic summary', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: _DiagnosticSummaryAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.updatePrompt('Summarize diagnostics.');
+    await controller.sendPrompt();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Agent Diagnostic Summary'), findsOneWidget);
+    expect(find.text('error'), findsOneWidget);
+    expect(find.text('1 diagnostic(s)'), findsOneWidget);
+    expect(find.text('src/parser.cc'), findsOneWidget);
+    expect(find.text('Build failed.'), findsOneWidget);
+    expect(find.text('Parser target failed with one error.'), findsOneWidget);
+    expect(find.text('Suggested Commands'), findsOneWidget);
+    expect(find.text('runBuild'), findsOneWidget);
+  });
+
   testWidgets('agent surface previews pending patch edit ranges', (
     tester,
   ) async {
@@ -2959,6 +3006,42 @@ class _PlanAgentProviderAdapter implements AgentProviderAdapter {
             summary: 'Update active document safely.',
             steps: <String>['Inspect IDE facts.', 'Prepare patch.'],
             acceptanceCriteria: <String>['Patch preview is shown.'],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DiagnosticSummaryAgentProviderAdapter implements AgentProviderAdapter {
+  @override
+  String get adapterId => 'diagnostic-summary';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.cloudOpenAICompatible;
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(
+    AgentProviderRequest request,
+  ) async {
+    return AgentProviderResponseEnvelope(
+      requestId: request.requestId,
+      role: 'assistant',
+      finishReason: 'stop',
+      contentParts: const <AgentContentPart>[
+        AgentContentPart(
+          kind: AgentContentPartKind.diagnosticSummary,
+          text: 'Diagnostics summarized.',
+          diagnosticSummary: AgentDiagnosticSummary(
+            title: 'Build failed.',
+            summary: 'Parser target failed with one error.',
+            severity: 'error',
+            diagnosticCount: 1,
+            affectedDocuments: <String>['src/parser.cc'],
+            suggestedCommandIds: <String>['runBuild'],
           ),
         ),
       ],

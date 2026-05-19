@@ -1025,6 +1025,17 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
         notifyListeners();
         return false;
+      case 'openSettings':
+        await executeCommand(AppCommandId.openSettings);
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: true,
+          message: 'Agent command openSettings requested settings route.',
+          metadata: const <String, Object?>{
+            'settingsRoute': 'settings',
+          },
+        );
+        return true;
       case 'runBuild':
         if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
           return false;

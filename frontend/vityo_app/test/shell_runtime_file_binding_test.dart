@@ -1038,6 +1038,30 @@ void main() {
         shell.editorController.document.text,
         'value = 40 + 2\n40 + 2 -> @stdout\n',
       );
+
+      expect(
+        await shell.applyAgentIdeCommandSuggestion(
+          const AgentIdeCommandSuggestion(
+            commandId: 'openSettings',
+            prerequisiteForCommandId: 'runBuild',
+          ),
+        ),
+        isTrue,
+      );
+      final settingsResult = shell.agentSessionContext.commands.lastResult;
+      expect(settingsResult?.commandId, 'openSettings');
+      expect(settingsResult?.applied, isTrue);
+      expect(
+        settingsResult?.metadata['completedRequiredCommandFor'],
+        'runBuild',
+      );
+      expect(settingsResult?.metadata['settingsRoute'], 'settings');
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Settings route is reserved'),
+        ),
+        isTrue,
+      );
     },
   );
 

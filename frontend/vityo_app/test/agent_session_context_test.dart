@@ -2019,6 +2019,33 @@ void main() {
     );
   });
 
+  test('agent workspace context activates clang tooling skill for underscore clang-format', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'README.md',
+        text: '# Demo\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>['_clang-format'],
+      activeFilePath: 'README.md',
+    );
+
+    final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+    final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
+    final activationReasons =
+        skillsJson['activationReasons']! as Map<String, Object?>;
+
+    expect(activeSkillIds, contains('cpp-clang-format-tidy'));
+    expect(
+      activationReasons['cpp-clang-format-tidy'],
+      contains(
+        'A clang-format configuration file is present and should guide formatting commands.',
+      ),
+    );
+  });
+
   test('agent workspace context serializes latest workspace search result', () {
     final search = AgentWorkspaceSearchResultContext.fromDocuments(
       query: 'needle',

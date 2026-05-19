@@ -303,7 +303,8 @@ class AgentCodingSkillCatalog {
       (path) => path.endsWith('/.clangd'),
     );
     final hasClangFormatConfig = normalizedPaths.any(
-      (path) => path.endsWith('/.clang-format'),
+      (path) =>
+          path.endsWith('/.clang-format') || path.endsWith('/_clang-format'),
     );
     final hasClangTidyConfig = normalizedPaths.any(
       (path) => path.endsWith('/.clang-tidy'),
@@ -358,9 +359,9 @@ class AgentCodingSkillCatalog {
     if (hasClangFormatConfig || hasClangTidyConfig) {
       activate('cpp-clang-format-tidy', <String>[
         hasClangFormatConfig && hasClangTidyConfig
-            ? '.clang-format and .clang-tidy are present and should guide formatting and static-analysis commands.'
+            ? 'clang-format and .clang-tidy configuration files are present and should guide formatting and static-analysis commands.'
             : hasClangFormatConfig
-            ? '.clang-format is present and should guide formatting commands.'
+            ? 'A clang-format configuration file is present and should guide formatting commands.'
             : '.clang-tidy is present and should guide static-analysis commands.',
       ]);
     }

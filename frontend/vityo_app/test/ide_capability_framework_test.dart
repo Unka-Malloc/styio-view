@@ -39,6 +39,14 @@ void main() {
       IdeCapabilityStatus.scaffolded,
     );
     expect(
+      entriesById['interaction.testing']?.summary,
+      contains('TestRunProvider'),
+    );
+    expect(
+      entriesById['interaction.testing']?.dependencies,
+      contains('runtime.execution'),
+    );
+    expect(
       entriesById['interaction.source-control']?.status,
       IdeCapabilityStatus.scaffolded,
     );

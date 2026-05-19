@@ -67,6 +67,47 @@ extension AgentProviderExecutionResolutionStatusX
   }
 }
 
+enum AgentProviderEndpointProbeStatus { notProbed, reachable, unreachable }
+
+extension AgentProviderEndpointProbeStatusX on AgentProviderEndpointProbeStatus {
+  String get wireValue {
+    return switch (this) {
+      AgentProviderEndpointProbeStatus.notProbed => 'not_probed',
+      AgentProviderEndpointProbeStatus.reachable => 'reachable',
+      AgentProviderEndpointProbeStatus.unreachable => 'unreachable',
+    };
+  }
+}
+
+class AgentProviderEndpointProbeResult {
+  const AgentProviderEndpointProbeResult({
+    required this.status,
+    this.message,
+    this.statusCode,
+  });
+
+  const AgentProviderEndpointProbeResult.notProbed()
+    : status = AgentProviderEndpointProbeStatus.notProbed,
+      message = null,
+      statusCode = null;
+
+  final AgentProviderEndpointProbeStatus status;
+  final String? message;
+  final int? statusCode;
+
+  bool get allowsExecution {
+    return status != AgentProviderEndpointProbeStatus.unreachable;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      if (message != null) 'message': message,
+      if (statusCode != null) 'statusCode': statusCode,
+    };
+  }
+}
+
 class AgentProviderExecutionPlan {
   const AgentProviderExecutionPlan({
     required this.routeKind,
@@ -120,6 +161,7 @@ class AgentProviderEndpointReadiness {
     required this.endpoint,
     required this.plan,
     required this.credentialReadiness,
+    this.probeResult = const AgentProviderEndpointProbeResult.notProbed(),
   });
 
   final int endpointIndex;
@@ -127,10 +169,12 @@ class AgentProviderEndpointReadiness {
   final AgentProviderEndpoint endpoint;
   final AgentProviderExecutionPlan plan;
   final AgentProviderCredentialReadiness credentialReadiness;
+  final AgentProviderEndpointProbeResult probeResult;
 
   bool get executable {
     return plan.executable &&
-        credentialReadiness != AgentProviderCredentialReadiness.unavailable;
+        credentialReadiness != AgentProviderCredentialReadiness.unavailable &&
+        probeResult.allowsExecution;
   }
 
   Map<String, Object?> toJson() {
@@ -140,6 +184,7 @@ class AgentProviderEndpointReadiness {
       'endpoint': endpoint.toJson(),
       'plan': plan.toJson(),
       'credentialReadiness': credentialReadiness.wireValue,
+      'probe': probeResult.toJson(),
       'executable': executable,
     };
   }
@@ -187,6 +232,12 @@ class AgentProviderExecutionResolution {
 typedef AgentProviderCredentialAvailability =
     Future<bool> Function(AgentProviderEndpoint endpoint);
 
+typedef AgentProviderEndpointProbe =
+    Future<AgentProviderEndpointProbeResult> Function({
+      required AgentProviderEndpoint endpoint,
+      required AgentProviderExecutionPlan plan,
+    });
+
 class AgentProviderRouteExecutor {
   const AgentProviderRouteExecutor({this.localServiceManager});
 
@@ -195,6 +246,7 @@ class AgentProviderRouteExecutor {
   Future<AgentProviderExecutionResolution> resolve(
     AgentPromptProfile profile, {
     AgentProviderCredentialAvailability? credentialAvailable,
+    AgentProviderEndpointProbe? endpointProbe,
   }) async {
     final candidateEndpoints = <AgentProviderEndpoint>[
       profile.endpoint,
@@ -215,8 +267,9 @@ class AgentProviderRouteExecutor {
           credentialAvailable,
         ),
       );
-      endpoints.add(readiness);
-      if (selectedEndpointIndex == null && readiness.executable) {
+      final probedReadiness = await _withProbe(readiness, endpointProbe);
+      endpoints.add(probedReadiness);
+      if (selectedEndpointIndex == null && probedReadiness.executable) {
         selectedEndpointIndex = index;
       }
     }
@@ -229,6 +282,29 @@ class AgentProviderRouteExecutor {
           : AgentProviderExecutionResolutionStatus.fallbackReady,
       endpoints: endpoints,
       selectedEndpointIndex: selectedEndpointIndex,
+    );
+  }
+
+  Future<AgentProviderEndpointReadiness> _withProbe(
+    AgentProviderEndpointReadiness readiness,
+    AgentProviderEndpointProbe? endpointProbe,
+  ) async {
+    if (endpointProbe == null ||
+        !readiness.plan.executable ||
+        readiness.credentialReadiness ==
+            AgentProviderCredentialReadiness.unavailable) {
+      return readiness;
+    }
+    return AgentProviderEndpointReadiness(
+      endpointIndex: readiness.endpointIndex,
+      fallback: readiness.fallback,
+      endpoint: readiness.endpoint,
+      plan: readiness.plan,
+      credentialReadiness: readiness.credentialReadiness,
+      probeResult: await endpointProbe(
+        endpoint: readiness.endpoint,
+        plan: readiness.plan,
+      ),
     );
   }
 

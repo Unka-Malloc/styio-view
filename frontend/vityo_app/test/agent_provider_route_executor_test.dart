@@ -131,6 +131,47 @@ void main() {
     );
   });
 
+  test('agent provider resolution reports probe-based fallback', () async {
+    final profile = _profile(
+      route: AgentProviderRoute.webHosted,
+      baseUrl: 'https://primary.example.test/v1',
+      fallbackEndpoints: const <AgentProviderEndpoint>[
+        AgentProviderEndpoint(
+          route: AgentProviderRoute.webHosted,
+          baseUrl: 'https://fallback.example.test/v1',
+          model: 'gpt-cloud-fallback',
+        ),
+      ],
+    );
+
+    final resolution = await const AgentProviderRouteExecutor().resolve(
+      profile,
+      endpointProbe: ({required endpoint, required plan}) async {
+        if (endpoint.baseUrl.contains('primary')) {
+          return const AgentProviderEndpointProbeResult(
+            status: AgentProviderEndpointProbeStatus.unreachable,
+            message: 'primary unavailable',
+            statusCode: 503,
+          );
+        }
+        return const AgentProviderEndpointProbeResult(
+          status: AgentProviderEndpointProbeStatus.reachable,
+        );
+      },
+    );
+
+    expect(resolution.status, AgentProviderExecutionResolutionStatus.fallbackReady);
+    expect(resolution.selectedEndpointIndex, 1);
+    expect(
+      resolution.endpoints.first.probeResult.status,
+      AgentProviderEndpointProbeStatus.unreachable,
+    );
+    expect(
+      resolution.endpoints.last.probeResult.status,
+      AgentProviderEndpointProbeStatus.reachable,
+    );
+  });
+
   test('agent provider factory routes loopback requests to local transport', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_agent_route_executor_test_',
@@ -284,6 +325,60 @@ void main() {
 
     expect(resolution.status, AgentProviderExecutionResolutionStatus.fallbackReady);
     expect(adapter.kind, AgentProviderKind.cloudOpenAICompatible);
+    expect(cloudTransport.lastEndpoint.toString(), 'https://fallback.example.test/v1/chat/completions');
+    expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
+  });
+
+  test('agent provider factory skips endpoint when probe is unreachable', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_agent_probe_failover_test_',
+    );
+    addTearDown(() async {
+      if (await tempRoot.exists()) {
+        await tempRoot.delete(recursive: true);
+      }
+    });
+    final cloudTransport = _RecordingTransport();
+    final factory = ConfiguredAgentProviderAdapterFactory(
+      configurationStore: _configurationStore(tempRoot),
+      transport: cloudTransport,
+      endpointProbe: ({required endpoint, required plan}) async {
+        if (endpoint.baseUrl.contains('primary')) {
+          return const AgentProviderEndpointProbeResult(
+            status: AgentProviderEndpointProbeStatus.unreachable,
+            message: 'primary unavailable',
+          );
+        }
+        return const AgentProviderEndpointProbeResult(
+          status: AgentProviderEndpointProbeStatus.reachable,
+        );
+      },
+    );
+    final profile = _profile(
+      route: AgentProviderRoute.webHosted,
+      baseUrl: 'https://primary.example.test/v1',
+      fallbackEndpoints: const <AgentProviderEndpoint>[
+        AgentProviderEndpoint(
+          route: AgentProviderRoute.webHosted,
+          baseUrl: 'https://fallback.example.test/v1',
+          model: 'gpt-cloud-fallback',
+        ),
+      ],
+    );
+
+    final resolution = await factory.resolveExecution(profile);
+    final adapter = await factory.create(profile);
+    await adapter.send(
+      AgentProviderRequest(
+        requestId: 'probe-failover-request',
+        profile: profile,
+        context: _emptyContext(),
+        userPrompt: 'Use probe fallback.',
+      ),
+    );
+
+    expect(resolution.status, AgentProviderExecutionResolutionStatus.fallbackReady);
+    expect(resolution.endpoints.first.probeResult.status, AgentProviderEndpointProbeStatus.unreachable);
     expect(cloudTransport.lastEndpoint.toString(), 'https://fallback.example.test/v1/chat/completions');
     expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
   });

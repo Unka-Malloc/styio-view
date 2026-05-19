@@ -35,6 +35,7 @@ class ConfiguredAgentProviderAdapterFactory {
     this.localBridgeTransport,
     this.localServiceManager,
     this.routeExecutor,
+    this.endpointProbe,
   });
 
   final ConfigurationStore configurationStore;
@@ -42,6 +43,7 @@ class ConfiguredAgentProviderAdapterFactory {
   final AgentProviderTransport? localBridgeTransport;
   final LocalServiceManager? localServiceManager;
   final AgentProviderRouteExecutor? routeExecutor;
+  final AgentProviderEndpointProbe? endpointProbe;
 
   AgentProviderRegistry createRegistry() {
     return AgentProviderRegistry(
@@ -100,6 +102,7 @@ class ConfiguredAgentProviderAdapterFactory {
     );
     return executor.resolve(
       profile,
+      endpointProbe: endpointProbe,
       credentialAvailable: (endpoint) async {
         return await credentialResolver.bearerTokenForEndpoint(endpoint) !=
             null;

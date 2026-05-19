@@ -652,7 +652,7 @@ class _AgentProviderExecutionStatusCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: Text(
-                '${endpoint.fallback ? 'Fallback' : 'Primary'} ${endpoint.endpointIndex}: ${endpoint.plan.routeKind.wireValue}, credential ${endpoint.credentialReadiness.wireValue}, executable ${endpoint.executable}',
+                '${endpoint.fallback ? 'Fallback' : 'Primary'} ${endpoint.endpointIndex}: ${endpoint.plan.routeKind.wireValue}, credential ${endpoint.credentialReadiness.wireValue}, probe ${endpoint.probeResult.status.wireValue}, executable ${endpoint.executable}',
                 key: ValueKey(
                   'agent-provider-execution-endpoint-${endpoint.endpointIndex}',
                 ),

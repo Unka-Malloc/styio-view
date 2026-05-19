@@ -1,4 +1,5 @@
 export 'agent_code_patch_applier.dart';
+export 'agent_workspace_edit_adapter.dart';
 export 'agent_coding_session_controller.dart';
 export 'agent_coding_skill.dart';
 export 'agent_command_metadata.dart';

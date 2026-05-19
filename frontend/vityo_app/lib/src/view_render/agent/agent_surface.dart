@@ -1592,8 +1592,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                             AgentIdeCommandSuggestion(
                               commandId: recoveryCommandId,
                               prerequisiteForCommandId: result.commandId,
-                              reason:
-                                  'Recover route-blocked ${result.commandId}.',
+                              reason: 'Recover ${result.commandId}.',
                             ),
                           ),
                         ),
@@ -1952,6 +1951,11 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                 final routeBlocked =
                     backendRouteFromAgentMetadata(result.metadata)?.blocked ??
                     false;
+                final toolchainSelectionRecoverable =
+                    toolchainSelectionFromAgentMetadata(
+                      result.metadata,
+                    )?.settingsRecoveryRecommended ??
+                    false;
                 final metadataSummary = nativeToolMetadataSummaryText(
                   result.metadata,
                 );
@@ -1975,6 +1979,7 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                             !missingRequiredInput &&
                             !hasRequiredCommand &&
                             !routeBlocked &&
+                            !toolchainSelectionRecoverable &&
                             registeredCommandIds.contains(result.commandId))
                           OutlinedButton(
                             key: ValueKey(
@@ -2003,6 +2008,23 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                             ),
                           ),
                         if (routeBlocked &&
+                            registeredCommandIds.contains('openSettings') &&
+                            onApplyRecoveryCommand != null)
+                          OutlinedButton(
+                            key: ValueKey(
+                              'agent-recover-recent-command-'
+                              '${result.commandId}-openSettings-$index',
+                            ),
+                            onPressed: applying
+                                ? null
+                                : () => onApplyRecoveryCommand!(
+                                    result,
+                                    'openSettings',
+                            ),
+                            child: const Text('Open Settings'),
+                          ),
+                        if (toolchainSelectionRecoverable &&
+                            !routeBlocked &&
                             registeredCommandIds.contains('openSettings') &&
                             onApplyRecoveryCommand != null)
                           OutlinedButton(

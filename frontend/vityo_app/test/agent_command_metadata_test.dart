@@ -66,4 +66,31 @@ void main() {
     expect(route?.blocked, isTrue);
     expect(route?.blockedReason, 'no-backend-route');
   });
+
+  test('agent command metadata resolves toolchain selection status', () {
+    final selection = toolchainSelectionFromAgentMetadata(
+      const <String, Object?>{
+        'toolchainSelectionStatus': ' missing ',
+        'toolchainId': ' clang-18 ',
+        'cppStandard': ' c++23 ',
+      },
+    );
+
+    expect(selection, isNotNull);
+    expect(selection?.status, 'missing');
+    expect(selection?.toolchainId, 'clang-18');
+    expect(selection?.cppStandard, 'c++23');
+    expect(selection?.selected, isFalse);
+    expect(selection?.settingsRecoveryRecommended, isTrue);
+  });
+
+  test('agent command metadata ignores missing toolchain selection status', () {
+    expect(
+      toolchainSelectionFromAgentMetadata(const <String, Object?>{
+        'toolchainSelectionStatus': ' ',
+        'toolchainId': 'clang-18',
+      }),
+      isNull,
+    );
+  });
 }

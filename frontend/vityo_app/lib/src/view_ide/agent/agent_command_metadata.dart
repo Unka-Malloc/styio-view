@@ -37,6 +37,22 @@ class AgentCommandBackendRouteMetadata {
   bool get blocked => !allowed;
 }
 
+class AgentCommandToolchainSelectionMetadata {
+  const AgentCommandToolchainSelectionMetadata({
+    required this.status,
+    this.toolchainId,
+    this.cppStandard,
+  });
+
+  final String status;
+  final String? toolchainId;
+  final String? cppStandard;
+
+  bool get selected => status == 'selected' || status == 'cleared';
+
+  bool get settingsRecoveryRecommended => !selected;
+}
+
 AgentCommandBackendRouteMetadata? backendRouteFromAgentMetadata(
   Map<String, Object?> metadata,
 ) {
@@ -54,6 +70,20 @@ AgentCommandBackendRouteMetadata? backendRouteFromAgentMetadata(
     allowed: value['allowed'] == true,
     previewOnly: value['previewOnly'] == true,
     blockedReason: _metadataString(value['blockedReason']),
+  );
+}
+
+AgentCommandToolchainSelectionMetadata? toolchainSelectionFromAgentMetadata(
+  Map<String, Object?> metadata,
+) {
+  final status = _metadataString(metadata['toolchainSelectionStatus']);
+  if (status == null) {
+    return null;
+  }
+  return AgentCommandToolchainSelectionMetadata(
+    status: status,
+    toolchainId: _metadataString(metadata['toolchainId']),
+    cppStandard: _metadataString(metadata['cppStandard']),
   );
 }
 

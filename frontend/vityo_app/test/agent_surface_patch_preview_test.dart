@@ -1428,6 +1428,93 @@ void main() {
     expect(appliedCommands.single.prerequisiteForCommandId, 'runBuild');
   });
 
+  testWidgets(
+    'agent surface offers settings recovery for failed toolchain selection',
+    (tester) async {
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: 'src/main.styio',
+          text: 'value := 1\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        recentCommandResults: const <AgentCommandResultContext>[
+          AgentCommandResultContext(
+            commandId: 'selectClangCppVersion',
+            input: 'missing-clang c++23',
+            applied: false,
+            message: 'Clang C++ version was not found.',
+            metadata: <String, Object?>{
+              'toolchainSelectionStatus': 'missing',
+              'toolchainId': 'missing-clang',
+              'cppStandard': 'c++23',
+            },
+          ),
+        ],
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: () => context,
+      );
+      final appliedCommands = <AgentIdeCommandSuggestion>[];
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1200,
+              height: 900,
+              child: AgentSurface(
+                platformTarget: PlatformTarget.web,
+                viewportProfile: const ViewportProfile(
+                  family: ViewportFamily.desktop,
+                  width: 1200,
+                  height: 900,
+                ),
+                visibleModules: const [],
+                adapterCapabilities: const [],
+                sessionContext: context,
+                codingController: controller,
+                onApplyPendingPatch: () async {},
+                onApplyIdeCommandSuggestion: (command) async {
+                  appliedCommands.add(command);
+                  return true;
+                },
+                onSaveProviderProfile: (profile, {bearerToken}) async {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('selectClangCppVersion · not applied'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Retry Command'), findsNothing);
+      expect(
+        find.widgetWithText(OutlinedButton, 'Open Settings'),
+        findsOneWidget,
+      );
+
+      await _tapVisible(
+        tester,
+        find.byKey(
+          const ValueKey(
+            'agent-recover-recent-command-selectClangCppVersion-openSettings-0',
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(appliedCommands.single.commandId, 'openSettings');
+      expect(
+        appliedCommands.single.prerequisiteForCommandId,
+        'selectClangCppVersion',
+      );
+    },
+  );
+
   testWidgets('agent surface blocks debug commands that are not ready', (
     tester,
   ) async {

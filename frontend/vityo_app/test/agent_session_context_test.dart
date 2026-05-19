@@ -1,0 +1,1870 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/agent/agent_context.dart';
+import 'package:vityo_app/src/backend_toolchain/execution_adapter.dart';
+import 'package:vityo_app/src/editor/document_state.dart';
+import 'package:vityo_app/src/editor/selection_state.dart';
+import 'package:vityo_app/src/language/language_contract.dart';
+import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
+import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
+import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
+
+void main() {
+  test('agent session context serializes editor and runtime facts', () {
+    const document = DocumentState(
+      documentId: '/workspace/demo/src/main.styio',
+      text: 'value = 1\nvalue\n',
+      revision: 4,
+    );
+    const selection = SelectionState(baseOffset: 0, extentOffset: 5);
+    const diagnostic = Diagnostic(
+      severity: DiagnosticSeverity.warning,
+      code: 'demo-warning',
+      message: 'demo diagnostic',
+      range: SourceRange(start: 0, end: 5),
+    );
+    const session = ExecutionSession(
+      sessionId: 'run-1',
+      kind: 'run',
+      status: ExecutionSessionStatus.succeeded,
+      statusMessage: 'run completed',
+      diagnostics: <Diagnostic>[],
+      stdoutEvents: <ExecutionLogEvent>[ExecutionLogEvent(message: 'ok')],
+      stderrEvents: <ExecutionLogEvent>[],
+    );
+    final context = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: selection,
+      diagnostics: const <Diagnostic>[diagnostic],
+      focusedDiagnostics: const <Diagnostic>[diagnostic],
+      lastExecutionSession: session,
+      workspaceFiles: const <String>[
+        '/workspace/demo/src/main.styio',
+        '/workspace/demo/src/other.styio',
+      ],
+      openDocumentIds: const <String>[
+        '/workspace/demo/src/main.styio',
+        '/workspace/demo/src/other.styio',
+      ],
+      dirtyDocumentIds: const <String>['/workspace/demo/src/other.styio'],
+      workspaceDocuments: const <DocumentState>[
+        DocumentState(
+          documentId: '/workspace/demo/src/other.styio',
+          text: 'other = 2\n',
+          revision: 2,
+        ),
+      ],
+      focusToken: const TokenSpan(
+        range: SourceRange(start: 0, end: 5),
+        kind: TokenKind.identifier,
+        lexeme: 'value',
+      ),
+      focusSemanticKind: SemanticKind.variable,
+      hover: const HoverPayload(
+        range: SourceRange(start: 0, end: 5),
+        markdown: '**value**: i64',
+      ),
+      definition: const DefinitionTarget(
+        symbol: DocumentSymbol(
+          name: 'value',
+          kind: SymbolKind.state,
+          nameRange: SourceRange(start: 0, end: 5),
+          declarationRange: SourceRange(start: 0, end: 9),
+          detail: 'i64',
+          documentation: 'Current value.',
+        ),
+        originRange: SourceRange(start: 10, end: 15),
+      ),
+      resolvedElement: const ResolvedElement(
+        name: 'value',
+        kind: ResolvedElementKind.variable,
+        nameRange: SourceRange(start: 0, end: 5),
+        declarationRange: SourceRange(start: 0, end: 9),
+        detail: 'i64',
+        documentation: 'Current value.',
+      ),
+      resolvedReference: const ResolvedReference(
+        name: 'value',
+        range: SourceRange(start: 10, end: 15),
+        target: ResolvedElement(
+          name: 'value',
+          kind: ResolvedElementKind.variable,
+          nameRange: SourceRange(start: 0, end: 5),
+          declarationRange: SourceRange(start: 0, end: 9),
+          detail: 'i64',
+        ),
+        access: ResolvedReferenceAccess.read,
+        isDeclaration: false,
+      ),
+      parameterInfo: const ParameterInfoPayload(
+        callableName: 'blend',
+        signature: 'fn blend(left: f64, right: f64 = 0.0)',
+        parameters: <ParameterInfoParameter>[
+          ParameterInfoParameter(
+            name: 'left',
+            range: SourceRange(start: 100, end: 109),
+            type: 'f64',
+            documentation: 'Base price before tax.',
+          ),
+          ParameterInfoParameter(
+            name: 'right',
+            range: SourceRange(start: 111, end: 128),
+            type: 'f64',
+            defaultValue: '0.0',
+            documentation: 'Tax component to add.',
+          ),
+        ],
+        activeParameterIndex: 1,
+        invocationRange: SourceRange(start: 160, end: 177),
+        callableRange: SourceRange(start: 160, end: 165),
+        documentation: 'Blends price and tax inputs.',
+      ),
+      safeDeletePlan: const SafeDeletePlan(
+        target: DocumentSymbol(
+          name: 'unused',
+          kind: SymbolKind.variable,
+          nameRange: SourceRange(start: 20, end: 26),
+          declarationRange: SourceRange(start: 20, end: 31),
+        ),
+        references: <ReferenceSpan>[],
+        edits: <FormattingEdit>[
+          FormattingEdit(
+            range: SourceRange(start: 20, end: 31),
+            newText: '',
+          ),
+        ],
+      ),
+      inlineVariablePlan: const InlineVariablePlan(
+        target: DocumentSymbol(
+          name: 'value',
+          kind: SymbolKind.variable,
+          nameRange: SourceRange(start: 0, end: 5),
+          declarationRange: SourceRange(start: 0, end: 9),
+        ),
+        initializerRange: SourceRange(start: 8, end: 9),
+        initializerText: '1',
+        references: <ReferenceSpan>[
+          ReferenceSpan(
+            name: 'value',
+            kind: SymbolKind.variable,
+            range: SourceRange(start: 10, end: 15),
+            targetRange: SourceRange(start: 0, end: 5),
+          ),
+        ],
+        edits: <FormattingEdit>[
+          FormattingEdit(
+            range: SourceRange(start: 10, end: 15),
+            newText: '1',
+          ),
+        ],
+      ),
+      surroundTemplates: const <SurroundTemplate>[
+        SurroundTemplate(
+          id: 'if-block',
+          label: 'if block',
+          openingLine: 'if condition {',
+          closingLine: '}',
+          detail: 'Wrap selection in an if block.',
+        ),
+      ],
+      references: const <ReferenceSpan>[
+        ReferenceSpan(
+          name: 'value',
+          kind: SymbolKind.state,
+          range: SourceRange(start: 0, end: 5),
+          targetRange: SourceRange(start: 0, end: 5),
+          isDeclaration: true,
+          access: ReferenceAccess.write,
+        ),
+        ReferenceSpan(
+          name: 'value',
+          kind: SymbolKind.state,
+          range: SourceRange(start: 10, end: 15),
+          targetRange: SourceRange(start: 0, end: 5),
+        ),
+      ],
+      completions: const <CompletionItem>[
+        CompletionItem(
+          label: 'value',
+          kind: CompletionItemKind.variable,
+          insertText: 'value',
+          detail: 'i64',
+          documentation: 'Current value.',
+          replacementRange: SourceRange(start: 10, end: 15),
+        ),
+      ],
+      codeActions: const <DiagnosticQuickFix>[
+        DiagnosticQuickFix(
+          label: 'Replace with value',
+          detail: 'Use the resolved symbol.',
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 10, end: 15),
+              newText: 'value',
+            ),
+          ],
+        ),
+      ],
+      semanticSpans: const <SemanticSpan>[
+        SemanticSpan(
+          range: SourceRange(start: 0, end: 5),
+          kind: SemanticKind.variable,
+          modifiers: <String>['declaration'],
+        ),
+        SemanticSpan(
+          range: SourceRange(start: 10, end: 15),
+          kind: SemanticKind.variable,
+        ),
+      ],
+      documentSymbols: const <DocumentSymbol>[
+        DocumentSymbol(
+          name: 'value',
+          kind: SymbolKind.state,
+          nameRange: SourceRange(start: 0, end: 5),
+          declarationRange: SourceRange(start: 0, end: 9),
+          detail: 'i64',
+          documentation: 'Current value.',
+        ),
+      ],
+      inlayHints: const <InlayHint>[
+        InlayHint(
+          label: 'right:',
+          kind: InlayHintKind.parameter,
+          position: 170,
+          range: SourceRange(start: 166, end: 175),
+        ),
+      ],
+      semanticBlocks: const <SemanticBlockRange>[
+        SemanticBlockRange(
+          label: 'state value',
+          range: SourceRange(start: 0, end: 16),
+        ),
+      ],
+      languageServiceStatus: _agentLanguageServiceStatus,
+      debug: const AgentDebugContext(
+        status: 'paused',
+        message: 'Paused at main.',
+        debuggerId: 'fake-lldb',
+        debuggerLabel: 'Fake LLDB',
+        breakpointCount: 1,
+        breakpoints: <AgentDebugBreakpointContext>[
+          AgentDebugBreakpointContext(
+            filePath: '/workspace/demo/src/main.cc',
+            line: 7,
+            enabled: true,
+          ),
+        ],
+        threadCount: 1,
+        threads: <AgentDebugThreadContext>[
+          AgentDebugThreadContext(id: '1', name: 'main thread'),
+        ],
+        stackFrameCount: 1,
+        stackFrames: <AgentDebugStackFrameContext>[
+          AgentDebugStackFrameContext(
+            id: 'frame-0',
+            name: 'main',
+            filePath: '/workspace/demo/src/main.cc',
+            line: 7,
+            column: 5,
+          ),
+        ],
+        variableCount: 1,
+        variables: <AgentDebugVariableContext>[
+          AgentDebugVariableContext(name: 'argc', value: '1', type: 'int'),
+        ],
+        launch: AgentDebugLaunchContext(
+          ready: true,
+          readiness: 'ready',
+          reason: 'Debug launch configuration is ready.',
+          adapterProtocol: 'dap',
+          debuggerId: 'fake-lldb',
+          debuggerLabel: 'Fake LLDB',
+          debuggerExecutablePath: '/usr/bin/lldb-dap',
+          debuggerArguments: <String>['--stdio'],
+          programPath: '/workspace/demo/build/demo',
+          cwd: '/workspace/demo',
+          arguments: <String>['--smoke'],
+          environment: <String, String>{'VITYO_ENV': 'test'},
+          stopOnEntry: true,
+          breakpointCount: 1,
+        ),
+      ),
+      activeFilePath: '/workspace/demo/src/main.styio',
+      toolchainSnapshot: const ToolchainStateSnapshot(
+        targetId: 'agent-toolchain',
+        entries: <ToolchainStateEntry>[
+          ToolchainStateEntry(
+            id: 'native-clang-cpp-compiler',
+            kind: ToolchainKind.compiler,
+            displayName: 'Clang C/C++ Compiler',
+            executablePath: '/usr/bin/clang++',
+            active: true,
+            metadata: <String, Object?>{
+              'compilerFamily': 'clang',
+              'cCompilerPath': '/usr/bin/clang',
+              'cxxCompilerPath': '/usr/bin/clang++',
+              'defaultForNativeCode': true,
+            },
+          ),
+        ],
+      ),
+      lastRuntimeEvents: <RuntimeEventEnvelope>[
+        RuntimeEventEnvelope(
+          schemaVersion: 1,
+          sessionId: 'run-1',
+          sequence: 1,
+          timestamp: DateTime.utc(2026, 5, 18),
+          eventKind: 'runtime.stdout',
+          origin: 'test',
+          payload: const <String, Object?>{'line': 'ok'},
+        ),
+      ],
+    );
+
+    final json = context.toJson();
+    final documentJson = json['document']! as Map<String, Object?>;
+    final selectionJson = json['selection']! as Map<String, Object?>;
+    final diagnosticsJson = json['diagnostics']! as List<Object?>;
+    final runtimeJson = json['runtime']! as Map<String, Object?>;
+    final debugJson = json['debug']! as Map<String, Object?>;
+    final workspaceJson = json['workspace']! as Map<String, Object?>;
+    final agentJson = json['agent']! as Map<String, Object?>;
+    final workspaceSamples = workspaceJson['documentSamples']! as List<Object?>;
+    final commandsJson = json['commands']! as Map<String, Object?>;
+    final languageJson = json['language']! as Map<String, Object?>;
+    final languageFocusToken =
+        languageJson['focusToken']! as Map<String, Object?>;
+    final skillsJson = json['skills']! as Map<String, Object?>;
+    final toolchainsJson = json['toolchains']! as Map<String, Object?>;
+    final languageDefinition =
+        languageJson['definition']! as Map<String, Object?>;
+    final languageFocusedDiagnostics =
+        languageJson['focusedDiagnostics']! as List<Object?>;
+    final languageReferences = languageJson['references']! as List<Object?>;
+    final languageCompletions = languageJson['completions']! as List<Object?>;
+    final languageCodeActions = languageJson['codeActions']! as List<Object?>;
+    final languageServiceStatus =
+        languageJson['serviceStatus']! as Map<String, Object?>;
+    final languagePrimaryCapabilityStates =
+        languageServiceStatus['primaryCapabilityStates']!
+            as Map<String, Object?>;
+    final languageCapabilities =
+        languageServiceStatus['capabilities']! as List<Object?>;
+    final persistenceCommands =
+        commandsJson['persistenceCommands']! as List<Object?>;
+    final diagnosticCommands =
+        commandsJson['diagnosticCommands']! as List<Object?>;
+    final languageServiceCommands =
+        commandsJson['languageServiceCommands']! as List<Object?>;
+    final navigationCommands =
+        commandsJson['navigationCommands']! as List<Object?>;
+    final refactorCommands = commandsJson['refactorCommands']! as List<Object?>;
+    final nativeToolCommands =
+        commandsJson['nativeToolCommands']! as List<Object?>;
+    final nativeToolCommandReadiness =
+        commandsJson['nativeToolCommandReadiness']! as List<Object?>;
+    final debugCommands = commandsJson['debugCommands']! as List<Object?>;
+    final debugCommandReadiness =
+        commandsJson['debugCommandReadiness']! as List<Object?>;
+    final debugBreakpoints = debugJson['breakpoints']! as List<Object?>;
+    final debugThreads = debugJson['threads']! as List<Object?>;
+    final debugStackFrames = debugJson['stackFrames']! as List<Object?>;
+    final debugVariables = debugJson['variables']! as List<Object?>;
+    final debugLaunch = debugJson['launch']! as Map<String, Object?>;
+
+    expect(json['schemaVersion'], 37);
+    expect(documentJson['documentId'], '/workspace/demo/src/main.styio');
+    expect(documentJson['revision'], 4);
+    expect(documentJson['text'], 'value = 1\nvalue\n');
+    expect(documentJson['textStart'], 0);
+    expect(documentJson['textEnd'], 16);
+    expect(documentJson['textTruncated'], isFalse);
+    expect(selectionJson['selectedText'], 'value');
+    expect(selectionJson['isCollapsed'], isFalse);
+    expect(selectionJson['coordinateBase'], 'zero-based');
+    expect(selectionJson['baseLine'], 0);
+    expect(selectionJson['baseColumn'], 0);
+    expect(selectionJson['extentLine'], 0);
+    expect(selectionJson['extentColumn'], 5);
+    expect(selectionJson['startLine'], 0);
+    expect(selectionJson['startColumn'], 0);
+    expect(selectionJson['endLine'], 0);
+    expect(selectionJson['endColumn'], 5);
+    expect(diagnosticsJson.single, isA<Map<String, Object?>>());
+    expect(json['diagnosticCount'], 1);
+    expect(json['diagnosticsTruncated'], isFalse);
+    expect(
+      (diagnosticsJson.single! as Map<String, Object?>)['severity'],
+      'warning',
+    );
+    expect(
+      (diagnosticsJson.single! as Map<String, Object?>)['coordinateBase'],
+      'zero-based',
+    );
+    expect((diagnosticsJson.single! as Map<String, Object?>)['startLine'], 0);
+    expect((diagnosticsJson.single! as Map<String, Object?>)['startColumn'], 0);
+    expect((diagnosticsJson.single! as Map<String, Object?>)['endLine'], 0);
+    expect((diagnosticsJson.single! as Map<String, Object?>)['endColumn'], 5);
+    expect(languageJson['focusedDiagnosticCount'], 1);
+    expect(languageJson['focusedDiagnosticsTruncated'], isFalse);
+    expect(
+      (languageFocusedDiagnostics.single! as Map<String, Object?>)['code'],
+      'demo-warning',
+    );
+    expect(
+      (languageFocusedDiagnostics.single!
+          as Map<String, Object?>)['coordinateBase'],
+      'zero-based',
+    );
+    expect(
+      (languageFocusedDiagnostics.single! as Map<String, Object?>)['startLine'],
+      0,
+    );
+    expect(
+      (languageFocusedDiagnostics.single!
+          as Map<String, Object?>)['startColumn'],
+      0,
+    );
+    expect(runtimeJson['hasSession'], isTrue);
+    expect(runtimeJson['sessionId'], 'run-1');
+    expect(runtimeJson['status'], 'succeeded');
+    expect(runtimeJson['stdoutTail'], <String>['ok']);
+    expect(runtimeJson['stdoutEventCount'], 1);
+    expect(runtimeJson['stdoutTruncated'], isFalse);
+    expect(runtimeJson['eventKinds'], <String>['runtime.stdout']);
+    expect(runtimeJson['eventKindCount'], 1);
+    expect(runtimeJson['eventKindsTruncated'], isFalse);
+    expect(debugJson['status'], 'paused');
+    expect(debugJson['message'], 'Paused at main.');
+    expect(debugJson['debuggerId'], 'fake-lldb');
+    expect(debugJson['debuggerLabel'], 'Fake LLDB');
+    expect(debugJson['breakpointCount'], 1);
+    expect(
+      (debugBreakpoints.single! as Map<String, Object?>)['filePath'],
+      '/workspace/demo/src/main.cc',
+    );
+    expect((debugBreakpoints.single! as Map<String, Object?>)['line'], 7);
+    expect(debugJson['threadCount'], 1);
+    expect(
+      (debugThreads.single! as Map<String, Object?>)['name'],
+      'main thread',
+    );
+    expect(debugJson['stackFrameCount'], 1);
+    expect((debugStackFrames.single! as Map<String, Object?>)['name'], 'main');
+    expect((debugStackFrames.single! as Map<String, Object?>)['column'], 5);
+    expect(debugJson['variableCount'], 1);
+    expect((debugVariables.single! as Map<String, Object?>)['name'], 'argc');
+    expect((debugVariables.single! as Map<String, Object?>)['type'], 'int');
+    expect(debugLaunch['ready'], isTrue);
+    expect(debugLaunch['readiness'], 'ready');
+    expect(debugLaunch['adapterProtocol'], 'dap');
+    expect(debugLaunch['debuggerArguments'], <String>['--stdio']);
+    expect(debugLaunch['programPath'], '/workspace/demo/build/demo');
+    expect(debugLaunch['arguments'], <String>['--smoke']);
+    expect(debugLaunch['stopOnEntry'], isTrue);
+    expect(workspaceJson['activeFilePath'], '/workspace/demo/src/main.styio');
+    expect(workspaceJson['fileCount'], 2);
+    expect(workspaceJson['files'], contains('/workspace/demo/src/other.styio'));
+    expect(workspaceJson['openDocumentIds'], <String>[
+      '/workspace/demo/src/main.styio',
+      '/workspace/demo/src/other.styio',
+    ]);
+    expect(workspaceJson['dirtyDocumentIds'], <String>[
+      '/workspace/demo/src/other.styio',
+    ]);
+    expect(workspaceJson['documentSampleCount'], 2);
+    expect(workspaceJson['documentSamplesTruncated'], isFalse);
+    expect(
+      (workspaceSamples.first! as Map<String, Object?>)['documentId'],
+      '/workspace/demo/src/main.styio',
+    );
+    expect((workspaceSamples.first! as Map<String, Object?>)['active'], isTrue);
+    expect((workspaceSamples.first! as Map<String, Object?>)['open'], isTrue);
+    expect((workspaceSamples.first! as Map<String, Object?>)['dirty'], isFalse);
+    expect(
+      (workspaceSamples.last! as Map<String, Object?>)['documentId'],
+      '/workspace/demo/src/other.styio',
+    );
+    expect(
+      (workspaceSamples.last! as Map<String, Object?>)['text'],
+      'other = 2\n',
+    );
+    expect((workspaceSamples.last! as Map<String, Object?>)['dirty'], isTrue);
+    expect(agentJson['lastPatchApplication'], isNull);
+    expect(languageJson['hasHover'], isTrue);
+    expect(languageJson['hoverMarkdown'], '**value**: i64');
+    expect(languageFocusToken['lexeme'], 'value');
+    expect(languageFocusToken['kind'], 'identifier');
+    expect(languageFocusToken['semanticKind'], 'variable');
+    expect(languageFocusToken['start'], 0);
+    expect(languageDefinition['name'], 'value');
+    expect(languageDefinition['kind'], 'state');
+    expect(
+      (languageDefinition['originRange']! as Map<String, Object?>)
+          ['coordinateBase'],
+      'zero-based',
+    );
+    expect(
+      (languageDefinition['originRange']! as Map<String, Object?>)['startLine'],
+      1,
+    );
+    expect(
+      (languageDefinition['originRange']! as Map<String, Object?>)
+          ['startColumn'],
+      0,
+    );
+    expect(
+      (languageDefinition['nameRange']! as Map<String, Object?>)['startLine'],
+      0,
+    );
+    final resolvedElement =
+        languageJson['resolvedElement']! as Map<String, Object?>;
+    final resolvedReference =
+        languageJson['resolvedReference']! as Map<String, Object?>;
+    final languageParameterInfo =
+        languageJson['parameterInfo']! as Map<String, Object?>;
+    final languageParameterInfoParameters =
+        languageParameterInfo['parameters']! as List<Object?>;
+    expect(resolvedElement['name'], 'value');
+    expect(resolvedElement['kind'], 'variable');
+    expect(resolvedElement['detail'], 'i64');
+    expect(
+      (resolvedElement['nameRange']! as Map<String, Object?>)['startColumn'],
+      0,
+    );
+    expect(resolvedReference['name'], 'value');
+    expect(resolvedReference['access'], 'read');
+    expect(
+      (resolvedReference['range']! as Map<String, Object?>)['startLine'],
+      1,
+    );
+    expect(
+      (resolvedReference['range']! as Map<String, Object?>)['endColumn'],
+      5,
+    );
+    expect(
+      (resolvedReference['target']! as Map<String, Object?>)['name'],
+      'value',
+    );
+    expect(languageParameterInfo['callableName'], 'blend');
+    expect(
+      languageParameterInfo['signature'],
+      'fn blend(left: f64, right: f64 = 0.0)',
+    );
+    expect(languageParameterInfo['activeParameterIndex'], 1);
+    expect(languageParameterInfo['parameterCount'], 2);
+    expect(languageParameterInfo['parametersTruncated'], isFalse);
+    expect(languageParameterInfo['invocationStart'], 160);
+    expect(languageParameterInfo['callableEnd'], 165);
+    expect(
+      (languageParameterInfo['activeParameter']! as Map<String, Object?>)
+          ['name'],
+      'right',
+    );
+    expect(
+      (languageParameterInfoParameters.last! as Map<String, Object?>)
+          ['defaultValue'],
+      '0.0',
+    );
+    expect(languageJson['referenceCount'], 2);
+    expect(languageJson['referencesTruncated'], isFalse);
+    expect(
+      (languageReferences.first! as Map<String, Object?>)['isDeclaration'],
+      isTrue,
+    );
+    expect(
+      ((languageReferences.last! as Map<String, Object?>)['range']!
+          as Map<String, Object?>)['startLine'],
+      1,
+    );
+    expect(
+      ((languageReferences.last! as Map<String, Object?>)['targetRange']!
+          as Map<String, Object?>)['startLine'],
+      0,
+    );
+    expect(languageJson['completionCount'], 1);
+    expect(languageJson['completionsTruncated'], isFalse);
+    expect(
+      (languageCompletions.single! as Map<String, Object?>)['label'],
+      'value',
+    );
+    expect(
+      (languageCompletions.single! as Map<String, Object?>)['replacementStart'],
+      10,
+    );
+    expect(languageJson['codeActionCount'], 1);
+    expect(languageJson['codeActionsTruncated'], isFalse);
+    expect(
+      (languageCodeActions.single! as Map<String, Object?>)['label'],
+      'Replace with value',
+    );
+    expect(
+      (languageCodeActions.single! as Map<String, Object?>)['firstEditStart'],
+      10,
+    );
+    expect(
+      ((languageCodeActions.single! as Map<String, Object?>)['firstEditRange']!
+          as Map<String, Object?>)['startLine'],
+      1,
+    );
+    final languageCodeActionEdits =
+        (languageCodeActions.single! as Map<String, Object?>)['edits']!
+            as List<Object?>;
+    expect(
+      (languageCodeActionEdits.single! as Map<String, Object?>)['start'],
+      10,
+    );
+    expect(
+      (languageCodeActionEdits.single! as Map<String, Object?>)['end'],
+      15,
+    );
+    expect(
+      ((languageCodeActionEdits.single! as Map<String, Object?>)['range']!
+          as Map<String, Object?>)['endColumn'],
+      5,
+    );
+    expect(
+      (languageCodeActionEdits.single! as Map<String, Object?>)['newText'],
+      'value',
+    );
+    expect(
+      (languageCodeActions.single! as Map<String, Object?>)['editsTruncated'],
+      isFalse,
+    );
+    expect(languageJson['semanticSpanCount'], 2);
+    expect(languageJson['semanticSpansTruncated'], isFalse);
+    final languageSemanticSpans =
+        languageJson['semanticSpans']! as List<Object?>;
+    final languageDocumentSymbols =
+        languageJson['documentSymbols']! as List<Object?>;
+    final languageInlayHints = languageJson['inlayHints']! as List<Object?>;
+    final languageSemanticBlocks =
+        languageJson['semanticBlocks']! as List<Object?>;
+    final languageRefactorPreviews =
+        languageJson['refactorPreviews']! as List<Object?>;
+    final languageSurroundTemplates =
+        languageJson['surroundTemplates']! as List<Object?>;
+    expect(languageSemanticSpans, hasLength(2));
+    expect(
+      (languageSemanticSpans.first! as Map<String, Object?>)['kind'],
+      'variable',
+    );
+    expect(
+      (languageSemanticSpans.first! as Map<String, Object?>)['modifiers'],
+      <String>['declaration'],
+    );
+    expect(languageJson['documentSymbolCount'], 1);
+    expect(languageJson['documentSymbolsTruncated'], isFalse);
+    expect(
+      (languageDocumentSymbols.single! as Map<String, Object?>)['name'],
+      'value',
+    );
+    expect(
+      (languageDocumentSymbols.single! as Map<String, Object?>)['kind'],
+      'state',
+    );
+    expect(
+      (languageDocumentSymbols.single! as Map<String, Object?>)
+          ['declarationEnd'],
+      9,
+    );
+    expect(
+      ((languageDocumentSymbols.single! as Map<String, Object?>)['nameRange']!
+          as Map<String, Object?>)['startLine'],
+      0,
+    );
+    expect(languageJson['inlayHintCount'], 1);
+    expect(languageJson['inlayHintsTruncated'], isFalse);
+    expect(
+      (languageInlayHints.single! as Map<String, Object?>)['label'],
+      'right:',
+    );
+    expect(
+      (languageInlayHints.single! as Map<String, Object?>)['kind'],
+      'parameter',
+    );
+    expect(
+      (languageInlayHints.single! as Map<String, Object?>)['position'],
+      170,
+    );
+    expect(languageJson['semanticBlockCount'], 1);
+    expect(languageJson['semanticBlocksTruncated'], isFalse);
+    expect(
+      (languageSemanticBlocks.single! as Map<String, Object?>)['label'],
+      'state value',
+    );
+    expect(
+      (languageSemanticBlocks.single! as Map<String, Object?>)['end'],
+      16,
+    );
+    expect(languageJson['refactorPreviewCount'], 2);
+    final safeDeletePreview =
+        languageRefactorPreviews.first! as Map<String, Object?>;
+    final inlinePreview =
+        languageRefactorPreviews.last! as Map<String, Object?>;
+    expect(safeDeletePreview['kind'], 'safeDelete');
+    expect(
+      (safeDeletePreview['target']! as Map<String, Object?>)['name'],
+      'unused',
+    );
+    expect(safeDeletePreview['editCount'], 1);
+    expect(inlinePreview['kind'], 'inlineVariable');
+    expect(inlinePreview['initializerText'], '1');
+    expect(inlinePreview['referenceCount'], 1);
+    expect(
+      ((inlinePreview['edits']! as List<Object?>).single!
+          as Map<String, Object?>)['newText'],
+      '1',
+    );
+    expect(
+      (((inlinePreview['edits']! as List<Object?>).single!
+              as Map<String, Object?>)['range']!
+          as Map<String, Object?>)['startLine'],
+      1,
+    );
+    expect(languageJson['surroundTemplateCount'], 1);
+    expect(languageJson['surroundTemplatesTruncated'], isFalse);
+    expect(
+      (languageSurroundTemplates.single! as Map<String, Object?>)['id'],
+      'if-block',
+    );
+    expect(
+      (languageSurroundTemplates.single! as Map<String, Object?>)
+          ['openingLine'],
+      'if condition {',
+    );
+    expect(languageServiceStatus['severity'], 'ready');
+    expect(languageServiceStatus['toolchainId'], 'styio-cli-nightly');
+    expect(languageServiceStatus['usableCapabilityCount'], 2);
+    expect(languageServiceStatus['freshCapabilityCount'], 1);
+    expect(languageServiceStatus['localFallbackEnabled'], isTrue);
+    expect(languagePrimaryCapabilityStates['diagnostics'], 'available');
+    expect(languagePrimaryCapabilityStates['completion'], 'derived');
+    expect(languagePrimaryCapabilityStates['hover'], 'unsupported');
+    expect(
+      (languageCapabilities.first! as Map<String, Object?>)['capability'],
+      'diagnostics',
+    );
+    expect(
+      (languageCapabilities.first! as Map<String, Object?>)['fresh'],
+      isTrue,
+    );
+    expect((persistenceCommands.first! as Map<String, Object?>)['id'], 'save');
+    expect(
+      (persistenceCommands.last! as Map<String, Object?>)['id'],
+      'saveAll',
+    );
+    expect(
+      (diagnosticCommands.first! as Map<String, Object?>)['id'],
+      'nextDiagnostic',
+    );
+    expect(
+      (diagnosticCommands.last! as Map<String, Object?>)['id'],
+      'applyQuickFix',
+    );
+    expect(
+      (languageServiceCommands.single! as Map<String, Object?>)['id'],
+      'refreshLanguageService',
+    );
+    expect(
+      (navigationCommands.first! as Map<String, Object?>)['id'],
+      'goToDefinition',
+    );
+    expect(
+      (navigationCommands[1]! as Map<String, Object?>)['id'],
+      'openWorkspaceFile',
+    );
+    expect(
+      (navigationCommands[1]! as Map<String, Object?>)['requiresInput'],
+      isTrue,
+    );
+    expect(
+      (navigationCommands.last! as Map<String, Object?>)['id'],
+      'previousReference',
+    );
+    expect(
+      (refactorCommands.first! as Map<String, Object?>)['id'],
+      'renameSymbol',
+    );
+    expect(
+      (refactorCommands.first! as Map<String, Object?>)['requiresInput'],
+      isTrue,
+    );
+    expect((refactorCommands[1]! as Map<String, Object?>)['id'], 'safeDelete');
+    expect(
+      (refactorCommands.last! as Map<String, Object?>)['id'],
+      'inlineVariable',
+    );
+    expect(
+      (nativeToolCommands.first! as Map<String, Object?>)['id'],
+      'runBuild',
+    );
+    expect(
+      (nativeToolCommands[1]! as Map<String, Object?>)['id'],
+      'formatActiveDocument',
+    );
+    expect(
+      (nativeToolCommands[2]! as Map<String, Object?>)['id'],
+      'runStaticAnalysis',
+    );
+    expect(
+      (nativeToolCommands.last! as Map<String, Object?>)['id'],
+      'runTests',
+    );
+    expect(nativeToolCommandReadiness, hasLength(4));
+    expect(
+      (nativeToolCommandReadiness.first! as Map<String, Object?>)['commandId'],
+      'runBuild',
+    );
+    expect(
+      (nativeToolCommandReadiness.first! as Map<String, Object?>)['ready'],
+      isFalse,
+    );
+    expect(
+      (nativeToolCommandReadiness.first! as Map<String, Object?>)['reason'],
+      contains('Requires a registered cmake build-tool toolchain.'),
+    );
+    expect(
+      (debugCommands.first! as Map<String, Object?>)['id'],
+      'toggleBreakpoint',
+    );
+    expect(debugCommands, hasLength(7));
+    expect(
+      (debugCommands[5]! as Map<String, Object?>)['id'],
+      'selectDebugThread',
+    );
+    expect(
+      (debugCommands[5]! as Map<String, Object?>)['requiresInput'],
+      isTrue,
+    );
+    expect(
+      (debugCommands.last! as Map<String, Object?>)['id'],
+      'selectDebugStackFrame',
+    );
+    expect(
+      (debugCommands.last! as Map<String, Object?>)['requiresInput'],
+      isTrue,
+    );
+    expect(debugCommandReadiness, hasLength(7));
+    expect(
+      (debugCommandReadiness[1]! as Map<String, Object?>)['commandId'],
+      'startDebugging',
+    );
+    expect(
+      (debugCommandReadiness[1]! as Map<String, Object?>)['ready'],
+      isFalse,
+    );
+    expect(
+      (debugCommandReadiness[1]! as Map<String, Object?>)['requiredCommandId'],
+      'saveAll',
+    );
+    expect(
+      (debugCommandReadiness[1]! as Map<String, Object?>)['dirtyDocumentIds'],
+      <String>['/workspace/demo/src/other.styio'],
+    );
+    expect(
+      (debugCommandReadiness[5]! as Map<String, Object?>)['candidateIds'],
+      <String>['1'],
+    );
+    expect(
+      (debugCommandReadiness.last! as Map<String, Object?>)['candidateIds'],
+      <String>['frame-0'],
+    );
+    expect(skillsJson['skillIds'], contains('cpp-clang-toolchain-defaults'));
+    expect(skillsJson['skillIds'], contains('cpp-compilation-database'));
+    expect(skillsJson['skillIds'], contains('cpp-cmake-build-graph'));
+    expect(skillsJson['skillIds'], contains('cpp-clangd-indexing'));
+    expect(skillsJson['skillIds'], contains('cpp-test-debug-loop'));
+    expect(
+      skillsJson['skillIds'],
+      contains('reference-grounded-ide-development'),
+    );
+    expect(skillsJson['skillIds'], contains('styio-cpp-compiler-project'));
+    expect(skillsJson['skillCount'], 9);
+    final skills = skillsJson['skills']! as List<Object?>;
+    final referenceSkill = skills.whereType<Map<String, Object?>>().singleWhere(
+      (skill) => skill['skillId'] == 'reference-grounded-ide-development',
+    );
+    expect(referenceSkill['title'], 'Reference-Grounded IDE Development');
+    expect(
+      referenceSkill['toolchainDefaults'],
+      contains(
+        'Use VS Code, IntelliJ Community, Eclipse Theia, Monaco Editor, LSP, clangd, and Tree-sitter as reference implementations for IDE-facing work.',
+      ),
+    );
+    expect(
+      referenceSkill['validationHints'],
+      contains(
+        'Every code change must have a targeted test, integration test, or documented gate that covers the changed behavior.',
+      ),
+    );
+    expect(toolchainsJson['hasNativeCompiler'], isTrue);
+    expect(
+      (toolchainsJson['activeCompiler']! as Map<String, Object?>)['id'],
+      'native-clang-cpp-compiler',
+    );
+  });
+
+  test('agent command context reports native tool command readiness', () {
+    const document = DocumentState(
+      documentId: '/workspace/demo/main.cc',
+      text: '',
+      revision: 1,
+    );
+    const selection = SelectionState(baseOffset: 0, extentOffset: 0);
+
+    final context = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: selection,
+      diagnostics: const <Diagnostic>[],
+      toolchainSnapshot: const ToolchainStateSnapshot(
+        targetId: 'agent-native-tools',
+        entries: <ToolchainStateEntry>[
+          ToolchainStateEntry(
+            id: 'native-cmake-build-tool',
+            kind: ToolchainKind.buildTool,
+            displayName: 'CMake Build System',
+            executablePath: '/usr/bin/cmake',
+            active: true,
+            metadata: <String, Object?>{'toolFamily': 'cmake'},
+          ),
+          ToolchainStateEntry(
+            id: 'native-clang-format-formatter',
+            kind: ToolchainKind.formatter,
+            displayName: 'clang-format Formatter',
+            executablePath: '/usr/bin/clang-format',
+            active: false,
+            metadata: <String, Object?>{'toolFamily': 'clang-format'},
+          ),
+          ToolchainStateEntry(
+            id: 'native-clang-tidy-static-analyzer',
+            kind: ToolchainKind.staticAnalyzer,
+            displayName: 'clang-tidy Static Analyzer',
+            executablePath: '/usr/bin/clang-tidy',
+            active: false,
+            metadata: <String, Object?>{'toolFamily': 'clang-tidy'},
+          ),
+        ],
+      ),
+    );
+
+    final commandsJson = context.toJson()['commands']! as Map<String, Object?>;
+    final readiness =
+        commandsJson['nativeToolCommandReadiness']! as List<Object?>;
+    final byCommandId = <String, Map<String, Object?>>{};
+    for (final entry in readiness) {
+      final readinessJson = entry! as Map<String, Object?>;
+      byCommandId[readinessJson['commandId']! as String] = readinessJson;
+    }
+
+    expect(byCommandId['runBuild']!['ready'], isTrue);
+    expect(byCommandId['runBuild']!['toolchainId'], 'native-cmake-build-tool');
+    expect(byCommandId['formatActiveDocument']!['ready'], isTrue);
+    expect(
+      byCommandId['formatActiveDocument']!['toolchainId'],
+      'native-clang-format-formatter',
+    );
+    expect(byCommandId['runStaticAnalysis']!['ready'], isTrue);
+    expect(byCommandId['runTests']!['ready'], isFalse);
+    expect(byCommandId['runTests']!['requiredToolFamily'], 'ctest');
+    expect(
+      byCommandId['runTests']!['reason'],
+      'Requires a registered ctest test-runner toolchain.',
+    );
+  });
+
+  test('agent command readiness requires saveAll for dirty native tools', () {
+    const document = DocumentState(
+      documentId: '/workspace/demo/main.cc',
+      text: 'int main() { return 0; }\n',
+      revision: 1,
+    );
+    const selection = SelectionState(baseOffset: 0, extentOffset: 0);
+
+    final context = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: selection,
+      diagnostics: const <Diagnostic>[],
+      dirtyDocumentIds: const <String>['/workspace/demo/dirty.cc'],
+      toolchainSnapshot: const ToolchainStateSnapshot(
+        targetId: 'agent-dirty-native-tools',
+        entries: <ToolchainStateEntry>[
+          ToolchainStateEntry(
+            id: 'native-cmake-build-tool',
+            kind: ToolchainKind.buildTool,
+            displayName: 'CMake Build System',
+            executablePath: '/usr/bin/cmake',
+            active: true,
+            metadata: <String, Object?>{'toolFamily': 'cmake'},
+          ),
+          ToolchainStateEntry(
+            id: 'native-clang-format-formatter',
+            kind: ToolchainKind.formatter,
+            displayName: 'clang-format Formatter',
+            executablePath: '/usr/bin/clang-format',
+            active: false,
+            metadata: <String, Object?>{'toolFamily': 'clang-format'},
+          ),
+          ToolchainStateEntry(
+            id: 'native-clang-tidy-static-analyzer',
+            kind: ToolchainKind.staticAnalyzer,
+            displayName: 'clang-tidy Static Analyzer',
+            executablePath: '/usr/bin/clang-tidy',
+            active: false,
+            metadata: <String, Object?>{'toolFamily': 'clang-tidy'},
+          ),
+          ToolchainStateEntry(
+            id: 'native-ctest-test-runner',
+            kind: ToolchainKind.testRunner,
+            displayName: 'CTest Test Runner',
+            executablePath: '/usr/bin/ctest',
+            active: false,
+            metadata: <String, Object?>{'toolFamily': 'ctest'},
+          ),
+        ],
+      ),
+    );
+
+    final commandsJson = context.toJson()['commands']! as Map<String, Object?>;
+    final readiness =
+        commandsJson['nativeToolCommandReadiness']! as List<Object?>;
+    final byCommandId = <String, Map<String, Object?>>{};
+    for (final entry in readiness) {
+      final readinessJson = entry! as Map<String, Object?>;
+      byCommandId[readinessJson['commandId']! as String] = readinessJson;
+    }
+
+    expect(byCommandId['runBuild']!['ready'], isFalse);
+    expect(byCommandId['runBuild']!['requiredCommandId'], 'saveAll');
+    expect(byCommandId['runBuild']!['dirtyDocumentIds'], <String>[
+      '/workspace/demo/dirty.cc',
+    ]);
+    expect(byCommandId['formatActiveDocument']!['ready'], isTrue);
+    expect(byCommandId['runStaticAnalysis']!['requiredCommandId'], 'saveAll');
+    expect(byCommandId['runTests']!['requiredCommandId'], 'saveAll');
+  });
+
+  test('agent document context truncates oversized active document text', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: DocumentState(
+        documentId: 'large.styio',
+        text: List<String>.filled(50010, 'x').join(),
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+    );
+
+    final documentJson = context.toJson()['document']! as Map<String, Object?>;
+
+    expect((documentJson['text']! as String).length, 50000);
+    expect(documentJson['textStart'], 0);
+    expect(documentJson['textEnd'], 50000);
+    expect(documentJson['textTruncated'], isTrue);
+  });
+
+  test(
+    'agent document context keeps selected window for oversized active document',
+    () {
+      final prefix = List<String>.filled(60000, 'a').join();
+      final suffix = List<String>.filled(100, 'b').join();
+      final context = AgentSessionContext.fromEditorState(
+        document: DocumentState(
+          documentId: 'large.styio',
+          text: '${prefix}needle$suffix',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(60000),
+        diagnostics: const <Diagnostic>[],
+      );
+
+      final documentJson =
+          context.toJson()['document']! as Map<String, Object?>;
+
+      expect((documentJson['text']! as String).length, 50000);
+      expect(documentJson['text'], contains('needle'));
+      expect(documentJson['textStart'], greaterThan(0));
+      expect(documentJson['textEnd'], 60106);
+      expect(documentJson['textTruncated'], isTrue);
+    },
+  );
+
+  test('agent session context serializes selected context channels only', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>['main.styio'],
+      activeFilePath: 'main.styio',
+    );
+
+    final json = context.toJsonForChannels(const <String>[
+      'file',
+      'debug',
+      'workspace',
+      'agent',
+      'language',
+      'commands',
+      'skills',
+      'toolchains',
+    ]);
+
+    expect(json['schemaVersion'], 37);
+    expect(json.containsKey('document'), isTrue);
+    expect(json.containsKey('debug'), isTrue);
+    expect(json.containsKey('workspace'), isTrue);
+    expect(json.containsKey('agent'), isTrue);
+    expect(json.containsKey('language'), isTrue);
+    expect(json.containsKey('commands'), isTrue);
+    expect(json.containsKey('skills'), isTrue);
+    expect(json.containsKey('toolchains'), isTrue);
+    expect(json.containsKey('selection'), isFalse);
+    expect(json.containsKey('diagnostics'), isFalse);
+    expect(json.containsKey('runtime'), isFalse);
+  });
+
+  test(
+    'agent session context serializes structured patch application result',
+    () {
+      final recordedAt = DateTime.utc(2026, 5, 19, 2, 3, 4);
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: 'src/main.styio',
+          text: 'value := 1\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        lastPatchApplication: AgentPatchApplicationContext(
+          patchId: 'patch-1',
+          summary: 'Change value.',
+          baseRevision: 1,
+          documentIds: const <String>['src/main.styio'],
+          editCount: 1,
+          operationCounts: const <String, int>{'replace': 1},
+          applied: true,
+          pendingPatchRetained: false,
+          message: 'Applied 1 agent patch edit(s).',
+          appliedEditCount: 1,
+          appliedOperationCounts: const <String, int>{'replace': 1},
+          changedDocumentIds: const <String>['src/main.styio'],
+          recordedAt: recordedAt,
+        ),
+      );
+
+      final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+      final patchApplication =
+          agentJson['lastPatchApplication']! as Map<String, Object?>;
+      final recentPatchApplications =
+          agentJson['recentPatchApplications']! as List<Object?>;
+      final filteredJson = context.toJsonForChannels(const <String>['agent']);
+      final filteredAgentJson = filteredJson['agent']! as Map<String, Object?>;
+
+      expect(patchApplication['patchId'], 'patch-1');
+      expect(patchApplication['summary'], 'Change value.');
+      expect(patchApplication['baseRevision'], 1);
+      expect(patchApplication['documentIds'], <String>['src/main.styio']);
+      expect(patchApplication['editCount'], 1);
+      expect(patchApplication['operationCounts'], <String, int>{'replace': 1});
+      expect(patchApplication['applied'], isTrue);
+      expect(patchApplication['pendingPatchRetained'], isFalse);
+      expect(patchApplication['message'], 'Applied 1 agent patch edit(s).');
+      expect(patchApplication['appliedEditCount'], 1);
+      expect(patchApplication['appliedOperationCounts'], <String, int>{
+        'replace': 1,
+      });
+      expect(patchApplication['changedDocumentIds'], <String>[
+        'src/main.styio',
+      ]);
+      expect(patchApplication['createdDocumentIds'], <String>[]);
+      expect(patchApplication['deletedDocumentIds'], <String>[]);
+      expect(patchApplication['recordedAt'], recordedAt.toIso8601String());
+      expect(recentPatchApplications.length, 1);
+      expect(
+        (recentPatchApplications.single! as Map<String, Object?>)['patchId'],
+        'patch-1',
+      );
+      expect(
+        filteredAgentJson['lastPatchApplication'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(filteredJson.containsKey('document'), isFalse);
+    },
+  );
+
+  test('agent session context serializes current pending patch', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      pendingPatch: const AgentPendingPatchContext(
+        patchId: 'patch-pending',
+        summary: 'Change value.',
+        baseRevision: 1,
+        documentIds: <String>['src/main.styio'],
+        editCount: 1,
+        operationCounts: <String, int>{'replace': 1},
+        edits: <AgentPendingPatchEditContext>[
+          AgentPendingPatchEditContext(
+            documentId: 'src/main.styio',
+            operation: 'replace',
+            start: 9,
+            end: 10,
+            replacementTextSample: '2',
+            replacementTextLength: 1,
+            replacementTextTruncated: false,
+          ),
+        ],
+        editsTruncated: false,
+      ),
+      recentPatchProposals: const <AgentPendingPatchContext>[
+        AgentPendingPatchContext(
+          patchId: 'patch-pending',
+          summary: 'Change value.',
+          baseRevision: 1,
+          documentIds: <String>['src/main.styio'],
+          editCount: 1,
+          operationCounts: <String, int>{'replace': 1},
+          edits: <AgentPendingPatchEditContext>[
+            AgentPendingPatchEditContext(
+              documentId: 'src/main.styio',
+              operation: 'replace',
+              start: 9,
+              end: 10,
+              replacementTextSample: '2',
+              replacementTextLength: 1,
+              replacementTextTruncated: false,
+            ),
+          ],
+          editsTruncated: false,
+        ),
+      ],
+    );
+
+    final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final pendingPatch = agentJson['pendingPatch']! as Map<String, Object?>;
+    final recentPatchProposals =
+        agentJson['recentPatchProposals']! as List<Object?>;
+    final edits = pendingPatch['edits']! as List<Object?>;
+    final firstEdit = edits.single! as Map<String, Object?>;
+
+    expect(pendingPatch['patchId'], 'patch-pending');
+    expect(pendingPatch['summary'], 'Change value.');
+    expect(pendingPatch['baseRevision'], 1);
+    expect(pendingPatch['documentIds'], <String>['src/main.styio']);
+    expect(pendingPatch['editCount'], 1);
+    expect(pendingPatch['operationCounts'], <String, int>{'replace': 1});
+    expect(pendingPatch['editsTruncated'], isFalse);
+    expect(firstEdit['documentId'], 'src/main.styio');
+    expect(firstEdit['operation'], 'replace');
+    expect(firstEdit['replacementTextSample'], '2');
+    expect(firstEdit['replacementTextLength'], 1);
+    expect(firstEdit['replacementTextTruncated'], isFalse);
+    expect(
+      (recentPatchProposals.single! as Map<String, Object?>)['patchId'],
+      'patch-pending',
+    );
+  });
+
+  test('agent session context serializes pending IDE command suggestions', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      pendingIdeCommands: const <AgentPendingIdeCommandContext>[
+        AgentPendingIdeCommandContext(
+          commandId: 'runBuild',
+          reason: 'Use the registered build command.',
+          prerequisiteForCommandId: 'saveAll',
+          text: 'Run the build.',
+        ),
+      ],
+      recentIdeCommandSuggestions: const <AgentPendingIdeCommandContext>[
+        AgentPendingIdeCommandContext(
+          commandId: 'runBuild',
+          reason: 'Use the registered build command.',
+          prerequisiteForCommandId: 'saveAll',
+          text: 'Run the build.',
+        ),
+      ],
+    );
+
+    final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final pendingIdeCommands =
+        agentJson['pendingIdeCommands']! as List<Object?>;
+    final recentIdeCommandSuggestions =
+        agentJson['recentIdeCommandSuggestions']! as List<Object?>;
+    final command = pendingIdeCommands.single! as Map<String, Object?>;
+    final recentCommand =
+        recentIdeCommandSuggestions.single! as Map<String, Object?>;
+
+    expect(command['commandId'], 'runBuild');
+    expect(command['reason'], 'Use the registered build command.');
+    expect(command['prerequisiteForCommandId'], 'saveAll');
+    expect(command['text'], 'Run the build.');
+    expect(recentCommand['commandId'], 'runBuild');
+  });
+
+  test('agent session context serializes last provider failure', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      lastProviderFailure: const AgentProviderFailureContext(
+        kind: 'timeout',
+        message: 'provider timed out',
+        operation: 'agent.provider.postJson',
+        recoveryHint: 'Retry the provider request.',
+      ),
+    );
+
+    final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final failure = agentJson['lastProviderFailure']! as Map<String, Object?>;
+
+    expect(failure['kind'], 'timeout');
+    expect(failure['message'], 'provider timed out');
+    expect(failure['operation'], 'agent.provider.postJson');
+    expect(failure['recoveryHint'], 'Retry the provider request.');
+  });
+
+  test(
+    'agent session context serializes bounded patch application history',
+    () {
+      final patchApplications = List<AgentPatchApplicationContext>.generate(
+        14,
+        (index) => AgentPatchApplicationContext(
+          patchId: 'patch-$index',
+          applied: index.isEven,
+          pendingPatchRetained: index.isOdd,
+          message: 'Patch $index completed.',
+          editCount: index + 1,
+        ),
+      );
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: 'src/main.styio',
+          text: 'value := 1\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        lastPatchApplication: patchApplications.first,
+        recentPatchApplications: patchApplications,
+      );
+
+      final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+      final lastPatchApplication =
+          agentJson['lastPatchApplication']! as Map<String, Object?>;
+      final recentPatchApplications =
+          agentJson['recentPatchApplications']! as List<Object?>;
+
+      expect(lastPatchApplication['patchId'], 'patch-0');
+      expect(recentPatchApplications.length, 12);
+      expect(
+        (recentPatchApplications.first! as Map<String, Object?>)['patchId'],
+        'patch-0',
+      );
+      expect(
+        (recentPatchApplications.last! as Map<String, Object?>)['patchId'],
+        'patch-11',
+      );
+    },
+  );
+
+  test('agent session context truncates oversized diagnostics list', () {
+    final diagnostics = <Diagnostic>[
+      for (var index = 0; index < 105; index += 1)
+        Diagnostic(
+          severity: DiagnosticSeverity.warning,
+          code: 'warning-$index',
+          message: 'diagnostic $index',
+          range: SourceRange(start: index, end: index + 1),
+        ),
+    ];
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: diagnostics,
+    );
+
+    final json = context.toJson();
+    final diagnosticsJson = json['diagnostics']! as List<Object?>;
+
+    expect(json['diagnosticCount'], 105);
+    expect(json['diagnosticsTruncated'], isTrue);
+    expect(diagnosticsJson.length, 100);
+    expect(
+      (diagnosticsJson.last! as Map<String, Object?>)['code'],
+      'warning-99',
+    );
+  });
+
+  test('agent runtime context keeps stdout and stderr tails', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      lastExecutionSession: ExecutionSession(
+        sessionId: 'run-tail',
+        kind: 'run',
+        status: ExecutionSessionStatus.succeeded,
+        statusMessage: 'done',
+        diagnostics: const <Diagnostic>[],
+        stdoutEvents: <ExecutionLogEvent>[
+          for (var index = 0; index < 55; index += 1)
+            ExecutionLogEvent(message: 'out-$index'),
+        ],
+        stderrEvents: <ExecutionLogEvent>[
+          for (var index = 0; index < 55; index += 1)
+            ExecutionLogEvent(message: 'err-$index'),
+        ],
+      ),
+    );
+
+    final runtimeJson = context.toJson()['runtime']! as Map<String, Object?>;
+
+    expect((runtimeJson['stdoutTail']! as List<Object?>).length, 50);
+    expect((runtimeJson['stderrTail']! as List<Object?>).length, 50);
+    expect(runtimeJson['stdoutEventCount'], 55);
+    expect(runtimeJson['stdoutTruncated'], isTrue);
+    expect(runtimeJson['stderrEventCount'], 55);
+    expect(runtimeJson['stderrTruncated'], isTrue);
+    expect(runtimeJson['stdoutTail'], contains('out-54'));
+    expect(runtimeJson['stdoutTail'], isNot(contains('out-0')));
+    expect(runtimeJson['stderrTail'], contains('err-54'));
+    expect(runtimeJson['stderrTail'], isNot(contains('err-0')));
+  });
+
+  test('agent runtime context caps unique runtime event kinds', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      lastExecutionSession: const ExecutionSession(
+        sessionId: 'run-events',
+        kind: 'run',
+        status: ExecutionSessionStatus.succeeded,
+        statusMessage: 'done',
+        diagnostics: <Diagnostic>[],
+        stdoutEvents: <ExecutionLogEvent>[],
+        stderrEvents: <ExecutionLogEvent>[],
+      ),
+      lastRuntimeEvents: <RuntimeEventEnvelope>[
+        for (var index = 0; index < 55; index += 1)
+          RuntimeEventEnvelope(
+            schemaVersion: 1,
+            sessionId: 'run-events',
+            sequence: index,
+            timestamp: DateTime.utc(2026, 5, 18, 0, 0, index),
+            eventKind: 'runtime.kind.$index',
+            origin: 'test',
+            payload: const <String, Object?>{},
+          ),
+      ],
+    );
+
+    final runtimeJson = context.toJson()['runtime']! as Map<String, Object?>;
+    final eventKinds = runtimeJson['eventKinds']! as List<Object?>;
+
+    expect(eventKinds.length, 50);
+    expect(runtimeJson['eventKindCount'], 55);
+    expect(runtimeJson['eventKindsTruncated'], isTrue);
+    expect(eventKinds.first, 'runtime.kind.0');
+    expect(eventKinds.last, 'runtime.kind.49');
+    expect(eventKinds, isNot(contains('runtime.kind.54')));
+  });
+
+  test(
+    'agent workspace context keeps active file when file list is truncated',
+    () {
+      final files = <String>[
+        for (var index = 0; index < 250; index += 1) 'file_$index.styio',
+      ];
+      const activeFile = 'deep/active.styio';
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: activeFile,
+          text: 'value = 1\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        workspaceFiles: files,
+        activeFilePath: activeFile,
+      );
+
+      final workspaceJson =
+          context.toJson()['workspace']! as Map<String, Object?>;
+      final visibleFiles = workspaceJson['files']! as List<Object?>;
+
+      expect(workspaceJson['fileCount'], 250);
+      expect(workspaceJson['filesTruncated'], isTrue);
+      expect(visibleFiles.length, 200);
+      expect(visibleFiles, contains(activeFile));
+    },
+  );
+
+  test('agent workspace context deduplicates workspace files', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>['main.styio', 'main.styio', 'other.styio'],
+      openDocumentIds: const <String>[
+        'main.styio',
+        'main.styio',
+        'other.styio',
+      ],
+      dirtyDocumentIds: const <String>['other.styio', 'other.styio'],
+      activeFilePath: 'main.styio',
+    );
+
+    final workspaceJson =
+        context.toJson()['workspace']! as Map<String, Object?>;
+
+    expect(workspaceJson['fileCount'], 2);
+    expect(workspaceJson['files'], <String>['main.styio', 'other.styio']);
+    expect(workspaceJson['openDocumentIds'], <String>[
+      'main.styio',
+      'other.styio',
+    ]);
+    expect(workspaceJson['dirtyDocumentIds'], <String>['other.styio']);
+  });
+
+  test(
+    'agent workspace context caps document samples and keeps active first',
+    () {
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: 'active.styio',
+          text: 'active = 1\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        workspaceFiles: <String>[
+          'active.styio',
+          for (var index = 0; index < 12; index += 1) 'file_$index.styio',
+        ],
+        workspaceDocuments: <DocumentState>[
+          const DocumentState(
+            documentId: 'active.styio',
+            text: 'duplicate active should be skipped\n',
+            revision: 99,
+          ),
+          for (var index = 0; index < 12; index += 1)
+            DocumentState(
+              documentId: 'file_$index.styio',
+              text: 'value_$index = $index\n',
+              revision: index,
+            ),
+        ],
+        activeFilePath: 'active.styio',
+      );
+
+      final workspaceJson =
+          context.toJson()['workspace']! as Map<String, Object?>;
+      final samples = workspaceJson['documentSamples']! as List<Object?>;
+
+      expect(workspaceJson['documentSampleCount'], 13);
+      expect(workspaceJson['documentSamplesTruncated'], isTrue);
+      expect(samples.length, 10);
+      expect(
+        (samples.first! as Map<String, Object?>)['documentId'],
+        'active.styio',
+      );
+      expect((samples.first! as Map<String, Object?>)['text'], 'active = 1\n');
+      expect((samples.first! as Map<String, Object?>)['active'], isTrue);
+      expect(
+        samples.map(
+          (sample) => (sample! as Map<String, Object?>)['documentId'],
+        ),
+        isNot(contains('file_11.styio')),
+      );
+    },
+  );
+
+  test('agent workspace context detects C++ build facts from file list', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.cc',
+        text: 'int main() { return 0; }\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>[
+        'CMakeLists.txt',
+        'CMakePresets.json',
+        'CMakeUserPresets.json',
+        'build/compile_commands.json',
+        'build/CTestTestfile.cmake',
+        '.clangd',
+        '.clang-format',
+        '.clang-tidy',
+        'src/main.cc',
+      ],
+      activeFilePath: 'src/main.cc',
+    );
+
+    final workspaceJson =
+        context.toJson()['workspace']! as Map<String, Object?>;
+    final buildFacts = workspaceJson['buildFacts']! as Map<String, Object?>;
+    final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+
+    expect(buildFacts['hasCompilationDatabase'], isTrue);
+    expect(buildFacts['compilationDatabasePaths'], <String>[
+      'build/compile_commands.json',
+    ]);
+    expect(buildFacts['hasCMakeLists'], isTrue);
+    expect(buildFacts['cmakeListsPaths'], <String>['CMakeLists.txt']);
+    expect(buildFacts['hasCMakePresets'], isTrue);
+    expect(buildFacts['cmakePresetPaths'], <String>['CMakePresets.json']);
+    expect(buildFacts['hasCMakeUserPresets'], isTrue);
+    expect(buildFacts['cmakeUserPresetPaths'], <String>[
+      'CMakeUserPresets.json',
+    ]);
+    expect(buildFacts['hasClangdConfig'], isTrue);
+    expect(buildFacts['clangdConfigPaths'], <String>['.clangd']);
+    expect(buildFacts['hasClangFormatConfig'], isTrue);
+    expect(buildFacts['clangFormatConfigPaths'], <String>['.clang-format']);
+    expect(buildFacts['hasClangTidyConfig'], isTrue);
+    expect(buildFacts['clangTidyConfigPaths'], <String>['.clang-tidy']);
+    expect(buildFacts['hasCTestConfig'], isTrue);
+    expect(buildFacts['ctestConfigPaths'], <String>[
+      'build/CTestTestfile.cmake',
+    ]);
+    expect(buildFacts['buildSystemHints'], <String>[
+      'compilation-database',
+      'cmake',
+      'cmake-presets',
+      'cmake-user-presets',
+      'clangd',
+    ]);
+    expect(buildFacts['toolingHints'], <String>[
+      'compilation-database',
+      'cmake',
+      'cmake-presets',
+      'cmake-user-presets',
+      'clangd',
+      'clang-format',
+      'clang-tidy',
+      'ctest',
+    ]);
+    expect(buildFacts['pathsTruncated'], isFalse);
+    expect(
+      skillsJson['activeSkillIds'],
+      contains('cpp-clang-toolchain-defaults'),
+    );
+    expect(skillsJson['activeSkillIds'], contains('cpp-compilation-database'));
+    expect(skillsJson['activeSkillIds'], contains('cpp-cmake-build-graph'));
+    expect(skillsJson['activeSkillIds'], contains('cpp-clangd-indexing'));
+    expect(skillsJson['activeSkillIds'], contains('cpp-test-debug-loop'));
+    expect(
+      skillsJson['activeSkillIds'],
+      contains('reference-grounded-ide-development'),
+    );
+    expect(skillsJson['activationReasons'], isA<Map<String, Object?>>());
+  });
+
+  test('agent workspace context serializes latest workspace search result', () {
+    final search = AgentWorkspaceSearchResultContext.fromDocuments(
+      query: 'needle',
+      documents: const <DocumentState>[
+        DocumentState(
+          documentId: 'src/main.styio',
+          text: 'needle := 1\nother\nneedle -> @stdout\n',
+          revision: 1,
+        ),
+      ],
+    );
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'needle := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>['src/main.styio'],
+      lastWorkspaceSearch: search,
+      activeFilePath: 'src/main.styio',
+    );
+
+    final workspaceJson =
+        context.toJson()['workspace']! as Map<String, Object?>;
+    final lastSearch = workspaceJson['lastSearch']! as Map<String, Object?>;
+    final matches = lastSearch['matches']! as List<Object?>;
+
+    expect(lastSearch['query'], 'needle');
+    expect(lastSearch['scannedDocumentCount'], 1);
+    expect(lastSearch['matchCount'], 2);
+    expect(lastSearch['matchesTruncated'], isFalse);
+    expect(
+      (matches.first! as Map<String, Object?>)['documentId'],
+      'src/main.styio',
+    );
+    expect((matches.first! as Map<String, Object?>)['lineNumber'], 1);
+    expect((matches.last! as Map<String, Object?>)['lineNumber'], 3);
+  });
+
+  test('agent command context serializes latest IDE command result', () {
+    final completedAt = DateTime.utc(2026, 5, 19, 1, 2, 3);
+    final commandResult = AgentCommandResultContext(
+      commandId: 'searchWorkspace',
+      input: 'value',
+      applied: true,
+      message: 'Agent command searchWorkspace completed for value.',
+      metadata: <String, Object?>{
+        'buildResult': <String, Object?>{
+          'status': 'failed',
+          'exitCode': 1,
+          'startedAt': completedAt,
+          'targets': <Object?>['parser', Object()],
+          'unsupported': Object(),
+        },
+        'unsupported': Object(),
+      },
+      completedAt: completedAt,
+    );
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      lastCommandResult: commandResult,
+    );
+
+    final commandsJson = context.toJson()['commands']! as Map<String, Object?>;
+    final lastResult = commandsJson['lastResult']! as Map<String, Object?>;
+    final recentResults = commandsJson['recentResults']! as List<Object?>;
+
+    expect(lastResult['commandId'], 'searchWorkspace');
+    expect(lastResult['input'], 'value');
+    expect(lastResult['applied'], isTrue);
+    expect(lastResult['message'], contains('completed'));
+    expect(lastResult['completedAt'], completedAt.toIso8601String());
+    final metadata = lastResult['metadata']! as Map<String, Object?>;
+    final buildResult = metadata['buildResult']! as Map<String, Object?>;
+    expect(buildResult['status'], 'failed');
+    expect(buildResult['exitCode'], 1);
+    expect(buildResult['startedAt'], completedAt.toIso8601String());
+    expect(buildResult['targets'], <Object?>['parser']);
+    expect(buildResult.containsKey('unsupported'), isFalse);
+    expect(metadata.containsKey('unsupported'), isFalse);
+    expect(recentResults.length, 1);
+    expect(
+      (recentResults.single! as Map<String, Object?>)['commandId'],
+      'searchWorkspace',
+    );
+    expect(
+      (recentResults.single! as Map<String, Object?>)['completedAt'],
+      completedAt.toIso8601String(),
+    );
+  });
+
+  test('agent command context serializes bounded command result history', () {
+    final commandResults = List<AgentCommandResultContext>.generate(
+      14,
+      (index) => AgentCommandResultContext(
+        commandId: 'command$index',
+        applied: index.isEven,
+        message: 'Command $index completed.',
+      ),
+    );
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      lastCommandResult: commandResults.first,
+      recentCommandResults: commandResults,
+    );
+
+    final commandsJson = context.toJson()['commands']! as Map<String, Object?>;
+    final recentResults = commandsJson['recentResults']! as List<Object?>;
+
+    expect(recentResults.length, 12);
+    expect(
+      (recentResults.first! as Map<String, Object?>)['commandId'],
+      'command0',
+    );
+    expect(
+      (recentResults.last! as Map<String, Object?>)['commandId'],
+      'command11',
+    );
+  });
+}
+
+const _agentLanguageServiceStatus = LanguageServiceStatusSurface(
+  runtimeState: 'active',
+  severity: LanguageServiceStatusSeverity.ready,
+  title: 'StyioService ready',
+  message: 'StyioService has 2 usable capability result(s).',
+  toolchainId: 'styio-cli-nightly',
+  usableCapabilityCount: 2,
+  freshCapabilityCount: 1,
+  primaryCapabilityStates: <String, String>{
+    'diagnostics': 'available',
+    'completion': 'derived',
+    'hover': 'unsupported',
+  },
+  capabilities: <LanguageServiceCapabilityStatusItem>[
+    LanguageServiceCapabilityStatusItem(
+      capability: 'diagnostics',
+      state: 'available',
+      usable: true,
+      fresh: true,
+    ),
+    LanguageServiceCapabilityStatusItem(
+      capability: 'completion',
+      state: 'derived',
+      usable: true,
+      fresh: false,
+    ),
+    LanguageServiceCapabilityStatusItem(
+      capability: 'hover',
+      state: 'unsupported',
+      usable: false,
+      fresh: false,
+    ),
+  ],
+  localFallbackEnabled: true,
+);

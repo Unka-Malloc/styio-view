@@ -6,6 +6,9 @@ void main() {
     final snapshot = const VityoIdeCapabilityFramework().snapshot();
     final json = snapshot.toJson();
     final ids = snapshot.entries.map((entry) => entry.id).toSet();
+    final entriesById = <String, IdeCapabilityDescriptor>{
+      for (final entry in snapshot.entries) entry.id: entry,
+    };
 
     expect(snapshot.version, 'vityo-ide-capability-framework-v1');
     expect(snapshot.entries.length, ids.length);
@@ -18,6 +21,10 @@ void main() {
     expect(ids, contains('runtime.terminal'));
     expect(ids, contains('presentation.problems-panel'));
     expect(ids, contains('presentation.shell'));
+    expect(
+      entriesById['interaction.search']?.status,
+      IdeCapabilityStatus.scaffolded,
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

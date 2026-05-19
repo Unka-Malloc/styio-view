@@ -15,6 +15,7 @@ import '../../module_host/module_manifest.dart';
 import '../../platform/platform_target.dart';
 import '../platform/platform.dart';
 import '../runtime/runtime.dart';
+import '../search/search.dart';
 import '../settings/settings_surface.dart';
 import '../../view_ide/workspace/workspace.dart';
 
@@ -160,6 +161,14 @@ class VityoShellScaffold extends StatelessWidget {
               bearerToken: bearerToken,
             );
           },
+        );
+      case BottomSurfaceTab.search:
+        return WorkspaceSearchSurface(
+          viewportProfile: viewportProfile,
+          workspaceFileCount: shell.workspaceController.files.length,
+          lastSearch: shell.agentSessionContext.workspace.lastSearch,
+          onSearch: shell.searchWorkspaceForAgent,
+          onOpenMatch: shell.openWorkspaceFileForAgent,
         );
       case BottomSurfaceTab.debug:
         return DebugConsoleSurface(
@@ -772,9 +781,7 @@ class _ProjectWorkflowCard extends StatelessWidget {
                 Chip(label: Text(selection.adapterKind.label)),
                 Chip(label: Text(selection.routeKind.wireValue)),
                 Chip(
-                  label: Text(
-                    selection.allowed ? 'live-capable' : 'blocked',
-                  ),
+                  label: Text(selection.allowed ? 'live-capable' : 'blocked'),
                 ),
                 if (project.compilePlanConsumerAdvertised)
                   const Chip(label: Text('compile-plan detected')),
@@ -1689,6 +1696,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
       ),
       _SurfaceTabChip(
+        label: 'Search',
+        active: shell.activeBottomTab == BottomSurfaceTab.search,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
+      ),
+      _SurfaceTabChip(
         label: 'Debug',
         active: shell.activeBottomTab == BottomSurfaceTab.debug,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.debug),
@@ -1708,7 +1720,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, agent, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
+            'Mobile shell keeps runtime, agent, search, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

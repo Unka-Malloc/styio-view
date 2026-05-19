@@ -5,6 +5,7 @@ export 'agent/agent.dart';
 export 'editor/editor.dart';
 export 'platform/platform.dart';
 export 'runtime/runtime.dart';
+export 'search/search.dart';
 export 'shell/shell_model.dart';
 export 'shell/shell_scope.dart';
 export 'shell/vityo_shell_scaffold.dart';

@@ -2,7 +2,7 @@ import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
 
-enum BottomSurfaceTab { runtime, agent, debug, settings }
+enum BottomSurfaceTab { runtime, agent, search, debug, settings }
 
 class ShellModel extends ShellRuntimeModel {
   ShellModel({
@@ -64,6 +64,10 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.showAgent:
         selectBottomTab(BottomSurfaceTab.agent);
         return;
+      case AppCommandId.searchWorkspace:
+        selectBottomTab(BottomSurfaceTab.search);
+        appendLog('Workspace search surface opened.');
+        return;
       case AppCommandId.showDebug:
         selectBottomTab(BottomSurfaceTab.debug);
         return;
@@ -87,7 +91,6 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.refreshLanguageService:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
-      case AppCommandId.searchWorkspace:
       case AppCommandId.runBuild:
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:

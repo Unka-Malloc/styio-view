@@ -337,8 +337,10 @@ class VityoIdeCapabilityFramework {
           id: 'interaction.search',
           layer: IdeCapabilityLayer.interaction,
           title: 'Search, symbols, and quick open',
-          status: IdeCapabilityStatus.todo,
+          status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
+          summary:
+              'Workspace text search service, agent search command, and user search surface are wired.',
           todo:
               'TODO: add indexed workspace search, file quick open, symbol search, and result navigation contracts.',
           references: <String>[

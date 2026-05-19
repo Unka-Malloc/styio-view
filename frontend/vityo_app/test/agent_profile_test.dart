@@ -74,6 +74,8 @@ void main() {
       );
       expect(decoded.systemPrompt, contains('commands.settingsCommands'));
       expect(decoded.systemPrompt, contains('commands.toolchainCommands'));
+      expect(decoded.systemPrompt, contains('requiresInput true'));
+      expect(decoded.systemPrompt, contains('missing-input commands'));
       expect(decoded.systemPrompt, contains('selectClangCppVersion'));
       expect(decoded.systemPrompt, contains('metadata.formatResult'));
       expect(decoded.systemPrompt, contains('staticAnalysisResult'));

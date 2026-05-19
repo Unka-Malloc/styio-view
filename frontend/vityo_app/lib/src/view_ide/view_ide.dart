@@ -10,5 +10,6 @@ export 'module_host/module_host.dart';
 export 'platform/platform.dart';
 export 'runtime/runtime.dart';
 export 'shell_runtime/shell_runtime.dart';
+export 'testing/testing.dart';
 export 'toolchain/toolchain.dart' hide ToolchainRecoveryAction;
 export 'workspace/workspace.dart';

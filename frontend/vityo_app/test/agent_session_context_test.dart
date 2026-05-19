@@ -127,10 +127,7 @@ void main() {
         ),
         references: <ReferenceSpan>[],
         edits: <FormattingEdit>[
-          FormattingEdit(
-            range: SourceRange(start: 20, end: 31),
-            newText: '',
-          ),
+          FormattingEdit(range: SourceRange(start: 20, end: 31), newText: ''),
         ],
       ),
       inlineVariablePlan: const InlineVariablePlan(
@@ -151,10 +148,7 @@ void main() {
           ),
         ],
         edits: <FormattingEdit>[
-          FormattingEdit(
-            range: SourceRange(start: 10, end: 15),
-            newText: '1',
-          ),
+          FormattingEdit(range: SourceRange(start: 10, end: 15), newText: '1'),
         ],
       ),
       surroundTemplates: const <SurroundTemplate>[
@@ -507,8 +501,8 @@ void main() {
     expect(languageDefinition['name'], 'value');
     expect(languageDefinition['kind'], 'state');
     expect(
-      (languageDefinition['originRange']! as Map<String, Object?>)
-          ['coordinateBase'],
+      (languageDefinition['originRange']!
+          as Map<String, Object?>)['coordinateBase'],
       'zero-based',
     );
     expect(
@@ -516,8 +510,8 @@ void main() {
       1,
     );
     expect(
-      (languageDefinition['originRange']! as Map<String, Object?>)
-          ['startColumn'],
+      (languageDefinition['originRange']!
+          as Map<String, Object?>)['startColumn'],
       0,
     );
     expect(
@@ -564,28 +558,29 @@ void main() {
     expect(languageParameterInfo['invocationStart'], 160);
     expect(languageParameterInfo['callableEnd'], 165);
     expect(
-      (languageParameterInfo['invocationRange']! as Map<String, Object?>)
-          ['coordinateBase'],
+      (languageParameterInfo['invocationRange']!
+          as Map<String, Object?>)['coordinateBase'],
       'zero-based',
     );
     expect(
-      (languageParameterInfo['callableRange']! as Map<String, Object?>)
-          ['coordinateBase'],
+      (languageParameterInfo['callableRange']!
+          as Map<String, Object?>)['coordinateBase'],
       'zero-based',
     );
     expect(
-      (languageParameterInfo['activeParameter']! as Map<String, Object?>)
-          ['name'],
+      (languageParameterInfo['activeParameter']!
+          as Map<String, Object?>)['name'],
       'right',
     );
     expect(
-      ((languageParameterInfo['activeParameter']! as Map<String, Object?>)
-          ['range']! as Map<String, Object?>)['coordinateBase'],
+      ((languageParameterInfo['activeParameter']!
+              as Map<String, Object?>)['range']!
+          as Map<String, Object?>)['coordinateBase'],
       'zero-based',
     );
     expect(
-      (languageParameterInfoParameters.last! as Map<String, Object?>)
-          ['defaultValue'],
+      (languageParameterInfoParameters.last!
+          as Map<String, Object?>)['defaultValue'],
       '0.0',
     );
     expect(languageJson['referenceCount'], 2);
@@ -615,8 +610,9 @@ void main() {
       10,
     );
     expect(
-      ((languageCompletions.single! as Map<String, Object?>)
-          ['replacementRange']! as Map<String, Object?>)['startLine'],
+      ((languageCompletions.single!
+              as Map<String, Object?>)['replacementRange']!
+          as Map<String, Object?>)['startLine'],
       1,
     );
     expect(languageJson['codeActionCount'], 1);
@@ -696,8 +692,8 @@ void main() {
       'state',
     );
     expect(
-      (languageDocumentSymbols.single! as Map<String, Object?>)
-          ['declarationEnd'],
+      (languageDocumentSymbols.single!
+          as Map<String, Object?>)['declarationEnd'],
       9,
     );
     expect(
@@ -734,10 +730,7 @@ void main() {
       (languageSemanticBlocks.single! as Map<String, Object?>)['label'],
       'state value',
     );
-    expect(
-      (languageSemanticBlocks.single! as Map<String, Object?>)['end'],
-      16,
-    );
+    expect((languageSemanticBlocks.single! as Map<String, Object?>)['end'], 16);
     expect(
       ((languageSemanticBlocks.single! as Map<String, Object?>)['range']!
           as Map<String, Object?>)['startLine'],
@@ -775,8 +768,8 @@ void main() {
       'if-block',
     );
     expect(
-      (languageSurroundTemplates.single! as Map<String, Object?>)
-          ['openingLine'],
+      (languageSurroundTemplates.single!
+          as Map<String, Object?>)['openingLine'],
       'if condition {',
     );
     expect(languageServiceStatus['severity'], 'ready');
@@ -1361,6 +1354,37 @@ void main() {
     expect(command['prerequisiteForCommandId'], 'saveAll');
     expect(command['text'], 'Run the build.');
     expect(recentCommand['commandId'], 'runBuild');
+  });
+
+  test('agent session context serializes recent coding plans', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      recentCodingPlans: const <AgentCodingPlanContext>[
+        AgentCodingPlanContext(
+          summary: 'Update active document safely.',
+          steps: <String>['Inspect IDE facts.', 'Prepare patch.'],
+          acceptanceCriteria: <String>['Patch preview is shown.'],
+          risks: <String>['Dirty inactive files.'],
+          text: 'Plan before patch.',
+        ),
+      ],
+    );
+
+    final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final recentCodingPlans = agentJson['recentCodingPlans']! as List<Object?>;
+    final plan = recentCodingPlans.single! as Map<String, Object?>;
+
+    expect(plan['summary'], 'Update active document safely.');
+    expect(plan['steps'], <String>['Inspect IDE facts.', 'Prepare patch.']);
+    expect(plan['acceptanceCriteria'], <String>['Patch preview is shown.']);
+    expect(plan['risks'], <String>['Dirty inactive files.']);
+    expect(plan['text'], 'Plan before patch.');
   });
 
   test('agent session context serializes last provider failure', () {

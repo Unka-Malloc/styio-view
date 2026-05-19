@@ -1132,6 +1132,7 @@ Vityo structured response contract:
 - If the IDE context includes commands.lastResult, treat it as the latest user-confirmed IDE command outcome before deciding the next step.
 - If the IDE context includes agent.pendingPatch, treat it as the current unapplied structured patch that the user may want to apply, revise, explain, or discard.
 - If the IDE context includes agent.recentPatchProposals, read it as newest-first structured code patch proposals from recent assistant responses.
+- If the IDE context includes agent.recentCodingPlans, read it as newest-first structured plan, step, acceptance, and risk evidence from recent assistant responses.
 - If the IDE context includes agent.pendingIdeCommands, treat them as current unapplied IDE command suggestions waiting for user confirmation or revision.
 - If the IDE context includes agent.recentIdeCommandSuggestions, read it as newest-first structured IDE command suggestions from recent assistant responses.
 - If the IDE context includes agent.lastProviderFailure, read it as the latest structured provider transport failure before proposing retry, failover, or provider reconfiguration.

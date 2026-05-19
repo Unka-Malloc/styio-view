@@ -13,6 +13,7 @@ const int _maxAgentPendingPatchContextEdits = 20;
 const int _maxAgentPendingPatchReplacementTextSampleLength = 2000;
 const int _maxAgentPendingIdeCommandContexts = 10;
 const int _maxAgentRecentIdeCommandSuggestionContexts = 12;
+const int _maxAgentRecentCodingPlanContexts = 8;
 
 class AgentCodingSessionController extends ChangeNotifier {
   AgentCodingSessionController({
@@ -51,6 +52,8 @@ class AgentCodingSessionController extends ChangeNotifier {
       <AgentPendingPatchContext>[];
   final List<AgentPendingIdeCommandContext>
   _recentIdeCommandSuggestionContexts = <AgentPendingIdeCommandContext>[];
+  final List<AgentCodingPlanContext> _recentCodingPlanContexts =
+      <AgentCodingPlanContext>[];
   String? _providerMountMessage;
   String? _lastError;
   AgentProviderTransportException? _lastProviderFailure;
@@ -112,6 +115,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _recentPatchApplicationContexts.clear();
     _recentPatchProposalContexts.clear();
     _recentIdeCommandSuggestionContexts.clear();
+    _recentCodingPlanContexts.clear();
     _attachments.clear();
     _conversationTurns.clear();
     notifyListeners();
@@ -207,6 +211,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       _lastResponse = response;
       _pendingPatch = _firstPatch(response);
       _recordRecentPatchProposalContext(_pendingPatch);
+      _recordRecentCodingPlanContexts(response);
       _recordRecentIdeCommandSuggestionContexts(response);
       _clearPreservedAgentState();
       if (identical(
@@ -431,7 +436,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     final preservedPendingPatch = _preservedPendingPatch;
     final shouldRestoreResponse =
         preservedPendingPatch != null ||
-        _hasIdeCommandSuggestion(preservedResponse);
+        _hasActionableResponsePart(preservedResponse);
     _lastResponse = shouldRestoreResponse ? preservedResponse : null;
     _pendingPatch = preservedPendingPatch;
     _lastPatchApplicationResult = _preservedLastPatchApplicationResult;
@@ -445,11 +450,13 @@ class AgentCodingSessionController extends ChangeNotifier {
     _preservedLastPatchApplicationResult = null;
   }
 
-  bool _hasIdeCommandSuggestion(AgentProviderResponseEnvelope? response) {
+  bool _hasActionableResponsePart(AgentProviderResponseEnvelope? response) {
     if (response == null) {
       return false;
     }
-    return response.contentParts.any((part) => part.ideCommand != null);
+    return response.contentParts.any(
+      (part) => part.ideCommand != null || part.plan != null,
+    );
   }
 
   AgentSessionContext _contextForProviderRequest() {
@@ -465,6 +472,7 @@ class AgentCodingSessionController extends ChangeNotifier {
           : _providerFailureContext(_lastProviderFailure!),
       lastPatchApplication: _lastPatchApplicationContext,
       recentPatchApplications: _recentPatchApplicationContexts,
+      recentCodingPlans: _recentCodingPlanContexts,
     );
   }
 
@@ -508,6 +516,20 @@ class AgentCodingSessionController extends ChangeNotifier {
       _recentIdeCommandSuggestionContexts.removeRange(
         _maxAgentRecentIdeCommandSuggestionContexts,
         _recentIdeCommandSuggestionContexts.length,
+      );
+    }
+  }
+
+  void _recordRecentCodingPlanContexts(AgentProviderResponseEnvelope response) {
+    final plans = _codingPlanContexts(response);
+    if (plans.isEmpty) {
+      return;
+    }
+    _recentCodingPlanContexts.insertAll(0, plans);
+    if (_recentCodingPlanContexts.length > _maxAgentRecentCodingPlanContexts) {
+      _recentCodingPlanContexts.removeRange(
+        _maxAgentRecentCodingPlanContexts,
+        _recentCodingPlanContexts.length,
       );
     }
   }
@@ -684,6 +706,31 @@ List<AgentPendingIdeCommandContext> _pendingIdeCommandContexts(
     }
   }
   return List<AgentPendingIdeCommandContext>.unmodifiable(commands);
+}
+
+List<AgentCodingPlanContext> _codingPlanContexts(
+  AgentProviderResponseEnvelope response,
+) {
+  final plans = <AgentCodingPlanContext>[];
+  for (final part in response.contentParts) {
+    final plan = part.plan;
+    if (plan == null) {
+      continue;
+    }
+    plans.add(
+      AgentCodingPlanContext(
+        summary: plan.summary,
+        steps: plan.steps,
+        acceptanceCriteria: plan.acceptanceCriteria,
+        risks: plan.risks,
+        text: part.text,
+      ),
+    );
+    if (plans.length >= _maxAgentRecentCodingPlanContexts) {
+      break;
+    }
+  }
+  return List<AgentCodingPlanContext>.unmodifiable(plans);
 }
 
 AgentPendingPatchContext _pendingPatchContext(AgentCodePatch patch) {

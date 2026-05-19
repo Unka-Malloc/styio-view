@@ -67,16 +67,14 @@ class AgentSessionContext {
     ParameterInfoPayload? parameterInfo,
     SafeDeletePlan? safeDeletePlan,
     InlineVariablePlan? inlineVariablePlan,
-    Iterable<SurroundTemplate> surroundTemplates =
-        const <SurroundTemplate>[],
+    Iterable<SurroundTemplate> surroundTemplates = const <SurroundTemplate>[],
     Iterable<ReferenceSpan> references = const <ReferenceSpan>[],
     Iterable<CompletionItem> completions = const <CompletionItem>[],
     Iterable<DiagnosticQuickFix> codeActions = const <DiagnosticQuickFix>[],
     Iterable<SemanticSpan> semanticSpans = const <SemanticSpan>[],
     Iterable<DocumentSymbol> documentSymbols = const <DocumentSymbol>[],
     Iterable<InlayHint> inlayHints = const <InlayHint>[],
-    Iterable<SemanticBlockRange> semanticBlocks =
-        const <SemanticBlockRange>[],
+    Iterable<SemanticBlockRange> semanticBlocks = const <SemanticBlockRange>[],
     LanguageServiceStatusSurface? languageServiceStatus,
     ToolchainStateSnapshot? toolchainSnapshot,
     AgentCommandResultContext? lastCommandResult,
@@ -93,6 +91,8 @@ class AgentSessionContext {
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
+    Iterable<AgentCodingPlanContext> recentCodingPlans =
+        const <AgentCodingPlanContext>[],
     AgentDebugContext debug = const AgentDebugContext.idle(),
     String? activeFilePath,
     int maxDiagnostics = 100,
@@ -148,6 +148,7 @@ class AgentSessionContext {
         lastProviderFailure: lastProviderFailure,
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
+        recentCodingPlans: recentCodingPlans,
       ),
       commands: AgentCommandCatalogContext.fromRegistry(
         lastResult: lastCommandResult,
@@ -254,6 +255,8 @@ class AgentSessionContext {
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
+    Iterable<AgentCodingPlanContext> recentCodingPlans =
+        const <AgentCodingPlanContext>[],
   }) {
     final pendingIdeCommandList = pendingIdeCommands.toList(growable: false);
     final recentPatchProposalList = recentPatchProposals.toList(
@@ -262,10 +265,12 @@ class AgentSessionContext {
     final recentIdeCommandSuggestionList = recentIdeCommandSuggestions.toList(
       growable: false,
     );
+    final recentCodingPlanList = recentCodingPlans.toList(growable: false);
     if (pendingPatch == null &&
         recentPatchProposalList.isEmpty &&
         pendingIdeCommandList.isEmpty &&
         recentIdeCommandSuggestionList.isEmpty &&
+        recentCodingPlanList.isEmpty &&
         lastProviderFailure == null &&
         lastPatchApplication == null) {
       final recentPatchApplicationList = recentPatchApplications.toList(
@@ -293,6 +298,7 @@ class AgentSessionContext {
         lastProviderFailure: lastProviderFailure,
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
+        recentCodingPlans: recentCodingPlanList,
       ),
       commands: commands,
       language: language,
@@ -311,6 +317,7 @@ class AgentCodingLoopContext {
     this.lastProviderFailure,
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
+    this.recentCodingPlans = const <AgentCodingPlanContext>[],
   });
 
   factory AgentCodingLoopContext.fromPatchApplications({
@@ -325,6 +332,8 @@ class AgentCodingLoopContext {
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
+    Iterable<AgentCodingPlanContext> recentCodingPlans =
+        const <AgentCodingPlanContext>[],
   }) {
     final history = _agentPatchApplicationHistory(
       lastPatchApplication: lastPatchApplication,
@@ -340,6 +349,7 @@ class AgentCodingLoopContext {
       lastProviderFailure: lastProviderFailure,
       lastPatchApplication: history.isEmpty ? null : history.first,
       recentPatchApplications: history,
+      recentCodingPlans: recentCodingPlans.toList(growable: false),
     );
   }
 
@@ -350,6 +360,7 @@ class AgentCodingLoopContext {
   final AgentProviderFailureContext? lastProviderFailure;
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
+  final List<AgentCodingPlanContext> recentCodingPlans;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -374,6 +385,36 @@ class AgentCodingLoopContext {
         'recentPatchApplications': recentPatchApplications
             .map((application) => application.toJson())
             .toList(growable: false),
+      if (recentCodingPlans.isNotEmpty)
+        'recentCodingPlans': recentCodingPlans
+            .map((plan) => plan.toJson())
+            .toList(growable: false),
+    };
+  }
+}
+
+class AgentCodingPlanContext {
+  const AgentCodingPlanContext({
+    required this.summary,
+    required this.steps,
+    required this.acceptanceCriteria,
+    this.risks = const <String>[],
+    this.text = '',
+  });
+
+  final String summary;
+  final List<String> steps;
+  final List<String> acceptanceCriteria;
+  final List<String> risks;
+  final String text;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      if (summary.trim().isNotEmpty) 'summary': summary,
+      'steps': steps,
+      'acceptanceCriteria': acceptanceCriteria,
+      if (risks.isNotEmpty) 'risks': risks,
+      if (text.trim().isNotEmpty) 'text': text,
     };
   }
 }
@@ -1063,8 +1104,7 @@ class AgentLanguageContext {
     InlineVariablePlan? inlineVariablePlan,
     TokenSpan? focusToken,
     SemanticKind? focusSemanticKind,
-    Iterable<SurroundTemplate> surroundTemplates =
-        const <SurroundTemplate>[],
+    Iterable<SurroundTemplate> surroundTemplates = const <SurroundTemplate>[],
     Iterable<Diagnostic> focusedDiagnostics = const <Diagnostic>[],
     Iterable<ReferenceSpan> references = const <ReferenceSpan>[],
     Iterable<CompletionItem> completions = const <CompletionItem>[],
@@ -1072,8 +1112,7 @@ class AgentLanguageContext {
     Iterable<SemanticSpan> semanticSpans = const <SemanticSpan>[],
     Iterable<DocumentSymbol> documentSymbols = const <DocumentSymbol>[],
     Iterable<InlayHint> inlayHints = const <InlayHint>[],
-    Iterable<SemanticBlockRange> semanticBlocks =
-        const <SemanticBlockRange>[],
+    Iterable<SemanticBlockRange> semanticBlocks = const <SemanticBlockRange>[],
     AgentLanguageServiceStatusContext? serviceStatus,
     int maxReferences = 50,
     int maxFocusedDiagnostics = 20,
@@ -1215,16 +1254,13 @@ class AgentLanguageContext {
             ),
           )
           .toList(growable: false),
-      documentSymbolsTruncated:
-          documentSymbolList.length > maxDocumentSymbols,
+      documentSymbolsTruncated: documentSymbolList.length > maxDocumentSymbols,
       inlayHintCount: inlayHintList.length,
       inlayHints: inlayHintList
           .take(maxInlayHints)
           .map(
-            (hint) => AgentInlayHintContext.fromInlayHint(
-              hint,
-              document: document,
-            ),
+            (hint) =>
+                AgentInlayHintContext.fromInlayHint(hint, document: document),
           )
           .toList(growable: false),
       inlayHintsTruncated: inlayHintList.length > maxInlayHints,
@@ -1238,8 +1274,7 @@ class AgentLanguageContext {
             ),
           )
           .toList(growable: false),
-      semanticBlocksTruncated:
-          semanticBlockList.length > maxSemanticBlocks,
+      semanticBlocksTruncated: semanticBlockList.length > maxSemanticBlocks,
       refactorPreviewCount: refactorPreviewList.length,
       refactorPreviews: refactorPreviewList,
       surroundTemplateCount: surroundTemplateList.length,
@@ -1960,11 +1995,7 @@ class AgentRefactorConflictContext {
   }
 
   Map<String, Object?> toJson() {
-    return <String, Object?>{
-      'message': message,
-      'start': start,
-      'end': end,
-    };
+    return <String, Object?>{'message': message, 'start': start, 'end': end};
   }
 }
 

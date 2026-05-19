@@ -87,6 +87,49 @@ void main() {
   });
 
   test(
+    'agent coding session sends recent coding plans with next prompt',
+    () async {
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-1',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(
+              kind: AgentContentPartKind.plan,
+              text: 'Plan before patch.',
+              plan: AgentCodingPlan(
+                summary: 'Update active document safely.',
+                steps: <String>['Inspect IDE facts.', 'Prepare patch.'],
+                acceptanceCriteria: <String>['Patch preview is shown.'],
+                risks: <String>['Dirty inactive files.'],
+              ),
+            ),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+      );
+
+      controller.updatePrompt('Plan this edit.');
+      await controller.sendPrompt();
+      controller.updatePrompt('Continue from the plan.');
+      await controller.sendPrompt();
+
+      expect(adapter.requests.first.context.agent.recentCodingPlans, isEmpty);
+      final plan = adapter.requests.last.context.agent.recentCodingPlans.single;
+      expect(plan.summary, 'Update active document safely.');
+      expect(plan.steps, <String>['Inspect IDE facts.', 'Prepare patch.']);
+      expect(plan.acceptanceCriteria, <String>['Patch preview is shown.']);
+      expect(plan.risks, <String>['Dirty inactive files.']);
+      expect(plan.text, 'Plan before patch.');
+    },
+  );
+
+  test(
     'agent coding session clear conversation resets stale error state',
     () async {
       final controller = AgentCodingSessionController(

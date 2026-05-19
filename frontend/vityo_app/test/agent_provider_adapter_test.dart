@@ -464,6 +464,7 @@ void main() {
       expect(systemMessage['content'], contains('"kind":"plan"'));
       expect(systemMessage['content'], contains('code_patch'));
       expect(systemMessage['content'], contains('ide_command'));
+      expect(systemMessage['content'], contains('agent.recentCodingPlans'));
       expect(systemMessage['content'], contains('commands catalog'));
       expect(systemMessage['content'], contains('C++/Clang skills'));
       expect(systemMessage['content'], contains('reference-grounded IDE'));

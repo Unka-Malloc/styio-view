@@ -2136,6 +2136,8 @@ class StyioServiceResultCacheEntry {
     required this.surroundTemplateCount,
     this.configPath,
     this.workingDirectory,
+    this.parserEngine,
+    this.grammarVersion,
     this.message,
   });
 
@@ -2146,6 +2148,8 @@ class StyioServiceResultCacheEntry {
   final StyioServiceStatus status;
   final String? configPath;
   final String? workingDirectory;
+  final String? parserEngine;
+  final String? grammarVersion;
   final int diagnosticCount;
   final int completionCount;
   final int hoverCount;
@@ -2177,6 +2181,8 @@ class StyioServiceResultCacheEntry {
       status: _statusFromJson(json['status']),
       configPath: json['configPath'] as String?,
       workingDirectory: json['workingDirectory'] as String?,
+      parserEngine: json['parserEngine'] as String?,
+      grammarVersion: json['grammarVersion'] as String?,
       diagnosticCount: _intValue(json['diagnosticCount']),
       completionCount: _intValue(json['completionCount']),
       hoverCount: _intValue(json['hoverCount']),
@@ -2209,6 +2215,8 @@ class StyioServiceResultCacheEntry {
       'status': status.name,
       if (configPath != null) 'configPath': configPath,
       if (workingDirectory != null) 'workingDirectory': workingDirectory,
+      if (parserEngine != null) 'parserEngine': parserEngine,
+      if (grammarVersion != null) 'grammarVersion': grammarVersion,
       'diagnosticCount': diagnosticCount,
       'completionCount': completionCount,
       'hoverCount': hoverCount,
@@ -2555,6 +2563,8 @@ class StyioServiceResultCache {
           status: response.status,
           configPath: key.configPath,
           workingDirectory: key.workingDirectory,
+          parserEngine: response.parserEngine,
+          grammarVersion: response.grammarVersion,
           diagnosticCount: response.diagnostics.length,
           completionCount: response.completions.length,
           hoverCount: response.hovers.length,

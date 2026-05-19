@@ -3255,10 +3255,12 @@ void main() {
         connector: const _FakeStyioServiceConnector(
           StyioServiceResponse(
             status: StyioServiceStatus.succeeded,
-            documentId: 'fixture://driver-manifest',
-            revision: 8,
-            toolchainId: 'styio-nightly',
-            diagnostics: <StyioServiceDiagnosticDto>[
+          documentId: 'fixture://driver-manifest',
+          revision: 8,
+          toolchainId: 'styio-nightly',
+          parserEngine: 'nightly',
+          grammarVersion: '2026.05',
+          diagnostics: <StyioServiceDiagnosticDto>[
               StyioServiceDiagnosticDto(
                 severity: DiagnosticSeverity.error,
                 code: 'styio.driver.raw',
@@ -3283,7 +3285,10 @@ void main() {
 
       expect(manifest.entries.single.documentId, 'fixture://driver-manifest');
       expect(manifest.entries.single.toolchainId, 'styio-nightly');
+      expect(manifest.entries.single.parserEngine, 'nightly');
+      expect(manifest.entries.single.grammarVersion, '2026.05');
       expect(manifest.entries.single.diagnosticCount, 1);
+      expect(manifest.toJson().toString(), contains('grammarVersion'));
       expect(manifestText, isNot(contains('driver raw payload')));
       expect(manifestText, isNot(contains('styio.driver.raw')));
     },

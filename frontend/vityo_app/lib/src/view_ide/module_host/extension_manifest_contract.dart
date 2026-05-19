@@ -1,0 +1,302 @@
+import 'module_manifest.dart';
+
+enum ExtensionContributionKind {
+  command,
+  language,
+  theme,
+  debugger,
+  task,
+  view,
+  agent,
+  toolchain,
+}
+
+extension ExtensionContributionKindX on ExtensionContributionKind {
+  String get wireValue => switch (this) {
+    ExtensionContributionKind.command => 'command',
+    ExtensionContributionKind.language => 'language',
+    ExtensionContributionKind.theme => 'theme',
+    ExtensionContributionKind.debugger => 'debugger',
+    ExtensionContributionKind.task => 'task',
+    ExtensionContributionKind.view => 'view',
+    ExtensionContributionKind.agent => 'agent',
+    ExtensionContributionKind.toolchain => 'toolchain',
+  };
+}
+
+class ExtensionContributionPoint {
+  const ExtensionContributionPoint({
+    required this.kind,
+    required this.id,
+    required this.target,
+    this.title,
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory ExtensionContributionPoint.fromJson(Map<String, Object?> json) {
+    return ExtensionContributionPoint(
+      kind: _contributionKindFromWire(json['kind']),
+      id: json['id'] as String? ?? '',
+      target: json['target'] as String? ?? '',
+      title: _jsonNullableString(json['title']),
+      metadata: _jsonObjectMap(json['metadata']),
+    );
+  }
+
+  final ExtensionContributionKind kind;
+  final String id;
+  final String target;
+  final String? title;
+  final Map<String, Object?> metadata;
+
+  bool get valid => id.trim().isNotEmpty && target.trim().isNotEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'id': id,
+      'target': target,
+      if (title != null) 'title': title,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+      'valid': valid,
+    };
+  }
+}
+
+class ExtensionManifest {
+  const ExtensionManifest({
+    required this.extensionId,
+    required this.displayName,
+    required this.version,
+    required this.publisher,
+    required this.entrypoint,
+    this.moduleId,
+    this.description = '',
+    this.activationEvents = const <String>[],
+    this.contributions = const <ExtensionContributionPoint>[],
+    this.capabilities = const <String, bool>{},
+    this.trustedByDefault = false,
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory ExtensionManifest.fromJson(Map<String, Object?> json) {
+    return ExtensionManifest(
+      extensionId: json['extensionId'] as String? ?? '',
+      displayName: json['displayName'] as String? ?? '',
+      version: json['version'] as String? ?? '',
+      publisher: json['publisher'] as String? ?? '',
+      entrypoint: json['entrypoint'] as String? ?? '',
+      moduleId: _jsonNullableString(json['moduleId']),
+      description: json['description'] as String? ?? '',
+      activationEvents: _jsonStringList(json['activationEvents']),
+      contributions: _jsonContributionPoints(json['contributions']),
+      capabilities: _jsonBoolMap(json['capabilities']),
+      trustedByDefault: json['trustedByDefault'] as bool? ?? false,
+      metadata: _jsonObjectMap(json['metadata']),
+    );
+  }
+
+  factory ExtensionManifest.fromModuleManifest({
+    required ModuleManifest module,
+    required String publisher,
+    List<String> activationEvents = const <String>[],
+    List<ExtensionContributionPoint> contributions =
+        const <ExtensionContributionPoint>[],
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionManifest(
+      extensionId: module.moduleId,
+      moduleId: module.moduleId,
+      displayName: module.displayName,
+      version: module.version,
+      publisher: publisher,
+      entrypoint: module.entrypoint,
+      description: module.description,
+      activationEvents: activationEvents,
+      contributions: contributions,
+      capabilities: module.capabilityFlags,
+      trustedByDefault:
+          module.enabledByDefault && module.kind == ModuleKind.core,
+      metadata: metadata,
+    );
+  }
+
+  final String extensionId;
+  final String displayName;
+  final String version;
+  final String publisher;
+  final String entrypoint;
+  final String? moduleId;
+  final String description;
+  final List<String> activationEvents;
+  final List<ExtensionContributionPoint> contributions;
+  final Map<String, bool> capabilities;
+  final bool trustedByDefault;
+  final Map<String, Object?> metadata;
+
+  bool get valid {
+    return extensionId.trim().isNotEmpty &&
+        version.trim().isNotEmpty &&
+        publisher.trim().isNotEmpty &&
+        entrypoint.trim().isNotEmpty &&
+        contributions.every((contribution) => contribution.valid);
+  }
+
+  List<ExtensionContributionPoint> contributionsFor(
+    ExtensionContributionKind kind,
+  ) {
+    return contributions
+        .where((contribution) => contribution.kind == kind)
+        .toList(growable: false);
+  }
+
+  bool activatesOn(String event) => activationEvents.contains(event);
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'displayName': displayName,
+      'version': version,
+      'publisher': publisher,
+      'entrypoint': entrypoint,
+      if (moduleId != null) 'moduleId': moduleId,
+      'description': description,
+      'activationEvents': activationEvents,
+      'contributions': contributions
+          .map((contribution) => contribution.toJson())
+          .toList(growable: false),
+      'capabilities': capabilities,
+      'trustedByDefault': trustedByDefault,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+      'valid': valid,
+    };
+  }
+}
+
+class ExtensionManifestRegistry {
+  final Map<String, ExtensionManifest> _manifests =
+      <String, ExtensionManifest>{};
+
+  void register(ExtensionManifest manifest) {
+    if (!manifest.valid) {
+      throw StateError(
+        'Extension ${manifest.extensionId} manifest is invalid.',
+      );
+    }
+    if (_manifests.containsKey(manifest.extensionId)) {
+      throw StateError(
+        'Extension ${manifest.extensionId} is already registered.',
+      );
+    }
+    _manifests[manifest.extensionId] = manifest;
+  }
+
+  bool unregister(String extensionId) {
+    return _manifests.remove(extensionId) != null;
+  }
+
+  ExtensionManifest? lookup(String extensionId) => _manifests[extensionId];
+
+  List<ExtensionManifest> list() {
+    final manifests = _manifests.values.toList(growable: false);
+    manifests.sort(
+      (left, right) => left.extensionId.compareTo(right.extensionId),
+    );
+    return manifests;
+  }
+
+  List<ExtensionManifest> activationCandidates(String event) {
+    return list()
+        .where((manifest) => manifest.activatesOn(event))
+        .toList(growable: false);
+  }
+
+  List<ExtensionContributionPoint> contributionsFor(
+    ExtensionContributionKind kind,
+  ) {
+    return list()
+        .expand((manifest) => manifest.contributionsFor(kind))
+        .toList(growable: false);
+  }
+
+  Map<String, Object?> toJson() {
+    final manifests = list();
+    return <String, Object?>{
+      'extensionCount': manifests.length,
+      'validExtensionCount': manifests
+          .where((manifest) => manifest.valid)
+          .length,
+      'manifests': manifests
+          .map((manifest) => manifest.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+ExtensionContributionKind _contributionKindFromWire(Object? value) {
+  return switch (value) {
+    'command' => ExtensionContributionKind.command,
+    'language' => ExtensionContributionKind.language,
+    'theme' => ExtensionContributionKind.theme,
+    'debugger' => ExtensionContributionKind.debugger,
+    'task' => ExtensionContributionKind.task,
+    'view' => ExtensionContributionKind.view,
+    'agent' => ExtensionContributionKind.agent,
+    'toolchain' => ExtensionContributionKind.toolchain,
+    _ => ExtensionContributionKind.view,
+  };
+}
+
+String? _jsonNullableString(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+List<String> _jsonStringList(Object? value) {
+  if (value is! List) {
+    return const <String>[];
+  }
+  return value
+      .map((item) => '$item'.trim())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+}
+
+Map<String, bool> _jsonBoolMap(Object? value) {
+  if (value is! Map) {
+    return const <String, bool>{};
+  }
+  return Map<String, bool>.unmodifiable(
+    value.map(
+      (key, value) => MapEntry<String, bool>(key.toString(), value == true),
+    ),
+  );
+}
+
+Map<String, Object?> _jsonObjectMap(Object? value) {
+  if (value is! Map) {
+    return const <String, Object?>{};
+  }
+  return Map<String, Object?>.unmodifiable(
+    value.map((key, value) => MapEntry<String, Object?>(key.toString(), value)),
+  );
+}
+
+List<ExtensionContributionPoint> _jsonContributionPoints(Object? value) {
+  if (value is! List) {
+    return const <ExtensionContributionPoint>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (contribution) => ExtensionContributionPoint.fromJson(
+          contribution.map(
+            (key, value) => MapEntry<String, Object?>(key.toString(), value),
+          ),
+        ),
+      )
+      .toList(growable: false);
+}

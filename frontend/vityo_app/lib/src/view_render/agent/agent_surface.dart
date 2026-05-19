@@ -816,6 +816,11 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 .whereType<AgentIdeCommandSuggestion>()
                 .toList(growable: false) ??
             const <AgentIdeCommandSuggestion>[];
+        final planParts =
+            response?.contentParts
+                .where((part) => part.plan != null)
+                .toList(growable: false) ??
+            const <AgentContentPart>[];
         final registeredCommandIds = _registeredAgentCommandIds(
           widget.sessionContext.commands,
         );
@@ -1052,6 +1057,14 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
               if (responseText != null && responseText.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text(responseText, style: theme.textTheme.bodySmall),
+              ],
+              if (planParts.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                for (final part in planParts)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _AgentCodingPlanSection(part: part),
+                  ),
               ],
               if (commandSuggestions.isNotEmpty) ...[
                 const SizedBox(height: 10),
@@ -1330,6 +1343,64 @@ class _AgentProviderFailureDetails extends StatelessWidget {
               Text('Recovery: ${failure.recoveryHint}'),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AgentCodingPlanSection extends StatelessWidget {
+  const _AgentCodingPlanSection({required this.part});
+
+  final AgentContentPart part;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final plan = part.plan!;
+    return Container(
+      key: const ValueKey('agent-coding-plan-section'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE6EEF0),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Agent Coding Plan', style: theme.textTheme.titleSmall),
+          if (plan.summary.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(plan.summary, style: theme.textTheme.bodySmall),
+          ],
+          if (plan.steps.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Steps', style: theme.textTheme.labelMedium),
+            const SizedBox(height: 4),
+            for (var index = 0; index < plan.steps.length; index++)
+              Text(
+                '${index + 1}. ${plan.steps[index]}',
+                style: theme.textTheme.bodySmall,
+              ),
+          ],
+          if (plan.acceptanceCriteria.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Acceptance Criteria', style: theme.textTheme.labelMedium),
+            const SizedBox(height: 4),
+            for (final criterion in plan.acceptanceCriteria)
+              Text('- $criterion', style: theme.textTheme.bodySmall),
+          ],
+          if (plan.risks.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Risks', style: theme.textTheme.labelMedium),
+            const SizedBox(height: 4),
+            for (final risk in plan.risks)
+              Text('- $risk', style: theme.textTheme.bodySmall),
+          ],
+        ],
       ),
     );
   }

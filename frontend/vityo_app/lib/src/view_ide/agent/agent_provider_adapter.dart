@@ -20,13 +20,21 @@ extension AgentProviderKindX on AgentProviderKind {
   }
 }
 
-enum AgentContentPartKind { text, codePatch, diagnosticSummary, ideCommand }
+enum AgentContentPartKind {
+  text,
+  plan,
+  codePatch,
+  diagnosticSummary,
+  ideCommand,
+}
 
 extension AgentContentPartKindX on AgentContentPartKind {
   String get wireValue {
     switch (this) {
       case AgentContentPartKind.text:
         return 'text';
+      case AgentContentPartKind.plan:
+        return 'plan';
       case AgentContentPartKind.codePatch:
         return 'code_patch';
       case AgentContentPartKind.diagnosticSummary:
@@ -39,6 +47,7 @@ extension AgentContentPartKindX on AgentContentPartKind {
 
 AgentContentPartKind _agentContentPartKindFromWireValue(String? value) {
   return switch (value) {
+    'plan' => AgentContentPartKind.plan,
     'code_patch' => AgentContentPartKind.codePatch,
     'diagnostic_summary' => AgentContentPartKind.diagnosticSummary,
     'ide_command' => AgentContentPartKind.ideCommand,
@@ -231,12 +240,14 @@ class AgentContentPart {
   const AgentContentPart({
     required this.kind,
     required this.text,
+    this.plan,
     this.patch,
     this.ideCommand,
   });
 
   final AgentContentPartKind kind;
   final String text;
+  final AgentCodingPlan? plan;
   final AgentCodePatch? patch;
   final AgentIdeCommandSuggestion? ideCommand;
 
@@ -244,17 +255,29 @@ class AgentContentPart {
     return <String, Object?>{
       'kind': kind.wireValue,
       'text': text,
+      if (plan != null) 'plan': plan!.toJson(),
       if (patch != null) 'patch': patch!.toJson(),
       if (ideCommand != null) 'ideCommand': ideCommand!.toJson(),
     };
   }
 
   factory AgentContentPart.fromJson(Map<String, Object?> json) {
+    final planJson = json['plan'] ?? json['codingPlan'];
     final patchJson = json['patch'] ?? json['codePatch'];
     final ideCommandJson = json['ideCommand'] ?? json['command'];
     return AgentContentPart(
       kind: _agentContentPartKindFromWireValue(json['kind'] as String?),
       text: json['text'] as String? ?? json['content'] as String? ?? '',
+      plan: planJson is Map<String, Object?>
+          ? AgentCodingPlan.fromJson(planJson)
+          : planJson is Map
+          ? AgentCodingPlan.fromJson(
+              planJson.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : null,
       patch: patchJson is Map<String, Object?>
           ? AgentCodePatch.fromJson(patchJson)
           : patchJson is Map
@@ -277,6 +300,55 @@ class AgentContentPart {
           : null,
     );
   }
+}
+
+class AgentCodingPlan {
+  const AgentCodingPlan({
+    required this.summary,
+    required this.steps,
+    required this.acceptanceCriteria,
+    this.risks = const <String>[],
+  });
+
+  final String summary;
+  final List<String> steps;
+  final List<String> acceptanceCriteria;
+  final List<String> risks;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'summary': summary,
+      'steps': steps,
+      'acceptanceCriteria': acceptanceCriteria,
+      if (risks.isNotEmpty) 'risks': risks,
+    };
+  }
+
+  factory AgentCodingPlan.fromJson(Map<String, Object?> json) {
+    return AgentCodingPlan(
+      summary: json['summary'] as String? ?? '',
+      steps: _stringListFromJson(json['steps']),
+      acceptanceCriteria: _stringListFromJson(
+        json['acceptanceCriteria'] ?? json['acceptance_criteria'],
+      ),
+      risks: _stringListFromJson(json['risks'] ?? json['riskNotes']),
+    );
+  }
+}
+
+List<String> _stringListFromJson(Object? value) {
+  if (value is String) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? const <String>[] : <String>[trimmed];
+  }
+  if (value is List) {
+    return value
+        .whereType<Object?>()
+        .map((item) => item?.toString().trim() ?? '')
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
+  return const <String>[];
 }
 
 class AgentIdeCommandSuggestion {
@@ -829,8 +901,7 @@ Map<String, Object?> _openAICompatibleRequestBody(
       'languageDocumentSymbolCount':
           request.context.language.documentSymbolCount,
       'languageInlayHintCount': request.context.language.inlayHintCount,
-      'languageSemanticBlockCount':
-          request.context.language.semanticBlockCount,
+      'languageSemanticBlockCount': request.context.language.semanticBlockCount,
       'languageRefactorPreviewCount':
           request.context.language.refactorPreviewCount,
       'languageSurroundTemplateCount':
@@ -1022,6 +1093,7 @@ $systemPrompt
 Vityo structured response contract:
 - For normal explanation, return plain assistant text.
 - For code changes, return a JSON object with a top-level "contentParts" array.
+- A planning part may use {"kind":"plan","text":"...","plan":{"summary":"...","steps":["..."],"acceptanceCriteria":["..."],"risks":["..."]}} before code_patch or ide_command parts.
 - A code change part must use {"kind":"code_patch","text":"...","patch":{"patchId":"...","summary":"...","baseRevision":0,"edits":[{"documentId":"...","operation":"replace","start":0,"end":0,"replacementText":"..."}]}}.
 - To suggest a registered IDE command without directly patching files, use {"kind":"ide_command","text":"...","command":{"commandId":"renameSymbol","input":"...","reason":"..."}}. If a command is only a prerequisite for another command, include "prerequisiteForCommandId":"runBuild".
 - ide_command.commandId must come from the IDE context commands catalog; do not invent command IDs.

@@ -91,6 +91,50 @@ void main() {
     );
   });
 
+  testWidgets('agent surface displays structured coding plan', (tester) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: _PlanAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.updatePrompt('Plan the edit.');
+    await controller.sendPrompt();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Agent Coding Plan'), findsOneWidget);
+    expect(find.text('Update active document safely.'), findsOneWidget);
+    expect(find.text('Steps'), findsOneWidget);
+    expect(find.text('1. Inspect IDE facts.'), findsOneWidget);
+    expect(find.text('2. Prepare patch.'), findsOneWidget);
+    expect(find.text('Acceptance Criteria'), findsOneWidget);
+    expect(find.text('- Patch preview is shown.'), findsOneWidget);
+  });
+
   testWidgets('agent surface previews pending patch edit ranges', (
     tester,
   ) async {
@@ -2884,6 +2928,39 @@ class _RecordingWorkspacePatchFeedbackAgentProviderAdapter
       finishReason: 'stop',
       contentParts: const <AgentContentPart>[
         AgentContentPart(kind: AgentContentPartKind.text, text: 'Continuing.'),
+      ],
+    );
+  }
+}
+
+class _PlanAgentProviderAdapter implements AgentProviderAdapter {
+  @override
+  String get adapterId => 'plan';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.cloudOpenAICompatible;
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(
+    AgentProviderRequest request,
+  ) async {
+    return AgentProviderResponseEnvelope(
+      requestId: request.requestId,
+      role: 'assistant',
+      finishReason: 'stop',
+      contentParts: const <AgentContentPart>[
+        AgentContentPart(
+          kind: AgentContentPartKind.plan,
+          text: 'Plan before patch.',
+          plan: AgentCodingPlan(
+            summary: 'Update active document safely.',
+            steps: <String>['Inspect IDE facts.', 'Prepare patch.'],
+            acceptanceCriteria: <String>['Patch preview is shown.'],
+          ),
+        ),
       ],
     );
   }

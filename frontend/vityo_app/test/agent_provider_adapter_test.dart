@@ -78,6 +78,32 @@ void main() {
     expect(json['prerequisiteForCommandId'], 'runBuild');
   });
 
+  test('agent coding plan content part preserves steps and criteria', () {
+    final part = AgentContentPart.fromJson(<String, Object?>{
+      'kind': 'plan',
+      'text': 'Plan ready.',
+      'plan': <String, Object?>{
+        'summary': 'Refactor the editor binding.',
+        'steps': <String>['Read current binding.', 'Patch controller.'],
+        'acceptance_criteria': <String>['Widget test passes.'],
+        'risks': <String>['Dirty workspace files.'],
+      },
+    });
+    final json = part.toJson();
+    final planJson = json['plan']! as Map<String, Object?>;
+
+    expect(part.kind, AgentContentPartKind.plan);
+    expect(part.plan?.summary, 'Refactor the editor binding.');
+    expect(part.plan?.steps, <String>[
+      'Read current binding.',
+      'Patch controller.',
+    ]);
+    expect(part.plan?.acceptanceCriteria, <String>['Widget test passes.']);
+    expect(part.plan?.risks, <String>['Dirty workspace files.']);
+    expect(json['kind'], 'plan');
+    expect(planJson['acceptanceCriteria'], <String>['Widget test passes.']);
+  });
+
   test('local-only adapter returns configuration fallback response', () async {
     const document = DocumentState(
       documentId: '/workspace/demo/src/main.styio',
@@ -154,13 +180,10 @@ void main() {
       (json['usage']! as Map<String, Object?>)['hasLanguageHover'],
       isFalse,
     );
+    expect((json['usage']! as Map<String, Object?>)['hasFocusToken'], isFalse);
     expect(
-      (json['usage']! as Map<String, Object?>)['hasFocusToken'],
-      isFalse,
-    );
-    expect(
-      (json['usage']! as Map<String, Object?>)
-          ['languageFocusedDiagnosticCount'],
+      (json['usage']!
+          as Map<String, Object?>)['languageFocusedDiagnosticCount'],
       0,
     );
     expect(
@@ -204,8 +227,7 @@ void main() {
       0,
     );
     expect(
-      (json['usage']! as Map<String, Object?>)
-          ['languageSurroundTemplateCount'],
+      (json['usage']! as Map<String, Object?>)['languageSurroundTemplateCount'],
       0,
     );
     expect(
@@ -439,6 +461,7 @@ void main() {
       expect(messages, hasLength(3));
       final systemMessage = messages.first! as Map<String, Object?>;
       expect(systemMessage['content'], contains('contentParts'));
+      expect(systemMessage['content'], contains('"kind":"plan"'));
       expect(systemMessage['content'], contains('code_patch'));
       expect(systemMessage['content'], contains('ide_command'));
       expect(systemMessage['content'], contains('commands catalog'));
@@ -993,6 +1016,43 @@ void main() {
     },
   );
 
+  test('OpenAI-compatible adapter parses structured plan content', () async {
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    final request = AgentProviderRequest(
+      requestId: 'agent-request-plan',
+      profile: profile,
+      context: AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: '/workspace/demo/src/main.styio',
+          text: 'value = 1\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const [],
+      ),
+      userPrompt: 'Plan this refactor.',
+    );
+    final adapter = OpenAICompatibleAgentProviderAdapter(
+      transport: _StructuredPlanTransport(),
+      endpoint: profile.endpoint,
+    );
+
+    final response = await adapter.send(request);
+    final planPart = response.contentParts.singleWhere(
+      (part) => part.kind == AgentContentPartKind.plan,
+    );
+
+    expect(planPart.text, 'Plan before patch.');
+    expect(planPart.plan?.summary, 'Update active document safely.');
+    expect(planPart.plan?.steps, <String>[
+      'Inspect IDE facts.',
+      'Prepare patch.',
+    ]);
+    expect(planPart.plan?.acceptanceCriteria, <String>[
+      'Patch preview is shown.',
+    ]);
+  });
+
   test(
     'OpenAI-compatible adapter parses fenced structured code patch content',
     () async {
@@ -1522,6 +1582,42 @@ class _StructuredIdeCommandTransport implements AgentProviderTransport {
         "commandId": "renameSymbol",
         "input": "price",
         "reason": "Use the registered safe refactor instead of raw edits."
+      }
+    }
+  ]
+}
+''',
+          },
+        },
+      ],
+    };
+  }
+}
+
+class _StructuredPlanTransport implements AgentProviderTransport {
+  @override
+  Future<Map<String, Object?>> postJson({
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  }) async {
+    return <String, Object?>{
+      'id': 'chatcmpl-plan',
+      'choices': <Object?>[
+        <String, Object?>{
+          'finish_reason': 'stop',
+          'message': <String, Object?>{
+            'role': 'assistant',
+            'content': '''
+{
+  "contentParts": [
+    {
+      "kind": "plan",
+      "text": "Plan before patch.",
+      "plan": {
+        "summary": "Update active document safely.",
+        "steps": ["Inspect IDE facts.", "Prepare patch."],
+        "acceptanceCriteria": ["Patch preview is shown."]
       }
     }
   ]

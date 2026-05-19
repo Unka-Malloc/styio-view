@@ -310,8 +310,10 @@ class VityoIdeCapabilityFramework {
           title: 'Remote service connector',
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/agent',
+          summary:
+              'Agent provider route selection, credential readiness, endpoint probing, fallback selection, and remote service health reports are wired for OpenAI-compatible providers.',
           todo:
-              'TODO: normalize remote service health, authentication, retry, and fallback contracts across agent and hosted backend connectors.',
+              'TODO: add retry policy execution, hosted backend connector parity, and persisted health history.',
           references: <String>[
             'VS Code remote authority and extension host services',
             'Theia backend service connections',

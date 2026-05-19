@@ -64,6 +64,19 @@ extension AgentProviderExecutionResolutionStatusX
   }
 }
 
+enum AgentProviderServiceHealthStatus { ready, degraded, blocked }
+
+extension AgentProviderServiceHealthStatusX
+    on AgentProviderServiceHealthStatus {
+  String get wireValue {
+    return switch (this) {
+      AgentProviderServiceHealthStatus.ready => 'ready',
+      AgentProviderServiceHealthStatus.degraded => 'degraded',
+      AgentProviderServiceHealthStatus.blocked => 'blocked',
+    };
+  }
+}
+
 enum AgentProviderEndpointProbeStatus { notProbed, reachable, unreachable }
 
 extension AgentProviderEndpointProbeStatusX
@@ -223,6 +236,110 @@ class AgentProviderExecutionResolution {
       'endpoints': endpoints
           .map((endpoint) => endpoint.toJson())
           .toList(growable: false),
+    };
+  }
+
+  AgentProviderServiceHealthReport toHealthReport() {
+    final missingCredentialCount = endpoints
+        .where(
+          (endpoint) =>
+              endpoint.credentialReadiness ==
+              AgentProviderCredentialReadiness.unavailable,
+        )
+        .length;
+    final unreachableEndpointCount = endpoints
+        .where(
+          (endpoint) =>
+              endpoint.probeResult.status ==
+              AgentProviderEndpointProbeStatus.unreachable,
+        )
+        .length;
+    final blockedEndpointCount = endpoints
+        .where((endpoint) => !endpoint.plan.executable)
+        .length;
+    final healthStatus = switch (status) {
+      AgentProviderExecutionResolutionStatus.ready =>
+        AgentProviderServiceHealthStatus.ready,
+      AgentProviderExecutionResolutionStatus.fallbackReady =>
+        AgentProviderServiceHealthStatus.degraded,
+      AgentProviderExecutionResolutionStatus.blocked =>
+        AgentProviderServiceHealthStatus.blocked,
+    };
+    return AgentProviderServiceHealthReport(
+      profileId: profileId,
+      status: healthStatus,
+      selectedEndpointIndex: selectedEndpointIndex,
+      endpointCount: endpoints.length,
+      blockedEndpointCount: blockedEndpointCount,
+      missingCredentialCount: missingCredentialCount,
+      unreachableEndpointCount: unreachableEndpointCount,
+      fallbackActive:
+          status == AgentProviderExecutionResolutionStatus.fallbackReady,
+      message: _healthMessage(
+        healthStatus,
+        missingCredentialCount: missingCredentialCount,
+        unreachableEndpointCount: unreachableEndpointCount,
+        blockedEndpointCount: blockedEndpointCount,
+      ),
+    );
+  }
+
+  String _healthMessage(
+    AgentProviderServiceHealthStatus healthStatus, {
+    required int missingCredentialCount,
+    required int unreachableEndpointCount,
+    required int blockedEndpointCount,
+  }) {
+    return switch (healthStatus) {
+      AgentProviderServiceHealthStatus.ready =>
+        'Agent provider route is ready.',
+      AgentProviderServiceHealthStatus.degraded =>
+        'Agent provider is using a fallback endpoint.',
+      AgentProviderServiceHealthStatus.blocked =>
+        'Agent provider is blocked: $missingCredentialCount missing credential(s), $unreachableEndpointCount unreachable endpoint(s), $blockedEndpointCount blocked route(s).',
+    };
+  }
+}
+
+class AgentProviderServiceHealthReport {
+  const AgentProviderServiceHealthReport({
+    required this.profileId,
+    required this.status,
+    required this.endpointCount,
+    required this.blockedEndpointCount,
+    required this.missingCredentialCount,
+    required this.unreachableEndpointCount,
+    required this.fallbackActive,
+    required this.message,
+    this.selectedEndpointIndex,
+  });
+
+  final String profileId;
+  final AgentProviderServiceHealthStatus status;
+  final int endpointCount;
+  final int blockedEndpointCount;
+  final int missingCredentialCount;
+  final int unreachableEndpointCount;
+  final bool fallbackActive;
+  final String message;
+  final int? selectedEndpointIndex;
+
+  bool get ready => status == AgentProviderServiceHealthStatus.ready;
+  bool get executable => status != AgentProviderServiceHealthStatus.blocked;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'profileId': profileId,
+      'status': status.wireValue,
+      'endpointCount': endpointCount,
+      'blockedEndpointCount': blockedEndpointCount,
+      'missingCredentialCount': missingCredentialCount,
+      'unreachableEndpointCount': unreachableEndpointCount,
+      'fallbackActive': fallbackActive,
+      'executable': executable,
+      'message': message,
+      if (selectedEndpointIndex != null)
+        'selectedEndpointIndex': selectedEndpointIndex,
     };
   }
 }

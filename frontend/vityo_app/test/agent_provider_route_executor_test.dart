@@ -202,6 +202,32 @@ void main() {
       resolution.endpoints.last.probeResult.status,
       AgentProviderEndpointProbeStatus.reachable,
     );
+    final health = resolution.toHealthReport();
+
+    expect(health.status, AgentProviderServiceHealthStatus.degraded);
+    expect(health.fallbackActive, isTrue);
+    expect(health.executable, isTrue);
+    expect(health.unreachableEndpointCount, 1);
+    expect(health.toJson()['status'], 'degraded');
+  });
+
+  test('agent provider health report summarizes blocked services', () async {
+    final profile = _profile(
+      route: AgentProviderRoute.webHosted,
+      baseUrl: 'https://api.openai.com/v1',
+      requiresCredential: true,
+    );
+
+    final resolution = await const AgentProviderRouteExecutor().resolve(
+      profile,
+    );
+    final health = resolution.toHealthReport();
+
+    expect(health.status, AgentProviderServiceHealthStatus.blocked);
+    expect(health.ready, isFalse);
+    expect(health.executable, isFalse);
+    expect(health.missingCredentialCount, 1);
+    expect(health.message, contains('missing credential'));
   });
 
   test(
@@ -417,6 +443,7 @@ void main() {
       );
 
       final resolution = await factory.resolveExecution(profile);
+      final health = await factory.resolveHealth(profile);
       final adapter = await factory.create(profile);
       await adapter.send(
         AgentProviderRequest(
@@ -435,6 +462,8 @@ void main() {
         resolution.endpoints.first.probeResult.status,
         AgentProviderEndpointProbeStatus.unreachable,
       );
+      expect(health.status, AgentProviderServiceHealthStatus.degraded);
+      expect(health.fallbackActive, isTrue);
       expect(
         cloudTransport.lastEndpoint.toString(),
         'https://fallback.example.test/v1/chat/completions',

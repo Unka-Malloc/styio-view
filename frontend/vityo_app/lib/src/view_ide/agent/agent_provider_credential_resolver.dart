@@ -110,6 +110,12 @@ class ConfiguredAgentProviderAdapterFactory {
     );
   }
 
+  Future<AgentProviderServiceHealthReport> resolveHealth(
+    AgentPromptProfile profile,
+  ) async {
+    return (await resolveExecution(profile)).toHealthReport();
+  }
+
   AgentProviderTransport _transportFor(AgentProviderExecutionPlan plan) {
     if (plan.usesLocalBridge) {
       return localBridgeTransport ?? transport;

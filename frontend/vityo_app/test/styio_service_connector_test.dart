@@ -306,6 +306,34 @@ void main() {
     expect(response.protocolVersion, 'styio-service-facts-v1');
   });
 
+  test('JSONL protocol decodes Styio parser and grammar versions', () {
+    const protocol = StyioCliJsonlProtocol();
+    const document = StyioServiceDocument(
+      documentId: 'fixture://grammar-version',
+      text: 'value\n',
+      revision: 1,
+      filePath: '/workspace/main.styio',
+    );
+
+    final response = protocol.decode(
+      document: document,
+      stdout:
+          '{"record":"facts","protocolVersion":"styio-service-facts-v1",'
+          '"parserEngine":"nightly","grammarVersion":"2026.05",'
+          '"facts":{"completions":[{"label":"value",'
+          '"kind":"variable","insertText":"value"}]}}\n',
+      stderr: '',
+      exitCode: 0,
+      toolchainSucceeded: true,
+    );
+
+    expect(response.protocolVersion, 'styio-service-facts-v1');
+    expect(response.parserEngine, 'nightly');
+    expect(response.grammarVersion, '2026.05');
+    expect(response.toJson()['parserEngine'], 'nightly');
+    expect(response.toJson()['grammarVersion'], '2026.05');
+  });
+
   test('JSONL protocol accepts snake case service protocol version', () {
     const protocol = StyioCliJsonlProtocol();
     const document = StyioServiceDocument(
@@ -319,6 +347,7 @@ void main() {
       document: document,
       stdout:
           '{"record":"facts","protocol_version":"styio-service-facts-v2",'
+          '"parser_engine":"nightly","grammar_version":"2026.06",'
           '"facts":{"completions":[{"label":"value",'
           '"kind":"variable","insertText":"value"}]}}\n',
       stderr: '',
@@ -327,6 +356,8 @@ void main() {
     );
 
     expect(response.protocolVersion, 'styio-service-facts-v2');
+    expect(response.parserEngine, 'nightly');
+    expect(response.grammarVersion, '2026.06');
     expect(response.completions.single.label, 'value');
   });
 

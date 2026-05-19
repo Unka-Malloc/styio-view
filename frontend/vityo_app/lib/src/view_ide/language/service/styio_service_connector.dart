@@ -153,6 +153,8 @@ class StyioServiceResponse {
     this.exitCode,
     this.message,
     this.protocolVersion = 'styio-cli-jsonl-v1',
+    this.parserEngine,
+    this.grammarVersion,
     this.toolchainId = '',
     this.configPath,
     this.workingDirectory,
@@ -187,6 +189,8 @@ class StyioServiceResponse {
   final int? exitCode;
   final String? message;
   final String protocolVersion;
+  final String? parserEngine;
+  final String? grammarVersion;
   final String toolchainId;
   final String? configPath;
   final String? workingDirectory;
@@ -239,6 +243,8 @@ class StyioServiceResponse {
       'succeeded': succeeded,
       'hasPayload': hasPayload,
       'payloadCounts': payloadCounts,
+      if (parserEngine != null) 'parserEngine': parserEngine,
+      if (grammarVersion != null) 'grammarVersion': grammarVersion,
       if (configPath != null) 'configPath': configPath,
       if (workingDirectory != null) 'workingDirectory': workingDirectory,
       if (capabilityStates.isNotEmpty) 'capabilityStates': capabilityStates,
@@ -316,6 +322,8 @@ class StyioCliJsonlProtocol {
     final capabilityStates = <String, String>{};
     final capabilityMessages = <String, String>{};
     var effectiveProtocolVersion = protocolVersion;
+    String? effectiveParserEngine = parserEngine;
+    String? effectiveGrammarVersion;
     var protocolError = false;
 
     for (final line in _jsonLines(stdout, stderr)) {
@@ -328,6 +336,14 @@ class StyioCliJsonlProtocol {
           _stringValue(decoded['protocolVersion']) ??
           _stringValue(decoded['protocol_version']) ??
           effectiveProtocolVersion;
+      effectiveParserEngine =
+          _stringValue(decoded['parserEngine']) ??
+          _stringValue(decoded['parser_engine']) ??
+          effectiveParserEngine;
+      effectiveGrammarVersion =
+          _stringValue(decoded['grammarVersion']) ??
+          _stringValue(decoded['grammar_version']) ??
+          effectiveGrammarVersion;
       final kind = _kindFromJson(decoded);
       switch (kind) {
         case _StyioJsonRecordKind.facts:
@@ -534,6 +550,8 @@ class StyioCliJsonlProtocol {
       exitCode: exitCode,
       message: message,
       protocolVersion: effectiveProtocolVersion,
+      parserEngine: effectiveParserEngine,
+      grammarVersion: effectiveGrammarVersion,
       toolchainId: toolchainId,
       configPath: document.configPath,
       workingDirectory: document.workingDirectory,

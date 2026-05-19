@@ -33,6 +33,10 @@ void main() {
       entriesById['runtime.terminal']?.status,
       IdeCapabilityStatus.scaffolded,
     );
+    expect(
+      entriesById['interaction.testing']?.status,
+      IdeCapabilityStatus.scaffolded,
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

@@ -365,8 +365,10 @@ class VityoIdeCapabilityFramework {
           id: 'interaction.testing',
           layer: IdeCapabilityLayer.interaction,
           title: 'Test explorer and results',
-          status: IdeCapabilityStatus.todo,
+          status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/testing',
+          summary:
+              'Testing surface is wired to runTests and native tool testResult records.',
           todo:
               'TODO: add test discovery, test tree, run configuration, result history, and failure navigation contracts.',
           references: <String>['VS Code Testing API', 'IntelliJ test runner'],

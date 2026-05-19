@@ -11,4 +11,5 @@ export 'shell/shell_model.dart';
 export 'shell/shell_scope.dart';
 export 'shell/vityo_shell_scaffold.dart';
 export 'terminal/terminal.dart';
+export 'testing/testing.dart';
 export 'theme/theme.dart';

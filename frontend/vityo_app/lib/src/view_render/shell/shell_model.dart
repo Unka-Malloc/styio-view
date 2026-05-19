@@ -8,6 +8,7 @@ enum BottomSurfaceTab {
   agent,
   search,
   problems,
+  testing,
   debug,
   settings,
 }

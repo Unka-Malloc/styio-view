@@ -1,3 +1,4 @@
+export 'ide_capability_framework.dart';
 export 'datastore/datastore.dart';
 export 'diagnostics_sink/diagnostics_sink.dart';
 export 'event_bus/event_bus.dart';

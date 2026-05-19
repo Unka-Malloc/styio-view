@@ -1,0 +1,364 @@
+enum IdeCapabilityLayer {
+  foundation,
+  environment,
+  service,
+  interaction,
+  editor,
+  workspace,
+  runtime,
+  debugger,
+  toolchain,
+  agent,
+  extension,
+  presentation,
+}
+
+extension IdeCapabilityLayerX on IdeCapabilityLayer {
+  String get wireValue {
+    return switch (this) {
+      IdeCapabilityLayer.foundation => 'foundation',
+      IdeCapabilityLayer.environment => 'environment',
+      IdeCapabilityLayer.service => 'service',
+      IdeCapabilityLayer.interaction => 'interaction',
+      IdeCapabilityLayer.editor => 'editor',
+      IdeCapabilityLayer.workspace => 'workspace',
+      IdeCapabilityLayer.runtime => 'runtime',
+      IdeCapabilityLayer.debugger => 'debugger',
+      IdeCapabilityLayer.toolchain => 'toolchain',
+      IdeCapabilityLayer.agent => 'agent',
+      IdeCapabilityLayer.extension => 'extension',
+      IdeCapabilityLayer.presentation => 'presentation',
+    };
+  }
+}
+
+enum IdeCapabilityStatus { ready, wired, scaffolded, todo }
+
+extension IdeCapabilityStatusX on IdeCapabilityStatus {
+  String get wireValue {
+    return switch (this) {
+      IdeCapabilityStatus.ready => 'ready',
+      IdeCapabilityStatus.wired => 'wired',
+      IdeCapabilityStatus.scaffolded => 'scaffolded',
+      IdeCapabilityStatus.todo => 'todo',
+    };
+  }
+}
+
+class IdeCapabilityDescriptor {
+  const IdeCapabilityDescriptor({
+    required this.id,
+    required this.layer,
+    required this.title,
+    required this.status,
+    required this.ownerPath,
+    this.summary = '',
+    this.todo = '',
+    this.references = const <String>[],
+    this.dependencies = const <String>[],
+  });
+
+  final String id;
+  final IdeCapabilityLayer layer;
+  final String title;
+  final IdeCapabilityStatus status;
+  final String ownerPath;
+  final String summary;
+  final String todo;
+  final List<String> references;
+  final List<String> dependencies;
+
+  bool get needsFollowUp =>
+      status == IdeCapabilityStatus.todo || todo.isNotEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'layer': layer.wireValue,
+      'title': title,
+      'status': status.wireValue,
+      'ownerPath': ownerPath,
+      if (summary.isNotEmpty) 'summary': summary,
+      if (todo.isNotEmpty) 'todo': todo,
+      if (references.isNotEmpty) 'references': references,
+      if (dependencies.isNotEmpty) 'dependencies': dependencies,
+      'needsFollowUp': needsFollowUp,
+    };
+  }
+}
+
+class IdeCapabilityFrameworkSnapshot {
+  const IdeCapabilityFrameworkSnapshot({
+    required this.version,
+    required this.entries,
+    this.references = const <String>[
+      'VS Code workbench and extension host',
+      'IntelliJ Platform services and project model',
+      'Eclipse Theia frontend/backend split',
+      'Language Server Protocol',
+      'Debug Adapter Protocol',
+    ],
+  });
+
+  final String version;
+  final List<IdeCapabilityDescriptor> entries;
+  final List<String> references;
+
+  Iterable<IdeCapabilityDescriptor> entriesForLayer(IdeCapabilityLayer layer) {
+    return entries.where((entry) => entry.layer == layer);
+  }
+
+  Iterable<IdeCapabilityDescriptor> get followUps {
+    return entries.where((entry) => entry.needsFollowUp);
+  }
+
+  Map<String, int> get statusCounts {
+    return <String, int>{
+      for (final status in IdeCapabilityStatus.values)
+        status.wireValue: entries
+            .where((entry) => entry.status == status)
+            .length,
+    };
+  }
+
+  Map<String, int> get layerCounts {
+    return <String, int>{
+      for (final layer in IdeCapabilityLayer.values)
+        layer.wireValue: entries.where((entry) => entry.layer == layer).length,
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'version': version,
+      'references': references,
+      'entryCount': entries.length,
+      'statusCounts': statusCounts,
+      'layerCounts': layerCounts,
+      'followUpCount': followUps.length,
+      'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class VityoIdeCapabilityFramework {
+  const VityoIdeCapabilityFramework();
+
+  IdeCapabilityFrameworkSnapshot snapshot() {
+    return const IdeCapabilityFrameworkSnapshot(
+      version: 'vityo-ide-capability-framework-v1',
+      entries: <IdeCapabilityDescriptor>[
+        IdeCapabilityDescriptor(
+          id: 'foundation.datastore',
+          layer: IdeCapabilityLayer.foundation,
+          title: 'DataStore ownership and persistence',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/foundation/datastore',
+          summary:
+              'Shared persistence base for configuration, registry, and IDE state.',
+          references: <String>[
+            'IntelliJ PersistentStateComponent',
+            'VS Code storage service',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'foundation.registry',
+          layer: IdeCapabilityLayer.foundation,
+          title: 'Cross-layer registry contract',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/foundation/registry',
+          summary:
+              'Manifest-oriented registration contract for providers, commands, and capabilities.',
+          references: <String>[
+            'VS Code contribution points',
+            'Theia contribution providers',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'environment.platform',
+          layer: IdeCapabilityLayer.environment,
+          title: 'Platform context and system compatibility',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/environment/system_compatibility',
+          todo:
+              'TODO: connect every system-specific manager to capability health signals.',
+          references: <String>[
+            'VS Code platform services',
+            'IntelliJ virtual file system',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'environment.file-system',
+          layer: IdeCapabilityLayer.environment,
+          title: 'File System Manager',
+          status: IdeCapabilityStatus.wired,
+          ownerPath:
+              'lib/src/view_ide/environment/system_compatibility/file_system',
+          summary:
+              'System specific file access base for editor binding and DataStore.',
+        ),
+        IdeCapabilityDescriptor(
+          id: 'service.styio-language',
+          layer: IdeCapabilityLayer.service,
+          title: 'StyioService connector',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/language/service',
+          summary:
+              'Styio-first parser, diagnostics, semantic facts, and grammar-version facts.',
+          references: <String>['Language Server Protocol'],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'service.semantic-snapshot',
+          layer: IdeCapabilityLayer.service,
+          title: 'Semantic snapshot and resolved symbols',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/language/semantic',
+          todo:
+              'TODO: expand semantic snapshots to cover rename safety, references, and code actions from StyioService facts.',
+          references: <String>[
+            'LSP textDocument/semanticTokens',
+            'IntelliJ PSI and symbol resolve',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'service.language-result-cache',
+          layer: IdeCapabilityLayer.service,
+          title: 'Language result cache',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/language/service',
+          summary:
+              'Caches StyioService results with protocol, parser engine, and grammar version metadata.',
+        ),
+        IdeCapabilityDescriptor(
+          id: 'interaction.commands',
+          layer: IdeCapabilityLayer.interaction,
+          title: 'IDE command catalog',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/commands',
+          summary:
+              'Registered commands for persistence, language refresh, navigation, refactor, tools, settings, and debug.',
+          references: <String>[
+            'VS Code command registry',
+            'IntelliJ action system',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'interaction.diagnostics',
+          layer: IdeCapabilityLayer.interaction,
+          title: 'Diagnostics interaction surface',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/interaction',
+          todo:
+              'TODO: add workspace-wide diagnostics grouping, filtering, and quick-fix preview.',
+        ),
+        IdeCapabilityDescriptor(
+          id: 'editor.document-model',
+          layer: IdeCapabilityLayer.editor,
+          title: 'Document model and text buffer',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/editor',
+          summary:
+              'Document state, selection, transactions, editor controller, and file binding.',
+          references: <String>['Monaco text model', 'IntelliJ document model'],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'editor.rendering',
+          layer: IdeCapabilityLayer.editor,
+          title: 'Editor rendering and presentation bridge',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_render/editor',
+          todo:
+              'TODO: finish virtualized editor rendering, semantic highlighting, hover, completion, and code action widgets.',
+          references: <String>['Monaco editor', 'VS Code workbench editor'],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'workspace.project-model',
+          layer: IdeCapabilityLayer.workspace,
+          title: 'Workspace and project model',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/workspace',
+          summary:
+              'Workspace documents, project graph, file lists, dirty state, and samples for agent context.',
+        ),
+        IdeCapabilityDescriptor(
+          id: 'runtime.execution',
+          layer: IdeCapabilityLayer.runtime,
+          title: 'Execution manager and shell runtime',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/environment/execution',
+          todo:
+              'TODO: align run/test/build execution result contracts across hosted, local, and toolchain-backed routes.',
+          references: <String>['VS Code tasks', 'Theia task service'],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'debugger.dap',
+          layer: IdeCapabilityLayer.debugger,
+          title: 'Debug Adapter Protocol framework',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/debugger',
+          todo:
+              'TODO: wire non-C++ debug adapters and persisted launch configurations.',
+          references: <String>['Debug Adapter Protocol'],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'toolchain.manager',
+          layer: IdeCapabilityLayer.toolchain,
+          title: 'Toolchain manager',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/toolchain',
+          todo:
+              'TODO: prioritize Styio toolchain lifecycle and keep native C/C++ support conditional.',
+          references: <String>[
+            'VS Code extensions toolchain model',
+            'IntelliJ SDK model',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'agent.provider',
+          layer: IdeCapabilityLayer.agent,
+          title: 'Agent provider and credential framework',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/agent',
+          summary:
+              'OpenAI-compatible providers, credential-backed routes, fallback readiness, and provider execution context.',
+        ),
+        IdeCapabilityDescriptor(
+          id: 'agent.coding-loop',
+          layer: IdeCapabilityLayer.agent,
+          title: 'Agent coding loop',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/agent',
+          summary:
+              'Structured plan, diagnostics, code patch, IDE command, command result, and patch application loop.',
+          references: <String>[
+            'VS Code chat participants',
+            'JetBrains AI Assistant workflows',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'extension.manifest',
+          layer: IdeCapabilityLayer.extension,
+          title: 'Extension and module manifest',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_ide/module_host',
+          todo:
+              'TODO: turn module manifest into a stable extension contribution contract.',
+          references: <String>[
+            'VS Code extension manifest',
+            'Theia extension model',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'presentation.shell',
+          layer: IdeCapabilityLayer.presentation,
+          title: 'IDE shell and panels',
+          status: IdeCapabilityStatus.scaffolded,
+          ownerPath: 'lib/src/view_render/shell',
+          todo:
+              'TODO: finish mature IDE panels for diagnostics, search, settings, extensions, debug, and agent activity.',
+          references: <String>['VS Code workbench', 'IntelliJ tool windows'],
+        ),
+      ],
+    );
+  }
+}

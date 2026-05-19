@@ -614,6 +614,83 @@ void main() {
     },
   );
 
+  test('rename symbol applies project edits across workspace documents', () async {
+    const mainPath = '/workspace/demo/src/main.styio';
+    const libPath = '/workspace/demo/src/lib/math.styio';
+    final mainText = File(
+      'test/fixtures/styio_language/project_definition/main.true.styio',
+    ).readAsStringSync();
+    final libText = File(
+      'test/fixtures/styio_language/project_definition/lib_math.true.styio',
+    ).readAsStringSync();
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+      editorFiles: const <String>[mainPath, libPath],
+    );
+    final workspaceDocumentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: <String, DocumentState>{
+        mainPath: DocumentState(documentId: mainPath, text: mainText, revision: 1),
+        libPath: DocumentState(documentId: libPath, text: libText, revision: 1),
+      },
+    );
+    final shell = ShellModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _SequenceProjectGraphAdapter(
+        snapshots: <ProjectGraphSnapshot>[initialGraph],
+      ),
+      workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+      workspaceDocumentStore: workspaceDocumentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: DocumentState(
+          documentId: mainPath,
+          text: mainText,
+          revision: 1,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+      ),
+      executionAdapter: const _SuccessfulExecutionAdapter(
+        sessionId: 'shell-project-rename',
+      ),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _SuccessfulExecutionAdapter(sessionId: 'shell-project-rename'),
+      runtimeEventAdapter: createRuntimeEventAdapter(
+        platformTarget: PlatformTarget.macos,
+      ),
+      dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+      deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+      toolchainManagementAdapter:
+          const _SuccessfulToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    shell.editorController.selectCollapsed(mainText.indexOf('blend()') + 1);
+
+    final applied = await shell.renameSymbolAtSelection('combine');
+    final renamedLibrary = await workspaceDocumentStore.loadDocument(libPath);
+
+    expect(applied, isTrue);
+    expect(shell.editorController.document.text, contains('combine()'));
+    expect(shell.editorController.document.text, isNot(contains('blend()')));
+    expect(renamedLibrary.text, contains('#combine := () =>'));
+    expect(renamedLibrary.text, isNot(contains('#blend := () =>')));
+    expect(shell.dirtyDocumentPaths, contains(mainPath));
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Project rename applied: blend -> combine'),
+      ),
+      isTrue,
+    );
+  });
+
   test(
     'restores editor session active document through workspace route',
     () async {

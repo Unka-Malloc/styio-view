@@ -898,7 +898,17 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result;
   }
 
-  bool renameSymbolAtSelection(String newName) {
+  Future<bool> renameSymbolAtSelection(String newName) async {
+    final documents = await _loadProjectLanguageDocuments();
+    final projectPreview = projectLanguageService.renamePreviewAt(
+      documents: documents,
+      documentId: editorController.document.documentId,
+      offset: editorController.selection.extentOffset,
+      newName: newName,
+    );
+    if (projectPreview != null) {
+      return _applyProjectRenamePreview(projectPreview);
+    }
     if (editorController.applyRename(newName)) {
       _cacheDocument(_activeDocumentPath, editorController.document);
       _dirtyDocumentPaths.add(_activeDocumentPath);
@@ -909,6 +919,98 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog('Rename symbol skipped: no safe rename available at selection.');
     notifyListeners();
     return false;
+  }
+
+  Future<bool> _applyProjectRenamePreview(
+    StyioProjectRenamePreview preview,
+  ) async {
+    if (preview.hasConflict) {
+      appendLog(
+        'Project rename skipped: ${preview.conflict ?? 'rename conflict'}.',
+      );
+      notifyListeners();
+      return false;
+    }
+    if (preview.editCount == 0) {
+      appendLog('Project rename skipped: no edits were produced.');
+      notifyListeners();
+      return false;
+    }
+
+    final activeDocumentId = editorController.document.documentId;
+    final activeEdits = _renameFormattingEdits(
+      preview.editsByDocument[activeDocumentId] ?? const <SourceRange>[],
+      preview.newName,
+    );
+    final normalizedActiveEdits = normalizeFormattingEditsForDocument(
+      documentLength: editorController.document.length,
+      edits: activeEdits,
+    );
+    if (normalizedActiveEdits.length != activeEdits.length) {
+      appendLog(
+        'Project rename skipped: active document edits are invalid or overlapping.',
+      );
+      notifyListeners();
+      return false;
+    }
+
+    final inactiveEditsByDocument = <String, List<FormattingEdit>>{};
+    for (final entry in preview.editsByDocument.entries) {
+      if (entry.key == activeDocumentId) {
+        continue;
+      }
+      inactiveEditsByDocument[entry.key] = _renameFormattingEdits(
+        entry.value,
+        preview.newName,
+      );
+    }
+    var inactiveEditCount = 0;
+    if (inactiveEditsByDocument.isNotEmpty) {
+      final result = await WorkspaceEditApplier(
+        workspaceDocumentStore: workspaceDocumentStore,
+      ).apply(
+        WorkspaceEditPlan(
+          id: 'project-rename-${DateTime.now().microsecondsSinceEpoch}',
+          summary:
+              'Rename ${preview.oldName} to ${preview.newName} across project.',
+          source: WorkspaceEditSource.rename,
+          editsByDocument: inactiveEditsByDocument,
+        ),
+      );
+      if (!result.applied) {
+        appendLog('Project rename skipped: ${result.message}');
+        notifyListeners();
+        return false;
+      }
+      inactiveEditCount = result.appliedEditCount;
+      for (final documentId in result.appliedDocumentIds) {
+        _documentCache.remove(documentId);
+        _documentCursorOffsets.remove(documentId);
+        _documentSelectionAnchors.remove(documentId);
+      }
+    }
+
+    if (normalizedActiveEdits.isNotEmpty) {
+      editorController.applyFormattingEdits(normalizedActiveEdits);
+      _cacheDocument(activeDocumentId, editorController.document);
+      _dirtyDocumentPaths.add(activeDocumentId);
+    }
+    appendLog(
+      'Project rename applied: ${preview.oldName} -> ${preview.newName} '
+      'across ${preview.editsByDocument.length} document(s), '
+      '${inactiveEditCount + normalizedActiveEdits.length} edit(s).',
+    );
+    notifyListeners();
+    return true;
+  }
+
+  List<FormattingEdit> _renameFormattingEdits(
+    List<SourceRange> ranges,
+    String newName,
+  ) {
+    return ranges
+        .map((range) => FormattingEdit(range: range, newText: newName))
+        .toList(growable: false);
   }
 
   Future<bool> applyAgentIdeCommandSuggestion(
@@ -1002,7 +1104,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           appendLog(_lastAgentIdeCommandResult!.message);
           return false;
         }
-        final applied = renameSymbolAtSelection(input);
+        final applied = await renameSymbolAtSelection(input);
         _recordAgentIdeCommandResult(
           suggestion,
           applied: applied,

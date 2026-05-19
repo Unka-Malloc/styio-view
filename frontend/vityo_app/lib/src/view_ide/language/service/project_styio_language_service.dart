@@ -4925,7 +4925,7 @@ class StyioProjectSymbolSnapshot {
     StyioProjectSymbolDefinition definition,
   ) {
     final references = <StyioProjectSymbolReference>[];
-    for (final documentId in _functionsByDocument.keys) {
+    for (final documentId in _sourceByDocument.keys) {
       if (!_definitionVisibleFromDocument(
         documentId: documentId,
         definition: definition,

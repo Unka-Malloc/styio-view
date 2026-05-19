@@ -1437,6 +1437,29 @@ class ShellRuntimeModel extends ChangeNotifier {
         return commandResult;
       case AppCommandId.runTests:
         final testDirectory = _nativeCTestDirectoryArgument();
+        if (testDirectory == '.' &&
+            _hasWorkspaceFile('CMakeLists.txt') &&
+            !_hasConfiguredCTestBuild()) {
+          final message =
+              'Run Tests blocked: run build first to generate the CTest build directory.';
+          final commandResult = _NativeToolCommandResult(
+            applied: false,
+            message: message,
+            metadata: const <String, Object?>{
+              'requiredCommand': 'runBuild',
+              'testResult': <String, Object?>{
+                'runner': 'ctest',
+                'status': 'blocked',
+                'reason': 'missing-ctest-build-directory',
+                'requiredCommand': 'runBuild',
+              },
+            },
+          );
+          _recordNativeToolResult(commandId, commandResult);
+          appendLog(message);
+          notifyListeners();
+          return commandResult;
+        }
         final testArguments = <String>[
           if (testDirectory != '.') ...<String>['--test-dir', testDirectory],
           '--output-on-failure',
@@ -2393,6 +2416,12 @@ class ShellRuntimeModel extends ChangeNotifier {
       return 'build';
     }
     return '.';
+  }
+
+  bool _hasConfiguredCTestBuild() {
+    final files = _normalizedWorkspaceFiles();
+    return files.contains('build/CTestTestfile.cmake') ||
+        files.contains('build/CMakeCache.txt');
   }
 
   String _nativeCompilationDatabaseArgument() {

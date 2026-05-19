@@ -3084,6 +3084,102 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
     );
   });
 
+  test('shell blocks CTest before CMake build directory exists', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_shell_ctest_requires_build_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final ctest = File('${tempRoot.path}/fake-ctest.sh');
+    await ctest.writeAsString('#!/bin/sh\nexit 0\n');
+    await Process.run('chmod', <String>['+x', ctest.path]);
+    final configurationStore = await _createShellTestConfigurationStore(
+      tempRoot,
+    );
+    final platformManagers = await createDetectedPlatformManagerBundle();
+    final toolchainStore = ToolchainConfigurationStore(
+      configurationStore: configurationStore,
+    );
+    final catalog = ToolchainCatalog()
+      ..register(
+        ToolchainDescriptor(
+          id: 'fake-ctest',
+          kind: ToolchainKind.testRunner,
+          displayName: 'Fake CTest',
+          executablePath: ctest.path,
+          metadata: const <String, Object?>{'toolFamily': 'ctest'},
+        ),
+        activate: true,
+      );
+    await toolchainStore.saveCatalog(
+      catalog,
+      targetId: platformManagers.context.targetId,
+    );
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: tempRoot.path,
+      activeFilePath: 'src/main.cc',
+      title: 'Demo',
+      notes: const <String>[],
+    ).copyWith(editorFiles: <String>['src/main.cc', 'CMakeLists.txt']);
+    const initialDocument = DocumentState(
+      documentId: 'src/main.cc',
+      text: 'int main(){return 0;}\n',
+      revision: 0,
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.cc': initialDocument,
+          'CMakeLists.txt': DocumentState(
+            documentId: 'CMakeLists.txt',
+            text: 'enable_testing()\n',
+            revision: 0,
+          ),
+        },
+      ),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      toolchainManager: ToolchainManager(
+        configurationStore: toolchainStore,
+        platformManagers: platformManagers,
+      ),
+    );
+    addTearDown(shell.dispose);
+
+    final applied = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(commandId: 'runTests'),
+    );
+
+    final agentCommandResult = shell.agentSessionContext.commands.lastResult;
+    final testResult =
+        agentCommandResult?.metadata['testResult']! as Map<String, Object?>;
+    expect(applied, isFalse);
+    expect(agentCommandResult?.commandId, 'runTests');
+    expect(agentCommandResult?.metadata['requiredCommand'], 'runBuild');
+    expect(testResult['status'], 'blocked');
+    expect(testResult['reason'], 'missing-ctest-build-directory');
+    expect(testResult['requiredCommand'], 'runBuild');
+  });
+
   test('shell runs clang-tidy with compilation database directory', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_shell_clang_tidy_compile_commands_test_',

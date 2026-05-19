@@ -391,6 +391,78 @@ void main() {
     },
   );
 
+  testWidgets(
+    'agent surface preserves structured IDE command result metadata',
+    (tester) async {
+      final adapter = _RecordingCommandSuggestionAgentProviderAdapter();
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+      AgentCommandResultContext? structuredResult;
+
+      controller.updatePrompt('Rename value.');
+      await controller.sendPrompt();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1200,
+              height: 900,
+              child: AgentSurface(
+                platformTarget: PlatformTarget.web,
+                viewportProfile: const ViewportProfile(
+                  family: ViewportFamily.desktop,
+                  width: 1200,
+                  height: 900,
+                ),
+                visibleModules: const [],
+                adapterCapabilities: const [],
+                sessionContext: _context(),
+                codingController: controller,
+                onApplyPendingPatch: () async {},
+                onApplyIdeCommandSuggestion: (command) async {
+                  structuredResult = AgentCommandResultContext(
+                    commandId: command.commandId,
+                    input: command.input,
+                    applied: true,
+                    message: 'Structured command result.',
+                    metadata: const <String, Object?>{
+                      'buildResult': <String, Object?>{'exitCode': 0},
+                    },
+                    completedAt: DateTime.utc(2026, 5, 19, 13),
+                  );
+                  return true;
+                },
+                onResolveIdeCommandResult: (command) => structuredResult,
+                onSaveProviderProfile: (profile, {bearerToken}) async {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await _tapVisible(
+        tester,
+        find.widgetWithText(OutlinedButton, 'Apply Command'),
+      );
+      await tester.pump();
+
+      expect(find.text('Structured command result.'), findsOneWidget);
+
+      controller.updatePrompt('Continue after structured command.');
+      await controller.sendPrompt();
+
+      final lastResult = adapter.requests.last.context.commands.lastResult;
+      expect(lastResult?.message, 'Structured command result.');
+      expect(lastResult?.metadata['buildResult'], <String, Object?>{
+        'exitCode': 0,
+      });
+    },
+  );
+
   testWidgets('agent preserves pending IDE command when follow-up fails', (
     tester,
   ) async {

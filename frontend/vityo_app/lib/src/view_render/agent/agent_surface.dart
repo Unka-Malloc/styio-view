@@ -22,6 +22,7 @@ class AgentSurface extends StatelessWidget {
     required this.onApplyPendingPatch,
     required this.onSaveProviderProfile,
     this.onApplyIdeCommandSuggestion,
+    this.onResolveIdeCommandResult,
   });
 
   final PlatformTarget platformTarget;
@@ -33,6 +34,10 @@ class AgentSurface extends StatelessWidget {
   final Future<void> Function() onApplyPendingPatch;
   final Future<bool> Function(AgentIdeCommandSuggestion suggestion)?
   onApplyIdeCommandSuggestion;
+  final AgentCommandResultContext? Function(
+    AgentIdeCommandSuggestion suggestion,
+  )?
+  onResolveIdeCommandResult;
   final Future<void> Function(AgentPromptProfile profile, {String? bearerToken})
   onSaveProviderProfile;
 
@@ -96,6 +101,7 @@ class AgentSurface extends StatelessWidget {
                   sessionContext: sessionContext,
                   onApplyPendingPatch: onApplyPendingPatch,
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
+                  onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
                 const SizedBox(height: 12),
                 _AdapterSection(adapterCapabilities: adapterCapabilities),
@@ -135,6 +141,7 @@ class AgentSurface extends StatelessWidget {
                   sessionContext: sessionContext,
                   onApplyPendingPatch: onApplyPendingPatch,
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
+                  onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
                 const SizedBox(height: 14),
                 _AdapterSection(adapterCapabilities: adapterCapabilities),
@@ -619,6 +626,7 @@ class _AgentPromptSection extends StatefulWidget {
     required this.sessionContext,
     required this.onApplyPendingPatch,
     this.onApplyIdeCommandSuggestion,
+    this.onResolveIdeCommandResult,
   });
 
   final PlatformTarget platformTarget;
@@ -627,6 +635,10 @@ class _AgentPromptSection extends StatefulWidget {
   final Future<void> Function() onApplyPendingPatch;
   final Future<bool> Function(AgentIdeCommandSuggestion suggestion)?
   onApplyIdeCommandSuggestion;
+  final AgentCommandResultContext? Function(
+    AgentIdeCommandSuggestion suggestion,
+  )?
+  onResolveIdeCommandResult;
 
   @override
   State<_AgentPromptSection> createState() => _AgentPromptSectionState();
@@ -721,27 +733,20 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
       final message = applied
           ? _appliedIdeCommandMessage(command)
           : 'Command ${command.commandId} was not applied.';
-      widget.controller.recordIdeCommandResult(
-        AgentCommandResultContext(
-          commandId: command.commandId,
-          input: command.input,
-          applied: applied,
-          message: message,
-          metadata: <String, Object?>{
-            'source': 'agent-surface',
-            if (command.prerequisiteForCommandId != null)
-              'prerequisiteForCommandId': command.prerequisiteForCommandId,
-          },
-          completedAt: DateTime.now().toUtc(),
-        ),
+      final result = _resolvedIdeCommandResult(
+        command: command,
+        fallbackApplied: applied,
+        fallbackMessage: message,
+        resolver: widget.onResolveIdeCommandResult,
       );
+      widget.controller.recordIdeCommandResult(result);
       if (!mounted) {
         return;
       }
       setState(() {
-        _lastCommandApplicationMessage = message;
+        _lastCommandApplicationMessage = result.message;
         _lastRetryableCommandSuggestion =
-            applied && command.prerequisiteForCommandId != null
+            result.applied && command.prerequisiteForCommandId != null
             ? AgentIdeCommandSuggestion(
                 commandId: command.prerequisiteForCommandId!,
                 reason: 'Retry after ${command.commandId}.',
@@ -786,6 +791,33 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     }
     return 'Command ${command.commandId} applied. '
         '$prerequisiteForCommandId may now be retried.';
+  }
+
+  AgentCommandResultContext _resolvedIdeCommandResult({
+    required AgentIdeCommandSuggestion command,
+    required bool fallbackApplied,
+    required String fallbackMessage,
+    required AgentCommandResultContext? Function(AgentIdeCommandSuggestion)?
+    resolver,
+  }) {
+    final resolved = resolver?.call(command);
+    if (resolved != null &&
+        resolved.commandId == command.commandId &&
+        resolved.input == command.input) {
+      return resolved;
+    }
+    return AgentCommandResultContext(
+      commandId: command.commandId,
+      input: command.input,
+      applied: fallbackApplied,
+      message: fallbackMessage,
+      metadata: <String, Object?>{
+        'source': 'agent-surface',
+        if (command.prerequisiteForCommandId != null)
+          'prerequisiteForCommandId': command.prerequisiteForCommandId,
+      },
+      completedAt: DateTime.now().toUtc(),
+    );
   }
 
   AgentRequestAttachment _activeDocumentAttachment() {

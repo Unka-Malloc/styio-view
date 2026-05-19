@@ -16,7 +16,9 @@ import '../../platform/platform_target.dart';
 import '../platform/platform.dart';
 import '../runtime/runtime.dart';
 import '../settings/settings_surface.dart';
+import '../../view_ide/workspace/workspace.dart';
 
+import 'hosted_workspace_lifecycle_banner.dart';
 import '../../app/commands/app_commands.dart';
 import 'shell_model.dart';
 import 'shell_scope.dart';
@@ -28,6 +30,9 @@ class VityoShellScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final shell = ShellScope.of(context);
     final project = shell.workspaceController.activeProject;
+    final hostedClosePlan = const HostedWorkspaceLifecycle().closePlanFor(
+      project,
+    );
     final viewportProfile = resolveViewportProfile(
       platformTarget: shell.platformTarget,
       width: MediaQuery.sizeOf(context).width,
@@ -59,6 +64,10 @@ class VityoShellScaffold extends StatelessWidget {
                       viewportProfile: viewportProfile,
                     ),
                     const SizedBox(height: 16),
+                    if (hostedClosePlan != null) ...[
+                      HostedWorkspaceLifecycleBanner(plan: hostedClosePlan),
+                      const SizedBox(height: 16),
+                    ],
                     Expanded(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
@@ -125,6 +134,8 @@ class VityoShellScaffold extends StatelessWidget {
           adapterCapabilities: shell.adapterCapabilities,
           executionSession: shell.lastExecutionSession,
           runtimeEvents: shell.lastRuntimeEvents,
+          nativeToolResults: shell.nativeToolResults,
+          onOpenNativeToolDiagnostics: shell.openFirstNativeToolDiagnostic,
         );
       case BottomSurfaceTab.agent:
         return AgentSurface(
@@ -132,12 +143,36 @@ class VityoShellScaffold extends StatelessWidget {
           viewportProfile: viewportProfile,
           visibleModules: shell.visibleModules,
           adapterCapabilities: shell.adapterCapabilities,
+          sessionContext: shell.agentSessionContext,
+          codingController: shell.agentCodingController,
+          onApplyPendingPatch: () async {
+            await shell.applyAgentPendingPatch();
+          },
+          onApplyIdeCommandSuggestion: (suggestion) async {
+            return shell.applyAgentIdeCommandSuggestion(suggestion);
+          },
+          onResolveIdeCommandResult: (suggestion) {
+            return shell.lastAgentIdeCommandResult;
+          },
+          onSaveProviderProfile: (profile, {bearerToken}) async {
+            await shell.saveAndMountAgentProfile(
+              profile,
+              bearerToken: bearerToken,
+            );
+          },
         );
       case BottomSurfaceTab.debug:
         return DebugConsoleSurface(
           viewportProfile: viewportProfile,
           entries: shell.debugLog,
           runtimeEvents: shell.lastRuntimeEvents,
+          debugSession: shell.debugSession,
+          onSelectStackFrame: (frameId) {
+            shell.selectDebugStackFrame(frameId);
+          },
+          onSelectThread: (threadId) {
+            shell.selectDebugThread(threadId);
+          },
         );
       case BottomSurfaceTab.settings:
         return SettingsSurface(
@@ -146,10 +181,12 @@ class VityoShellScaffold extends StatelessWidget {
           toolchainSettings: shell.toolchainSettingsSurface,
           toolchainInstallPlan: shell.toolchainInstallPlanSurface,
           toolchainInstallExecution: shell.toolchainInstallExecutionSurface,
+          themeOverride: shell.themeOverride,
           onToolchainRecoveryAction: shell.handleToolchainRecoveryAction,
           onSelectToolchain: shell.selectToolchainCandidate,
           onClearToolchain: shell.clearToolchainCandidate,
           onExecuteToolchainInstallPlan: shell.executeLastToolchainInstallPlan,
+          onSaveThemeOverride: shell.saveThemeOverride,
         );
     }
   }
@@ -183,12 +220,12 @@ class _TopBar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Vityo Integration Shell',
+                        'Vityo Editor Workbench',
                         style: theme.textTheme.headlineMedium,
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Product-owned adapters, project graph, and execution routes across Web, desktop, and mobile shells.',
+                        'Editor, runtime, agent, settings, and workspace operations for the active Vityo project.',
                         style: theme.textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 12),
@@ -216,12 +253,12 @@ class _TopBar extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Vityo Integration Shell',
+                              'Vityo Editor Workbench',
                               style: theme.textTheme.headlineMedium,
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Product-owned adapters, project graph, and execution routes across Web, desktop, and mobile shells.',
+                              'Editor, runtime, agent, settings, and workspace operations for the active Vityo project.',
                               style: theme.textTheme.bodyMedium,
                             ),
                           ],
@@ -387,8 +424,31 @@ class _DesktopShellBody extends StatelessWidget {
                           languageServiceStatus:
                               shell.languageServiceStatus.value,
                           fileBindingSnapshot: shell.editorFileBindingSnapshot,
+                          closeRequestSurface: shell.closeRequestSurface,
                           onAcceptExternalChange:
                               shell.acceptEditorExternalChange,
+                          onSaveLocalChanges: () {
+                            shell.saveActiveWorkspaceFileChanges();
+                          },
+                          onDiscardLocalChanges: () {
+                            shell.discardActiveWorkspaceFileChanges();
+                          },
+                          onSaveAndCloseRequest: () {
+                            shell.saveAndCloseRequestedWorkspaceFile();
+                          },
+                          onDiscardAndCloseRequest: () {
+                            shell.discardAndCloseRequestedWorkspaceFile();
+                          },
+                          onSwitchToCloseRequestFile:
+                              shell.switchToCloseRequestFile,
+                          onCancelCloseRequest: shell.clearCloseRequestResult,
+                          openDocumentIds:
+                              shell.workspaceController.openFilePaths,
+                          dirtyDocumentIds: shell.dirtyDocumentPaths,
+                          activeDocumentId:
+                              shell.workspaceController.activeFilePath,
+                          onSelectDocument: shell.workspaceController.openFile,
+                          onCloseDocument: shell.requestCloseWorkspaceFile,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -444,7 +504,27 @@ class _MobileShellBody extends StatelessWidget {
               viewportProfile: viewportProfile,
               languageServiceStatus: shell.languageServiceStatus.value,
               fileBindingSnapshot: shell.editorFileBindingSnapshot,
+              closeRequestSurface: shell.closeRequestSurface,
               onAcceptExternalChange: shell.acceptEditorExternalChange,
+              onSaveLocalChanges: () {
+                shell.saveActiveWorkspaceFileChanges();
+              },
+              onDiscardLocalChanges: () {
+                shell.discardActiveWorkspaceFileChanges();
+              },
+              onSaveAndCloseRequest: () {
+                shell.saveAndCloseRequestedWorkspaceFile();
+              },
+              onDiscardAndCloseRequest: () {
+                shell.discardAndCloseRequestedWorkspaceFile();
+              },
+              onSwitchToCloseRequestFile: shell.switchToCloseRequestFile,
+              onCancelCloseRequest: shell.clearCloseRequestResult,
+              openDocumentIds: shell.workspaceController.openFilePaths,
+              dirtyDocumentIds: shell.dirtyDocumentPaths,
+              activeDocumentId: shell.workspaceController.activeFilePath,
+              onSelectDocument: shell.workspaceController.openFile,
+              onCloseDocument: shell.requestCloseWorkspaceFile,
             ),
           ),
           const SizedBox(height: 16),
@@ -1700,12 +1780,60 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.refresh_rounded;
     case AppCommandId.save:
       return Icons.save_rounded;
+    case AppCommandId.saveAll:
+      return Icons.save_as_rounded;
     case AppCommandId.showRuntime:
       return Icons.terminal_rounded;
     case AppCommandId.showAgent:
       return Icons.smart_toy_outlined;
     case AppCommandId.showDebug:
       return Icons.bug_report_outlined;
+    case AppCommandId.toggleBreakpoint:
+      return Icons.radio_button_checked_rounded;
+    case AppCommandId.startDebugging:
+      return Icons.play_circle_outline_rounded;
+    case AppCommandId.stopDebugging:
+      return Icons.stop_circle_outlined;
+    case AppCommandId.continueDebugging:
+      return Icons.not_started_outlined;
+    case AppCommandId.stepOver:
+      return Icons.skip_next_rounded;
+    case AppCommandId.selectDebugThread:
+      return Icons.account_tree_outlined;
+    case AppCommandId.selectDebugStackFrame:
+      return Icons.layers_outlined;
+    case AppCommandId.nextDiagnostic:
+      return Icons.keyboard_double_arrow_down_rounded;
+    case AppCommandId.previousDiagnostic:
+      return Icons.keyboard_double_arrow_up_rounded;
+    case AppCommandId.applyQuickFix:
+      return Icons.auto_fix_high_rounded;
+    case AppCommandId.refreshLanguageService:
+      return Icons.manage_search_rounded;
+    case AppCommandId.goToDefinition:
+      return Icons.subdirectory_arrow_right_rounded;
+    case AppCommandId.openWorkspaceFile:
+      return Icons.file_open_outlined;
+    case AppCommandId.searchWorkspace:
+      return Icons.search_rounded;
+    case AppCommandId.runBuild:
+      return Icons.construction_rounded;
+    case AppCommandId.formatActiveDocument:
+      return Icons.format_align_left_rounded;
+    case AppCommandId.runStaticAnalysis:
+      return Icons.fact_check_outlined;
+    case AppCommandId.runTests:
+      return Icons.science_outlined;
+    case AppCommandId.nextReference:
+      return Icons.keyboard_arrow_down_rounded;
+    case AppCommandId.previousReference:
+      return Icons.keyboard_arrow_up_rounded;
+    case AppCommandId.renameSymbol:
+      return Icons.drive_file_rename_outline_rounded;
+    case AppCommandId.safeDelete:
+      return Icons.delete_sweep_outlined;
+    case AppCommandId.inlineVariable:
+      return Icons.merge_type_rounded;
     case AppCommandId.openSettings:
       return Icons.settings_outlined;
   }

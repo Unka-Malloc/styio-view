@@ -258,6 +258,14 @@ void main() {
         );
         expect(routeSummary.previewOnly, isFalse);
         expect(routeSummary.primaryAdapterKind, AdapterKind.cli);
+        final routeSelection = selectBackendExecutionRoute(
+          platformTarget: PlatformTarget.macos,
+          projectGraph: shell.workspaceController.activeProject,
+          adapterCapabilities: shell.adapterCapabilities,
+        );
+        expect(routeSelection.routeKind, BackendExecutionRouteKind.localCli);
+        expect(routeSelection.allowed, isTrue);
+        expect(routeSelection.previewOnly, isFalse);
         _emitLocalScenarioReport(
           scenario: 'desktop-local-core-workflow',
           workspaceKind: 'single-package',
@@ -402,6 +410,14 @@ void main() {
         );
         expect(routeSummary.previewOnly, isFalse);
         expect(routeSummary.primaryAdapterKind, AdapterKind.cli);
+        final routeSelection = selectBackendExecutionRoute(
+          platformTarget: PlatformTarget.macos,
+          projectGraph: shell.workspaceController.activeProject,
+          adapterCapabilities: shell.adapterCapabilities,
+        );
+        expect(routeSelection.routeKind, BackendExecutionRouteKind.localCli);
+        expect(routeSelection.allowed, isTrue);
+        expect(routeSelection.previewOnly, isFalse);
         _emitLocalScenarioReport(
           scenario: 'desktop-local-multi-package-workflow',
           workspaceKind: 'multi-package',

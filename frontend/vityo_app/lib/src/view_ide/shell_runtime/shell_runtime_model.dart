@@ -1383,13 +1383,21 @@ class ShellRuntimeModel extends ChangeNotifier {
         notifyListeners();
         return commandResult;
       case AppCommandId.runStaticAnalysis:
+        final compilationDatabase = _nativeCompilationDatabaseArgument();
+        final analysisArguments = <String>[
+          if (compilationDatabase != '.') ...<String>[
+            '-p',
+            compilationDatabase,
+          ],
+          _activeDocumentPath,
+        ];
         final result = await manager.run(
           kind: ToolchainKind.staticAnalyzer,
           requirement: const ToolchainRequirement(
             kind: ToolchainKind.staticAnalyzer,
             metadata: <String, Object?>{'toolFamily': 'clang-tidy'},
           ),
-          arguments: <String>[_activeDocumentPath],
+          arguments: analysisArguments,
           workingDirectory: workspaceController.activeProject.workspaceRoot,
           timeout: const Duration(seconds: 45),
         );
@@ -1409,6 +1417,8 @@ class ShellRuntimeModel extends ChangeNotifier {
             'staticAnalysisResult': <String, Object?>{
               'runner': 'clang-tidy',
               'status': result.succeeded ? 'passed' : 'failed',
+              'compilationDatabase': compilationDatabase,
+              'arguments': analysisArguments,
               'diagnosticCount': diagnostics.length,
             },
           },
@@ -2350,6 +2360,14 @@ class ShellRuntimeModel extends ChangeNotifier {
     final files = _normalizedWorkspaceFiles();
     if (files.contains('build/CTestTestfile.cmake') ||
         files.contains('build/CMakeCache.txt')) {
+      return 'build';
+    }
+    return '.';
+  }
+
+  String _nativeCompilationDatabaseArgument() {
+    final files = _normalizedWorkspaceFiles();
+    if (files.contains('build/compile_commands.json')) {
       return 'build';
     }
     return '.';

@@ -3080,6 +3080,113 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
     );
   });
 
+  test('shell runs clang-tidy with compilation database directory', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_shell_clang_tidy_compile_commands_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final analyzerLog = File('${tempRoot.path}/clang-tidy-args.log');
+    final analyzer = File('${tempRoot.path}/fake-clang-tidy.sh');
+    await analyzer.writeAsString('''
+#!/bin/sh
+printf '%s\\n' "\$*" >> '${analyzerLog.path}'
+printf 'src/main.cc:1:5: warning: tidy warning [readability-demo]\\n'
+''');
+    await Process.run('chmod', <String>['+x', analyzer.path]);
+    final configurationStore = await _createShellTestConfigurationStore(
+      tempRoot,
+    );
+    final platformManagers = await createDetectedPlatformManagerBundle();
+    final toolchainStore = ToolchainConfigurationStore(
+      configurationStore: configurationStore,
+    );
+    final catalog = ToolchainCatalog()
+      ..register(
+        ToolchainDescriptor(
+          id: 'fake-clang-tidy',
+          kind: ToolchainKind.staticAnalyzer,
+          displayName: 'Fake clang-tidy',
+          executablePath: analyzer.path,
+          metadata: const <String, Object?>{'toolFamily': 'clang-tidy'},
+        ),
+        activate: true,
+      );
+    await toolchainStore.saveCatalog(
+      catalog,
+      targetId: platformManagers.context.targetId,
+    );
+    final projectGraph =
+        ProjectGraphSnapshot.scratch(
+          workspaceRoot: tempRoot.path,
+          activeFilePath: 'src/main.cc',
+          title: 'Demo',
+          notes: const <String>[],
+        ).copyWith(
+          editorFiles: <String>['src/main.cc', 'build/compile_commands.json'],
+        );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.cc',
+      text: 'int main(){return 0;}\n',
+      revision: 0,
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.cc': initialDocument,
+          'build/compile_commands.json': DocumentState(
+            documentId: 'build/compile_commands.json',
+            text: '[]\n',
+            revision: 0,
+          ),
+        },
+      ),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      toolchainManager: ToolchainManager(
+        configurationStore: toolchainStore,
+        platformManagers: platformManagers,
+      ),
+    );
+    addTearDown(shell.dispose);
+
+    await shell.executeCommand(AppCommandId.runStaticAnalysis);
+
+    final analysisResult =
+        shell.lastNativeToolResult!.metadata['staticAnalysisResult']!
+            as Map<String, Object?>;
+    expect(shell.lastNativeToolResult?.applied, isTrue);
+    expect(analysisResult['runner'], 'clang-tidy');
+    expect(analysisResult['status'], 'passed');
+    expect(analysisResult['compilationDatabase'], 'build');
+    expect(analysisResult['arguments'], <Object?>[
+      '-p',
+      'build',
+      'src/main.cc',
+    ]);
+    expect(analysisResult['diagnosticCount'], 1);
+    expect(await analyzerLog.readAsString(), '-p build src/main.cc\n');
+  });
+
   test(
     'shell blocks active file close while editor binding is dirty',
     () async {

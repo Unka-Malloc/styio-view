@@ -1079,6 +1079,7 @@ void main() {
     addTearDown(controller.dispose);
     controller.updatePrompt('Rename value.');
     await controller.sendPrompt();
+    controller.updatePrompt('Follow up while command applies.');
     final completer = Completer<bool>();
 
     await tester.pumpWidget(
@@ -1114,6 +1115,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('Applying Command...'), findsOneWidget);
+    final sendButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Send'),
+    );
+    expect(sendButton.onPressed, isNull);
     expect(
       tester
           .widget<OutlinedButton>(

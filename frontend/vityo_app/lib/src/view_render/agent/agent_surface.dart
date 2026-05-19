@@ -906,18 +906,19 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final conversationTurns = controller.conversationTurns;
         final attachments = controller.attachments;
         final applyingPatch = _applyingPatch || controller.applyingPatch;
+        final applyingAction = applyingPatch || _applyingIdeCommand;
         final canApplyPendingPatch =
             !applyingPatch &&
             inactiveDirtyPatchTargets.isEmpty &&
             activeFileOperationTargets.isEmpty;
         final canAttachActiveDocument =
             !controller.sending &&
-            !applyingPatch &&
+            !applyingAction &&
             widget.sessionContext.document.text.trim().isNotEmpty;
         final selectedText = widget.sessionContext.selection.selectedText;
         final canAttachSelection =
             !controller.sending &&
-            !applyingPatch &&
+            !applyingAction &&
             selectedText.trim().isNotEmpty;
         final canClearConversationState =
             conversationTurns.isNotEmpty ||
@@ -1029,7 +1030,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 runSpacing: 10,
                 children: [
                   FilledButton(
-                    onPressed: controller.canSend && !applyingPatch
+                    onPressed: controller.canSend && !applyingAction
                         ? () => unawaited(controller.sendPrompt())
                         : null,
                     child: Text(controller.sending ? 'Sending...' : 'Send'),
@@ -1057,7 +1058,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   ],
                   if (canClearConversationState)
                     OutlinedButton(
-                      onPressed: applyingPatch
+                      onPressed: applyingAction
                           ? null
                           : controller.clearConversation,
                       child: const Text('Clear Conversation'),
@@ -1106,7 +1107,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   ),
                   OutlinedButton(
                     key: const ValueKey('agent-provider-local-fallback-button'),
-                    onPressed: controller.sending || applyingPatch
+                    onPressed: controller.sending || applyingAction
                         ? null
                         : () => controller.mountProvider(
                             profile: AgentPromptProfile.defaultForPlatform(

@@ -91,7 +91,17 @@ void main() {
     expect(preview.documents.single.revision, 4);
     expect(preview.documents.single.beforeText, 'value = 1\n');
     expect(preview.documents.single.afterText, 'count = 1\n');
-    expect(preview.toJson()['editCount'], 1);
+    final previewJson = preview.toJson();
+    expect(previewJson['editCount'], 1);
+    final documentJson =
+        (previewJson['documents']! as List<Object?>).single!
+            as Map<String, Object?>;
+    final editJson =
+        (documentJson['edits']! as List<Object?>).single!
+            as Map<String, Object?>;
+    expect(editJson['start'], 0);
+    expect(editJson['end'], 5);
+    expect(editJson['newText'], 'count');
   });
 
   test(

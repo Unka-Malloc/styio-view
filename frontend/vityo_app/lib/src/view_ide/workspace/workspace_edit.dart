@@ -184,10 +184,21 @@ class WorkspaceEditDocumentPreview {
       'revision': revision,
       'changed': changed,
       'editCount': edits.length,
+      'edits': edits
+          .map(_workspaceEditPreviewEditToJson)
+          .toList(growable: false),
       'beforeTextSample': _sampleText(beforeText),
       'afterTextSample': _sampleText(afterText),
     };
   }
+}
+
+Map<String, Object?> _workspaceEditPreviewEditToJson(FormattingEdit edit) {
+  return <String, Object?>{
+    'start': edit.range.start,
+    'end': edit.range.end,
+    'newText': edit.newText,
+  };
 }
 
 class WorkspaceEditApplicationResult {

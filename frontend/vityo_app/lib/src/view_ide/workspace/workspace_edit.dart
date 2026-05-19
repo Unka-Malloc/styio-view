@@ -86,6 +86,108 @@ class WorkspaceEditPlan {
     ids.sort();
     return ids;
   }
+
+  WorkspaceEditPreview preview(List<DocumentState> documents) {
+    final documentsById = {
+      for (final document in documents) document.documentId: document,
+    };
+    final previews = <WorkspaceEditDocumentPreview>[];
+    for (final entry in editsByDocument.entries) {
+      final document = documentsById[entry.key];
+      if (document == null) {
+        continue;
+      }
+      final normalizedEdits = normalizeFormattingEditsForDocument(
+        documentLength: document.length,
+        edits: entry.value,
+      );
+      if (normalizedEdits.isEmpty) {
+        continue;
+      }
+      final nextDocument = _applyEditsToDocument(document, normalizedEdits);
+      previews.add(
+        WorkspaceEditDocumentPreview(
+          documentId: document.documentId,
+          revision: document.revision,
+          beforeText: document.text,
+          afterText: nextDocument.text,
+          edits: normalizedEdits,
+        ),
+      );
+    }
+    return WorkspaceEditPreview(
+      planId: id,
+      summary: summary,
+      source: source,
+      documents: List<WorkspaceEditDocumentPreview>.unmodifiable(previews),
+    );
+  }
+}
+
+class WorkspaceEditPreview {
+  const WorkspaceEditPreview({
+    required this.planId,
+    required this.summary,
+    required this.source,
+    required this.documents,
+  });
+
+  final String planId;
+  final String summary;
+  final WorkspaceEditSource source;
+  final List<WorkspaceEditDocumentPreview> documents;
+
+  bool get hasChanges => documents.any((document) => document.changed);
+
+  int get editCount {
+    return documents.fold<int>(
+      0,
+      (total, document) => total + document.edits.length,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'summary': summary,
+      'source': source.wireValue,
+      'documentCount': documents.length,
+      'editCount': editCount,
+      'hasChanges': hasChanges,
+      'documents': documents
+          .map((document) => document.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+class WorkspaceEditDocumentPreview {
+  const WorkspaceEditDocumentPreview({
+    required this.documentId,
+    required this.revision,
+    required this.beforeText,
+    required this.afterText,
+    required this.edits,
+  });
+
+  final String documentId;
+  final int revision;
+  final String beforeText;
+  final String afterText;
+  final List<FormattingEdit> edits;
+
+  bool get changed => beforeText != afterText;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'documentId': documentId,
+      'revision': revision,
+      'changed': changed,
+      'editCount': edits.length,
+      'beforeTextSample': _sampleText(beforeText),
+      'afterTextSample': _sampleText(afterText),
+    };
+  }
 }
 
 class WorkspaceEditApplicationResult {
@@ -226,4 +328,11 @@ String? _validateDocumentId(String documentId) {
     return 'contains unsafe documentId $documentId.';
   }
   return null;
+}
+
+String _sampleText(String text, {int maxLength = 240}) {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return '${text.substring(0, maxLength)}...';
 }

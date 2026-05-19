@@ -443,6 +443,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceFileCloseRequestResult? _lastCloseRequestResult;
   AgentWorkspaceSearchResultContext? _lastAgentWorkspaceSearch;
   AgentCommandResultContext? _lastAgentIdeCommandResult;
+  WorkspaceEditPreview? _lastWorkspaceEditPreview;
   final List<AgentCommandResultContext> _agentIdeCommandResults =
       <AgentCommandResultContext>[];
   DapDebugSessionHandle? _dapDebugSession;
@@ -838,9 +839,40 @@ class ShellRuntimeModel extends ChangeNotifier {
     return _applyProjectWorkspaceFix(fixes.first);
   }
 
+  Future<WorkspaceEditPreview?> previewFirstProjectWorkspaceQuickFix() async {
+    final documents = await _loadProjectLanguageDocuments();
+    final analysis = projectLanguageService.analyzeProject(documents);
+    final fixes = projectLanguageService.workspaceQuickFixesForProjectDiagnostics(
+      documents: documents,
+      diagnostics: analysis.diagnostics,
+      analysis: analysis,
+    );
+    if (fixes.isEmpty) {
+      _lastWorkspaceEditPreview = null;
+      appendLog(
+        'Project workspace quick fix preview skipped: no deterministic fix.',
+      );
+      notifyListeners();
+      return null;
+    }
+    final preview = _workspaceEditPlanForProjectFix(
+      fixes.first,
+    ).preview(documents);
+    _lastWorkspaceEditPreview = preview;
+    appendLog(
+      'Project workspace quick fix previewed: ${preview.summary} '
+      '(${preview.editCount} edit(s)).',
+    );
+    notifyListeners();
+    return preview;
+  }
+
   Future<bool> _applyProjectWorkspaceFix(
     StyioProjectWorkspaceFix fix,
   ) async {
+    _lastWorkspaceEditPreview = _workspaceEditPlanForProjectFix(
+      fix,
+    ).preview(_agentWorkspaceDocumentSamples);
     final activeDocumentId = editorController.document.documentId;
     final activeEdits =
         fix.editsByDocument[activeDocumentId] ?? const <FormattingEdit>[];
@@ -868,11 +900,12 @@ class ShellRuntimeModel extends ChangeNotifier {
       final result = await WorkspaceEditApplier(
         workspaceDocumentStore: workspaceDocumentStore,
       ).apply(
-        WorkspaceEditPlan(
-          id: 'project-workspace-fix-${DateTime.now().microsecondsSinceEpoch}',
-          summary: fix.label,
-          source: WorkspaceEditSource.codeAction,
-          editsByDocument: inactiveEditsByDocument,
+        _workspaceEditPlanForProjectFix(
+          StyioProjectWorkspaceFix(
+            label: fix.label,
+            detail: fix.detail,
+            editsByDocument: inactiveEditsByDocument,
+          ),
         ),
       );
       if (!result.applied) {
@@ -899,6 +932,17 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     notifyListeners();
     return editCount > 0;
+  }
+
+  WorkspaceEditPlan _workspaceEditPlanForProjectFix(
+    StyioProjectWorkspaceFix fix,
+  ) {
+    return WorkspaceEditPlan(
+      id: 'project-workspace-fix-${DateTime.now().microsecondsSinceEpoch}',
+      summary: fix.label,
+      source: WorkspaceEditSource.codeAction,
+      editsByDocument: fix.editsByDocument,
+    );
   }
 
   Map<String, Object?> _projectSymbolDefinitionToJson(
@@ -994,6 +1038,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastToolchainInstallExecutionResult;
   WorkspaceFileCloseRequestResult? get lastCloseRequestResult =>
       _lastCloseRequestResult;
+  WorkspaceEditPreview? get lastWorkspaceEditPreview =>
+      _lastWorkspaceEditPreview;
   EditorCloseRequestSurface? get closeRequestSurface {
     final result = _lastCloseRequestResult;
     if (result == null) {

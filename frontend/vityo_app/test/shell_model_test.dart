@@ -803,6 +803,10 @@ void main() {
       addTearDown(commandShell.dispose);
       final fixes = await commandShell.collectProjectWorkspaceQuickFixes();
       expect(fixes.map((fix) => fix.label), contains('Clean up project imports'));
+      final preview = await commandShell.previewFirstProjectWorkspaceQuickFix();
+      expect(preview?.summary, 'Clean up project imports');
+      expect(preview?.editCount, greaterThan(0));
+      expect(commandShell.lastWorkspaceEditPreview, same(preview));
 
       await commandShell.executeCommand(AppCommandId.applyQuickFix);
 

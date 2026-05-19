@@ -60,6 +60,40 @@ void main() {
     },
   );
 
+  test('workspace edit plan previews normalized document edits', () {
+    const plan = WorkspaceEditPlan(
+      id: 'preview-rename',
+      summary: 'Preview rename.',
+      source: WorkspaceEditSource.rename,
+      editsByDocument: <String, List<FormattingEdit>>{
+        'main.styio': <FormattingEdit>[
+          FormattingEdit(range: SourceRange(start: 0, end: 5), newText: 'count'),
+        ],
+      },
+    );
+
+    final preview = plan.preview(
+      const <DocumentState>[
+        DocumentState(
+          documentId: 'main.styio',
+          text: 'value = 1\n',
+          revision: 4,
+        ),
+      ],
+    );
+
+    expect(preview.planId, 'preview-rename');
+    expect(preview.summary, 'Preview rename.');
+    expect(preview.source, WorkspaceEditSource.rename);
+    expect(preview.hasChanges, isTrue);
+    expect(preview.editCount, 1);
+    expect(preview.documents.single.documentId, 'main.styio');
+    expect(preview.documents.single.revision, 4);
+    expect(preview.documents.single.beforeText, 'value = 1\n');
+    expect(preview.documents.single.afterText, 'count = 1\n');
+    expect(preview.toJson()['editCount'], 1);
+  });
+
   test(
     'workspace edit applier rejects unsafe document ids before load',
     () async {

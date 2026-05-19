@@ -807,6 +807,11 @@ void main() {
       expect(preview?.summary, 'Clean up project imports');
       expect(preview?.editCount, greaterThan(0));
       expect(commandShell.lastWorkspaceEditPreview, same(preview));
+      final checkpoint = await commandShell.collectAgentCodingCheckpoint();
+      final workspaceEditPreview =
+          checkpoint['workspaceEditPreview']! as Map<String, Object?>;
+      expect(workspaceEditPreview['summary'], 'Clean up project imports');
+      expect(workspaceEditPreview['editCount'], greaterThan(0));
 
       await commandShell.executeCommand(AppCommandId.applyQuickFix);
 

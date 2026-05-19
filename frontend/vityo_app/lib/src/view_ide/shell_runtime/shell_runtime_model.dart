@@ -717,6 +717,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     final diagnosticsSnapshot = await refreshWorkspaceDiagnostics();
     final sourceControlSnapshot = await refreshSourceControlStatus();
     final projectLanguage = await collectProjectLanguageContext();
+    final workspaceEditPreview = await previewFirstProjectWorkspaceQuickFix();
     final changedPath = sourceControlSnapshot.changes.isNotEmpty
         ? sourceControlSnapshot.changes.first.path
         : dirtyDocumentPaths.isNotEmpty
@@ -732,12 +733,15 @@ class ShellRuntimeModel extends ChangeNotifier {
       'dirtyDocumentIds': dirtyDocumentPaths,
       'openDocumentIds': workspaceController.openFilePaths,
       if (diffSnapshot != null) 'sourceControlDiff': diffSnapshot.toJson(),
+      if (workspaceEditPreview != null)
+        'workspaceEditPreview': workspaceEditPreview.toJson(),
     };
     appendLog(
       'Agent coding checkpoint collected: '
       '${diagnosticsSnapshot.totalCount} diagnostic(s), '
       '${sourceControlSnapshot.changes.length} source change(s), '
-      '${projectLanguage['referenceCount'] ?? 0} project reference(s).',
+      '${projectLanguage['referenceCount'] ?? 0} project reference(s), '
+      '${workspaceEditPreview?.editCount ?? 0} workspace edit preview edit(s).',
     );
     notifyListeners();
     return metadata;

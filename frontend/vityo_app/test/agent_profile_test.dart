@@ -87,6 +87,8 @@ void main() {
         'nested buildResult/staticAnalysisResult/testResult.requiredCommand',
       ),
     );
+    expect(decoded.systemPrompt, contains('metadata.workspaceEditPreview'));
+    expect(decoded.systemPrompt, contains('applying applyQuickFix'));
     expect(decoded.systemPrompt, contains('backendRouteSelection'));
     expect(decoded.systemPrompt, contains('toolchainSelectionStatus'));
     expect(decoded.systemPrompt, contains('toolchainSelectionMessage'));

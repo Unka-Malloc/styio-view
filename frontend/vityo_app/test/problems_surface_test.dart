@@ -67,6 +67,7 @@ void main() {
   ) async {
     WorkspaceDiagnostic? selectedWorkspaceDiagnostic;
     var refreshCount = 0;
+    var previewCount = 0;
     var applyCount = 0;
 
     await tester.pumpWidget(
@@ -103,11 +104,33 @@ void main() {
                 ),
               ],
             ),
+            workspaceEditPreview: const WorkspaceEditPreview(
+              planId: 'workspace-fix-1',
+              summary: 'Remove duplicate imports across workspace',
+              source: WorkspaceEditSource.codeAction,
+              documents: <WorkspaceEditDocumentPreview>[
+                WorkspaceEditDocumentPreview(
+                  documentId: 'src/lib.styio',
+                  revision: 3,
+                  beforeText: '@import a\n@import a\n',
+                  afterText: '@import a\n',
+                  edits: <FormattingEdit>[
+                    FormattingEdit(
+                      range: SourceRange(start: 10, end: 20),
+                      newText: '',
+                    ),
+                  ],
+                ),
+              ],
+            ),
             onSelectWorkspaceDiagnostic: (diagnostic) {
               selectedWorkspaceDiagnostic = diagnostic;
             },
             onRefreshWorkspaceDiagnostics: () async {
               refreshCount += 1;
+            },
+            onPreviewWorkspaceQuickFix: () async {
+              previewCount += 1;
             },
             onApplyWorkspaceQuickFix: () async {
               applyCount += 1;
@@ -123,6 +146,14 @@ void main() {
     expect(find.text('hint 1'), findsOneWidget);
     expect(find.text('Prefer explicit name.'), findsOneWidget);
     expect(find.textContaining('src/lib.styio · hint · style'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('problems-workspace-edit-preview')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Remove duplicate imports across workspace'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('problems-diagnostic-style')));
     await tester.pump();
@@ -135,6 +166,13 @@ void main() {
     await tester.pump();
 
     expect(refreshCount, 1);
+
+    await tester.tap(
+      find.byKey(const ValueKey('problems-preview-workspace-quick-fix')),
+    );
+    await tester.pump();
+
+    expect(previewCount, 1);
 
     await tester.tap(
       find.byKey(const ValueKey('problems-apply-workspace-quick-fix')),

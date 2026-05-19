@@ -14,6 +14,8 @@ class ProblemsSurface extends StatelessWidget {
     this.onSelectDiagnostic,
     this.onSelectWorkspaceDiagnostic,
     this.onRefreshWorkspaceDiagnostics,
+    this.workspaceEditPreview,
+    this.onPreviewWorkspaceQuickFix,
     this.onApplyWorkspaceQuickFix,
   });
 
@@ -24,6 +26,8 @@ class ProblemsSurface extends StatelessWidget {
   final ValueChanged<Diagnostic>? onSelectDiagnostic;
   final ValueChanged<WorkspaceDiagnostic>? onSelectWorkspaceDiagnostic;
   final Future<void> Function()? onRefreshWorkspaceDiagnostics;
+  final WorkspaceEditPreview? workspaceEditPreview;
+  final Future<void> Function()? onPreviewWorkspaceQuickFix;
   final Future<void> Function()? onApplyWorkspaceQuickFix;
 
   @override
@@ -55,17 +59,25 @@ class ProblemsSurface extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
-                  child: Text('Problems', style: theme.textTheme.titleLarge),
-                ),
+                Text('Problems', style: theme.textTheme.titleLarge),
                 if (onRefreshWorkspaceDiagnostics != null)
                   TextButton.icon(
                     key: const ValueKey('problems-refresh-workspace'),
                     onPressed: onRefreshWorkspaceDiagnostics,
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('Refresh'),
+                  ),
+                if (onPreviewWorkspaceQuickFix != null)
+                  TextButton.icon(
+                    key: const ValueKey('problems-preview-workspace-quick-fix'),
+                    onPressed: onPreviewWorkspaceQuickFix,
+                    icon: const Icon(Icons.difference_outlined),
+                    label: const Text('Preview Project Fix'),
                   ),
                 if (onApplyWorkspaceQuickFix != null)
                   TextButton.icon(
@@ -78,7 +90,7 @@ class ProblemsSurface extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Diagnostics surface backed by active document diagnostics or a workspace diagnostics snapshot. TODO: add grouping, filters, quick-fix preview, and persisted problem state.',
+              'Diagnostics surface backed by active document diagnostics or a workspace diagnostics snapshot. TODO: add grouping, filters, fix confirmation, and persisted problem state.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -98,6 +110,10 @@ class ProblemsSurface extends StatelessWidget {
                   Chip(label: Text('${entry.key.name} ${entry.value}')),
               ],
             ),
+            if (workspaceEditPreview != null) ...[
+              const SizedBox(height: 12),
+              _WorkspaceEditPreviewCard(preview: workspaceEditPreview!),
+            ],
             const SizedBox(height: 12),
             if (problemEntries.isEmpty)
               Text(
@@ -141,6 +157,58 @@ class ProblemsSurface extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceEditPreviewCard extends StatelessWidget {
+  const _WorkspaceEditPreviewCard({required this.preview});
+
+  final WorkspaceEditPreview preview;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final changedDocuments = preview.documents
+        .where((document) => document.changed)
+        .toList(growable: false);
+    final sampleDocuments = changedDocuments.take(3).toList(growable: false);
+    final hiddenDocumentCount = changedDocuments.length - sampleDocuments.length;
+
+    return Container(
+      key: const ValueKey('problems-workspace-edit-preview'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Workspace edit preview', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            '${preview.summary} · ${preview.editCount} edit(s) · '
+            '${changedDocuments.length} document(s)',
+            key: const ValueKey('problems-workspace-edit-preview-summary'),
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          for (final document in sampleDocuments)
+            Text(
+              '${document.documentId} · rev ${document.revision} · '
+              '${document.edits.length} edit(s)',
+              style: theme.textTheme.bodySmall,
+            ),
+          if (hiddenDocumentCount > 0)
+            Text(
+              '+$hiddenDocumentCount more document(s)',
+              style: theme.textTheme.bodySmall,
+            ),
+        ],
       ),
     );
   }

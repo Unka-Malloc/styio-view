@@ -1159,6 +1159,14 @@ class ShellRuntimeModel extends ChangeNotifier {
           notifyListeners();
           return true;
         }
+        if (await selectProjectReferenceAtSelection(forward: true)) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: true,
+            message: 'Agent command nextReference opened project reference.',
+          );
+          return true;
+        }
         appendLog('Agent command nextReference skipped: no references.');
         _recordAgentIdeCommandResult(
           suggestion,
@@ -1176,6 +1184,15 @@ class ShellRuntimeModel extends ChangeNotifier {
             message: 'Agent command previousReference selected in editor.',
           );
           notifyListeners();
+          return true;
+        }
+        if (await selectProjectReferenceAtSelection(forward: false)) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: true,
+            message:
+                'Agent command previousReference opened project reference.',
+          );
           return true;
         }
         appendLog('Agent command previousReference skipped: no references.');
@@ -3253,6 +3270,129 @@ class ShellRuntimeModel extends ChangeNotifier {
     return true;
   }
 
+  Future<bool> selectProjectReferenceAtSelection({
+    required bool forward,
+  }) async {
+    final activeDocumentId = editorController.document.documentId;
+    final offset = editorController.selection.extentOffset;
+    final documents = await _loadProjectLanguageDocuments();
+    final references = projectLanguageService.referencesAt(
+      documents: documents,
+      documentId: activeDocumentId,
+      offset: offset,
+    ).toList(growable: false)
+      ..sort(_compareProjectSymbolReferences);
+    if (references.isEmpty) {
+      appendLog(
+        'Project reference skipped: no visible project references at selection.',
+      );
+      notifyListeners();
+      return false;
+    }
+
+    final target = _projectReferenceNavigationTarget(
+      references: references,
+      activeDocumentId: activeDocumentId,
+      offset: offset,
+      forward: forward,
+    );
+    if (target.documentId != editorController.document.documentId) {
+      final opened = await openWorkspaceFileForAgent(target.documentId);
+      if (!opened) {
+        appendLog(
+          'Project reference skipped: ${target.documentId} could not be opened.',
+        );
+        notifyListeners();
+        return false;
+      }
+    }
+    editorController.selectRange(
+      baseOffset: target.range.start,
+      extentOffset: target.range.end,
+    );
+    appendLog(
+      'Project reference selected: ${target.name} in ${target.documentId}.',
+    );
+    notifyListeners();
+    return true;
+  }
+
+  StyioProjectSymbolReference _projectReferenceNavigationTarget({
+    required List<StyioProjectSymbolReference> references,
+    required String activeDocumentId,
+    required int offset,
+    required bool forward,
+  }) {
+    final currentIndex = references.indexWhere(
+      (reference) =>
+          reference.documentId == activeDocumentId &&
+          _rangeContainsNavigationOffset(reference.range, offset),
+    );
+    if (currentIndex >= 0) {
+      final targetIndex = forward
+          ? (currentIndex + 1) % references.length
+          : (currentIndex - 1 + references.length) % references.length;
+      return references[targetIndex];
+    }
+
+    if (forward) {
+      return references.firstWhere(
+        (reference) =>
+            _compareProjectReferencePosition(
+              reference.documentId,
+              reference.range.start,
+              activeDocumentId,
+              offset,
+            ) >
+            0,
+        orElse: () => references.first,
+      );
+    }
+    return references.lastWhere(
+      (reference) =>
+          _compareProjectReferencePosition(
+            reference.documentId,
+            reference.range.end,
+            activeDocumentId,
+            offset,
+          ) <
+          0,
+      orElse: () => references.last,
+    );
+  }
+
+  int _compareProjectSymbolReferences(
+    StyioProjectSymbolReference left,
+    StyioProjectSymbolReference right,
+  ) {
+    final documentCompare = left.documentId.compareTo(right.documentId);
+    if (documentCompare != 0) {
+      return documentCompare;
+    }
+    final startCompare = left.range.start.compareTo(right.range.start);
+    if (startCompare != 0) {
+      return startCompare;
+    }
+    return left.range.end.compareTo(right.range.end);
+  }
+
+  int _compareProjectReferencePosition(
+    String leftDocumentId,
+    int leftOffset,
+    String rightDocumentId,
+    int rightOffset,
+  ) {
+    final documentCompare = leftDocumentId.compareTo(rightDocumentId);
+    if (documentCompare != 0) {
+      return documentCompare;
+    }
+    return leftOffset.compareTo(rightOffset);
+  }
+
+  bool _rangeContainsNavigationOffset(SourceRange range, int offset) {
+    return range.contains(offset) || offset == range.end;
+  }
+
   Future<List<DocumentState>> _loadProjectLanguageDocuments() async {
     final documentsById = <String, DocumentState>{
       for (final document in _agentWorkspaceDocumentSamples)
@@ -4115,6 +4255,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.nextReference:
         if (editorController.selectNextReferenceAtSelection()) {
           appendLog('Next reference selected in editor.');
+        } else if (await selectProjectReferenceAtSelection(forward: true)) {
+          appendLog('Project next reference selected in editor.');
         } else {
           appendLog(
             'Next reference skipped: no resolved references at selection.',
@@ -4125,6 +4267,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previousReference:
         if (editorController.selectPreviousReferenceAtSelection()) {
           appendLog('Previous reference selected in editor.');
+        } else if (await selectProjectReferenceAtSelection(forward: false)) {
+          appendLog('Project previous reference selected in editor.');
         } else {
           appendLog(
             'Previous reference skipped: no resolved references at selection.',

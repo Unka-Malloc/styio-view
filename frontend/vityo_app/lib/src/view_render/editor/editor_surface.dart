@@ -16,14 +16,38 @@ class EditorSurface extends StatelessWidget {
     required this.viewportProfile,
     this.languageServiceStatus,
     this.fileBindingSnapshot,
+    this.closeRequestSurface,
     this.onAcceptExternalChange,
+    this.onSaveLocalChanges,
+    this.onDiscardLocalChanges,
+    this.onSaveAndCloseRequest,
+    this.onDiscardAndCloseRequest,
+    this.onSwitchToCloseRequestFile,
+    this.onCancelCloseRequest,
+    this.openDocumentIds = const <String>[],
+    this.dirtyDocumentIds = const <String>[],
+    this.activeDocumentId,
+    this.onSelectDocument,
+    this.onCloseDocument,
   });
 
   final EditorSessionController controller;
   final ViewportProfile viewportProfile;
   final LanguageServiceStatusSurface? languageServiceStatus;
   final DocumentResourceBindingSnapshot? fileBindingSnapshot;
+  final EditorCloseRequestSurface? closeRequestSurface;
   final VoidCallback? onAcceptExternalChange;
+  final VoidCallback? onSaveLocalChanges;
+  final VoidCallback? onDiscardLocalChanges;
+  final VoidCallback? onSaveAndCloseRequest;
+  final VoidCallback? onDiscardAndCloseRequest;
+  final VoidCallback? onSwitchToCloseRequestFile;
+  final VoidCallback? onCancelCloseRequest;
+  final List<String> openDocumentIds;
+  final List<String> dirtyDocumentIds;
+  final String? activeDocumentId;
+  final ValueChanged<String>? onSelectDocument;
+  final ValueChanged<String>? onCloseDocument;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +66,11 @@ class EditorSurface extends StatelessWidget {
         final activeSemanticKind = controller.semanticKindAtSelection;
         final serviceStatus = languageServiceStatus;
         final fileBindingStatus = _fileBindingStatusFor(fileBindingSnapshot);
+        final closeRequest = closeRequestSurface;
+        final activeOpenDocumentId = activeDocumentId ?? document.documentId;
+        final visibleOpenDocumentIds = openDocumentIds.isEmpty
+            ? <String>[document.documentId]
+            : openDocumentIds;
         final visibleServiceStatus =
             serviceStatus != null &&
                 serviceStatus.severity !=
@@ -103,6 +132,14 @@ class EditorSurface extends StatelessWidget {
                         Chip(label: Text('rev ${document.revision}')),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    _OpenDocumentTabStrip(
+                      documentIds: visibleOpenDocumentIds,
+                      dirtyDocumentIds: dirtyDocumentIds,
+                      activeDocumentId: activeOpenDocumentId,
+                      onSelectDocument: onSelectDocument,
+                      onCloseDocument: onCloseDocument,
+                    ),
                     const SizedBox(height: 14),
                     Wrap(
                       spacing: 10,
@@ -111,11 +148,25 @@ class EditorSurface extends StatelessWidget {
                           .map((label) => _CapabilityPill(label: label))
                           .toList(growable: false),
                     ),
-                    if (fileBindingStatus != null) ...[
+                    if (closeRequest != null &&
+                        closeRequest.requiresUserChoice) ...[
+                      const SizedBox(height: 12),
+                      _CloseRequestBanner(
+                        request: closeRequest,
+                        onSaveLocalChanges:
+                            onSaveAndCloseRequest ?? onSaveLocalChanges,
+                        onDiscardLocalChanges:
+                            onDiscardAndCloseRequest ?? onDiscardLocalChanges,
+                        onSwitchToCloseRequestFile: onSwitchToCloseRequestFile,
+                        onCancelCloseRequest: onCancelCloseRequest,
+                      ),
+                    ] else if (fileBindingStatus != null) ...[
                       const SizedBox(height: 12),
                       _FileBindingStatusBanner(
                         status: fileBindingStatus,
                         onAcceptExternalChange: onAcceptExternalChange,
+                        onSaveLocalChanges: onSaveLocalChanges,
+                        onDiscardLocalChanges: onDiscardLocalChanges,
                       ),
                     ],
                     if (!dense && fileBindingStatus == null) ...[
@@ -137,22 +188,46 @@ class EditorSurface extends StatelessWidget {
                           border: Border.all(color: theme.dividerColor),
                         ),
                         padding: EdgeInsets.all(innerPadding),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: renderPlan.activeLayers
-                                  .map(
-                                    (layer) => _CapabilityPill(
-                                      label: 'layer ${layer.name}',
-                                    ),
-                                  )
-                                  .toList(growable: false),
-                            ),
-                            const SizedBox(height: 16),
-                            Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, sourceConstraints) {
+                            final showLayerToolbar =
+                                !dense && sourceConstraints.maxHeight >= 128;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (showLayerToolbar) ...[
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      ...renderPlan.activeLayers.map(
+                                        (layer) => _CapabilityPill(
+                                          label: 'layer ${layer.name}',
+                                        ),
+                                      ),
+                                      FilterChip(
+                                        key: const ValueKey(
+                                          'editor-glyph-substitution-toggle',
+                                        ),
+                                        selected:
+                                            renderPlan.glyphSubstitutionEnabled,
+                                        label: Text(
+                                          renderPlan.glyphSubstitutionEnabled
+                                              ? 'glyph substitution on'
+                                              : 'glyph substitution off',
+                                        ),
+                                        onSelected: (_) {
+                                          controller
+                                              .toggleGlyphSubstitution();
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                                Expanded(
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
                                   final mobileFamily = viewportProfile.isMobile;
@@ -171,46 +246,50 @@ class EditorSurface extends StatelessWidget {
                                       key: const ValueKey(
                                         'editor-language-family-mobile',
                                       ),
-                                      child: ListView(
+                                      child: SingleChildScrollView(
                                         key: ValueKey(
                                           'editor-language-layout-scroll-${viewportProfile.label.toLowerCase()}',
                                         ),
-                                        children: [
-                                          SizedBox(
-                                            height: 220,
-                                            child: _SourcePreviewPane(
-                                              controller: controller,
-                                              viewportProfile: viewportProfile,
-                                              hover: hover,
-                                              completions: completions,
-                                              activeReferences:
-                                                  activeReferences,
-                                              activeToken: activeToken,
-                                              activeSemanticKind:
-                                                  activeSemanticKind,
-                                              document: document,
-                                              selection: selection,
-                                              analysis: analysis,
-                                              renderPlan: renderPlan,
+                                        child: Column(
+                                          children: [
+                                            SizedBox(
+                                              height: 320,
+                                              child: _SourcePreviewPane(
+                                                controller: controller,
+                                                viewportProfile:
+                                                    viewportProfile,
+                                                hover: hover,
+                                                completions: completions,
+                                                activeReferences:
+                                                    activeReferences,
+                                                activeToken: activeToken,
+                                                activeSemanticKind:
+                                                    activeSemanticKind,
+                                                document: document,
+                                                selection: selection,
+                                                analysis: analysis,
+                                                renderPlan: renderPlan,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          SizedBox(
-                                            height: 180,
-                                            child: _LanguageServicePane(
-                                              controller: controller,
-                                              viewportProfile: viewportProfile,
-                                              analysis: analysis,
-                                              hover: hover,
-                                              completions: completions,
-                                              activeToken: activeToken,
-                                              activeSemanticKind:
-                                                  activeSemanticKind,
-                                              languageServiceStatus:
-                                                  visibleServiceStatus,
+                                            const SizedBox(height: 16),
+                                            SizedBox(
+                                              height: 180,
+                                              child: _LanguageServicePane(
+                                                controller: controller,
+                                                viewportProfile:
+                                                    viewportProfile,
+                                                analysis: analysis,
+                                                hover: hover,
+                                                completions: completions,
+                                                activeToken: activeToken,
+                                                activeSemanticKind:
+                                                    activeSemanticKind,
+                                                languageServiceStatus:
+                                                    visibleServiceStatus,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     );
                                   }
@@ -313,7 +392,9 @@ class EditorSurface extends StatelessWidget {
                                 },
                               ),
                             ),
-                          ],
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -328,54 +409,301 @@ class EditorSurface extends StatelessWidget {
   }
 }
 
+class _CloseRequestBanner extends StatelessWidget {
+  const _CloseRequestBanner({
+    required this.request,
+    required this.onSaveLocalChanges,
+    required this.onDiscardLocalChanges,
+    required this.onSwitchToCloseRequestFile,
+    required this.onCancelCloseRequest,
+  });
+
+  final EditorCloseRequestSurface request;
+  final VoidCallback? onSaveLocalChanges;
+  final VoidCallback? onDiscardLocalChanges;
+  final VoidCallback? onSwitchToCloseRequestFile;
+  final VoidCallback? onCancelCloseRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('editor-close-request-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.36),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.secondary.withValues(alpha: 0.36),
+        ),
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Close blocked', style: theme.textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(request.message, style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+          if (request.canSwitchToFile)
+            OutlinedButton(
+              key: const ValueKey('editor-close-request-switch'),
+              onPressed: onSwitchToCloseRequestFile,
+              child: const Text('Switch to file'),
+            ),
+          OutlinedButton(
+            key: const ValueKey('editor-close-request-save'),
+            onPressed: request.canSave ? onSaveLocalChanges : null,
+            child: const Text('Save changes'),
+          ),
+          TextButton(
+            key: const ValueKey('editor-close-request-discard'),
+            onPressed: request.canDiscard ? onDiscardLocalChanges : null,
+            child: const Text('Discard changes'),
+          ),
+          TextButton(
+            key: const ValueKey('editor-close-request-cancel'),
+            onPressed: onCancelCloseRequest,
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OpenDocumentTabStrip extends StatelessWidget {
+  const _OpenDocumentTabStrip({
+    required this.documentIds,
+    required this.dirtyDocumentIds,
+    required this.activeDocumentId,
+    required this.onSelectDocument,
+    required this.onCloseDocument,
+  });
+
+  final List<String> documentIds;
+  final List<String> dirtyDocumentIds;
+  final String activeDocumentId;
+  final ValueChanged<String>? onSelectDocument;
+  final ValueChanged<String>? onCloseDocument;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      key: const ValueKey('editor-open-file-tab-strip'),
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: documentIds.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final documentId = documentIds[index];
+          final active = documentId == activeDocumentId;
+          final dirty = dirtyDocumentIds.contains(documentId);
+          return _OpenDocumentTab(
+            documentId: documentId,
+            active: active,
+            dirty: dirty,
+            onSelectDocument: onSelectDocument,
+            onCloseDocument: onCloseDocument,
+            color: active
+                ? theme.colorScheme.primaryContainer
+                : theme.colorScheme.surface,
+            borderColor: active
+                ? theme.colorScheme.primary.withValues(alpha: 0.42)
+                : theme.dividerColor,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OpenDocumentTab extends StatelessWidget {
+  const _OpenDocumentTab({
+    required this.documentId,
+    required this.active,
+    required this.dirty,
+    required this.onSelectDocument,
+    required this.onCloseDocument,
+    required this.color,
+    required this.borderColor,
+  });
+
+  final String documentId;
+  final bool active;
+  final bool dirty;
+  final ValueChanged<String>? onSelectDocument;
+  final ValueChanged<String>? onCloseDocument;
+  final Color color;
+  final Color borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      key: ValueKey('editor-open-file-tab-$documentId'),
+      color: color,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(999),
+        side: BorderSide(color: borderColor),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: active ? null : () => onSelectDocument?.call(documentId),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 14, right: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 180),
+                child: Text(
+                  _documentTabLabel(documentId),
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                    color: active
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              if (dirty) ...[
+                const SizedBox(width: 6),
+                Text(
+                  '•',
+                  key: ValueKey('editor-open-file-tab-dirty-$documentId'),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: active
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 4),
+              IconButton(
+                key: ValueKey('editor-open-file-tab-close-$documentId'),
+                tooltip: 'Close $documentId',
+                icon: const Icon(Icons.close_rounded, size: 16),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 28,
+                  height: 28,
+                ),
+                onPressed: onCloseDocument == null
+                    ? null
+                    : () => onCloseDocument!(documentId),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _documentTabLabel(String documentId) {
+  final normalized = documentId.replaceAll('\\', '/');
+  final segments = normalized.split('/').where((segment) => segment.isNotEmpty);
+  return segments.isEmpty ? documentId : segments.last;
+}
+
 class _FileBindingStatus {
   const _FileBindingStatus({
     required this.title,
     required this.message,
     required this.actionLabel,
     required this.actionEnabled,
+    required this.action,
+    this.secondaryActionLabel,
+    this.secondaryActionEnabled = false,
+    this.secondaryAction,
   });
 
   final String title;
   final String message;
   final String actionLabel;
   final bool actionEnabled;
+  final _FileBindingStatusAction action;
+  final String? secondaryActionLabel;
+  final bool secondaryActionEnabled;
+  final _FileBindingStatusAction? secondaryAction;
+}
+
+enum _FileBindingStatusAction {
+  acceptExternal,
+  saveLocal,
+  discardLocal,
+  unavailable,
 }
 
 _FileBindingStatus? _fileBindingStatusFor(
   DocumentResourceBindingSnapshot? snapshot,
 ) {
   return switch (snapshot?.state) {
+    DocumentResourceBindingState.boundDirty => const _FileBindingStatus(
+      title: 'Unsaved local changes',
+      message:
+          'Save this file or discard local changes before closing the tab.',
+      actionLabel: 'Save changes',
+      actionEnabled: true,
+      action: _FileBindingStatusAction.saveLocal,
+      secondaryActionLabel: 'Discard changes',
+      secondaryActionEnabled: true,
+      secondaryAction: _FileBindingStatusAction.discardLocal,
+    ),
     DocumentResourceBindingState.externalChanged => const _FileBindingStatus(
       title: 'External file change',
-      message: 'The backing file changed on disk. Reload to use the external revision.',
+      message:
+          'The backing file changed on disk. Reload to use the external revision.',
       actionLabel: 'Reload external',
       actionEnabled: true,
+      action: _FileBindingStatusAction.acceptExternal,
     ),
     DocumentResourceBindingState.conflicted => const _FileBindingStatus(
       title: 'External file conflict',
-      message: 'The backing file changed while this editor has unsaved local edits.',
+      message:
+          'The backing file changed while this editor has unsaved local edits.',
       actionLabel: 'Use external version',
       actionEnabled: true,
+      action: _FileBindingStatusAction.acceptExternal,
     ),
     DocumentResourceBindingState.deletedOnDisk => const _FileBindingStatus(
       title: 'Backing file deleted',
       message: 'The backing file was deleted or became unavailable.',
       actionLabel: 'Reload unavailable',
       actionEnabled: false,
+      action: _FileBindingStatusAction.unavailable,
     ),
     DocumentResourceBindingState.readonly => const _FileBindingStatus(
       title: 'Backing file is read-only',
       message: 'The current file cannot be saved until it becomes writable.',
       actionLabel: 'Read-only',
       actionEnabled: false,
+      action: _FileBindingStatusAction.unavailable,
     ),
-    DocumentResourceBindingState.providerUnavailable => const _FileBindingStatus(
-      title: 'File provider unavailable',
-      message: 'The current file provider is unavailable.',
-      actionLabel: 'Provider unavailable',
-      actionEnabled: false,
-    ),
+    DocumentResourceBindingState.providerUnavailable =>
+      const _FileBindingStatus(
+        title: 'File provider unavailable',
+        message: 'The current file provider is unavailable.',
+        actionLabel: 'Provider unavailable',
+        actionEnabled: false,
+        action: _FileBindingStatusAction.unavailable,
+      ),
     _ => null,
   };
 }
@@ -384,14 +712,31 @@ class _FileBindingStatusBanner extends StatelessWidget {
   const _FileBindingStatusBanner({
     required this.status,
     required this.onAcceptExternalChange,
+    required this.onSaveLocalChanges,
+    required this.onDiscardLocalChanges,
   });
 
   final _FileBindingStatus status;
   final VoidCallback? onAcceptExternalChange;
+  final VoidCallback? onSaveLocalChanges;
+  final VoidCallback? onDiscardLocalChanges;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final actionCallback = switch (status.action) {
+      _FileBindingStatusAction.acceptExternal => onAcceptExternalChange,
+      _FileBindingStatusAction.saveLocal => onSaveLocalChanges,
+      _FileBindingStatusAction.discardLocal => onDiscardLocalChanges,
+      _FileBindingStatusAction.unavailable => null,
+    };
+    final secondaryActionCallback = switch (status.secondaryAction) {
+      _FileBindingStatusAction.acceptExternal => onAcceptExternalChange,
+      _FileBindingStatusAction.saveLocal => onSaveLocalChanges,
+      _FileBindingStatusAction.discardLocal => onDiscardLocalChanges,
+      _FileBindingStatusAction.unavailable => null,
+      null => null,
+    };
     return Container(
       key: const ValueKey('editor-file-binding-status-banner'),
       width: double.infinity,
@@ -422,9 +767,17 @@ class _FileBindingStatusBanner extends StatelessWidget {
           ),
           OutlinedButton(
             key: const ValueKey('editor-file-binding-accept-external'),
-            onPressed: status.actionEnabled ? onAcceptExternalChange : null,
+            onPressed: status.actionEnabled ? actionCallback : null,
             child: Text(status.actionLabel),
           ),
+          if (status.secondaryActionLabel case final label?)
+            TextButton(
+              key: const ValueKey('editor-file-binding-secondary-action'),
+              onPressed: status.secondaryActionEnabled
+                  ? secondaryActionCallback
+                  : null,
+              child: Text(label),
+            ),
         ],
       ),
     );
@@ -466,6 +819,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   static const double _gutterWidth = 62;
   static const double _estimatedCharacterWidth = 8.4;
   static const double _estimatedLineHeight = 34;
+  static const int _maxRenderedPreviewLines = 400;
 
   late final FocusNode _focusNode;
   late final FocusNode _inlineRenameFocusNode;
@@ -905,6 +1259,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           return widget.controller.selectDefinitionAtSelection()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
+        case LogicalKeyboardKey.keyC:
+          return _copySelectionToClipboard()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
         case LogicalKeyboardKey.keyD:
           return widget.controller.duplicateLineOrSelection()
               ? KeyEventResult.handled
@@ -1066,6 +1424,15 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         }
         return KeyEventResult.ignored;
     }
+  }
+
+  bool _copySelectionToClipboard() {
+    final selectedSourceText = widget.controller.selectedSourceText;
+    if (selectedSourceText == null) {
+      return false;
+    }
+    Clipboard.setData(ClipboardData(text: selectedSourceText));
+    return true;
   }
 
   bool _isPlainTextCharacter(String? character) {
@@ -2282,6 +2649,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           renderPlan: widget.renderPlan,
                           lineStarts: lineStarts,
                           semanticBlocks: semanticBlocks,
+                          maxRenderedLineCount: _maxRenderedPreviewLines,
                           collapsedSemanticBlockKeys:
                               _collapsedSemanticBlockKeys,
                           onToggleSemanticBlock: _toggleSemanticBlock,
@@ -4859,8 +5227,7 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
     if (widget.viewportProfile.isMobile) {
       return KeyedSubtree(
         key: const ValueKey('language-pane-mobile'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
           children: [
             Wrap(
               spacing: 8,
@@ -4907,21 +5274,10 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
               ),
             ),
             const SizedBox(height: 12),
-            Expanded(
-              child: ListView(
-                children: [
-                  _InspectorCard(
-                    key: ValueKey(
-                      'language-mobile-section-${_selectedSection.name}',
-                    ),
-                    title: _selectedSection.label,
-                    child: _buildSectionContent(
-                      context,
-                      section: _selectedSection,
-                    ),
-                  ),
-                ],
-              ),
+            _InspectorCard(
+              key: ValueKey('language-mobile-section-${_selectedSection.name}'),
+              title: _selectedSection.label,
+              child: _buildSectionContent(context, section: _selectedSection),
             ),
           ],
         ),
@@ -5694,6 +6050,7 @@ List<Widget> _buildPreviewChildren(
   required EditorRenderPlan renderPlan,
   required List<int> lineStarts,
   required List<_SemanticLineBlock> semanticBlocks,
+  required int maxRenderedLineCount,
   required Set<String> collapsedSemanticBlockKeys,
   required ValueChanged<_SemanticLineBlock> onToggleSemanticBlock,
   required void Function(int lineIndex, TapDownDetails details) onTapLine,
@@ -5710,15 +6067,29 @@ List<Widget> _buildPreviewChildren(
   final activeLineIndex = document
       .positionForOffset(selection.extentOffset)
       .line;
-  var lineIndex = 0;
+  final renderedLineCount = document.lines.length < maxRenderedLineCount
+      ? document.lines.length
+      : maxRenderedLineCount;
+  final renderStartLine = _previewRenderStartLine(
+    totalLineCount: document.lines.length,
+    maxRenderedLineCount: maxRenderedLineCount,
+    activeLineIndex: activeLineIndex,
+  );
+  final renderEndLine = renderStartLine + renderedLineCount;
+  var lineIndex = renderStartLine;
 
-  while (lineIndex < document.lines.length) {
+  while (lineIndex < renderEndLine) {
     final block = blockByStart[lineIndex];
     if (block != null) {
       final collapsed = collapsedSemanticBlockKeys.contains(
         _semanticBlockKey(block),
       );
-      final visibleBlockEnd = collapsed ? block.startLine : block.endLine;
+      final visibleLimitEnd = renderEndLine - 1;
+      final visibleBlockEnd = collapsed
+          ? block.startLine
+          : block.endLine < visibleLimitEnd
+          ? block.endLine
+          : visibleLimitEnd;
       children.add(
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
@@ -5795,7 +6166,90 @@ List<Widget> _buildPreviewChildren(
     lineIndex += 1;
   }
 
+  if (renderedLineCount < document.lines.length) {
+    children.add(
+      _LargeDocumentPreviewTruncationBanner(
+        renderedLineCount: renderedLineCount,
+        totalLineCount: document.lines.length,
+        renderStartLine: renderStartLine,
+        renderEndLine: renderEndLine,
+        activeLineIndex: activeLineIndex,
+      ),
+    );
+  }
+
   return children;
+}
+
+int _previewRenderStartLine({
+  required int totalLineCount,
+  required int maxRenderedLineCount,
+  required int activeLineIndex,
+}) {
+  if (totalLineCount <= maxRenderedLineCount) {
+    return 0;
+  }
+  final maxStartLine = totalLineCount - maxRenderedLineCount;
+  var startLine = activeLineIndex - (maxRenderedLineCount ~/ 2);
+  if (startLine < 0) {
+    return 0;
+  }
+  if (startLine > maxStartLine) {
+    return maxStartLine;
+  }
+  return startLine;
+}
+
+class _LargeDocumentPreviewTruncationBanner extends StatelessWidget {
+  const _LargeDocumentPreviewTruncationBanner({
+    required this.renderedLineCount,
+    required this.totalLineCount,
+    required this.renderStartLine,
+    required this.renderEndLine,
+    required this.activeLineIndex,
+  });
+
+  final int renderedLineCount;
+  final int totalLineCount;
+  final int renderStartLine;
+  final int renderEndLine;
+  final int activeLineIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('source-large-document-truncation-banner'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Large document preview: rendering lines ${renderStartLine + 1}-$renderEndLine of $totalLineCount.',
+            style: theme.textTheme.bodySmall,
+          ),
+          if (activeLineIndex < renderStartLine ||
+              activeLineIndex >= renderEndLine) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Current caret line ${activeLineIndex + 1} is outside the rendered preview window.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 List<Widget> _buildLineWithInlineFeedback(
@@ -6004,6 +6458,7 @@ List<InlineSpan> _buildLineSpans(
               _sameRange(activeTokenRange, tokenRange),
           enableGlyphSubstitution:
               renderPlan.activeLayers.contains(EditorRenderLayer.decoration) &&
+              renderPlan.glyphSubstitutionEnabled &&
               !_selectionTouchesRange(selectionRange, caretOffset, tokenRange),
         ),
       );

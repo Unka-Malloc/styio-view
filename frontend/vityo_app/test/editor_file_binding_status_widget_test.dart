@@ -144,4 +144,66 @@ void main() {
       isNull,
     );
   });
+
+  testWidgets('editor surface renders unsaved changes save and discard actions', (
+    tester,
+  ) async {
+    var saved = false;
+    var discarded = false;
+    const document = DocumentState(
+      documentId: 'fixture://dirty',
+      text: 'value := 2\n',
+      revision: 2,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 800,
+            child: EditorSurface(
+              controller: EditorSessionController(
+                initialDocument: document,
+                languageService: const LocalStyioLanguageService(),
+              ),
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 800,
+              ),
+              fileBindingSnapshot: const DocumentResourceBindingSnapshot(
+                state: DocumentResourceBindingState.boundDirty,
+                resourceId: 'fixture://dirty',
+                document: document,
+                lastSavedRevision: 1,
+                lastSavedText: 'value := 1\n',
+              ),
+              onDiscardLocalChanges: () {
+                discarded = true;
+              },
+              onSaveLocalChanges: () {
+                saved = true;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Unsaved local changes'), findsOneWidget);
+    expect(find.text('Save changes'), findsOneWidget);
+    expect(find.text('Discard changes'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('editor-file-binding-accept-external')),
+    );
+    expect(saved, isTrue);
+
+    await tester.tap(
+      find.byKey(const ValueKey('editor-file-binding-secondary-action')),
+    );
+
+    expect(discarded, isTrue);
+  });
 }

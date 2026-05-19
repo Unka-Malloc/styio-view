@@ -70,6 +70,210 @@ void main() {
     expect(controller.canUndo, isFalse);
   });
 
+  test('searches document matches and navigates without undo history', () {
+    const text = 'Value value other VALUE';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(0),
+    );
+
+    final matches = controller.searchDocument('value');
+
+    expect(matches.map((match) => match.text), <String>[
+      'Value',
+      'value',
+      'VALUE',
+    ]);
+    expect(controller.searchDocument('value', caseSensitive: true), hasLength(1));
+    expect(
+      EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: 'whole-word.styio',
+          text: 'value valueCount next_value value',
+          revision: 0,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+      ).searchDocument('value', wholeWord: true).map((match) => match.text),
+      <String>['value', 'value'],
+    );
+    expect(controller.selectNextSearchMatch('value'), isTrue);
+    expect(controller.selection.start, 0);
+    expect(controller.selection.end, 5);
+    expect(controller.selectNextSearchMatch('value'), isTrue);
+    expect(controller.selection.start, 6);
+    expect(controller.selection.end, 11);
+    expect(controller.selectPreviousSearchMatch('value'), isTrue);
+    expect(controller.selection.start, 0);
+    expect(controller.canUndo, isFalse);
+  });
+
+  test('glyph substitution remains display-only over source operations', () {
+    const text = 'value |> transform\nvalue -> @stdout\n';
+    final arrowStart = text.indexOf('->');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'glyph.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(
+        baseOffset: arrowStart,
+        extentOffset: arrowStart + 2,
+      ),
+    );
+
+    expect(controller.glyphSubstitutionEnabled, isTrue);
+    expect(controller.selectedSourceText, '->');
+    expect(controller.searchDocument('|>').single.range.start, text.indexOf('|>'));
+    expect(controller.searchDocument('->').single.range.start, arrowStart);
+
+    controller.toggleGlyphSubstitution();
+
+    expect(controller.glyphSubstitutionEnabled, isFalse);
+    expect(controller.document.text, text);
+    expect(controller.document.revision, 0);
+    expect(controller.canUndo, isFalse);
+    expect(controller.selectedSourceText, '->');
+
+    const diagnosticText = 'value -> @stdout\n}\n';
+    final diagnosticController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'glyph-diagnostic.styio',
+        text: diagnosticText,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+    final diagnostic = diagnosticController.analysis.diagnostics.singleWhere(
+      (diagnostic) => diagnostic.code == 'unexpected-closing-brace',
+    );
+
+    expect(
+      diagnosticController.searchDocument('->').single.range.start,
+      diagnosticText.indexOf('->'),
+    );
+    expect(diagnostic.range.start, diagnosticText.indexOf('}'));
+    expect(diagnosticController.selectDiagnostic(diagnostic), isTrue);
+    expect(diagnosticController.selection.start, diagnosticText.indexOf('}'));
+  });
+
+  test('searches document with regex and ignores invalid patterns', () {
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: 'value1 value22 value_count',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+
+    final matches = controller.searchDocument(r'value\d+', useRegex: true);
+
+    expect(matches.map((match) => match.text), <String>[
+      'value1',
+      'value22',
+    ]);
+    expect(controller.searchDocument(r'value[', useRegex: true), isEmpty);
+    expect(
+      controller.replaceAllSearchMatches(
+        r'value\d+',
+        'item',
+        useRegex: true,
+      ),
+      2,
+    );
+    expect(controller.document.text, 'item item value_count');
+  });
+
+  test('replaces only the selected search match', () {
+    const text = 'Value value other';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(0),
+    );
+
+    expect(controller.replaceSelectedSearchMatch('value', 'next'), isFalse);
+    expect(controller.selectNextSearchMatch('value'), isTrue);
+    expect(controller.replaceSelectedSearchMatch('value', 'next'), isTrue);
+    expect(controller.document.text, 'next value other');
+    expect(controller.canUndo, isTrue);
+    expect(controller.replaceSelectedSearchMatch('value', 'ignored'), isFalse);
+
+    controller.undo();
+    expect(controller.document.text, text);
+    expect(controller.selectNextSearchMatch('value'), isTrue);
+    expect(
+      controller.replaceSelectedSearchMatch(
+        'value',
+        'strict',
+        caseSensitive: true,
+      ),
+      isTrue,
+    );
+    expect(controller.document.text, 'Value strict other');
+  });
+
+  test('replaces all search matches as one undoable edit batch', () {
+    const text = 'Value value other VALUE';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+
+    final replaced = controller.replaceAllSearchMatches('value', 'next');
+
+    expect(replaced, 3);
+    expect(controller.document.text, 'next next other next');
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, text);
+    expect(
+      controller.replaceAllSearchMatches(
+        'value',
+        'strict',
+        caseSensitive: true,
+      ),
+      1,
+    );
+    expect(controller.document.text, 'Value strict other VALUE');
+  });
+
+  test('replace all supports whole-word search matches', () {
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: 'value valueCount next_value value',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+
+    final replaced = controller.replaceAllSearchMatches(
+      'value',
+      'item',
+      wholeWord: true,
+    );
+
+    expect(replaced, 2);
+    expect(controller.document.text, 'item valueCount next_value item');
+  });
+
   test('extends selection to smart line start', () {
     const text = 'fn main() {\n  value = 1\n}\n';
     final valueStart = text.indexOf('value');
@@ -1120,6 +1324,25 @@ value = blend(left: )
     ]);
 
     expect(controller.document.text, 'aYdQ');
+  });
+
+  test('keeps formatting edits deterministic for same-offset inserts', () {
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: 'abcdef',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+
+    controller.applyFormattingEdits(const <FormattingEdit>[
+      FormattingEdit(range: SourceRange(start: 0, end: 0), newText: 'first-'),
+      FormattingEdit(range: SourceRange(start: 0, end: 0), newText: 'second-'),
+      FormattingEdit(range: SourceRange(start: 3, end: 3), newText: '-mid-'),
+    ]);
+
+    expect(controller.document.text, 'first-abc-mid-def');
   });
 
   test('applies diagnostic quick fix returned by the language service', () {
@@ -2662,6 +2885,42 @@ value -> @stdout
     expect(selected, isTrue);
     expect(controller.selection.start, 0);
     expect(controller.selection.end, text.indexOf('\n'));
+    expect(controller.canUndo, isFalse);
+    expect(controller.document.text, text);
+  });
+
+  test('applies external execution diagnostics to editor navigation', () {
+    const text = 'value = 1\nvalue\n';
+    final diagnosticStart = text.lastIndexOf('value');
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+
+    controller.applyExternalDiagnostics([
+      Diagnostic(
+        severity: DiagnosticSeverity.error,
+        code: 'execution.compile',
+        message: 'Compiler rejected the active run unit.',
+        range: SourceRange(
+          start: diagnosticStart,
+          end: diagnosticStart + 'value'.length,
+        ),
+      ),
+    ]);
+
+    expect(
+      controller.analysis.diagnostics.any(
+        (diagnostic) => diagnostic.code == 'execution.compile',
+      ),
+      isTrue,
+    );
+    expect(controller.selectNextDiagnosticAtSelection(), isTrue);
+    expect(controller.selection.start, diagnosticStart);
     expect(controller.canUndo, isFalse);
     expect(controller.document.text, text);
   });

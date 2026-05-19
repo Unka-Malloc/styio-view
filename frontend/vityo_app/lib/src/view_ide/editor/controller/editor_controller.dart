@@ -1,11 +1,24 @@
 import 'package:flutter/foundation.dart';
 
 import '../../language/language_contract.dart';
+import '../../language/service/language_service_foundation.dart';
 import '../../language/styio_language_service.dart';
 import '../document/document_state.dart';
 import '../render_plan/editor_render_layers.dart';
 import '../selection/selection_state.dart';
 import '../session/editor_session_data_store.dart';
+
+class EditorSearchMatch {
+  const EditorSearchMatch({
+    required this.index,
+    required this.range,
+    required this.text,
+  });
+
+  final int index;
+  final SourceRange range;
+  final String text;
+}
 
 class EditorSessionController extends ChangeNotifier {
   EditorSessionController({
@@ -27,12 +40,32 @@ class EditorSessionController extends ChangeNotifier {
   DocumentState _document;
   final StyioLanguageService _languageService;
   SelectionState _selection;
-  final EditorRenderPlan _renderPlan;
+  EditorRenderPlan _renderPlan;
   StyioDocumentAnalysis _analysis;
 
   DocumentState get document => _document;
   SelectionState get selection => _selection;
   EditorRenderPlan get renderPlan => _renderPlan;
+  bool get glyphSubstitutionEnabled => _renderPlan.glyphSubstitutionEnabled;
+  String? get selectedSourceText {
+    if (_selection.isCollapsed) {
+      return null;
+    }
+    return _document.text.substring(_selection.start, _selection.end);
+  }
+
+  void setGlyphSubstitutionEnabled(bool enabled) {
+    if (_renderPlan.glyphSubstitutionEnabled == enabled) {
+      return;
+    }
+    _renderPlan = _renderPlan.copyWith(glyphSubstitutionEnabled: enabled);
+    notifyListeners();
+  }
+
+  void toggleGlyphSubstitution() {
+    setGlyphSubstitutionEnabled(!_renderPlan.glyphSubstitutionEnabled);
+  }
+
   StyioDocumentAnalysis get analysis => _analysis;
   int get inspectionOffset =>
       selection.isCollapsed ? selection.end : selection.start;
@@ -52,6 +85,10 @@ class EditorSessionController extends ChangeNotifier {
       _languageService.definitionAt(_document, inspectionOffset);
   List<ReferenceSpan> get referencesAtSelection =>
       _languageService.referencesAt(_document, inspectionOffset);
+  ResolvedElement? get resolvedElementAtSelection =>
+      _languageService.resolvedElementAt(_document, inspectionOffset);
+  ResolvedReference? get resolvedReferenceAtSelection =>
+      _languageService.resolvedReferenceAt(_document, inspectionOffset);
   RenamePlan? renamePlanAtSelection(String newName) =>
       _languageService.renameAt(_document, inspectionOffset, newName);
   SafeDeletePlan? get safeDeletePlanAtSelection =>
@@ -92,6 +129,7 @@ class EditorSessionController extends ChangeNotifier {
 
   ParameterInfoPayload? get parameterInfoAtSelection =>
       _languageService.parameterInfoAt(_document, inspectionOffset);
+  List<Diagnostic> get diagnostics => _analysis.diagnostics;
   TokenSpan? get tokenAtSelection => _tokenAroundOffset(inspectionOffset);
   SemanticKind? get semanticKindAtSelection {
     final token = tokenAtSelection;
@@ -190,6 +228,205 @@ class EditorSessionController extends ChangeNotifier {
     return actions;
   }
 
+  List<EditorSearchMatch> searchDocument(
+    String query, {
+    bool caseSensitive = false,
+    bool wholeWord = false,
+    bool useRegex = false,
+  }) {
+    if (query.isEmpty) {
+      return const <EditorSearchMatch>[];
+    }
+    if (useRegex) {
+      return _regexSearchDocument(
+        query,
+        caseSensitive: caseSensitive,
+        wholeWord: wholeWord,
+      );
+    }
+    final source = _document.text;
+    final haystack = caseSensitive ? source : source.toLowerCase();
+    final needle = caseSensitive ? query : query.toLowerCase();
+    final matches = <EditorSearchMatch>[];
+    var offset = 0;
+    while (offset <= haystack.length - needle.length) {
+      final index = haystack.indexOf(needle, offset);
+      if (index < 0) {
+        break;
+      }
+      final end = index + needle.length;
+      if (!wholeWord || _isWholeWordSearchMatch(source, index, end)) {
+        matches.add(
+          EditorSearchMatch(
+            index: matches.length,
+            range: SourceRange(start: index, end: end),
+            text: source.substring(index, end),
+          ),
+        );
+      }
+      offset = end;
+    }
+    return List.unmodifiable(matches);
+  }
+
+  bool selectNextSearchMatch(
+    String query, {
+    bool caseSensitive = false,
+    bool wholeWord = false,
+    bool useRegex = false,
+  }) {
+    final matches = searchDocument(
+      query,
+      caseSensitive: caseSensitive,
+      wholeWord: wholeWord,
+      useRegex: useRegex,
+    );
+    if (matches.isEmpty) {
+      return false;
+    }
+    final startOffset = selection.end;
+    final match = matches.firstWhere(
+      (candidate) => candidate.range.start >= startOffset,
+      orElse: () => matches.first,
+    );
+    selectRange(baseOffset: match.range.start, extentOffset: match.range.end);
+    return true;
+  }
+
+  bool selectPreviousSearchMatch(
+    String query, {
+    bool caseSensitive = false,
+    bool wholeWord = false,
+    bool useRegex = false,
+  }) {
+    final matches = searchDocument(
+      query,
+      caseSensitive: caseSensitive,
+      wholeWord: wholeWord,
+      useRegex: useRegex,
+    );
+    if (matches.isEmpty) {
+      return false;
+    }
+    final startOffset = selection.start;
+    EditorSearchMatch? match;
+    for (final candidate in matches.reversed) {
+      if (candidate.range.end <= startOffset) {
+        match = candidate;
+        break;
+      }
+    }
+    match ??= matches.last;
+    selectRange(baseOffset: match.range.start, extentOffset: match.range.end);
+    return true;
+  }
+
+  bool replaceSelectedSearchMatch(
+    String query,
+    String replacement, {
+    bool caseSensitive = false,
+    bool wholeWord = false,
+    bool useRegex = false,
+  }) {
+    if (query.isEmpty || selection.isCollapsed) {
+      return false;
+    }
+    if (useRegex) {
+      final selectionMatches =
+          searchDocument(
+            query,
+            caseSensitive: caseSensitive,
+            wholeWord: wholeWord,
+            useRegex: true,
+          ).any(
+            (match) =>
+                match.range.start == selection.start &&
+                match.range.end == selection.end,
+          );
+      if (!selectionMatches) {
+        return false;
+      }
+      insertText(replacement);
+      return true;
+    }
+    final selectedText = _document.text.substring(
+      selection.start,
+      selection.end,
+    );
+    final matches = caseSensitive
+        ? selectedText == query
+        : selectedText.toLowerCase() == query.toLowerCase();
+    if (!matches ||
+        (wholeWord &&
+            !_isWholeWordSearchMatch(
+              _document.text,
+              selection.start,
+              selection.end,
+            )) ||
+        selectedText == replacement) {
+      return false;
+    }
+    insertText(replacement);
+    return true;
+  }
+
+  int replaceAllSearchMatches(
+    String query,
+    String replacement, {
+    bool caseSensitive = false,
+    bool wholeWord = false,
+    bool useRegex = false,
+  }) {
+    final matches = searchDocument(
+      query,
+      caseSensitive: caseSensitive,
+      wholeWord: wholeWord,
+      useRegex: useRegex,
+    );
+    final edits = <FormattingEdit>[
+      for (final match in matches)
+        if (match.text != replacement)
+          FormattingEdit(range: match.range, newText: replacement),
+    ];
+    if (edits.isEmpty) {
+      return 0;
+    }
+    applyFormattingEdits(edits);
+    return edits.length;
+  }
+
+  List<EditorSearchMatch> _regexSearchDocument(
+    String pattern, {
+    required bool caseSensitive,
+    required bool wholeWord,
+  }) {
+    late final RegExp expression;
+    try {
+      expression = RegExp(pattern, caseSensitive: caseSensitive);
+    } on FormatException {
+      return const <EditorSearchMatch>[];
+    }
+    final source = _document.text;
+    final matches = <EditorSearchMatch>[];
+    for (final match in expression.allMatches(source)) {
+      if (match.start == match.end) {
+        continue;
+      }
+      if (wholeWord &&
+          !_isWholeWordSearchMatch(source, match.start, match.end)) {
+        continue;
+      }
+      matches.add(
+        EditorSearchMatch(
+          index: matches.length,
+          range: SourceRange(start: match.start, end: match.end),
+          text: match.group(0) ?? source.substring(match.start, match.end),
+        ),
+      );
+    }
+    return List.unmodifiable(matches);
+  }
+
   bool get canUndo => _undoStack.isNotEmpty;
   bool get canRedo => _redoStack.isNotEmpty;
   bool get shouldIndentLineAtSelection =>
@@ -198,15 +435,19 @@ class EditorSessionController extends ChangeNotifier {
   EditorSessionSnapshot toSessionSnapshot({
     List<String>? openDocumentIds,
     List<String>? dirtyDocumentIds,
+    Map<String, int>? cursorOffsets,
+    Map<String, int>? selectionAnchors,
   }) {
     return EditorSessionSnapshot(
       activeDocumentId: _document.documentId,
       openDocumentIds: openDocumentIds ?? <String>[_document.documentId],
       dirtyDocumentIds: dirtyDocumentIds ?? const <String>[],
       cursorOffsets: <String, int>{
+        ...?cursorOffsets,
         _document.documentId: _selection.extentOffset,
       },
       selectionAnchors: <String, int>{
+        ...?selectionAnchors,
         _document.documentId: _selection.baseOffset,
       },
     );
@@ -224,6 +465,34 @@ class EditorSessionController extends ChangeNotifier {
 
   void refreshAnalysis() {
     _refreshAnalysis();
+    notifyListeners();
+  }
+
+  void applyExternalDiagnostics(Iterable<Diagnostic> diagnostics) {
+    final externalDiagnostics = diagnostics
+        .where(
+          (diagnostic) =>
+              diagnostic.range.start >= 0 &&
+              diagnostic.range.end >= diagnostic.range.start &&
+              diagnostic.range.end <= _document.length,
+        )
+        .toList(growable: false);
+    if (externalDiagnostics.isEmpty) {
+      return;
+    }
+    _analysis = StyioDocumentAnalysis(
+      tokenSpans: _analysis.tokenSpans,
+      semanticSpans: _analysis.semanticSpans,
+      diagnostics: _dedupeDiagnostics(<Diagnostic>[
+        ..._analysis.diagnostics,
+        ...externalDiagnostics,
+      ]),
+      formattingEdits: _analysis.formattingEdits,
+      semanticBlocks: _analysis.semanticBlocks,
+      inlayHints: _analysis.inlayHints,
+      documentSymbols: _analysis.documentSymbols,
+      referenceSpans: _analysis.referenceSpans,
+    );
     notifyListeners();
   }
 
@@ -1028,7 +1297,6 @@ class EditorSessionController extends ChangeNotifier {
       baseOffset: range.start,
       extentOffset: range.end,
     );
-    _refreshAnalysis();
     notifyListeners();
     return true;
   }
@@ -1045,7 +1313,6 @@ class EditorSessionController extends ChangeNotifier {
       baseOffset: range.start,
       extentOffset: range.end,
     );
-    _refreshAnalysis();
     notifyListeners();
     return true;
   }
@@ -1411,6 +1678,22 @@ class EditorSessionController extends ChangeNotifier {
 
   void _refreshAnalysis() {
     _analysis = _languageService.analyzeDocument(_document);
+  }
+
+  List<Diagnostic> _dedupeDiagnostics(Iterable<Diagnostic> diagnostics) {
+    final deduped = <Diagnostic>[];
+    final seen = <String>{};
+    for (final diagnostic in diagnostics) {
+      final key =
+          '${diagnostic.code}:'
+          '${diagnostic.range.start}:'
+          '${diagnostic.range.end}:'
+          '${diagnostic.message}';
+      if (seen.add(key)) {
+        deduped.add(diagnostic);
+      }
+    }
+    return deduped;
   }
 
   SourceRange _completionReplacementRange() {
@@ -2199,6 +2482,22 @@ fn inspectCloudSession() {
       revision: 0,
     );
   }
+}
+
+bool _isWholeWordSearchMatch(String source, int start, int end) {
+  final before = start <= 0 ? null : source.codeUnitAt(start - 1);
+  final after = end >= source.length ? null : source.codeUnitAt(end);
+  return !_isSearchWordCharacter(before) && !_isSearchWordCharacter(after);
+}
+
+bool _isSearchWordCharacter(int? codeUnit) {
+  if (codeUnit == null) {
+    return false;
+  }
+  return (codeUnit >= 48 && codeUnit <= 57) ||
+      (codeUnit >= 65 && codeUnit <= 90) ||
+      (codeUnit >= 97 && codeUnit <= 122) ||
+      codeUnit == 95;
 }
 
 class _EditorSnapshot {

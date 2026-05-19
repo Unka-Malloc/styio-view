@@ -39,20 +39,34 @@ class LocalStyioLanguageService implements StyioLanguageService {
 
   @override
   StyioDocumentAnalysis analyzeDocument(DocumentState document) {
-    final snapshot = snapshotBuilder.build(document);
+    final snapshot = _safeSnapshot(document);
+    final tokens = snapshot?.tokens ?? _safeTokenize(document);
     return StyioDocumentAnalysis(
-      tokenSpans: snapshot.tokens,
-      semanticSpans: semanticTokenFeature.semanticSpans(snapshot: snapshot),
-      diagnostics: _diagnostics(document),
-      formattingEdits: formatDocument(document),
-      semanticBlocks: _semanticBlocks(snapshot),
-      inlayHints: inlayHints(document),
-      documentSymbols: snapshot.elements
-          .map(_documentSymbol)
-          .toList(growable: false),
-      referenceSpans: snapshot.references
-          .map(_referenceSpan)
-          .toList(growable: false),
+      tokenSpans: tokens,
+      semanticSpans: snapshot == null
+          ? const <SemanticSpan>[]
+          : _safeList(
+              () => semanticTokenFeature.semanticSpans(snapshot: snapshot),
+            ),
+      diagnostics: _safeList(() => _diagnostics(document, tokens)),
+      formattingEdits: _safeList(() => formattingFeature.formatDocument(document)),
+      semanticBlocks: snapshot == null
+          ? const <SemanticBlockRange>[]
+          : _semanticBlocks(snapshot),
+      inlayHints: snapshot == null
+          ? const <InlayHint>[]
+          : _safeList(
+              () => inlayHintFeature.inlayHints(
+                document: document,
+                snapshot: snapshot,
+              ),
+            ),
+      documentSymbols: snapshot == null
+          ? const <DocumentSymbol>[]
+          : snapshot.elements.map(_documentSymbol).toList(growable: false),
+      referenceSpans: snapshot == null
+          ? const <ReferenceSpan>[]
+          : snapshot.references.map(_referenceSpan).toList(growable: false),
     );
   }
 
@@ -239,11 +253,39 @@ class LocalStyioLanguageService implements StyioLanguageService {
     );
   }
 
-  List<Diagnostic> _diagnostics(DocumentState document) {
-    final tokens = snapshotBuilder.syntaxHighlighter.tokenize(document.text);
+  SemanticSnapshot? _safeSnapshot(DocumentState document) {
+    try {
+      return snapshotBuilder.build(document);
+    } on Object {
+      return null;
+    }
+  }
+
+  List<TokenSpan> _safeTokenize(DocumentState document) {
+    try {
+      return snapshotBuilder.syntaxHighlighter.tokenize(document.text);
+    } on Object {
+      return const <TokenSpan>[];
+    }
+  }
+
+  List<T> _safeList<T>(List<T> Function() create) {
+    try {
+      return create();
+    } on Object {
+      return <T>[];
+    }
+  }
+
+  List<Diagnostic> _diagnostics(
+    DocumentState document, [
+    List<TokenSpan>? tokens,
+  ]) {
+    final tokenSpans =
+        tokens ?? snapshotBuilder.syntaxHighlighter.tokenize(document.text);
     return syntaxDiagnosticFeature.diagnosticsFor(
       document: document,
-      tokens: tokens,
+      tokens: tokenSpans,
     );
   }
 
@@ -252,11 +294,66 @@ class LocalStyioLanguageService implements StyioLanguageService {
         .where((element) => element.kind == ResolvedElementKind.function)
         .map(
           (element) => SemanticBlockRange(
-            range: element.declarationRange,
+            range: _semanticBlockRangeForElement(snapshot, element),
             label: element.name,
           ),
         )
         .toList(growable: false);
+  }
+
+  SourceRange _semanticBlockRangeForElement(
+    SemanticSnapshot snapshot,
+    ResolvedElement element,
+  ) {
+    final openingBraceIndex = _matchingTokenIndex(
+      snapshot.tokens,
+      startOffset: element.declarationRange.start,
+      lexeme: '{',
+    );
+    if (openingBraceIndex == null) {
+      return element.declarationRange;
+    }
+
+    var depth = 0;
+    for (var index = openingBraceIndex; index < snapshot.tokens.length; index += 1) {
+      final token = snapshot.tokens[index];
+      if (token.lexeme == '{') {
+        depth += 1;
+        continue;
+      }
+      if (token.lexeme != '}') {
+        continue;
+      }
+      depth -= 1;
+      if (depth == 0) {
+        return SourceRange(
+          start: element.declarationRange.start,
+          end: token.range.end,
+        );
+      }
+    }
+
+    return element.declarationRange;
+  }
+
+  int? _matchingTokenIndex(
+    List<TokenSpan> tokens, {
+    required int startOffset,
+    required String lexeme,
+  }) {
+    for (var index = 0; index < tokens.length; index += 1) {
+      final token = tokens[index];
+      if (token.range.start < startOffset) {
+        continue;
+      }
+      if (token.lexeme == lexeme) {
+        return index;
+      }
+      if (token.lexeme == '\n' || token.range.start > startOffset + 4096) {
+        return null;
+      }
+    }
+    return null;
   }
 
   DocumentSymbol _documentSymbol(ResolvedElement element) {

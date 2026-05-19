@@ -5,6 +5,7 @@ import '../editor/selection_state.dart';
 import '../interaction/language_service_status_surface.dart';
 import '../language/language_contract.dart';
 import '../language/service/language_service_foundation.dart';
+import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_manager.dart';
 import 'agent_coding_skill.dart';
@@ -116,7 +117,7 @@ class AgentSessionContext {
       lastSearch: lastWorkspaceSearch,
     );
     return AgentSessionContext(
-      schemaVersion: 38,
+      schemaVersion: 39,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -876,6 +877,7 @@ class AgentToolchainContext {
   const AgentToolchainContext({
     required this.entries,
     required this.activeCompiler,
+    this.clangCpp,
   });
 
   factory AgentToolchainContext.fromSnapshot(
@@ -898,11 +900,13 @@ class AgentToolchainContext {
       activeCompiler: activeCompiler == null
           ? null
           : AgentToolchainEntryContext.fromStateEntry(activeCompiler),
+      clangCpp: AgentClangCppToolchainContext.fromSnapshot(snapshot),
     );
   }
 
   final List<AgentToolchainEntryContext> entries;
   final AgentToolchainEntryContext? activeCompiler;
+  final AgentClangCppToolchainContext? clangCpp;
 
   int get entryCount => entries.length;
   bool get hasNativeCompiler =>
@@ -917,7 +921,60 @@ class AgentToolchainContext {
       'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
       'hasNativeCompiler': hasNativeCompiler,
       if (activeCompiler != null) 'activeCompiler': activeCompiler!.toJson(),
+      if (clangCpp != null) 'clangCpp': clangCpp!.toJson(),
       'nativeTools': nativeTools.toJson(),
+    };
+  }
+}
+
+class AgentClangCppToolchainContext {
+  const AgentClangCppToolchainContext({
+    required this.candidates,
+    required this.defaultCppStandard,
+    required this.cmakeAvailable,
+    required this.ninjaAvailable,
+    this.activeVersionId,
+    this.selection,
+  });
+
+  static AgentClangCppToolchainContext? fromSnapshot(
+    ToolchainStateSnapshot snapshot,
+  ) {
+    final manager = ClangCppVersionManager.fromSnapshot(snapshot);
+    if (!manager.hasCandidates) {
+      return null;
+    }
+    return AgentClangCppToolchainContext(
+      candidates: manager.candidates,
+      activeVersionId: manager.activeVersionId,
+      defaultCppStandard: manager.defaultCppStandard,
+      cmakeAvailable: manager.cmakeAvailable,
+      ninjaAvailable: manager.ninjaAvailable,
+      selection: manager.select(),
+    );
+  }
+
+  final List<ClangCppVersionCandidate> candidates;
+  final String? activeVersionId;
+  final CppLanguageStandard defaultCppStandard;
+  final bool cmakeAvailable;
+  final bool ninjaAvailable;
+  final ClangCppVersionSelection? selection;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'candidateCount': candidates.length,
+      'candidates': candidates
+          .map((candidate) => candidate.toManifest())
+          .toList(growable: false),
+      if (activeVersionId != null) 'activeVersionId': activeVersionId,
+      'defaultCppStandard': <String, Object?>{
+        'cmakeValue': defaultCppStandard.cmakeValue,
+        'compilerFlag': defaultCppStandard.compilerFlag,
+      },
+      'cmakeAvailable': cmakeAvailable,
+      'ninjaAvailable': ninjaAvailable,
+      if (selection != null) 'selection': selection!.toManifest(),
     };
   }
 }

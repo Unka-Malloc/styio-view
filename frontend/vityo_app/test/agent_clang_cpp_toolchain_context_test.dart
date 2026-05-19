@@ -1,0 +1,77 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/agent/agent_context.dart';
+import 'package:vityo_app/src/editor/document_state.dart';
+import 'package:vityo_app/src/editor/selection_state.dart';
+import 'package:vityo_app/src/language/language_contract.dart';
+import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
+
+void main() {
+  test('agent context exposes Clang C++ version manager handoff facts', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: '/workspace/demo/main.cc',
+        text: 'int main() { return 0; }\n',
+        revision: 1,
+      ),
+      selection: const SelectionState(baseOffset: 0, extentOffset: 0),
+      diagnostics: const <Diagnostic>[],
+      toolchainSnapshot: const ToolchainStateSnapshot(
+        targetId: 'agent-clang-cpp-toolchains',
+        entries: <ToolchainStateEntry>[
+          ToolchainStateEntry(
+            id: 'native-clang-cpp-compiler',
+            kind: ToolchainKind.compiler,
+            displayName: 'Clang C/C++ Compiler',
+            executablePath: '/usr/bin/clang++',
+            active: true,
+            version: '18.1.8',
+            metadata: <String, Object?>{
+              'compilerFamily': 'clang',
+              'cCompilerPath': '/usr/bin/clang',
+              'cxxCompilerPath': '/usr/bin/clang++',
+              'defaultForNativeCode': true,
+            },
+          ),
+          ToolchainStateEntry(
+            id: 'native-cmake-build-tool',
+            kind: ToolchainKind.buildTool,
+            displayName: 'CMake Build System',
+            executablePath: '/usr/bin/cmake',
+            active: false,
+            metadata: <String, Object?>{'toolFamily': 'cmake'},
+          ),
+          ToolchainStateEntry(
+            id: 'native-ninja-build-tool',
+            kind: ToolchainKind.buildTool,
+            displayName: 'Ninja Build Tool',
+            executablePath: '/usr/bin/ninja',
+            active: false,
+            metadata: <String, Object?>{'toolFamily': 'ninja'},
+          ),
+        ],
+      ),
+    );
+
+    final json = context.toJson();
+    final toolchainsJson = json['toolchains']! as Map<String, Object?>;
+    final clangCppJson = toolchainsJson['clangCpp']! as Map<String, Object?>;
+    final selectionJson = clangCppJson['selection']! as Map<String, Object?>;
+
+    expect(clangCppJson['candidateCount'], 1);
+    expect(clangCppJson['activeVersionId'], 'native-clang-cpp-compiler');
+    expect(clangCppJson['cmakeAvailable'], isTrue);
+    expect(clangCppJson['ninjaAvailable'], isTrue);
+    expect(selectionJson['cmakeConfigureArguments'], <String>[
+      '-DCMAKE_C_COMPILER=/usr/bin/clang',
+      '-DCMAKE_CXX_COMPILER=/usr/bin/clang++',
+      '-DCMAKE_CXX_STANDARD=20',
+      '-DCMAKE_CXX_STANDARD_REQUIRED=ON',
+      '-DCMAKE_CXX_EXTENSIONS=OFF',
+    ]);
+    expect(selectionJson['ninjaEnvironment'], <String, String>{
+      'CC': '/usr/bin/clang',
+      'CXX': '/usr/bin/clang++',
+      'CXXFLAGS': '-std=c++20',
+    });
+  });
+}

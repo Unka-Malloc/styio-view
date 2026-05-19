@@ -186,7 +186,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      38,
+      39,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -519,6 +519,7 @@ void main() {
         systemMessage['content'],
         contains('workspace.buildFacts.toolingHints'),
       );
+      expect(systemMessage['content'], contains('toolchains.clangCpp'));
       expect(
         systemMessage['content'],
         contains('Do not patch inactive dirty documents'),
@@ -617,7 +618,7 @@ void main() {
       expect(systemMessage['content'], contains('toolchains.nativeTools'));
       expect(systemMessage['content'], contains('skills.activeSkillIds'));
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 38);
+      expect(metadata['contextSchemaVersion'], 39);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

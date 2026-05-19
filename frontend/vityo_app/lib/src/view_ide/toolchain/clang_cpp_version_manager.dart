@@ -1,4 +1,5 @@
 import 'toolchain_catalog.dart';
+import 'toolchain_manager.dart';
 
 enum CppLanguageStandard {
   cpp14(cmakeValue: '14', compilerFlag: '-std=c++14'),
@@ -163,6 +164,40 @@ class ClangCppVersionManager {
     );
   }
 
+  factory ClangCppVersionManager.fromSnapshot(
+    ToolchainStateSnapshot? snapshot, {
+    CppLanguageStandard defaultCppStandard = CppLanguageStandard.cpp20,
+  }) {
+    if (snapshot == null) {
+      return ClangCppVersionManager(
+        candidates: const <ClangCppVersionCandidate>[],
+        activeVersionId: null,
+        cmakeAvailable: false,
+        ninjaAvailable: false,
+        defaultCppStandard: defaultCppStandard,
+      );
+    }
+    final candidates = snapshot
+        .list(kind: ToolchainKind.compiler)
+        .map(_descriptorFromStateEntry)
+        .map(ClangCppVersionCandidate.fromDescriptor)
+        .whereType<ClangCppVersionCandidate>()
+        .toList(growable: false);
+    final activeEntry = snapshot.active(ToolchainKind.compiler);
+    final activeCandidate = activeEntry == null
+        ? null
+        : ClangCppVersionCandidate.fromDescriptor(
+            _descriptorFromStateEntry(activeEntry),
+          );
+    return ClangCppVersionManager(
+      candidates: candidates,
+      activeVersionId: activeCandidate?.versionId,
+      cmakeAvailable: _snapshotHasBuildTool(snapshot, 'cmake'),
+      ninjaAvailable: _snapshotHasBuildTool(snapshot, 'ninja'),
+      defaultCppStandard: defaultCppStandard,
+    );
+  }
+
   final List<ClangCppVersionCandidate> candidates;
   final String? activeVersionId;
   final bool cmakeAvailable;
@@ -222,6 +257,27 @@ class ClangCppVersionManager {
       return _stringValue(descriptor.metadata['toolFamily']) == toolFamily;
     });
   }
+
+  static bool _snapshotHasBuildTool(
+    ToolchainStateSnapshot snapshot,
+    String toolFamily,
+  ) {
+    return snapshot.list(kind: ToolchainKind.buildTool).any((entry) {
+      return _stringValue(entry.metadata['toolFamily']) == toolFamily;
+    });
+  }
+}
+
+ToolchainDescriptor _descriptorFromStateEntry(ToolchainStateEntry entry) {
+  return ToolchainDescriptor(
+    id: entry.id,
+    kind: entry.kind,
+    displayName: entry.displayName,
+    executablePath: entry.executablePath,
+    version: entry.version,
+    channel: entry.channel,
+    metadata: entry.metadata,
+  );
 }
 
 String? _stringValue(Object? value) {

@@ -1736,6 +1736,7 @@ void main() {
         'CMakePresets.json',
         'CMakeUserPresets.json',
         'build/compile_commands.json',
+        'build/build.ninja',
         'build/CTestTestfile.cmake',
         '.clangd',
         '.clang-format',
@@ -1762,6 +1763,8 @@ void main() {
     expect(buildFacts['cmakeUserPresetPaths'], <String>[
       'CMakeUserPresets.json',
     ]);
+    expect(buildFacts['hasNinjaBuild'], isTrue);
+    expect(buildFacts['ninjaBuildPaths'], <String>['build/build.ninja']);
     expect(buildFacts['hasClangdConfig'], isTrue);
     expect(buildFacts['clangdConfigPaths'], <String>['.clangd']);
     expect(buildFacts['hasClangFormatConfig'], isTrue);
@@ -1777,6 +1780,7 @@ void main() {
       'cmake',
       'cmake-presets',
       'cmake-user-presets',
+      'ninja',
       'clangd',
     ]);
     expect(buildFacts['toolingHints'], <String>[
@@ -1784,6 +1788,7 @@ void main() {
       'cmake',
       'cmake-presets',
       'cmake-user-presets',
+      'ninja',
       'clangd',
       'clang-format',
       'clang-tidy',

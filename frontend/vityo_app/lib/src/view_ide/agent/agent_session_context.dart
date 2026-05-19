@@ -3546,6 +3546,8 @@ class AgentWorkspaceBuildFactsContext {
     required this.cmakePresetPaths,
     required this.hasCMakeUserPresets,
     required this.cmakeUserPresetPaths,
+    required this.hasNinjaBuild,
+    required this.ninjaBuildPaths,
     required this.hasClangdConfig,
     required this.clangdConfigPaths,
     required this.hasClangFormatConfig,
@@ -3567,6 +3569,8 @@ class AgentWorkspaceBuildFactsContext {
   final List<String> cmakePresetPaths;
   final bool hasCMakeUserPresets;
   final List<String> cmakeUserPresetPaths;
+  final bool hasNinjaBuild;
+  final List<String> ninjaBuildPaths;
   final bool hasClangdConfig;
   final List<String> clangdConfigPaths;
   final bool hasClangFormatConfig;
@@ -3606,6 +3610,11 @@ class AgentWorkspaceBuildFactsContext {
       'CMakeUserPresets.json',
       maxPathsPerKind,
     );
+    final ninjaBuilds = _pathsWithBasename(
+      normalizedFiles,
+      'build.ninja',
+      maxPathsPerKind,
+    );
     final clangdConfigs = _pathsWithBasename(
       normalizedFiles,
       '.clangd',
@@ -3630,6 +3639,7 @@ class AgentWorkspaceBuildFactsContext {
         _countPathsWithBasename(normalizedFiles, 'CMakeLists.txt') +
         _countPathsWithBasename(normalizedFiles, 'CMakePresets.json') +
         _countPathsWithBasename(normalizedFiles, 'CMakeUserPresets.json') +
+        _countPathsWithBasename(normalizedFiles, 'build.ninja') +
         _countPathsWithBasename(normalizedFiles, '.clangd') +
         _countPathsWithBasenames(normalizedFiles, const <String>{
           '.clang-format',
@@ -3645,6 +3655,7 @@ class AgentWorkspaceBuildFactsContext {
         cmakeLists.length +
         cmakePresets.length +
         cmakeUserPresets.length +
+        ninjaBuilds.length +
         clangdConfigs.length +
         clangFormatConfigs.length +
         clangTidyConfigs.length +
@@ -3658,6 +3669,8 @@ class AgentWorkspaceBuildFactsContext {
       cmakePresetPaths: cmakePresets,
       hasCMakeUserPresets: cmakeUserPresets.isNotEmpty,
       cmakeUserPresetPaths: cmakeUserPresets,
+      hasNinjaBuild: ninjaBuilds.isNotEmpty,
+      ninjaBuildPaths: ninjaBuilds,
       hasClangdConfig: clangdConfigs.isNotEmpty,
       clangdConfigPaths: clangdConfigs,
       hasClangFormatConfig: clangFormatConfigs.isNotEmpty,
@@ -3671,6 +3684,7 @@ class AgentWorkspaceBuildFactsContext {
         hasCMakeLists: cmakeLists.isNotEmpty,
         hasCMakePresets: cmakePresets.isNotEmpty,
         hasCMakeUserPresets: cmakeUserPresets.isNotEmpty,
+        hasNinjaBuild: ninjaBuilds.isNotEmpty,
         hasClangdConfig: clangdConfigs.isNotEmpty,
       ),
       toolingHints: _workspaceToolingHints(
@@ -3678,6 +3692,7 @@ class AgentWorkspaceBuildFactsContext {
         hasCMakeLists: cmakeLists.isNotEmpty,
         hasCMakePresets: cmakePresets.isNotEmpty,
         hasCMakeUserPresets: cmakeUserPresets.isNotEmpty,
+        hasNinjaBuild: ninjaBuilds.isNotEmpty,
         hasClangdConfig: clangdConfigs.isNotEmpty,
         hasClangFormatConfig: clangFormatConfigs.isNotEmpty,
         hasClangTidyConfig: clangTidyConfigs.isNotEmpty,
@@ -3697,6 +3712,8 @@ class AgentWorkspaceBuildFactsContext {
       'cmakePresetPaths': cmakePresetPaths,
       'hasCMakeUserPresets': hasCMakeUserPresets,
       'cmakeUserPresetPaths': cmakeUserPresetPaths,
+      'hasNinjaBuild': hasNinjaBuild,
+      'ninjaBuildPaths': ninjaBuildPaths,
       'hasClangdConfig': hasClangdConfig,
       'clangdConfigPaths': clangdConfigPaths,
       'hasClangFormatConfig': hasClangFormatConfig,
@@ -4213,6 +4230,7 @@ List<String> _buildSystemHints({
   required bool hasCMakeLists,
   required bool hasCMakePresets,
   required bool hasCMakeUserPresets,
+  required bool hasNinjaBuild,
   required bool hasClangdConfig,
 }) {
   return <String>[
@@ -4220,6 +4238,7 @@ List<String> _buildSystemHints({
     if (hasCMakeLists) 'cmake',
     if (hasCMakePresets) 'cmake-presets',
     if (hasCMakeUserPresets) 'cmake-user-presets',
+    if (hasNinjaBuild) 'ninja',
     if (hasClangdConfig) 'clangd',
   ];
 }
@@ -4229,6 +4248,7 @@ List<String> _workspaceToolingHints({
   required bool hasCMakeLists,
   required bool hasCMakePresets,
   required bool hasCMakeUserPresets,
+  required bool hasNinjaBuild,
   required bool hasClangdConfig,
   required bool hasClangFormatConfig,
   required bool hasClangTidyConfig,
@@ -4240,6 +4260,7 @@ List<String> _workspaceToolingHints({
       hasCMakeLists: hasCMakeLists,
       hasCMakePresets: hasCMakePresets,
       hasCMakeUserPresets: hasCMakeUserPresets,
+      hasNinjaBuild: hasNinjaBuild,
       hasClangdConfig: hasClangdConfig,
     ),
     if (hasClangFormatConfig) 'clang-format',

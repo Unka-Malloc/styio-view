@@ -524,6 +524,14 @@ void main() {
         systemMessage['content'],
         contains('toolchains.clangCpp.preferenceStatus'),
       );
+      expect(
+        systemMessage['content'],
+        contains('toolchains.clangCpp.cmakeExecutablePath'),
+      );
+      expect(
+        systemMessage['content'],
+        contains('toolchains.clangCpp.ninjaExecutablePath'),
+      );
       expect(systemMessage['content'], contains('Ninja'));
       expect(
         systemMessage['content'],

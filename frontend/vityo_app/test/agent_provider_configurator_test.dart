@@ -13,7 +13,7 @@ void main() {
   test('agent provider configurator saves and mounts configured adapter', () async {
     final savedProfiles = <AgentPromptProfile>[];
     final savedTokens = <String>[];
-    final adapter = _FakeAgentProviderAdapter(
+    final adapter = const _FakeAgentProviderAdapter(
       kind: AgentProviderKind.cloudOpenAICompatible,
     );
     final controller = AgentCodingSessionController(
@@ -99,7 +99,7 @@ void main() {
   test('agent provider configurator mirrors profile after local save', () async {
     final events = <String>[];
     final syncedProfiles = <AgentPromptProfile>[];
-    final adapter = _FakeAgentProviderAdapter(
+    final adapter = const _FakeAgentProviderAdapter(
       kind: AgentProviderKind.cloudOpenAICompatible,
     );
     final controller = AgentCodingSessionController(
@@ -142,7 +142,7 @@ void main() {
 
   test('agent provider configurator keeps local profile when sync fails', () async {
     final events = <String>[];
-    final adapter = _FakeAgentProviderAdapter(
+    final adapter = const _FakeAgentProviderAdapter(
       kind: AgentProviderKind.cloudOpenAICompatible,
     );
     final controller = AgentCodingSessionController(
@@ -186,7 +186,7 @@ void main() {
   test('agent provider configurator ignores blank bearer token', () async {
     final savedProfiles = <AgentPromptProfile>[];
     final savedTokens = <String>[];
-    final adapter = _FakeAgentProviderAdapter(
+    final adapter = const _FakeAgentProviderAdapter(
       kind: AgentProviderKind.cloudOpenAICompatible,
     );
     final controller = AgentCodingSessionController(

@@ -52,7 +52,7 @@ void main() {
   });
 
   test('module registry hides unsupported platform entries', () {
-    final module = ModuleDefinition(
+    const module = ModuleDefinition(
       manifest: ModuleManifest(
         moduleId: 'debug.console',
         displayName: 'Debug Console',
@@ -63,9 +63,9 @@ void main() {
         enabledByDefault: true,
         entrypoint: 'debug.dart',
         distributionPolicyRef: 'debug-policy',
-        capabilityFlags: const <String, bool>{},
+        capabilityFlags: <String, bool>{},
       ),
-      matrix: const ModuleCapabilityMatrix(
+      matrix: ModuleCapabilityMatrix(
         moduleId: 'debug.console',
         platforms: <PlatformTarget, ModuleCapabilityRule>{
           PlatformTarget.android: ModuleCapabilityRule(

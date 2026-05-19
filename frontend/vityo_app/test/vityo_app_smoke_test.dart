@@ -620,10 +620,6 @@ void main() {
     );
   }
 
-  Widget shellScaffoldHarness(AppBootstrap bootstrap) {
-    return _ShellScaffoldHarness(bootstrap: bootstrap);
-  }
-
   testWidgets('app entry renders the full editor workbench shell', (
     tester,
   ) async {

@@ -7,6 +7,7 @@ export 'styio_toolchain_discovery.dart';
 export 'native_compiler_toolchain_discovery.dart';
 export 'terminal_runtime.dart';
 export 'toolchain_catalog.dart';
+export 'toolchain_catalog_change.dart';
 export 'toolchain_archive_extractor.dart';
 export 'toolchain_configuration_store.dart';
 export 'toolchain_health_check.dart';

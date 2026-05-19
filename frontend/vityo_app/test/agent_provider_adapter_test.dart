@@ -1024,7 +1024,7 @@ void main() {
           diagnostics: const [],
         ),
         userPrompt: 'Use the attached note.',
-        attachments: <AgentRequestAttachment>[
+        attachments: const <AgentRequestAttachment>[
           AgentRequestAttachment(
             attachmentId: 'note-1',
             kind: 'text',

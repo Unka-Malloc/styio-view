@@ -760,7 +760,7 @@ class LocalOnlyAgentProviderAdapter implements AgentProviderAdapter {
       role: 'assistant',
       finishReason: 'provider_not_configured',
       contentParts: <AgentContentPart>[
-        AgentContentPart(
+        const AgentContentPart(
           kind: AgentContentPartKind.text,
           text:
               'No agent provider adapter is mounted. Vityo captured the IDE context locally, but cannot send it to a coding agent until a cloud or local bridge provider is configured.',
@@ -1284,9 +1284,7 @@ AgentProviderResponseEnvelope _responseEnvelopeFromOpenAICompatibleResponse({
       response: response,
     );
   }
-  final firstChoice = choices is List && choices.isNotEmpty
-      ? choices.first
-      : null;
+  final firstChoice = choices.first;
   final choice = firstChoice is Map
       ? firstChoice.map(
           (key, value) => MapEntry<String, Object?>(key.toString(), value),

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_connector.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
 void main() {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../environment/configuration/configuration.dart';
 import 'clang_cpp_version_configuration.dart';
+import 'toolchain_catalog_change.dart';
 import 'toolchain_catalog.dart';
 
 typedef ToolchainCatalogUpdater =
@@ -371,7 +372,7 @@ class ToolchainConfigurationStore {
   }
 }
 
-class ToolchainCatalogConfigurationChange {
+class ToolchainCatalogConfigurationChange implements ToolchainCatalogChange {
   const ToolchainCatalogConfigurationChange({
     required this.kind,
     required this.workspaceId,
@@ -383,9 +384,11 @@ class ToolchainCatalogConfigurationChange {
   final ConfigurationSettingChangeKind kind;
   final String? workspaceId;
   final String? targetId;
+  @override
   final ToolchainCatalog? catalog;
   final DateTime emittedAt;
 
+  @override
   bool get deleted => kind == ConfigurationSettingChangeKind.deleted;
 
   Map<String, Object?> toJson() {

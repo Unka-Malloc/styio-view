@@ -9,11 +9,11 @@ void main() {
     'agent provider registry resolves highest-priority matching provider',
     () async {
       final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
-      final lowPriorityAdapter = _RegistryTestAgentProviderAdapter(
+      final lowPriorityAdapter = const _RegistryTestAgentProviderAdapter(
         adapterId: 'low',
         kind: AgentProviderKind.localBridge,
       );
-      final highPriorityAdapter = _RegistryTestAgentProviderAdapter(
+      final highPriorityAdapter = const _RegistryTestAgentProviderAdapter(
         adapterId: 'high',
         kind: AgentProviderKind.cloudOpenAICompatible,
       );

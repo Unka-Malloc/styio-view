@@ -252,7 +252,7 @@ class _AgentNetworkManager implements NetworkManager {
     String operation = 'network.getText',
     String? recoveryHint,
   }) {
-    return NetworkFailureClassifier(sourceManager: 'test').classify(
+    return const NetworkFailureClassifier(sourceManager: 'test').classify(
       status: response.status,
       uri: response.uri,
       statusCode: response.statusCode,
@@ -268,7 +268,7 @@ class _AgentNetworkManager implements NetworkManager {
     String operation = 'network.getBytes',
     String? recoveryHint,
   }) {
-    return NetworkFailureClassifier(sourceManager: 'test').classify(
+    return const NetworkFailureClassifier(sourceManager: 'test').classify(
       status: response.status,
       uri: response.uri,
       statusCode: response.statusCode,
@@ -362,7 +362,9 @@ class _CancellableAgentNetworkManager
     String operation = 'network.getText',
     String? recoveryHint,
   }) {
-    return NetworkFailureClassifier(sourceManager: 'test-cancellable').classify(
+    return const NetworkFailureClassifier(
+      sourceManager: 'test-cancellable',
+    ).classify(
       status: response.status,
       uri: response.uri,
       statusCode: response.statusCode,
@@ -378,7 +380,9 @@ class _CancellableAgentNetworkManager
     String operation = 'network.getBytes',
     String? recoveryHint,
   }) {
-    return NetworkFailureClassifier(sourceManager: 'test-cancellable').classify(
+    return const NetworkFailureClassifier(
+      sourceManager: 'test-cancellable',
+    ).classify(
       status: response.status,
       uri: response.uri,
       statusCode: response.statusCode,

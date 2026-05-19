@@ -10,6 +10,7 @@ import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart'
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_capability_detector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_connector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 

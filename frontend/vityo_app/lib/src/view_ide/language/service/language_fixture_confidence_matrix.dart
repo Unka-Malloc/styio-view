@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import '../../environment/system_compatibility/file_system/file_system_manager.dart';
-import '../../toolchain/toolchain.dart';
+import '../../toolchain/toolchain_resolver.dart';
+import '../../toolchain/toolchain_runtime.dart';
 import '../contract/language_contract.dart';
 import 'styio_service_connector.dart';
 
@@ -229,31 +230,6 @@ class StyioServiceFixtureGate {
       fileSystemManager: fileSystemManager,
       connector: ToolchainStyioServiceConnector(
         runtime: runtime,
-        protocol: protocol,
-        requirement: requirement,
-        timeout: timeout,
-      ),
-      revision: revision,
-      recursive: recursive,
-      builder: builder,
-    );
-  }
-
-  factory StyioServiceFixtureGate.fromToolchainManager({
-    required FileSystemManager fileSystemManager,
-    required ToolchainManager manager,
-    StyioCliJsonlProtocol protocol = const StyioCliJsonlProtocol(),
-    ToolchainRequirement? requirement,
-    Duration timeout = const Duration(seconds: 10),
-    int revision = 0,
-    bool recursive = true,
-    LanguageFixtureConfidenceMatrixBuilder builder =
-        const LanguageFixtureConfidenceMatrixBuilder(),
-  }) {
-    return StyioServiceFixtureGate(
-      fileSystemManager: fileSystemManager,
-      connector: ToolchainManagerStyioServiceConnector(
-        manager: manager,
         protocol: protocol,
         requirement: requirement,
         timeout: timeout,

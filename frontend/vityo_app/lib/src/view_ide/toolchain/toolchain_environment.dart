@@ -1,4 +1,5 @@
-import '../environment/environment.dart';
+import '../environment/configuration/environment_variable_configuration.dart';
+import '../environment/system_compatibility/platform_context/platform_context_model.dart';
 
 class ToolchainEnvironmentBuilder {
   const ToolchainEnvironmentBuilder({

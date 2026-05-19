@@ -212,7 +212,7 @@ class LocalNetworkManager implements CancellableNetworkManager {
     Uri uri, {
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    if (!compatibility.supportsHttpClient)
+    if (!compatibility.supportsHttpClient) {
       return NetworkBinaryResponse(
         status: NetworkRequestStatus.blocked,
         uri: uri,
@@ -220,6 +220,7 @@ class LocalNetworkManager implements CancellableNetworkManager {
         bytes: const <int>[],
         message: 'HTTP client is not available.',
       );
+    }
     final client = HttpClient();
     try {
       final request = await client.getUrl(uri).timeout(timeout);

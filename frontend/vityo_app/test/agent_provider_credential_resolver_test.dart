@@ -14,7 +14,6 @@ import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
-import 'package:vityo_app/src/view_ide/environment/system_compatibility/network/network.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
@@ -400,7 +399,7 @@ class _JsonAgentNetworkManager implements NetworkManager {
     String operation = 'network.getText',
     String? recoveryHint,
   }) {
-    return NetworkFailureClassifier(sourceManager: 'test').classify(
+    return const NetworkFailureClassifier(sourceManager: 'test').classify(
       status: response.status,
       uri: response.uri,
       statusCode: response.statusCode,
@@ -416,7 +415,7 @@ class _JsonAgentNetworkManager implements NetworkManager {
     String operation = 'network.getBytes',
     String? recoveryHint,
   }) {
-    return NetworkFailureClassifier(sourceManager: 'test').classify(
+    return const NetworkFailureClassifier(sourceManager: 'test').classify(
       status: response.status,
       uri: response.uri,
       statusCode: response.statusCode,

@@ -5177,7 +5177,6 @@ class _NoopStyioLanguageService implements StyioLanguageService {
     this.analysisDiagnostics = const <Diagnostic>[],
     this.analysisInlayHints = const <InlayHint>[],
     this.analysisSemanticBlocks = const <SemanticBlockRange>[],
-    this.documentSymbols = const <DocumentSymbol>[],
     this.safeDeletePlan,
     this.inlineVariablePlan,
     this.surroundTemplates = const <SurroundTemplate>[],
@@ -5187,7 +5186,6 @@ class _NoopStyioLanguageService implements StyioLanguageService {
   final List<Diagnostic> analysisDiagnostics;
   final List<InlayHint> analysisInlayHints;
   final List<SemanticBlockRange> analysisSemanticBlocks;
-  final List<DocumentSymbol> documentSymbols;
   final SafeDeletePlan? safeDeletePlan;
   final InlineVariablePlan? inlineVariablePlan;
   final List<SurroundTemplate> surroundTemplates;
@@ -5201,7 +5199,7 @@ class _NoopStyioLanguageService implements StyioLanguageService {
       formattingEdits: <FormattingEdit>[],
       semanticBlocks: analysisSemanticBlocks,
       inlayHints: analysisInlayHints,
-      documentSymbols: documentSymbols,
+      documentSymbols: const <DocumentSymbol>[],
       referenceSpans: <ReferenceSpan>[],
     );
   }

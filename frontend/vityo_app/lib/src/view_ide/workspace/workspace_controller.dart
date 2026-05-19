@@ -118,7 +118,7 @@ class WorkspaceController extends ChangeNotifier {
         _projectSnapshot.editorFiles.where((path) => path != filePath),
       ),
     );
-    final removedOpenFile = _openFilePaths.remove(filePath);
+    _openFilePaths.remove(filePath);
     if (_activeFilePath == filePath) {
       _activeFilePath = _openFilePaths.isNotEmpty
           ? _openFilePaths.last

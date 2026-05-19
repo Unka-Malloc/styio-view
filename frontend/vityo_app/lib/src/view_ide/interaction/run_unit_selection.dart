@@ -119,7 +119,7 @@ int _nearestContentLine({
 }) {
   final position = document.positionForOffset(offset);
   final line = position.line.clamp(0, lineRanges.length - 1).toInt();
-  if (!_lineText(document, lineRanges[line]).trim().isEmpty) {
+  if (_lineText(document, lineRanges[line]).trim().isNotEmpty) {
     return line;
   }
 

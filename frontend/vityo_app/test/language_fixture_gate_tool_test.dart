@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_fixture_confidence_matrix.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_connector.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
 import '../tool/language_fixture_gate.dart' as language_fixture_gate;
@@ -160,9 +161,9 @@ esac
           ),
       );
 
-      final gate = StyioServiceFixtureGate.fromToolchainManager(
+      final gate = StyioServiceFixtureGate(
         fileSystemManager: fileSystemManager,
-        manager: manager,
+        connector: ToolchainManagerStyioServiceConnector(manager: manager),
       );
       final matrix = await gate.run(roots: <String>[fixtureRoot]);
 

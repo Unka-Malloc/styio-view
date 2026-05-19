@@ -208,6 +208,13 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
               '+$hiddenDocumentCount more document(s)',
               style: theme.textTheme.bodySmall,
             ),
+          if (preview.hasMissingDocuments)
+            Text(
+              'Missing preview documents: ${preview.missingDocumentIds.join(', ')}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
         ],
       ),
     );

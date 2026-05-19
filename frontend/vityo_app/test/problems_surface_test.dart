@@ -108,6 +108,7 @@ void main() {
               planId: 'workspace-fix-1',
               summary: 'Remove duplicate imports across workspace',
               source: WorkspaceEditSource.codeAction,
+              missingDocumentIds: <String>['src/missing.styio'],
               documents: <WorkspaceEditDocumentPreview>[
                 WorkspaceEditDocumentPreview(
                   documentId: 'src/lib.styio',
@@ -154,6 +155,7 @@ void main() {
       find.textContaining('Remove duplicate imports across workspace'),
       findsOneWidget,
     );
+    expect(find.textContaining('src/missing.styio'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('problems-diagnostic-style')));
     await tester.pump();

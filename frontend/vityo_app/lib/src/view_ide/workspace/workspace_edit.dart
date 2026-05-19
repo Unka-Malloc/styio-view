@@ -92,9 +92,11 @@ class WorkspaceEditPlan {
       for (final document in documents) document.documentId: document,
     };
     final previews = <WorkspaceEditDocumentPreview>[];
+    final missingDocumentIds = <String>[];
     for (final entry in editsByDocument.entries) {
       final document = documentsById[entry.key];
       if (document == null) {
+        missingDocumentIds.add(entry.key);
         continue;
       }
       final normalizedEdits = normalizeFormattingEditsForDocument(
@@ -120,6 +122,7 @@ class WorkspaceEditPlan {
       summary: summary,
       source: source,
       documents: List<WorkspaceEditDocumentPreview>.unmodifiable(previews),
+      missingDocumentIds: List<String>.unmodifiable(missingDocumentIds),
     );
   }
 }
@@ -130,14 +133,18 @@ class WorkspaceEditPreview {
     required this.summary,
     required this.source,
     required this.documents,
+    this.missingDocumentIds = const <String>[],
   });
 
   final String planId;
   final String summary;
   final WorkspaceEditSource source;
   final List<WorkspaceEditDocumentPreview> documents;
+  final List<String> missingDocumentIds;
 
   bool get hasChanges => documents.any((document) => document.changed);
+
+  bool get hasMissingDocuments => missingDocumentIds.isNotEmpty;
 
   int get editCount {
     return documents.fold<int>(
@@ -152,8 +159,11 @@ class WorkspaceEditPreview {
       'summary': summary,
       'source': source.wireValue,
       'documentCount': documents.length,
+      'missingDocumentCount': missingDocumentIds.length,
+      if (missingDocumentIds.isNotEmpty) 'missingDocumentIds': missingDocumentIds,
       'editCount': editCount,
       'hasChanges': hasChanges,
+      'hasMissingDocuments': hasMissingDocuments,
       'documents': documents
           .map((document) => document.toJson())
           .toList(growable: false),

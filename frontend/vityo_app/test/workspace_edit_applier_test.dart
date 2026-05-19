@@ -69,6 +69,9 @@ void main() {
         'main.styio': <FormattingEdit>[
           FormattingEdit(range: SourceRange(start: 0, end: 5), newText: 'count'),
         ],
+        'missing.styio': <FormattingEdit>[
+          FormattingEdit(range: SourceRange(start: 0, end: 0), newText: 'x'),
+        ],
       },
     );
 
@@ -86,6 +89,8 @@ void main() {
     expect(preview.summary, 'Preview rename.');
     expect(preview.source, WorkspaceEditSource.rename);
     expect(preview.hasChanges, isTrue);
+    expect(preview.hasMissingDocuments, isTrue);
+    expect(preview.missingDocumentIds, <String>['missing.styio']);
     expect(preview.editCount, 1);
     expect(preview.documents.single.documentId, 'main.styio');
     expect(preview.documents.single.revision, 4);
@@ -93,6 +98,9 @@ void main() {
     expect(preview.documents.single.afterText, 'count = 1\n');
     final previewJson = preview.toJson();
     expect(previewJson['editCount'], 1);
+    expect(previewJson['missingDocumentCount'], 1);
+    expect(previewJson['missingDocumentIds'], <String>['missing.styio']);
+    expect(previewJson['hasMissingDocuments'], isTrue);
     final documentJson =
         (previewJson['documents']! as List<Object?>).single!
             as Map<String, Object?>;

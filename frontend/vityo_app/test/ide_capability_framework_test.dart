@@ -52,6 +52,10 @@ void main() {
       IdeCapabilityStatus.wired,
     );
     expect(
+      entriesById['workspace.file-explorer']?.summary,
+      contains('create, rename, delete, and reveal contracts'),
+    );
+    expect(
       entriesById['presentation.problems-panel']?.dependencies,
       contains('workspace.diagnostics'),
     );

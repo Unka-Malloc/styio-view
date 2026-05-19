@@ -2970,6 +2970,116 @@ printf 'src/main.cc:1:5: warning: ninja build warning\\n'
     expect(await ninjaLog.readAsString(), '-C build\n');
   });
 
+  test('shell runs CTest from configured CMake build directory', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_shell_ctest_build_dir_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final ctestLog = File('${tempRoot.path}/ctest-args.log');
+    final ctest = File('${tempRoot.path}/fake-ctest.sh');
+    await ctest.writeAsString('''
+#!/bin/sh
+printf '%s\\n' "\$*" >> '${ctestLog.path}'
+printf '100%% tests passed, 0 tests failed out of 3\\n'
+''');
+    await Process.run('chmod', <String>['+x', ctest.path]);
+    final configurationStore = await _createShellTestConfigurationStore(
+      tempRoot,
+    );
+    final platformManagers = await createDetectedPlatformManagerBundle();
+    final toolchainStore = ToolchainConfigurationStore(
+      configurationStore: configurationStore,
+    );
+    final catalog = ToolchainCatalog()
+      ..register(
+        ToolchainDescriptor(
+          id: 'fake-ctest',
+          kind: ToolchainKind.testRunner,
+          displayName: 'Fake CTest',
+          executablePath: ctest.path,
+          metadata: const <String, Object?>{'toolFamily': 'ctest'},
+        ),
+        activate: true,
+      );
+    await toolchainStore.saveCatalog(
+      catalog,
+      targetId: platformManagers.context.targetId,
+    );
+    final projectGraph =
+        ProjectGraphSnapshot.scratch(
+          workspaceRoot: tempRoot.path,
+          activeFilePath: 'src/main.cc',
+          title: 'Demo',
+          notes: const <String>[],
+        ).copyWith(
+          editorFiles: <String>['src/main.cc', 'build/CTestTestfile.cmake'],
+        );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.cc',
+      text: 'int main(){return 0;}\n',
+      revision: 0,
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.cc': initialDocument,
+          'build/CTestTestfile.cmake': DocumentState(
+            documentId: 'build/CTestTestfile.cmake',
+            text: '# CTest generated file\n',
+            revision: 0,
+          ),
+        },
+      ),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      toolchainManager: ToolchainManager(
+        configurationStore: toolchainStore,
+        platformManagers: platformManagers,
+      ),
+    );
+    addTearDown(shell.dispose);
+
+    await shell.executeCommand(AppCommandId.runTests);
+
+    final testResult =
+        shell.lastNativeToolResult!.metadata['testResult']!
+            as Map<String, Object?>;
+    expect(shell.lastNativeToolResult?.applied, isTrue);
+    expect(testResult['runner'], 'ctest');
+    expect(testResult['status'], 'passed');
+    expect(testResult['totalCount'], 3);
+    expect(testResult['testDirectory'], 'build');
+    expect(testResult['arguments'], <Object?>[
+      '--test-dir',
+      'build',
+      '--output-on-failure',
+    ]);
+    expect(
+      await ctestLog.readAsString(),
+      '--test-dir build --output-on-failure\n',
+    );
+  });
+
   test(
     'shell blocks active file close while editor binding is dirty',
     () async {

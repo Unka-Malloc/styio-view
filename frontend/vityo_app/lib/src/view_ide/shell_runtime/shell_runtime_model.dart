@@ -1419,20 +1419,29 @@ class ShellRuntimeModel extends ChangeNotifier {
         notifyListeners();
         return commandResult;
       case AppCommandId.runTests:
+        final testDirectory = _nativeCTestDirectoryArgument();
+        final testArguments = <String>[
+          if (testDirectory != '.') ...<String>['--test-dir', testDirectory],
+          '--output-on-failure',
+        ];
         final result = await manager.run(
           kind: ToolchainKind.testRunner,
           requirement: const ToolchainRequirement(
             kind: ToolchainKind.testRunner,
             metadata: <String, Object?>{'toolFamily': 'ctest'},
           ),
-          arguments: const <String>['--output-on-failure'],
+          arguments: testArguments,
           workingDirectory: workspaceController.activeProject.workspaceRoot,
           timeout: const Duration(seconds: 120),
         );
-        final testResult = _ctestResultFromOutput(
-          '${result.stdout}\n${result.stderr}',
-          succeeded: result.succeeded,
-        );
+        final testResult = <String, Object?>{
+          ..._ctestResultFromOutput(
+            '${result.stdout}\n${result.stderr}',
+            succeeded: result.succeeded,
+          ),
+          'testDirectory': testDirectory,
+          'arguments': testArguments,
+        };
         final message = result.succeeded
             ? 'Run Tests completed.'
             : _nativeToolFailureMessage(commandId, result.message);
@@ -2335,6 +2344,15 @@ class ShellRuntimeModel extends ChangeNotifier {
   bool _hasNinjaBuild() {
     final files = _normalizedWorkspaceFiles();
     return files.contains('build/build.ninja') || files.contains('build.ninja');
+  }
+
+  String _nativeCTestDirectoryArgument() {
+    final files = _normalizedWorkspaceFiles();
+    if (files.contains('build/CTestTestfile.cmake') ||
+        files.contains('build/CMakeCache.txt')) {
+      return 'build';
+    }
+    return '.';
   }
 
   Future<bool> _hasBuildToolFamily(

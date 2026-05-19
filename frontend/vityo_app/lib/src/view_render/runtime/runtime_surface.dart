@@ -9,6 +9,7 @@ import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/module_host/module_definition.dart';
 import '../../view_ide/module_host/module_manifest.dart';
 import '../../view_ide/platform/platform_target.dart';
+import '../../view_ide/runtime/runtime_output_channels.dart';
 import '../../view_ide/runtime/runtime_surface_feature_registry.dart';
 import '../../view_ide/runtime/runtime_replay_summary.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
@@ -636,9 +637,8 @@ class _OutputChannelSection extends StatelessWidget {
       runtimeEvents: runtimeEvents,
       nativeToolResults: nativeToolResults,
     );
-    final visibleChannels = channels
-        .where((channel) => channel.eventCount > 0)
-        .toList(growable: false);
+    final snapshot = RuntimeOutputChannelSnapshot(channels: channels);
+    final visibleChannels = snapshot.visibleChannels;
     return Container(
       key: const ValueKey('runtime-output-channels'),
       width: double.infinity,
@@ -653,7 +653,7 @@ class _OutputChannelSection extends StatelessWidget {
           Text('Output Channels', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'Filtered output channel summary for runtime events, process streams, and native tool activity. TODO: add user-selectable channel filters and persisted output history.',
+            'Filtered output channel summary for runtime events, process streams, and native tool activity. TODO: add user-selectable channel controls and persisted output history.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 10),
@@ -687,53 +687,43 @@ class _OutputChannelSection extends StatelessWidget {
   }
 }
 
-class _OutputChannelSummary {
-  const _OutputChannelSummary({
-    required this.id,
-    required this.label,
-    required this.eventCount,
-    required this.latestMessage,
-  });
-
-  final String id;
-  final String label;
-  final int eventCount;
-  final String latestMessage;
-}
-
-List<_OutputChannelSummary> _outputChannels({
+List<RuntimeOutputChannelSummary> _outputChannels({
   required ExecutionSession? executionSession,
   required List<RuntimeEventEnvelope> runtimeEvents,
   required List<NativeToolResultRecord> nativeToolResults,
 }) {
-  return <_OutputChannelSummary>[
-    _OutputChannelSummary(
+  return <RuntimeOutputChannelSummary>[
+    RuntimeOutputChannelSummary(
       id: 'runtime-events',
       label: 'Runtime events',
+      kind: RuntimeOutputChannelKind.runtimeEvents,
       eventCount: runtimeEvents.length,
       latestMessage: runtimeEvents.isEmpty
           ? 'No runtime event.'
           : '${runtimeEvents.last.eventKind} from ${runtimeEvents.last.origin}',
     ),
-    _OutputChannelSummary(
+    RuntimeOutputChannelSummary(
       id: 'stdout',
       label: 'Stdout',
+      kind: RuntimeOutputChannelKind.stdout,
       eventCount: executionSession?.stdoutEvents.length ?? 0,
       latestMessage: executionSession?.stdoutEvents.isEmpty ?? true
           ? 'No stdout event.'
           : executionSession!.stdoutEvents.last.message,
     ),
-    _OutputChannelSummary(
+    RuntimeOutputChannelSummary(
       id: 'stderr',
       label: 'Stderr',
+      kind: RuntimeOutputChannelKind.stderr,
       eventCount: executionSession?.stderrEvents.length ?? 0,
       latestMessage: executionSession?.stderrEvents.isEmpty ?? true
           ? 'No stderr event.'
           : executionSession!.stderrEvents.last.message,
     ),
-    _OutputChannelSummary(
+    RuntimeOutputChannelSummary(
       id: 'native-tools',
       label: 'Native tools',
+      kind: RuntimeOutputChannelKind.nativeTools,
       eventCount: nativeToolResults.length,
       latestMessage: nativeToolResults.isEmpty
           ? 'No native tool result.'

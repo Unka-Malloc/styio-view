@@ -53,6 +53,14 @@ void main() {
       }),
       'requires saveAll',
     );
+    expect(
+      nativeToolMetadataSummaryText(const <String, Object?>{
+        'settingsRoute': 'settings',
+        'settingsSection': 'toolchain',
+        'completedRequiredCommandFor': 'runBuild',
+      }),
+      'settings route settings · section toolchain · completed required command for runBuild',
+    );
   });
 
   test('native tool summary explains Clang C++ selection handoff', () {

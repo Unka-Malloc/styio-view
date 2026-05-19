@@ -67,6 +67,11 @@ String? nativeToolMetadataSummaryText(
     );
   }
 
+  final settingsRouteSummary = _settingsRouteSummary(metadata);
+  if (settingsRouteSummary != null) {
+    return settingsRouteSummary;
+  }
+
   final completedRequiredCommandFor = _stringValue(
     metadata['completedRequiredCommandFor'],
   );
@@ -142,6 +147,25 @@ String? _backendRouteSelectionSummary(Object? value) {
     }
   }
   return summary.toString();
+}
+
+String? _settingsRouteSummary(Map<String, Object?> metadata) {
+  final settingsRoute = _stringValue(metadata['settingsRoute']);
+  if (settingsRoute == null) {
+    return null;
+  }
+  final parts = <String>['settings route $settingsRoute'];
+  final settingsSection = _stringValue(metadata['settingsSection']);
+  if (settingsSection != null) {
+    parts.add('section $settingsSection');
+  }
+  final completedRequiredCommandFor = _stringValue(
+    metadata['completedRequiredCommandFor'],
+  );
+  if (completedRequiredCommandFor != null) {
+    parts.add('completed required command for $completedRequiredCommandFor');
+  }
+  return parts.join(' · ');
 }
 
 String? _toolchainSelectionSummary(Map<String, Object?> metadata) {

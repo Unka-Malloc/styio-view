@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../view_ide/language/language_contract.dart';
+import '../../view_ide/workspace/workspace.dart';
 import '../platform/viewport_profile.dart';
 
 class ProblemsSurface extends StatelessWidget {
@@ -9,24 +10,38 @@ class ProblemsSurface extends StatelessWidget {
     required this.viewportProfile,
     required this.documentId,
     required this.diagnostics,
+    this.workspaceDiagnostics,
     this.onSelectDiagnostic,
+    this.onSelectWorkspaceDiagnostic,
   });
 
   final ViewportProfile viewportProfile;
   final String documentId;
   final List<Diagnostic> diagnostics;
+  final WorkspaceDiagnosticsSnapshot? workspaceDiagnostics;
   final ValueChanged<Diagnostic>? onSelectDiagnostic;
+  final ValueChanged<WorkspaceDiagnostic>? onSelectWorkspaceDiagnostic;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = viewportProfile.isMobile;
+    final problemEntries =
+        workspaceDiagnostics?.diagnostics ??
+        diagnostics
+            .map(
+              (diagnostic) => WorkspaceDiagnostic(
+                documentId: documentId,
+                diagnostic: diagnostic,
+              ),
+            )
+            .toList(growable: false);
     final severityCounts = <DiagnosticSeverity, int>{
       for (final severity in DiagnosticSeverity.values) severity: 0,
     };
-    for (final diagnostic in diagnostics) {
-      severityCounts[diagnostic.severity] =
-          (severityCounts[diagnostic.severity] ?? 0) + 1;
+    for (final entry in problemEntries) {
+      final severity = entry.diagnostic.severity;
+      severityCounts[severity] = (severityCounts[severity] ?? 0) + 1;
     }
 
     return Card(
@@ -39,7 +54,7 @@ class ProblemsSurface extends StatelessWidget {
             Text('Problems', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              'Active document diagnostics surface. TODO: add workspace-wide grouping, filters, quick-fix preview, and persisted problem state.',
+              'Diagnostics surface backed by active document diagnostics or a workspace diagnostics snapshot. TODO: add grouping, filters, quick-fix preview, and persisted problem state.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -48,25 +63,34 @@ class ProblemsSurface extends StatelessWidget {
               runSpacing: 8,
               children: [
                 Chip(label: Text('document $documentId')),
-                Chip(label: Text('total ${diagnostics.length}')),
+                if (workspaceDiagnostics != null)
+                  Chip(
+                    label: Text(
+                      'workspace-documents ${workspaceDiagnostics!.documentIds.length}',
+                    ),
+                  ),
+                Chip(label: Text('total ${problemEntries.length}')),
                 for (final entry in severityCounts.entries)
                   Chip(label: Text('${entry.key.name} ${entry.value}')),
               ],
             ),
             const SizedBox(height: 12),
-            if (diagnostics.isEmpty)
+            if (problemEntries.isEmpty)
               Text(
-                'No diagnostics for the active document.',
+                workspaceDiagnostics == null
+                    ? 'No diagnostics for the active document.'
+                    : 'No diagnostics for the workspace.',
                 style: theme.textTheme.bodySmall,
               )
             else
               Expanded(
                 child: ListView.separated(
                   key: const ValueKey('problems-diagnostic-list'),
-                  itemCount: diagnostics.length,
+                  itemCount: problemEntries.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
-                    final diagnostic = diagnostics[index];
+                    final entry = problemEntries[index];
+                    final diagnostic = entry.diagnostic;
                     return ListTile(
                       key: ValueKey('problems-diagnostic-${diagnostic.code}'),
                       dense: true,
@@ -76,13 +100,16 @@ class ProblemsSurface extends StatelessWidget {
                       ),
                       title: Text(diagnostic.message),
                       subtitle: Text(
-                        '${diagnostic.severity.name} · ${diagnostic.code} · offsets ${diagnostic.range.start}-${diagnostic.range.end}',
+                        '${entry.documentId} · ${diagnostic.severity.name} · ${diagnostic.code} · offsets ${diagnostic.range.start}-${diagnostic.range.end}',
                       ),
                       trailing: const Icon(Icons.arrow_forward_rounded),
-                      onTap: onSelectDiagnostic == null
+                      onTap:
+                          onSelectDiagnostic == null &&
+                              onSelectWorkspaceDiagnostic == null
                           ? null
                           : () {
-                              onSelectDiagnostic!(diagnostic);
+                              onSelectWorkspaceDiagnostic?.call(entry);
+                              onSelectDiagnostic?.call(diagnostic);
                             },
                     );
                   },

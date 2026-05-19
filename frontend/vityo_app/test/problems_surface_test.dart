@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/problems/problems.dart';
 
@@ -59,5 +60,65 @@ void main() {
     await tester.pump();
 
     expect(selectedDiagnostic?.code, 'syntax-error');
+  });
+
+  testWidgets('problems surface renders workspace diagnostics snapshot', (
+    tester,
+  ) async {
+    WorkspaceDiagnostic? selectedWorkspaceDiagnostic;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProblemsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            documentId: 'src/main.styio',
+            diagnostics: const <Diagnostic>[],
+            workspaceDiagnostics: const WorkspaceDiagnosticsSnapshot(
+              providerId: 'workspace',
+              diagnostics: <WorkspaceDiagnostic>[
+                WorkspaceDiagnostic(
+                  documentId: 'src/main.styio',
+                  diagnostic: Diagnostic(
+                    severity: DiagnosticSeverity.error,
+                    code: 'syntax-error',
+                    message: 'Unexpected token.',
+                    range: SourceRange(start: 0, end: 5),
+                  ),
+                ),
+                WorkspaceDiagnostic(
+                  documentId: 'src/lib.styio',
+                  diagnostic: Diagnostic(
+                    severity: DiagnosticSeverity.hint,
+                    code: 'style',
+                    message: 'Prefer explicit name.',
+                    range: SourceRange(start: 1, end: 4),
+                  ),
+                ),
+              ],
+            ),
+            onSelectWorkspaceDiagnostic: (diagnostic) {
+              selectedWorkspaceDiagnostic = diagnostic;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('workspace-documents 2'), findsOneWidget);
+    expect(find.text('total 2'), findsOneWidget);
+    expect(find.text('error 1'), findsOneWidget);
+    expect(find.text('hint 1'), findsOneWidget);
+    expect(find.text('Prefer explicit name.'), findsOneWidget);
+    expect(find.textContaining('src/lib.styio · hint · style'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('problems-diagnostic-style')));
+    await tester.pump();
+
+    expect(selectedWorkspaceDiagnostic?.documentId, 'src/lib.styio');
   });
 }

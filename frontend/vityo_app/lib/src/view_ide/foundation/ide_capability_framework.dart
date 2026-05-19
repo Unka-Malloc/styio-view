@@ -442,8 +442,10 @@ class VityoIdeCapabilityFramework {
           title: 'Terminal, PTY, and task runner',
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/shell_runtime',
+          summary:
+              'Terminal surface is wired to shell/runtime output and run handoff; TerminalRuntime and PTY manager are present as lower-level scaffolding.',
           todo:
-              'TODO: connect PTY manager, shell manager, process execution, terminal UI, and task lifecycle into one terminal/runtime contract.',
+              'TODO: connect interactive PTY stdin/stdout sessions, shell manager process execution, and task lifecycle into one terminal/runtime contract.',
           references: <String>[
             'VS Code integrated terminal',
             'IntelliJ terminal and run tool windows',

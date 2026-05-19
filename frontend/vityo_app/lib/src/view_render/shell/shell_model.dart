@@ -2,7 +2,15 @@ import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
 
-enum BottomSurfaceTab { runtime, agent, search, problems, debug, settings }
+enum BottomSurfaceTab {
+  runtime,
+  terminal,
+  agent,
+  search,
+  problems,
+  debug,
+  settings,
+}
 
 class ShellModel extends ShellRuntimeModel {
   ShellModel({

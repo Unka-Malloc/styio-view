@@ -18,6 +18,7 @@ import '../problems/problems.dart';
 import '../runtime/runtime.dart';
 import '../search/search.dart';
 import '../settings/settings_surface.dart';
+import '../terminal/terminal.dart';
 import '../../view_ide/workspace/workspace.dart';
 
 import 'hosted_workspace_lifecycle_banner.dart';
@@ -138,6 +139,17 @@ class VityoShellScaffold extends StatelessWidget {
           runtimeEvents: shell.lastRuntimeEvents,
           nativeToolResults: shell.nativeToolResults,
           onOpenNativeToolDiagnostics: shell.openFirstNativeToolDiagnostic,
+        );
+      case BottomSurfaceTab.terminal:
+        return TerminalSurface(
+          viewportProfile: viewportProfile,
+          logEntries: shell.debugLog,
+          runtimeEventSummaries: shell.lastRuntimeEvents
+              .map(_terminalRuntimeEventSummary)
+              .toList(growable: false),
+          onRunActiveTarget: () {
+            return shell.executeCommand(AppCommandId.run);
+          },
         );
       case BottomSurfaceTab.agent:
         return AgentSurface(
@@ -1699,6 +1711,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.runtime),
       ),
       _SurfaceTabChip(
+        label: 'Terminal',
+        active: shell.activeBottomTab == BottomSurfaceTab.terminal,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.terminal),
+      ),
+      _SurfaceTabChip(
         label: 'Agent',
         active: shell.activeBottomTab == BottomSurfaceTab.agent,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
@@ -1733,7 +1750,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, agent, search, problems, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
+            'Mobile shell keeps runtime, terminal, agent, search, problems, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -1793,6 +1810,18 @@ class _BottomSurfaceTabs extends StatelessWidget {
       ),
     );
   }
+}
+
+String _terminalRuntimeEventSummary(RuntimeEventEnvelope event) {
+  final payloadMessage =
+      event.payload['message'] ??
+      event.payload['text'] ??
+      event.payload['line'] ??
+      event.payload['data'];
+  if (payloadMessage == null) {
+    return '${event.eventKind}: ${event.origin}';
+  }
+  return '${event.eventKind}: $payloadMessage';
 }
 
 IconData _commandIcon(AppCommandId commandId) {

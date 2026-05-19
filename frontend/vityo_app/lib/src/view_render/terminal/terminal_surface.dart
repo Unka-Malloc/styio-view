@@ -1,0 +1,114 @@
+import 'package:flutter/material.dart';
+
+import '../platform/viewport_profile.dart';
+
+class TerminalSurface extends StatelessWidget {
+  const TerminalSurface({
+    super.key,
+    required this.viewportProfile,
+    required this.logEntries,
+    required this.runtimeEventSummaries,
+    this.onRunActiveTarget,
+  });
+
+  final ViewportProfile viewportProfile;
+  final List<String> logEntries;
+  final List<String> runtimeEventSummaries;
+  final Future<void> Function()? onRunActiveTarget;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = viewportProfile.isMobile;
+    final combinedEntries = <String>[
+      for (final event in runtimeEventSummaries) 'runtime  $event',
+      for (final log in logEntries) 'shell    $log',
+    ];
+
+    return Card(
+      key: const ValueKey('terminal-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Integrated Terminal', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 6),
+            Text(
+              'Shell/runtime output entry backed by Vityo execution logs. TODO: connect interactive PTY stdin/stdout sessions through TerminalRuntime and PtyManager.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                Chip(label: Text('logs ${logEntries.length}')),
+                Chip(
+                  label: Text('runtime-events ${runtimeEventSummaries.length}'),
+                ),
+                const Chip(label: Text('pty scaffolded')),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Expanded(
+                  child: TextField(
+                    key: ValueKey('terminal-command-input'),
+                    enabled: false,
+                    decoration: InputDecoration(
+                      labelText: 'Terminal input',
+                      helperText:
+                          'TODO: enable after interactive PTY sessions are wired.',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilledButton.icon(
+                  key: const ValueKey('terminal-run-active-target'),
+                  onPressed: onRunActiveTarget,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Run'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('Output', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            if (combinedEntries.isEmpty)
+              Text(
+                'No terminal, shell, or runtime output has been recorded.',
+                style: theme.textTheme.bodySmall,
+              )
+            else
+              Expanded(
+                child: Container(
+                  key: const ValueKey('terminal-output-buffer'),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF111A1F),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: ListView.builder(
+                    itemCount: combinedEntries.length,
+                    itemBuilder: (context, index) {
+                      return Text(
+                        combinedEntries[index],
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFFD9E7DE),
+                          fontFamily: 'monospace',
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

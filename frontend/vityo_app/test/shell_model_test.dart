@@ -715,6 +715,98 @@ void main() {
   });
 
   test(
+    'apply quick fix falls back to project workspace quick fixes',
+    () async {
+      const mainPath = '/workspace/demo/src/main.styio';
+      final mainText = File(
+        'test/fixtures/workspace_diagnostics/duplicate_import.true.styio',
+      ).readAsStringSync();
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+        editorFiles: const <String>[mainPath],
+      );
+
+      ShellModel createShell(String sessionId) {
+        return ShellModel(
+          platformTarget: PlatformTarget.macos,
+          supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+          projectGraphAdapter: _SequenceProjectGraphAdapter(
+            snapshots: <ProjectGraphSnapshot>[initialGraph],
+          ),
+          workspaceController: WorkspaceController(
+            projectSnapshot: initialGraph,
+          ),
+          workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+            seededDocuments: <String, DocumentState>{
+              mainPath: DocumentState(
+                documentId: mainPath,
+                text: mainText,
+                revision: 1,
+              ),
+            },
+          ),
+          moduleRegistry: ModuleRegistry(
+            platformTarget: PlatformTarget.macos,
+            definitions: const [],
+          ),
+          nativeModuleLoader: const NoopNativeModuleLoader(
+            platformTarget: PlatformTarget.macos,
+          ),
+          editorController: EditorSessionController(
+            initialDocument: DocumentState(
+              documentId: mainPath,
+              text: mainText,
+              revision: 1,
+            ),
+            languageService: const SimpleStyioLanguageService(),
+          ),
+          executionAdapter: _SuccessfulExecutionAdapter(sessionId: sessionId),
+          executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+              _SuccessfulExecutionAdapter(sessionId: sessionId),
+          runtimeEventAdapter: createRuntimeEventAdapter(
+            platformTarget: PlatformTarget.macos,
+          ),
+          dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+          deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+          toolchainManagementAdapter:
+              const _SuccessfulToolchainManagementAdapter(),
+        );
+      }
+
+      final commandShell = createShell('shell-project-workspace-fix-command');
+      addTearDown(commandShell.dispose);
+      final fixes = await commandShell.collectProjectWorkspaceQuickFixes();
+      expect(fixes.map((fix) => fix.label), contains('Clean up project imports'));
+
+      await commandShell.executeCommand(AppCommandId.applyQuickFix);
+
+      expect(commandShell.editorController.document.text, contains('@import'));
+      expect(
+        '@import'.allMatches(commandShell.editorController.document.text),
+        hasLength(1),
+      );
+      expect(commandShell.dirtyDocumentPaths, contains(mainPath));
+
+      final agentShell = createShell('shell-project-workspace-fix-agent');
+      addTearDown(agentShell.dispose);
+      final applied = await agentShell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'applyQuickFix'),
+      );
+
+      expect(applied, isTrue);
+      expect(
+        agentShell.agentSessionContext.commands.lastResult?.message,
+        contains('project workspace fix'),
+      );
+      expect(
+        '@import'.allMatches(agentShell.editorController.document.text),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
     'restores editor session active document through workspace route',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(

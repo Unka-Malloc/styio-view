@@ -807,6 +807,100 @@ class ShellRuntimeModel extends ChangeNotifier {
     return metadata;
   }
 
+  Future<List<StyioProjectWorkspaceFix>>
+  collectProjectWorkspaceQuickFixes() async {
+    final documents = await _loadProjectLanguageDocuments();
+    for (final document in documents) {
+      if (document.documentId != editorController.document.documentId) {
+        _cacheDocument(document.documentId, document);
+      }
+    }
+    final analysis = projectLanguageService.analyzeProject(documents);
+    final fixes = projectLanguageService.workspaceQuickFixesForProjectDiagnostics(
+      documents: documents,
+      diagnostics: analysis.diagnostics,
+      analysis: analysis,
+    );
+    appendLog(
+      'Project workspace quick fixes collected: ${fixes.length} candidate(s).',
+    );
+    notifyListeners();
+    return fixes;
+  }
+
+  Future<bool> applyFirstProjectWorkspaceQuickFix() async {
+    final fixes = await collectProjectWorkspaceQuickFixes();
+    if (fixes.isEmpty) {
+      appendLog('Project workspace quick fix skipped: no deterministic fix.');
+      notifyListeners();
+      return false;
+    }
+    return _applyProjectWorkspaceFix(fixes.first);
+  }
+
+  Future<bool> _applyProjectWorkspaceFix(
+    StyioProjectWorkspaceFix fix,
+  ) async {
+    final activeDocumentId = editorController.document.documentId;
+    final activeEdits =
+        fix.editsByDocument[activeDocumentId] ?? const <FormattingEdit>[];
+    final normalizedActiveEdits = normalizeFormattingEditsForDocument(
+      documentLength: editorController.document.length,
+      edits: activeEdits,
+    );
+    if (normalizedActiveEdits.length != activeEdits.length) {
+      appendLog(
+        'Project workspace quick fix skipped: active document edits are invalid or overlapping.',
+      );
+      notifyListeners();
+      return false;
+    }
+    final inactiveEditsByDocument = <String, List<FormattingEdit>>{};
+    for (final entry in fix.editsByDocument.entries) {
+      if (entry.key == activeDocumentId) {
+        continue;
+      }
+      inactiveEditsByDocument[entry.key] = entry.value;
+    }
+
+    var inactiveEditCount = 0;
+    if (inactiveEditsByDocument.isNotEmpty) {
+      final result = await WorkspaceEditApplier(
+        workspaceDocumentStore: workspaceDocumentStore,
+      ).apply(
+        WorkspaceEditPlan(
+          id: 'project-workspace-fix-${DateTime.now().microsecondsSinceEpoch}',
+          summary: fix.label,
+          source: WorkspaceEditSource.codeAction,
+          editsByDocument: inactiveEditsByDocument,
+        ),
+      );
+      if (!result.applied) {
+        appendLog('Project workspace quick fix skipped: ${result.message}');
+        notifyListeners();
+        return false;
+      }
+      inactiveEditCount = result.appliedEditCount;
+      for (final documentId in result.appliedDocumentIds) {
+        _documentCache.remove(documentId);
+        _documentCursorOffsets.remove(documentId);
+        _documentSelectionAnchors.remove(documentId);
+      }
+    }
+
+    if (normalizedActiveEdits.isNotEmpty) {
+      editorController.applyFormattingEdits(normalizedActiveEdits);
+      _cacheDocument(activeDocumentId, editorController.document);
+      _dirtyDocumentPaths.add(activeDocumentId);
+    }
+    final editCount = inactiveEditCount + normalizedActiveEdits.length;
+    appendLog(
+      'Project workspace quick fix applied: ${fix.label} ($editCount edit(s)).',
+    );
+    notifyListeners();
+    return editCount > 0;
+  }
+
   Map<String, Object?> _projectSymbolDefinitionToJson(
     StyioProjectSymbolDefinition definition,
   ) {
@@ -1278,6 +1372,15 @@ class ShellRuntimeModel extends ChangeNotifier {
             message: 'Agent command applyQuickFix applied at editor selection.',
           );
           notifyListeners();
+          return true;
+        }
+        if (await applyFirstProjectWorkspaceQuickFix()) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: true,
+            message:
+                'Agent command applyQuickFix applied project workspace fix.',
+          );
           return true;
         }
         appendLog(
@@ -4513,6 +4616,8 @@ class ShellRuntimeModel extends ChangeNotifier {
           _cacheDocument(_activeDocumentPath, editorController.document);
           _dirtyDocumentPaths.add(_activeDocumentPath);
           appendLog('Quick fix applied at editor selection.');
+        } else if (await applyFirstProjectWorkspaceQuickFix()) {
+          appendLog('Project workspace quick fix applied from editor command.');
         } else {
           appendLog('Quick fix skipped: no action available at selection.');
         }

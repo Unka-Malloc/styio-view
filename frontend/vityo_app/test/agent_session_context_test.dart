@@ -998,6 +998,7 @@ void main() {
 
     expect(byCommandId['runBuild']!['ready'], isTrue);
     expect(byCommandId['runBuild']!['toolchainId'], 'native-cmake-build-tool');
+    expect(byCommandId['runBuild']!['toolFamily'], 'cmake');
     expect(byCommandId['runBuild']!['requiredToolFamilies'], <String>[
       'cmake',
       'ninja',
@@ -1052,6 +1053,7 @@ void main() {
 
     expect(runBuild['ready'], isTrue);
     expect(runBuild['toolchainId'], 'native-ninja-build-tool');
+    expect(runBuild['toolFamily'], 'ninja');
     expect(runBuild['requiredToolFamilies'], <String>['cmake', 'ninja']);
     expect(runBuild['candidateToolchainIds'], <String>[
       'native-ninja-build-tool',

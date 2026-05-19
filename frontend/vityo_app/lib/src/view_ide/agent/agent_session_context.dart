@@ -3072,6 +3072,7 @@ class AgentNativeToolCommandReadinessContext {
     required this.reason,
     this.requiredToolFamily,
     this.requiredToolFamilies = const <String>[],
+    this.toolFamily,
     this.toolchainId,
     this.requiredCommandId,
     this.dirtyDocumentIds = const <String>[],
@@ -3128,6 +3129,7 @@ class AgentNativeToolCommandReadinessContext {
           : null,
       requiredToolFamilies: requiredToolFamilyList,
       ready: ready,
+      toolFamily: _stringMetadata(selectedCandidate, 'toolFamily'),
       toolchainId: selectedCandidate?.id,
       requiredCommandId: blockedByDirtyWorkspace
           ? AppCommandId.saveAll.name
@@ -3157,6 +3159,7 @@ class AgentNativeToolCommandReadinessContext {
   final String? requiredToolFamily;
   final List<String> requiredToolFamilies;
   final bool ready;
+  final String? toolFamily;
   final String? toolchainId;
   final String? requiredCommandId;
   final List<String> dirtyDocumentIds;
@@ -3172,6 +3175,7 @@ class AgentNativeToolCommandReadinessContext {
       if (requiredToolFamilies.length > 1)
         'requiredToolFamilies': requiredToolFamilies,
       'ready': ready,
+      if (toolFamily != null) 'toolFamily': toolFamily,
       if (toolchainId != null) 'toolchainId': toolchainId,
       if (requiredCommandId != null) 'requiredCommandId': requiredCommandId,
       if (dirtyDocumentIds.isNotEmpty) 'dirtyDocumentIds': dirtyDocumentIds,
@@ -3179,6 +3183,11 @@ class AgentNativeToolCommandReadinessContext {
       'reason': reason,
     };
   }
+}
+
+String? _stringMetadata(AgentToolchainEntryContext? entry, String key) {
+  final value = entry?.metadata[key];
+  return value is String && value.trim().isNotEmpty ? value.trim() : null;
 }
 
 List<String> _normalizedRequiredToolFamilies({

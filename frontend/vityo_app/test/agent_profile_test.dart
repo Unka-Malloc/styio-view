@@ -80,6 +80,10 @@ void main() {
         contains('nested buildResult/staticAnalysisResult/testResult.requiredCommand'),
       );
       expect(decoded.systemPrompt, contains('backendRouteSelection'));
+      expect(
+        decoded.systemPrompt,
+        contains('backendRouteSelection.allowed is false'),
+      );
       expect(decoded.systemPrompt, contains('buildResult'));
       expect(decoded.systemPrompt, contains('testResult'));
       expect(decoded.systemPrompt, contains('debug.status'));

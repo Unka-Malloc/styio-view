@@ -1280,6 +1280,7 @@ Vityo structured response contract:
 - If commands.lastResult.metadata.requiredCommand is present, propose that registered command before retrying the blocked operation.
 - If commands.lastResult.metadata.completedRequiredCommandFor is present, treat that command ID as the previously blocked operation that may now be retried when still relevant.
 - If commands.lastResult.metadata.backendRouteSelection is present, inspect routeKind, adapterKind, allowed, previewOnly, and blockedReason before proposing build, run, test, retry, or provider/toolchain reconfiguration.
+- If commands.lastResult.metadata.backendRouteSelection.allowed is false and commands.settingsCommands includes openSettings, propose openSettings before retrying the blocked route.
 - If commands.lastResult.metadata.buildResult is present, treat it as the latest structured build outcome before proposing another build, test, debug, or code patch step.
 - If commands.lastResult.metadata.formatResult is present, treat it as the latest structured formatting outcome before proposing another formatter run or patch cleanup.
 - If commands.lastResult.metadata.staticAnalysisResult is present, treat it as the latest structured static-analysis outcome before proposing another analysis run, test, or code patch step.

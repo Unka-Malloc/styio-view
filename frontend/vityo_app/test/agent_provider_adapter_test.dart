@@ -672,6 +672,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('backendRouteSelection.allowed is false'),
+      );
+      expect(
+        systemMessage['content'],
         contains('commands.lastResult.metadata.staticAnalysisResult'),
       );
       expect(

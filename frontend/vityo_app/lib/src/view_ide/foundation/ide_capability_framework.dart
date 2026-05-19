@@ -66,6 +66,7 @@ const List<String> requiredVityoIdeCapabilityIds = <String>[
   'editor.rendering',
   'workspace.project-model',
   'workspace.file-explorer',
+  'workspace.edit-application',
   'runtime.execution',
   'runtime.terminal',
   'debugger.dap',
@@ -433,6 +434,25 @@ class VityoIdeCapabilityFramework {
           ],
         ),
         IdeCapabilityDescriptor(
+          id: 'workspace.edit-application',
+          layer: IdeCapabilityLayer.workspace,
+          title: 'Workspace edit application',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/workspace/workspace_edit.dart',
+          summary:
+              'WorkspaceEditPlan and WorkspaceEditApplier provide a shared text-edit application path for agent patches, code actions, rename, and formatting.',
+          todo:
+              'TODO: add preview, rollback, file create/delete operations, and UI confirmation flows.',
+          dependencies: <String>[
+            'foundation.registry',
+            'workspace.project-model',
+          ],
+          references: <String>[
+            'Language Server Protocol WorkspaceEdit',
+            'VS Code workspace edits',
+          ],
+        ),
+        IdeCapabilityDescriptor(
           id: 'runtime.execution',
           layer: IdeCapabilityLayer.runtime,
           title: 'Execution manager and shell runtime',
@@ -496,7 +516,8 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'Structured plan, diagnostics, code patch, IDE command, command result, and patch application loop.',
+              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, and patch application loop.',
+          dependencies: <String>['workspace.edit-application'],
           references: <String>[
             'VS Code chat participants',
             'JetBrains AI Assistant workflows',

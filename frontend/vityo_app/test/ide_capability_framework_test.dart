@@ -18,6 +18,7 @@ void main() {
     expect(ids, contains('interaction.search'));
     expect(ids, contains('interaction.source-control'));
     expect(ids, contains('interaction.testing'));
+    expect(ids, contains('workspace.edit-application'));
     expect(ids, contains('runtime.terminal'));
     expect(ids, contains('presentation.problems-panel'));
     expect(ids, contains('presentation.shell'));
@@ -48,6 +49,14 @@ void main() {
     expect(
       entriesById['interaction.command-palette']?.status,
       IdeCapabilityStatus.scaffolded,
+    );
+    expect(
+      entriesById['workspace.edit-application']?.status,
+      IdeCapabilityStatus.wired,
+    );
+    expect(
+      entriesById['agent.coding-loop']?.dependencies,
+      contains('workspace.edit-application'),
     );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);

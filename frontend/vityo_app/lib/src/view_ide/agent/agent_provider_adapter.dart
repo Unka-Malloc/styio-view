@@ -1249,6 +1249,26 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
           .toList(growable: false),
     });
   }
+  final providerExecution = agent.providerExecution;
+  if (providerExecution != null) {
+    final selectedEndpoint = providerExecution.selectedEndpoint;
+    metadata.addAll(<String, Object?>{
+      'providerExecutionStatus': providerExecution.status,
+      'providerExecutionEndpointCount': providerExecution.endpoints.length,
+      'providerExecutionMissingCredentialEndpointCount':
+          providerExecution.missingCredentialEndpointCount,
+      if (providerExecution.selectedEndpointIndex != null)
+        'providerExecutionSelectedEndpointIndex':
+            providerExecution.selectedEndpointIndex,
+      if (selectedEndpoint != null)
+        'providerExecutionSelectedRouteKind': selectedEndpoint.routeKind,
+      if (selectedEndpoint != null)
+        'providerExecutionSelectedProviderKind': selectedEndpoint.providerKind,
+      if (selectedEndpoint != null)
+        'providerExecutionSelectedCredentialReadiness':
+            selectedEndpoint.credentialReadiness,
+    });
+  }
   final providerFailure = agent.lastProviderFailure;
   if (providerFailure != null) {
     metadata.addAll(<String, Object?>{
@@ -1361,6 +1381,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.pendingIdeCommands, treat them as current unapplied IDE command suggestions waiting for user confirmation or revision.
 - If the IDE context includes agent.recentIdeCommandSuggestions, read it as newest-first structured IDE command suggestions from recent assistant responses.
 - If the IDE context includes agent.lastProviderFailure, read it as the latest structured provider transport failure before proposing retry, failover, or provider reconfiguration.
+- If the IDE context includes agent.providerExecution, read status, selectedEndpointIndex, credentialReadiness, requiresCredential, and missingCredentialEndpointCount before assuming the current assistant is backed by a real provider instead of fallback or local-only execution.
 - If the IDE context includes agent.recentPatchApplications, read it as newest-first structured IDE patch application outcomes before deciding whether to retry, repair, or continue after a patch.
 - If the IDE context includes agent.lastPatchApplication, treat it as the latest structured IDE patch application outcome.
 - If agent.lastPatchApplication.pendingPatchRetained is true, repair, revise, explain, or discard the retained pending patch before proposing an unrelated new patch.

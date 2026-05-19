@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
@@ -463,6 +464,46 @@ void main() {
           operation: 'agent.provider.postJson',
           recoveryHint: 'Retry the provider request.',
         ),
+        providerExecutionResolution: const AgentProviderExecutionResolution(
+          profileId: 'cloud',
+          status: AgentProviderExecutionResolutionStatus.fallbackReady,
+          selectedEndpointIndex: 1,
+          endpoints: <AgentProviderEndpointReadiness>[
+            AgentProviderEndpointReadiness(
+              endpointIndex: 0,
+              fallback: false,
+              endpoint: AgentProviderEndpoint(
+                route: AgentProviderRoute.webHosted,
+                baseUrl: 'https://primary.example.test/v1',
+                model: 'gpt-primary',
+                requiresCredential: true,
+              ),
+              plan: AgentProviderExecutionPlan(
+                routeKind: AgentProviderExecutionRouteKind.cloud,
+                providerKind: AgentProviderKind.cloudOpenAICompatible,
+                route: AgentProviderRoute.webHosted,
+                endpointBaseUrl: 'https://primary.example.test/v1',
+              ),
+              credentialReadiness: AgentProviderCredentialReadiness.unavailable,
+            ),
+            AgentProviderEndpointReadiness(
+              endpointIndex: 1,
+              fallback: true,
+              endpoint: AgentProviderEndpoint(
+                route: AgentProviderRoute.webHosted,
+                baseUrl: 'https://fallback.example.test/v1',
+                model: 'gpt-fallback',
+              ),
+              plan: AgentProviderExecutionPlan(
+                routeKind: AgentProviderExecutionRouteKind.cloud,
+                providerKind: AgentProviderKind.cloudOpenAICompatible,
+                route: AgentProviderRoute.webHosted,
+                endpointBaseUrl: 'https://fallback.example.test/v1',
+              ),
+              credentialReadiness: AgentProviderCredentialReadiness.available,
+            ),
+          ],
+        ),
         lastPatchApplication: AgentPatchApplicationContext(
           patchId: 'patch-applied',
           summary: 'Change value.',
@@ -674,6 +715,7 @@ void main() {
         contains('agent.recentIdeCommandSuggestions'),
       );
       expect(systemMessage['content'], contains('agent.lastProviderFailure'));
+      expect(systemMessage['content'], contains('agent.providerExecution'));
       expect(
         systemMessage['content'],
         contains('agent.recentPatchApplications'),
@@ -822,6 +864,19 @@ void main() {
       expect(metadata['languageServiceLocalFallbackEnabled'], isTrue);
       expect(metadata['languageServiceParserEngine'], 'nightly');
       expect(metadata['languageServiceGrammarVersion'], '2026.05');
+      expect(metadata['providerExecutionStatus'], 'fallback_ready');
+      expect(metadata['providerExecutionEndpointCount'], 2);
+      expect(metadata['providerExecutionMissingCredentialEndpointCount'], 1);
+      expect(metadata['providerExecutionSelectedEndpointIndex'], 1);
+      expect(metadata['providerExecutionSelectedRouteKind'], 'cloud');
+      expect(
+        metadata['providerExecutionSelectedProviderKind'],
+        'cloud_openai_compatible',
+      );
+      expect(
+        metadata['providerExecutionSelectedCredentialReadiness'],
+        'available',
+      );
       expect(
         (metadata['languageServicePrimaryCapabilityStates']!
             as Map<String, Object?>)['hover'],

@@ -6,6 +6,7 @@ import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -262,7 +263,10 @@ void main() {
         commandResultTurn.text,
         contains('requiredCommand: selectClangCppVersion'),
       );
-      expect(commandResultTurn.text, contains('recoveryForCommandId: runBuild'));
+      expect(
+        commandResultTurn.text,
+        contains('recoveryForCommandId: runBuild'),
+      );
       expect(commandResultTurn.text, contains('settingsRoute: settings'));
       expect(commandResultTurn.text, contains('settingsSection: toolchain'));
       expect(
@@ -1187,6 +1191,29 @@ void main() {
         profile: profile,
         adapter: adapter,
         message: 'Configured provider mounted.',
+        executionResolution: const AgentProviderExecutionResolution(
+          profileId: 'cloud',
+          status: AgentProviderExecutionResolutionStatus.ready,
+          selectedEndpointIndex: 0,
+          endpoints: <AgentProviderEndpointReadiness>[
+            AgentProviderEndpointReadiness(
+              endpointIndex: 0,
+              fallback: false,
+              endpoint: AgentProviderEndpoint(
+                route: AgentProviderRoute.webHosted,
+                baseUrl: 'https://agent.example.test/v1',
+                model: 'gpt-test',
+              ),
+              plan: AgentProviderExecutionPlan(
+                routeKind: AgentProviderExecutionRouteKind.cloud,
+                providerKind: AgentProviderKind.cloudOpenAICompatible,
+                route: AgentProviderRoute.webHosted,
+                endpointBaseUrl: 'https://agent.example.test/v1',
+              ),
+              credentialReadiness: AgentProviderCredentialReadiness.available,
+            ),
+          ],
+        ),
       );
 
       expect(controller.profile.profileId, 'cloud');
@@ -1196,6 +1223,19 @@ void main() {
       expect(controller.providerMountMessage, 'Configured provider mounted.');
       expect(controller.lastResponse, isNull);
       expect(controller.pendingPatch, isNull);
+
+      controller.updatePrompt('Use provider.');
+      final response = await controller.sendPrompt();
+      final providerExecution =
+          adapter.requests.single.context.agent.providerExecution!;
+
+      expect(response, isNotNull);
+      expect(providerExecution.status, 'ready');
+      expect(providerExecution.selectedEndpoint?.routeKind, 'cloud');
+      expect(
+        providerExecution.selectedEndpoint?.credentialReadiness,
+        'available',
+      );
     },
   );
 

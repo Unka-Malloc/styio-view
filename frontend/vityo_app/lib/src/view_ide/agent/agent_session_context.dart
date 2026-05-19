@@ -10,6 +10,9 @@ import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_manager.dart';
 import 'agent_coding_skill.dart';
+import 'agent_profile.dart';
+import 'agent_provider_adapter.dart';
+import 'agent_provider_route_executor.dart';
 
 const int _maxAgentCommandResultHistory = 12;
 const int _maxAgentPatchApplicationHistory = 12;
@@ -91,6 +94,7 @@ class AgentSessionContext {
     Iterable<AgentPendingIdeCommandContext> recentIdeCommandSuggestions =
         const <AgentPendingIdeCommandContext>[],
     AgentProviderFailureContext? lastProviderFailure,
+    AgentProviderExecutionResolution? providerExecutionResolution,
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
@@ -152,6 +156,11 @@ class AgentSessionContext {
         pendingIdeCommands: pendingIdeCommands,
         recentIdeCommandSuggestions: recentIdeCommandSuggestions,
         lastProviderFailure: lastProviderFailure,
+        providerExecution: providerExecutionResolution == null
+            ? null
+            : AgentProviderExecutionContext.fromResolution(
+                providerExecutionResolution,
+              ),
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
         recentCodingPlans: recentCodingPlans,
@@ -263,6 +272,7 @@ class AgentSessionContext {
     Iterable<AgentPendingIdeCommandContext> recentIdeCommandSuggestions =
         const <AgentPendingIdeCommandContext>[],
     AgentProviderFailureContext? lastProviderFailure,
+    AgentProviderExecutionResolution? providerExecutionResolution,
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
@@ -294,6 +304,7 @@ class AgentSessionContext {
         recentCodingPlanList.isEmpty &&
         recentDiagnosticSummaryList.isEmpty &&
         lastProviderFailure == null &&
+        providerExecutionResolution == null &&
         lastPatchApplication == null) {
       final recentPatchApplicationList = recentPatchApplications.toList(
         growable: false,
@@ -325,6 +336,11 @@ class AgentSessionContext {
         pendingIdeCommands: pendingIdeCommandList,
         recentIdeCommandSuggestions: recentIdeCommandSuggestionList,
         lastProviderFailure: lastProviderFailure,
+        providerExecution: providerExecutionResolution == null
+            ? agent.providerExecution
+            : AgentProviderExecutionContext.fromResolution(
+                providerExecutionResolution,
+              ),
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
         recentCodingPlans: recentCodingPlanList,
@@ -359,6 +375,7 @@ class AgentCodingLoopContext {
     this.pendingIdeCommands = const <AgentPendingIdeCommandContext>[],
     this.recentIdeCommandSuggestions = const <AgentPendingIdeCommandContext>[],
     this.lastProviderFailure,
+    this.providerExecution,
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
     this.recentCodingPlans = const <AgentCodingPlanContext>[],
@@ -374,6 +391,7 @@ class AgentCodingLoopContext {
     Iterable<AgentPendingIdeCommandContext> recentIdeCommandSuggestions =
         const <AgentPendingIdeCommandContext>[],
     AgentProviderFailureContext? lastProviderFailure,
+    AgentProviderExecutionContext? providerExecution,
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
@@ -394,6 +412,7 @@ class AgentCodingLoopContext {
         growable: false,
       ),
       lastProviderFailure: lastProviderFailure,
+      providerExecution: providerExecution,
       lastPatchApplication: history.isEmpty ? null : history.first,
       recentPatchApplications: history,
       recentCodingPlans: recentCodingPlans.toList(growable: false),
@@ -408,6 +427,7 @@ class AgentCodingLoopContext {
   final List<AgentPendingIdeCommandContext> pendingIdeCommands;
   final List<AgentPendingIdeCommandContext> recentIdeCommandSuggestions;
   final AgentProviderFailureContext? lastProviderFailure;
+  final AgentProviderExecutionContext? providerExecution;
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
   final List<AgentCodingPlanContext> recentCodingPlans;
@@ -430,6 +450,8 @@ class AgentCodingLoopContext {
             .toList(growable: false),
       if (lastProviderFailure != null)
         'lastProviderFailure': lastProviderFailure!.toJson(),
+      if (providerExecution != null)
+        'providerExecution': providerExecution!.toJson(),
       if (lastPatchApplication != null)
         'lastPatchApplication': lastPatchApplication!.toJson(),
       if (recentPatchApplications.isNotEmpty)
@@ -503,6 +525,132 @@ class AgentDiagnosticSummaryContext {
       if (suggestedCommandIds.isNotEmpty)
         'suggestedCommandIds': suggestedCommandIds,
       if (text.trim().isNotEmpty) 'text': text,
+    };
+  }
+}
+
+class AgentProviderExecutionContext {
+  const AgentProviderExecutionContext({
+    required this.status,
+    this.selectedEndpointIndex,
+    this.endpoints = const <AgentProviderEndpointExecutionContext>[],
+  });
+
+  factory AgentProviderExecutionContext.fromResolution(
+    AgentProviderExecutionResolution resolution,
+  ) {
+    return AgentProviderExecutionContext(
+      status: resolution.status.wireValue,
+      selectedEndpointIndex: resolution.selectedEndpointIndex,
+      endpoints: resolution.endpoints
+          .map(AgentProviderEndpointExecutionContext.fromReadiness)
+          .toList(growable: false),
+    );
+  }
+
+  final String status;
+  final int? selectedEndpointIndex;
+  final List<AgentProviderEndpointExecutionContext> endpoints;
+
+  AgentProviderEndpointExecutionContext? get selectedEndpoint {
+    final selected = selectedEndpointIndex;
+    if (selected == null) {
+      return null;
+    }
+    for (final endpoint in endpoints) {
+      if (endpoint.endpointIndex == selected) {
+        return endpoint;
+      }
+    }
+    return null;
+  }
+
+  int get missingCredentialEndpointCount {
+    return endpoints
+        .where(
+          (endpoint) =>
+              endpoint.requiresCredential &&
+              endpoint.credentialReadiness ==
+                  AgentProviderCredentialReadiness.unavailable.wireValue,
+        )
+        .length;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status,
+      if (selectedEndpointIndex != null)
+        'selectedEndpointIndex': selectedEndpointIndex,
+      'missingCredentialEndpointCount': missingCredentialEndpointCount,
+      'endpoints': endpoints
+          .map((endpoint) => endpoint.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+class AgentProviderEndpointExecutionContext {
+  const AgentProviderEndpointExecutionContext({
+    required this.endpointIndex,
+    required this.fallback,
+    required this.routeKind,
+    required this.providerKind,
+    required this.route,
+    required this.baseUrl,
+    required this.model,
+    required this.requiresCredential,
+    required this.credentialReadiness,
+    required this.probeStatus,
+    required this.executable,
+    this.blockReason,
+  });
+
+  factory AgentProviderEndpointExecutionContext.fromReadiness(
+    AgentProviderEndpointReadiness readiness,
+  ) {
+    return AgentProviderEndpointExecutionContext(
+      endpointIndex: readiness.endpointIndex,
+      fallback: readiness.fallback,
+      routeKind: readiness.plan.routeKind.wireValue,
+      providerKind: readiness.plan.providerKind.wireValue,
+      route: readiness.endpoint.route.wireValue,
+      baseUrl: readiness.endpoint.baseUrl,
+      model: readiness.endpoint.model,
+      requiresCredential: readiness.endpoint.requiresCredential,
+      credentialReadiness: readiness.credentialReadiness.wireValue,
+      probeStatus: readiness.probeResult.status.wireValue,
+      executable: readiness.executable,
+      blockReason: readiness.plan.blockReason?.wireValue,
+    );
+  }
+
+  final int endpointIndex;
+  final bool fallback;
+  final String routeKind;
+  final String providerKind;
+  final String route;
+  final String baseUrl;
+  final String model;
+  final bool requiresCredential;
+  final String credentialReadiness;
+  final String probeStatus;
+  final bool executable;
+  final String? blockReason;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'endpointIndex': endpointIndex,
+      'fallback': fallback,
+      'routeKind': routeKind,
+      'providerKind': providerKind,
+      'route': route,
+      'baseUrl': baseUrl,
+      'model': model,
+      'requiresCredential': requiresCredential,
+      'credentialReadiness': credentialReadiness,
+      'probeStatus': probeStatus,
+      'executable': executable,
+      if (blockReason != null) 'blockReason': blockReason,
     };
   }
 }

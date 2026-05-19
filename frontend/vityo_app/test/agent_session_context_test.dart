@@ -1,5 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
+import 'package:vityo_app/src/agent/agent_profile.dart';
+import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/backend_toolchain/execution_adapter.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -1610,15 +1613,69 @@ void main() {
         operation: 'agent.provider.postJson',
         recoveryHint: 'Retry the provider request.',
       ),
+      providerExecutionResolution: const AgentProviderExecutionResolution(
+        profileId: 'cloud',
+        status: AgentProviderExecutionResolutionStatus.fallbackReady,
+        selectedEndpointIndex: 1,
+        endpoints: <AgentProviderEndpointReadiness>[
+          AgentProviderEndpointReadiness(
+            endpointIndex: 0,
+            fallback: false,
+            endpoint: AgentProviderEndpoint(
+              route: AgentProviderRoute.webHosted,
+              baseUrl: 'https://primary.example.test/v1',
+              model: 'gpt-primary',
+              requiresCredential: true,
+            ),
+            plan: AgentProviderExecutionPlan(
+              routeKind: AgentProviderExecutionRouteKind.cloud,
+              providerKind: AgentProviderKind.cloudOpenAICompatible,
+              route: AgentProviderRoute.webHosted,
+              endpointBaseUrl: 'https://primary.example.test/v1',
+            ),
+            credentialReadiness: AgentProviderCredentialReadiness.unavailable,
+          ),
+          AgentProviderEndpointReadiness(
+            endpointIndex: 1,
+            fallback: true,
+            endpoint: AgentProviderEndpoint(
+              route: AgentProviderRoute.webHosted,
+              baseUrl: 'https://fallback.example.test/v1',
+              model: 'gpt-fallback',
+            ),
+            plan: AgentProviderExecutionPlan(
+              routeKind: AgentProviderExecutionRouteKind.cloud,
+              providerKind: AgentProviderKind.cloudOpenAICompatible,
+              route: AgentProviderRoute.webHosted,
+              endpointBaseUrl: 'https://fallback.example.test/v1',
+            ),
+            credentialReadiness: AgentProviderCredentialReadiness.available,
+          ),
+        ],
+      ),
     );
 
     final agentJson = context.toJson()['agent']! as Map<String, Object?>;
     final failure = agentJson['lastProviderFailure']! as Map<String, Object?>;
+    final providerExecution =
+        agentJson['providerExecution']! as Map<String, Object?>;
+    final endpoints = providerExecution['endpoints']! as List<Object?>;
 
     expect(failure['kind'], 'timeout');
     expect(failure['message'], 'provider timed out');
     expect(failure['operation'], 'agent.provider.postJson');
     expect(failure['recoveryHint'], 'Retry the provider request.');
+    expect(providerExecution['status'], 'fallback_ready');
+    expect(providerExecution['selectedEndpointIndex'], 1);
+    expect(providerExecution['missingCredentialEndpointCount'], 1);
+    expect(
+      (endpoints.first! as Map<String, Object?>)['requiresCredential'],
+      isTrue,
+    );
+    expect(
+      (endpoints.first! as Map<String, Object?>)['credentialReadiness'],
+      'unavailable',
+    );
   });
 
   test(

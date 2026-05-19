@@ -2,6 +2,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
 void main() {
+  test('parses common Clang version output facts', () {
+    final llvm = ClangCppVersionFacts.parse(
+      'clang version 18.1.8\nTarget: x86_64-unknown-linux-gnu\n',
+    );
+    final apple = ClangCppVersionFacts.parse(
+      'Apple clang version 15.0.0 (clang-1500.3.9.4)\n',
+    );
+    final ubuntu = ClangCppVersionFacts.parse(
+      'Ubuntu clang version 17.0.6 (++20231208085813+6009708b4367-1~exp1)\n',
+    );
+
+    expect(llvm, isNotNull);
+    expect(llvm!.version, '18.1.8');
+    expect(llvm.vendor, 'llvm');
+    expect(llvm.toMetadata()['clangVersionSource'], 'clang++ --version');
+    expect(apple, isNotNull);
+    expect(apple!.version, '15.0.0');
+    expect(apple.vendor, 'apple');
+    expect(ubuntu, isNotNull);
+    expect(ubuntu!.version, '17.0.6');
+    expect(ubuntu.vendor, 'ubuntu');
+    expect(ClangCppVersionFacts.parse('not clang'), isNull);
+  });
+
   test(
     'selects active Clang C++ version and hands compilers to CMake and Ninja',
     () {

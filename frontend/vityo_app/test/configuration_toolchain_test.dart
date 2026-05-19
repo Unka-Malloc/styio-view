@@ -2921,13 +2921,20 @@ REMOVE_ME=from-file
         environment: const <String, String>{},
         cCompilerCandidatePaths: <String>[clangPath],
         cxxCompilerCandidatePaths: <String>[clangxxPath],
+        clangVersionOutputProbe: (_) async =>
+            'Ubuntu clang version 18.1.3 (1ubuntu1)\n'
+            'Target: aarch64-unknown-linux-gnu\n',
       );
       final active = catalog.active(ToolchainKind.compiler);
 
       expect(active, isNotNull);
       expect(active!.id, 'native-clang-cpp-compiler');
       expect(active.executablePath, clangxxPath);
+      expect(active.version, '18.1.3');
       expect(active.metadata['compilerFamily'], 'clang');
+      expect(active.metadata['clangVersion'], '18.1.3');
+      expect(active.metadata['clangVendor'], 'ubuntu');
+      expect(active.metadata['clangVersionSource'], 'clang++ --version');
       expect(active.metadata['cCompilerPath'], clangPath);
       expect(active.metadata['cxxCompilerPath'], clangxxPath);
       expect(active.metadata['languages'], <String>['c', 'cpp']);

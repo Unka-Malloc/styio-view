@@ -84,6 +84,7 @@ void main() {
         contains('nested buildResult/staticAnalysisResult/testResult.requiredCommand'),
       );
       expect(decoded.systemPrompt, contains('backendRouteSelection'));
+      expect(decoded.systemPrompt, contains('toolchainSelectionStatus'));
       expect(
         decoded.systemPrompt,
         contains('backendRouteSelection.allowed is false'),

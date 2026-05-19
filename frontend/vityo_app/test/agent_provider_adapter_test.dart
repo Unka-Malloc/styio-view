@@ -375,6 +375,9 @@ void main() {
               'previewOnly': false,
               'blockedReason': 'no-backend-route',
             },
+            'toolchainSelectionStatus': 'selected',
+            'toolchainId': 'native-clang-cpp-compiler',
+            'cppStandard': 'c++23',
           },
           completedAt: DateTime.utc(2026, 5, 19, 1, 2, 3),
         ),
@@ -684,6 +687,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('commands.lastResult.metadata.toolchainSelectionStatus'),
+      );
+      expect(
+        systemMessage['content'],
         contains('backendRouteSelection.allowed is false'),
       );
       expect(
@@ -816,6 +823,9 @@ void main() {
         'searchResult',
         'requiredCommand',
         'backendRouteSelection',
+        'toolchainSelectionStatus',
+        'toolchainId',
+        'cppStandard',
       ]);
       expect(metadata['lastCommandRequiredCommandId'], 'runBuild');
       expect(metadata['lastCommandBackendRouteKind'], 'blocked');
@@ -826,6 +836,9 @@ void main() {
         metadata['lastCommandBackendRouteBlockedReason'],
         'no-backend-route',
       );
+      expect(metadata['lastCommandToolchainSelectionStatus'], 'selected');
+      expect(metadata['lastCommandToolchainId'], 'native-clang-cpp-compiler');
+      expect(metadata['lastCommandCppStandard'], 'c++23');
       expect(metadata['lastCommandCompletedAt'], '2026-05-19T01:02:03.000Z');
       expect(metadata['pendingPatchId'], 'patch-pending');
       expect(metadata['pendingPatchEditCount'], 1);

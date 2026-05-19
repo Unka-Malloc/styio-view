@@ -1116,6 +1116,11 @@ Map<String, Object?> _lastCommandResultMetadata(
       .toList(growable: false);
   final requiredCommandId = requiredCommandIdFromAgentMetadata(result.metadata);
   final backendRoute = backendRouteFromAgentMetadata(result.metadata);
+  final toolchainSelectionStatus = _metadataString(
+    result.metadata['toolchainSelectionStatus'],
+  );
+  final toolchainId = _metadataString(result.metadata['toolchainId']);
+  final cppStandard = _metadataString(result.metadata['cppStandard']);
   return <String, Object?>{
     'lastCommandId': result.commandId,
     if (result.input != null) 'lastCommandInput': result.input,
@@ -1133,9 +1138,21 @@ Map<String, Object?> _lastCommandResultMetadata(
       if (backendRoute.blockedReason != null)
         'lastCommandBackendRouteBlockedReason': backendRoute.blockedReason,
     },
+    if (toolchainSelectionStatus != null)
+      'lastCommandToolchainSelectionStatus': toolchainSelectionStatus,
+    if (toolchainId != null) 'lastCommandToolchainId': toolchainId,
+    if (cppStandard != null) 'lastCommandCppStandard': cppStandard,
     if (result.completedAt != null)
       'lastCommandCompletedAt': result.completedAt!.toUtc().toIso8601String(),
   };
+}
+
+String? _metadataString(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }
 
 Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
@@ -1288,6 +1305,7 @@ Vityo structured response contract:
 - If commands.lastResult.metadata.completedRequiredCommandFor is present, treat that command ID as the previously blocked operation that may now be retried when still relevant.
 - If commands.lastResult.metadata.backendRouteSelection is present, inspect routeKind, adapterKind, allowed, previewOnly, and blockedReason before proposing build, run, test, retry, or provider/toolchain reconfiguration.
 - If commands.lastResult.metadata.backendRouteSelection.allowed is false and commands.settingsCommands includes openSettings, propose openSettings before retrying the blocked route.
+- If commands.lastResult.metadata.toolchainSelectionStatus is present, inspect toolchainId, cppStandard, and status before proposing build, test, or another selectClangCppVersion command.
 - If commands.lastResult.metadata.buildResult is present, treat it as the latest structured build outcome before proposing another build, test, debug, or code patch step.
 - If commands.lastResult.metadata.formatResult is present, treat it as the latest structured formatting outcome before proposing another formatter run or patch cleanup.
 - If commands.lastResult.metadata.staticAnalysisResult is present, treat it as the latest structured static-analysis outcome before proposing another analysis run, test, or code patch step.

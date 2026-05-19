@@ -39,6 +39,21 @@ class NetworkFacts {
     detectedAt: detectedAt,
   );
 
+  factory NetworkFacts.webHosted({
+    String targetId = 'web',
+    DateTime? detectedAt,
+  }) => NetworkFacts(
+    targetId: targetId,
+    operatingSystem: 'web',
+    distributionId: 'browser',
+    architecture: 'wasm-js',
+    providerKind: NetworkProviderKind.hosted,
+    supportsHttpClient: true,
+    supportsLoopback: false,
+    proxyEnvironment: const <String, String>{},
+    detectedAt: detectedAt,
+  );
+
   final String targetId;
   final String operatingSystem;
   final String distributionId;
@@ -50,5 +65,11 @@ class NetworkFacts {
   final DateTime? detectedAt;
 
   bool get supportsLinuxDebianArmTarget => operatingSystem == 'linux' && (distributionId == 'debian' || distributionId == 'raspbian') && (architecture == 'aarch64' || architecture == 'arm64' || architecture.startsWith('armv') || architecture == 'arm');
-  String get compatibilityTarget => supportsLinuxDebianArmTarget ? 'linux-debian-arm' : operatingSystem == 'linux' ? 'linux-generic' : 'unsupported';
+  String get compatibilityTarget => operatingSystem == 'web'
+      ? 'web-hosted'
+      : supportsLinuxDebianArmTarget
+      ? 'linux-debian-arm'
+      : operatingSystem == 'linux'
+      ? 'linux-generic'
+      : 'unsupported';
 }

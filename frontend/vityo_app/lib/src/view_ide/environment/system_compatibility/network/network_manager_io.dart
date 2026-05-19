@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import '../platform_adapter/platform_adapter.dart';
@@ -13,15 +14,20 @@ Future<NetworkManager> createPlatformNetworkManager({
   NetworkProber? prober,
   PlatformContextSnapshot? platformContext,
 }) async {
-  final adapter = platformContext == null ? null : PlatformAdapter(platformContext);
+  final adapter = platformContext == null
+      ? null
+      : PlatformAdapter(platformContext);
   final facts =
-      adapter?.context.network ?? await (prober ?? const LocalNetworkProber()).probe();
+      adapter?.context.network ??
+      await (prober ?? const LocalNetworkProber()).probe();
   return LocalNetworkManager(facts: facts, adapter: adapter?.networkAdapter);
 }
 
-class LocalNetworkManager implements NetworkManager {
-  LocalNetworkManager({required this.facts, NetworkAdapter? adapter}) : compatibility = (adapter ?? NetworkAdapter(facts)).adapt();
-  factory LocalNetworkManager.linuxDebianArmForTest() => LocalNetworkManager(facts: NetworkFacts.linuxDebianArm());
+class LocalNetworkManager implements CancellableNetworkManager {
+  LocalNetworkManager({required this.facts, NetworkAdapter? adapter})
+    : compatibility = (adapter ?? NetworkAdapter(facts)).adapt();
+  factory LocalNetworkManager.linuxDebianArmForTest() =>
+      LocalNetworkManager(facts: NetworkFacts.linuxDebianArm());
   @override
   final NetworkFacts facts;
   @override
@@ -63,27 +69,191 @@ class LocalNetworkManager implements NetworkManager {
   }
 
   @override
-  Future<NetworkTextResponse> getText(Uri uri, {Duration timeout = const Duration(seconds: 10)}) async {
+  Future<NetworkTextResponse> getText(
+    Uri uri, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
     final response = await getBytes(uri, timeout: timeout);
-    return NetworkTextResponse(status: response.status, uri: response.uri, statusCode: response.statusCode, body: response.succeeded ? const SystemEncoding().decode(response.bytes) : '', message: response.message);
+    return NetworkTextResponse(
+      status: response.status,
+      uri: response.uri,
+      statusCode: response.statusCode,
+      body: response.succeeded
+          ? const SystemEncoding().decode(response.bytes)
+          : '',
+      message: response.message,
+    );
   }
 
   @override
-  Future<NetworkBinaryResponse> getBytes(Uri uri, {Duration timeout = const Duration(seconds: 10)}) async {
-    if (!compatibility.supportsHttpClient) return NetworkBinaryResponse(status: NetworkRequestStatus.blocked, uri: uri, statusCode: null, bytes: const <int>[], message: 'HTTP client is not available.');
+  Future<NetworkTextResponse> postJson(
+    Uri uri, {
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    return _postJson(uri, headers: headers, body: body, timeout: timeout);
+  }
+
+  @override
+  Future<NetworkTextResponse> postJsonCancellable(
+    Uri uri, {
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+    required NetworkRequestCancellationToken cancellationToken,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    return _postJson(
+      uri,
+      headers: headers,
+      body: body,
+      timeout: timeout,
+      cancellationToken: cancellationToken,
+    );
+  }
+
+  Future<NetworkTextResponse> _postJson(
+    Uri uri, {
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+    required Duration timeout,
+    NetworkRequestCancellationToken? cancellationToken,
+  }) async {
+    if (!compatibility.supportsHttpClient) {
+      return NetworkTextResponse(
+        status: NetworkRequestStatus.blocked,
+        uri: uri,
+        statusCode: null,
+        body: '',
+        message: 'HTTP client is not available.',
+      );
+    }
+    if (cancellationToken?.isCancelled ?? false) {
+      return NetworkTextResponse(
+        status: NetworkRequestStatus.cancelled,
+        uri: uri,
+        statusCode: null,
+        body: '',
+        message: 'Network request cancelled.',
+      );
+    }
+    final client = HttpClient();
+    NetworkRequestCancellationSubscription? cancellationSubscription;
+    try {
+      cancellationSubscription = cancellationToken?.listen(() {
+        client.close(force: true);
+      });
+      cancellationToken?.throwIfCancelled();
+      final request = await client.postUrl(uri).timeout(timeout);
+      cancellationToken?.throwIfCancelled();
+      headers.forEach(request.headers.set);
+      final encoded = utf8.encode(jsonEncode(body));
+      request.headers.contentLength = encoded.length;
+      request.add(encoded);
+      final response = await request.close().timeout(timeout);
+      cancellationToken?.throwIfCancelled();
+      final bytes = await response
+          .fold<List<int>>(<int>[], (buffer, chunk) {
+            buffer.addAll(chunk);
+            return buffer;
+          })
+          .timeout(timeout);
+      cancellationToken?.throwIfCancelled();
+      final status = response.statusCode >= 200 && response.statusCode < 400
+          ? NetworkRequestStatus.succeeded
+          : NetworkRequestStatus.failed;
+      return NetworkTextResponse(
+        status: status,
+        uri: uri,
+        statusCode: response.statusCode,
+        body: utf8.decode(bytes),
+      );
+    } on NetworkRequestCancelledException {
+      return NetworkTextResponse(
+        status: NetworkRequestStatus.cancelled,
+        uri: uri,
+        statusCode: null,
+        body: '',
+        message: 'Network request cancelled.',
+      );
+    } on TimeoutException {
+      return NetworkTextResponse(
+        status: NetworkRequestStatus.timedOut,
+        uri: uri,
+        statusCode: null,
+        body: '',
+        message: 'Network request timed out.',
+      );
+    } on Object catch (error) {
+      if (cancellationToken?.isCancelled ?? false) {
+        return NetworkTextResponse(
+          status: NetworkRequestStatus.cancelled,
+          uri: uri,
+          statusCode: null,
+          body: '',
+          message: 'Network request cancelled.',
+        );
+      }
+      return NetworkTextResponse(
+        status: NetworkRequestStatus.failed,
+        uri: uri,
+        statusCode: null,
+        body: '',
+        message: error.toString(),
+      );
+    } finally {
+      cancellationSubscription?.cancel();
+      client.close(force: true);
+    }
+  }
+
+  @override
+  Future<NetworkBinaryResponse> getBytes(
+    Uri uri, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    if (!compatibility.supportsHttpClient)
+      return NetworkBinaryResponse(
+        status: NetworkRequestStatus.blocked,
+        uri: uri,
+        statusCode: null,
+        bytes: const <int>[],
+        message: 'HTTP client is not available.',
+      );
     final client = HttpClient();
     try {
       final request = await client.getUrl(uri).timeout(timeout);
       final response = await request.close().timeout(timeout);
-      final bytes = await response.fold<List<int>>(<int>[], (buffer, chunk) {
-        buffer.addAll(chunk);
-        return buffer;
-      }).timeout(timeout);
-      return NetworkBinaryResponse(status: response.statusCode >= 200 && response.statusCode < 400 ? NetworkRequestStatus.succeeded : NetworkRequestStatus.failed, uri: uri, statusCode: response.statusCode, bytes: bytes);
+      final bytes = await response
+          .fold<List<int>>(<int>[], (buffer, chunk) {
+            buffer.addAll(chunk);
+            return buffer;
+          })
+          .timeout(timeout);
+      return NetworkBinaryResponse(
+        status: response.statusCode >= 200 && response.statusCode < 400
+            ? NetworkRequestStatus.succeeded
+            : NetworkRequestStatus.failed,
+        uri: uri,
+        statusCode: response.statusCode,
+        bytes: bytes,
+      );
     } on TimeoutException {
-      return NetworkBinaryResponse(status: NetworkRequestStatus.timedOut, uri: uri, statusCode: null, bytes: const <int>[], message: 'Network request timed out.');
+      return NetworkBinaryResponse(
+        status: NetworkRequestStatus.timedOut,
+        uri: uri,
+        statusCode: null,
+        bytes: const <int>[],
+        message: 'Network request timed out.',
+      );
     } on Object catch (error) {
-      return NetworkBinaryResponse(status: NetworkRequestStatus.failed, uri: uri, statusCode: null, bytes: const <int>[], message: error.toString());
+      return NetworkBinaryResponse(
+        status: NetworkRequestStatus.failed,
+        uri: uri,
+        statusCode: null,
+        bytes: const <int>[],
+        message: error.toString(),
+      );
     } finally {
       client.close(force: true);
     }

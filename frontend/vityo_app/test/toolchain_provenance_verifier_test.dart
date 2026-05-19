@@ -213,6 +213,21 @@ class _MemoryNetworkManager implements NetworkManager {
   }
 
   @override
+  Future<NetworkTextResponse> postJson(
+    Uri uri, {
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+    Duration timeout = const Duration(seconds: 10),
+  }) {
+    return delegate.postJson(
+      uri,
+      headers: headers,
+      body: body,
+      timeout: timeout,
+    );
+  }
+
+  @override
   Future<NetworkBinaryResponse> getBytes(
     Uri uri, {
     Duration timeout = const Duration(seconds: 10),

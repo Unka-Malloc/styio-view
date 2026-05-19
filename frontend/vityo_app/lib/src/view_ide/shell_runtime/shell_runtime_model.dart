@@ -755,6 +755,23 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
   }
 
+  Future<void> rerunFailedTests() async {
+    final controller = testingSessionController;
+    if (controller == null || controller.runProvider == null) {
+      await executeCommand(AppCommandId.runTests);
+      return;
+    }
+    final result = await controller.rerunFailed(
+      workspaceRoot: workspaceController.activeProject.workspaceRoot,
+    );
+    appendLog(_testRunResultMessage('Rerun failed tests', result));
+    notifyListeners();
+  }
+
+  String _testRunResultMessage(String action, TestRunResult result) {
+    return '$action: ${result.status.wireValue} · ${result.message}';
+  }
+
   String _sourceControlActionMessage(SourceControlActionResult result) {
     final action = result.kind.wireValue;
     if (!result.applied) {

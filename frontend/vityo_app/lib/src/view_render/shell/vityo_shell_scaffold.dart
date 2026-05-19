@@ -283,7 +283,7 @@ class VityoShellScaffold extends StatelessWidget {
               return shell.executeCommand(AppCommandId.runTests);
             },
             onRerunFailed: () {
-              return shell.executeCommand(AppCommandId.runTests);
+              return shell.rerunFailedTests();
             },
             onSelectFailedTest: (_) {
               shell.openFirstNativeToolDiagnostic(AppCommandId.runTests);

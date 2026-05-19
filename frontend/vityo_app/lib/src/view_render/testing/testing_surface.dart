@@ -52,7 +52,7 @@ class TestingSurface extends StatelessWidget {
             Text('Testing', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              'Test result surface backed by the registered runTests command and native tool result records. TODO: add test discovery, test tree, per-test rerun, and debug-test launch contracts.',
+              'Test result surface backed by registered test providers, run configurations, failed-test rerun planning, the runTests command, and native tool result records. TODO: add debug-test launch UI and richer failure navigation.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -174,9 +174,11 @@ class TestingSurface extends StatelessWidget {
                           ),
                           dense: true,
                           leading: const Icon(Icons.history_rounded),
-                          title: Text(entry.runner.isEmpty
-                              ? entry.providerId
-                              : entry.runner),
+                          title: Text(
+                            entry.runner.isEmpty
+                                ? entry.providerId
+                                : entry.runner,
+                          ),
                           subtitle: Text(
                             '${entry.status.wireValue} · ${entry.message}',
                           ),

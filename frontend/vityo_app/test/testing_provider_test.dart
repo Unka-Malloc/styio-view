@@ -77,6 +77,38 @@ void main() {
     expect(result.toJson()['totalCount'], 2);
   });
 
+  test('test run configuration builds run and discovery requests', () {
+    const configuration = TestRunConfiguration(
+      id: 'styio-parser',
+      label: 'Styio parser fixtures',
+      workspaceRoot: '/workspace/vityo',
+      providerId: 'styio',
+      targetId: 'parser',
+      filter: 'syntax',
+      debug: true,
+      metadata: <String, Object?>{'source': 'fixture'},
+    );
+
+    final runRequest = configuration.toRunRequest();
+    final discoveryRequest = configuration.toDiscoveryRequest();
+    final json = configuration.toJson();
+
+    expect(configuration.ready, isTrue);
+    expect(runRequest.toJson(), <String, Object?>{
+      'workspaceRoot': '/workspace/vityo',
+      'targetId': 'parser',
+      'filter': 'syntax',
+      'debug': true,
+    });
+    expect(discoveryRequest.toJson(), <String, Object?>{
+      'workspaceRoot': '/workspace/vityo',
+      'targetId': 'parser',
+      'filter': 'syntax',
+    });
+    expect(json['providerId'], 'styio');
+    expect(json['metadata'], <String, Object?>{'source': 'fixture'});
+  });
+
   test('testing session controller caches discovery and run results', () async {
     final controller = TestingSessionController(
       discoveryProvider: const StaticTestDiscoveryProvider(
@@ -138,6 +170,58 @@ void main() {
     expect(controller.runHistory, isEmpty);
     expect(notifications, 3);
   });
+
+  test(
+    'testing session controller reruns failed cases with focused filter',
+    () async {
+      TestRunRequest? capturedRequest;
+      final controller = TestingSessionController(
+        runProvider: _CapturingTestRunProvider(
+          onRun: (request) {
+            capturedRequest = request;
+            return TestRunResult(
+              providerId: 'fixture-runner',
+              runner: 'fixture',
+              status: TestRunStatus.passed,
+              message: 'focused pass',
+              totalCount: 2,
+              passedCount: 2,
+              metadata: <String, Object?>{'request': request.toJson()},
+            );
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      controller.recordRunResult(
+        const TestRunResult(
+          providerId: 'fixture-runner',
+          status: TestRunStatus.failed,
+          message: 'two failed',
+          totalCount: 3,
+          failedCount: 2,
+          cases: <TestCaseResult>[
+            TestCaseResult(
+              id: 'test:parser',
+              name: 'parser rejects invalid resource',
+              status: TestRunStatus.failed,
+            ),
+            TestCaseResult(name: 'agent.patch', status: TestRunStatus.failed),
+          ],
+        ),
+      );
+
+      final result = await controller.rerunFailed(
+        workspaceRoot: '/workspace/vityo',
+      );
+
+      expect(result.status, TestRunStatus.passed);
+      expect(capturedRequest?.workspaceRoot, '/workspace/vityo');
+      expect(capturedRequest?.filter, 'test:parser|agent\\.patch');
+      expect(capturedRequest?.debug, isFalse);
+      expect(controller.lastRunConfiguration?.id, 'rerun-failed');
+      expect(controller.runHistory.first, same(result));
+    },
+  );
 
   test('testing session controller records missing providers', () async {
     final controller = TestingSessionController();
@@ -295,4 +379,18 @@ The following tests FAILED:
     expect(json['failedTests'], isNotEmpty);
     expect(json['metadata'], <String, Object?>{'exitCode': 8});
   });
+}
+
+class _CapturingTestRunProvider extends TestRunProvider {
+  const _CapturingTestRunProvider({required this.onRun});
+
+  final TestRunResult Function(TestRunRequest request) onRun;
+
+  @override
+  String get providerId => 'capturing';
+
+  @override
+  Future<TestRunResult> run(TestRunRequest request) async {
+    return onRun(request);
+  }
 }

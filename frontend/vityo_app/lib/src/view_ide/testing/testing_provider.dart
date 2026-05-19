@@ -26,6 +26,15 @@ class TestRunRequest {
   final String targetId;
   final String filter;
   final bool debug;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceRoot': workspaceRoot,
+      if (targetId.isNotEmpty) 'targetId': targetId,
+      if (filter.isNotEmpty) 'filter': filter,
+      'debug': debug,
+    };
+  }
 }
 
 class TestDiscoveryRequest {
@@ -38,6 +47,90 @@ class TestDiscoveryRequest {
   final String workspaceRoot;
   final String targetId;
   final String filter;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceRoot': workspaceRoot,
+      if (targetId.isNotEmpty) 'targetId': targetId,
+      if (filter.isNotEmpty) 'filter': filter,
+    };
+  }
+}
+
+class TestRunConfiguration {
+  const TestRunConfiguration({
+    required this.id,
+    required this.label,
+    required this.workspaceRoot,
+    this.providerId = '',
+    this.targetId = '',
+    this.filter = '',
+    this.debug = false,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String id;
+  final String label;
+  final String workspaceRoot;
+  final String providerId;
+  final String targetId;
+  final String filter;
+  final bool debug;
+  final Map<String, Object?> metadata;
+
+  bool get ready => id.trim().isNotEmpty && workspaceRoot.trim().isNotEmpty;
+
+  TestRunConfiguration copyWith({
+    String? id,
+    String? label,
+    String? workspaceRoot,
+    String? providerId,
+    String? targetId,
+    String? filter,
+    bool? debug,
+    Map<String, Object?>? metadata,
+  }) {
+    return TestRunConfiguration(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      workspaceRoot: workspaceRoot ?? this.workspaceRoot,
+      providerId: providerId ?? this.providerId,
+      targetId: targetId ?? this.targetId,
+      filter: filter ?? this.filter,
+      debug: debug ?? this.debug,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
+  TestRunRequest toRunRequest() {
+    return TestRunRequest(
+      workspaceRoot: workspaceRoot.trim(),
+      targetId: targetId.trim(),
+      filter: filter.trim(),
+      debug: debug,
+    );
+  }
+
+  TestDiscoveryRequest toDiscoveryRequest() {
+    return TestDiscoveryRequest(
+      workspaceRoot: workspaceRoot.trim(),
+      targetId: targetId.trim(),
+      filter: filter.trim(),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'label': label,
+      'workspaceRoot': workspaceRoot,
+      if (providerId.isNotEmpty) 'providerId': providerId,
+      if (targetId.isNotEmpty) 'targetId': targetId,
+      if (filter.isNotEmpty) 'filter': filter,
+      'debug': debug,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
 }
 
 enum TestNodeKind { suite, test }
@@ -188,6 +281,42 @@ class TestRunResult {
         .where((testCase) => testCase.status == TestRunStatus.failed)
         .map((testCase) => testCase.toJson())
         .toList(growable: false);
+  }
+}
+
+class FailedTestRerunPlanner {
+  const FailedTestRerunPlanner();
+
+  TestRunConfiguration? plan({
+    required TestRunResult? lastRun,
+    required String workspaceRoot,
+    bool debug = false,
+  }) {
+    final failedCases =
+        lastRun?.cases
+            .where((testCase) => testCase.status == TestRunStatus.failed)
+            .toList(growable: false) ??
+        const <TestCaseResult>[];
+    if (failedCases.isEmpty) {
+      return null;
+    }
+    final filter = failedCases
+        .map((testCase) => testCase.id.isNotEmpty ? testCase.id : testCase.name)
+        .where((name) => name.trim().isNotEmpty)
+        .map(RegExp.escape)
+        .join('|');
+    return TestRunConfiguration(
+      id: 'rerun-failed',
+      label: debug ? 'Debug Failed Tests' : 'Rerun Failed Tests',
+      workspaceRoot: workspaceRoot,
+      providerId: lastRun?.providerId ?? '',
+      filter: filter,
+      debug: debug,
+      metadata: <String, Object?>{
+        'failedCount': failedCases.length,
+        'sourceRunProviderId': lastRun?.providerId,
+      },
+    );
   }
 }
 

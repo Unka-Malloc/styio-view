@@ -3,19 +3,28 @@ import 'package:flutter/foundation.dart';
 import 'testing_provider.dart';
 
 class TestingSessionController extends ChangeNotifier {
-  TestingSessionController({this.discoveryProvider, this.runProvider});
+  TestingSessionController({
+    this.discoveryProvider,
+    this.runProvider,
+    this.rerunPlanner = const FailedTestRerunPlanner(),
+  });
 
   final TestDiscoveryProvider? discoveryProvider;
   final TestRunProvider? runProvider;
+  final FailedTestRerunPlanner rerunPlanner;
 
   TestDiscoveryResult? _discovery;
   TestRunResult? _lastRun;
+  TestRunRequest? _lastRunRequest;
+  TestRunConfiguration? _lastRunConfiguration;
   final List<TestRunResult> _runHistory = <TestRunResult>[];
   int _discoveryGeneration = 0;
   int _runGeneration = 0;
 
   TestDiscoveryResult? get discovery => _discovery;
   TestRunResult? get lastRun => _lastRun;
+  TestRunRequest? get lastRunRequest => _lastRunRequest;
+  TestRunConfiguration? get lastRunConfiguration => _lastRunConfiguration;
   List<TestRunResult> get runHistory =>
       List<TestRunResult>.unmodifiable(_runHistory);
   bool get hasDiscovery => _discovery != null;
@@ -68,6 +77,8 @@ class TestingSessionController extends ChangeNotifier {
   Future<TestRunResult> run(TestRunRequest request) async {
     final provider = runProvider;
     final generation = ++_runGeneration;
+    _lastRunRequest = request;
+    _lastRunConfiguration = null;
     if (provider == null) {
       final result = const TestRunResult(
         providerId: 'unavailable',
@@ -97,6 +108,57 @@ class TestingSessionController extends ChangeNotifier {
     }
   }
 
+  Future<TestRunResult> runConfiguration(
+    TestRunConfiguration configuration,
+  ) async {
+    if (!configuration.ready) {
+      final result = TestRunResult(
+        providerId: configuration.providerId.isEmpty
+            ? 'unavailable'
+            : configuration.providerId,
+        status: TestRunStatus.error,
+        message:
+            'Test run configuration is not ready. '
+            'TODO: surface configuration repair actions.',
+        metadata: <String, Object?>{'configuration': configuration.toJson()},
+      );
+      _storeRunResult(result);
+      notifyListeners();
+      return result;
+    }
+    final result = await run(configuration.toRunRequest());
+    _lastRunConfiguration = configuration;
+    return result;
+  }
+
+  Future<TestRunResult> debugConfiguration(TestRunConfiguration configuration) {
+    return runConfiguration(configuration.copyWith(debug: true));
+  }
+
+  Future<TestRunResult> rerunFailed({
+    required String workspaceRoot,
+    bool debug = false,
+  }) async {
+    final configuration = rerunPlanner.plan(
+      lastRun: _lastRun,
+      workspaceRoot: workspaceRoot,
+      debug: debug,
+    );
+    if (configuration == null) {
+      final result = const TestRunResult(
+        providerId: 'unavailable',
+        status: TestRunStatus.notRun,
+        message:
+            'Rerun failed skipped: no failed test cases are available. '
+            'TODO: preserve provider-specific failed test identifiers.',
+      );
+      _storeRunResult(result);
+      notifyListeners();
+      return result;
+    }
+    return runConfiguration(configuration);
+  }
+
   void clear() {
     if (_discovery == null && _lastRun == null) {
       return;
@@ -105,6 +167,8 @@ class TestingSessionController extends ChangeNotifier {
     _runGeneration++;
     _discovery = null;
     _lastRun = null;
+    _lastRunRequest = null;
+    _lastRunConfiguration = null;
     _runHistory.clear();
     notifyListeners();
   }

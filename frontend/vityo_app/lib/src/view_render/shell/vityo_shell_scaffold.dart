@@ -545,6 +545,10 @@ class _DesktopShellBody extends StatelessWidget {
                           viewportProfile: viewportProfile,
                           languageServiceStatus:
                               shell.languageServiceStatus.value,
+                          projectHoverAtSelection:
+                              shell.projectHoverAtSelection,
+                          projectCompletionsAtSelection:
+                              shell.projectCompletionsAtSelection,
                           fileBindingSnapshot: shell.editorFileBindingSnapshot,
                           closeRequestSurface: shell.closeRequestSurface,
                           onAcceptExternalChange:
@@ -625,6 +629,9 @@ class _MobileShellBody extends StatelessWidget {
               controller: shell.editorController,
               viewportProfile: viewportProfile,
               languageServiceStatus: shell.languageServiceStatus.value,
+              projectHoverAtSelection: shell.projectHoverAtSelection,
+              projectCompletionsAtSelection:
+                  shell.projectCompletionsAtSelection,
               fileBindingSnapshot: shell.editorFileBindingSnapshot,
               closeRequestSurface: shell.closeRequestSurface,
               onAcceptExternalChange: shell.acceptEditorExternalChange,

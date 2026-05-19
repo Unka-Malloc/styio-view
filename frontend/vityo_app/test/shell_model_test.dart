@@ -611,6 +611,12 @@ void main() {
       expect(projectLanguage['definitionCount'], 1);
       expect(projectLanguage['referenceCount'], 2);
       expect(hover['label'], contains('function blend'));
+      expect(shell.projectHoverAtSelection?.markdown, contains('function blend'));
+      expect(shell.mergedHoverAtSelection?.markdown, contains('function blend'));
+      expect(
+        shell.mergedCompletionsAtSelection.map((completion) => completion.label),
+        contains('blend'),
+      );
 
       await shell.executeCommand(AppCommandId.nextReference);
 

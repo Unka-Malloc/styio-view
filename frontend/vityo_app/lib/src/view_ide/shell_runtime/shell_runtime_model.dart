@@ -487,6 +487,52 @@ class ShellRuntimeModel extends ChangeNotifier {
   SourceControlDiffSnapshot? get sourceControlDiffPreview =>
       sourceControlStatusController?.diffPreview;
 
+  HoverPayload? get projectHoverAtSelection {
+    final hover = projectLanguageService.hoverAt(
+      documents: _agentWorkspaceDocumentSamples,
+      documentId: editorController.document.documentId,
+      offset: editorController.selection.extentOffset,
+    );
+    if (hover == null) {
+      return null;
+    }
+    final range =
+        editorController.tokenAtSelection?.range ??
+        SourceRange(
+          start: editorController.selection.start,
+          end: editorController.selection.end,
+        );
+    return HoverPayload(range: range, markdown: hover.label);
+  }
+
+  HoverPayload? get mergedHoverAtSelection {
+    return projectHoverAtSelection ?? editorController.hoverAtSelection;
+  }
+
+  List<CompletionItem> get projectCompletionsAtSelection {
+    return projectLanguageService.completionsAt(
+      documents: _agentWorkspaceDocumentSamples,
+      documentId: editorController.document.documentId,
+      offset: editorController.selection.extentOffset,
+    );
+  }
+
+  List<CompletionItem> get mergedCompletionsAtSelection {
+    final completions = <CompletionItem>[];
+    final seen = <String>{};
+    for (final completion in [
+      ...editorController.completionsAtSelection,
+      ...projectCompletionsAtSelection,
+    ]) {
+      final key =
+          '${completion.kind.name}:${completion.label}:${completion.insertText}';
+      if (seen.add(key)) {
+        completions.add(completion);
+      }
+    }
+    return List<CompletionItem>.unmodifiable(completions);
+  }
+
   AgentSessionContext get agentSessionContext {
     final debugBreakpoints = _debugBreakpoints;
     return AgentSessionContext.fromEditorState(
@@ -496,7 +542,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       focusedDiagnostics: editorController.diagnosticsAtSelection,
       focusToken: editorController.tokenAtSelection,
       focusSemanticKind: editorController.semanticKindAtSelection,
-      hover: editorController.hoverAtSelection,
+      hover: mergedHoverAtSelection,
       definition: editorController.definitionAtSelection,
       resolvedElement: editorController.resolvedElementAtSelection,
       resolvedReference: editorController.resolvedReferenceAtSelection,
@@ -505,7 +551,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       inlineVariablePlan: editorController.inlineVariablePlanAtSelection,
       surroundTemplates: editorController.surroundTemplatesAtSelection,
       references: editorController.referencesAtSelection,
-      completions: editorController.completionsAtSelection,
+      completions: mergedCompletionsAtSelection,
       codeActions: editorController.contextActionsAtSelection,
       semanticSpans: editorController.analysis.semanticSpans,
       documentSymbols: editorController.analysis.documentSymbols,
@@ -700,6 +746,11 @@ class ShellRuntimeModel extends ChangeNotifier {
     final documents = await _loadProjectLanguageDocuments();
     final documentId = editorController.document.documentId;
     final offset = editorController.selection.extentOffset;
+    for (final document in documents) {
+      if (document.documentId != documentId) {
+        _cacheDocument(document.documentId, document);
+      }
+    }
     final hover = projectLanguageService.hoverAt(
       documents: documents,
       documentId: documentId,

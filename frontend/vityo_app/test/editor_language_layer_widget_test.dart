@@ -1,11 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/editor.dart';
+import 'package:vityo_app/src/view_ide/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/local_styio_language_service.dart';
 import 'package:vityo_app/src/view_render/editor/editor.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 
 void main() {
+  test('mergeCompletionItems keeps primary order and dedupes fallback', () {
+    const localMain = CompletionItem(
+      label: 'main',
+      kind: CompletionItemKind.function,
+      insertText: 'main',
+    );
+    const projectMain = CompletionItem(
+      label: 'main',
+      kind: CompletionItemKind.function,
+      insertText: 'main',
+      detail: 'project duplicate',
+    );
+    const projectBlend = CompletionItem(
+      label: 'blend',
+      kind: CompletionItemKind.function,
+      insertText: 'blend',
+    );
+
+    final completions = mergeCompletionItems(
+      const <CompletionItem>[localMain],
+      const <CompletionItem>[projectMain, projectBlend],
+    );
+
+    expect(completions, <CompletionItem>[localMain, projectBlend]);
+  });
+
+  testWidgets('editor surface renders project hover and completion fallback', (
+    tester,
+  ) async {
+    const text = 'value = blend()\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'project-context.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const LocalStyioLanguageService(),
+    )..selectCollapsed(text.indexOf('blend') + 1);
+
+    await tester.pumpWidget(
+      _editorHarness(
+        controller,
+        projectHoverAtSelection: const HoverPayload(
+          range: SourceRange(start: 8, end: 13),
+          markdown: 'function blend',
+        ),
+        projectCompletionsAtSelection: const <CompletionItem>[
+          CompletionItem(
+            label: 'projectBlend',
+            kind: CompletionItemKind.function,
+            insertText: 'projectBlend',
+          ),
+        ],
+      ),
+    );
+
+    expect(
+      find.textContaining('function blend', skipOffstage: false),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining('projectBlend', skipOffstage: false),
+      findsWidgets,
+    );
+  });
+
   testWidgets('semantic spans overlay token spans without replacing them', (
     tester,
   ) async {
@@ -39,7 +106,12 @@ void main() {
   });
 }
 
-Widget _editorHarness(EditorSessionController controller) {
+Widget _editorHarness(
+  EditorSessionController controller, {
+  HoverPayload? projectHoverAtSelection,
+  List<CompletionItem> projectCompletionsAtSelection =
+      const <CompletionItem>[],
+}) {
   return MaterialApp(
     home: Scaffold(
       body: SizedBox(
@@ -52,6 +124,8 @@ Widget _editorHarness(EditorSessionController controller) {
             width: 1200,
             height: 800,
           ),
+          projectHoverAtSelection: projectHoverAtSelection,
+          projectCompletionsAtSelection: projectCompletionsAtSelection,
         ),
       ),
     ),

@@ -9,6 +9,22 @@ import '../../view_ide/editor/editor_controller.dart';
 import '../../view_ide/editor/editor_render_layers.dart';
 import '../../view_ide/editor/selection_state.dart';
 
+List<CompletionItem> mergeCompletionItems(
+  Iterable<CompletionItem> primary,
+  Iterable<CompletionItem> fallback,
+) {
+  final completions = <CompletionItem>[];
+  final seen = <String>{};
+  for (final completion in [...primary, ...fallback]) {
+    final key =
+        '${completion.kind.name}:${completion.label}:${completion.insertText}';
+    if (seen.add(key)) {
+      completions.add(completion);
+    }
+  }
+  return List<CompletionItem>.unmodifiable(completions);
+}
+
 class EditorSurface extends StatelessWidget {
   const EditorSurface({
     super.key,
@@ -24,6 +40,8 @@ class EditorSurface extends StatelessWidget {
     this.onDiscardAndCloseRequest,
     this.onSwitchToCloseRequestFile,
     this.onCancelCloseRequest,
+    this.projectHoverAtSelection,
+    this.projectCompletionsAtSelection = const <CompletionItem>[],
     this.openDocumentIds = const <String>[],
     this.dirtyDocumentIds = const <String>[],
     this.activeDocumentId,
@@ -43,6 +61,8 @@ class EditorSurface extends StatelessWidget {
   final VoidCallback? onDiscardAndCloseRequest;
   final VoidCallback? onSwitchToCloseRequestFile;
   final VoidCallback? onCancelCloseRequest;
+  final HoverPayload? projectHoverAtSelection;
+  final List<CompletionItem> projectCompletionsAtSelection;
   final List<String> openDocumentIds;
   final List<String> dirtyDocumentIds;
   final String? activeDocumentId;
@@ -59,8 +79,11 @@ class EditorSurface extends StatelessWidget {
         final selection = controller.selection;
         final renderPlan = controller.renderPlan;
         final analysis = controller.analysis;
-        final hover = controller.hoverAtSelection;
-        final completions = controller.completionsAtSelection;
+        final hover = projectHoverAtSelection ?? controller.hoverAtSelection;
+        final completions = mergeCompletionItems(
+          controller.completionsAtSelection,
+          projectCompletionsAtSelection,
+        );
         final activeReferences = controller.referencesAtSelection;
         final activeToken = controller.tokenAtSelection;
         final activeSemanticKind = controller.semanticKindAtSelection;
@@ -1452,7 +1475,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     if (!_shouldAutoPopupCompletion(character)) {
       return;
     }
-    final completions = widget.controller.completionsAtSelection;
+    final completions = widget.completions;
     if (completions.isEmpty) {
       return;
     }

@@ -80,6 +80,10 @@ void main() {
       IdeCapabilityStatus.scaffolded,
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('staging action contracts'),
+    );
+    expect(
       entriesById['extension.marketplace']?.status,
       IdeCapabilityStatus.scaffolded,
     );

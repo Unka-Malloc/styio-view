@@ -15,6 +15,9 @@ class SourceControlSurface extends StatelessWidget {
     this.onSaveAll,
     this.onRefresh,
     this.onPreviewDiff,
+    this.onStagePaths,
+    this.onUnstagePaths,
+    this.onOpenCommit,
   });
 
   final ViewportProfile viewportProfile;
@@ -26,6 +29,9 @@ class SourceControlSurface extends StatelessWidget {
   final Future<void> Function()? onSaveAll;
   final Future<void> Function()? onRefresh;
   final Future<void> Function(String documentId)? onPreviewDiff;
+  final Future<void> Function(List<String> paths)? onStagePaths;
+  final Future<void> Function(List<String> paths)? onUnstagePaths;
+  final Future<void> Function()? onOpenCommit;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +41,14 @@ class SourceControlSurface extends StatelessWidget {
         status?.providerKind.wireValue ?? 'local-dirty-documents';
     final gitChanges = status?.changes ?? const <SourceControlFileChange>[];
     final statusAvailable = status?.available ?? true;
+    final stagedPaths = gitChanges
+        .where((change) => change.staged)
+        .map((change) => change.path)
+        .toList(growable: false);
+    final unstagedPaths = gitChanges
+        .where((change) => change.unstaged)
+        .map((change) => change.path)
+        .toList(growable: false);
 
     return Card(
       key: const ValueKey('source-control-surface'),
@@ -64,6 +78,10 @@ class SourceControlSurface extends StatelessWidget {
                   Chip(label: Text('branch ${status!.branchName}')),
                 if (status != null)
                   Chip(label: Text('git ${gitChanges.length}')),
+                if (status != null)
+                  Chip(label: Text('staged ${stagedPaths.length}')),
+                if (status != null)
+                  Chip(label: Text('unstaged ${unstagedPaths.length}')),
               ],
             ),
             const SizedBox(height: 12),
@@ -92,6 +110,32 @@ class SourceControlSurface extends StatelessWidget {
                   onPressed: onRefresh,
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Refresh'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('source-control-stage-all'),
+                  onPressed: unstagedPaths.isEmpty || onStagePaths == null
+                      ? null
+                      : () {
+                          onStagePaths!(unstagedPaths);
+                        },
+                  icon: const Icon(Icons.add_task_rounded),
+                  label: const Text('Stage All'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('source-control-unstage-all'),
+                  onPressed: stagedPaths.isEmpty || onUnstagePaths == null
+                      ? null
+                      : () {
+                          onUnstagePaths!(stagedPaths);
+                        },
+                  icon: const Icon(Icons.remove_done_rounded),
+                  label: const Text('Unstage All'),
+                ),
+                FilledButton.tonalIcon(
+                  key: const ValueKey('source-control-open-commit'),
+                  onPressed: stagedPaths.isEmpty ? null : onOpenCommit,
+                  icon: const Icon(Icons.commit_rounded),
+                  label: const Text('Commit...'),
                 ),
               ],
             ),

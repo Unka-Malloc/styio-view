@@ -257,6 +257,75 @@ diff --git a/lib/main.styio b/lib/main.styio
     expect(controller.diffPreview, isNull);
     expect(notifications, 3);
   });
+
+  test('source control status controller records action results', () async {
+    final controller = SourceControlStatusController(
+      provider: const StaticSourceControlStatusProvider(
+        SourceControlStatusSnapshot(
+          providerKind: SourceControlProviderKind.git,
+          changes: <SourceControlFileChange>[],
+        ),
+      ),
+      actionProvider: _FakeSourceControlActionProvider(),
+      workspaceRoot: '/workspace/vityo',
+    );
+    addTearDown(controller.dispose);
+
+    final result = await controller.runAction(
+      const SourceControlActionRequest(
+        kind: SourceControlActionKind.stage,
+        paths: <String>['src/main.styio'],
+      ),
+    );
+
+    expect(result.applied, isTrue);
+    expect(result.kind, SourceControlActionKind.stage);
+    expect(result.paths, <String>['src/main.styio']);
+    expect(controller.lastActionResult, same(result));
+    expect(result.toJson()['kind'], 'stage');
+  });
+
+  test('source control status controller reports missing action provider', () async {
+    final controller = SourceControlStatusController(
+      provider: const StaticSourceControlStatusProvider(
+        SourceControlStatusSnapshot(
+          providerKind: SourceControlProviderKind.git,
+          changes: <SourceControlFileChange>[],
+        ),
+      ),
+      workspaceRoot: '/workspace/vityo',
+    );
+    addTearDown(controller.dispose);
+
+    final result = await controller.runAction(
+      const SourceControlActionRequest(
+        kind: SourceControlActionKind.commit,
+        message: 'checkpoint',
+      ),
+    );
+
+    expect(result.applied, isFalse);
+    expect(result.message, contains('no action provider'));
+    expect(controller.lastActionResult, same(result));
+  });
+}
+
+class _FakeSourceControlActionProvider extends SourceControlActionProvider {
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlActionResult> runAction({
+    required String workspaceRoot,
+    required SourceControlActionRequest request,
+  }) async {
+    return SourceControlActionResult(
+      kind: request.kind,
+      applied: true,
+      paths: request.paths,
+      message: workspaceRoot,
+    );
+  }
 }
 
 class _FakeProcessManager implements ProcessManager {

@@ -14,11 +14,24 @@ enum SourceControlFileStatus {
   unknown,
 }
 
+enum SourceControlActionKind { stage, unstage, discard, commit }
+
 extension SourceControlProviderKindX on SourceControlProviderKind {
   String get wireValue {
     return switch (this) {
       SourceControlProviderKind.localDirtyDocuments => 'local-dirty-documents',
       SourceControlProviderKind.git => 'git',
+    };
+  }
+}
+
+extension SourceControlActionKindX on SourceControlActionKind {
+  String get wireValue {
+    return switch (this) {
+      SourceControlActionKind.stage => 'stage',
+      SourceControlActionKind.unstage => 'unstage',
+      SourceControlActionKind.discard => 'discard',
+      SourceControlActionKind.commit => 'commit',
     };
   }
 }
@@ -35,6 +48,49 @@ extension SourceControlFileStatusX on SourceControlFileStatus {
       SourceControlFileStatus.untracked => 'untracked',
       SourceControlFileStatus.conflicted => 'conflicted',
       SourceControlFileStatus.unknown => 'unknown',
+    };
+  }
+}
+
+class SourceControlActionRequest {
+  const SourceControlActionRequest({
+    required this.kind,
+    this.paths = const <String>[],
+    this.message = '',
+  });
+
+  final SourceControlActionKind kind;
+  final List<String> paths;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'paths': paths,
+      if (message.isNotEmpty) 'message': message,
+    };
+  }
+}
+
+class SourceControlActionResult {
+  const SourceControlActionResult({
+    required this.kind,
+    required this.applied,
+    this.paths = const <String>[],
+    this.message = '',
+  });
+
+  final SourceControlActionKind kind;
+  final bool applied;
+  final List<String> paths;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'applied': applied,
+      'paths': paths,
+      if (message.isNotEmpty) 'message': message,
     };
   }
 }
@@ -232,6 +288,17 @@ abstract class SourceControlDiffProvider {
   Future<SourceControlDiffSnapshot> diff({
     required String workspaceRoot,
     required String path,
+  });
+}
+
+abstract class SourceControlActionProvider {
+  const SourceControlActionProvider();
+
+  SourceControlProviderKind get providerKind;
+
+  Future<SourceControlActionResult> runAction({
+    required String workspaceRoot,
+    required SourceControlActionRequest request,
   });
 }
 

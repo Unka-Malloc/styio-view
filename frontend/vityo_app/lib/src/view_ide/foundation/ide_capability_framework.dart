@@ -360,9 +360,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
-              'Source Control surface is wired to dirty editor documents, Git porcelain status parsing, file open, and save-all handoff.',
+              'Source Control surface is wired to dirty editor documents, Git porcelain status parsing, diff preview, staging action contracts, file open, and save-all handoff.',
           todo:
-              'TODO: add source-control status, diff, staging, commit, and history interaction contracts without coupling to Git-only UI.',
+              'TODO: add real stage, unstage, commit, branch, and history providers without coupling to Git-only UI.',
           references: <String>[
             'VS Code SCM provider API',
             'IntelliJ VCS subsystem',

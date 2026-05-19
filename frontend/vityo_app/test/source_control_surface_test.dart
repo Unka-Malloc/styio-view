@@ -11,8 +11,11 @@ void main() {
   ) async {
     String? openedDocumentId;
     String? previewedDocumentId;
+    List<String>? stagedPaths;
+    List<String>? unstagedPaths;
     var saveAllCount = 0;
     var refreshCount = 0;
+    var openCommitCount = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -51,6 +54,15 @@ R  src/old.styio -> src/new.styio
             onPreviewDiff: (documentId) async {
               previewedDocumentId = documentId;
             },
+            onStagePaths: (paths) async {
+              stagedPaths = paths;
+            },
+            onUnstagePaths: (paths) async {
+              unstagedPaths = paths;
+            },
+            onOpenCommit: () async {
+              openCommitCount += 1;
+            },
           ),
         ),
       ),
@@ -66,6 +78,8 @@ R  src/old.styio -> src/new.styio
     expect(find.text('provider git'), findsOneWidget);
     expect(find.text('branch ai-dev'), findsOneWidget);
     expect(find.text('git 2'), findsOneWidget);
+    expect(find.text('staged 1'), findsOneWidget);
+    expect(find.text('unstaged 1'), findsOneWidget);
     expect(find.text('src/new.styio'), findsOneWidget);
     expect(find.text('src/main.styio'), findsWidgets);
     expect(find.text('src/lib.styio'), findsOneWidget);
@@ -86,6 +100,9 @@ R  src/old.styio -> src/new.styio
     );
     await tester.tap(find.byKey(const ValueKey('source-control-save-all')));
     await tester.tap(find.byKey(const ValueKey('source-control-refresh')));
+    await tester.tap(find.byKey(const ValueKey('source-control-stage-all')));
+    await tester.tap(find.byKey(const ValueKey('source-control-unstage-all')));
+    await tester.tap(find.byKey(const ValueKey('source-control-open-commit')));
     await tester.drag(
       find.byKey(const ValueKey('source-control-surface')),
       const Offset(0, -320),
@@ -98,8 +115,11 @@ R  src/old.styio -> src/new.styio
 
     expect(openedDocumentId, 'src/main.styio');
     expect(previewedDocumentId, 'src/main.styio');
+    expect(stagedPaths, <String>['src/main.styio']);
+    expect(unstagedPaths, <String>['src/new.styio']);
     expect(saveAllCount, 1);
     expect(refreshCount, 1);
+    expect(openCommitCount, 1);
   });
 
   testWidgets('source control surface renders unavailable provider state', (

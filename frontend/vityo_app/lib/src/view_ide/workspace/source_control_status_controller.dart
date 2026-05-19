@@ -7,19 +7,24 @@ class SourceControlStatusController extends ChangeNotifier {
     required this.provider,
     required this.workspaceRoot,
     this.diffProvider,
+    this.actionProvider,
   });
 
   final SourceControlStatusProvider provider;
   final SourceControlDiffProvider? diffProvider;
+  final SourceControlActionProvider? actionProvider;
   final String workspaceRoot;
 
   SourceControlStatusSnapshot? _snapshot;
   SourceControlDiffSnapshot? _diffPreview;
+  SourceControlActionResult? _lastActionResult;
   int _generation = 0;
   int _diffGeneration = 0;
+  int _actionGeneration = 0;
 
   SourceControlStatusSnapshot? get snapshot => _snapshot;
   SourceControlDiffSnapshot? get diffPreview => _diffPreview;
+  SourceControlActionResult? get lastActionResult => _lastActionResult;
   bool get hasSnapshot => _snapshot != null;
   bool get hasDiffPreview => _diffPreview != null;
 
@@ -31,6 +36,30 @@ class SourceControlStatusController extends ChangeNotifier {
       notifyListeners();
     }
     return nextSnapshot;
+  }
+
+  Future<SourceControlActionResult> runAction(
+    SourceControlActionRequest request,
+  ) async {
+    final provider = actionProvider;
+    final generation = ++_actionGeneration;
+    final result = provider == null
+        ? SourceControlActionResult(
+            kind: request.kind,
+            applied: false,
+            paths: request.paths,
+            message:
+                'Source control action skipped: no action provider is configured.',
+          )
+        : await provider.runAction(
+            workspaceRoot: workspaceRoot,
+            request: request,
+          );
+    if (generation == _actionGeneration) {
+      _lastActionResult = result;
+      notifyListeners();
+    }
+    return result;
   }
 
   void recordStatus(SourceControlStatusSnapshot snapshot) {
@@ -68,8 +97,10 @@ class SourceControlStatusController extends ChangeNotifier {
     }
     _generation++;
     _diffGeneration++;
+    _actionGeneration++;
     _snapshot = null;
     _diffPreview = null;
+    _lastActionResult = null;
     notifyListeners();
   }
 }

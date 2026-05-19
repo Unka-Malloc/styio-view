@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../view_ide/interaction/interaction.dart';
+import '../../view_ide/foundation/foundation.dart';
 import '../../view_ide/toolchain/toolchain_catalog.dart';
 import '../platform/viewport_profile.dart';
 import '../theme/theme.dart';
@@ -18,6 +19,7 @@ class SettingsSurface extends StatelessWidget {
     this.onSelectClangCppVersion,
     this.onClearToolchain,
     this.onExecuteToolchainInstallPlan,
+    this.ideCapabilities,
     this.themeOverride = const VityoThemeOverride(),
     this.onSaveThemeOverride,
   });
@@ -34,6 +36,7 @@ class SettingsSurface extends StatelessWidget {
   onSelectClangCppVersion;
   final Future<void> Function(ToolchainKind kind)? onClearToolchain;
   final Future<void> Function()? onExecuteToolchainInstallPlan;
+  final IdeCapabilityFrameworkSnapshot? ideCapabilities;
   final VityoThemeOverride themeOverride;
   final Future<void> Function(VityoThemeOverride override)? onSaveThemeOverride;
 
@@ -44,6 +47,8 @@ class SettingsSurface extends StatelessWidget {
     final settings =
         toolchainSettings ??
         ToolchainSettingsSurface.fromStatus(toolchainStatus);
+    final capabilitySnapshot =
+        ideCapabilities ?? const VityoIdeCapabilityFramework().snapshot();
 
     return Card(
       key: const ValueKey('settings-surface'),
@@ -71,6 +76,8 @@ class SettingsSurface extends StatelessWidget {
                 onExecuteToolchainInstallPlan: onExecuteToolchainInstallPlan,
               ),
               const SizedBox(height: 14),
+              _IdeCapabilityFrameworkCard(snapshot: capabilitySnapshot),
+              const SizedBox(height: 14),
               _ThemeSettingsCard(
                 themeOverride: themeOverride,
                 onSaveThemeOverride: onSaveThemeOverride,
@@ -78,6 +85,88 @@ class SettingsSurface extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _IdeCapabilityFrameworkCard extends StatelessWidget {
+  const _IdeCapabilityFrameworkCard({required this.snapshot});
+
+  final IdeCapabilityFrameworkSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final followUps = snapshot.followUps.take(8).toList(growable: false);
+
+    return Container(
+      key: const ValueKey('settings-ide-capability-framework'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE6EEF1),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('IDE Capability Framework', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Cross-layer maturity map for Vityo IDE capabilities. TODO entries are explicit follow-up work, not production-ready claims.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('version ${snapshot.version}')),
+              Chip(label: Text('entries ${snapshot.entries.length}')),
+              Chip(label: Text('follow-ups ${snapshot.followUps.length}')),
+              for (final statusCount in snapshot.statusCounts.entries)
+                Chip(label: Text('${statusCount.key} ${statusCount.value}')),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text('Layer Coverage', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: snapshot.layerCounts.entries
+                .where((entry) => entry.value > 0)
+                .map(
+                  (entry) => Chip(label: Text('${entry.key} ${entry.value}')),
+                )
+                .toList(growable: false),
+          ),
+          const SizedBox(height: 12),
+          Text('TODO Follow-ups', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 8),
+          if (followUps.isEmpty)
+            Text(
+              'No framework follow-ups are currently recorded.',
+              style: theme.textTheme.bodySmall,
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: followUps
+                  .map(
+                    (entry) => Padding(
+                      key: ValueKey('settings-ide-capability-${entry.id}'),
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        '${entry.layer.wireValue} · ${entry.title} · ${entry.status.wireValue}: ${entry.todo}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+        ],
       ),
     );
   }

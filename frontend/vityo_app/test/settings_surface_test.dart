@@ -184,6 +184,16 @@ void main() {
 
     expect(find.byKey(const ValueKey('settings-surface')), findsOneWidget);
     expect(
+      find.byKey(const ValueKey('settings-ide-capability-framework')),
+      findsOneWidget,
+    );
+    expect(find.text('IDE Capability Framework'), findsOneWidget);
+    expect(
+      find.text('version vityo-ide-capability-framework-v1'),
+      findsOneWidget,
+    );
+    expect(find.text('TODO Follow-ups'), findsOneWidget);
+    expect(
       find.byKey(const ValueKey('settings-toolchain-status-card')),
       findsOneWidget,
     );

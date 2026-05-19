@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_launch_contract.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 
 void main() {
@@ -83,6 +84,45 @@ void main() {
     expect(launch.readiness, DebugLaunchReadiness.unsupportedProtocol);
     expect(launch.reason, contains('unsupported protocol custom'));
   });
+
+  test(
+    'debug launch contract projects launch into runtime task definition',
+    () {
+      final launch = DebugLaunchConfiguration.fromToolchainDescriptor(
+        debugger: const ToolchainDescriptor(
+          id: 'lldb-dap',
+          kind: ToolchainKind.debugger,
+          displayName: 'LLDB DAP',
+          executablePath: '/usr/bin/lldb-dap',
+          metadata: <String, Object?>{
+            'adapterProtocol': 'dap',
+            'programPath': 'build/vityo',
+            'debugAdapterArguments': <String>['--stdio'],
+          },
+        ),
+        workspaceRoot: '/workspace/vityo',
+      );
+
+      final task = launch.toRuntimeTaskDefinition(
+        taskId: 'debug.current',
+        metadata: const <String, Object?>{'owner': 'debugger'},
+      );
+
+      expect(task.id, 'debug.current');
+      expect(task.kind, RuntimeTaskKind.debug);
+      expect(task.command, '/usr/bin/lldb-dap');
+      expect(task.arguments, <String>[
+        '--stdio',
+        '/workspace/vityo/build/vityo',
+      ]);
+      expect(task.workingDirectory, '/workspace/vityo');
+      expect(task.runnable, isTrue);
+      expect(
+        (task.metadata['launch']! as Map<String, Object?>)['ready'],
+        isTrue,
+      );
+    },
+  );
 
   test('debug launch profile set selects default and round trips JSON', () {
     final launch = DebugLaunchConfiguration.fromToolchainDescriptor(

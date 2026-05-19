@@ -1,4 +1,5 @@
 import '../foundation/foundation.dart';
+import '../runtime/runtime.dart';
 import '../toolchain/toolchain_catalog.dart';
 
 enum DebugLaunchReadiness { ready, missingProgram, unsupportedProtocol }
@@ -209,6 +210,34 @@ class DebugLaunchConfiguration {
           .map((breakpoint) => breakpoint.toJson())
           .toList(growable: false),
     };
+  }
+
+  RuntimeTaskDefinition toRuntimeTaskDefinition({
+    String? taskId,
+    String? label,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeTaskDefinition(
+      id: taskId ?? 'debug.$debuggerId',
+      label: label ?? 'Debug $debuggerLabel',
+      kind: RuntimeTaskKind.debug,
+      command: ready ? debuggerExecutablePath : '',
+      arguments: <String>[
+        ...debuggerArguments,
+        if (programPath != null) programPath!,
+      ],
+      workingDirectory: cwd,
+      environment: environment,
+      group: 'debug',
+      metadata: <String, Object?>{
+        ...metadata,
+        'launch': toJson(),
+        'adapterProtocol': adapterProtocol,
+        'source': 'DebugLaunchConfiguration',
+        'todo':
+            'TODO: attach DAP events and debug console output to runtime task history.',
+      },
+    );
   }
 }
 

@@ -13,6 +13,7 @@ import 'package:vityo_app/src/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/backend_toolchain/runtime_event_adapter.dart';
 import 'package:vityo_app/src/backend_toolchain/toolchain_management_adapter.dart';
+import 'package:vityo_app/src/view_ide/agent/agent.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/editor/session/editor_session_data_store.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
@@ -609,6 +610,21 @@ void main() {
       shell.debugLog.any((entry) => entry.contains('Settings surface opened')),
       isTrue,
     );
+
+    shell.selectBottomTab(BottomSurfaceTab.runtime);
+    final applied = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(
+        commandId: 'openSettings',
+        prerequisiteForCommandId: 'runBuild',
+      ),
+    );
+    final result = shell.agentSessionContext.commands.lastResult;
+
+    expect(applied, isTrue);
+    expect(shell.activeBottomTab, BottomSurfaceTab.settings);
+    expect(result?.commandId, 'openSettings');
+    expect(result?.metadata['completedRequiredCommandFor'], 'runBuild');
+    expect(result?.metadata['settingsRoute'], 'settings');
   });
 
   test(

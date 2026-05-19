@@ -77,10 +77,15 @@ String? nativeToolMetadataSummaryText(
     final diffSummary = sourceControlDiff is Map<String, Object?>
         ? _checkpointDiffSummary(sourceControlDiff)
         : null;
+    final projectLanguage = metadata['projectLanguage'];
+    final languageSummary = projectLanguage is Map<String, Object?>
+        ? _checkpointProjectLanguageSummary(projectLanguage)
+        : null;
     return <String>[
       'checkpoint diagnostics $diagnosticCount',
       'source changes $sourceChangeCount',
       if (diffSummary != null) diffSummary,
+      if (languageSummary != null) languageSummary,
     ].join(' · ');
   }
 
@@ -126,6 +131,20 @@ String? _checkpointDiffSummary(Map<String, Object?> sourceControlDiff) {
     return 'diff $path';
   }
   return 'diff $path $lineCount lines';
+}
+
+String? _checkpointProjectLanguageSummary(
+  Map<String, Object?> projectLanguage,
+) {
+  final definitionCount = projectLanguage['definitionCount'] as int?;
+  final referenceCount = projectLanguage['referenceCount'] as int?;
+  final completionCount = projectLanguage['completionCount'] as int?;
+  if (definitionCount == null &&
+      referenceCount == null &&
+      completionCount == null) {
+    return null;
+  }
+  return 'language defs ${definitionCount ?? 0} refs ${referenceCount ?? 0} completions ${completionCount ?? 0}';
 }
 
 int nativeToolMetadataDiagnosticCount(Map<String, Object?> metadata) {

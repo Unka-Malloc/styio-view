@@ -102,8 +102,13 @@ void main() {
           'path': 'src/main.styio',
           'lineCount': 7,
         },
+        'projectLanguage': <String, Object?>{
+          'definitionCount': 1,
+          'referenceCount': 2,
+          'completionCount': 3,
+        },
       }),
-      'checkpoint diagnostics 2 · source changes 1 · diff src/main.styio 7 lines',
+      'checkpoint diagnostics 2 · source changes 1 · diff src/main.styio 7 lines · language defs 1 refs 2 completions 3',
     );
   });
 }

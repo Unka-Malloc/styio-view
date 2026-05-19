@@ -669,6 +669,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   Future<Map<String, Object?>> collectAgentCodingCheckpoint() async {
     final diagnosticsSnapshot = await refreshWorkspaceDiagnostics();
     final sourceControlSnapshot = await refreshSourceControlStatus();
+    final projectLanguage = await collectProjectLanguageContext();
     final changedPath = sourceControlSnapshot.changes.isNotEmpty
         ? sourceControlSnapshot.changes.first.path
         : dirtyDocumentPaths.isNotEmpty
@@ -680,6 +681,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     final metadata = <String, Object?>{
       'workspaceDiagnostics': diagnosticsSnapshot.toJson(),
       'sourceControl': sourceControlSnapshot.toJson(),
+      'projectLanguage': projectLanguage,
       'dirtyDocumentIds': dirtyDocumentPaths,
       'openDocumentIds': workspaceController.openFilePaths,
       if (diffSnapshot != null) 'sourceControlDiff': diffSnapshot.toJson(),
@@ -687,7 +689,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Agent coding checkpoint collected: '
       '${diagnosticsSnapshot.totalCount} diagnostic(s), '
-      '${sourceControlSnapshot.changes.length} source change(s).',
+      '${sourceControlSnapshot.changes.length} source change(s), '
+      '${projectLanguage['referenceCount'] ?? 0} project reference(s).',
     );
     notifyListeners();
     return metadata;

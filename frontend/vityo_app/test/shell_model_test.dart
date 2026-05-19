@@ -374,6 +374,10 @@ void main() {
         checkpointCommandResult?.metadata['sourceControlDiff'],
         isA<Map<String, Object?>>(),
       );
+      expect(
+        checkpointCommandResult?.metadata['projectLanguage'],
+        isA<Map<String, Object?>>(),
+      );
 
       final agentCheckpointApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(
@@ -386,6 +390,10 @@ void main() {
       expect(
         agentCheckpointResult?.commandId,
         'collectAgentCodingCheckpoint',
+      );
+      expect(
+        agentCheckpointResult?.metadata['projectLanguage'],
+        isA<Map<String, Object?>>(),
       );
 
       await shell.executeCommand(AppCommandId.refreshWorkspaceDiagnostics);

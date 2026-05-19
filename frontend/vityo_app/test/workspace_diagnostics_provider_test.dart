@@ -37,13 +37,66 @@ void main() {
     expect(snapshot.severityCounts['error'], 1);
     expect(snapshot.severityCounts['warning'], 1);
     expect(snapshot.diagnosticsFor('main.styio'), hasLength(1));
-    expect(snapshot.diagnosticsForSeverity(DiagnosticSeverity.error), hasLength(1));
+    expect(
+      snapshot.diagnosticsForSeverity(DiagnosticSeverity.error),
+      hasLength(1),
+    );
     expect(snapshot.documentGroups, hasLength(2));
     expect(snapshot.documentGroups.first.documentId, 'main.styio');
     expect(snapshot.documentGroups.first.hasErrors, isTrue);
     expect(snapshot.documentGroups.first.severityCounts['error'], 1);
     expect(json['diagnostics'], isNotEmpty);
     expect(json['documentGroups'], isNotEmpty);
+  });
+
+  test('workspace diagnostics view applies serializable filters', () {
+    const snapshot = WorkspaceDiagnosticsSnapshot(
+      providerId: 'language',
+      diagnostics: <WorkspaceDiagnostic>[
+        WorkspaceDiagnostic(
+          documentId: 'src/main.styio',
+          source: 'styio',
+          diagnostic: Diagnostic(
+            severity: DiagnosticSeverity.error,
+            code: 'syntax-error',
+            message: 'Unexpected token.',
+            range: SourceRange(start: 0, end: 1),
+          ),
+        ),
+        WorkspaceDiagnostic(
+          documentId: 'test/parser.styio',
+          source: 'fixture',
+          diagnostic: Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'fixture-warning',
+            message: 'Fixture warning.',
+            range: SourceRange(start: 2, end: 4),
+          ),
+        ),
+      ],
+    );
+    const filter = WorkspaceDiagnosticsFilterState(
+      severities: <DiagnosticSeverity>[DiagnosticSeverity.warning],
+      documentQuery: 'test/',
+      sources: <String>['fixture'],
+    );
+
+    final reloadedFilter = WorkspaceDiagnosticsFilterState.fromJson(
+      filter.toJson(),
+    );
+    final view = WorkspaceDiagnosticsView.fromSnapshot(
+      snapshot,
+      filter: reloadedFilter,
+    );
+    final json = view.toJson();
+
+    expect(reloadedFilter.active, isTrue);
+    expect(reloadedFilter.summary, 'warning · document test/ · source fixture');
+    expect(view.totalCount, 2);
+    expect(view.visibleCount, 1);
+    expect(view.visibleDiagnostics.single.documentId, 'test/parser.styio');
+    expect(view.documentGroups.single.documentId, 'test/parser.styio');
+    expect(json['visibleCount'], 1);
   });
 
   test('workspace diagnostics provider registry resolves active provider', () {

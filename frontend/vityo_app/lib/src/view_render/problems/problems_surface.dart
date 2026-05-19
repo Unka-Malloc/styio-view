@@ -16,6 +16,7 @@ class ProblemsSurface extends StatelessWidget {
     this.onRefreshWorkspaceDiagnostics,
     this.workspaceEditPreview,
     this.severityFilter = const <DiagnosticSeverity>[],
+    this.filterState,
     this.onPreviewWorkspaceQuickFix,
     this.onApplyWorkspaceQuickFix,
   });
@@ -29,6 +30,7 @@ class ProblemsSurface extends StatelessWidget {
   final Future<void> Function()? onRefreshWorkspaceDiagnostics;
   final WorkspaceEditPreview? workspaceEditPreview;
   final List<DiagnosticSeverity> severityFilter;
+  final WorkspaceDiagnosticsFilterState? filterState;
   final Future<void> Function()? onPreviewWorkspaceQuickFix;
   final Future<void> Function()? onApplyWorkspaceQuickFix;
 
@@ -46,20 +48,17 @@ class ProblemsSurface extends StatelessWidget {
               ),
             )
             .toList(growable: false);
-    final activeSeverityFilter = severityFilter.isEmpty
-        ? DiagnosticSeverity.values.toSet()
-        : severityFilter.toSet();
-    final visibleProblemEntries = problemEntries
-        .where((entry) => activeSeverityFilter.contains(entry.diagnostic.severity))
-        .toList(growable: false);
-    final documentGroups = _groupWorkspaceDiagnostics(visibleProblemEntries);
-    final severityCounts = <DiagnosticSeverity, int>{
-      for (final severity in DiagnosticSeverity.values) severity: 0,
-    };
-    for (final entry in problemEntries) {
-      final severity = entry.diagnostic.severity;
-      severityCounts[severity] = (severityCounts[severity] ?? 0) + 1;
-    }
+    final diagnosticsFilter =
+        filterState ??
+        WorkspaceDiagnosticsFilterState(severities: severityFilter);
+    final view = WorkspaceDiagnosticsView.fromDiagnostics(
+      providerId: workspaceDiagnostics?.providerId ?? 'active-document',
+      diagnostics: problemEntries,
+      filter: diagnosticsFilter,
+    );
+    final visibleProblemEntries = view.visibleDiagnostics;
+    final documentGroups = view.documentGroups;
+    final severityCounts = view.severityCounts;
 
     return Card(
       key: const ValueKey('problems-surface'),
@@ -69,125 +68,123 @@ class ProblemsSurface extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text('Problems', style: theme.textTheme.titleLarge),
-                if (onRefreshWorkspaceDiagnostics != null)
-                  TextButton.icon(
-                    key: const ValueKey('problems-refresh-workspace'),
-                    onPressed: onRefreshWorkspaceDiagnostics,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Refresh'),
-                  ),
-                if (onPreviewWorkspaceQuickFix != null)
-                  TextButton.icon(
-                    key: const ValueKey('problems-preview-workspace-quick-fix'),
-                    onPressed: onPreviewWorkspaceQuickFix,
-                    icon: const Icon(Icons.difference_outlined),
-                    label: const Text('Preview Project Fix'),
-                  ),
-                if (onApplyWorkspaceQuickFix != null)
-                  TextButton.icon(
-                    key: const ValueKey('problems-apply-workspace-quick-fix'),
-                    onPressed: onApplyWorkspaceQuickFix,
-                    icon: const Icon(Icons.auto_fix_high_rounded),
-                    label: const Text('Apply Project Fix'),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Diagnostics surface backed by active document diagnostics or a workspace diagnostics snapshot. TODO: add grouping, filters, fix confirmation, and persisted problem state.',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                Chip(label: Text('document $documentId')),
-                if (workspaceDiagnostics != null)
-                  Chip(
-                    label: Text(
-                      'workspace-documents ${workspaceDiagnostics!.documentIds.length}',
-                    ),
-                  ),
-                Chip(label: Text('total ${problemEntries.length}')),
-                Chip(label: Text('visible ${visibleProblemEntries.length}')),
-                Chip(label: Text('groups ${documentGroups.length}')),
-                if (severityFilter.isNotEmpty)
-                  Chip(
-                    label: Text(
-                      'filter ${severityFilter.map((severity) => severity.name).join(',')}',
-                    ),
-                  ),
-                for (final entry in severityCounts.entries)
-                  Chip(label: Text('${entry.key.name} ${entry.value}')),
-              ],
-            ),
-            if (workspaceEditPreview != null) ...[
-              const SizedBox(height: 12),
-              _WorkspaceEditPreviewCard(preview: workspaceEditPreview!),
-            ],
-            const SizedBox(height: 12),
-            if (problemEntries.isEmpty)
-              Text(
-                workspaceDiagnostics == null
-                    ? 'No diagnostics for the active document.'
-                    : 'No diagnostics for the workspace.',
-                style: theme.textTheme.bodySmall,
-              )
-            else if (visibleProblemEntries.isEmpty)
-              Text(
-                'No diagnostics match the active severity filter.',
-                style: theme.textTheme.bodySmall,
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  _ProblemsDocumentGroupSummary(groups: documentGroups),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: compact ? 180 : 220,
-                    child: ListView.separated(
-                      key: const ValueKey('problems-diagnostic-list'),
-                      itemCount: visibleProblemEntries.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final entry = visibleProblemEntries[index];
-                        final diagnostic = entry.diagnostic;
-                        return ListTile(
-                          key: ValueKey(
-                            'problems-diagnostic-${diagnostic.code}',
-                          ),
-                          dense: true,
-                          leading: Icon(
-                            _diagnosticIcon(diagnostic.severity),
-                            color: _diagnosticColor(diagnostic.severity),
-                          ),
-                          title: Text(diagnostic.message),
-                          subtitle: Text(
-                            '${entry.documentId} · ${diagnostic.severity.name} · ${diagnostic.code} · offsets ${diagnostic.range.start}-${diagnostic.range.end}',
-                          ),
-                          trailing: const Icon(Icons.arrow_forward_rounded),
-                          onTap:
-                              onSelectDiagnostic == null &&
-                                  onSelectWorkspaceDiagnostic == null
-                              ? null
-                              : () {
-                                  onSelectWorkspaceDiagnostic?.call(entry);
-                                  onSelectDiagnostic?.call(diagnostic);
-                                },
-                        );
-                      },
+                  Text('Problems', style: theme.textTheme.titleLarge),
+                  if (onRefreshWorkspaceDiagnostics != null)
+                    TextButton.icon(
+                      key: const ValueKey('problems-refresh-workspace'),
+                      onPressed: onRefreshWorkspaceDiagnostics,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Refresh'),
                     ),
-                  ),
+                  if (onPreviewWorkspaceQuickFix != null)
+                    TextButton.icon(
+                      key: const ValueKey(
+                        'problems-preview-workspace-quick-fix',
+                      ),
+                      onPressed: onPreviewWorkspaceQuickFix,
+                      icon: const Icon(Icons.difference_outlined),
+                      label: const Text('Preview Project Fix'),
+                    ),
+                  if (onApplyWorkspaceQuickFix != null)
+                    TextButton.icon(
+                      key: const ValueKey('problems-apply-workspace-quick-fix'),
+                      onPressed: onApplyWorkspaceQuickFix,
+                      icon: const Icon(Icons.auto_fix_high_rounded),
+                      label: const Text('Apply Project Fix'),
+                    ),
                 ],
               ),
+              const SizedBox(height: 6),
+              Text(
+                'Diagnostics surface backed by active document diagnostics or a workspace diagnostics snapshot. TODO: add grouping, filters, fix confirmation, and persisted problem state.',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  Chip(label: Text('document $documentId')),
+                  if (workspaceDiagnostics != null)
+                    Chip(
+                      label: Text(
+                        'workspace-documents ${workspaceDiagnostics!.documentIds.length}',
+                      ),
+                    ),
+                  Chip(label: Text('total ${problemEntries.length}')),
+                  Chip(label: Text('visible ${visibleProblemEntries.length}')),
+                  Chip(label: Text('groups ${documentGroups.length}')),
+                  if (diagnosticsFilter.active)
+                    Chip(label: Text('filter ${diagnosticsFilter.summary}')),
+                  for (final entry in severityCounts.entries)
+                    Chip(label: Text('${entry.key} ${entry.value}')),
+                ],
+              ),
+              if (workspaceEditPreview != null) ...[
+                const SizedBox(height: 12),
+                _WorkspaceEditPreviewCard(preview: workspaceEditPreview!),
+              ],
+              const SizedBox(height: 12),
+              if (problemEntries.isEmpty)
+                Text(
+                  workspaceDiagnostics == null
+                      ? 'No diagnostics for the active document.'
+                      : 'No diagnostics for the workspace.',
+                  style: theme.textTheme.bodySmall,
+                )
+              else if (visibleProblemEntries.isEmpty)
+                Text(
+                  'No diagnostics match the active severity filter.',
+                  style: theme.textTheme.bodySmall,
+                )
+              else
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ProblemsDocumentGroupSummary(groups: documentGroups),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: compact ? 180 : 220,
+                      child: ListView.separated(
+                        key: const ValueKey('problems-diagnostic-list'),
+                        itemCount: visibleProblemEntries.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final entry = visibleProblemEntries[index];
+                          final diagnostic = entry.diagnostic;
+                          return ListTile(
+                            key: ValueKey(
+                              'problems-diagnostic-${diagnostic.code}',
+                            ),
+                            dense: true,
+                            leading: Icon(
+                              _diagnosticIcon(diagnostic.severity),
+                              color: _diagnosticColor(diagnostic.severity),
+                            ),
+                            title: Text(diagnostic.message),
+                            subtitle: Text(
+                              '${entry.documentId} · ${diagnostic.severity.name} · ${diagnostic.code} · offsets ${diagnostic.range.start}-${diagnostic.range.end}',
+                            ),
+                            trailing: const Icon(Icons.arrow_forward_rounded),
+                            onTap:
+                                onSelectDiagnostic == null &&
+                                    onSelectWorkspaceDiagnostic == null
+                                ? null
+                                : () {
+                                    onSelectWorkspaceDiagnostic?.call(entry);
+                                    onSelectDiagnostic?.call(diagnostic);
+                                  },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -259,7 +256,8 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
         .where((document) => document.changed)
         .toList(growable: false);
     final sampleDocuments = changedDocuments.take(3).toList(growable: false);
-    final hiddenDocumentCount = changedDocuments.length - sampleDocuments.length;
+    final hiddenDocumentCount =
+        changedDocuments.length - sampleDocuments.length;
 
     return Container(
       key: const ValueKey('problems-workspace-edit-preview'),
@@ -332,29 +330,4 @@ Color _diagnosticColor(DiagnosticSeverity severity) {
     DiagnosticSeverity.warning => const Color(0xFFB7791F),
     DiagnosticSeverity.hint => const Color(0xFF2F6F87),
   };
-}
-
-List<WorkspaceDiagnosticsDocumentGroup> _groupWorkspaceDiagnostics(
-  List<WorkspaceDiagnostic> diagnostics,
-) {
-  final groups = <String, List<WorkspaceDiagnostic>>{};
-  for (final diagnostic in diagnostics) {
-    groups.putIfAbsent(diagnostic.documentId, () => <WorkspaceDiagnostic>[]);
-    groups[diagnostic.documentId]!.add(diagnostic);
-  }
-  final result = groups.entries
-      .map(
-        (entry) => WorkspaceDiagnosticsDocumentGroup(
-          documentId: entry.key,
-          diagnostics: List<WorkspaceDiagnostic>.unmodifiable(entry.value),
-        ),
-      )
-      .toList(growable: false);
-  result.sort((left, right) {
-    if (left.hasErrors != right.hasErrors) {
-      return left.hasErrors ? -1 : 1;
-    }
-    return left.documentId.compareTo(right.documentId);
-  });
-  return List<WorkspaceDiagnosticsDocumentGroup>.unmodifiable(result);
 }

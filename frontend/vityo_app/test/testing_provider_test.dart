@@ -155,6 +155,40 @@ void main() {
     expect(run.message, contains('not configured'));
   });
 
+  test('testing session controller accepts externally recorded results', () {
+    final controller = TestingSessionController();
+    addTearDown(controller.dispose);
+    var notifications = 0;
+    controller.addListener(() {
+      notifications++;
+    });
+
+    controller.recordDiscoveryResult(
+      const TestDiscoveryResult(
+        providerId: 'external-discovery',
+        roots: <TestNode>[
+          TestNode(
+            id: 'test:external',
+            label: 'external',
+            kind: TestNodeKind.test,
+          ),
+        ],
+      ),
+    );
+    controller.recordRunResult(
+      const TestRunResult(
+        providerId: 'external-runner',
+        status: TestRunStatus.notRun,
+        message: 'Blocked by prerequisite.',
+      ),
+    );
+
+    expect(controller.discovery?.providerId, 'external-discovery');
+    expect(controller.lastRun?.providerId, 'external-runner');
+    expect(controller.lastRun?.status, TestRunStatus.notRun);
+    expect(notifications, 2);
+  });
+
   test('test discovery result counts nested test tree', () {
     const result = TestDiscoveryResult(
       providerId: 'static',

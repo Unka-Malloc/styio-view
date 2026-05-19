@@ -35,6 +35,7 @@ import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
+import 'package:vityo_app/src/view_ide/testing/testing.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 
@@ -3310,6 +3311,8 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
       text: 'int main(){return 0;}\n',
       revision: 0,
     );
+    final testingController = TestingSessionController();
+    addTearDown(testingController.dispose);
     final shell = ShellRuntimeModel(
       platformTarget: PlatformTarget.macos,
       supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
@@ -3343,6 +3346,7 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
       toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      testingSessionController: testingController,
       toolchainManager: ToolchainManager(
         configurationStore: toolchainStore,
         platformManagers: platformManagers,
@@ -3373,6 +3377,11 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
     ]);
     expect(testResult['exitCode'], 0);
     expect(testResult['stdoutPreview'], contains('100% tests passed'));
+    expect(shell.lastTestRun?.providerId, 'native-tool-runTests');
+    expect(shell.lastTestRun?.runner, 'ctest');
+    expect(shell.lastTestRun?.status, TestRunStatus.passed);
+    expect(shell.lastTestRun?.totalCount, 3);
+    expect(shell.agentSessionContext.testing.lastRun?.totalCount, 3);
     expect(
       await ctestLog.readAsString(),
       '--test-dir build --output-on-failure\n',

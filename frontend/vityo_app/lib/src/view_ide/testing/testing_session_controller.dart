@@ -18,6 +18,18 @@ class TestingSessionController extends ChangeNotifier {
   bool get hasDiscovery => _discovery != null;
   bool get hasLastRun => _lastRun != null;
 
+  void recordDiscoveryResult(TestDiscoveryResult result) {
+    _discoveryGeneration++;
+    _discovery = result;
+    notifyListeners();
+  }
+
+  void recordRunResult(TestRunResult result) {
+    _runGeneration++;
+    _lastRun = result;
+    notifyListeners();
+  }
+
   Future<TestDiscoveryResult> discover(TestDiscoveryRequest request) async {
     final provider = discoveryProvider;
     final generation = ++_discoveryGeneration;

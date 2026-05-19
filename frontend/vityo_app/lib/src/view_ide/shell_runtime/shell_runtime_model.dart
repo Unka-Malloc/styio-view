@@ -1796,6 +1796,100 @@ class ShellRuntimeModel extends ChangeNotifier {
         _nativeToolResults.length,
       );
     }
+    _syncTestingSessionFromNativeToolResult(commandId, result);
+  }
+
+  void _syncTestingSessionFromNativeToolResult(
+    AppCommandId commandId,
+    _NativeToolCommandResult result,
+  ) {
+    if (commandId != AppCommandId.runTests) {
+      return;
+    }
+    final controller = testingSessionController;
+    if (controller == null) {
+      return;
+    }
+    final metadata = result.metadata['testResult'];
+    if (metadata is Map<String, Object?>) {
+      controller.recordRunResult(
+        _testRunResultFromNativeToolMetadata(metadata, message: result.message),
+      );
+      return;
+    }
+    if (metadata is Map) {
+      controller.recordRunResult(
+        _testRunResultFromNativeToolMetadata(
+          metadata.map((key, value) => MapEntry(key.toString(), value)),
+          message: result.message,
+        ),
+      );
+    }
+  }
+
+  TestRunResult _testRunResultFromNativeToolMetadata(
+    Map<String, Object?> metadata, {
+    required String message,
+  }) {
+    final runner = metadata['runner']?.toString() ?? 'native-tool';
+    final cases = _failedTestCasesFromNativeToolMetadata(metadata);
+    return TestRunResult(
+      providerId: 'native-tool-runTests',
+      runner: runner,
+      status: _testRunStatusFromNativeToolMetadata(metadata['status']),
+      message: message,
+      totalCount: _intFromNativeToolMetadata(metadata['totalCount']) ?? 0,
+      passedCount: _intFromNativeToolMetadata(metadata['passedCount']) ?? 0,
+      failedCount: _intFromNativeToolMetadata(metadata['failedCount']) ?? 0,
+      skippedCount: _intFromNativeToolMetadata(metadata['skippedCount']) ?? 0,
+      cases: cases,
+      metadata: Map<String, Object?>.unmodifiable(metadata),
+    );
+  }
+
+  List<TestCaseResult> _failedTestCasesFromNativeToolMetadata(
+    Map<String, Object?> metadata,
+  ) {
+    final value = metadata['failedTests'];
+    if (value is! List) {
+      return const <TestCaseResult>[];
+    }
+    return value
+        .whereType<Map>()
+        .map((entry) {
+          final normalized = entry.map(
+            (key, value) => MapEntry(key.toString(), value),
+          );
+          return TestCaseResult(
+            id: normalized['id']?.toString() ?? '',
+            name: normalized['name']?.toString() ?? 'unknown',
+            status: _testRunStatusFromNativeToolMetadata(
+              normalized['status'] ?? 'failed',
+            ),
+            message: normalized['message']?.toString() ?? '',
+          );
+        })
+        .toList(growable: false);
+  }
+
+  TestRunStatus _testRunStatusFromNativeToolMetadata(Object? value) {
+    return switch (value?.toString()) {
+      'passed' => TestRunStatus.passed,
+      'failed' => TestRunStatus.failed,
+      'skipped' => TestRunStatus.skipped,
+      'not-run' || 'blocked' => TestRunStatus.notRun,
+      _ => TestRunStatus.error,
+    };
+  }
+
+  int? _intFromNativeToolMetadata(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return int.tryParse(value?.toString() ?? '');
   }
 
   bool openFirstNativeToolDiagnostic(AppCommandId commandId) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../agent/agent.dart';
+import '../commands/command_palette_surface.dart';
 import '../editor/editor.dart';
 import '../extensions/extensions.dart';
 import '../../backend_toolchain/adapter_contracts.dart';
@@ -153,6 +154,12 @@ class VityoShellScaffold extends StatelessWidget {
           onRunActiveTarget: () {
             return shell.executeCommand(AppCommandId.run);
           },
+        );
+      case BottomSurfaceTab.commandPalette:
+        return CommandPaletteSurface(
+          viewportProfile: viewportProfile,
+          onExecuteCommand: shell.executeCommand,
+          blockedReasonForCommand: shell.blockedReasonForCommand,
         );
       case BottomSurfaceTab.agent:
         return AgentSurface(
@@ -1749,6 +1756,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.terminal),
       ),
       _SurfaceTabChip(
+        label: 'Commands',
+        active: shell.activeBottomTab == BottomSurfaceTab.commandPalette,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.commandPalette),
+      ),
+      _SurfaceTabChip(
         label: 'Agent',
         active: shell.activeBottomTab == BottomSurfaceTab.agent,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
@@ -1798,7 +1810,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, terminal, agent, source control, search, problems, testing, extensions, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
+            'Mobile shell keeps runtime, terminal, commands, agent, source control, search, problems, testing, extensions, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

@@ -381,6 +381,8 @@ class VityoIdeCapabilityFramework {
           title: 'Command palette and keybinding resolver',
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/commands',
+          summary:
+              'Command Palette surface is wired to StyioCommandRegistry and shell command execution.',
           todo:
               'TODO: expose registered commands through searchable palette, keyboard shortcuts, and command availability states.',
           references: <String>[

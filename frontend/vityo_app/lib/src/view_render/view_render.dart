@@ -2,6 +2,7 @@ export '../app/app_bootstrap.dart';
 export '../app/vityo_app.dart';
 export '../frontend_shell/frontend_shell.dart';
 export 'agent/agent.dart';
+export 'commands/commands.dart';
 export 'editor/editor.dart';
 export 'extensions/extensions.dart';
 export 'platform/platform.dart';

@@ -45,6 +45,10 @@ void main() {
       entriesById['extension.marketplace']?.status,
       IdeCapabilityStatus.scaffolded,
     );
+    expect(
+      entriesById['interaction.command-palette']?.status,
+      IdeCapabilityStatus.scaffolded,
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

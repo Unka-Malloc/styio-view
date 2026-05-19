@@ -5,6 +5,7 @@ import '../../view_ide/shell_runtime/shell_runtime.dart';
 enum BottomSurfaceTab {
   runtime,
   terminal,
+  commandPalette,
   agent,
   sourceControl,
   search,

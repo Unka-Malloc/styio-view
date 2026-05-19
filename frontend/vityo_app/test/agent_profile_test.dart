@@ -90,6 +90,7 @@ void main() {
       );
       expect(decoded.systemPrompt, contains('backendRouteSelection'));
       expect(decoded.systemPrompt, contains('toolchainSelectionStatus'));
+      expect(decoded.systemPrompt, contains('toolchainSelectionMessage'));
       expect(decoded.systemPrompt, contains('status is not selected'));
       expect(
         decoded.systemPrompt,

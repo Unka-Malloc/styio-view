@@ -711,6 +711,7 @@ void main() {
         systemMessage['content'],
         contains('commands.lastResult.metadata.toolchainSelectionStatus'),
       );
+      expect(systemMessage['content'], contains('toolchainSelectionMessage'));
       expect(systemMessage['content'], contains('status is not selected'));
       expect(
         systemMessage['content'],

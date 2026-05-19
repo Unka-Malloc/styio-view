@@ -49,7 +49,7 @@ class RuntimeSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final runtimeFeatures = runtimeSurfaceFeatureEntriesFor(mountedModules);
-    final routeSummary = summarizeExecutionRoute(
+    final routeSelection = selectBackendExecutionRoute(
       platformTarget: platformTarget,
       projectGraph: projectGraph,
       adapterCapabilities: adapterCapabilities,
@@ -65,7 +65,7 @@ class RuntimeSurface extends StatelessWidget {
         : (replay.lanes.isNotEmpty ? replay.lanes.length : 1);
     final executionCapability = _executionCapabilityFor(
       adapterCapabilities,
-      routeSummary.primaryAdapterKind,
+      routeSelection.adapterKind,
     );
     final cardSpacing = viewportProfile.isMobile ? 12.0 : 14.0;
 
@@ -81,7 +81,7 @@ class RuntimeSurface extends StatelessWidget {
                 _MetricSection(
                   title: 'Execution Route',
                   body:
-                      '${routeSummary.title}. ${routeSummary.body} ${executionCapability.detail}',
+                      '${routeSelection.title} (${routeSelection.routeKind.wireValue}). ${routeSelection.detail} ${executionCapability.detail}',
                   accent: const Color(0xFFD9E8F8),
                 ),
                 SizedBox(height: cardSpacing),
@@ -135,7 +135,7 @@ class RuntimeSurface extends StatelessWidget {
                 _MetricSection(
                   title: 'Execution Route',
                   body:
-                      '${routeSummary.title}. ${routeSummary.body} ${executionCapability.detail}',
+                      '${routeSelection.title} (${routeSelection.routeKind.wireValue}). ${routeSelection.detail} ${executionCapability.detail}',
                   accent: const Color(0xFFD9E8F8),
                 ),
                 SizedBox(height: cardSpacing),

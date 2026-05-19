@@ -737,6 +737,11 @@ class _ProjectWorkflowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final selection = selectBackendExecutionRoute(
+      platformTarget: platformTarget,
+      projectGraph: project,
+      adapterCapabilities: adapterCapabilities,
+    );
     final summary = summarizeExecutionRoute(
       platformTarget: platformTarget,
       projectGraph: project,
@@ -756,18 +761,19 @@ class _ProjectWorkflowCard extends StatelessWidget {
           children: [
             Text('Project Workflow', style: theme.textTheme.titleMedium),
             const SizedBox(height: 6),
-            Text(summary.title, style: theme.textTheme.titleSmall),
+            Text(selection.title, style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
-            Text(summary.body, style: theme.textTheme.bodySmall),
+            Text(selection.detail, style: theme.textTheme.bodySmall),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                Chip(label: Text(summary.primaryAdapterKind.label)),
+                Chip(label: Text(selection.adapterKind.label)),
+                Chip(label: Text(selection.routeKind.wireValue)),
                 Chip(
                   label: Text(
-                    summary.previewOnly ? 'preview-only' : 'live-capable',
+                    selection.allowed ? 'live-capable' : 'blocked',
                   ),
                 ),
                 if (project.compilePlanConsumerAdvertised)

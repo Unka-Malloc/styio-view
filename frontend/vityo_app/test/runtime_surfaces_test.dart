@@ -701,6 +701,7 @@ void main() {
     );
 
     expect(find.textContaining('Hosted project route'), findsOneWidget);
+    expect(find.textContaining('(hosted)'), findsOneWidget);
     expect(find.textContaining('hosted execution detail'), findsOneWidget);
     expect(find.textContaining('No cli adapter resolved'), findsNothing);
   });

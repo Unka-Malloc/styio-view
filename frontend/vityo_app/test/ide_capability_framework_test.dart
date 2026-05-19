@@ -19,6 +19,7 @@ void main() {
     expect(ids, contains('interaction.source-control'));
     expect(ids, contains('interaction.testing'));
     expect(ids, contains('workspace.edit-application'));
+    expect(ids, contains('workspace.diagnostics'));
     expect(ids, contains('runtime.terminal'));
     expect(ids, contains('presentation.problems-panel'));
     expect(ids, contains('presentation.shell'));
@@ -29,6 +30,18 @@ void main() {
     expect(
       entriesById['presentation.problems-panel']?.status,
       IdeCapabilityStatus.scaffolded,
+    );
+    expect(
+      entriesById['workspace.diagnostics']?.status,
+      IdeCapabilityStatus.wired,
+    );
+    expect(
+      entriesById['presentation.problems-panel']?.dependencies,
+      contains('workspace.diagnostics'),
+    );
+    expect(
+      entriesById['interaction.diagnostics']?.dependencies,
+      contains('workspace.diagnostics'),
     );
     expect(
       entriesById['runtime.terminal']?.status,

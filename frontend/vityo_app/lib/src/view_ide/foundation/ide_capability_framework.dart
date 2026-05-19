@@ -65,6 +65,7 @@ const List<String> requiredVityoIdeCapabilityIds = <String>[
   'editor.document-model',
   'editor.rendering',
   'workspace.project-model',
+  'workspace.diagnostics',
   'workspace.file-explorer',
   'workspace.edit-application',
   'runtime.execution',
@@ -331,8 +332,11 @@ class VityoIdeCapabilityFramework {
           title: 'Diagnostics interaction surface',
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/interaction',
+          summary:
+              'Diagnostics interaction can consume workspace diagnostics provider snapshots before rendering focused problem actions.',
           todo:
-              'TODO: add workspace-wide diagnostics grouping, filtering, and quick-fix preview.',
+              'TODO: add workspace-wide diagnostics grouping, filtering, and quick-fix preview UI.',
+          dependencies: <String>['workspace.diagnostics'],
         ),
         IdeCapabilityDescriptor(
           id: 'interaction.search',
@@ -420,6 +424,25 @@ class VityoIdeCapabilityFramework {
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
               'Workspace documents, project graph, file lists, dirty state, and samples for agent context.',
+        ),
+        IdeCapabilityDescriptor(
+          id: 'workspace.diagnostics',
+          layer: IdeCapabilityLayer.workspace,
+          title: 'Workspace diagnostics provider',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/workspace/workspace_diagnostics.dart',
+          summary:
+              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions.',
+          todo:
+              'TODO: bind project Styio diagnostics, native tool diagnostics, and quick-fix previews into one workspace diagnostics stream.',
+          dependencies: <String>[
+            'foundation.registry',
+            'service.styio-language',
+          ],
+          references: <String>[
+            'Language Server Protocol publishDiagnostics',
+            'VS Code diagnostics collection',
+          ],
         ),
         IdeCapabilityDescriptor(
           id: 'workspace.file-explorer',
@@ -569,9 +592,10 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render',
           summary:
-              'Active document diagnostics panel is wired into the IDE shell.',
+              'Active document diagnostics panel is wired into the IDE shell and has a workspace diagnostics provider contract available.',
           todo:
               'TODO: add a workspace-wide problems panel with filters, grouping, quick-fix preview, and navigation.',
+          dependencies: <String>['workspace.diagnostics'],
           references: <String>[
             'VS Code Problems panel',
             'IntelliJ Problems tool window',

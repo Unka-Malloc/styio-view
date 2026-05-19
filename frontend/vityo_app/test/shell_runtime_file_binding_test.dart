@@ -3218,6 +3218,103 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
     expect(testResult['requiredCommand'], 'runBuild');
   });
 
+  test('shell blocks clang-tidy before compile commands exist', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_shell_clang_tidy_requires_build_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final analyzer = File('${tempRoot.path}/fake-clang-tidy.sh');
+    await analyzer.writeAsString('#!/bin/sh\nexit 0\n');
+    await Process.run('chmod', <String>['+x', analyzer.path]);
+    final configurationStore = await _createShellTestConfigurationStore(
+      tempRoot,
+    );
+    final platformManagers = await createDetectedPlatformManagerBundle();
+    final toolchainStore = ToolchainConfigurationStore(
+      configurationStore: configurationStore,
+    );
+    final catalog = ToolchainCatalog()
+      ..register(
+        ToolchainDescriptor(
+          id: 'fake-clang-tidy',
+          kind: ToolchainKind.staticAnalyzer,
+          displayName: 'Fake clang-tidy',
+          executablePath: analyzer.path,
+          metadata: const <String, Object?>{'toolFamily': 'clang-tidy'},
+        ),
+        activate: true,
+      );
+    await toolchainStore.saveCatalog(
+      catalog,
+      targetId: platformManagers.context.targetId,
+    );
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: tempRoot.path,
+      activeFilePath: 'src/main.cc',
+      title: 'Demo',
+      notes: const <String>[],
+    ).copyWith(editorFiles: <String>['src/main.cc', 'CMakeLists.txt']);
+    const initialDocument = DocumentState(
+      documentId: 'src/main.cc',
+      text: 'int main(){return 0;}\n',
+      revision: 0,
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.cc': initialDocument,
+          'CMakeLists.txt': DocumentState(
+            documentId: 'CMakeLists.txt',
+            text: 'add_executable(demo src/main.cc)\n',
+            revision: 0,
+          ),
+        },
+      ),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      toolchainManager: ToolchainManager(
+        configurationStore: toolchainStore,
+        platformManagers: platformManagers,
+      ),
+    );
+    addTearDown(shell.dispose);
+
+    final applied = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(commandId: 'runStaticAnalysis'),
+    );
+
+    final agentCommandResult = shell.agentSessionContext.commands.lastResult;
+    final analysisResult =
+        agentCommandResult?.metadata['staticAnalysisResult']!
+            as Map<String, Object?>;
+    expect(applied, isFalse);
+    expect(agentCommandResult?.commandId, 'runStaticAnalysis');
+    expect(agentCommandResult?.metadata['requiredCommand'], 'runBuild');
+    expect(analysisResult['status'], 'blocked');
+    expect(analysisResult['reason'], 'missing-compile-commands');
+    expect(analysisResult['requiredCommand'], 'runBuild');
+  });
+
   test('shell runs clang-tidy with compilation database directory', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_shell_clang_tidy_compile_commands_test_',

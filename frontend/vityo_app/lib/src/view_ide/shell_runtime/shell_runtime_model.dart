@@ -1394,6 +1394,29 @@ class ShellRuntimeModel extends ChangeNotifier {
         return commandResult;
       case AppCommandId.runStaticAnalysis:
         final compilationDatabase = _nativeCompilationDatabaseArgument();
+        if (compilationDatabase == '.' &&
+            _hasWorkspaceFile('CMakeLists.txt') &&
+            !_hasConfiguredCMakeBuild()) {
+          final message =
+              'Run Static Analysis blocked: run build first to generate compile_commands.json.';
+          final commandResult = _NativeToolCommandResult(
+            applied: false,
+            message: message,
+            metadata: const <String, Object?>{
+              'requiredCommand': 'runBuild',
+              'staticAnalysisResult': <String, Object?>{
+                'runner': 'clang-tidy',
+                'status': 'blocked',
+                'reason': 'missing-compile-commands',
+                'requiredCommand': 'runBuild',
+              },
+            },
+          );
+          _recordNativeToolResult(commandId, commandResult);
+          appendLog(message);
+          notifyListeners();
+          return commandResult;
+        }
         final analysisArguments = <String>[
           if (compilationDatabase != '.') ...<String>[
             '-p',

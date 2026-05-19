@@ -528,6 +528,31 @@ void main() {
         ),
         isTrue,
       );
+
+      final diagnosticStart = mainText.indexOf('value');
+      final diagnosticSelected = await shell.selectWorkspaceDiagnostic(
+        WorkspaceDiagnostic(
+          documentId: mainPath,
+          diagnostic: Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'workspace-test',
+            message: 'Workspace diagnostic selection test.',
+            range: SourceRange(
+              start: diagnosticStart,
+              end: diagnosticStart + 'value'.length,
+            ),
+          ),
+        ),
+      );
+
+      expect(diagnosticSelected, isTrue);
+      expect(shell.workspaceController.activeFilePath, mainPath);
+      expect(shell.editorController.document.documentId, mainPath);
+      expect(shell.editorController.selection.start, diagnosticStart);
+      expect(
+        shell.editorController.selection.end,
+        diagnosticStart + 'value'.length,
+      );
     },
   );
 

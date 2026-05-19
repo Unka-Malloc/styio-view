@@ -14,6 +14,7 @@ class ProblemsSurface extends StatelessWidget {
     this.onSelectDiagnostic,
     this.onSelectWorkspaceDiagnostic,
     this.onRefreshWorkspaceDiagnostics,
+    this.onApplyWorkspaceQuickFix,
   });
 
   final ViewportProfile viewportProfile;
@@ -23,6 +24,7 @@ class ProblemsSurface extends StatelessWidget {
   final ValueChanged<Diagnostic>? onSelectDiagnostic;
   final ValueChanged<WorkspaceDiagnostic>? onSelectWorkspaceDiagnostic;
   final Future<void> Function()? onRefreshWorkspaceDiagnostics;
+  final Future<void> Function()? onApplyWorkspaceQuickFix;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +66,13 @@ class ProblemsSurface extends StatelessWidget {
                     onPressed: onRefreshWorkspaceDiagnostics,
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('Refresh'),
+                  ),
+                if (onApplyWorkspaceQuickFix != null)
+                  TextButton.icon(
+                    key: const ValueKey('problems-apply-workspace-quick-fix'),
+                    onPressed: onApplyWorkspaceQuickFix,
+                    icon: const Icon(Icons.auto_fix_high_rounded),
+                    label: const Text('Apply Project Fix'),
                   ),
               ],
             ),

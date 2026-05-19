@@ -229,10 +229,16 @@ class VityoShellScaffold extends StatelessWidget {
             diagnostics: shell.editorController.analysis.diagnostics,
             workspaceDiagnostics: shell.workspaceDiagnosticsSnapshot,
             onSelectDiagnostic: shell.editorController.selectDiagnostic,
+            onSelectWorkspaceDiagnostic: (diagnostic) {
+              shell.selectWorkspaceDiagnostic(diagnostic);
+            },
             onRefreshWorkspaceDiagnostics: () {
               return shell.executeCommand(
                 AppCommandId.refreshWorkspaceDiagnostics,
               );
+            },
+            onApplyWorkspaceQuickFix: () {
+              return shell.executeCommand(AppCommandId.applyQuickFix);
             },
           );
         }

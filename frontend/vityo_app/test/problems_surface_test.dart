@@ -67,6 +67,7 @@ void main() {
   ) async {
     WorkspaceDiagnostic? selectedWorkspaceDiagnostic;
     var refreshCount = 0;
+    var applyCount = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -108,6 +109,9 @@ void main() {
             onRefreshWorkspaceDiagnostics: () async {
               refreshCount += 1;
             },
+            onApplyWorkspaceQuickFix: () async {
+              applyCount += 1;
+            },
           ),
         ),
       ),
@@ -131,5 +135,12 @@ void main() {
     await tester.pump();
 
     expect(refreshCount, 1);
+
+    await tester.tap(
+      find.byKey(const ValueKey('problems-apply-workspace-quick-fix')),
+    );
+    await tester.pump();
+
+    expect(applyCount, 1);
   });
 }

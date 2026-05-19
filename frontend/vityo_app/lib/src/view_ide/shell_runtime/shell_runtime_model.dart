@@ -3602,6 +3602,28 @@ class ShellRuntimeModel extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> selectWorkspaceDiagnostic(WorkspaceDiagnostic entry) async {
+    final opened = entry.documentId == editorController.document.documentId
+        ? true
+        : await openWorkspaceFileForAgent(entry.documentId);
+    if (!opened) {
+      appendLog(
+        'Workspace diagnostic selection skipped: ${entry.documentId} could not be opened.',
+      );
+      notifyListeners();
+      return false;
+    }
+    editorController.selectRange(
+      baseOffset: entry.diagnostic.range.start,
+      extentOffset: entry.diagnostic.range.end,
+    );
+    appendLog(
+      'Workspace diagnostic selected: ${entry.diagnostic.code} in ${entry.documentId}.',
+    );
+    notifyListeners();
+    return true;
+  }
+
   Future<bool> goToProjectDefinitionAtSelection() async {
     final activeDocumentId = editorController.document.documentId;
     final offset = editorController.selection.extentOffset;

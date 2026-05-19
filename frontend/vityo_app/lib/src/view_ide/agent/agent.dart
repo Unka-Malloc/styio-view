@@ -1,1 +1,11 @@
+export 'agent_code_patch_applier.dart';
+export 'agent_coding_session_controller.dart';
+export 'agent_coding_skill.dart';
 export 'agent_profile.dart';
+export 'agent_provider_credential_resolver.dart';
+export 'agent_provider_configurator.dart';
+export 'agent_provider_network_transport.dart';
+export 'agent_provider_registry.dart';
+export 'agent_prompt_profile_store.dart';
+export 'agent_provider_adapter.dart';
+export 'agent_session_context.dart';

@@ -71,6 +71,7 @@ class AgentSessionContext {
     Iterable<DocumentState> workspaceDocuments = const <DocumentState>[],
     AgentWorkspaceSearchResultContext? lastWorkspaceSearch,
     WorkspaceDiagnosticsSnapshot? workspaceDiagnostics,
+    SourceControlStatusSnapshot? sourceControlStatus,
     TestDiscoveryResult? testDiscovery,
     TestRunResult? lastTestRun,
     TokenSpan? focusToken,
@@ -134,6 +135,7 @@ class AgentSessionContext {
       ),
       lastSearch: lastWorkspaceSearch,
       diagnostics: workspaceDiagnostics,
+      sourceControlStatus: sourceControlStatus,
     );
     return AgentSessionContext(
       schemaVersion: 42,
@@ -3692,6 +3694,7 @@ class AgentWorkspaceContext {
     required this.buildFacts,
     this.lastSearch,
     this.diagnostics,
+    this.sourceControlStatus,
   });
 
   final String activeFilePath;
@@ -3706,6 +3709,7 @@ class AgentWorkspaceContext {
   final AgentWorkspaceBuildFactsContext buildFacts;
   final AgentWorkspaceSearchResultContext? lastSearch;
   final WorkspaceDiagnosticsSnapshot? diagnostics;
+  final SourceControlStatusSnapshot? sourceControlStatus;
 
   factory AgentWorkspaceContext.fromWorkspaceState({
     required String activeFilePath,
@@ -3715,6 +3719,7 @@ class AgentWorkspaceContext {
     Iterable<DocumentState> documentSamples = const <DocumentState>[],
     AgentWorkspaceSearchResultContext? lastSearch,
     WorkspaceDiagnosticsSnapshot? diagnostics,
+    SourceControlStatusSnapshot? sourceControlStatus,
     int maxFiles = 200,
     int maxDocumentSamples = 10,
   }) {
@@ -3781,6 +3786,7 @@ class AgentWorkspaceContext {
       buildFacts: AgentWorkspaceBuildFactsContext.fromFiles(allFiles),
       lastSearch: lastSearch,
       diagnostics: diagnostics,
+      sourceControlStatus: sourceControlStatus,
     );
   }
 
@@ -3800,6 +3806,8 @@ class AgentWorkspaceContext {
       'buildFacts': buildFacts.toJson(),
       if (lastSearch != null) 'lastSearch': lastSearch!.toJson(),
       if (diagnostics != null) 'diagnostics': diagnostics!.toJson(),
+      if (sourceControlStatus != null)
+        'sourceControl': sourceControlStatus!.toJson(),
     };
   }
 }

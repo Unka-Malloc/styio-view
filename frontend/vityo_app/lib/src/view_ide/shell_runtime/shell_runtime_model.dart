@@ -318,6 +318,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     this.toolchainStatusReport,
     this.workspaceDiagnosticsController,
     this.testingSessionController,
+    this.sourceControlStatusController,
     EditorDocumentResourceBinding? editorFileBinding,
     this.debugAdapterLauncher,
   }) : _activeDocumentPath = workspaceController.activeFilePath,
@@ -399,6 +400,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   final ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport;
   final WorkspaceDiagnosticsController? workspaceDiagnosticsController;
   final TestingSessionController? testingSessionController;
+  final SourceControlStatusController? sourceControlStatusController;
   final DapDebugAdapterLauncher? debugAdapterLauncher;
   final bool _ownsLanguageServiceStatus;
   final bool _ownsAgentCodingController;
@@ -474,6 +476,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       workspaceDiagnosticsController?.snapshot;
   TestDiscoveryResult? get testDiscovery => testingSessionController?.discovery;
   TestRunResult? get lastTestRun => testingSessionController?.lastRun;
+  SourceControlStatusSnapshot get sourceControlStatusSnapshot =>
+      sourceControlStatusController?.snapshot ??
+      _localDirtySourceControlStatusSnapshot();
 
   AgentSessionContext get agentSessionContext {
     final debugBreakpoints = _debugBreakpoints;
@@ -581,12 +586,31 @@ class ShellRuntimeModel extends ChangeNotifier {
       workspaceDocuments: _agentWorkspaceDocumentSamples,
       lastWorkspaceSearch: _lastAgentWorkspaceSearch,
       workspaceDiagnostics: workspaceDiagnosticsSnapshot,
+      sourceControlStatus: sourceControlStatusSnapshot,
       testDiscovery: testDiscovery,
       lastTestRun: lastTestRun,
       activeFilePath: workspaceController.activeFilePath,
       toolchainSnapshot:
           toolchainStatusReport?.value.snapshot ?? _lastToolchainSnapshot,
       clangCppVersionPreference: _clangCppVersionPreference,
+    );
+  }
+
+  SourceControlStatusSnapshot _localDirtySourceControlStatusSnapshot() {
+    final changes = dirtyDocumentPaths
+        .map(
+          (documentId) => SourceControlFileChange(
+            path: documentId,
+            unstagedStatus: SourceControlFileStatus.modified,
+          ),
+        )
+        .toList(growable: false);
+    return SourceControlStatusSnapshot(
+      providerKind: SourceControlProviderKind.localDirtyDocuments,
+      changes: List<SourceControlFileChange>.unmodifiable(changes),
+      message: changes.isEmpty
+          ? 'No dirty editor documents.'
+          : 'Dirty editor documents.',
     );
   }
 

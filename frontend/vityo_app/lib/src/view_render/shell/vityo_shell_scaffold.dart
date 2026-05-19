@@ -186,14 +186,26 @@ class VityoShellScaffold extends StatelessWidget {
           },
         );
       case BottomSurfaceTab.sourceControl:
-        return SourceControlSurface(
-          viewportProfile: viewportProfile,
-          workspaceFileCount: shell.workspaceController.files.length,
-          changedDocumentIds: shell.dirtyDocumentPaths,
-          onOpenFile: shell.openWorkspaceFileForAgent,
-          onSaveAll: () {
-            return shell.executeCommand(AppCommandId.saveAll);
-          },
+        final sourceControlController = shell.sourceControlStatusController;
+        Widget buildSourceControlSurface() {
+          return SourceControlSurface(
+            viewportProfile: viewportProfile,
+            workspaceFileCount: shell.workspaceController.files.length,
+            changedDocumentIds: shell.dirtyDocumentPaths,
+            status: shell.sourceControlStatusSnapshot,
+            onOpenFile: shell.openWorkspaceFileForAgent,
+            onSaveAll: () {
+              return shell.executeCommand(AppCommandId.saveAll);
+            },
+          );
+        }
+
+        if (sourceControlController == null) {
+          return buildSourceControlSurface();
+        }
+        return ListenableBuilder(
+          listenable: sourceControlController,
+          builder: (_, _) => buildSourceControlSurface(),
         );
       case BottomSurfaceTab.search:
         return WorkspaceSearchSurface(

@@ -45,6 +45,7 @@ class ShellModel extends ShellRuntimeModel {
     super.clangCppVersionPreference,
     super.workspaceDiagnosticsController,
     super.testingSessionController,
+    super.sourceControlStatusController,
   });
 
   BottomSurfaceTab _activeBottomTab = BottomSurfaceTab.runtime;

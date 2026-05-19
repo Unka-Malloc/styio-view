@@ -242,6 +242,23 @@ void main() {
       await testingController.run(
         const TestRunRequest(workspaceRoot: '/workspace/demo'),
       );
+      final sourceControlController = SourceControlStatusController(
+        provider: const StaticSourceControlStatusProvider(
+          SourceControlStatusSnapshot(
+            providerKind: SourceControlProviderKind.git,
+            branchName: 'ai-dev',
+            changes: <SourceControlFileChange>[
+              SourceControlFileChange(
+                path: documentPath,
+                unstagedStatus: SourceControlFileStatus.modified,
+              ),
+            ],
+          ),
+        ),
+        workspaceRoot: '/workspace/demo',
+      );
+      addTearDown(sourceControlController.dispose);
+      await sourceControlController.refresh();
       final shell = ShellModel(
         platformTarget: PlatformTarget.macos,
         supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
@@ -279,6 +296,7 @@ void main() {
             const _SuccessfulToolchainManagementAdapter(),
         workspaceDiagnosticsController: diagnosticsController,
         testingSessionController: testingController,
+        sourceControlStatusController: sourceControlController,
       );
       addTearDown(shell.dispose);
 
@@ -290,6 +308,8 @@ void main() {
       final testingJson =
           shell.agentSessionContext.toJson()['testing']!
               as Map<String, Object?>;
+      final sourceControlJson =
+          workspaceJson['sourceControl']! as Map<String, Object?>;
 
       expect(shell.workspaceDiagnosticsSnapshot, same(snapshot));
       expect(diagnosticsJson['providerId'], 'static');
@@ -298,6 +318,9 @@ void main() {
       expect(shell.lastTestRun?.status, TestRunStatus.passed);
       expect(testingJson['hasDiscovery'], isTrue);
       expect(testingJson['hasLastRun'], isTrue);
+      expect(sourceControlJson['providerKind'], 'git');
+      expect(sourceControlJson['branchName'], 'ai-dev');
+      expect(sourceControlJson['changeCount'], 1);
     },
   );
 

@@ -60,6 +60,16 @@ class SourceControlFileChange {
     ];
     return parts.isEmpty ? 'unknown' : parts.join(' · ');
   }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'path': path,
+      if (originalPath.isNotEmpty) 'originalPath': originalPath,
+      if (stagedStatus != null) 'stagedStatus': stagedStatus!.wireValue,
+      if (unstagedStatus != null) 'unstagedStatus': unstagedStatus!.wireValue,
+      'summary': summary,
+    };
+  }
 }
 
 class SourceControlStatusSnapshot {
@@ -78,6 +88,20 @@ class SourceControlStatusSnapshot {
   final String message;
 
   bool get clean => changes.isEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerKind': providerKind.wireValue,
+      'available': available,
+      'clean': clean,
+      if (branchName.isNotEmpty) 'branchName': branchName,
+      if (message.isNotEmpty) 'message': message,
+      'changeCount': changes.length,
+      'changes': changes
+          .map((change) => change.toJson())
+          .toList(growable: false),
+    };
+  }
 }
 
 class SourceControlCommandRequest {

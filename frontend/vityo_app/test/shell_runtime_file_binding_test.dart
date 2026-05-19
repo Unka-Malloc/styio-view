@@ -36,6 +36,7 @@ import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/testing/testing.dart';
+import 'package:vityo_app/src/view_ide/workspace/source_control_status.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 
@@ -94,6 +95,14 @@ void main() {
       shell.editorFileBindingSnapshot.state,
       DocumentResourceBindingState.boundDirty,
     );
+    expect(
+      shell.sourceControlStatusSnapshot.providerKind,
+      SourceControlProviderKind.localDirtyDocuments,
+    );
+    expect(
+      shell.sourceControlStatusSnapshot.changes.single.path,
+      'src/main.styio',
+    );
 
     final saveApplied = await shell.applyAgentIdeCommandSuggestion(
       const AgentIdeCommandSuggestion(commandId: 'save'),
@@ -108,6 +117,7 @@ void main() {
       shell.editorFileBindingSnapshot.state,
       DocumentResourceBindingState.boundClean,
     );
+    expect(shell.sourceControlStatusSnapshot.clean, isTrue);
     final persisted = await documentStore.loadDocument('src/main.styio');
     expect(persisted.text, shell.editorController.document.text);
     expect(

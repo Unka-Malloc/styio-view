@@ -31,6 +31,7 @@ import '../view_ide/toolchain/styio_toolchain_discovery.dart';
 import '../view_ide/testing/testing.dart';
 import '../view_ide/workspace/workspace_diagnostics.dart';
 import '../view_ide/workspace/workspace_diagnostics_controller.dart';
+import '../view_ide/workspace/source_control_status_controller.dart';
 import '../module_host/module_registry.dart';
 import '../platform/native_module_loader.dart';
 import '../platform/platform_target.dart';
@@ -80,6 +81,7 @@ class AppBootstrap {
     this.languageResultCacheBinding,
     this.workspaceDiagnosticsController,
     this.testingSessionController,
+    this.sourceControlStatusController,
   }) : languageServiceStatus =
            languageServiceStatus ??
            ValueNotifier<LanguageServiceStatusSurface>(
@@ -113,12 +115,14 @@ class AppBootstrap {
   final StyioServiceToolchainCacheBinding? languageResultCacheBinding;
   final WorkspaceDiagnosticsController? workspaceDiagnosticsController;
   final TestingSessionController? testingSessionController;
+  final SourceControlStatusController? sourceControlStatusController;
 
   void dispose() {
     unawaited(toolchainCatalogSubscription?.cancel());
     unawaited(languageResultCacheBinding?.dispose());
     workspaceDiagnosticsController?.dispose();
     testingSessionController?.dispose();
+    sourceControlStatusController?.dispose();
     agentCodingController.dispose();
   }
 

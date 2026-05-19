@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/testing/testing.dart';
 
 void main() {
@@ -110,7 +111,11 @@ void main() {
   });
 
   test('testing session controller caches discovery and run results', () async {
+    final taskController = RuntimeTaskLifecycleController(
+      clock: () => DateTime.utc(2026, 5, 20),
+    );
     final controller = TestingSessionController(
+      runtimeTaskLifecycleController: taskController,
       discoveryProvider: const StaticTestDiscoveryProvider(
         providerId: 'static-discovery',
         result: TestDiscoveryResult(
@@ -161,6 +166,15 @@ void main() {
     expect(controller.discovery, same(discovery));
     expect(controller.lastRun, same(run));
     expect(controller.runHistory, <TestRunResult>[run]);
+    expect(controller.lastRuntimeTask?.status, RuntimeTaskStatus.succeeded);
+    expect(
+      taskController.snapshotFor('test.static-runner.1')?.status,
+      RuntimeTaskStatus.succeeded,
+    );
+    expect(
+      (run.metadata['runtimeTask']! as Map<String, Object?>)['status'],
+      'succeeded',
+    );
     expect(notifications, 2);
 
     controller.clear();

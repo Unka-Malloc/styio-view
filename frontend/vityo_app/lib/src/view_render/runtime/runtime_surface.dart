@@ -4,12 +4,16 @@ import '../../view_ide/backend_toolchain/adapter_contracts.dart';
 import '../../view_ide/backend_toolchain/execution_adapter.dart';
 import '../../view_ide/backend_toolchain/execution_route_summary.dart';
 import '../../view_ide/backend_toolchain/project_graph_contract.dart';
+import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/module_host/module_definition.dart';
 import '../../view_ide/module_host/module_manifest.dart';
 import '../../view_ide/platform/platform_target.dart';
-import '../platform/viewport_profile.dart';
+import '../../view_ide/runtime/runtime_surface_feature_registry.dart';
 import '../../view_ide/runtime/runtime_replay_summary.dart';
+import '../../view_ide/shell_runtime/shell_runtime.dart';
+import '../native_tool_result_summary.dart';
+import '../platform/viewport_profile.dart';
 
 typedef ToolchainRecoveryActionHandler =
     Future<void> Function(ToolchainRecoveryAction action);
@@ -26,6 +30,8 @@ class RuntimeSurface extends StatelessWidget {
     required this.adapterCapabilities,
     required this.executionSession,
     required this.runtimeEvents,
+    this.nativeToolResults = const <NativeToolResultRecord>[],
+    this.onOpenNativeToolDiagnostics,
   });
 
   final PlatformTarget platformTarget;
@@ -37,20 +43,12 @@ class RuntimeSurface extends StatelessWidget {
   final List<AdapterCapabilitySnapshot> adapterCapabilities;
   final ExecutionSession? executionSession;
   final List<RuntimeEventEnvelope> runtimeEvents;
+  final List<NativeToolResultRecord> nativeToolResults;
+  final ValueChanged<AppCommandId>? onOpenNativeToolDiagnostics;
 
   @override
   Widget build(BuildContext context) {
-    final runtimeModules = mountedModules
-        .where(
-          (module) => switch (module.manifest.slot) {
-            ModuleSlot.runtimeSurface ||
-            ModuleSlot.localRuntime ||
-            ModuleSlot.cloudRuntime ||
-            ModuleSlot.debugTools => true,
-            _ => false,
-          },
-        )
-        .toList(growable: false);
+    final runtimeFeatures = runtimeSurfaceFeatureEntriesFor(mountedModules);
     final routeSummary = summarizeExecutionRoute(
       platformTarget: platformTarget,
       projectGraph: projectGraph,
@@ -60,35 +58,15 @@ class RuntimeSurface extends StatelessWidget {
     final graph = summarizeRuntimeGraph(runtimeEvents);
     final debugLanes = summarizeRuntimeDebugLanes(runtimeEvents);
     final laneCount =
-        runtimeModules.any(
-          (module) => module.manifest.slot == ModuleSlot.localRuntime,
+        runtimeFeatures.any(
+          (feature) => feature.slot == ModuleSlot.localRuntime,
         )
         ? 3
         : (replay.lanes.isNotEmpty ? replay.lanes.length : 1);
-    final executionCapability = adapterCapabilities
-        .firstWhere(
-          (snapshot) => snapshot.adapterKind == AdapterKind.cli,
-          orElse: () => const AdapterCapabilitySnapshot(
-            adapterKind: AdapterKind.cli,
-            languageService: AdapterEndpointCapability(
-              level: AdapterCapabilityLevel.unavailable,
-              detail: 'No CLI adapter resolved.',
-            ),
-            projectGraph: AdapterEndpointCapability(
-              level: AdapterCapabilityLevel.unavailable,
-              detail: 'No CLI adapter resolved.',
-            ),
-            execution: AdapterEndpointCapability(
-              level: AdapterCapabilityLevel.unavailable,
-              detail: 'No CLI adapter resolved.',
-            ),
-            runtimeEvents: AdapterEndpointCapability(
-              level: AdapterCapabilityLevel.unavailable,
-              detail: 'No CLI adapter resolved.',
-            ),
-          ),
-        )
-        .execution;
+    final executionCapability = _executionCapabilityFor(
+      adapterCapabilities,
+      routeSummary.primaryAdapterKind,
+    );
     final cardSpacing = viewportProfile.isMobile ? 12.0 : 14.0;
 
     return _SurfaceFrame(
@@ -123,13 +101,18 @@ class RuntimeSurface extends StatelessWidget {
                 _MetricSection(
                   title: 'Registry Gate',
                   body:
-                      '${runtimeModules.length} runtime-related module(s) mounted. Unsupported semantic subsets will continue to degrade explicitly.',
+                      '${runtimeFeatures.length} runtime-related feature(s) mounted. Unsupported semantic subsets will continue to degrade explicitly.',
                   accent: const Color(0xFFE4E7D2),
                 ),
                 SizedBox(height: cardSpacing),
                 _ExecutionSessionSection(
                   executionSession: executionSession,
                   runtimeEventCount: runtimeEvents.length,
+                ),
+                SizedBox(height: cardSpacing),
+                _NativeToolResultSection(
+                  results: nativeToolResults,
+                  onOpenNativeToolDiagnostics: onOpenNativeToolDiagnostics,
                 ),
                 SizedBox(height: cardSpacing),
                 _RuntimeGraphSection(graph: graph),
@@ -142,7 +125,7 @@ class RuntimeSurface extends StatelessWidget {
                 SizedBox(height: cardSpacing),
                 _ModuleChipSection(
                   title: 'Mounted Runtime Modules',
-                  modules: runtimeModules,
+                  features: runtimeFeatures,
                 ),
               ],
             )
@@ -178,7 +161,7 @@ class RuntimeSurface extends StatelessWidget {
                       child: _MetricSection(
                         title: 'Registry Gate',
                         body:
-                            '${runtimeModules.length} runtime-related module(s) mounted. Surface features will load from the module registry at startup.',
+                            '${runtimeFeatures.length} runtime-related feature(s) mounted. Surface features load from mounted module registry entries at startup.',
                         accent: const Color(0xFFE4E7D2),
                       ),
                     ),
@@ -188,6 +171,11 @@ class RuntimeSurface extends StatelessWidget {
                 _ExecutionSessionSection(
                   executionSession: executionSession,
                   runtimeEventCount: runtimeEvents.length,
+                ),
+                SizedBox(height: cardSpacing),
+                _NativeToolResultSection(
+                  results: nativeToolResults,
+                  onOpenNativeToolDiagnostics: onOpenNativeToolDiagnostics,
                 ),
                 SizedBox(height: cardSpacing),
                 _RuntimeGraphSection(graph: graph),
@@ -200,12 +188,42 @@ class RuntimeSurface extends StatelessWidget {
                 SizedBox(height: cardSpacing),
                 _ModuleChipSection(
                   title: 'Mounted Runtime Modules',
-                  modules: runtimeModules,
+                  features: runtimeFeatures,
                 ),
               ],
             ),
     );
   }
+}
+
+AdapterEndpointCapability _executionCapabilityFor(
+  List<AdapterCapabilitySnapshot> adapterCapabilities,
+  AdapterKind adapterKind,
+) {
+  return adapterCapabilities
+      .firstWhere(
+        (snapshot) => snapshot.adapterKind == adapterKind,
+        orElse: () => AdapterCapabilitySnapshot(
+          adapterKind: adapterKind,
+          languageService: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'No ${adapterKind.name} adapter resolved.',
+          ),
+          projectGraph: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'No ${adapterKind.name} adapter resolved.',
+          ),
+          execution: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'No ${adapterKind.name} adapter resolved.',
+          ),
+          runtimeEvents: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'No ${adapterKind.name} adapter resolved.',
+          ),
+        ),
+      )
+      .execution;
 }
 
 class _ToolchainStatusSection extends StatelessWidget {
@@ -432,6 +450,93 @@ class _ExecutionSessionSection extends StatelessWidget {
               ),
             ],
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _NativeToolResultSection extends StatelessWidget {
+  const _NativeToolResultSection({
+    required this.results,
+    this.onOpenNativeToolDiagnostics,
+  });
+
+  final List<NativeToolResultRecord> results;
+  final ValueChanged<AppCommandId>? onOpenNativeToolDiagnostics;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final recentResults = results.take(4).toList(growable: false);
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF1EA),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Native Tool Results', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          if (recentResults.isEmpty)
+            Text(
+              'No native build, format, static-analysis, or test command has completed yet.',
+              style: theme.textTheme.bodySmall,
+            )
+          else
+            ...recentResults.map((result) {
+              final statusLabel = result.applied ? 'passed' : 'blocked';
+              final diagnosticCount = nativeToolMetadataDiagnosticCount(
+                result.metadata,
+              );
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${result.label} · $statusLabel',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(result.message, style: theme.textTheme.bodySmall),
+                        const SizedBox(height: 4),
+                        Text(
+                          nativeToolMetadataSummaryText(
+                            result.metadata,
+                            describeUnstructured: true,
+                          )!,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        if (diagnosticCount > 0 &&
+                            onOpenNativeToolDiagnostics != null) ...[
+                          const SizedBox(height: 8),
+                          TextButton(
+                            key: ValueKey(
+                              'runtime-native-tool-open-diagnostics-${result.commandId}',
+                            ),
+                            onPressed: () {
+                              onOpenNativeToolDiagnostics!(result.command);
+                            },
+                            child: Text('Open diagnostics ($diagnosticCount)'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
         ],
       ),
     );
@@ -952,10 +1057,10 @@ class _RuntimeDebugLaneSection extends StatelessWidget {
 }
 
 class _ModuleChipSection extends StatelessWidget {
-  const _ModuleChipSection({required this.title, required this.modules});
+  const _ModuleChipSection({required this.title, required this.features});
 
   final String title;
-  final List<ModuleDefinition> modules;
+  final List<RuntimeSurfaceFeatureEntry> features;
 
   @override
   Widget build(BuildContext context) {
@@ -972,7 +1077,7 @@ class _ModuleChipSection extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.titleMedium),
           const SizedBox(height: 10),
-          if (modules.isEmpty)
+          if (features.isEmpty)
             Text(
               'No runtime modules are mounted for this target.',
               style: theme.textTheme.bodySmall,
@@ -981,10 +1086,8 @@ class _ModuleChipSection extends StatelessWidget {
             Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: modules
-                  .map(
-                    (module) => Chip(label: Text(module.manifest.displayName)),
-                  )
+              children: features
+                  .map((feature) => Chip(label: Text(feature.displayName)))
                   .toList(growable: false),
             ),
         ],

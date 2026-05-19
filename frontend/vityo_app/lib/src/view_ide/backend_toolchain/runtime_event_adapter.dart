@@ -20,8 +20,31 @@ void recordRuntimeEventsForSession(
     return;
   }
   _runtimeEventRegistry[sessionId] = List<RuntimeEventEnvelope>.unmodifiable(
-    events,
+    normalizeRuntimeEventsForSession(sessionId, events),
   );
+}
+
+List<RuntimeEventEnvelope> normalizeRuntimeEventsForSession(
+  String sessionId,
+  Iterable<RuntimeEventEnvelope> events,
+) {
+  if (sessionId.isEmpty) {
+    return const <RuntimeEventEnvelope>[];
+  }
+  var sequence = 0;
+  return events
+      .map(
+        (event) => RuntimeEventEnvelope(
+          schemaVersion: event.schemaVersion,
+          sessionId: sessionId,
+          sequence: ++sequence,
+          timestamp: event.timestamp,
+          eventKind: event.eventKind,
+          origin: event.origin,
+          payload: event.payload,
+        ),
+      )
+      .toList(growable: false);
 }
 
 void clearRuntimeEventsForSession(String sessionId) {

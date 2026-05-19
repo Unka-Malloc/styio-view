@@ -18,14 +18,13 @@ HostedExecutionDecodeResult executionSessionFromHostedResponse({
   required String documentText,
   required String activeFilePath,
 }) {
-  final payload =
-      (response['payload'] ?? response['error_payload'])
-          as Map<String, dynamic>?;
+  final payload = _payloadFromHostedResponse(response);
   final sessionId =
       _stringValue(payload?['session_id']) ??
+      _stringValue(payload?['sessionId']) ??
       DateTime.now().microsecondsSinceEpoch.toString();
   final runtimeEvents = _runtimeEventsFromPayload(
-    payload?['runtime_events'],
+    payload?['runtime_events'] ?? payload?['runtimeEvents'],
     sessionId: sessionId,
   );
   final diagnostics = <Diagnostic>[];
@@ -79,6 +78,25 @@ HostedExecutionDecodeResult executionSessionFromHostedResponse({
     ),
     runtimeEvents: runtimeEvents,
   );
+}
+
+Map<String, dynamic>? _payloadFromHostedResponse(
+  Map<String, dynamic> response,
+) {
+  final nestedPayload = response['payload'] ?? response['error_payload'];
+  if (nestedPayload is Map) {
+    return Map<String, dynamic>.from(nestedPayload);
+  }
+  if (response.containsKey('session_id') ||
+      response.containsKey('sessionId') ||
+      response.containsKey('diagnostics') ||
+      response.containsKey('runtime_events') ||
+      response.containsKey('runtimeEvents') ||
+      response.containsKey('stdout') ||
+      response.containsKey('stderr')) {
+    return response;
+  }
+  return null;
 }
 
 List<RuntimeEventEnvelope> _runtimeEventsFromPayload(

@@ -5,6 +5,83 @@ import 'package:vityo_app/src/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
 void main() {
+  test('iOS route explains cloud-only execution and disables local JIT', () {
+    final summary = summarizeExecutionRoute(
+      platformTarget: PlatformTarget.ios,
+      projectGraph: ProjectGraphSnapshot.scratch(
+        workspaceRoot: '/workspace/ios-demo',
+        activeFilePath: '/workspace/ios-demo/main.styio',
+        title: 'iOS cloud-only',
+        notes: const <String>[],
+      ),
+      adapterCapabilities: const <AdapterCapabilitySnapshot>[
+        AdapterCapabilitySnapshot(
+          adapterKind: AdapterKind.cloud,
+          languageService: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'cloud language unavailable',
+          ),
+          projectGraph: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'cloud project graph unavailable',
+          ),
+          execution: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'cloud execution unavailable',
+          ),
+          runtimeEvents: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'cloud runtime unavailable',
+          ),
+        ),
+      ],
+    );
+
+    expect(summary.title, 'Cloud-only by policy');
+    expect(summary.primaryAdapterKind, AdapterKind.cloud);
+    expect(summary.previewOnly, isTrue);
+    expect(summary.body, contains('Local CLI and FFI execution stay disabled'));
+    expect(summary.jitRoute.title, 'JIT disabled by iOS policy');
+    expect(summary.jitRoute.blocked, isTrue);
+  });
+
+  test('iOS cloud route becomes live when cloud execution is available', () {
+    final summary = summarizeExecutionRoute(
+      platformTarget: PlatformTarget.ios,
+      projectGraph: ProjectGraphSnapshot.scratch(
+        workspaceRoot: '/workspace/ios-live',
+        activeFilePath: '/workspace/ios-live/main.styio',
+        title: 'iOS cloud live',
+        notes: const <String>[],
+      ),
+      adapterCapabilities: const <AdapterCapabilitySnapshot>[
+        AdapterCapabilitySnapshot(
+          adapterKind: AdapterKind.cloud,
+          languageService: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'cloud language available',
+          ),
+          projectGraph: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'cloud project graph available',
+          ),
+          execution: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'cloud execution available',
+          ),
+          runtimeEvents: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'cloud runtime available',
+          ),
+        ),
+      ],
+    );
+
+    expect(summary.title, 'Cloud-only by policy');
+    expect(summary.previewOnly, isFalse);
+    expect(summary.body, contains('hosted control plane is live'));
+  });
+
   test('scratch project prefers local CLI route when compiler is resolved', () {
     final summary = summarizeExecutionRoute(
       platformTarget: PlatformTarget.macos,
@@ -115,6 +192,34 @@ void main() {
 
     expect(summary.title, 'Project route preview-only');
     expect(summary.previewOnly, isTrue);
+  });
+
+  test('route gate blocks preview-only workflow routes', () {
+    final gate = evaluateExecutionRouteGate(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: _packageGraph(),
+      adapterCapabilities: _capabilities(
+        cliExecution: AdapterCapabilityLevel.partial,
+      ),
+    );
+
+    expect(gate.allowed, isFalse);
+    expect(gate.summary.title, 'Project route preview-only');
+    expect(gate.blockedReason, contains('build/run/test stays blocked'));
+  });
+
+  test('route gate blocks compile-plan project when adapter is unavailable', () {
+    final gate = evaluateExecutionRouteGate(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: _packageGraphWithCompilePlan(),
+      adapterCapabilities: _capabilities(
+        cliExecution: AdapterCapabilityLevel.unavailable,
+      ),
+    );
+
+    expect(gate.allowed, isFalse);
+    expect(gate.summary.title, 'Project route blocked by adapter');
+    expect(gate.blockedReason, contains('no CLI execution adapter'));
   });
 
   test('project route is live when compile-plan consumer is advertised', () {
@@ -410,6 +515,46 @@ ProjectGraphSnapshot _packageGraph({bool jitReady = false}) {
       integrationPhase: jitReady ? 'jit-live' : 'bootstrap-single-file',
     ),
     notes: const <String>[],
+  );
+}
+
+ProjectGraphSnapshot _packageGraphWithCompilePlan() {
+  return const ProjectGraphSnapshot(
+    id: 'demo-compile-plan',
+    title: 'Demo Compile Plan',
+    kind: ProjectKind.package,
+    workspaceRoot: '/workspace/demo-compile-plan',
+    workspaceMembers: <String>[],
+    manifestPath: '/workspace/demo-compile-plan/spio.toml',
+    dependencies: <ProjectDependencySnapshot>[],
+    packages: <ProjectPackageSnapshot>[],
+    targets: <ProjectTargetDescriptor>[],
+    editorFiles: <String>['/workspace/demo-compile-plan/src/main.styio'],
+    toolchain: ToolchainStatusSnapshot(
+      source: ToolchainResolutionSource.projectPin,
+      detail: 'project pin',
+    ),
+    lockState: ProjectLockState.fresh,
+    vendorState: ProjectVendorState.present,
+    activeCompiler: CompilerHandshakeSnapshot(
+      binaryPath: '/toolchains/styio/bin/styio',
+      tool: 'styio',
+      compilerVersion: '0.1.0',
+      channel: 'stable',
+      variant: 'desktop',
+      capabilities: <String>[
+        'machine_info_json',
+        'jsonl_diagnostics',
+        'single_file_entry',
+      ],
+      supportedContractVersions: <String, List<int>>{
+        'machine_info': <int>[1],
+        'compile_plan': <int>[1],
+      },
+      integrationPhase: 'compile-plan-live',
+      featureFlags: <String, bool>{'compile_plan_consumer': true},
+    ),
+    notes: <String>[],
   );
 }
 

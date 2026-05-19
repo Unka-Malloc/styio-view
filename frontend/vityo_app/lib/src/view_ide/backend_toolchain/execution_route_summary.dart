@@ -32,7 +32,45 @@ class JitRouteSummary {
   final bool blocked;
 }
 
+class ExecutionRouteGate {
+  const ExecutionRouteGate({
+    required this.summary,
+    required this.allowed,
+    required this.blockedReason,
+  });
+
+  final ExecutionRouteSummary summary;
+  final bool allowed;
+  final String? blockedReason;
+}
+
 enum ExecutionRouteIntent { workflow, jit }
+
+ExecutionRouteGate evaluateExecutionRouteGate({
+  required PlatformTarget platformTarget,
+  required ProjectGraphSnapshot projectGraph,
+  required List<AdapterCapabilitySnapshot> adapterCapabilities,
+  ExecutionRouteIntent routeIntent = ExecutionRouteIntent.workflow,
+}) {
+  final summary = summarizeExecutionRoute(
+    platformTarget: platformTarget,
+    projectGraph: projectGraph,
+    adapterCapabilities: adapterCapabilities,
+    routeIntent: routeIntent,
+  );
+  if (!summary.previewOnly) {
+    return ExecutionRouteGate(
+      summary: summary,
+      allowed: true,
+      blockedReason: null,
+    );
+  }
+  return ExecutionRouteGate(
+    summary: summary,
+    allowed: false,
+    blockedReason: '${summary.title}. ${summary.body}',
+  );
+}
 
 ExecutionRouteSummary summarizeExecutionRoute({
   required PlatformTarget platformTarget,
@@ -118,13 +156,25 @@ ExecutionRouteSummary summarizeExecutionRoute({
     );
   }
 
-  if (projectGraph.compilePlanConsumerAdvertised) {
+  if (projectGraph.compilePlanConsumerAdvertised &&
+      cli.execution.level != AdapterCapabilityLevel.unavailable) {
     return ExecutionRouteSummary(
       title: 'Project route live through spio',
       body:
           'The active compiler advertises compile-plan support, so project build/run/test can execute through spio with live compile-plan v1 handoff.',
       primaryAdapterKind: AdapterKind.cli,
       previewOnly: false,
+      jitRoute: jitRoute,
+    );
+  }
+
+  if (projectGraph.compilePlanConsumerAdvertised) {
+    return ExecutionRouteSummary(
+      title: 'Project route blocked by adapter',
+      body:
+          'The active compiler advertises compile-plan support, but no CLI execution adapter is available for the current route snapshot.',
+      primaryAdapterKind: AdapterKind.cli,
+      previewOnly: true,
       jitRoute: jitRoute,
     );
   }

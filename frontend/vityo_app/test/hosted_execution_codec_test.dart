@@ -93,4 +93,56 @@ void main() {
       );
     },
   );
+
+  test('hosted execution codec parses top-level failure envelopes', () {
+    const activeFilePath =
+        '/tmp/styio-hosted/workspaces/demo-workspace/src/main.styio';
+    final result = executionSessionFromHostedResponse(
+      response: <String, dynamic>{
+        'returncode': 1,
+        'message': 'top-level hosted failure',
+        'session_id': 'hosted-top-level-failure',
+        'diagnostics': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'category': 'syntax',
+            'severity': 'error',
+            'file': activeFilePath,
+            'message': 'missing expression',
+            'offset': 3,
+            'length': 4,
+          },
+        ],
+        'runtime_events': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'schema_version': 1,
+            'session_id': 'hosted-top-level-failure',
+            'sequence': 7,
+            'timestamp': '2026-05-18T00:00:00Z',
+            'event_kind': 'compile.failed',
+            'origin': 'styio.hosted',
+            'payload': <String, Object?>{'phase': 'parse'},
+          },
+        ],
+        'stderr': 'compiler stderr line',
+      },
+      workflowKind: 'run',
+      successMessage: 'run completed through hosted control plane',
+      documentText: '>_("demo")\n',
+      activeFilePath: activeFilePath,
+    );
+
+    expect(result.session.status, ExecutionSessionStatus.failed);
+    expect(result.session.sessionId, 'hosted-top-level-failure');
+    expect(result.session.statusMessage, 'top-level hosted failure');
+    expect(result.session.diagnostics, hasLength(1));
+    expect(result.session.diagnostics.single.code, 'syntax');
+    expect(result.session.diagnostics.single.message, 'missing expression');
+    expect(result.session.diagnostics.single.range.start, 3);
+    expect(result.session.diagnostics.single.range.end, 7);
+    expect(
+      result.runtimeEvents.map((event) => event.eventKind),
+      <String>['compile.failed'],
+    );
+    expect(result.session.stderrEvents.last.message, 'compiler stderr line');
+  });
 }

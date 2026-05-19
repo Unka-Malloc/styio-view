@@ -637,6 +637,7 @@ class ProjectGraphSnapshot {
       activeCompiler?.supportsContract('jit_route') == true;
 
   ProjectGraphSnapshot copyWith({
+    List<String>? editorFiles,
     ToolchainStatusSnapshot? toolchain,
     CompilerHandshakeSnapshot? activeCompiler,
     ToolchainEnvironmentSnapshot? toolchainEnvironment,
@@ -662,7 +663,7 @@ class ProjectGraphSnapshot {
       packages: packages,
       dependencies: dependencies,
       targets: targets,
-      editorFiles: editorFiles,
+      editorFiles: editorFiles ?? this.editorFiles,
       toolchain: toolchain ?? this.toolchain,
       lockState: lockState,
       vendorState: vendorState,

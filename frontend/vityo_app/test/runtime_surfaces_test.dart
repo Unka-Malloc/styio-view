@@ -7,7 +7,9 @@ import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/platform/viewport_profile.dart';
 import 'package:vityo_app/src/runtime/debug_console_surface.dart';
 import 'package:vityo_app/src/runtime/runtime_surface.dart';
+import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
+import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime.dart';
 
 void main() {
   testWidgets('runtime surface renders published runtime event replay', (
@@ -289,9 +291,125 @@ void main() {
     );
   });
 
+  testWidgets('runtime surface renders native tool result history', (
+    tester,
+  ) async {
+    AppCommandId? openedDiagnosticsCommand;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RuntimeSurface(
+          platformTarget: PlatformTarget.macos,
+          viewportProfile: const ViewportProfile(
+            family: ViewportFamily.desktop,
+            width: 1440,
+            height: 900,
+          ),
+          projectGraph: _projectGraph(),
+          toolchainStatus: ToolchainStatusSurface.fromProjectToolchain(
+            _projectGraph().toolchain,
+          ),
+          mountedModules: const [],
+          adapterCapabilities: const <AdapterCapabilitySnapshot>[],
+          executionSession: null,
+          runtimeEvents: const <RuntimeEventEnvelope>[],
+          onOpenNativeToolDiagnostics: (command) {
+            openedDiagnosticsCommand = command;
+          },
+          nativeToolResults: <NativeToolResultRecord>[
+            NativeToolResultRecord(
+              command: AppCommandId.formatActiveDocument,
+              label: 'Format Active Document',
+              applied: true,
+              message: 'Format Active Document completed.',
+              metadata: const <String, Object?>{
+                'formatResult': <String, Object?>{
+                  'status': 'passed',
+                  'changed': true,
+                },
+              },
+              diagnostics: const [],
+              completedAt: DateTime.utc(2026, 5, 19),
+            ),
+            NativeToolResultRecord(
+              command: AppCommandId.runStaticAnalysis,
+              label: 'Run Static Analysis',
+              applied: true,
+              message: 'Run Static Analysis completed.',
+              metadata: const <String, Object?>{
+                'staticAnalysisResult': <String, Object?>{
+                  'status': 'passed',
+                  'diagnosticCount': 2,
+                },
+              },
+              diagnostics: const [],
+              completedAt: DateTime.utc(2026, 5, 19),
+            ),
+            NativeToolResultRecord(
+              command: AppCommandId.runTests,
+              label: 'Run Tests',
+              applied: true,
+              message: 'Run Tests completed.',
+              metadata: const <String, Object?>{
+                'testResult': <String, Object?>{
+                  'status': 'passed',
+                  'passedCount': 2,
+                  'totalCount': 2,
+                },
+              },
+              diagnostics: const [],
+              completedAt: DateTime.utc(2026, 5, 19),
+            ),
+            NativeToolResultRecord(
+              command: AppCommandId.runBuild,
+              label: 'Run Build',
+              applied: true,
+              message: 'Run Build completed.',
+              metadata: const <String, Object?>{
+                'buildResult': <String, Object?>{
+                  'status': 'passed',
+                  'diagnosticCount': 1,
+                },
+              },
+              diagnostics: const [],
+              completedAt: DateTime.utc(2026, 5, 19),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text('Native Tool Results'), findsOneWidget);
+    expect(find.text('Format Active Document · passed'), findsOneWidget);
+    expect(find.text('Run Static Analysis · passed'), findsOneWidget);
+    expect(find.text('Run Tests · passed'), findsOneWidget);
+    expect(find.text('Run Build · passed'), findsOneWidget);
+    expect(find.text('format passed · changed yes'), findsOneWidget);
+    expect(find.text('static analysis passed · diagnostics 2'), findsOneWidget);
+    expect(find.text('tests passed · 2 passed / 2 total'), findsOneWidget);
+    expect(find.text('build passed · diagnostics 1'), findsOneWidget);
+    expect(find.text('Open diagnostics (2)'), findsOneWidget);
+    expect(find.text('Open diagnostics (1)'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Open diagnostics (2)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open diagnostics (2)'));
+    await tester.pump();
+
+    expect(openedDiagnosticsCommand, AppCommandId.runStaticAnalysis);
+
+    await tester.ensureVisible(find.text('Open diagnostics (1)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open diagnostics (1)'));
+    await tester.pump();
+
+    expect(openedDiagnosticsCommand, AppCommandId.runBuild);
+  });
+
   testWidgets('debug console includes runtime event replay lines', (
     tester,
   ) async {
+    String? selectedFrameId;
+    String? selectedThreadId;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -302,6 +420,29 @@ void main() {
               height: 900,
             ),
             entries: const <String>['12:00:00  host log line'],
+            debugSession: const DebugSessionSnapshot(
+              status: DebugSessionStatus.configured,
+              message:
+                  'Debug session configured with Fake LLDB; process launch adapter is not attached yet.',
+              debuggerId: 'fake-lldb',
+              debuggerLabel: 'Fake LLDB',
+              breakpoints: <DebugBreakpoint>[
+                DebugBreakpoint(filePath: 'src/main.cc', line: 0),
+              ],
+              threads: <DebugThread>[DebugThread(id: '1', name: 'main thread')],
+              stackFrames: <DebugStackFrame>[
+                DebugStackFrame(
+                  id: 'frame-main',
+                  name: 'main',
+                  filePath: 'src/main.cc',
+                  line: 0,
+                  column: 4,
+                ),
+              ],
+              variables: <DebugVariable>[
+                DebugVariable(name: 'argc', value: '1', type: 'int'),
+              ],
+            ),
             runtimeEvents: <RuntimeEventEnvelope>[
               RuntimeEventEnvelope(
                 schemaVersion: 1,
@@ -412,12 +553,43 @@ void main() {
                 payload: const <String, Object?>{'success': true},
               ),
             ],
+            onSelectStackFrame: (frameId) {
+              selectedFrameId = frameId;
+            },
+            onSelectThread: (threadId) {
+              selectedThreadId = threadId;
+            },
           ),
         ),
       ),
     );
 
     expect(find.text('Debug Console'), findsOneWidget);
+    expect(find.text('Debugger Session'), findsOneWidget);
+    expect(find.text('status configured'), findsOneWidget);
+    expect(find.text('debugger Fake LLDB'), findsOneWidget);
+    expect(find.text('breakpoints 1'), findsOneWidget);
+    expect(find.text('src/main.cc:1'), findsOneWidget);
+    expect(find.text('Threads'), findsOneWidget);
+    expect(find.text('1 · main thread'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('debug-thread-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('debug-thread-1')));
+    await tester.pump();
+    expect(selectedThreadId, '1');
+    expect(find.text('Call Stack'), findsOneWidget);
+    expect(find.text('main · src/main.cc:1:5'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('debug-stack-frame-frame-main')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('debug-stack-frame-frame-main')),
+    );
+    await tester.pump();
+    expect(selectedFrameId, 'frame-main');
+    expect(find.text('Variables'), findsOneWidget);
+    expect(find.text('argc = 1 : int'), findsOneWidget);
     expect(find.text('runtime 10'), findsOneWidget);
     expect(find.text('8 family'), findsOneWidget);
     expect(
@@ -482,6 +654,56 @@ void main() {
     );
     expect(find.text('filter family=log · stream=stdout'), findsOneWidget);
   });
+
+  testWidgets('runtime surface route text uses primary adapter detail', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RuntimeSurface(
+          platformTarget: PlatformTarget.web,
+          viewportProfile: const ViewportProfile(
+            family: ViewportFamily.desktop,
+            width: 1440,
+            height: 900,
+          ),
+          projectGraph: _hostedProjectGraph(),
+          toolchainStatus: ToolchainStatusSurface.fromProjectToolchain(
+            _hostedProjectGraph().toolchain,
+          ),
+          onToolchainRecoveryAction: (_) async {},
+          mountedModules: const [],
+          adapterCapabilities: const <AdapterCapabilitySnapshot>[
+            AdapterCapabilitySnapshot(
+              adapterKind: AdapterKind.cloud,
+              languageService: AdapterEndpointCapability(
+                level: AdapterCapabilityLevel.partial,
+                detail: 'hosted language route',
+              ),
+              projectGraph: AdapterEndpointCapability(
+                level: AdapterCapabilityLevel.available,
+                detail: 'hosted project graph route',
+              ),
+              execution: AdapterEndpointCapability(
+                level: AdapterCapabilityLevel.available,
+                detail: 'hosted execution detail',
+              ),
+              runtimeEvents: AdapterEndpointCapability(
+                level: AdapterCapabilityLevel.available,
+                detail: 'hosted runtime events',
+              ),
+            ),
+          ],
+          executionSession: null,
+          runtimeEvents: const <RuntimeEventEnvelope>[],
+        ),
+      ),
+    );
+
+    expect(find.textContaining('Hosted project route'), findsOneWidget);
+    expect(find.textContaining('hosted execution detail'), findsOneWidget);
+    expect(find.textContaining('No cli adapter resolved'), findsNothing);
+  });
 }
 
 ProjectGraphSnapshot _projectGraph() {
@@ -531,5 +753,40 @@ ProjectGraphSnapshot _projectGraph() {
       },
     ),
     notes: <String>[],
+  );
+}
+
+ProjectGraphSnapshot _hostedProjectGraph() {
+  return ProjectGraphSnapshot(
+    id: 'hosted-runtime-demo',
+    title: 'Hosted Runtime Demo',
+    kind: ProjectKind.hosted,
+    workspaceRoot: '/workspace/hosted-runtime-demo',
+    workspaceMembers: const <String>[],
+    manifestPath: '/workspace/hosted-runtime-demo/spio.toml',
+    dependencies: const <ProjectDependencySnapshot>[],
+    packages: const <ProjectPackageSnapshot>[],
+    targets: const <ProjectTargetDescriptor>[],
+    editorFiles: const <String>[
+      '/workspace/hosted-runtime-demo/src/main.styio',
+    ],
+    toolchain: const ToolchainStatusSnapshot(
+      source: ToolchainResolutionSource.projectPin,
+      detail: 'hosted pin',
+    ),
+    lockState: ProjectLockState.fresh,
+    vendorState: ProjectVendorState.present,
+    hostedWorkspace: HostedWorkspaceRecordSnapshot(
+      workspaceId: 'hosted-runtime-demo',
+      schemaVersion: '1',
+      ownerRef: 'Vityo',
+      status: HostedWorkspaceStatus.active,
+      entryUrl: 'https://hosted.test/workspaces/hosted-runtime-demo',
+      createdAt: DateTime.utc(2026, 5, 18),
+      lastActiveAt: DateTime.utc(2026, 5, 18, 1),
+      retentionDays: 7,
+      exportState: HostedWorkspaceExportState.notRequested,
+    ),
+    notes: const <String>[],
   );
 }

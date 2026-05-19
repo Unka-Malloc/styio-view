@@ -1100,7 +1100,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   const SizedBox(height: 6),
                   OutlinedButton(
                     key: const ValueKey('agent-provider-retry-button'),
-                    onPressed: controller.canSend
+                    onPressed: controller.canSend && !applyingAction
                         ? () => unawaited(controller.sendPrompt())
                         : null,
                     child: const Text('Retry Provider Request'),

@@ -1134,6 +1134,65 @@ void main() {
     expect(find.text('Command renameSymbol applied.'), findsOneWidget);
   });
 
+  testWidgets('agent surface disables provider retry while command applies', (
+    tester,
+  ) async {
+    final adapter = _FailingSecondCommandRequestAgentProviderAdapter();
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: adapter,
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    final completer = Completer<bool>();
+
+    controller.updatePrompt('Rename value.');
+    await controller.sendPrompt();
+    controller.updatePrompt('Trigger provider failure.');
+    await controller.sendPrompt();
+    controller.updatePrompt('Retry while command applies.');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) => completer.future,
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await _tapVisible(
+      tester,
+      find.widgetWithText(OutlinedButton, 'Apply Command'),
+    );
+    await tester.pump();
+
+    final retryButton = tester.widget<OutlinedButton>(
+      find.byKey(const ValueKey('agent-provider-retry-button')),
+    );
+    expect(retryButton.onPressed, isNull);
+
+    completer.complete(true);
+    await tester.pump();
+  });
+
   testWidgets('agent surface reports IDE command application errors', (
     tester,
   ) async {

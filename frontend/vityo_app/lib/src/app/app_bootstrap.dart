@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../agent/agent.dart';
 import '../backend_toolchain/adapter_contracts.dart';
 import '../backend_toolchain/dependency_source_adapter.dart';
 import '../backend_toolchain/deployment_adapter.dart';
@@ -22,6 +23,7 @@ import '../view_ide/language/service/styio_service_runtime.dart';
 import '../view_ide/toolchain/toolchain_catalog.dart';
 import '../view_ide/toolchain/toolchain_configuration_store.dart';
 import '../view_ide/toolchain/toolchain_manager.dart';
+import '../view_ide/toolchain/native_compiler_toolchain_discovery.dart';
 import '../view_ide/toolchain/styio_toolchain_discovery.dart';
 import '../module_host/module_registry.dart';
 import '../platform/native_module_loader.dart';
@@ -60,6 +62,10 @@ class AppBootstrap {
     required this.dependencySourceAdapter,
     required this.deploymentAdapter,
     required this.toolchainManagementAdapter,
+    required this.agentCodingController,
+    required this.agentProviderConfigurator,
+    this.themeOverrideStore,
+    this.refreshActiveLanguageService,
     ValueNotifier<LanguageServiceStatusSurface>? languageServiceStatus,
     this.toolchainManager,
     this.toolchainStatusReport,
@@ -85,7 +91,11 @@ class AppBootstrap {
   final DependencySourceAdapter dependencySourceAdapter;
   final DeploymentAdapter deploymentAdapter;
   final ToolchainManagementAdapter toolchainManagementAdapter;
+  final AgentCodingSessionController agentCodingController;
+  final AgentProviderConfigurator agentProviderConfigurator;
+  final VityoThemeOverrideStore? themeOverrideStore;
   final ToolchainManager? toolchainManager;
+  final Future<void> Function()? refreshActiveLanguageService;
   final ValueNotifier<LanguageServiceStatusSurface> languageServiceStatus;
   final ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport;
   final StreamSubscription<ToolchainCatalogConfigurationChange>?
@@ -95,6 +105,7 @@ class AppBootstrap {
   void dispose() {
     unawaited(toolchainCatalogSubscription?.cancel());
     unawaited(languageResultCacheBinding?.dispose());
+    agentCodingController.dispose();
   }
 
   List<AdapterCapabilitySnapshot> get adapterCapabilities =>
@@ -125,7 +136,17 @@ class AppBootstrap {
       projectSnapshot: projectSnapshot,
     );
     final platformManagers = await createDetectedPlatformManagerBundle();
-    final configurationStore = _createConfigurationStore(platformManagers);
+    final foundationDataStore = _createFoundationDataStore(platformManagers);
+    final credentialDataStore = FoundationCredentialDataStore(
+      dataStore: foundationDataStore,
+    );
+    final configurationStore = _createConfigurationStore(
+      dataStore: foundationDataStore,
+      credentialDataStore: credentialDataStore,
+    );
+    final themeOverrideStore = VityoThemeOverrideStore.fromDataStore(
+      dataStore: foundationDataStore,
+    );
     final toolchainStore = ToolchainConfigurationStore(
       configurationStore: configurationStore,
     );
@@ -133,6 +154,16 @@ class AppBootstrap {
       toolchainStore: toolchainStore,
       workspaceId: projectSnapshot.id,
       targetId: platformManagers.context.targetId,
+    );
+    await ensureDefaultNativeCompilerToolchainCatalog(
+      toolchainStore: toolchainStore,
+      workspaceId: projectSnapshot.id,
+      targetId: platformManagers.context.targetId,
+      defaultCatalogProvider: () {
+        return createPlatformNativeCompilerToolchainCatalog(
+          platformManagers: platformManagers,
+        );
+      },
     );
     final toolchainManager = ToolchainManager(
       configurationStore: toolchainStore,
@@ -143,7 +174,10 @@ class AppBootstrap {
       await toolchainManager.statusReport(kind: ToolchainKind.languageService),
     );
     final toolchainCatalogChanges = toolchainStore
-        .watchCatalog(workspaceId: projectSnapshot.id)
+        .watchCatalog(
+          workspaceId: projectSnapshot.id,
+          targetId: platformManagers.context.targetId,
+        )
         .asBroadcastStream();
     late final StreamSubscription<ToolchainCatalogConfigurationChange>
     toolchainCatalogSubscription;
@@ -225,7 +259,7 @@ class AppBootstrap {
         workingDirectory: languageProjectContext.workingDirectory,
       ),
     );
-    unawaited(() async {
+    Future<void> refreshActiveLanguageService() async {
       try {
         await refreshLanguageServiceForEditor(
           driver: languageServiceDriver,
@@ -240,7 +274,9 @@ class AppBootstrap {
               'StyioService failed while refreshing language facts: $error',
         );
       }
-    }());
+    }
+
+    unawaited(refreshActiveLanguageService());
     toolchainCatalogSubscription = toolchainCatalogChanges.listen((_) {
       unawaited(
         toolchainManager.statusReport(kind: ToolchainKind.languageService).then(
@@ -249,23 +285,47 @@ class AppBootstrap {
           },
         ),
       );
-      unawaited(() async {
-        try {
-          await refreshLanguageServiceForEditor(
-            driver: languageServiceDriver,
-            editorController: editorController,
-            workspaceDocumentStore: workspaceDocumentStore,
-            projectContext: languageProjectContext,
-            languageServiceStatus: languageServiceStatus,
-          );
-        } on Object catch (error) {
-          languageServiceStatus.value = LanguageServiceStatusSurface.failed(
-            message:
-                'StyioService failed while refreshing language facts: $error',
-          );
-        }
-      }());
+      unawaited(refreshActiveLanguageService());
     });
+    final agentProfileStore = AgentPromptProfileStore.fromDataStore(
+      dataStore: foundationDataStore,
+    );
+    final agentProviderFactory = ConfiguredAgentProviderAdapterFactory(
+      configurationStore: configurationStore,
+      transport: NetworkAgentProviderTransport(
+        networkManager: platformManagers.network,
+      ),
+    );
+    final agentProviderRegistry = agentProviderFactory.createRegistry();
+    final agentCodingController = await createAgentCodingSessionController(
+      platformTarget: platformTarget,
+      loadPersistedProfile: () {
+        return agentProfileStore.readProfile(workspaceId: projectSnapshot.id);
+      },
+      createConfiguredAdapter: agentProviderRegistry.createAdapter,
+      contextProvider: () => AgentSessionContext.fromEditorState(
+        document: editorController.document,
+        selection: editorController.selection,
+        diagnostics: editorController.analysis.diagnostics,
+        hover: editorController.hoverAtSelection,
+        definition: editorController.definitionAtSelection,
+        references: editorController.referencesAtSelection,
+        completions: editorController.completionsAtSelection,
+        codeActions: editorController.contextActionsAtSelection,
+        languageServiceStatus: languageServiceStatus.value,
+        workspaceFiles: workspaceController.files,
+        workspaceDocuments: [editorController.document],
+        activeFilePath: workspaceController.activeFilePath,
+        toolchainSnapshot: toolchainStatusReport.value.snapshot,
+      ),
+    );
+    final agentProviderConfigurator = AgentProviderConfigurator.fromStores(
+      workspaceId: projectSnapshot.id,
+      profileStore: agentProfileStore,
+      providerFactory: agentProviderFactory,
+      providerRegistry: agentProviderRegistry,
+      credentialDataStore: credentialDataStore,
+    );
 
     return AppBootstrap(
       platformTarget: platformTarget,
@@ -282,6 +342,10 @@ class AppBootstrap {
       dependencySourceAdapter: dependencySourceAdapter,
       deploymentAdapter: deploymentAdapter,
       toolchainManagementAdapter: toolchainManagementAdapter,
+      agentCodingController: agentCodingController,
+      agentProviderConfigurator: agentProviderConfigurator,
+      themeOverrideStore: themeOverrideStore,
+      refreshActiveLanguageService: refreshActiveLanguageService,
       toolchainManager: toolchainManager,
       languageServiceStatus: languageServiceStatus,
       toolchainStatusReport: toolchainStatusReport,
@@ -290,20 +354,64 @@ class AppBootstrap {
     );
   }
 
-  static ConfigurationStore _createConfigurationStore(
+  static FoundationDataStore _createFoundationDataStore(
     PlatformManagerBundle platformManagers,
   ) {
-    final dataStore = FoundationDataStore(
+    return FoundationDataStore(
       resourceCoordinator: FoundationResourceCoordinator(
         resourceManager: platformManagers.resource,
         fileSystemManager: platformManagers.fileSystem,
       ),
       fileSystemManager: platformManagers.fileSystem,
     );
+  }
+
+  static ConfigurationStore _createConfigurationStore({
+    required FoundationDataStore dataStore,
+    required CredentialDataStore credentialDataStore,
+  }) {
     return ConfigurationStore(
       dataStore: dataStore,
-      credentialDataStore: FoundationCredentialDataStore(dataStore: dataStore),
+      credentialDataStore: credentialDataStore,
     );
+  }
+
+  @visibleForTesting
+  static Future<AgentCodingSessionController>
+  createAgentCodingSessionController({
+    required PlatformTarget platformTarget,
+    required Future<AgentPromptProfile?> Function() loadPersistedProfile,
+    required Future<AgentProviderAdapter> Function(AgentPromptProfile profile)
+    createConfiguredAdapter,
+    required AgentSessionContextProvider contextProvider,
+  }) async {
+    final persistedProfile = await loadPersistedProfile();
+    final profile =
+        persistedProfile ??
+        AgentPromptProfile.defaultForPlatform(platformTarget);
+    final adapter = persistedProfile == null
+        ? const LocalOnlyAgentProviderAdapter()
+        : await _createConfiguredAgentAdapter(
+            profile: profile,
+            createConfiguredAdapter: createConfiguredAdapter,
+          );
+    return AgentCodingSessionController(
+      profile: profile,
+      adapter: adapter,
+      contextProvider: contextProvider,
+    );
+  }
+
+  static Future<AgentProviderAdapter> _createConfiguredAgentAdapter({
+    required AgentPromptProfile profile,
+    required Future<AgentProviderAdapter> Function(AgentPromptProfile profile)
+    createConfiguredAdapter,
+  }) async {
+    try {
+      return await createConfiguredAdapter(profile);
+    } on Object {
+      return const LocalOnlyAgentProviderAdapter();
+    }
   }
 
   @visibleForTesting
@@ -391,6 +499,54 @@ class AppBootstrap {
         catalog.lookup(defaultActive.id) != null) {
       catalog.activate(defaultActive.id);
       changed = true;
+    }
+
+    if (changed) {
+      await toolchainStore.saveCatalog(
+        catalog,
+        workspaceId: workspaceId,
+        targetId: targetId,
+      );
+    }
+    return catalog;
+  }
+
+  @visibleForTesting
+  static Future<ToolchainCatalog> ensureDefaultNativeCompilerToolchainCatalog({
+    required ToolchainConfigurationStore toolchainStore,
+    required String targetId,
+    String? workspaceId,
+    Future<ToolchainCatalog> Function()? defaultCatalogProvider,
+  }) async {
+    final catalog = await toolchainStore.loadCatalog(
+      workspaceId: workspaceId,
+      targetId: targetId,
+    );
+    final defaultCatalog =
+        await (defaultCatalogProvider ??
+            createPlatformNativeCompilerToolchainCatalog)();
+    final defaultToolchains = defaultCatalog.list();
+    if (defaultToolchains.isEmpty) {
+      return catalog;
+    }
+
+    var changed = false;
+    for (final descriptor in defaultToolchains) {
+      if (catalog.lookup(descriptor.id) != null) {
+        continue;
+      }
+      catalog.register(descriptor);
+      changed = true;
+    }
+
+    for (final kind in ToolchainKind.values) {
+      final defaultActive = defaultCatalog.active(kind);
+      if (catalog.active(kind) == null &&
+          defaultActive != null &&
+          catalog.lookup(defaultActive.id) != null) {
+        catalog.activate(defaultActive.id);
+        changed = true;
+      }
     }
 
     if (changed) {

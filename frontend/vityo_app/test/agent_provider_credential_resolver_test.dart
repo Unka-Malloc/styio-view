@@ -19,80 +19,92 @@ import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
-  test('configured provider factory resolves bearer token from credentials', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_agent_credential_resolver_test_',
-    );
-    addTearDown(() async {
-      if (await tempRoot.exists()) {
-        await tempRoot.delete(recursive: true);
-      }
-    });
-    final credentials = InMemoryCredentialDataStore();
-    const credentialKey = CredentialDataStoreKey(
-      namespace: 'agent.provider',
-      name: 'openai',
-      scope: CredentialScope.user,
-    );
-    const credentialReference = CredentialReference(
-      key: credentialKey,
-      kind: CredentialKind.token,
-      displayName: 'OpenAI-compatible test token',
-    );
-    await credentials.write(
-      CredentialSecretRecord(
+  test(
+    'configured provider factory resolves bearer token from credentials',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_credential_resolver_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final credentials = InMemoryCredentialDataStore();
+      const credentialKey = CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'openai',
+        scope: CredentialScope.user,
+      );
+      const credentialReference = CredentialReference(
         key: credentialKey,
         kind: CredentialKind.token,
-        secretValue: '  test-token  ',
-      ),
-    );
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
-    final resourceManager = LocalResourceManager(
-      facts: ResourceFacts.linuxDebianArm(
-        systemTempPath: tempRoot.path,
-        homePath: tempRoot.path,
-      ),
-    );
-    final configurationStore = ConfigurationStore(
-      dataStore: FoundationDataStore(
-        resourceCoordinator: FoundationResourceCoordinator(
-          resourceManager: resourceManager,
+        displayName: 'OpenAI-compatible test token',
+      );
+      await credentials.write(
+        CredentialSecretRecord(
+          key: credentialKey,
+          kind: CredentialKind.token,
+          secretValue: '  test-token  ',
+        ),
+      );
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final configurationStore = ConfigurationStore(
+        dataStore: FoundationDataStore(
+          resourceCoordinator: FoundationResourceCoordinator(
+            resourceManager: resourceManager,
+            fileSystemManager: fileSystemManager,
+          ),
           fileSystemManager: fileSystemManager,
         ),
-        fileSystemManager: fileSystemManager,
-      ),
-      credentialDataStore: credentials,
-    );
-    const profile = AgentPromptProfile(
-      profileId: 'cloud',
-      displayName: 'Cloud Agent',
-      systemPrompt: 'Use IDE context.',
-      endpoint: AgentProviderEndpoint(
-        route: AgentProviderRoute.webHosted,
-        baseUrl: 'https://agent.example.test/v1',
-        model: 'gpt-test',
-        credentialReference: credentialReference,
-      ),
-    );
-    final transport = _RecordingTransport();
-    final factory = ConfiguredAgentProviderAdapterFactory(
-      configurationStore: configurationStore,
-      transport: transport,
-    );
+        credentialDataStore: credentials,
+      );
+      const profile = AgentPromptProfile(
+        profileId: 'cloud',
+        displayName: 'Cloud Agent',
+        systemPrompt: 'Use IDE context.',
+        endpoint: AgentProviderEndpoint(
+          route: AgentProviderRoute.webHosted,
+          baseUrl: 'https://agent.example.test/v1',
+          model: 'gpt-test',
+          credentialReference: credentialReference,
+        ),
+      );
+      final transport = _RecordingTransport();
+      final factory = ConfiguredAgentProviderAdapterFactory(
+        configurationStore: configurationStore,
+        transport: transport,
+      );
+      final registry = factory.createRegistry();
+      final manifestJson = registry.manifest().toJson();
+      final providerManifest =
+          (manifestJson['providers']! as List<Object?>).single!
+              as Map<String, Object?>;
 
-    final adapter = await factory.create(profile);
-    await adapter.send(
-      AgentProviderRequest(
-        requestId: 'request-1',
-        profile: profile,
-        context: _emptyContext(),
-        userPrompt: 'Explain this file.',
-      ),
-    );
+      expect(registry.resolve(profile)?.providerId, 'openai-compatible');
+      expect(providerManifest['providerId'], 'openai-compatible');
+      expect(providerManifest['capabilities'], contains('diagnostic_summary'));
 
-    expect(adapter, isA<OpenAICompatibleAgentProviderAdapter>());
-    expect(transport.headers['Authorization'], 'Bearer test-token');
-  });
+      final adapter = await registry.createAdapter(profile);
+      await adapter.send(
+        AgentProviderRequest(
+          requestId: 'request-1',
+          profile: profile,
+          context: _emptyContext(),
+          userPrompt: 'Explain this file.',
+        ),
+      );
+
+      expect(adapter, isA<OpenAICompatibleAgentProviderAdapter>());
+      expect(transport.headers['Authorization'], 'Bearer test-token');
+    },
+  );
 
   test(
     'configured provider sends controller prompt through network transport',
@@ -314,10 +326,7 @@ class _RecordingTransport implements AgentProviderTransport {
       'choices': <Object?>[
         <String, Object?>{
           'finish_reason': 'stop',
-          'message': <String, Object?>{
-            'role': 'assistant',
-            'content': 'ok',
-          },
+          'message': <String, Object?>{'role': 'assistant', 'content': 'ok'},
         },
       ],
     };

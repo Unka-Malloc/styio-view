@@ -3,6 +3,7 @@ import 'agent_profile.dart';
 import 'agent_prompt_profile_store.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_credential_resolver.dart';
+import 'agent_provider_registry.dart';
 import '../environment/configuration/configuration.dart';
 
 typedef AgentPromptProfileSaver =
@@ -66,46 +67,45 @@ class AgentProviderConfigurator {
     required AgentPromptProfileStore profileStore,
     required ConfiguredAgentProviderAdapterFactory providerFactory,
     required CredentialDataStore credentialDataStore,
+    AgentProviderRegistry? providerRegistry,
   }) {
+    final registry = providerRegistry ?? providerFactory.createRegistry();
     return AgentProviderConfigurator(
       workspaceId: workspaceId,
-      saveProfile: ({
-        required workspaceId,
-        required key,
-        required profile,
-      }) {
+      saveProfile: ({required workspaceId, required key, required profile}) {
         return profileStore.saveProfile(
           workspaceId: workspaceId,
           key: key,
           profile: profile,
         );
       },
-      createAdapter: providerFactory.create,
-      saveBearerToken: ({
-        required workspaceId,
-        required profileId,
-        required secretValue,
-      }) async {
-        final key = CredentialDataStoreKey(
-          namespace: 'agent.provider',
-          name: profileId,
-          scope: CredentialScope.workspace,
-          targetId: workspaceId,
-        );
-        await credentialDataStore.write(
-          CredentialSecretRecord(
-            key: key,
-            kind: CredentialKind.token,
-            secretValue: secretValue,
-            displayName: 'Agent provider token',
-          ),
-        );
-        return CredentialReference(
-          key: key,
-          kind: CredentialKind.token,
-          displayName: 'Agent provider token',
-        );
-      },
+      createAdapter: registry.createAdapter,
+      saveBearerToken:
+          ({
+            required workspaceId,
+            required profileId,
+            required secretValue,
+          }) async {
+            final key = CredentialDataStoreKey(
+              namespace: 'agent.provider',
+              name: profileId,
+              scope: CredentialScope.workspace,
+              targetId: workspaceId,
+            );
+            await credentialDataStore.write(
+              CredentialSecretRecord(
+                key: key,
+                kind: CredentialKind.token,
+                secretValue: secretValue,
+                displayName: 'Agent provider token',
+              ),
+            );
+            return CredentialReference(
+              key: key,
+              kind: CredentialKind.token,
+              displayName: 'Agent provider token',
+            );
+          },
     );
   }
 

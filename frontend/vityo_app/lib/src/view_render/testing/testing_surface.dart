@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../view_ide/commands/commands.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
+import '../../view_ide/testing/testing.dart';
 import '../native_tool_result_summary.dart';
 import '../platform/viewport_profile.dart';
 
@@ -10,12 +11,16 @@ class TestingSurface extends StatelessWidget {
     super.key,
     required this.viewportProfile,
     required this.nativeToolResults,
+    this.discovery,
+    this.lastRun,
     this.onRunTests,
     this.onOpenDiagnostics,
   });
 
   final ViewportProfile viewportProfile;
   final List<NativeToolResultRecord> nativeToolResults;
+  final TestDiscoveryResult? discovery;
+  final TestRunResult? lastRun;
   final Future<void> Function()? onRunTests;
   final VoidCallback? onOpenDiagnostics;
 
@@ -27,7 +32,7 @@ class TestingSurface extends StatelessWidget {
         .where((result) => result.command == AppCommandId.runTests)
         .toList(growable: false);
     final latest = testResults.isEmpty ? null : testResults.first;
-    final testResult = _testResultMap(latest);
+    final testResult = lastRun?.toJson() ?? _testResultMap(latest);
     final failedTests = _failedTests(testResult);
     final diagnosticCount = latest?.diagnostics.length ?? 0;
 
@@ -50,6 +55,8 @@ class TestingSurface extends StatelessWidget {
               runSpacing: 8,
               children: [
                 Chip(label: Text('test-runs ${testResults.length}')),
+                if (discovery != null)
+                  Chip(label: Text('discovered ${discovery!.testCount}')),
                 Chip(label: Text('status ${testResult['status'] ?? 'none'}')),
                 if (testResult['runner'] != null)
                   Chip(label: Text('runner ${testResult['runner']}')),
@@ -82,7 +89,7 @@ class TestingSurface extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (latest == null)
+            if (latest == null && lastRun == null && discovery == null)
               Text(
                 'No test command has completed yet.',
                 style: theme.textTheme.bodySmall,
@@ -92,17 +99,47 @@ class TestingSurface extends StatelessWidget {
                 child: ListView(
                   key: const ValueKey('testing-result-list'),
                   children: [
-                    ListTile(
-                      key: const ValueKey('testing-latest-result'),
-                      title: Text(latest.label),
-                      subtitle: Text(
-                        nativeToolMetadataSummaryText(
-                              latest.metadata,
-                              describeUnstructured: true,
-                            ) ??
-                            latest.message,
+                    if (discovery != null) ...[
+                      ListTile(
+                        key: const ValueKey('testing-discovery-result'),
+                        title: Text(
+                          'Discovered ${discovery!.testCount} test(s)',
+                        ),
+                        subtitle: Text(
+                          discovery!.message.isEmpty
+                              ? 'Provider ${discovery!.providerId}'
+                              : discovery!.message,
+                        ),
                       ),
-                    ),
+                      for (final root in discovery!.roots)
+                        ListTile(
+                          key: ValueKey('testing-discovery-${root.id}'),
+                          dense: true,
+                          leading: const Icon(Icons.account_tree_outlined),
+                          title: Text(root.label),
+                          subtitle: Text(
+                            '${root.kind.wireValue} · ${root.testCount} test(s)',
+                          ),
+                        ),
+                    ],
+                    if (lastRun != null)
+                      ListTile(
+                        key: const ValueKey('testing-provider-run-result'),
+                        title: Text('Provider ${lastRun!.providerId}'),
+                        subtitle: Text(lastRun!.message),
+                      )
+                    else if (latest != null)
+                      ListTile(
+                        key: const ValueKey('testing-latest-result'),
+                        title: Text(latest.label),
+                        subtitle: Text(
+                          nativeToolMetadataSummaryText(
+                                latest.metadata,
+                                describeUnstructured: true,
+                              ) ??
+                              latest.message,
+                        ),
+                      ),
                     if (failedTests.isNotEmpty) ...[
                       Padding(
                         padding: const EdgeInsets.only(

@@ -223,15 +223,28 @@ class VityoShellScaffold extends StatelessWidget {
           builder: (_, _) => buildProblemsSurface(),
         );
       case BottomSurfaceTab.testing:
-        return TestingSurface(
-          viewportProfile: viewportProfile,
-          nativeToolResults: shell.nativeToolResults,
-          onRunTests: () {
-            return shell.executeCommand(AppCommandId.runTests);
-          },
-          onOpenDiagnostics: () {
-            shell.openFirstNativeToolDiagnostic(AppCommandId.runTests);
-          },
+        final testingController = shell.testingSessionController;
+        Widget buildTestingSurface() {
+          return TestingSurface(
+            viewportProfile: viewportProfile,
+            nativeToolResults: shell.nativeToolResults,
+            discovery: shell.testDiscovery,
+            lastRun: shell.lastTestRun,
+            onRunTests: () {
+              return shell.executeCommand(AppCommandId.runTests);
+            },
+            onOpenDiagnostics: () {
+              shell.openFirstNativeToolDiagnostic(AppCommandId.runTests);
+            },
+          );
+        }
+
+        if (testingController == null) {
+          return buildTestingSurface();
+        }
+        return ListenableBuilder(
+          listenable: testingController,
+          builder: (_, _) => buildTestingSurface(),
         );
       case BottomSurfaceTab.extensions:
         return ExtensionsSurface(

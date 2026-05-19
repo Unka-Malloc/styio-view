@@ -25,6 +25,7 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_executor.dart
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_policy.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
+import 'package:vityo_app/src/view_ide/testing/testing.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
@@ -175,85 +176,130 @@ void main() {
     );
   });
 
-  test('shell agent context includes cached workspace diagnostics', () async {
-    const documentPath = '/workspace/demo/src/main.styio';
-    final initialGraph = _projectGraph(
-      compilerVersion: '0.0.1',
-      compilePlanReady: false,
-      editorFiles: const <String>[documentPath],
-    );
-    const snapshot = WorkspaceDiagnosticsSnapshot(
-      providerId: 'static',
-      diagnostics: <WorkspaceDiagnostic>[
-        WorkspaceDiagnostic(
-          documentId: documentPath,
-          diagnostic: Diagnostic(
-            severity: DiagnosticSeverity.warning,
-            code: 'styio.shell',
-            message: 'shell diagnostic',
-            range: SourceRange(start: 0, end: 1),
+  test(
+    'shell agent context includes cached diagnostics and testing facts',
+    () async {
+      const documentPath = '/workspace/demo/src/main.styio';
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.1',
+        compilePlanReady: false,
+        editorFiles: const <String>[documentPath],
+      );
+      const snapshot = WorkspaceDiagnosticsSnapshot(
+        providerId: 'static',
+        diagnostics: <WorkspaceDiagnostic>[
+          WorkspaceDiagnostic(
+            documentId: documentPath,
+            diagnostic: Diagnostic(
+              severity: DiagnosticSeverity.warning,
+              code: 'styio.shell',
+              message: 'shell diagnostic',
+              range: SourceRange(start: 0, end: 1),
+            ),
+          ),
+        ],
+      );
+      final diagnosticsController = WorkspaceDiagnosticsController(
+        provider: const StaticWorkspaceDiagnosticsProvider(
+          providerId: 'static',
+          snapshot: snapshot,
+        ),
+      );
+      addTearDown(diagnosticsController.dispose);
+      await diagnosticsController.refresh(
+        const WorkspaceDiagnosticsRequest(documentIds: <String>[documentPath]),
+      );
+      final testingController = TestingSessionController(
+        discoveryProvider: const StaticTestDiscoveryProvider(
+          providerId: 'static-discovery',
+          result: TestDiscoveryResult(
+            providerId: 'static-discovery',
+            roots: <TestNode>[
+              TestNode(
+                id: 'test:styio',
+                label: 'Styio syntax',
+                kind: TestNodeKind.test,
+              ),
+            ],
           ),
         ),
-      ],
-    );
-    final diagnosticsController = WorkspaceDiagnosticsController(
-      provider: const StaticWorkspaceDiagnosticsProvider(
-        providerId: 'static',
-        snapshot: snapshot,
-      ),
-    );
-    addTearDown(diagnosticsController.dispose);
-    await diagnosticsController.refresh(
-      const WorkspaceDiagnosticsRequest(documentIds: <String>[documentPath]),
-    );
-    final shell = ShellModel(
-      platformTarget: PlatformTarget.macos,
-      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
-      projectGraphAdapter: _SequenceProjectGraphAdapter(
-        snapshots: <ProjectGraphSnapshot>[initialGraph],
-      ),
-      workspaceController: WorkspaceController(projectSnapshot: initialGraph),
-      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
-      moduleRegistry: ModuleRegistry(
-        platformTarget: PlatformTarget.macos,
-        definitions: const [],
-      ),
-      nativeModuleLoader: const NoopNativeModuleLoader(
-        platformTarget: PlatformTarget.macos,
-      ),
-      editorController: EditorSessionController(
-        initialDocument: const DocumentState(
-          documentId: documentPath,
-          text: '#main := () => {}',
-          revision: 1,
+        runProvider: const StaticTestRunProvider(
+          providerId: 'static-runner',
+          result: TestRunResult(
+            providerId: 'static-runner',
+            runner: 'fixture',
+            status: TestRunStatus.passed,
+            message: 'Fixture tests passed.',
+            totalCount: 1,
+            passedCount: 1,
+          ),
         ),
-        languageService: const SimpleStyioLanguageService(),
-      ),
-      executionAdapter: const _SuccessfulExecutionAdapter(
-        sessionId: 'shell-diagnostics',
-      ),
-      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
-          const _SuccessfulExecutionAdapter(sessionId: 'shell-diagnostics'),
-      runtimeEventAdapter: createRuntimeEventAdapter(
+      );
+      addTearDown(testingController.dispose);
+      await testingController.discover(
+        const TestDiscoveryRequest(workspaceRoot: '/workspace/demo'),
+      );
+      await testingController.run(
+        const TestRunRequest(workspaceRoot: '/workspace/demo'),
+      );
+      final shell = ShellModel(
         platformTarget: PlatformTarget.macos,
-      ),
-      dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
-      deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-      toolchainManagementAdapter: const _SuccessfulToolchainManagementAdapter(),
-      workspaceDiagnosticsController: diagnosticsController,
-    );
-    addTearDown(shell.dispose);
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[initialGraph],
+        ),
+        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: const DocumentState(
+            documentId: documentPath,
+            text: '#main := () => {}',
+            revision: 1,
+          ),
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: const _SuccessfulExecutionAdapter(
+          sessionId: 'shell-diagnostics',
+        ),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            const _SuccessfulExecutionAdapter(sessionId: 'shell-diagnostics'),
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        toolchainManagementAdapter:
+            const _SuccessfulToolchainManagementAdapter(),
+        workspaceDiagnosticsController: diagnosticsController,
+        testingSessionController: testingController,
+      );
+      addTearDown(shell.dispose);
 
-    final workspaceJson =
-        shell.agentSessionContext.toJson()['workspace']!
-            as Map<String, Object?>;
-    final diagnosticsJson =
-        workspaceJson['diagnostics']! as Map<String, Object?>;
+      final workspaceJson =
+          shell.agentSessionContext.toJson()['workspace']!
+              as Map<String, Object?>;
+      final diagnosticsJson =
+          workspaceJson['diagnostics']! as Map<String, Object?>;
+      final testingJson =
+          shell.agentSessionContext.toJson()['testing']!
+              as Map<String, Object?>;
 
-    expect(shell.workspaceDiagnosticsSnapshot, same(snapshot));
-    expect(diagnosticsJson['providerId'], 'static');
-    expect(diagnosticsJson['totalCount'], 1);
-  });
+      expect(shell.workspaceDiagnosticsSnapshot, same(snapshot));
+      expect(diagnosticsJson['providerId'], 'static');
+      expect(diagnosticsJson['totalCount'], 1);
+      expect(shell.testDiscovery?.testCount, 1);
+      expect(shell.lastTestRun?.status, TestRunStatus.passed);
+      expect(testingJson['hasDiscovery'], isTrue);
+      expect(testingJson['hasLastRun'], isTrue);
+    },
+  );
 
   test(
     'restores editor session active document through workspace route',

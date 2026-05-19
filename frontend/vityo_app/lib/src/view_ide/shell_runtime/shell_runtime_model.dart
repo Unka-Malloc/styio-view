@@ -24,6 +24,7 @@ import '../toolchain/toolchain_install_policy.dart';
 import '../toolchain/toolchain_manager.dart';
 import '../toolchain/toolchain_resolver.dart';
 import '../toolchain/toolchain_runtime.dart';
+import '../testing/testing.dart';
 import '../workspace/workspace.dart';
 import '../../view_render/theme/vityo_theme.dart';
 
@@ -316,6 +317,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     ValueListenable<LanguageServiceStatusSurface>? languageServiceStatus,
     this.toolchainStatusReport,
     this.workspaceDiagnosticsController,
+    this.testingSessionController,
     EditorDocumentResourceBinding? editorFileBinding,
     this.debugAdapterLauncher,
   }) : _activeDocumentPath = workspaceController.activeFilePath,
@@ -396,6 +398,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   final ValueListenable<LanguageServiceStatusSurface> languageServiceStatus;
   final ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport;
   final WorkspaceDiagnosticsController? workspaceDiagnosticsController;
+  final TestingSessionController? testingSessionController;
   final DapDebugAdapterLauncher? debugAdapterLauncher;
   final bool _ownsLanguageServiceStatus;
   final bool _ownsAgentCodingController;
@@ -469,6 +472,8 @@ class ShellRuntimeModel extends ChangeNotifier {
 
   WorkspaceDiagnosticsSnapshot? get workspaceDiagnosticsSnapshot =>
       workspaceDiagnosticsController?.snapshot;
+  TestDiscoveryResult? get testDiscovery => testingSessionController?.discovery;
+  TestRunResult? get lastTestRun => testingSessionController?.lastRun;
 
   AgentSessionContext get agentSessionContext {
     final debugBreakpoints = _debugBreakpoints;
@@ -576,6 +581,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       workspaceDocuments: _agentWorkspaceDocumentSamples,
       lastWorkspaceSearch: _lastAgentWorkspaceSearch,
       workspaceDiagnostics: workspaceDiagnosticsSnapshot,
+      testDiscovery: testDiscovery,
+      lastTestRun: lastTestRun,
       activeFilePath: workspaceController.activeFilePath,
       toolchainSnapshot:
           toolchainStatusReport?.value.snapshot ?? _lastToolchainSnapshot,

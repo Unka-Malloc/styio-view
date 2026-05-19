@@ -77,6 +77,84 @@ void main() {
     expect(result.toJson()['totalCount'], 2);
   });
 
+  test('testing session controller caches discovery and run results', () async {
+    final controller = TestingSessionController(
+      discoveryProvider: const StaticTestDiscoveryProvider(
+        providerId: 'static-discovery',
+        result: TestDiscoveryResult(
+          providerId: 'static-discovery',
+          roots: <TestNode>[
+            TestNode(
+              id: 'suite:styio',
+              label: 'Styio',
+              kind: TestNodeKind.suite,
+              children: <TestNode>[
+                TestNode(
+                  id: 'test:syntax',
+                  label: 'syntax fixture',
+                  kind: TestNodeKind.test,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      runProvider: const StaticTestRunProvider(
+        providerId: 'static-runner',
+        result: TestRunResult(
+          providerId: 'static-runner',
+          runner: 'fixture',
+          status: TestRunStatus.passed,
+          message: 'Fixture tests passed.',
+          totalCount: 1,
+          passedCount: 1,
+        ),
+      ),
+    );
+    addTearDown(controller.dispose);
+    var notifications = 0;
+    controller.addListener(() {
+      notifications++;
+    });
+
+    final discovery = await controller.discover(
+      const TestDiscoveryRequest(workspaceRoot: '/workspace/vityo'),
+    );
+    final run = await controller.run(
+      const TestRunRequest(workspaceRoot: '/workspace/vityo'),
+    );
+
+    expect(discovery.testCount, 1);
+    expect(run.status, TestRunStatus.passed);
+    expect(controller.discovery, same(discovery));
+    expect(controller.lastRun, same(run));
+    expect(notifications, 2);
+
+    controller.clear();
+
+    expect(controller.discovery, isNull);
+    expect(controller.lastRun, isNull);
+    expect(notifications, 3);
+  });
+
+  test('testing session controller records missing providers', () async {
+    final controller = TestingSessionController();
+    addTearDown(controller.dispose);
+
+    final discovery = await controller.discover(
+      const TestDiscoveryRequest(workspaceRoot: '/workspace/vityo'),
+    );
+    final run = await controller.run(
+      const TestRunRequest(workspaceRoot: '/workspace/vityo'),
+    );
+
+    expect(discovery.providerId, 'unavailable');
+    expect(discovery.message, contains('not configured'));
+    expect(run.providerId, 'unavailable');
+    expect(run.status, TestRunStatus.error);
+    expect(run.message, contains('not configured'));
+  });
+
   test('test discovery result counts nested test tree', () {
     const result = TestDiscoveryResult(
       providerId: 'static',

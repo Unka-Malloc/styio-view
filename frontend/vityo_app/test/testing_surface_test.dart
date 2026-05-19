@@ -4,6 +4,7 @@ import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime.dart';
+import 'package:vityo_app/src/view_ide/testing/testing.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/testing/testing.dart';
 
@@ -82,5 +83,61 @@ void main() {
 
     expect(runCount, 1);
     expect(diagnosticsOpenCount, 1);
+  });
+
+  testWidgets('testing surface renders provider discovery and run state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TestingSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            nativeToolResults: const <NativeToolResultRecord>[],
+            discovery: const TestDiscoveryResult(
+              providerId: 'static-discovery',
+              roots: <TestNode>[
+                TestNode(
+                  id: 'suite:styio',
+                  label: 'Styio',
+                  kind: TestNodeKind.suite,
+                  children: <TestNode>[
+                    TestNode(
+                      id: 'test:syntax',
+                      label: 'syntax fixture',
+                      kind: TestNodeKind.test,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            lastRun: const TestRunResult(
+              providerId: 'static-runner',
+              runner: 'fixture',
+              status: TestRunStatus.passed,
+              message: 'Fixture tests passed.',
+              totalCount: 1,
+              passedCount: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('discovered 1'), findsOneWidget);
+    expect(find.text('status passed'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('testing-discovery-result')),
+      findsOneWidget,
+    );
+    expect(find.text('Styio'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('testing-provider-run-result')),
+      findsOneWidget,
+    );
   });
 }

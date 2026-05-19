@@ -51,6 +51,7 @@ class _VityoAppState extends State<VityoApp> {
       themeOverrideStore: widget.bootstrap.themeOverrideStore,
       workspaceDiagnosticsController:
           widget.bootstrap.workspaceDiagnosticsController,
+      testingSessionController: widget.bootstrap.testingSessionController,
     );
     unawaited(_shellModel.loadThemeOverride());
   }

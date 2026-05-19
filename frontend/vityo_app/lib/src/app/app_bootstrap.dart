@@ -28,6 +28,7 @@ import '../view_ide/toolchain/toolchain_configuration_store.dart';
 import '../view_ide/toolchain/toolchain_manager.dart';
 import '../view_ide/toolchain/native_compiler_toolchain_discovery.dart';
 import '../view_ide/toolchain/styio_toolchain_discovery.dart';
+import '../view_ide/testing/testing.dart';
 import '../view_ide/workspace/workspace_diagnostics.dart';
 import '../view_ide/workspace/workspace_diagnostics_controller.dart';
 import '../module_host/module_registry.dart';
@@ -78,6 +79,7 @@ class AppBootstrap {
     this.toolchainCatalogSubscription,
     this.languageResultCacheBinding,
     this.workspaceDiagnosticsController,
+    this.testingSessionController,
   }) : languageServiceStatus =
            languageServiceStatus ??
            ValueNotifier<LanguageServiceStatusSurface>(
@@ -110,11 +112,13 @@ class AppBootstrap {
   toolchainCatalogSubscription;
   final StyioServiceToolchainCacheBinding? languageResultCacheBinding;
   final WorkspaceDiagnosticsController? workspaceDiagnosticsController;
+  final TestingSessionController? testingSessionController;
 
   void dispose() {
     unawaited(toolchainCatalogSubscription?.cancel());
     unawaited(languageResultCacheBinding?.dispose());
     workspaceDiagnosticsController?.dispose();
+    testingSessionController?.dispose();
     agentCodingController.dispose();
   }
 
@@ -280,6 +284,7 @@ class AppBootstrap {
         ),
       ),
     );
+    final testingSessionController = TestingSessionController();
     Future<void> refreshActiveLanguageService() async {
       try {
         await refreshLanguageServiceForEditor(
@@ -385,6 +390,7 @@ class AppBootstrap {
       toolchainCatalogSubscription: toolchainCatalogSubscription,
       languageResultCacheBinding: languageResultCacheBinding,
       workspaceDiagnosticsController: workspaceDiagnosticsController,
+      testingSessionController: testingSessionController,
     );
   }
 

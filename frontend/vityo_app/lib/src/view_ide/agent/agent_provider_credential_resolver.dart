@@ -70,15 +70,13 @@ class ConfiguredAgentProviderAdapterFactory {
   }
 
   Future<AgentProviderAdapter> create(AgentPromptProfile profile) async {
-    final execution = _resolveExecution(profile);
-    if (execution == null) {
+    final execution = await resolveExecution(profile);
+    final selectedEndpoint = execution.selectedEndpoint;
+    if (selectedEndpoint == null) {
       return const LocalOnlyAgentProviderAdapter();
     }
-    final executionPlan = execution.plan;
-    final endpoint = execution.profile.endpoint;
-    if (!executionPlan.executable) {
-      return const LocalOnlyAgentProviderAdapter();
-    }
+    final executionPlan = selectedEndpoint.plan;
+    final endpoint = selectedEndpoint.endpoint;
     final token = await AgentProviderCredentialResolver(
       configurationStore: configurationStore,
     ).bearerTokenForEndpoint(endpoint);
@@ -91,27 +89,22 @@ class ConfiguredAgentProviderAdapterFactory {
     );
   }
 
-  _ResolvedAgentProviderExecution? _resolveExecution(
+  Future<AgentProviderExecutionResolution> resolveExecution(
     AgentPromptProfile profile,
   ) {
     final executor =
         routeExecutor ??
         AgentProviderRouteExecutor(localServiceManager: localServiceManager);
-    final candidates = <AgentPromptProfile>[
+    final credentialResolver = AgentProviderCredentialResolver(
+      configurationStore: configurationStore,
+    );
+    return executor.resolve(
       profile,
-      for (final endpoint in profile.fallbackEndpoints)
-        profile.copyWith(endpoint: endpoint),
-    ];
-    for (final candidate in candidates) {
-      final plan = executor.planFor(candidate);
-      if (plan.executable) {
-        return _ResolvedAgentProviderExecution(
-          profile: candidate,
-          plan: plan,
-        );
-      }
-    }
-    return null;
+      credentialAvailable: (endpoint) async {
+        return await credentialResolver.bearerTokenForEndpoint(endpoint) !=
+            null;
+      },
+    );
   }
 
   AgentProviderTransport _transportFor(AgentProviderExecutionPlan plan) {
@@ -120,14 +113,4 @@ class ConfiguredAgentProviderAdapterFactory {
     }
     return transport;
   }
-}
-
-class _ResolvedAgentProviderExecution {
-  const _ResolvedAgentProviderExecution({
-    required this.profile,
-    required this.plan,
-  });
-
-  final AgentPromptProfile profile;
-  final AgentProviderExecutionPlan plan;
 }

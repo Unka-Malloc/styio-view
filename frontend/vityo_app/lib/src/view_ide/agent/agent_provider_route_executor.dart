@@ -38,6 +38,35 @@ extension AgentProviderExecutionBlockReasonX
   }
 }
 
+enum AgentProviderCredentialReadiness { notReferenced, available, unavailable }
+
+extension AgentProviderCredentialReadinessX on AgentProviderCredentialReadiness {
+  String get wireValue {
+    return switch (this) {
+      AgentProviderCredentialReadiness.notReferenced => 'not_referenced',
+      AgentProviderCredentialReadiness.available => 'available',
+      AgentProviderCredentialReadiness.unavailable => 'unavailable',
+    };
+  }
+}
+
+enum AgentProviderExecutionResolutionStatus {
+  ready,
+  fallbackReady,
+  blocked,
+}
+
+extension AgentProviderExecutionResolutionStatusX
+    on AgentProviderExecutionResolutionStatus {
+  String get wireValue {
+    return switch (this) {
+      AgentProviderExecutionResolutionStatus.ready => 'ready',
+      AgentProviderExecutionResolutionStatus.fallbackReady => 'fallback_ready',
+      AgentProviderExecutionResolutionStatus.blocked => 'blocked',
+    };
+  }
+}
+
 class AgentProviderExecutionPlan {
   const AgentProviderExecutionPlan({
     required this.routeKind,
@@ -84,10 +113,124 @@ class AgentProviderExecutionPlan {
   }
 }
 
+class AgentProviderEndpointReadiness {
+  const AgentProviderEndpointReadiness({
+    required this.endpointIndex,
+    required this.fallback,
+    required this.endpoint,
+    required this.plan,
+    required this.credentialReadiness,
+  });
+
+  final int endpointIndex;
+  final bool fallback;
+  final AgentProviderEndpoint endpoint;
+  final AgentProviderExecutionPlan plan;
+  final AgentProviderCredentialReadiness credentialReadiness;
+
+  bool get executable {
+    return plan.executable &&
+        credentialReadiness != AgentProviderCredentialReadiness.unavailable;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'endpointIndex': endpointIndex,
+      'fallback': fallback,
+      'endpoint': endpoint.toJson(),
+      'plan': plan.toJson(),
+      'credentialReadiness': credentialReadiness.wireValue,
+      'executable': executable,
+    };
+  }
+}
+
+class AgentProviderExecutionResolution {
+  const AgentProviderExecutionResolution({
+    required this.profileId,
+    required this.status,
+    required this.endpoints,
+    this.selectedEndpointIndex,
+  });
+
+  final String profileId;
+  final AgentProviderExecutionResolutionStatus status;
+  final List<AgentProviderEndpointReadiness> endpoints;
+  final int? selectedEndpointIndex;
+
+  AgentProviderEndpointReadiness? get selectedEndpoint {
+    final selected = selectedEndpointIndex;
+    if (selected == null) {
+      return null;
+    }
+    for (final endpoint in endpoints) {
+      if (endpoint.endpointIndex == selected) {
+        return endpoint;
+      }
+    }
+    return null;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'profileId': profileId,
+      'status': status.wireValue,
+      if (selectedEndpointIndex != null)
+        'selectedEndpointIndex': selectedEndpointIndex,
+      'endpoints': endpoints
+          .map((endpoint) => endpoint.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+typedef AgentProviderCredentialAvailability =
+    Future<bool> Function(AgentProviderEndpoint endpoint);
+
 class AgentProviderRouteExecutor {
   const AgentProviderRouteExecutor({this.localServiceManager});
 
   final LocalServiceManager? localServiceManager;
+
+  Future<AgentProviderExecutionResolution> resolve(
+    AgentPromptProfile profile, {
+    AgentProviderCredentialAvailability? credentialAvailable,
+  }) async {
+    final candidateEndpoints = <AgentProviderEndpoint>[
+      profile.endpoint,
+      ...profile.fallbackEndpoints,
+    ];
+    final endpoints = <AgentProviderEndpointReadiness>[];
+    int? selectedEndpointIndex;
+    for (var index = 0; index < candidateEndpoints.length; index += 1) {
+      final endpoint = candidateEndpoints[index];
+      final candidateProfile = profile.copyWith(endpoint: endpoint);
+      final readiness = AgentProviderEndpointReadiness(
+        endpointIndex: index,
+        fallback: index > 0,
+        endpoint: endpoint,
+        plan: planFor(candidateProfile),
+        credentialReadiness: await _credentialReadiness(
+          endpoint,
+          credentialAvailable,
+        ),
+      );
+      endpoints.add(readiness);
+      if (selectedEndpointIndex == null && readiness.executable) {
+        selectedEndpointIndex = index;
+      }
+    }
+    return AgentProviderExecutionResolution(
+      profileId: profile.profileId,
+      status: selectedEndpointIndex == null
+          ? AgentProviderExecutionResolutionStatus.blocked
+          : selectedEndpointIndex == 0
+          ? AgentProviderExecutionResolutionStatus.ready
+          : AgentProviderExecutionResolutionStatus.fallbackReady,
+      endpoints: endpoints,
+      selectedEndpointIndex: selectedEndpointIndex,
+    );
+  }
 
   AgentProviderExecutionPlan planFor(AgentPromptProfile profile) {
     final endpoint = profile.endpoint;
@@ -144,6 +287,21 @@ class AgentProviderRouteExecutor {
       route: endpoint.route,
       endpointBaseUrl: baseUrl,
     );
+  }
+
+  Future<AgentProviderCredentialReadiness> _credentialReadiness(
+    AgentProviderEndpoint endpoint,
+    AgentProviderCredentialAvailability? credentialAvailable,
+  ) async {
+    if (endpoint.credentialReference == null) {
+      return AgentProviderCredentialReadiness.notReferenced;
+    }
+    if (credentialAvailable == null) {
+      return AgentProviderCredentialReadiness.available;
+    }
+    return await credentialAvailable(endpoint)
+        ? AgentProviderCredentialReadiness.available
+        : AgentProviderCredentialReadiness.unavailable;
   }
 
   bool get _localBridgeAvailable {

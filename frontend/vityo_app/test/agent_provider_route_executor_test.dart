@@ -89,6 +89,48 @@ void main() {
     expect(reloaded.fallbackEndpoints.single.model, 'gpt-cloud-fallback');
   });
 
+  test('agent provider resolution reports credential-based fallback', () async {
+    const credentialReference = CredentialReference(
+      key: CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'primary',
+        scope: CredentialScope.user,
+      ),
+      kind: CredentialKind.token,
+    );
+    final profile = _profile(
+      route: AgentProviderRoute.webHosted,
+      baseUrl: 'https://primary.example.test/v1',
+      credentialReference: credentialReference,
+      fallbackEndpoints: const <AgentProviderEndpoint>[
+        AgentProviderEndpoint(
+          route: AgentProviderRoute.webHosted,
+          baseUrl: 'https://fallback.example.test/v1',
+          model: 'gpt-cloud-fallback',
+        ),
+      ],
+    );
+
+    final resolution = await const AgentProviderRouteExecutor().resolve(
+      profile,
+      credentialAvailable: (endpoint) async {
+        return endpoint.credentialReference == null;
+      },
+    );
+
+    expect(resolution.status, AgentProviderExecutionResolutionStatus.fallbackReady);
+    expect(resolution.selectedEndpointIndex, 1);
+    expect(
+      resolution.endpoints.first.credentialReadiness,
+      AgentProviderCredentialReadiness.unavailable,
+    );
+    expect(resolution.endpoints.last.executable, isTrue);
+    expect(
+      resolution.toJson()['status'],
+      AgentProviderExecutionResolutionStatus.fallbackReady.wireValue,
+    );
+  });
+
   test('agent provider factory routes loopback requests to local transport', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_agent_route_executor_test_',
@@ -193,12 +235,65 @@ void main() {
     );
     expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
   });
+
+  test('agent provider factory skips endpoint with missing credential', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_agent_credential_failover_test_',
+    );
+    addTearDown(() async {
+      if (await tempRoot.exists()) {
+        await tempRoot.delete(recursive: true);
+      }
+    });
+    const missingCredential = CredentialReference(
+      key: CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'missing-primary',
+        scope: CredentialScope.user,
+      ),
+      kind: CredentialKind.token,
+    );
+    final cloudTransport = _RecordingTransport();
+    final factory = ConfiguredAgentProviderAdapterFactory(
+      configurationStore: _configurationStore(tempRoot),
+      transport: cloudTransport,
+    );
+    final profile = _profile(
+      route: AgentProviderRoute.webHosted,
+      baseUrl: 'https://primary.example.test/v1',
+      credentialReference: missingCredential,
+      fallbackEndpoints: const <AgentProviderEndpoint>[
+        AgentProviderEndpoint(
+          route: AgentProviderRoute.webHosted,
+          baseUrl: 'https://fallback.example.test/v1',
+          model: 'gpt-cloud-fallback',
+        ),
+      ],
+    );
+
+    final resolution = await factory.resolveExecution(profile);
+    final adapter = await factory.create(profile);
+    await adapter.send(
+      AgentProviderRequest(
+        requestId: 'credential-failover-request',
+        profile: profile,
+        context: _emptyContext(),
+        userPrompt: 'Use credential fallback.',
+      ),
+    );
+
+    expect(resolution.status, AgentProviderExecutionResolutionStatus.fallbackReady);
+    expect(adapter.kind, AgentProviderKind.cloudOpenAICompatible);
+    expect(cloudTransport.lastEndpoint.toString(), 'https://fallback.example.test/v1/chat/completions');
+    expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
+  });
 }
 
 AgentPromptProfile _profile({
   required AgentProviderRoute route,
   required String baseUrl,
   String model = 'gpt-route-test',
+  CredentialReference? credentialReference,
   List<AgentProviderEndpoint> fallbackEndpoints =
       const <AgentProviderEndpoint>[],
 }) {
@@ -210,6 +305,7 @@ AgentPromptProfile _profile({
       route: route,
       baseUrl: baseUrl,
       model: model,
+      credentialReference: credentialReference,
     ),
     fallbackEndpoints: fallbackEndpoints,
   );

@@ -5,3 +5,4 @@ export 'language_service_configuration.dart';
 export 'language_service_configuration_store.dart';
 export 'shell_configuration.dart';
 export 'shell_configuration_store.dart';
+export 'theme_override_store.dart';

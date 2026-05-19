@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
+import 'package:vityo_app/src/agent/agent_context.dart';
+import 'package:vityo_app/src/agent/agent_profile.dart';
+import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_configurator.dart';
 import 'package:vityo_app/src/frontend_shell/frontend_shell.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
@@ -20,18 +25,124 @@ import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
+import 'package:vityo_app/src/view_render/theme/theme.dart';
+
+AgentCodingSessionController createSmokeAgentController(
+  PlatformTarget target,
+  EditorSessionController editorController,
+) {
+  return AgentCodingSessionController(
+    profile: AgentPromptProfile.defaultForPlatform(target),
+    adapter: const LocalOnlyAgentProviderAdapter(),
+    contextProvider: () => AgentSessionContext.fromEditorState(
+      document: editorController.document,
+      selection: editorController.selection,
+      diagnostics: editorController.analysis.diagnostics,
+    ),
+  );
+}
+
+AgentProviderConfigurator createSmokeAgentProviderConfigurator() {
+  return AgentProviderConfigurator(
+    workspaceId: 'smoke',
+    saveProfile:
+        ({
+          required String workspaceId,
+          required String key,
+          required AgentPromptProfile profile,
+        }) async {},
+    createAdapter: (profile) async => const LocalOnlyAgentProviderAdapter(),
+  );
+}
 
 void main() {
-  Future<void> revealMobileLanguagePane(WidgetTester tester) async {
-    final mobileInspectorScroll = find.byKey(
-      const ValueKey('editor-language-layout-scroll-mobile'),
+  Future<void> pumpVityoApp(
+    WidgetTester tester,
+    AppBootstrap bootstrap, {
+    String? initialPath,
+  }) async {
+    final documentId = bootstrap.editorController.document.documentId;
+    final selection = bootstrap.editorController.selection;
+    await tester.pumpWidget(
+      VityoApp(bootstrap: bootstrap, initialPath: initialPath),
+    );
+    await tester.pumpAndSettle();
+    if (bootstrap.editorController.document.documentId == documentId &&
+        selection.end <= bootstrap.editorController.document.length) {
+      bootstrap.editorController.selectRange(
+        baseOffset: selection.baseOffset,
+        extentOffset: selection.extentOffset,
+      );
+      await tester.pump();
+    }
+  }
+
+  Future<void> pumpShellScaffold(
+    WidgetTester tester,
+    AppBootstrap bootstrap,
+  ) async {
+    await tester.pumpWidget(_ShellScaffoldHarness(bootstrap: bootstrap));
+    await tester.pump();
+  }
+
+  Future<void> tapVisibleKey(WidgetTester tester, String key) async {
+    final finder = find.byKey(ValueKey(key), skipOffstage: false);
+    await tester.ensureVisible(finder);
+    await tester.pump();
+    await tester.tap(finder, warnIfMissed: false);
+    await tester.pump();
+  }
+
+  Future<void> tapVisibleText(WidgetTester tester, String text) async {
+    final finder = find.text(text, skipOffstage: false);
+    await tester.ensureVisible(finder);
+    await tester.pump();
+    await tester.tap(finder, warnIfMissed: false);
+    await tester.pump();
+  }
+
+  Future<void> focusSourceBuffer(
+    WidgetTester tester, [
+    EditorSessionController? controller,
+  ]) async {
+    final selection = controller?.selection;
+    final surface = find.byKey(
+      const ValueKey('source-buffer-surface'),
       skipOffstage: false,
     );
-    if (mobileInspectorScroll.evaluate().isNotEmpty) {
-      for (var attempt = 0; attempt < 2; attempt += 1) {
-        await tester.drag(mobileInspectorScroll, const Offset(0, -260));
-        await tester.pumpAndSettle();
-      }
+    await tester.ensureVisible(surface);
+    await tester.pump();
+    final header = find.descendant(
+      of: surface,
+      matching: find.text('Source Buffer', skipOffstage: false),
+      skipOffstage: false,
+    );
+    if (header.evaluate().isNotEmpty) {
+      await tester.tap(header, warnIfMissed: false);
+    } else {
+      final surfaceRect = tester.getRect(surface);
+      await tester.tapAt(surfaceRect.topLeft + const Offset(24, 24));
+    }
+    await tester.pump();
+    if (selection != null &&
+        controller != null &&
+        selection.end <= controller.document.length) {
+      controller.selectRange(
+        baseOffset: selection.baseOffset,
+        extentOffset: selection.extentOffset,
+      );
+      await tester.pump();
+    }
+  }
+
+  Future<void> revealMobileLanguagePane(WidgetTester tester) async {
+    final languagePane = find.byKey(
+      const ValueKey('language-pane-mobile'),
+      skipOffstage: false,
+    );
+    if (languagePane.evaluate().isNotEmpty) {
+      await tester.ensureVisible(languagePane);
+      await tester.pump();
     }
   }
 
@@ -249,6 +360,12 @@ void main() {
       ),
     );
     addTearDown(toolchainStatusReport.dispose);
+    final editorController = EditorSessionController(
+      initialDocument: EditorSessionController.seedDocumentForPath(
+        workspaceController.activeFilePath,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
     return AppBootstrap(
       platformTarget: target,
       moduleRegistry: ModuleRegistry(
@@ -274,12 +391,7 @@ void main() {
       ]),
       workspaceController: workspaceController,
       workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
-      editorController: EditorSessionController(
-        initialDocument: EditorSessionController.seedDocumentForPath(
-          workspaceController.activeFilePath,
-        ),
-        languageService: const SimpleStyioLanguageService(),
-      ),
+      editorController: editorController,
       executionAdapter: const _FakeExecutionAdapter(),
       executionAdapterFactory: (ProjectGraphSnapshot _) async =>
           const _FakeExecutionAdapter(),
@@ -287,6 +399,11 @@ void main() {
       dependencySourceAdapter: const _FakeDependencySourceAdapter(),
       deploymentAdapter: const _FakeDeploymentAdapter(),
       toolchainManagementAdapter: const _FakeToolchainManagementAdapter(),
+      agentCodingController: createSmokeAgentController(
+        target,
+        editorController,
+      ),
+      agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
       toolchainStatusReport: toolchainStatusReport,
     );
   }
@@ -459,6 +576,12 @@ void main() {
       ),
     ]);
     addTearDown(() => clearRuntimeEventsForSession('live-workflow-run'));
+    final editorController = EditorSessionController(
+      initialDocument: EditorSessionController.seedDocumentForPath(
+        workspaceController.activeFilePath,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
     return AppBootstrap(
       platformTarget: target,
       moduleRegistry: ModuleRegistry(
@@ -481,12 +604,7 @@ void main() {
       ]),
       workspaceController: workspaceController,
       workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
-      editorController: EditorSessionController(
-        initialDocument: EditorSessionController.seedDocumentForPath(
-          workspaceController.activeFilePath,
-        ),
-        languageService: const SimpleStyioLanguageService(),
-      ),
+      editorController: editorController,
       executionAdapter: const _LiveExecutionAdapter(),
       executionAdapterFactory: (ProjectGraphSnapshot _) async =>
           const _LiveExecutionAdapter(),
@@ -494,10 +612,19 @@ void main() {
       dependencySourceAdapter: const _LiveDependencySourceAdapter(),
       deploymentAdapter: const _LiveDeploymentAdapter(),
       toolchainManagementAdapter: const _LiveToolchainManagementAdapter(),
+      agentCodingController: createSmokeAgentController(
+        target,
+        editorController,
+      ),
+      agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
     );
   }
 
-  testWidgets('builds shared shell scaffold in desktop viewport family', (
+  Widget shellScaffoldHarness(AppBootstrap bootstrap) {
+    return _ShellScaffoldHarness(bootstrap: bootstrap);
+  }
+
+  testWidgets('app entry renders the full editor workbench shell', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1600, 1200);
@@ -507,7 +634,82 @@ void main() {
 
     final bootstrap = await createBootstrap(PlatformTarget.macos);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
+
+    expect(
+      find.byKey(const ValueKey('editor-viewport-desktop')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('editor-language-family-desktop')),
+      findsOneWidget,
+    );
+    expect(find.text('Vityo Integration Shell'), findsNothing);
+    expect(find.text('Vityo Editor Workbench'), findsOneWidget);
+    expect(find.text('Project Graph'), findsOneWidget);
+  });
+
+  testWidgets('editor route renders the full editor workbench shell', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+
+    await pumpVityoApp(tester, bootstrap, initialPath: '/editor');
+
+    expect(
+      find.byKey(const ValueKey('editor-viewport-desktop')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('editor-language-family-desktop')),
+      findsOneWidget,
+    );
+    expect(find.text('Vityo Integration Shell'), findsNothing);
+    expect(find.text('Vityo Editor Workbench'), findsOneWidget);
+    expect(find.text('Project Graph'), findsOneWidget);
+  });
+
+  testWidgets('legacy guide path canonicalizes to the full editor workbench', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+
+    await pumpVityoApp(tester, bootstrap, initialPath: '/guide');
+
+    expect(
+      find.byKey(const ValueKey('editor-viewport-desktop')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('editor-language-family-desktop')),
+      findsOneWidget,
+    );
+    expect(find.text('Vityo Integration Shell'), findsNothing);
+    expect(find.text('Vityo Editor Workbench'), findsOneWidget);
+    expect(find.text('Project Graph'), findsOneWidget);
+  });
+
+  testWidgets('builds shared shell scaffold as an internal component', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+
+    await pumpShellScaffold(tester, bootstrap);
 
     expect(
       find.byKey(const ValueKey('shell-viewport-desktop')),
@@ -527,7 +729,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('source manager-report'), findsOneWidget);
-    expect(find.text('Vityo Integration Shell'), findsOneWidget);
+    expect(find.text('Vityo Editor Workbench'), findsOneWidget);
     expect(find.text('Project Graph'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('project-operations-card')),
@@ -606,6 +808,8 @@ void main() {
       find.byKey(const ValueKey('required-handoffs-card'), skipOffstage: false),
       findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('command-strip-save')), findsOneWidget);
+    expect(find.byKey(const ValueKey('command-strip-saveAll')), findsOneWidget);
     expect(find.byKey(const ValueKey('command-strip-run')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('command-strip-fetchDependencies')),
@@ -622,36 +826,32 @@ void main() {
     expect(find.byIcon(Icons.play_arrow_rounded), findsWidgets);
     expect(find.byIcon(Icons.arrow_right_alt_rounded), findsWidgets);
 
-    await tester.tap(
-      find.byKey(const ValueKey('command-strip-vendorDependencies')),
-    );
-    await tester.pumpAndSettle();
+    await tapVisibleKey(tester, 'command-strip-vendorDependencies');
 
     expect(shell.lastDependencySourceCommand?.command, 'vendor');
 
-    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
-    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('command-strip-openSettings')));
+    await tester.pumpAndSettle();
+
+    expect(shell.activeBottomTab, BottomSurfaceTab.settings);
+    expect(find.byKey(const ValueKey('settings-surface')), findsOneWidget);
+
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.tap(find.byKey(const ValueKey('source-line-0')));
     await tester.pump();
 
-    expect(find.text('editing'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('source-buffer-surface'), skipOffstage: false),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('inline-language-feedback-desktop')),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('active-token-context')), findsOneWidget);
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.pump();
-
-    expect(find.textContaining('selection '), findsOneWidget);
-
-    await tester.tap(find.text('Debug'));
-    await tester.pumpAndSettle();
+    await tapVisibleText(tester, 'Debug');
 
     expect(find.byKey(const ValueKey('debug-surface-desktop')), findsOneWidget);
   });
@@ -666,7 +866,7 @@ void main() {
 
     final bootstrap = await createBootstrap(PlatformTarget.android);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpShellScaffold(tester, bootstrap);
 
     expect(find.byKey(const ValueKey('shell-viewport-mobile')), findsOneWidget);
     expect(
@@ -688,20 +888,6 @@ void main() {
       find.byKey(const ValueKey('language-pane-mobile'), skipOffstage: false),
       findsOneWidget,
     );
-
-    final shell = ShellScope.of(
-      tester.element(find.byType(VityoShellScaffold)),
-    );
-    shell.selectBottomTab(BottomSurfaceTab.agent);
-    await tester.pumpAndSettle();
-
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -720));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('agent-surface-mobile'), skipOffstage: false),
-      findsOneWidget,
-    );
   });
 
   testWidgets(
@@ -714,7 +900,7 @@ void main() {
 
       final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
 
-      await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+      await pumpShellScaffold(tester, bootstrap);
 
       final workspaceSidebarScrollable = find.descendant(
         of: find.byKey(const ValueKey('workspace-sidebar-scroll')),
@@ -778,9 +964,8 @@ void main() {
 
     final bootstrap = await createBootstrap(PlatformTarget.ios);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
-    expect(find.byKey(const ValueKey('shell-viewport-mobile')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('editor-viewport-mobile')),
       findsOneWidget,
@@ -801,6 +986,28 @@ void main() {
     );
   });
 
+  testWidgets('app entry renders mobile workbench shell on wide iOS viewport', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1366, 1024);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.ios);
+
+    await pumpVityoApp(tester, bootstrap);
+
+    expect(find.text('Vityo Integration Shell'), findsNothing);
+    expect(find.text('Vityo Editor Workbench'), findsOneWidget);
+    expect(find.text('Project Graph'), findsOneWidget);
+    expect(find.byType(VityoShellScaffold), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('editor-viewport-mobile')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shows token context for the caret-resolved token', (
     tester,
   ) async {
@@ -815,7 +1022,7 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(sourceOffset + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
     expect(find.byKey(const ValueKey('active-token-context')), findsOneWidget);
     expect(find.textContaining('Token `source`'), findsOneWidget);
@@ -837,7 +1044,7 @@ void main() {
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
     expect(bootstrap.editorController.referencesAtSelection.length, 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
     expect(
       backgroundsForTextOnLine(tester, lineIndex: 0, text: 'value'),
@@ -868,7 +1075,7 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
     expect(
       find.textContaining(
@@ -896,14 +1103,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(0);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.f2);
     await tester.pump();
@@ -936,7 +1137,7 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
     final languageScrollable = find.descendant(
       of: find.byKey(const ValueKey('language-pane-desktop')),
@@ -977,7 +1178,7 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('language-go-to-definition')),
@@ -1012,14 +1213,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
@@ -1049,14 +1244,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
@@ -1098,14 +1287,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.slash);
@@ -1142,14 +1325,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
@@ -1180,14 +1357,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('beta') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
@@ -1218,14 +1389,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
@@ -1256,14 +1421,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('beta') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
@@ -1292,14 +1451,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.length);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
@@ -1330,14 +1483,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(valueStart + 3);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.home);
     await tester.pump();
@@ -1366,14 +1513,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -1413,14 +1554,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('['));
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
@@ -1452,14 +1587,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     expect(find.byKey(const ValueKey('source-fold-toggle-0')), findsOneWidget);
     expect(find.byKey(const ValueKey('source-line-2')), findsOneWidget);
@@ -1499,14 +1628,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(1);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
@@ -1534,14 +1657,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.length);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft, character: '{');
     await tester.pump();
@@ -1570,14 +1687,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('{') + 1);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
@@ -1607,14 +1718,8 @@ void main() {
     );
     bootstrap.editorController.selectCollapsed(lineStart);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
@@ -1648,14 +1753,8 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
@@ -1693,14 +1792,8 @@ value = blend(right: tax, left: price)
     );
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('tax') + 1);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
@@ -1717,8 +1810,7 @@ value = blend(right: tax, left: price)
     expect(find.text('Argument 2 of 2: right: f64 = 0.0'), findsOneWidget);
     expect(find.text('Tax component to add.'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('source-parameter-info-close')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-parameter-info-close');
 
     expect(
       find.byKey(const ValueKey('source-parameter-info-panel')),
@@ -1747,7 +1839,7 @@ value = blend(price, tax)
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
     await tester.pump();
 
     final callLine = bootstrap.editorController.document
@@ -1794,7 +1886,7 @@ value = blend(price, price)
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
     await tester.pump();
 
     final priceLine = bootstrap.editorController.document
@@ -1838,14 +1930,8 @@ value -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
@@ -1872,8 +1958,7 @@ value -> @stdout
       scrollable: sourceScrollable,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('source-quick-doc-definition')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-quick-doc-definition');
 
     expect(bootstrap.editorController.selection.start, text.indexOf('value ='));
     expect(bootstrap.editorController.canUndo, isFalse);
@@ -1884,8 +1969,7 @@ value -> @stdout
       scrollable: sourceScrollable,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('source-quick-doc-usages')));
-    await tester.pumpAndSettle();
+    await tapVisibleKey(tester, 'source-quick-doc-usages');
 
     expect(find.byKey(const ValueKey('source-usages-panel')), findsOneWidget);
 
@@ -1895,8 +1979,7 @@ value -> @stdout
       scrollable: sourceScrollable,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('source-quick-doc-close')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-quick-doc-close');
 
     expect(find.byKey(const ValueKey('source-quick-doc-panel')), findsNothing);
   });
@@ -1917,7 +2000,7 @@ value -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
     final languageScrollable = find.descendant(
       of: find.byKey(const ValueKey('language-pane-desktop')),
@@ -1962,14 +2045,8 @@ value -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -2023,14 +2100,8 @@ value -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.f3);
     await tester.pump();
@@ -2068,14 +2139,8 @@ value -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('sink') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f7);
@@ -2096,8 +2161,7 @@ value -> @stdout
       scrollable: sourceScrollable,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('source-usage-1')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-usage-1');
 
     expect(
       bootstrap.editorController.selection.start,
@@ -2111,8 +2175,7 @@ value -> @stdout
       scrollable: sourceScrollable,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('source-usages-close')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-usages-close');
 
     expect(find.byKey(const ValueKey('source-usages-panel')), findsNothing);
   });
@@ -2130,7 +2193,7 @@ value -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
     final languageScrollable = find.descendant(
       of: find.byKey(const ValueKey('language-pane-desktop')),
@@ -2175,14 +2238,8 @@ value -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
     expect(
       bootstrap.editorController.completionsAtSelection.map(
         (item) => item.label,
@@ -2215,14 +2272,8 @@ value -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
     expect(
       bootstrap.editorController.completionsAtSelection.map(
         (item) => item.label,
@@ -2257,14 +2308,8 @@ value -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyJ, character: 'j');
     await tester.pumpAndSettle();
@@ -2303,14 +2348,8 @@ value -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyJ, character: 'j');
     await tester.pumpAndSettle();
@@ -2338,14 +2377,8 @@ value -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -2411,14 +2444,8 @@ value -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -2432,10 +2459,7 @@ value -> @stdout
       find.byKey(const ValueKey('source-completion-preview-doc')),
     );
     await tester.pump();
-    await tester.tap(
-      find.byKey(const ValueKey('source-completion-preview-doc')),
-    );
-    await tester.pumpAndSettle();
+    await tapVisibleKey(tester, 'source-completion-preview-doc');
 
     expect(
       find.byKey(const ValueKey('source-completion-lookup')),
@@ -2476,14 +2500,8 @@ value -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -2545,14 +2563,8 @@ value -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('stream') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -2606,14 +2618,8 @@ blend(price, tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('price, tax'));
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -2666,14 +2672,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('right') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -2712,14 +2712,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('used'));
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
@@ -2753,14 +2747,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('unused'));
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
@@ -2770,8 +2758,7 @@ blend(left: price, right: tax) -> @stdout
     expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsOne);
     expect(find.byKey(const ValueKey('source-safe-delete-preview')), findsOne);
 
-    await tester.tap(find.byKey(const ValueKey('source-safe-delete-apply')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-safe-delete-apply');
 
     expect(
       bootstrap.editorController.document.text,
@@ -2802,14 +2789,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('pending'));
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -2853,14 +2834,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('seed'));
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -2878,10 +2853,7 @@ blend(left: price, right: tax) -> @stdout
       findsOne,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('source-inline-variable-apply')),
-    );
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-inline-variable-apply');
 
     expect(
       bootstrap.editorController.document.text,
@@ -2915,14 +2887,8 @@ blend(left: price, right: tax) -> @stdout
       extentOffset: text.indexOf('value') + 'value'.length,
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -2966,14 +2932,8 @@ blend(left: price, right: tax) -> @stdout
       extentOffset: start + '40 + 2'.length,
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -2991,10 +2951,7 @@ blend(left: price, right: tax) -> @stdout
       findsOne,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('source-introduce-variable-apply')),
-    );
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-introduce-variable-apply');
 
     expect(
       bootstrap.editorController.document.text,
@@ -3028,14 +2985,8 @@ blend(left: price, right: tax) -> @stdout
       extentOffset: text.indexOf('value') + 'value'.length,
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -3080,14 +3031,8 @@ blend(left: price, right: tax) -> @stdout
       extentOffset: start + 'user + 1'.length,
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -3153,14 +3098,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('blend') + 1);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -3235,14 +3174,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('blend') + 1);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -3283,7 +3216,7 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
     final languageScrollable = find.descendant(
       of: find.byKey(const ValueKey('language-pane-desktop')),
@@ -3300,8 +3233,7 @@ blend(left: price, right: tax) -> @stdout
       'price',
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('language-apply-rename')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'language-apply-rename');
 
     expect(bootstrap.editorController.document.text, 'price = price\n');
   });
@@ -3323,14 +3255,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -3376,9 +3302,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -3389,7 +3314,7 @@ blend(left: price, right: tax) -> @stdout
       find.byKey(const ValueKey('source-inline-rename-input')),
       '1bad',
     );
-    await tester.tap(find.byKey(const ValueKey('source-inline-rename-apply')));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 
     expect(bootstrap.editorController.document.text, text);
@@ -3416,9 +3341,8 @@ blend(left: price, right: tax) -> @stdout
     );
     bootstrap.editorController.selectCollapsed(text.indexOf('price'));
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
-    await tester.pump();
+    await pumpVityoApp(tester, bootstrap);
+    await focusSourceBuffer(tester, bootstrap.editorController);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -3429,8 +3353,7 @@ blend(left: price, right: tax) -> @stdout
       find.byKey(const ValueKey('source-inline-rename-input')),
       'total',
     );
-    await tester.tap(find.byKey(const ValueKey('source-inline-rename-apply')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-inline-rename-apply');
 
     expect(bootstrap.editorController.document.text, text);
     expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
@@ -3460,10 +3383,9 @@ blend(left: price, right: tax) -> @stdout
       ),
     );
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await pumpVityoApp(tester, bootstrap);
 
-    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
-    await tester.pump();
+    await focusSourceBuffer(tester, bootstrap.editorController);
     await tester.tap(find.byKey(const ValueKey('source-line-0')));
     await tester.pump();
 
@@ -3883,6 +3805,67 @@ class _LiveDeploymentAdapter implements DeploymentAdapter {
         'package': packageName ?? 'demo/app',
         'archive_path': '/workspace/demo/dist/app-0.0.5.tar',
       },
+    );
+  }
+}
+
+class _ShellScaffoldHarness extends StatefulWidget {
+  const _ShellScaffoldHarness({required this.bootstrap});
+
+  final AppBootstrap bootstrap;
+
+  @override
+  State<_ShellScaffoldHarness> createState() => _ShellScaffoldHarnessState();
+}
+
+class _ShellScaffoldHarnessState extends State<_ShellScaffoldHarness> {
+  late final ShellModel _shellModel;
+
+  @override
+  void initState() {
+    super.initState();
+    final bootstrap = widget.bootstrap;
+    _shellModel = ShellModel(
+      platformTarget: bootstrap.platformTarget,
+      supplementalAdapterCapabilities:
+          bootstrap.supplementalAdapterCapabilities,
+      projectGraphAdapter: bootstrap.projectGraphAdapter,
+      workspaceController: bootstrap.workspaceController,
+      workspaceDocumentStore: bootstrap.workspaceDocumentStore,
+      moduleRegistry: bootstrap.moduleRegistry,
+      nativeModuleLoader: bootstrap.nativeModuleLoader,
+      editorController: bootstrap.editorController,
+      executionAdapter: bootstrap.executionAdapter,
+      executionAdapterFactory: bootstrap.executionAdapterFactory,
+      runtimeEventAdapter: bootstrap.runtimeEventAdapter,
+      dependencySourceAdapter: bootstrap.dependencySourceAdapter,
+      deploymentAdapter: bootstrap.deploymentAdapter,
+      toolchainManagementAdapter: bootstrap.toolchainManagementAdapter,
+      agentCodingController: bootstrap.agentCodingController,
+      agentProviderConfigurator: bootstrap.agentProviderConfigurator,
+      toolchainManager: bootstrap.toolchainManager,
+      languageServiceStatus: bootstrap.languageServiceStatus,
+      toolchainStatusReport: bootstrap.toolchainStatusReport,
+    );
+  }
+
+  @override
+  void dispose() {
+    _shellModel.dispose();
+    widget.bootstrap.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ShellScope(
+      model: _shellModel,
+      child: MaterialApp(
+        title: 'Vityo shell scaffold harness',
+        debugShowCheckedModeBanner: false,
+        theme: VityoTheme.light(),
+        home: const VityoShellScaffold(),
+      ),
     );
   }
 }

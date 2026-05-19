@@ -292,4 +292,10 @@ class _MappedWorkspaceDocumentStore implements WorkspaceDocumentStore {
 
   @override
   Future<void> saveDocument(DocumentState document) async {}
+
+  @override
+  Future<bool> deleteDocument(String path) async => false;
+
+  @override
+  Future<bool> documentExists(String path) async => true;
 }

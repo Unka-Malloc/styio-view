@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+enum VityoThemePreset { parchment, graphite }
+
 class VityoThemeOverride {
   const VityoThemeOverride({
     this.canvas,
@@ -14,6 +16,22 @@ class VityoThemeOverride {
   final Color? ink;
   final Color? accent;
   final Color? muted;
+
+  VityoThemeOverride copyWith({
+    Color? canvas,
+    Color? panel,
+    Color? ink,
+    Color? accent,
+    Color? muted,
+  }) {
+    return VityoThemeOverride(
+      canvas: canvas ?? this.canvas,
+      panel: panel ?? this.panel,
+      ink: ink ?? this.ink,
+      accent: accent ?? this.accent,
+      muted: muted ?? this.muted,
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -38,13 +56,15 @@ class VityoThemeOverride {
 
 class VityoTheme {
   static ThemeData light({
+    VityoThemePreset preset = VityoThemePreset.parchment,
     VityoThemeOverride overrides = const VityoThemeOverride(),
   }) {
-    final canvas = overrides.canvas ?? const Color(0xFFF4F1EA);
-    final panel = overrides.panel ?? const Color(0xFFF9F6EF);
-    final ink = overrides.ink ?? const Color(0xFF2B2624);
-    final accent = overrides.accent ?? const Color(0xFF5668A6);
-    final muted = overrides.muted ?? const Color(0xFF8B847B);
+    final palette = _paletteForPreset(preset);
+    final canvas = overrides.canvas ?? palette.canvas;
+    final panel = overrides.panel ?? palette.panel;
+    final ink = overrides.ink ?? palette.ink;
+    final accent = overrides.accent ?? palette.accent;
+    final muted = overrides.muted ?? palette.muted;
 
     final colorScheme =
         ColorScheme.fromSeed(
@@ -97,6 +117,43 @@ class VityoTheme {
         ),
       ),
     );
+  }
+}
+
+class _VityoThemePalette {
+  const _VityoThemePalette({
+    required this.canvas,
+    required this.panel,
+    required this.ink,
+    required this.accent,
+    required this.muted,
+  });
+
+  final Color canvas;
+  final Color panel;
+  final Color ink;
+  final Color accent;
+  final Color muted;
+}
+
+_VityoThemePalette _paletteForPreset(VityoThemePreset preset) {
+  switch (preset) {
+    case VityoThemePreset.parchment:
+      return const _VityoThemePalette(
+        canvas: Color(0xFFF4F1EA),
+        panel: Color(0xFFF9F6EF),
+        ink: Color(0xFF2B2624),
+        accent: Color(0xFF5668A6),
+        muted: Color(0xFF8B847B),
+      );
+    case VityoThemePreset.graphite:
+      return const _VityoThemePalette(
+        canvas: Color(0xFFEDEFF2),
+        panel: Color(0xFFFFFFFF),
+        ink: Color(0xFF1E252B),
+        accent: Color(0xFF2F6F73),
+        muted: Color(0xFF62717C),
+      );
   }
 }
 

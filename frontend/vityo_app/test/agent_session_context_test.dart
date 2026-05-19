@@ -2023,6 +2023,14 @@ void main() {
           'targets': <Object?>['parser', Object()],
           'unsupported': Object(),
         },
+        'backendRouteSelection': <String, Object?>{
+          'routeKind': 'blocked',
+          'adapterKind': 'none',
+          'allowed': false,
+          'previewOnly': false,
+          'blockedReason': 'no-backend-route',
+          'unsupported': Object(),
+        },
         'unsupported': Object(),
       },
       completedAt: completedAt,
@@ -2054,6 +2062,14 @@ void main() {
     expect(buildResult['startedAt'], completedAt.toIso8601String());
     expect(buildResult['targets'], <Object?>['parser']);
     expect(buildResult.containsKey('unsupported'), isFalse);
+    final backendRouteSelection =
+        metadata['backendRouteSelection']! as Map<String, Object?>;
+    expect(backendRouteSelection['routeKind'], 'blocked');
+    expect(backendRouteSelection['adapterKind'], 'none');
+    expect(backendRouteSelection['allowed'], isFalse);
+    expect(backendRouteSelection['previewOnly'], isFalse);
+    expect(backendRouteSelection['blockedReason'], 'no-backend-route');
+    expect(backendRouteSelection.containsKey('unsupported'), isFalse);
     expect(metadata.containsKey('unsupported'), isFalse);
     expect(recentResults.length, 1);
     expect(

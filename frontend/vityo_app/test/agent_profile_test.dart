@@ -74,6 +74,7 @@ void main() {
       );
       expect(decoded.systemPrompt, contains('metadata.formatResult'));
       expect(decoded.systemPrompt, contains('staticAnalysisResult'));
+      expect(decoded.systemPrompt, contains('backendRouteSelection'));
       expect(decoded.systemPrompt, contains('buildResult'));
       expect(decoded.systemPrompt, contains('testResult'));
       expect(decoded.systemPrompt, contains('debug.status'));

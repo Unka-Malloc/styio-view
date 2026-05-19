@@ -655,6 +655,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('commands.lastResult.metadata.backendRouteSelection'),
+      );
+      expect(
+        systemMessage['content'],
         contains('commands.lastResult.metadata.staticAnalysisResult'),
       );
       expect(

@@ -2040,6 +2040,8 @@ void main() {
       ),
     );
     final lastSearch = shell.agentSessionContext.workspace.lastSearch;
+    final lastSymbolSearch =
+        shell.agentSessionContext.workspace.lastSymbolSearch;
     final lastCommandResult = shell.agentSessionContext.commands.lastResult;
 
     expect(applied, isTrue);
@@ -2053,6 +2055,12 @@ void main() {
       'src/main.styio',
       'src/lib.styio',
     ]);
+    expect(lastSymbolSearch?.query, 'needle');
+    expect(lastSymbolSearch?.scannedDocumentCount, 3);
+    expect(lastSymbolSearch?.matchCount, 1);
+    expect(lastSymbolSearch?.matches.single.name, 'needle');
+    expect(lastSymbolSearch?.matches.single.kind, 'variable');
+    expect(lastSymbolSearch?.matches.single.documentId, 'src/main.styio');
   });
 
   test('shell stores workspace replace preview without applying it', () async {

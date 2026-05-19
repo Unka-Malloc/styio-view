@@ -796,6 +796,9 @@ class LocalOnlyAgentProviderAdapter implements AgentProviderAdapter {
         if (request.context.workspace.lastSearch != null)
           'workspaceLastSearchMatchCount':
               request.context.workspace.lastSearch!.matchCount,
+        if (request.context.workspace.lastSymbolSearch != null)
+          'workspaceLastSymbolSearchMatchCount':
+              request.context.workspace.lastSymbolSearch!.matchCount,
         'hasLanguageHover': request.context.language.hasHover,
         'hasFocusToken': request.context.language.focusToken != null,
         if (request.context.language.focusToken != null)
@@ -970,6 +973,9 @@ Map<String, Object?> _openAICompatibleRequestBody(
       if (request.context.workspace.lastSearch != null)
         'workspaceLastSearchMatchCount':
             request.context.workspace.lastSearch!.matchCount,
+      if (request.context.workspace.lastSymbolSearch != null)
+        'workspaceLastSymbolSearchMatchCount':
+            request.context.workspace.lastSymbolSearch!.matchCount,
       'hasLanguageHover': request.context.language.hasHover,
       'hasFocusToken': request.context.language.focusToken != null,
       if (request.context.language.focusToken != null)
@@ -1347,6 +1353,7 @@ Vityo structured response contract:
 - Before multi-file patches, read workspace.files, workspace.documentSamples, workspace.openDocumentIds, and workspace.dirtyDocumentIds from the IDE context.
 - workspace.documentSamples is a capped content sample of active/open/cached documents, not a full workspace index; do not assume unsampled files have been read.
 - If workspace.lastSearch is present, use it as the latest IDE-confirmed workspace text search result before requesting additional file opens.
+- If workspace.lastSymbolSearch is present, use it as the latest IDE-confirmed workspace symbol search result before broad refactors, rename planning, or multi-file edits.
 - For C/C++ work, read workspace.buildFacts.buildSystemHints and workspace.buildFacts.toolingHints before choosing compile database, CMake, CMake presets, Ninja, clangd, formatter, static-analysis, or test-runner assumptions.
 - Do not patch inactive dirty documents from workspace.dirtyDocumentIds; ask the user to switch, save, or discard those local changes first.
 - If the IDE context includes language.focusToken, treat it as the token nearest the current selection before editing a single identifier or operator.

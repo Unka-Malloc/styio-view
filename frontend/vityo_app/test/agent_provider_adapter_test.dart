@@ -7,9 +7,12 @@ import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
+import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
+import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
   test('agent provider request preserves profile and IDE context', () {
@@ -374,10 +377,30 @@ void main() {
         text: 'value = 1\n',
         revision: 1,
       );
+      const symbolSearch = WorkspaceSymbolSearchResult(
+        matches: <WorkspaceSymbolMatch>[
+          WorkspaceSymbolMatch(
+            documentId: '/workspace/demo/src/main.styio',
+            name: 'value',
+            kind: ResolvedElementKind.variable,
+            nameRange: SourceRange(start: 0, end: 5),
+            declarationRange: SourceRange(start: 0, end: 9),
+            lineNumber: 1,
+            lineText: 'value = 1',
+            score: 1000,
+          ),
+        ],
+      );
       final context = AgentSessionContext.fromEditorState(
         document: document,
         selection: const SelectionState.collapsed(0),
         diagnostics: const [],
+        lastWorkspaceSymbolSearch:
+            AgentWorkspaceSymbolSearchResultContext.fromWorkspaceResult(
+              query: 'value',
+              scannedDocumentCount: 1,
+              result: symbolSearch,
+            ),
         lastCommandResult: AgentCommandResultContext(
           commandId: 'searchWorkspace',
           input: 'value',
@@ -808,6 +831,7 @@ void main() {
       expect(systemMessage['content'], contains('language.semanticBlocks'));
       expect(systemMessage['content'], contains('language.refactorPreviews'));
       expect(systemMessage['content'], contains('language.surroundTemplates'));
+      expect(systemMessage['content'], contains('workspace.lastSymbolSearch'));
       expect(systemMessage['content'], contains('zero-based coordinates'));
       expect(
         systemMessage['content'],
@@ -867,6 +891,7 @@ void main() {
       expect(metadata['dirtyDocumentCount'], 0);
       expect(metadata['workspaceDocumentSampleCount'], 1);
       expect(metadata['workspaceDocumentSamplesTruncated'], isFalse);
+      expect(metadata['workspaceLastSymbolSearchMatchCount'], 1);
       expect(metadata['hasLanguageHover'], isFalse);
       expect(metadata['hasFocusToken'], isFalse);
       expect(metadata['languageFocusedDiagnosticCount'], 0);

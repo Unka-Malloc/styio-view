@@ -18,6 +18,8 @@ class ProjectStyioLanguageService {
   final StyioProjectAnalysisCache? _analysisCache;
   final bool allowLocalProjectFallback;
 
+  StyioLanguageService get documentService => _documentService;
+
   StyioProjectAnalysis analyzeProject(List<DocumentState> documents) {
     final documentsById = {
       for (final document in documents) document.documentId: document,

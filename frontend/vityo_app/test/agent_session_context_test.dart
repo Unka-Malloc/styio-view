@@ -2262,6 +2262,27 @@ void main() {
         ),
       ],
     );
+    const symbolSearch = WorkspaceSymbolSearchResult(
+      matches: <WorkspaceSymbolMatch>[
+        WorkspaceSymbolMatch(
+          documentId: 'src/main.styio',
+          name: 'needle',
+          kind: ResolvedElementKind.variable,
+          nameRange: SourceRange(start: 0, end: 6),
+          declarationRange: SourceRange(start: 0, end: 11),
+          lineNumber: 1,
+          lineText: 'needle := 1',
+          score: 1000,
+          detail: 'Styio binding',
+        ),
+      ],
+    );
+    final symbolContext =
+        AgentWorkspaceSymbolSearchResultContext.fromWorkspaceResult(
+          query: 'needle',
+          scannedDocumentCount: 1,
+          result: symbolSearch,
+        );
     final context = AgentSessionContext.fromEditorState(
       document: const DocumentState(
         documentId: 'src/main.styio',
@@ -2272,13 +2293,17 @@ void main() {
       diagnostics: const <Diagnostic>[],
       workspaceFiles: const <String>['src/main.styio'],
       lastWorkspaceSearch: search,
+      lastWorkspaceSymbolSearch: symbolContext,
       activeFilePath: 'src/main.styio',
     );
 
     final workspaceJson =
         context.toJson()['workspace']! as Map<String, Object?>;
     final lastSearch = workspaceJson['lastSearch']! as Map<String, Object?>;
+    final lastSymbolSearch =
+        workspaceJson['lastSymbolSearch']! as Map<String, Object?>;
     final matches = lastSearch['matches']! as List<Object?>;
+    final symbolMatches = lastSymbolSearch['matches']! as List<Object?>;
 
     expect(lastSearch['query'], 'needle');
     expect(lastSearch['scannedDocumentCount'], 1);
@@ -2290,6 +2315,18 @@ void main() {
     );
     expect((matches.first! as Map<String, Object?>)['lineNumber'], 1);
     expect((matches.last! as Map<String, Object?>)['lineNumber'], 3);
+    expect(lastSymbolSearch['query'], 'needle');
+    expect(lastSymbolSearch['scannedDocumentCount'], 1);
+    expect(lastSymbolSearch['matchCount'], 1);
+    expect(lastSymbolSearch['matchesTruncated'], isFalse);
+    expect(
+      (symbolMatches.single! as Map<String, Object?>)['documentId'],
+      'src/main.styio',
+    );
+    expect((symbolMatches.single! as Map<String, Object?>)['name'], 'needle');
+    expect((symbolMatches.single! as Map<String, Object?>)['kind'], 'variable');
+    expect((symbolMatches.single! as Map<String, Object?>)['lineNumber'], 1);
+    expect((symbolMatches.single! as Map<String, Object?>)['detail'], 'Styio binding');
   });
 
   test('agent command context serializes latest IDE command result', () {

@@ -70,6 +70,7 @@ class AgentSessionContext {
     Iterable<String> dirtyDocumentIds = const <String>[],
     Iterable<DocumentState> workspaceDocuments = const <DocumentState>[],
     AgentWorkspaceSearchResultContext? lastWorkspaceSearch,
+    AgentWorkspaceSymbolSearchResultContext? lastWorkspaceSymbolSearch,
     WorkspaceDiagnosticsSnapshot? workspaceDiagnostics,
     SourceControlStatusSnapshot? sourceControlStatus,
     SourceControlDiffSnapshot? sourceControlDiff,
@@ -135,6 +136,7 @@ class AgentSessionContext {
         workspaceDocuments: workspaceDocuments,
       ),
       lastSearch: lastWorkspaceSearch,
+      lastSymbolSearch: lastWorkspaceSymbolSearch,
       diagnostics: workspaceDiagnostics,
       sourceControlStatus: sourceControlStatus,
       sourceControlDiff: sourceControlDiff,
@@ -3716,6 +3718,7 @@ class AgentWorkspaceContext {
     required this.documentSamplesTruncated,
     required this.buildFacts,
     this.lastSearch,
+    this.lastSymbolSearch,
     this.diagnostics,
     this.sourceControlStatus,
     this.sourceControlDiff,
@@ -3732,6 +3735,7 @@ class AgentWorkspaceContext {
   final bool documentSamplesTruncated;
   final AgentWorkspaceBuildFactsContext buildFacts;
   final AgentWorkspaceSearchResultContext? lastSearch;
+  final AgentWorkspaceSymbolSearchResultContext? lastSymbolSearch;
   final WorkspaceDiagnosticsSnapshot? diagnostics;
   final SourceControlStatusSnapshot? sourceControlStatus;
   final SourceControlDiffSnapshot? sourceControlDiff;
@@ -3743,6 +3747,7 @@ class AgentWorkspaceContext {
     Iterable<String> dirtyDocumentIds = const <String>[],
     Iterable<DocumentState> documentSamples = const <DocumentState>[],
     AgentWorkspaceSearchResultContext? lastSearch,
+    AgentWorkspaceSymbolSearchResultContext? lastSymbolSearch,
     WorkspaceDiagnosticsSnapshot? diagnostics,
     SourceControlStatusSnapshot? sourceControlStatus,
     SourceControlDiffSnapshot? sourceControlDiff,
@@ -3811,6 +3816,7 @@ class AgentWorkspaceContext {
       documentSamplesTruncated: sampleTruncated,
       buildFacts: AgentWorkspaceBuildFactsContext.fromFiles(allFiles),
       lastSearch: lastSearch,
+      lastSymbolSearch: lastSymbolSearch,
       diagnostics: diagnostics,
       sourceControlStatus: sourceControlStatus,
       sourceControlDiff: sourceControlDiff,
@@ -3832,6 +3838,8 @@ class AgentWorkspaceContext {
       'documentSamplesTruncated': documentSamplesTruncated,
       'buildFacts': buildFacts.toJson(),
       if (lastSearch != null) 'lastSearch': lastSearch!.toJson(),
+      if (lastSymbolSearch != null)
+        'lastSymbolSearch': lastSymbolSearch!.toJson(),
       if (diagnostics != null) 'diagnostics': diagnostics!.toJson(),
       if (sourceControlStatus != null)
         'sourceControl': sourceControlStatus!.toJson(),
@@ -3853,6 +3861,101 @@ class AgentTestingContext {
       'hasLastRun': lastRun != null,
       if (discovery != null) 'discovered': discovery!.toJson(),
       if (lastRun != null) 'lastRun': lastRun!.toJson(),
+    };
+  }
+}
+
+class AgentWorkspaceSymbolSearchResultContext {
+  const AgentWorkspaceSymbolSearchResultContext({
+    required this.query,
+    required this.scannedDocumentCount,
+    required this.matchCount,
+    required this.matches,
+    required this.matchesTruncated,
+  });
+
+  final String query;
+  final int scannedDocumentCount;
+  final int matchCount;
+  final List<AgentWorkspaceSymbolMatchContext> matches;
+  final bool matchesTruncated;
+
+  factory AgentWorkspaceSymbolSearchResultContext.fromWorkspaceResult({
+    required String query,
+    required int scannedDocumentCount,
+    required WorkspaceSymbolSearchResult result,
+    int maxMatches = 50,
+  }) {
+    final matches = result.matches
+        .take(maxMatches)
+        .map(AgentWorkspaceSymbolMatchContext.fromWorkspaceSymbolMatch)
+        .toList(growable: false);
+    return AgentWorkspaceSymbolSearchResultContext(
+      query: query.trim(),
+      scannedDocumentCount: scannedDocumentCount,
+      matchCount: result.matches.length,
+      matches: List<AgentWorkspaceSymbolMatchContext>.unmodifiable(matches),
+      matchesTruncated: result.matches.length > matches.length,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'query': query,
+      'scannedDocumentCount': scannedDocumentCount,
+      'matchCount': matchCount,
+      'matches': matches.map((match) => match.toJson()).toList(growable: false),
+      'matchesTruncated': matchesTruncated,
+    };
+  }
+}
+
+class AgentWorkspaceSymbolMatchContext {
+  const AgentWorkspaceSymbolMatchContext({
+    required this.documentId,
+    required this.name,
+    required this.kind,
+    required this.lineNumber,
+    required this.start,
+    required this.end,
+    required this.lineText,
+    this.detail,
+  });
+
+  final String documentId;
+  final String name;
+  final String kind;
+  final int lineNumber;
+  final int start;
+  final int end;
+  final String lineText;
+  final String? detail;
+
+  factory AgentWorkspaceSymbolMatchContext.fromWorkspaceSymbolMatch(
+    WorkspaceSymbolMatch match,
+  ) {
+    return AgentWorkspaceSymbolMatchContext(
+      documentId: match.documentId,
+      name: match.name,
+      kind: match.kind.name,
+      lineNumber: match.lineNumber,
+      start: match.nameRange.start,
+      end: match.nameRange.end,
+      lineText: match.lineText,
+      detail: match.detail,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'documentId': documentId,
+      'name': name,
+      'kind': kind,
+      'lineNumber': lineNumber,
+      'start': start,
+      'end': end,
+      'lineText': lineText,
+      if (detail != null) 'detail': detail,
     };
   }
 }

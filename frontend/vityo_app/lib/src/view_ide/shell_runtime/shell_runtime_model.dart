@@ -442,6 +442,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   List<AdapterCapabilitySnapshot> _adapterCapabilities;
   WorkspaceFileCloseRequestResult? _lastCloseRequestResult;
   AgentWorkspaceSearchResultContext? _lastAgentWorkspaceSearch;
+  AgentWorkspaceSymbolSearchResultContext? _lastAgentWorkspaceSymbolSearch;
   AgentCommandResultContext? _lastAgentIdeCommandResult;
   WorkspaceEditPreview? _lastWorkspaceEditPreview;
   WorkspaceReplacePreview? _lastWorkspaceReplacePreview;
@@ -642,6 +643,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       dirtyDocumentIds: dirtyDocumentPaths,
       workspaceDocuments: _agentWorkspaceDocumentSamples,
       lastWorkspaceSearch: _lastAgentWorkspaceSearch,
+      lastWorkspaceSymbolSearch: _lastAgentWorkspaceSymbolSearch,
       workspaceDiagnostics: workspaceDiagnosticsSnapshot,
       sourceControlStatus: sourceControlStatusSnapshot,
       sourceControlDiff: sourceControlDiffPreview,
@@ -3906,9 +3908,29 @@ class ShellRuntimeModel extends ChangeNotifier {
       query: normalizedQuery,
       documents: documents,
     );
+    final symbolResult = await WorkspaceSymbolSearchService(
+      documentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: <String, DocumentState>{
+          for (final document in documents) document.documentId: document,
+        },
+      ),
+      semanticSnapshotProvider: SemanticSnapshotProvider(
+        languageService: projectLanguageService.documentService,
+      ),
+    ).searchSymbols(
+      documentIds: documents.map((document) => document.documentId),
+      query: normalizedQuery,
+    );
+    _lastAgentWorkspaceSymbolSearch =
+        AgentWorkspaceSymbolSearchResultContext.fromWorkspaceResult(
+          query: normalizedQuery,
+          scannedDocumentCount: documents.length,
+          result: symbolResult,
+        );
     appendLog(
       'Agent command searchWorkspace found '
-      '${_lastAgentWorkspaceSearch!.matchCount} match(es) for "$normalizedQuery".',
+      '${_lastAgentWorkspaceSearch!.matchCount} text match(es) and '
+      '${_lastAgentWorkspaceSymbolSearch!.matchCount} symbol match(es) for "$normalizedQuery".',
     );
     notifyListeners();
     return true;

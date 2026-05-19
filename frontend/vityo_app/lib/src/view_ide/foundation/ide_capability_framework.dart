@@ -529,8 +529,10 @@ class VityoIdeCapabilityFramework {
           title: 'Toolchain manager',
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/toolchain',
+          summary:
+              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, managed downloads, and Styio-first toolchain lifecycle reports are wired.',
           todo:
-              'TODO: prioritize Styio toolchain lifecycle and keep native C/C++ support conditional.',
+              'TODO: connect Styio toolchain lifecycle reports to settings UI, installer UX, and project bootstrap.',
           references: <String>[
             'VS Code extensions toolchain model',
             'IntelliJ SDK model',

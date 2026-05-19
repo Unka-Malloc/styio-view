@@ -675,11 +675,17 @@ void main() {
       expect(metadata['hasNativeCompiler'], isTrue);
       expect(metadata['workspaceToolingHints'], isA<List<Object?>>());
       expect(metadata['nativeBuildToolCount'], 2);
+      expect(metadata['nativeBuildToolFamilies'], <String>['cmake', 'ninja']);
       expect(metadata['nativeDebuggerCount'], 0);
+      expect(metadata['nativeDebuggerFamilies'], isEmpty);
       expect(metadata['nativeFormatterCount'], 0);
+      expect(metadata['nativeFormatterFamilies'], isEmpty);
       expect(metadata['nativeStaticAnalyzerCount'], 0);
+      expect(metadata['nativeStaticAnalyzerFamilies'], isEmpty);
       expect(metadata['nativeTestRunnerCount'], 0);
+      expect(metadata['nativeTestRunnerFamilies'], isEmpty);
       expect(metadata['nativeLanguageServiceCount'], 0);
+      expect(metadata['nativeLanguageServiceFamilies'], isEmpty);
       expect(metadata['nativeToolCommandCount'], 4);
       expect(metadata['nativeToolReadyCommandCount'], 1);
       expect(metadata['nativeToolBlockedCommandCount'], 3);

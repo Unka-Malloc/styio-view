@@ -1067,12 +1067,34 @@ Map<String, Object?> _nativeToolMetadata(
 ) {
   return <String, Object?>{
     'nativeBuildToolCount': nativeTools.buildTools.length,
+    'nativeBuildToolFamilies': _toolFamilies(nativeTools.buildTools),
     'nativeDebuggerCount': nativeTools.debuggers.length,
+    'nativeDebuggerFamilies': _toolFamilies(nativeTools.debuggers),
     'nativeFormatterCount': nativeTools.formatters.length,
+    'nativeFormatterFamilies': _toolFamilies(nativeTools.formatters),
     'nativeStaticAnalyzerCount': nativeTools.staticAnalyzers.length,
+    'nativeStaticAnalyzerFamilies': _toolFamilies(nativeTools.staticAnalyzers),
     'nativeTestRunnerCount': nativeTools.testRunners.length,
+    'nativeTestRunnerFamilies': _toolFamilies(nativeTools.testRunners),
     'nativeLanguageServiceCount': nativeTools.languageServices.length,
+    'nativeLanguageServiceFamilies': _toolFamilies(
+      nativeTools.languageServices,
+    ),
   };
+}
+
+List<String> _toolFamilies(Iterable<AgentToolchainEntryContext> entries) {
+  final families = <String>[];
+  for (final entry in entries) {
+    final family = entry.metadata['toolFamily'];
+    if (family is String && family.trim().isNotEmpty) {
+      final normalized = family.trim();
+      if (!families.contains(normalized)) {
+        families.add(normalized);
+      }
+    }
+  }
+  return List<String>.unmodifiable(families);
 }
 
 Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {

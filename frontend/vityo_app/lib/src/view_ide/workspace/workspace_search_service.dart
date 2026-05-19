@@ -1,5 +1,7 @@
 import '../editor/document_state.dart';
 import '../language/contract/language_contract.dart';
+import '../language/service/language_service_foundation.dart';
+import '../language/service/semantic_snapshot_provider.dart';
 import 'workspace_document_store_types.dart';
 
 class WorkspaceSearchMatch {
@@ -124,6 +126,142 @@ class WorkspaceQuickOpenResult {
 
   final List<WorkspaceQuickOpenMatch> matches;
   final bool truncated;
+}
+
+class WorkspaceSymbolMatch {
+  const WorkspaceSymbolMatch({
+    required this.documentId,
+    required this.name,
+    required this.kind,
+    required this.nameRange,
+    required this.declarationRange,
+    required this.lineNumber,
+    required this.lineText,
+    required this.score,
+    this.detail,
+  });
+
+  final String documentId;
+  final String name;
+  final ResolvedElementKind kind;
+  final SourceRange nameRange;
+  final SourceRange declarationRange;
+  final int lineNumber;
+  final String lineText;
+  final int score;
+  final String? detail;
+}
+
+class WorkspaceSymbolSearchResult {
+  const WorkspaceSymbolSearchResult({
+    required this.matches,
+    this.failures = const <WorkspaceSearchFailure>[],
+    this.truncated = false,
+  });
+
+  final List<WorkspaceSymbolMatch> matches;
+  final List<WorkspaceSearchFailure> failures;
+  final bool truncated;
+}
+
+class WorkspaceSymbolSearchService {
+  const WorkspaceSymbolSearchService({
+    required this.documentStore,
+    required this.semanticSnapshotProvider,
+  });
+
+  final WorkspaceDocumentStore documentStore;
+  final SemanticSnapshotProvider semanticSnapshotProvider;
+
+  Future<WorkspaceSymbolSearchResult> searchSymbols({
+    required Iterable<String> documentIds,
+    required String query,
+    Set<ResolvedElementKind> kinds = const <ResolvedElementKind>{},
+    int maxResults = 100,
+  }) async {
+    if (maxResults <= 0) {
+      return const WorkspaceSymbolSearchResult(
+        matches: <WorkspaceSymbolMatch>[],
+      );
+    }
+    final normalizedQuery = query.trim().toLowerCase();
+    final matches = <WorkspaceSymbolMatch>[];
+    final failures = <WorkspaceSearchFailure>[];
+    var truncated = false;
+
+    for (final documentId in _uniqueDocumentIds(documentIds)) {
+      if (matches.length >= maxResults) {
+        truncated = true;
+        break;
+      }
+      late final DocumentState document;
+      try {
+        document = await documentStore.loadDocument(documentId);
+      } on Object catch (error) {
+        failures.add(
+          WorkspaceSearchFailure(
+            documentId: documentId,
+            message: error.toString(),
+          ),
+        );
+        continue;
+      }
+      final snapshot = semanticSnapshotProvider.snapshotFor(document).snapshot;
+      for (final element in snapshot.elements) {
+        if (matches.length >= maxResults) {
+          truncated = true;
+          break;
+        }
+        if (kinds.isNotEmpty && !kinds.contains(element.kind)) {
+          continue;
+        }
+        final score = _scoreWorkspaceSymbolMatch(
+          name: element.name,
+          documentId: document.documentId,
+          query: normalizedQuery,
+        );
+        if (score == null) {
+          continue;
+        }
+        matches.add(
+          WorkspaceSymbolMatch(
+            documentId: document.documentId,
+            name: element.name,
+            kind: element.kind,
+            nameRange: element.nameRange,
+            declarationRange: element.declarationRange,
+            lineNumber: _lineNumberForOffset(
+              document.text,
+              element.nameRange.start,
+            ),
+            lineText: _lineTextForOffset(document.text, element.nameRange.start),
+            score: score,
+            detail: element.detail,
+          ),
+        );
+      }
+      if (truncated) {
+        break;
+      }
+    }
+
+    matches.sort((left, right) {
+      final byScore = right.score.compareTo(left.score);
+      if (byScore != 0) {
+        return byScore;
+      }
+      final byName = left.name.compareTo(right.name);
+      if (byName != 0) {
+        return byName;
+      }
+      return left.documentId.compareTo(right.documentId);
+    });
+    return WorkspaceSymbolSearchResult(
+      matches: List.unmodifiable(matches),
+      failures: List.unmodifiable(failures),
+      truncated: truncated,
+    );
+  }
 }
 
 class WorkspaceQuickOpenService {
@@ -698,6 +836,40 @@ int? _scoreWorkspaceQuickOpenMatch(String documentId, String query) {
     return null;
   }
   return 400 - fuzzyPenalty;
+}
+
+int? _scoreWorkspaceSymbolMatch({
+  required String name,
+  required String documentId,
+  required String query,
+}) {
+  if (query.isEmpty) {
+    return 0;
+  }
+  final normalizedName = name.toLowerCase();
+  final normalizedPath = documentId.replaceAll('\\', '/').toLowerCase();
+  if (normalizedName == query) {
+    return 1000;
+  }
+  if (normalizedName.startsWith(query)) {
+    return 900 - normalizedName.length;
+  }
+  final nameIndex = normalizedName.indexOf(query);
+  if (nameIndex >= 0) {
+    return 750 - nameIndex - normalizedName.length;
+  }
+  final pathIndex = normalizedPath.indexOf(query);
+  if (pathIndex >= 0) {
+    return 500 - pathIndex - normalizedPath.length;
+  }
+  final fuzzyPenalty = _workspaceQuickOpenFuzzyPenalty(
+    normalizedName,
+    query,
+  );
+  if (fuzzyPenalty == null) {
+    return null;
+  }
+  return 350 - fuzzyPenalty;
 }
 
 int? _workspaceQuickOpenFuzzyPenalty(String path, String query) {

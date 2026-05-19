@@ -1,5 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/document_state.dart';
+import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
+import 'package:vityo_app/src/view_ide/language/service/local_styio_language_service.dart';
+import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -47,6 +50,69 @@ void main() {
       <String>['src/main.styio', 'src/lib.styio'],
     );
     expect(result.truncated, isTrue);
+  });
+
+  test('workspace symbol search scans semantic snapshots across documents', () async {
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': DocumentState(
+          documentId: 'src/main.styio',
+          text: '#main := (): string => {\n  value := 1\n  value\n}\n',
+          revision: 1,
+        ),
+        'src/worker.styio': DocumentState(
+          documentId: 'src/worker.styio',
+          text: '#worker := (): string => {\n  workerValue := 1\n}\n',
+          revision: 1,
+        ),
+      },
+    );
+    final service = WorkspaceSymbolSearchService(
+      documentStore: store,
+      semanticSnapshotProvider: const SemanticSnapshotProvider(
+        languageService: LocalStyioLanguageService(),
+      ),
+    );
+
+    final result = await service.searchSymbols(
+      documentIds: const <String>['src/main.styio', 'src/worker.styio'],
+      query: 'value',
+    );
+
+    expect(result.failures, isEmpty);
+    expect(result.truncated, isFalse);
+    expect(result.matches.first.documentId, 'src/main.styio');
+    expect(result.matches.first.name, 'value');
+    expect(result.matches.first.kind, ResolvedElementKind.variable);
+    expect(result.matches.first.lineNumber, 2);
+    expect(result.matches.first.lineText, '  value := 1');
+  });
+
+  test('workspace symbol search filters kinds and reports load failures', () async {
+    final service = WorkspaceSymbolSearchService(
+      documentStore: _FailingWorkspaceSearchStore(),
+      semanticSnapshotProvider: const SemanticSnapshotProvider(
+        languageService: LocalStyioLanguageService(),
+      ),
+    );
+
+    final result = await service.searchSymbols(
+      documentIds: const <String>['main.styio', 'missing.styio'],
+      query: '',
+      kinds: const <ResolvedElementKind>{ResolvedElementKind.variable},
+      maxResults: 1,
+    );
+    final failure = await service.searchSymbols(
+      documentIds: const <String>['missing.styio'],
+      query: 'value',
+    );
+
+    expect(result.matches, hasLength(1));
+    expect(result.matches.single.kind, ResolvedElementKind.variable);
+    expect(result.truncated, isTrue);
+    expect(result.failures, isEmpty);
+    expect(failure.matches, isEmpty);
+    expect(failure.failures.single.documentId, 'missing.styio');
   });
 
   test('workspace search scans supplied documents through document store', () async {
@@ -379,7 +445,7 @@ class _FailingWorkspaceSearchStore implements WorkspaceDocumentStore {
     }
     return DocumentState(
       documentId: path,
-      text: 'value value\n',
+      text: 'value := 1\nvalue\n',
       revision: 1,
     );
   }

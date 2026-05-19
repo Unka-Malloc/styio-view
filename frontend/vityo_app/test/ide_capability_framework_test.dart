@@ -37,6 +37,10 @@ void main() {
     );
     expect(
       entriesById['interaction.search']?.summary,
+      contains('symbol search service'),
+    );
+    expect(
+      entriesById['interaction.search']?.summary,
       contains('replace preview contract'),
     );
     expect(

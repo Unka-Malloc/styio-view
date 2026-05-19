@@ -25,6 +25,10 @@ void main() {
       entriesById['interaction.search']?.status,
       IdeCapabilityStatus.scaffolded,
     );
+    expect(
+      entriesById['presentation.problems-panel']?.status,
+      IdeCapabilityStatus.scaffolded,
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

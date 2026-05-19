@@ -14,6 +14,7 @@ import '../../module_host/module_definition.dart';
 import '../../module_host/module_manifest.dart';
 import '../../platform/platform_target.dart';
 import '../platform/platform.dart';
+import '../problems/problems.dart';
 import '../runtime/runtime.dart';
 import '../search/search.dart';
 import '../settings/settings_surface.dart';
@@ -169,6 +170,13 @@ class VityoShellScaffold extends StatelessWidget {
           lastSearch: shell.agentSessionContext.workspace.lastSearch,
           onSearch: shell.searchWorkspaceForAgent,
           onOpenMatch: shell.openWorkspaceFileForAgent,
+        );
+      case BottomSurfaceTab.problems:
+        return ProblemsSurface(
+          viewportProfile: viewportProfile,
+          documentId: shell.editorController.document.documentId,
+          diagnostics: shell.editorController.analysis.diagnostics,
+          onSelectDiagnostic: shell.editorController.selectDiagnostic,
         );
       case BottomSurfaceTab.debug:
         return DebugConsoleSurface(
@@ -1701,6 +1709,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
       ),
       _SurfaceTabChip(
+        label: 'Problems',
+        active: shell.activeBottomTab == BottomSurfaceTab.problems,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.problems),
+      ),
+      _SurfaceTabChip(
         label: 'Debug',
         active: shell.activeBottomTab == BottomSurfaceTab.debug,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.debug),
@@ -1720,7 +1733,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, agent, search, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
+            'Mobile shell keeps runtime, agent, search, problems, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

@@ -534,8 +534,10 @@ class VityoIdeCapabilityFramework {
           id: 'presentation.problems-panel',
           layer: IdeCapabilityLayer.presentation,
           title: 'Problems panel',
-          status: IdeCapabilityStatus.todo,
+          status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render',
+          summary:
+              'Active document diagnostics panel is wired into the IDE shell.',
           todo:
               'TODO: add a workspace-wide problems panel with filters, grouping, quick-fix preview, and navigation.',
           references: <String>[

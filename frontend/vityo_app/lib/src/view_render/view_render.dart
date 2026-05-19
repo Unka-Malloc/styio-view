@@ -4,6 +4,7 @@ export '../frontend_shell/frontend_shell.dart';
 export 'agent/agent.dart';
 export 'editor/editor.dart';
 export 'platform/platform.dart';
+export 'problems/problems.dart';
 export 'runtime/runtime.dart';
 export 'search/search.dart';
 export 'shell/shell_model.dart';

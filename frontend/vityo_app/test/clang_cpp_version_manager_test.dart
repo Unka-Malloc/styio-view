@@ -75,6 +75,26 @@ void main() {
         '-DCMAKE_CXX_EXTENSIONS=OFF',
         '-DCMAKE_MAKE_PROGRAM=/usr/bin/ninja',
       ]);
+      expect(selection.buildEngineHandoffs.length, 3);
+      expect(
+        selection.preferredBuildEngineHandoff!.toManifest(),
+        <String, Object?>{
+          'engineFamily': 'cmake',
+          'executablePath': '/usr/bin/cmake',
+          'generatorFamily': 'ninja',
+          'arguments': selection.cmakeNinjaConfigureArguments,
+        },
+      );
+      expect(selection.buildEngineHandoffs.last.toManifest(), <String, Object?>{
+        'engineFamily': 'ninja',
+        'executablePath': '/usr/bin/ninja',
+        'environment': <String, String>{
+          'CC': '/opt/clang-18/bin/clang',
+          'CXX': '/opt/clang-18/bin/clang++',
+          'CXXFLAGS': '-std=c++23',
+        },
+        'arguments': <String>[],
+      });
       expect(selection.ninjaEnvironment(), <String, String>{
         'CC': '/opt/clang-18/bin/clang',
         'CXX': '/opt/clang-18/bin/clang++',
@@ -132,6 +152,8 @@ void main() {
       expect(selection!.candidate.versionId, 'clang-18');
       expect(selection.cmakeAvailable, isFalse);
       expect(selection.ninjaAvailable, isFalse);
+      expect(selection.buildEngineHandoffs, isEmpty);
+      expect(selection.preferredBuildEngineHandoff, isNull);
       expect(
         selection.cmakeConfigureArguments,
         contains('-DCMAKE_CXX_STANDARD=20'),

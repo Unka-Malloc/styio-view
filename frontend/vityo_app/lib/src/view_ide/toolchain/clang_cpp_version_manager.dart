@@ -89,6 +89,44 @@ class ClangCppVersionSelection {
   final String? cmakeExecutablePath;
   final String? ninjaExecutablePath;
 
+  List<ClangCppBuildEngineHandoff> get buildEngineHandoffs {
+    final handoffs = <ClangCppBuildEngineHandoff>[];
+    if (cmakeExecutablePath != null && ninjaExecutablePath != null) {
+      handoffs.add(
+        ClangCppBuildEngineHandoff(
+          engineFamily: 'cmake',
+          executablePath: cmakeExecutablePath!,
+          generatorFamily: 'ninja',
+          arguments: cmakeNinjaConfigureArguments,
+        ),
+      );
+    }
+    if (cmakeExecutablePath != null) {
+      handoffs.add(
+        ClangCppBuildEngineHandoff(
+          engineFamily: 'cmake',
+          executablePath: cmakeExecutablePath!,
+          arguments: cmakeConfigureArguments,
+        ),
+      );
+    }
+    if (ninjaExecutablePath != null) {
+      handoffs.add(
+        ClangCppBuildEngineHandoff(
+          engineFamily: 'ninja',
+          executablePath: ninjaExecutablePath!,
+          environment: ninjaEnvironment(),
+        ),
+      );
+    }
+    return List<ClangCppBuildEngineHandoff>.unmodifiable(handoffs);
+  }
+
+  ClangCppBuildEngineHandoff? get preferredBuildEngineHandoff {
+    final handoffs = buildEngineHandoffs;
+    return handoffs.isEmpty ? null : handoffs.first;
+  }
+
   List<String> get cmakeConfigureArguments {
     return <String>[
       '-DCMAKE_C_COMPILER=${candidate.cCompilerPath}',
@@ -139,6 +177,38 @@ class ClangCppVersionSelection {
       if (ninjaExecutablePath != null)
         'cmakeNinjaConfigureArguments': cmakeNinjaConfigureArguments,
       'ninjaEnvironment': ninjaEnvironment(),
+      'buildEngineHandoffs': buildEngineHandoffs
+          .map((handoff) => handoff.toManifest())
+          .toList(growable: false),
+      if (preferredBuildEngineHandoff != null)
+        'preferredBuildEngineHandoff': preferredBuildEngineHandoff!
+            .toManifest(),
+    };
+  }
+}
+
+class ClangCppBuildEngineHandoff {
+  const ClangCppBuildEngineHandoff({
+    required this.engineFamily,
+    required this.executablePath,
+    this.generatorFamily,
+    this.arguments = const <String>[],
+    this.environment = const <String, String>{},
+  });
+
+  final String engineFamily;
+  final String executablePath;
+  final String? generatorFamily;
+  final List<String> arguments;
+  final Map<String, String> environment;
+
+  Map<String, Object?> toManifest() {
+    return <String, Object?>{
+      'engineFamily': engineFamily,
+      'executablePath': executablePath,
+      if (generatorFamily != null) 'generatorFamily': generatorFamily,
+      'arguments': arguments,
+      if (environment.isNotEmpty) 'environment': environment,
     };
   }
 }

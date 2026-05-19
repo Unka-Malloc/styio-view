@@ -1,14 +1,17 @@
 import '../foundation/foundation.dart';
+import '../editor/document_state.dart';
 import '../language/language_contract.dart';
 
 class WorkspaceDiagnosticsRequest {
   const WorkspaceDiagnosticsRequest({
     required this.documentIds,
     this.activeDocumentId = '',
+    this.documents = const <DocumentState>[],
   });
 
   final List<String> documentIds;
   final String activeDocumentId;
+  final List<DocumentState> documents;
 }
 
 class WorkspaceDiagnostic {

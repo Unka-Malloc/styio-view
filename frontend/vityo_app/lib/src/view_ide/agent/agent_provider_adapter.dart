@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'agent_command_metadata.dart';
 import 'agent_profile.dart';
 import 'agent_session_context.dart';
 
@@ -1106,12 +1107,25 @@ Map<String, Object?> _lastCommandResultMetadata(
   final metadataKeys = result.metadata.keys
       .where((key) => key.trim().isNotEmpty)
       .toList(growable: false);
+  final requiredCommandId = requiredCommandIdFromAgentMetadata(result.metadata);
+  final backendRoute = backendRouteFromAgentMetadata(result.metadata);
   return <String, Object?>{
     'lastCommandId': result.commandId,
     if (result.input != null) 'lastCommandInput': result.input,
     'lastCommandApplied': result.applied,
     'lastCommandMessage': result.message,
     if (metadataKeys.isNotEmpty) 'lastCommandMetadataKeys': metadataKeys,
+    if (requiredCommandId != null)
+      'lastCommandRequiredCommandId': requiredCommandId,
+    if (backendRoute != null) ...<String, Object?>{
+      'lastCommandBackendRouteKind': backendRoute.routeKind,
+      if (backendRoute.adapterKind != null)
+        'lastCommandBackendRouteAdapterKind': backendRoute.adapterKind,
+      'lastCommandBackendRouteAllowed': backendRoute.allowed,
+      'lastCommandBackendRoutePreviewOnly': backendRoute.previewOnly,
+      if (backendRoute.blockedReason != null)
+        'lastCommandBackendRouteBlockedReason': backendRoute.blockedReason,
+    },
     if (result.completedAt != null)
       'lastCommandCompletedAt': result.completedAt!.toUtc().toIso8601String(),
   };

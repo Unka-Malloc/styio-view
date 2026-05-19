@@ -367,6 +367,14 @@ void main() {
           message: 'Agent command searchWorkspace completed for value.',
           metadata: <String, Object?>{
             'searchResult': <String, Object?>{'matchCount': 1},
+            'requiredCommand': 'runBuild',
+            'backendRouteSelection': <String, Object?>{
+              'routeKind': 'blocked',
+              'adapterKind': 'none',
+              'allowed': false,
+              'previewOnly': false,
+              'blockedReason': 'no-backend-route',
+            },
           },
           completedAt: DateTime.utc(2026, 5, 19, 1, 2, 3),
         ),
@@ -786,7 +794,20 @@ void main() {
         metadata['lastCommandMessage'],
         'Agent command searchWorkspace completed for value.',
       );
-      expect(metadata['lastCommandMetadataKeys'], <String>['searchResult']);
+      expect(metadata['lastCommandMetadataKeys'], <String>[
+        'searchResult',
+        'requiredCommand',
+        'backendRouteSelection',
+      ]);
+      expect(metadata['lastCommandRequiredCommandId'], 'runBuild');
+      expect(metadata['lastCommandBackendRouteKind'], 'blocked');
+      expect(metadata['lastCommandBackendRouteAdapterKind'], 'none');
+      expect(metadata['lastCommandBackendRouteAllowed'], isFalse);
+      expect(metadata['lastCommandBackendRoutePreviewOnly'], isFalse);
+      expect(
+        metadata['lastCommandBackendRouteBlockedReason'],
+        'no-backend-route',
+      );
       expect(metadata['lastCommandCompletedAt'], '2026-05-19T01:02:03.000Z');
       expect(metadata['pendingPatchId'], 'patch-pending');
       expect(metadata['pendingPatchEditCount'], 1);

@@ -462,6 +462,22 @@ void main() {
                 'defaultForNativeCode': true,
               },
             ),
+            ToolchainStateEntry(
+              id: 'native-cmake-build-tool',
+              kind: ToolchainKind.buildTool,
+              displayName: 'CMake Build System',
+              executablePath: '/usr/bin/cmake',
+              active: true,
+              metadata: <String, Object?>{'toolFamily': 'cmake'},
+            ),
+            ToolchainStateEntry(
+              id: 'native-ninja-build-tool',
+              kind: ToolchainKind.buildTool,
+              displayName: 'Ninja Build Tool',
+              executablePath: '/usr/bin/ninja',
+              active: false,
+              metadata: <String, Object?>{'toolFamily': 'ninja'},
+            ),
           ],
         ),
       );
@@ -655,18 +671,18 @@ void main() {
         metadata['skillIds'],
         contains('reference-grounded-ide-development'),
       );
-      expect(metadata['toolchainCount'], 1);
+      expect(metadata['toolchainCount'], 3);
       expect(metadata['hasNativeCompiler'], isTrue);
       expect(metadata['workspaceToolingHints'], isA<List<Object?>>());
-      expect(metadata['nativeBuildToolCount'], 0);
+      expect(metadata['nativeBuildToolCount'], 2);
       expect(metadata['nativeDebuggerCount'], 0);
       expect(metadata['nativeFormatterCount'], 0);
       expect(metadata['nativeStaticAnalyzerCount'], 0);
       expect(metadata['nativeTestRunnerCount'], 0);
       expect(metadata['nativeLanguageServiceCount'], 0);
       expect(metadata['nativeToolCommandCount'], 4);
-      expect(metadata['nativeToolReadyCommandCount'], 0);
-      expect(metadata['nativeToolBlockedCommandCount'], 4);
+      expect(metadata['nativeToolReadyCommandCount'], 1);
+      expect(metadata['nativeToolBlockedCommandCount'], 3);
       expect(metadata['debugReadyCommandCount'], 1);
       expect(metadata['debugBlockedCommandCount'], 6);
       expect(metadata['activeCompilerId'], 'native-clang-cpp-compiler');
@@ -762,6 +778,10 @@ void main() {
       expect(contextMessage['content'], contains('lastPatchApplication'));
       expect(contextMessage['content'], contains('patch-applied'));
       expect(contextMessage['content'], contains('lastResult'));
+      expect(contextMessage['content'], contains('cmakeExecutablePath'));
+      expect(contextMessage['content'], contains('/usr/bin/cmake'));
+      expect(contextMessage['content'], contains('ninjaExecutablePath'));
+      expect(contextMessage['content'], contains('/usr/bin/ninja'));
       final promptMessage = messages.last! as Map<String, Object?>;
       expect(promptMessage['content'], 'Explain this file.');
       expect(response.requestId, 'agent-request-3');

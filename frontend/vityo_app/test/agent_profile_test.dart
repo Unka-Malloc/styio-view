@@ -73,6 +73,10 @@ void main() {
         contains('metadata.completedRequiredCommandFor'),
       );
       expect(decoded.systemPrompt, contains('metadata.recoveryForCommandId'));
+      expect(
+        decoded.systemPrompt,
+        contains('agent.lastPatchApplication.pendingPatchRetained'),
+      );
       expect(decoded.systemPrompt, contains('commands.settingsCommands'));
       expect(decoded.systemPrompt, contains('commands.toolchainCommands'));
       expect(decoded.systemPrompt, contains('requiresInput true'));

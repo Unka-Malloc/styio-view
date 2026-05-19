@@ -899,6 +899,11 @@ void main() {
       ]);
       expect(metadata['lastPatchApplicationPatchId'], 'patch-applied');
       expect(metadata['lastPatchApplicationApplied'], isTrue);
+      expect(metadata['lastPatchApplicationPendingPatchRetained'], isFalse);
+      expect(
+        metadata['lastPatchApplicationMessage'],
+        'Applied 1 agent patch edit(s).',
+      );
       expect(metadata['lastPatchApplicationEditCount'], 1);
       expect(metadata['lastPatchApplicationAppliedEditCount'], 1);
       expect(metadata['lastPatchApplicationChangedDocumentCount'], 1);

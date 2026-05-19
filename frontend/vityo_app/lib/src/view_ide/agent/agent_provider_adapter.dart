@@ -1258,6 +1258,9 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
           .toList(growable: false),
     'lastPatchApplicationPatchId': patchApplication.patchId,
     'lastPatchApplicationApplied': patchApplication.applied,
+    'lastPatchApplicationPendingPatchRetained':
+        patchApplication.pendingPatchRetained,
+    'lastPatchApplicationMessage': patchApplication.message,
     'lastPatchApplicationEditCount': patchApplication.editCount,
     'lastPatchApplicationAppliedEditCount': patchApplication.appliedEditCount,
     'lastPatchApplicationChangedDocumentCount':
@@ -1343,6 +1346,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.lastProviderFailure, read it as the latest structured provider transport failure before proposing retry, failover, or provider reconfiguration.
 - If the IDE context includes agent.recentPatchApplications, read it as newest-first structured IDE patch application outcomes before deciding whether to retry, repair, or continue after a patch.
 - If the IDE context includes agent.lastPatchApplication, treat it as the latest structured IDE patch application outcome.
+- If agent.lastPatchApplication.pendingPatchRetained is true, repair, revise, explain, or discard the retained pending patch before proposing an unrelated new patch.
 - If commands.lastResult.metadata.requiredCommand is present, propose that registered command before retrying the blocked operation.
 - If commands.lastResult.metadata.completedRequiredCommandFor is present, treat that command ID as the previously blocked operation that may now be retried when still relevant.
 - If commands.lastResult.metadata.recoveryForCommandId is present, treat that command ID as still blocked until the user or settings flow changes the underlying readiness facts.

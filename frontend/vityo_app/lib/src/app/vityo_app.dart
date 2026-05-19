@@ -49,6 +49,8 @@ class _VityoAppState extends State<VityoApp> {
       toolchainStatusReport: widget.bootstrap.toolchainStatusReport,
       clangCppVersionPreference: widget.bootstrap.clangCppVersionPreference,
       themeOverrideStore: widget.bootstrap.themeOverrideStore,
+      workspaceDiagnosticsController:
+          widget.bootstrap.workspaceDiagnosticsController,
     );
     unawaited(_shellModel.loadThemeOverride());
   }

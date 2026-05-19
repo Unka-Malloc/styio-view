@@ -97,6 +97,11 @@ void main() {
       );
       expect(
         decoded.systemPrompt,
+        contains('commands.nativeToolCommandReadiness.toolFamily'),
+      );
+      expect(decoded.systemPrompt, contains('requiredToolFamilies'));
+      expect(
+        decoded.systemPrompt,
         contains('toolchains.clangCpp.cmakeExecutablePath'),
       );
       expect(

@@ -303,7 +303,31 @@ void main() {
       response.payloadCounts[StyioServiceCapability.completion.wireValue],
       1,
     );
-    expect(response.protocolVersion, 'styio-cli-jsonl-v1');
+    expect(response.protocolVersion, 'styio-service-facts-v1');
+  });
+
+  test('JSONL protocol accepts snake case service protocol version', () {
+    const protocol = StyioCliJsonlProtocol();
+    const document = StyioServiceDocument(
+      documentId: 'fixture://snake-case-protocol',
+      text: 'value\n',
+      revision: 1,
+      filePath: '/workspace/main.styio',
+    );
+
+    final response = protocol.decode(
+      document: document,
+      stdout:
+          '{"record":"facts","protocol_version":"styio-service-facts-v2",'
+          '"facts":{"completions":[{"label":"value",'
+          '"kind":"variable","insertText":"value"}]}}\n',
+      stderr: '',
+      exitCode: 0,
+      toolchainSucceeded: true,
+    );
+
+    expect(response.protocolVersion, 'styio-service-facts-v2');
+    expect(response.completions.single.label, 'value');
   });
 
   test('JSONL protocol normalizes capability names from service records', () {

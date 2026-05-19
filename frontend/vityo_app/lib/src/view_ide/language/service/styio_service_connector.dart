@@ -315,6 +315,7 @@ class StyioCliJsonlProtocol {
     final surroundTemplates = <SurroundTemplate>[];
     final capabilityStates = <String, String>{};
     final capabilityMessages = <String, String>{};
+    var effectiveProtocolVersion = protocolVersion;
     var protocolError = false;
 
     for (final line in _jsonLines(stdout, stderr)) {
@@ -323,6 +324,10 @@ class StyioCliJsonlProtocol {
         protocolError = true;
         continue;
       }
+      effectiveProtocolVersion =
+          _stringValue(decoded['protocolVersion']) ??
+          _stringValue(decoded['protocol_version']) ??
+          effectiveProtocolVersion;
       final kind = _kindFromJson(decoded);
       switch (kind) {
         case _StyioJsonRecordKind.facts:
@@ -528,7 +533,7 @@ class StyioCliJsonlProtocol {
       stderr: stderr,
       exitCode: exitCode,
       message: message,
-      protocolVersion: protocolVersion,
+      protocolVersion: effectiveProtocolVersion,
       toolchainId: toolchainId,
       configPath: document.configPath,
       workingDirectory: document.workingDirectory,

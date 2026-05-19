@@ -332,6 +332,10 @@ void main() {
         languageJson['focusToken']! as Map<String, Object?>;
     final skillsJson = json['skills']! as Map<String, Object?>;
     final toolchainsJson = json['toolchains']! as Map<String, Object?>;
+    final ideCapabilitiesJson =
+        json['ideCapabilities']! as Map<String, Object?>;
+    final ideCapabilityEntries =
+        ideCapabilitiesJson['entries']! as List<Object?>;
     final languageDefinition =
         languageJson['definition']! as Map<String, Object?>;
     final languageFocusedDiagnostics =
@@ -372,6 +376,19 @@ void main() {
     final debugLaunch = debugJson['launch']! as Map<String, Object?>;
 
     expect(json['schemaVersion'], 42);
+    expect(ideCapabilitiesJson['version'], 'vityo-ide-capability-framework-v1');
+    expect(ideCapabilitiesJson['followUpCount'], greaterThan(0));
+    expect(
+      (ideCapabilitiesJson['statusCounts']!
+          as Map<String, Object?>)['scaffolded'],
+      greaterThan(0),
+    );
+    expect(
+      ideCapabilityEntries
+          .map((entry) => (entry! as Map<String, Object?>)['id'])
+          .toSet(),
+      contains('agent.coding-loop'),
+    );
     expect(documentJson['documentId'], '/workspace/demo/src/main.styio');
     expect(documentJson['revision'], 4);
     expect(documentJson['text'], 'value = 1\nvalue\n');
@@ -1325,6 +1342,7 @@ void main() {
       'commands',
       'skills',
       'toolchains',
+      'ideCapabilities',
     ]);
 
     expect(json['schemaVersion'], 42);
@@ -1336,6 +1354,7 @@ void main() {
     expect(json.containsKey('commands'), isTrue);
     expect(json.containsKey('skills'), isTrue);
     expect(json.containsKey('toolchains'), isTrue);
+    expect(json.containsKey('ideCapabilities'), isTrue);
     expect(json.containsKey('selection'), isFalse);
     expect(json.containsKey('diagnostics'), isFalse);
     expect(json.containsKey('runtime'), isFalse);

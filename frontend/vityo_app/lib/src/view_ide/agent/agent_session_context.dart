@@ -2,6 +2,7 @@ import '../backend_toolchain/execution_adapter.dart';
 import '../commands/app_commands.dart';
 import '../editor/document_state.dart';
 import '../editor/selection_state.dart';
+import '../foundation/foundation.dart';
 import '../interaction/language_service_status_surface.dart';
 import '../language/language_contract.dart';
 import '../language/service/language_service_foundation.dart';
@@ -33,6 +34,7 @@ class AgentSessionContext {
     required this.language,
     required this.skills,
     required this.toolchains,
+    required this.ideCapabilities,
   });
 
   final int schemaVersion;
@@ -49,6 +51,7 @@ class AgentSessionContext {
   final AgentLanguageContext language;
   final AgentSkillContext skills;
   final AgentToolchainContext toolchains;
+  final IdeCapabilityFrameworkSnapshot ideCapabilities;
 
   factory AgentSessionContext.fromEditorState({
     required DocumentState document,
@@ -81,6 +84,7 @@ class AgentSessionContext {
     Iterable<InlayHint> inlayHints = const <InlayHint>[],
     Iterable<SemanticBlockRange> semanticBlocks = const <SemanticBlockRange>[],
     LanguageServiceStatusSurface? languageServiceStatus,
+    IdeCapabilityFrameworkSnapshot? ideCapabilityFramework,
     ToolchainStateSnapshot? toolchainSnapshot,
     ClangCppVersionPreference? clangCppVersionPreference,
     AgentCommandResultContext? lastCommandResult,
@@ -205,6 +209,9 @@ class AgentSessionContext {
         workspaceFiles: workspaceFiles,
       ),
       toolchains: toolchainContext,
+      ideCapabilities:
+          ideCapabilityFramework ??
+          const VityoIdeCapabilityFramework().snapshot(),
     );
   }
 
@@ -226,6 +233,7 @@ class AgentSessionContext {
       'language': language.toJson(),
       'skills': skills.toJson(),
       'toolchains': toolchains.toJson(),
+      'ideCapabilities': ideCapabilities.toJson(),
     };
   }
 
@@ -251,6 +259,8 @@ class AgentSessionContext {
       if (channelSet.contains('commands')) 'commands': commands.toJson(),
       if (channelSet.contains('skills')) 'skills': skills.toJson(),
       if (channelSet.contains('toolchains')) 'toolchains': toolchains.toJson(),
+      if (channelSet.contains('ideCapabilities'))
+        'ideCapabilities': ideCapabilities.toJson(),
     };
   }
 
@@ -364,6 +374,7 @@ class AgentSessionContext {
       language: language,
       skills: skills,
       toolchains: toolchains,
+      ideCapabilities: ideCapabilities,
     );
   }
 }

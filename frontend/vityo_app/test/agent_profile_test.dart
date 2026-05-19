@@ -25,8 +25,11 @@ void main() {
         'commands',
         'skills',
         'toolchains',
+        'ideCapabilities',
       ]),
     );
+    expect(decoded.systemPrompt, contains('ideCapabilities.entries'));
+    expect(decoded.systemPrompt, contains('framework placeholders'));
     expect(decoded.systemPrompt, contains('Clang'));
     expect(decoded.systemPrompt, contains('commands.persistenceCommands'));
     expect(decoded.systemPrompt, contains('save/save-all'));

@@ -93,6 +93,9 @@ void main() {
       final inlineVariable = StyioCommandRegistry.descriptorFor(
         AppCommandId.inlineVariable,
       );
+      final selectClangCppVersion = StyioCommandRegistry.descriptorFor(
+        AppCommandId.selectClangCppVersion,
+      );
 
       expect(save.label, 'Save');
       expect(save.shortcutHint, 'Cmd/Ctrl+S');
@@ -190,6 +193,14 @@ void main() {
       expect(inlineVariable.label, 'Inline Variable');
       expect(inlineVariable.shortcutHint, 'Route');
       expect(inlineVariable.shortcuts, isEmpty);
+
+      expect(selectClangCppVersion.label, 'Select Clang/C++');
+      expect(selectClangCppVersion.shortcutHint, 'Route');
+      expect(selectClangCppVersion.requiresInput, isTrue);
+      expect(
+        selectClangCppVersion.inputLabel,
+        'Clang/C++ version id and optional C++ standard',
+      );
     },
   );
 
@@ -269,6 +280,7 @@ void main() {
         AppCommandId.useActiveCompiler,
         AppCommandId.pinActiveCompiler,
         AppCommandId.clearPinnedCompiler,
+        AppCommandId.selectClangCppVersion,
       ],
     );
     expect(
@@ -288,6 +300,7 @@ void main() {
         AppCommandId.useActiveCompiler,
         AppCommandId.pinActiveCompiler,
         AppCommandId.clearPinnedCompiler,
+        AppCommandId.selectClangCppVersion,
         AppCommandId.packProject,
         AppCommandId.preparePublish,
       ],

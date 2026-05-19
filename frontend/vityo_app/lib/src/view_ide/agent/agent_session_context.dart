@@ -120,7 +120,7 @@ class AgentSessionContext {
       lastSearch: lastWorkspaceSearch,
     );
     return AgentSessionContext(
-      schemaVersion: 41,
+      schemaVersion: 42,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -336,6 +336,7 @@ class AgentSessionContext {
         languageServiceCommands: commands.languageServiceCommands,
         navigationCommands: commands.navigationCommands,
         refactorCommands: commands.refactorCommands,
+        toolchainCommands: commands.toolchainCommands,
         nativeToolCommands: commands.nativeToolCommands,
         nativeToolCommandReadiness: commands.nativeToolCommandReadiness,
         debugCommands: commands.debugCommands,
@@ -2767,6 +2768,7 @@ class AgentCommandCatalogContext {
     required this.languageServiceCommands,
     required this.navigationCommands,
     required this.refactorCommands,
+    required this.toolchainCommands,
     required this.nativeToolCommands,
     required this.nativeToolCommandReadiness,
     required this.debugCommands,
@@ -2781,6 +2783,7 @@ class AgentCommandCatalogContext {
   final List<AgentCommandContext> languageServiceCommands;
   final List<AgentCommandContext> navigationCommands;
   final List<AgentCommandContext> refactorCommands;
+  final List<AgentCommandContext> toolchainCommands;
   final List<AgentCommandContext> nativeToolCommands;
   final List<AgentNativeToolCommandReadinessContext> nativeToolCommandReadiness;
   final List<AgentCommandContext> debugCommands;
@@ -2827,6 +2830,9 @@ class AgentCommandCatalogContext {
       refactorCommands: StyioCommandRegistry.refactorCommands
           .map(AgentCommandContext.fromDescriptor)
           .toList(growable: false),
+      toolchainCommands: StyioCommandRegistry.toolchainCommands
+          .map(AgentCommandContext.fromDescriptor)
+          .toList(growable: false),
       nativeToolCommands: nativeToolCommands,
       nativeToolCommandReadiness: _nativeToolCommandReadinessFor(
         nativeToolCommands: nativeToolCommands,
@@ -2863,6 +2869,9 @@ class AgentCommandCatalogContext {
           .map((command) => command.toJson())
           .toList(growable: false),
       'refactorCommands': refactorCommands
+          .map((command) => command.toJson())
+          .toList(growable: false),
+      'toolchainCommands': toolchainCommands
           .map((command) => command.toJson())
           .toList(growable: false),
       'nativeToolCommands': nativeToolCommands

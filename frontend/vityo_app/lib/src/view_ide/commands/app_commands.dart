@@ -36,6 +36,7 @@ enum AppCommandId {
   safeDelete,
   inlineVariable,
   refreshModules,
+  selectClangCppVersion,
   openSettings,
 }
 
@@ -151,6 +152,15 @@ class StyioCommandRegistry {
       label: 'Clear Pin',
       shortcutHint: 'Route',
       description: 'Clear the current project toolchain pin.',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.selectClangCppVersion,
+      label: 'Select Clang/C++',
+      shortcutHint: 'Route',
+      description:
+          'Select the IDE-managed Clang/C++ compiler version and optional C++ standard.',
+      requiresInput: true,
+      inputLabel: 'Clang/C++ version id and optional C++ standard',
     ),
     AppCommandDescriptor(
       id: AppCommandId.packProject,
@@ -486,7 +496,8 @@ class StyioCommandRegistry {
     (command) => switch (command.id) {
       AppCommandId.useActiveCompiler ||
       AppCommandId.pinActiveCompiler ||
-      AppCommandId.clearPinnedCompiler => true,
+      AppCommandId.clearPinnedCompiler ||
+      AppCommandId.selectClangCppVersion => true,
       _ => false,
     },
   );
@@ -506,6 +517,7 @@ class StyioCommandRegistry {
       AppCommandId.useActiveCompiler ||
       AppCommandId.pinActiveCompiler ||
       AppCommandId.clearPinnedCompiler ||
+      AppCommandId.selectClangCppVersion ||
       AppCommandId.packProject ||
       AppCommandId.preparePublish => true,
       _ => false,

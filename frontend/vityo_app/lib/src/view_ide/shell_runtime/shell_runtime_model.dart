@@ -231,6 +231,39 @@ class DebugCommandResult {
   final String message;
 }
 
+class _ClangCppVersionCommandInput {
+  const _ClangCppVersionCommandInput({
+    required this.versionId,
+    this.cppStandard,
+  });
+
+  final String versionId;
+  final String? cppStandard;
+}
+
+_ClangCppVersionCommandInput? _parseClangCppVersionCommandInput(
+  String? input,
+) {
+  final trimmed = input?.trim();
+  if (trimmed == null || trimmed.isEmpty) {
+    return null;
+  }
+  final parts = trimmed.split(RegExp(r'\s+'));
+  final versionId = parts.first.trim();
+  if (versionId.isEmpty) {
+    return null;
+  }
+  final cppStandard = parts.length <= 1
+      ? null
+      : parts.skip(1).join(' ').trim();
+  return _ClangCppVersionCommandInput(
+    versionId: versionId,
+    cppStandard: cppStandard == null || cppStandard.isEmpty
+        ? null
+        : cppStandard,
+  );
+}
+
 class ShellRuntimeModel extends ChangeNotifier {
   ShellRuntimeModel({
     required this.platformTarget,
@@ -362,6 +395,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   DependencySourceCommandResult? _lastDependencySourceCommand;
   DeploymentCommandResult? _lastDeploymentCommand;
   ToolchainCommandResult? _lastToolchainCommand;
+  ToolchainStateSnapshot? _lastToolchainSnapshot;
   ToolchainInstallPlan? _lastToolchainInstallPlan;
   ToolchainInstallExecutionResult? _lastToolchainInstallExecutionResult;
   DebugSessionSnapshot _debugSession = const DebugSessionSnapshot(
@@ -513,7 +547,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       workspaceDocuments: _agentWorkspaceDocumentSamples,
       lastWorkspaceSearch: _lastAgentWorkspaceSearch,
       activeFilePath: workspaceController.activeFilePath,
-      toolchainSnapshot: toolchainStatusReport?.value.snapshot,
+      toolchainSnapshot:
+          toolchainStatusReport?.value.snapshot ?? _lastToolchainSnapshot,
       clangCppVersionPreference: _clangCppVersionPreference,
     );
   }
@@ -1036,6 +1071,36 @@ class ShellRuntimeModel extends ChangeNotifier {
           },
         );
         return true;
+      case 'selectClangCppVersion':
+        final parsed = _parseClangCppVersionCommandInput(suggestion.input);
+        if (parsed == null) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message:
+                'Agent command selectClangCppVersion skipped: missing input.',
+          );
+          notifyListeners();
+          return false;
+        }
+        final result = await selectClangCppVersion(
+          parsed.versionId,
+          cppStandard: parsed.cppStandard,
+        );
+        final applied = result?.succeeded ?? false;
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: applied,
+          message: applied
+              ? 'Agent command selectClangCppVersion selected ${parsed.versionId}.'
+              : 'Agent command selectClangCppVersion failed for ${parsed.versionId}.',
+          metadata: <String, Object?>{
+            'toolchainId': parsed.versionId,
+            if (parsed.cppStandard != null) 'cppStandard': parsed.cppStandard,
+            if (result != null) 'toolchainSelectionStatus': result.status.name,
+          },
+        );
+        return applied;
       case 'runBuild':
         if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
           return false;
@@ -1558,6 +1623,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.useActiveCompiler:
       case AppCommandId.pinActiveCompiler:
       case AppCommandId.clearPinnedCompiler:
+      case AppCommandId.selectClangCppVersion:
       case AppCommandId.packProject:
       case AppCommandId.preparePublish:
       case AppCommandId.showRuntime:
@@ -1620,6 +1686,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.useActiveCompiler:
       case AppCommandId.pinActiveCompiler:
       case AppCommandId.clearPinnedCompiler:
+      case AppCommandId.selectClangCppVersion:
       case AppCommandId.packProject:
       case AppCommandId.preparePublish:
       case AppCommandId.showRuntime:
@@ -3111,6 +3178,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   Future<void> _refreshToolchainStatusReportAfterSelection(
     ToolchainSelectionResult result,
   ) async {
+    _lastToolchainSnapshot = result.snapshot;
     final manager = toolchainManager;
     final notifier = toolchainStatusReport;
     if (manager == null ||
@@ -3530,6 +3598,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.selectDebugStackFrame:
         appendLog('Select Debug Stack Frame requires caller-provided input.');
         return;
+      case AppCommandId.selectClangCppVersion:
+        appendLog('Select Clang/C++ Version requires caller-provided input.');
+        return;
       case AppCommandId.applyQuickFix:
         if (editorController.applyFirstQuickFixAtSelection()) {
           _cacheDocument(_activeDocumentPath, editorController.document);
@@ -3705,6 +3776,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.safeDelete:
       case AppCommandId.inlineVariable:
       case AppCommandId.refreshModules:
+      case AppCommandId.selectClangCppVersion:
       case AppCommandId.openSettings:
         return null;
     }

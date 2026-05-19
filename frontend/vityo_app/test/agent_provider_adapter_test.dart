@@ -186,7 +186,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      41,
+      42,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -610,6 +610,11 @@ void main() {
         contains('commands.persistenceCommands'),
       );
       expect(systemMessage['content'], contains('commands.refactorCommands'));
+      expect(systemMessage['content'], contains('commands.toolchainCommands'));
+      expect(
+        systemMessage['content'],
+        contains('selectClangCppVersion'),
+      );
       expect(systemMessage['content'], contains('commands.nativeToolCommands'));
       expect(
         systemMessage['content'],
@@ -712,7 +717,7 @@ void main() {
       expect(systemMessage['content'], contains('toolchains.nativeTools'));
       expect(systemMessage['content'], contains('skills.activeSkillIds'));
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 41);
+      expect(metadata['contextSchemaVersion'], 42);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

@@ -352,6 +352,8 @@ void main() {
     final navigationCommands =
         commandsJson['navigationCommands']! as List<Object?>;
     final refactorCommands = commandsJson['refactorCommands']! as List<Object?>;
+    final toolchainCommands =
+        commandsJson['toolchainCommands']! as List<Object?>;
     final nativeToolCommands =
         commandsJson['nativeToolCommands']! as List<Object?>;
     final nativeToolCommandReadiness =
@@ -367,7 +369,7 @@ void main() {
     final debugVariables = debugJson['variables']! as List<Object?>;
     final debugLaunch = debugJson['launch']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 41);
+    expect(json['schemaVersion'], 42);
     expect(documentJson['documentId'], '/workspace/demo/src/main.styio');
     expect(documentJson['revision'], 4);
     expect(documentJson['text'], 'value = 1\nvalue\n');
@@ -835,6 +837,14 @@ void main() {
     expect(
       (refactorCommands.last! as Map<String, Object?>)['id'],
       'inlineVariable',
+    );
+    expect(
+      (toolchainCommands.last! as Map<String, Object?>)['id'],
+      'selectClangCppVersion',
+    );
+    expect(
+      (toolchainCommands.last! as Map<String, Object?>)['requiresInput'],
+      isTrue,
     );
     expect(
       (nativeToolCommands.first! as Map<String, Object?>)['id'],
@@ -1315,7 +1325,7 @@ void main() {
       'toolchains',
     ]);
 
-    expect(json['schemaVersion'], 41);
+    expect(json['schemaVersion'], 42);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);

@@ -1065,6 +1065,116 @@ void main() {
     },
   );
 
+  test('shell runtime applies agent Clang C++ version selection', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_shell_agent_clang_cpp_select_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final clang = File('${tempRoot.path}/clang');
+    final clangxx = File('${tempRoot.path}/clang++');
+    await clang.writeAsString('#!/bin/sh\nexit 0\n');
+    await clangxx.writeAsString('#!/bin/sh\nexit 0\n');
+    final configurationStore = await _createShellTestConfigurationStore(
+      tempRoot,
+    );
+    final platformManagers = await createDetectedPlatformManagerBundle();
+    final toolchainStore = ToolchainConfigurationStore(
+      configurationStore: configurationStore,
+    );
+    final catalog = ToolchainCatalog()
+      ..register(
+        ToolchainDescriptor(
+          id: 'fake-clang-18',
+          kind: ToolchainKind.compiler,
+          displayName: 'Fake Clang 18',
+          executablePath: clangxx.path,
+          version: '18.1.8',
+          metadata: <String, Object?>{
+            'compilerFamily': 'clang',
+            'cCompilerPath': clang.path,
+            'cxxCompilerPath': clangxx.path,
+            'clangVendor': 'llvm',
+            'defaultForNativeCode': true,
+          },
+        ),
+      );
+    await toolchainStore.saveCatalog(
+      catalog,
+      targetId: platformManagers.context.targetId,
+    );
+    final manager = ToolchainManager(
+      configurationStore: toolchainStore,
+      platformManagers: platformManagers,
+    );
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: tempRoot.path,
+      activeFilePath: 'src/main.cc',
+      title: 'Demo',
+      notes: const <String>[],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.cc',
+      text: 'int main(){return 0;}\n',
+      revision: 0,
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.cc': initialDocument,
+        },
+      ),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      toolchainManager: manager,
+    );
+    addTearDown(shell.dispose);
+
+    final applied = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(
+        commandId: 'selectClangCppVersion',
+        input: 'fake-clang-18 c++23',
+      ),
+    );
+    final result = shell.agentSessionContext.commands.lastResult;
+    final preference = await manager.loadClangCppVersionPreference();
+    final toolchainsJson =
+        shell.agentSessionContext.toJson()['toolchains']!
+            as Map<String, Object?>;
+    final clangCppJson =
+        toolchainsJson['clangCpp']! as Map<String, Object?>;
+
+    expect(applied, isTrue);
+    expect(result?.commandId, 'selectClangCppVersion');
+    expect(result?.applied, isTrue);
+    expect(result?.metadata['toolchainId'], 'fake-clang-18');
+    expect(result?.metadata['cppStandard'], 'c++23');
+    expect(result?.metadata['toolchainSelectionStatus'], 'selected');
+    expect(preference?.versionId, 'fake-clang-18');
+    expect(preference?.cppStandard, CppLanguageStandard.cpp23);
+    expect(clangCppJson['requestedVersionId'], 'fake-clang-18');
+    expect(clangCppJson['preferenceStatus'], 'configured');
+  });
+
   test('shell runtime applies agent quick fix command suggestion', () async {
     final projectGraph = ProjectGraphSnapshot.scratch(
       workspaceRoot: '/workspace/demo',

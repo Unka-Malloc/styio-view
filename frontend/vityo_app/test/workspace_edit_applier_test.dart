@@ -67,7 +67,10 @@ void main() {
       source: WorkspaceEditSource.rename,
       editsByDocument: <String, List<FormattingEdit>>{
         'main.styio': <FormattingEdit>[
-          FormattingEdit(range: SourceRange(start: 0, end: 5), newText: 'count'),
+          FormattingEdit(
+            range: SourceRange(start: 5, end: 10),
+            newText: 'count',
+          ),
         ],
         'missing.styio': <FormattingEdit>[
           FormattingEdit(range: SourceRange(start: 0, end: 0), newText: 'x'),
@@ -79,7 +82,7 @@ void main() {
       const <DocumentState>[
         DocumentState(
           documentId: 'main.styio',
-          text: 'value = 1\n',
+          text: 'head\nvalue = 1\n',
           revision: 4,
         ),
       ],
@@ -94,8 +97,8 @@ void main() {
     expect(preview.editCount, 1);
     expect(preview.documents.single.documentId, 'main.styio');
     expect(preview.documents.single.revision, 4);
-    expect(preview.documents.single.beforeText, 'value = 1\n');
-    expect(preview.documents.single.afterText, 'count = 1\n');
+    expect(preview.documents.single.beforeText, 'head\nvalue = 1\n');
+    expect(preview.documents.single.afterText, 'head\ncount = 1\n');
     final previewJson = preview.toJson();
     expect(previewJson['editCount'], 1);
     expect(previewJson['missingDocumentCount'], 1);
@@ -107,9 +110,14 @@ void main() {
     final editJson =
         (documentJson['edits']! as List<Object?>).single!
             as Map<String, Object?>;
-    expect(editJson['start'], 0);
-    expect(editJson['end'], 5);
+    expect(editJson['start'], 5);
+    expect(editJson['end'], 10);
     expect(editJson['newText'], 'count');
+    final rangeJson = editJson['range']! as Map<String, Object?>;
+    expect(rangeJson['startLine'], 1);
+    expect(rangeJson['startColumn'], 0);
+    expect(rangeJson['endLine'], 1);
+    expect(rangeJson['endColumn'], 5);
   });
 
   test(

@@ -195,7 +195,7 @@ class WorkspaceEditDocumentPreview {
       'changed': changed,
       'editCount': edits.length,
       'edits': edits
-          .map(_workspaceEditPreviewEditToJson)
+          .map((edit) => _workspaceEditPreviewEditToJson(edit, beforeText))
           .toList(growable: false),
       'beforeTextSample': _sampleText(beforeText),
       'afterTextSample': _sampleText(afterText),
@@ -203,12 +203,63 @@ class WorkspaceEditDocumentPreview {
   }
 }
 
-Map<String, Object?> _workspaceEditPreviewEditToJson(FormattingEdit edit) {
+Map<String, Object?> _workspaceEditPreviewEditToJson(
+  FormattingEdit edit,
+  String documentText,
+) {
   return <String, Object?>{
     'start': edit.range.start,
     'end': edit.range.end,
+    'range': _workspaceEditPreviewRangeToJson(edit.range, documentText),
     'newText': edit.newText,
   };
+}
+
+Map<String, Object?> _workspaceEditPreviewRangeToJson(
+  SourceRange range,
+  String documentText,
+) {
+  final start = _workspaceEditPreviewPositionForOffset(
+    documentText,
+    range.start,
+  );
+  final end = _workspaceEditPreviewPositionForOffset(documentText, range.end);
+  return <String, Object?>{
+    'start': range.start,
+    'end': range.end,
+    'startLine': start.line,
+    'startColumn': start.column,
+    'endLine': end.line,
+    'endColumn': end.column,
+  };
+}
+
+_WorkspaceEditPreviewPosition _workspaceEditPreviewPositionForOffset(
+  String text,
+  int offset,
+) {
+  final clampedOffset = offset.clamp(0, text.length);
+  var line = 0;
+  var column = 0;
+  for (var index = 0; index < clampedOffset; index += 1) {
+    if (text.codeUnitAt(index) == 10) {
+      line += 1;
+      column = 0;
+    } else {
+      column += 1;
+    }
+  }
+  return _WorkspaceEditPreviewPosition(line: line, column: column);
+}
+
+class _WorkspaceEditPreviewPosition {
+  const _WorkspaceEditPreviewPosition({
+    required this.line,
+    required this.column,
+  });
+
+  final int line;
+  final int column;
 }
 
 class WorkspaceEditApplicationResult {

@@ -250,7 +250,9 @@ class AgentProviderConfigurator {
         apiKeyEnvironmentName: profile.endpoint.apiKeyEnvironmentName,
         protocol: profile.endpoint.protocol,
         credentialReference: reference,
+        requiresCredential: profile.endpoint.requiresCredential,
       ),
+      fallbackEndpoints: profile.fallbackEndpoints,
       contextChannels: profile.contextChannels,
     );
   }

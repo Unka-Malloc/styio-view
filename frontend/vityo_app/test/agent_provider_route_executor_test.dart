@@ -23,14 +23,16 @@ void main() {
   });
 
   test('agent provider route executor selects local bridge for loopback', () {
-    final plan = AgentProviderRouteExecutor(
-      localServiceManager: LoopbackLocalServiceManager.linuxDebianArmForTest(),
-    ).planFor(
-      _profile(
-        route: AgentProviderRoute.desktopLocalBridge,
-        baseUrl: 'http://127.0.0.1:11434/v1',
-      ),
-    );
+    final plan =
+        AgentProviderRouteExecutor(
+          localServiceManager:
+              LoopbackLocalServiceManager.linuxDebianArmForTest(),
+        ).planFor(
+          _profile(
+            route: AgentProviderRoute.desktopLocalBridge,
+            baseUrl: 'http://127.0.0.1:11434/v1',
+          ),
+        );
 
     expect(plan.routeKind, AgentProviderExecutionRouteKind.localBridge);
     expect(plan.providerKind, AgentProviderKind.localBridge);
@@ -50,12 +52,13 @@ void main() {
         supportsEphemeralPort: false,
       ),
     );
-    final plan = AgentProviderRouteExecutor(localServiceManager: manager).planFor(
-      _profile(
-        route: AgentProviderRoute.desktopLocalBridge,
-        baseUrl: 'http://localhost:11434/v1',
-      ),
-    );
+    final plan = AgentProviderRouteExecutor(localServiceManager: manager)
+        .planFor(
+          _profile(
+            route: AgentProviderRoute.desktopLocalBridge,
+            baseUrl: 'http://localhost:11434/v1',
+          ),
+        );
 
     expect(plan.executable, isFalse);
     expect(
@@ -118,7 +121,10 @@ void main() {
       },
     );
 
-    expect(resolution.status, AgentProviderExecutionResolutionStatus.fallbackReady);
+    expect(
+      resolution.status,
+      AgentProviderExecutionResolutionStatus.fallbackReady,
+    );
     expect(resolution.selectedEndpointIndex, 1);
     expect(
       resolution.endpoints.first.credentialReadiness,
@@ -130,6 +136,29 @@ void main() {
       AgentProviderExecutionResolutionStatus.fallbackReady.wireValue,
     );
   });
+
+  test(
+    'agent provider resolution blocks required missing credentials',
+    () async {
+      final profile = _profile(
+        route: AgentProviderRoute.webHosted,
+        baseUrl: 'https://api.openai.com/v1',
+        requiresCredential: true,
+      );
+
+      final resolution = await const AgentProviderRouteExecutor().resolve(
+        profile,
+      );
+
+      expect(resolution.status, AgentProviderExecutionResolutionStatus.blocked);
+      expect(resolution.selectedEndpointIndex, isNull);
+      expect(
+        resolution.endpoints.single.credentialReadiness,
+        AgentProviderCredentialReadiness.unavailable,
+      );
+      expect(resolution.endpoints.single.executable, isFalse);
+    },
+  );
 
   test('agent provider resolution reports probe-based fallback', () async {
     final profile = _profile(
@@ -160,7 +189,10 @@ void main() {
       },
     );
 
-    expect(resolution.status, AgentProviderExecutionResolutionStatus.fallbackReady);
+    expect(
+      resolution.status,
+      AgentProviderExecutionResolutionStatus.fallbackReady,
+    );
     expect(resolution.selectedEndpointIndex, 1);
     expect(
       resolution.endpoints.first.probeResult.status,
@@ -172,216 +204,244 @@ void main() {
     );
   });
 
-  test('agent provider factory routes loopback requests to local transport', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_agent_route_executor_test_',
-    );
-    addTearDown(() async {
-      if (await tempRoot.exists()) {
-        await tempRoot.delete(recursive: true);
-      }
-    });
-    final configurationStore = _configurationStore(tempRoot);
-    final cloudTransport = _RecordingTransport();
-    final localTransport = _RecordingTransport();
-    final factory = ConfiguredAgentProviderAdapterFactory(
-      configurationStore: configurationStore,
-      transport: cloudTransport,
-      localBridgeTransport: localTransport,
-      localServiceManager: LoopbackLocalServiceManager.linuxDebianArmForTest(),
-    );
-    final profile = _profile(
-      route: AgentProviderRoute.desktopLocalBridge,
-      baseUrl: 'http://127.0.0.1:11434/v1',
-    );
-
-    final adapter = await factory.create(profile);
-    await adapter.send(
-      AgentProviderRequest(
-        requestId: 'route-request',
-        profile: profile,
-        context: _emptyContext(),
-        userPrompt: 'Use the local bridge.',
-      ),
-    );
-
-    expect(adapter.kind, AgentProviderKind.localBridge);
-    expect(adapter.adapterId, 'openai-compatible-local-bridge');
-    expect(localTransport.callCount, 1);
-    expect(cloudTransport.callCount, 0);
-    expect(
-      localTransport.lastEndpoint.toString(),
-      'http://127.0.0.1:11434/v1/chat/completions',
-    );
-    expect(localTransport.lastBody['model'], 'gpt-route-test');
-  });
-
-  test('agent provider factory fails over from blocked bridge to cloud', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_agent_route_failover_test_',
-    );
-    addTearDown(() async {
-      if (await tempRoot.exists()) {
-        await tempRoot.delete(recursive: true);
-      }
-    });
-    final unsupportedManager = UnsupportedLocalServiceManager(
-      facts: const LocalServiceFacts(
-        targetId: 'unsupported',
-        operatingSystem: 'linux',
-        distributionId: 'generic',
-        architecture: 'x64',
-        providerKind: LocalServiceProviderKind.unsupported,
-        supportsLoopbackHttpServer: false,
-        supportsEphemeralPort: false,
-      ),
-    );
-    final cloudTransport = _RecordingTransport();
-    final localTransport = _RecordingTransport();
-    final factory = ConfiguredAgentProviderAdapterFactory(
-      configurationStore: _configurationStore(tempRoot),
-      transport: cloudTransport,
-      localBridgeTransport: localTransport,
-      localServiceManager: unsupportedManager,
-    );
-    final profile = _profile(
-      route: AgentProviderRoute.desktopLocalBridge,
-      baseUrl: 'http://127.0.0.1:11434/v1',
-      fallbackEndpoints: const <AgentProviderEndpoint>[
-        AgentProviderEndpoint(
-          route: AgentProviderRoute.webHosted,
-          baseUrl: 'https://agent.example.test/v1',
-          model: 'gpt-cloud-fallback',
-        ),
-      ],
-    );
-
-    final adapter = await factory.create(profile);
-    await adapter.send(
-      AgentProviderRequest(
-        requestId: 'failover-request',
-        profile: profile,
-        context: _emptyContext(),
-        userPrompt: 'Use fallback.',
-      ),
-    );
-
-    expect(adapter.kind, AgentProviderKind.cloudOpenAICompatible);
-    expect(adapter.adapterId, 'openai-compatible-cloud');
-    expect(cloudTransport.callCount, 1);
-    expect(localTransport.callCount, 0);
-    expect(
-      cloudTransport.lastEndpoint.toString(),
-      'https://agent.example.test/v1/chat/completions',
-    );
-    expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
-  });
-
-  test('agent provider factory skips endpoint with missing credential', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_agent_credential_failover_test_',
-    );
-    addTearDown(() async {
-      if (await tempRoot.exists()) {
-        await tempRoot.delete(recursive: true);
-      }
-    });
-    const missingCredential = CredentialReference(
-      key: CredentialDataStoreKey(
-        namespace: 'agent.provider',
-        name: 'missing-primary',
-        scope: CredentialScope.user,
-      ),
-      kind: CredentialKind.token,
-    );
-    final cloudTransport = _RecordingTransport();
-    final factory = ConfiguredAgentProviderAdapterFactory(
-      configurationStore: _configurationStore(tempRoot),
-      transport: cloudTransport,
-    );
-    final profile = _profile(
-      route: AgentProviderRoute.webHosted,
-      baseUrl: 'https://primary.example.test/v1',
-      credentialReference: missingCredential,
-      fallbackEndpoints: const <AgentProviderEndpoint>[
-        AgentProviderEndpoint(
-          route: AgentProviderRoute.webHosted,
-          baseUrl: 'https://fallback.example.test/v1',
-          model: 'gpt-cloud-fallback',
-        ),
-      ],
-    );
-
-    final resolution = await factory.resolveExecution(profile);
-    final adapter = await factory.create(profile);
-    await adapter.send(
-      AgentProviderRequest(
-        requestId: 'credential-failover-request',
-        profile: profile,
-        context: _emptyContext(),
-        userPrompt: 'Use credential fallback.',
-      ),
-    );
-
-    expect(resolution.status, AgentProviderExecutionResolutionStatus.fallbackReady);
-    expect(adapter.kind, AgentProviderKind.cloudOpenAICompatible);
-    expect(cloudTransport.lastEndpoint.toString(), 'https://fallback.example.test/v1/chat/completions');
-    expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
-  });
-
-  test('agent provider factory skips endpoint when probe is unreachable', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_agent_probe_failover_test_',
-    );
-    addTearDown(() async {
-      if (await tempRoot.exists()) {
-        await tempRoot.delete(recursive: true);
-      }
-    });
-    final cloudTransport = _RecordingTransport();
-    final factory = ConfiguredAgentProviderAdapterFactory(
-      configurationStore: _configurationStore(tempRoot),
-      transport: cloudTransport,
-      endpointProbe: ({required endpoint, required plan}) async {
-        if (endpoint.baseUrl.contains('primary')) {
-          return const AgentProviderEndpointProbeResult(
-            status: AgentProviderEndpointProbeStatus.unreachable,
-            message: 'primary unavailable',
-          );
+  test(
+    'agent provider factory routes loopback requests to local transport',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_route_executor_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
         }
-        return const AgentProviderEndpointProbeResult(
-          status: AgentProviderEndpointProbeStatus.reachable,
-        );
-      },
-    );
-    final profile = _profile(
-      route: AgentProviderRoute.webHosted,
-      baseUrl: 'https://primary.example.test/v1',
-      fallbackEndpoints: const <AgentProviderEndpoint>[
-        AgentProviderEndpoint(
-          route: AgentProviderRoute.webHosted,
-          baseUrl: 'https://fallback.example.test/v1',
-          model: 'gpt-cloud-fallback',
+      });
+      final configurationStore = _configurationStore(tempRoot);
+      final cloudTransport = _RecordingTransport();
+      final localTransport = _RecordingTransport();
+      final factory = ConfiguredAgentProviderAdapterFactory(
+        configurationStore: configurationStore,
+        transport: cloudTransport,
+        localBridgeTransport: localTransport,
+        localServiceManager:
+            LoopbackLocalServiceManager.linuxDebianArmForTest(),
+      );
+      final profile = _profile(
+        route: AgentProviderRoute.desktopLocalBridge,
+        baseUrl: 'http://127.0.0.1:11434/v1',
+      );
+
+      final adapter = await factory.create(profile);
+      await adapter.send(
+        AgentProviderRequest(
+          requestId: 'route-request',
+          profile: profile,
+          context: _emptyContext(),
+          userPrompt: 'Use the local bridge.',
         ),
-      ],
-    );
+      );
 
-    final resolution = await factory.resolveExecution(profile);
-    final adapter = await factory.create(profile);
-    await adapter.send(
-      AgentProviderRequest(
-        requestId: 'probe-failover-request',
-        profile: profile,
-        context: _emptyContext(),
-        userPrompt: 'Use probe fallback.',
-      ),
-    );
+      expect(adapter.kind, AgentProviderKind.localBridge);
+      expect(adapter.adapterId, 'openai-compatible-local-bridge');
+      expect(localTransport.callCount, 1);
+      expect(cloudTransport.callCount, 0);
+      expect(
+        localTransport.lastEndpoint.toString(),
+        'http://127.0.0.1:11434/v1/chat/completions',
+      );
+      expect(localTransport.lastBody['model'], 'gpt-route-test');
+    },
+  );
 
-    expect(resolution.status, AgentProviderExecutionResolutionStatus.fallbackReady);
-    expect(resolution.endpoints.first.probeResult.status, AgentProviderEndpointProbeStatus.unreachable);
-    expect(cloudTransport.lastEndpoint.toString(), 'https://fallback.example.test/v1/chat/completions');
-    expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
-  });
+  test(
+    'agent provider factory fails over from blocked bridge to cloud',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_route_failover_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final unsupportedManager = UnsupportedLocalServiceManager(
+        facts: const LocalServiceFacts(
+          targetId: 'unsupported',
+          operatingSystem: 'linux',
+          distributionId: 'generic',
+          architecture: 'x64',
+          providerKind: LocalServiceProviderKind.unsupported,
+          supportsLoopbackHttpServer: false,
+          supportsEphemeralPort: false,
+        ),
+      );
+      final cloudTransport = _RecordingTransport();
+      final localTransport = _RecordingTransport();
+      final factory = ConfiguredAgentProviderAdapterFactory(
+        configurationStore: _configurationStore(tempRoot),
+        transport: cloudTransport,
+        localBridgeTransport: localTransport,
+        localServiceManager: unsupportedManager,
+      );
+      final profile = _profile(
+        route: AgentProviderRoute.desktopLocalBridge,
+        baseUrl: 'http://127.0.0.1:11434/v1',
+        fallbackEndpoints: const <AgentProviderEndpoint>[
+          AgentProviderEndpoint(
+            route: AgentProviderRoute.webHosted,
+            baseUrl: 'https://agent.example.test/v1',
+            model: 'gpt-cloud-fallback',
+          ),
+        ],
+      );
+
+      final adapter = await factory.create(profile);
+      await adapter.send(
+        AgentProviderRequest(
+          requestId: 'failover-request',
+          profile: profile,
+          context: _emptyContext(),
+          userPrompt: 'Use fallback.',
+        ),
+      );
+
+      expect(adapter.kind, AgentProviderKind.cloudOpenAICompatible);
+      expect(adapter.adapterId, 'openai-compatible-cloud');
+      expect(cloudTransport.callCount, 1);
+      expect(localTransport.callCount, 0);
+      expect(
+        cloudTransport.lastEndpoint.toString(),
+        'https://agent.example.test/v1/chat/completions',
+      );
+      expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
+    },
+  );
+
+  test(
+    'agent provider factory skips endpoint with missing credential',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_credential_failover_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      const missingCredential = CredentialReference(
+        key: CredentialDataStoreKey(
+          namespace: 'agent.provider',
+          name: 'missing-primary',
+          scope: CredentialScope.user,
+        ),
+        kind: CredentialKind.token,
+      );
+      final cloudTransport = _RecordingTransport();
+      final factory = ConfiguredAgentProviderAdapterFactory(
+        configurationStore: _configurationStore(tempRoot),
+        transport: cloudTransport,
+      );
+      final profile = _profile(
+        route: AgentProviderRoute.webHosted,
+        baseUrl: 'https://primary.example.test/v1',
+        credentialReference: missingCredential,
+        fallbackEndpoints: const <AgentProviderEndpoint>[
+          AgentProviderEndpoint(
+            route: AgentProviderRoute.webHosted,
+            baseUrl: 'https://fallback.example.test/v1',
+            model: 'gpt-cloud-fallback',
+          ),
+        ],
+      );
+
+      final resolution = await factory.resolveExecution(profile);
+      final adapter = await factory.create(profile);
+      await adapter.send(
+        AgentProviderRequest(
+          requestId: 'credential-failover-request',
+          profile: profile,
+          context: _emptyContext(),
+          userPrompt: 'Use credential fallback.',
+        ),
+      );
+
+      expect(
+        resolution.status,
+        AgentProviderExecutionResolutionStatus.fallbackReady,
+      );
+      expect(adapter.kind, AgentProviderKind.cloudOpenAICompatible);
+      expect(
+        cloudTransport.lastEndpoint.toString(),
+        'https://fallback.example.test/v1/chat/completions',
+      );
+      expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
+    },
+  );
+
+  test(
+    'agent provider factory skips endpoint when probe is unreachable',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_probe_failover_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final cloudTransport = _RecordingTransport();
+      final factory = ConfiguredAgentProviderAdapterFactory(
+        configurationStore: _configurationStore(tempRoot),
+        transport: cloudTransport,
+        endpointProbe: ({required endpoint, required plan}) async {
+          if (endpoint.baseUrl.contains('primary')) {
+            return const AgentProviderEndpointProbeResult(
+              status: AgentProviderEndpointProbeStatus.unreachable,
+              message: 'primary unavailable',
+            );
+          }
+          return const AgentProviderEndpointProbeResult(
+            status: AgentProviderEndpointProbeStatus.reachable,
+          );
+        },
+      );
+      final profile = _profile(
+        route: AgentProviderRoute.webHosted,
+        baseUrl: 'https://primary.example.test/v1',
+        fallbackEndpoints: const <AgentProviderEndpoint>[
+          AgentProviderEndpoint(
+            route: AgentProviderRoute.webHosted,
+            baseUrl: 'https://fallback.example.test/v1',
+            model: 'gpt-cloud-fallback',
+          ),
+        ],
+      );
+
+      final resolution = await factory.resolveExecution(profile);
+      final adapter = await factory.create(profile);
+      await adapter.send(
+        AgentProviderRequest(
+          requestId: 'probe-failover-request',
+          profile: profile,
+          context: _emptyContext(),
+          userPrompt: 'Use probe fallback.',
+        ),
+      );
+
+      expect(
+        resolution.status,
+        AgentProviderExecutionResolutionStatus.fallbackReady,
+      );
+      expect(
+        resolution.endpoints.first.probeResult.status,
+        AgentProviderEndpointProbeStatus.unreachable,
+      );
+      expect(
+        cloudTransport.lastEndpoint.toString(),
+        'https://fallback.example.test/v1/chat/completions',
+      );
+      expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
+    },
+  );
 }
 
 AgentPromptProfile _profile({
@@ -389,6 +449,7 @@ AgentPromptProfile _profile({
   required String baseUrl,
   String model = 'gpt-route-test',
   CredentialReference? credentialReference,
+  bool requiresCredential = false,
   List<AgentProviderEndpoint> fallbackEndpoints =
       const <AgentProviderEndpoint>[],
 }) {
@@ -401,6 +462,7 @@ AgentPromptProfile _profile({
       baseUrl: baseUrl,
       model: model,
       credentialReference: credentialReference,
+      requiresCredential: requiresCredential,
     ),
     fallbackEndpoints: fallbackEndpoints,
   );

@@ -14,6 +14,7 @@ void main() {
       expect(decoded.profileId, 'default-macos');
       expect(decoded.endpoint.protocol, 'openai-compatible');
       expect(decoded.endpoint.route, AgentProviderRoute.desktopLocalBridge);
+      expect(decoded.endpoint.requiresCredential, isTrue);
       expect(decoded.allowsLocalBridge, isTrue);
       expect(
         decoded.contextChannels,
@@ -86,7 +87,9 @@ void main() {
       expect(decoded.systemPrompt, contains('staticAnalysisResult'));
       expect(
         decoded.systemPrompt,
-        contains('nested buildResult/staticAnalysisResult/testResult.requiredCommand'),
+        contains(
+          'nested buildResult/staticAnalysisResult/testResult.requiredCommand',
+        ),
       );
       expect(decoded.systemPrompt, contains('backendRouteSelection'));
       expect(decoded.systemPrompt, contains('toolchainSelectionStatus'));
@@ -154,7 +157,9 @@ void main() {
       );
       expect(
         decoded.systemPrompt,
-        contains('toolchains.clangCpp.selection.candidate.metadata.clangVendor'),
+        contains(
+          'toolchains.clangCpp.selection.candidate.metadata.clangVendor',
+        ),
       );
       expect(
         decoded.systemPrompt,
@@ -187,7 +192,10 @@ void main() {
     expect(ios.allowsLocalBridge, isFalse);
     expect(web.endpoint.route, AgentProviderRoute.webHosted);
     expect(web.endpoint.baseUrl, '/api/styio-agent/v1');
+    expect(web.endpoint.requiresCredential, isFalse);
+    expect(ios.endpoint.requiresCredential, isTrue);
     expect(android.endpoint.route.allowsLocalBridge, isTrue);
+    expect(android.endpoint.requiresCredential, isTrue);
   });
 
   test(

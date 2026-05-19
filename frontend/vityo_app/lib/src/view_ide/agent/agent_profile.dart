@@ -65,6 +65,7 @@ class AgentProviderEndpoint {
     this.apiKeyEnvironmentName = 'OPENAI_API_KEY',
     this.protocol = 'openai-compatible',
     this.credentialReference,
+    this.requiresCredential = false,
   });
 
   final AgentProviderRoute route;
@@ -73,6 +74,7 @@ class AgentProviderEndpoint {
   final String apiKeyEnvironmentName;
   final String protocol;
   final CredentialReference? credentialReference;
+  final bool requiresCredential;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -81,6 +83,7 @@ class AgentProviderEndpoint {
       'model': model,
       'apiKeyEnvironmentName': apiKeyEnvironmentName,
       'protocol': protocol,
+      'requiresCredential': requiresCredential,
       if (credentialReference != null)
         'credentialReference': credentialReference!.toJson(),
     };
@@ -95,6 +98,7 @@ class AgentProviderEndpoint {
       apiKeyEnvironmentName:
           json['apiKeyEnvironmentName'] as String? ?? 'OPENAI_API_KEY',
       protocol: json['protocol'] as String? ?? 'openai-compatible',
+      requiresCredential: json['requiresCredential'] as bool? ?? false,
       credentialReference: credentialReference is Map<String, Object?>
           ? CredentialReference.fromJson(credentialReference)
           : credentialReference is Map
@@ -168,9 +172,9 @@ class AgentPromptProfile {
       ),
       fallbackEndpoints: fallbackEndpointsJson is List
           ? fallbackEndpointsJson
-              .map(_agentProviderEndpointFromJson)
-              .whereType<AgentProviderEndpoint>()
-              .toList(growable: false)
+                .map(_agentProviderEndpointFromJson)
+                .whereType<AgentProviderEndpoint>()
+                .toList(growable: false)
           : const <AgentProviderEndpoint>[],
       contextChannels: channelsJson is List
           ? channelsJson.whereType<String>().toList(growable: false)
@@ -206,6 +210,7 @@ class AgentPromptProfile {
             ? '/api/styio-agent/v1'
             : 'https://api.openai.com/v1',
         model: 'gpt-5.4',
+        requiresCredential: route != AgentProviderRoute.webHosted,
       ),
     );
   }

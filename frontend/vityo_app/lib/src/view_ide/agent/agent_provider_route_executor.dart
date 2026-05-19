@@ -40,7 +40,8 @@ extension AgentProviderExecutionBlockReasonX
 
 enum AgentProviderCredentialReadiness { notReferenced, available, unavailable }
 
-extension AgentProviderCredentialReadinessX on AgentProviderCredentialReadiness {
+extension AgentProviderCredentialReadinessX
+    on AgentProviderCredentialReadiness {
   String get wireValue {
     return switch (this) {
       AgentProviderCredentialReadiness.notReferenced => 'not_referenced',
@@ -50,11 +51,7 @@ extension AgentProviderCredentialReadinessX on AgentProviderCredentialReadiness 
   }
 }
 
-enum AgentProviderExecutionResolutionStatus {
-  ready,
-  fallbackReady,
-  blocked,
-}
+enum AgentProviderExecutionResolutionStatus { ready, fallbackReady, blocked }
 
 extension AgentProviderExecutionResolutionStatusX
     on AgentProviderExecutionResolutionStatus {
@@ -69,7 +66,8 @@ extension AgentProviderExecutionResolutionStatusX
 
 enum AgentProviderEndpointProbeStatus { notProbed, reachable, unreachable }
 
-extension AgentProviderEndpointProbeStatusX on AgentProviderEndpointProbeStatus {
+extension AgentProviderEndpointProbeStatusX
+    on AgentProviderEndpointProbeStatus {
   String get wireValue {
     return switch (this) {
       AgentProviderEndpointProbeStatus.notProbed => 'not_probed',
@@ -370,6 +368,9 @@ class AgentProviderRouteExecutor {
     AgentProviderCredentialAvailability? credentialAvailable,
   ) async {
     if (endpoint.credentialReference == null) {
+      if (endpoint.requiresCredential) {
+        return AgentProviderCredentialReadiness.unavailable;
+      }
       return AgentProviderCredentialReadiness.notReferenced;
     }
     if (credentialAvailable == null) {

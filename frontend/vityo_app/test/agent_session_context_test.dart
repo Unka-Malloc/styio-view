@@ -9,7 +9,9 @@ import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
+import 'package:vityo_app/src/view_ide/testing/testing.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
   test('agent session context serializes editor and runtime facts', () {
@@ -286,6 +288,45 @@ void main() {
         ),
       ),
       activeFilePath: '/workspace/demo/src/main.styio',
+      workspaceDiagnostics: const WorkspaceDiagnosticsSnapshot(
+        providerId: 'workspace-diagnostics',
+        diagnostics: <WorkspaceDiagnostic>[
+          WorkspaceDiagnostic(
+            documentId: '/workspace/demo/src/main.styio',
+            diagnostic: diagnostic,
+            providerId: 'styio-service',
+          ),
+        ],
+      ),
+      testDiscovery: const TestDiscoveryResult(
+        providerId: 'ctest-discovery',
+        roots: <TestNode>[
+          TestNode(
+            id: 'suite:language',
+            label: 'language',
+            kind: TestNodeKind.suite,
+            children: <TestNode>[
+              TestNode(
+                id: 'test:syntax',
+                label: 'syntax contract',
+                kind: TestNodeKind.test,
+              ),
+            ],
+          ),
+        ],
+      ),
+      lastTestRun: const TestRunResult(
+        providerId: 'ctest',
+        runner: 'ctest',
+        status: TestRunStatus.failed,
+        message: 'CTest reported 1 failed test(s).',
+        totalCount: 2,
+        passedCount: 1,
+        failedCount: 1,
+        cases: <TestCaseResult>[
+          TestCaseResult(name: 'syntax contract', status: TestRunStatus.failed),
+        ],
+      ),
       toolchainSnapshot: const ToolchainStateSnapshot(
         targetId: 'agent-toolchain',
         entries: <ToolchainStateEntry>[
@@ -331,6 +372,7 @@ void main() {
     final languageFocusToken =
         languageJson['focusToken']! as Map<String, Object?>;
     final skillsJson = json['skills']! as Map<String, Object?>;
+    final testingJson = json['testing']! as Map<String, Object?>;
     final toolchainsJson = json['toolchains']! as Map<String, Object?>;
     final ideCapabilitiesJson =
         json['ideCapabilities']! as Map<String, Object?>;
@@ -374,8 +416,19 @@ void main() {
     final debugStackFrames = debugJson['stackFrames']! as List<Object?>;
     final debugVariables = debugJson['variables']! as List<Object?>;
     final debugLaunch = debugJson['launch']! as Map<String, Object?>;
+    final workspaceDiagnostics =
+        workspaceJson['diagnostics']! as Map<String, Object?>;
+    final testingDiscovery = testingJson['discovered']! as Map<String, Object?>;
+    final testingLastRun = testingJson['lastRun']! as Map<String, Object?>;
 
     expect(json['schemaVersion'], 42);
+    expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
+    expect(workspaceDiagnostics['totalCount'], 1);
+    expect(testingJson['hasDiscovery'], isTrue);
+    expect(testingJson['hasLastRun'], isTrue);
+    expect(testingDiscovery['testCount'], 1);
+    expect(testingLastRun['status'], 'failed');
+    expect(testingLastRun['failedCount'], 1);
     expect(ideCapabilitiesJson['version'], 'vityo-ide-capability-framework-v1');
     expect(ideCapabilitiesJson['followUpCount'], greaterThan(0));
     expect(
@@ -1341,6 +1394,7 @@ void main() {
       'language',
       'commands',
       'skills',
+      'testing',
       'toolchains',
       'ideCapabilities',
     ]);
@@ -1353,6 +1407,7 @@ void main() {
     expect(json.containsKey('language'), isTrue);
     expect(json.containsKey('commands'), isTrue);
     expect(json.containsKey('skills'), isTrue);
+    expect(json.containsKey('testing'), isTrue);
     expect(json.containsKey('toolchains'), isTrue);
     expect(json.containsKey('ideCapabilities'), isTrue);
     expect(json.containsKey('selection'), isFalse);

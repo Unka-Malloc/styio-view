@@ -6,10 +6,12 @@ import '../foundation/foundation.dart';
 import '../interaction/language_service_status_surface.dart';
 import '../language/language_contract.dart';
 import '../language/service/language_service_foundation.dart';
+import '../testing/testing.dart';
 import '../toolchain/clang_cpp_version_configuration.dart';
 import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_manager.dart';
+import '../workspace/workspace.dart';
 import 'agent_coding_skill.dart';
 import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
@@ -33,6 +35,7 @@ class AgentSessionContext {
     required this.commands,
     required this.language,
     required this.skills,
+    required this.testing,
     required this.toolchains,
     required this.ideCapabilities,
   });
@@ -50,6 +53,7 @@ class AgentSessionContext {
   final AgentCommandCatalogContext commands;
   final AgentLanguageContext language;
   final AgentSkillContext skills;
+  final AgentTestingContext testing;
   final AgentToolchainContext toolchains;
   final IdeCapabilityFrameworkSnapshot ideCapabilities;
 
@@ -66,6 +70,9 @@ class AgentSessionContext {
     Iterable<String> dirtyDocumentIds = const <String>[],
     Iterable<DocumentState> workspaceDocuments = const <DocumentState>[],
     AgentWorkspaceSearchResultContext? lastWorkspaceSearch,
+    WorkspaceDiagnosticsSnapshot? workspaceDiagnostics,
+    TestDiscoveryResult? testDiscovery,
+    TestRunResult? lastTestRun,
     TokenSpan? focusToken,
     SemanticKind? focusSemanticKind,
     HoverPayload? hover,
@@ -126,6 +133,7 @@ class AgentSessionContext {
         workspaceDocuments: workspaceDocuments,
       ),
       lastSearch: lastWorkspaceSearch,
+      diagnostics: workspaceDiagnostics,
     );
     return AgentSessionContext(
       schemaVersion: 42,
@@ -208,6 +216,10 @@ class AgentSessionContext {
         activeDocumentId: activeFilePath ?? document.documentId,
         workspaceFiles: workspaceFiles,
       ),
+      testing: AgentTestingContext(
+        discovery: testDiscovery,
+        lastRun: lastTestRun,
+      ),
       toolchains: toolchainContext,
       ideCapabilities:
           ideCapabilityFramework ??
@@ -232,6 +244,7 @@ class AgentSessionContext {
       'commands': commands.toJson(),
       'language': language.toJson(),
       'skills': skills.toJson(),
+      'testing': testing.toJson(),
       'toolchains': toolchains.toJson(),
       'ideCapabilities': ideCapabilities.toJson(),
     };
@@ -258,6 +271,7 @@ class AgentSessionContext {
       if (channelSet.contains('language')) 'language': language.toJson(),
       if (channelSet.contains('commands')) 'commands': commands.toJson(),
       if (channelSet.contains('skills')) 'skills': skills.toJson(),
+      if (channelSet.contains('testing')) 'testing': testing.toJson(),
       if (channelSet.contains('toolchains')) 'toolchains': toolchains.toJson(),
       if (channelSet.contains('ideCapabilities'))
         'ideCapabilities': ideCapabilities.toJson(),
@@ -373,6 +387,7 @@ class AgentSessionContext {
       ),
       language: language,
       skills: skills,
+      testing: testing,
       toolchains: toolchains,
       ideCapabilities: ideCapabilities,
     );
@@ -3676,6 +3691,7 @@ class AgentWorkspaceContext {
     required this.documentSamplesTruncated,
     required this.buildFacts,
     this.lastSearch,
+    this.diagnostics,
   });
 
   final String activeFilePath;
@@ -3689,6 +3705,7 @@ class AgentWorkspaceContext {
   final bool documentSamplesTruncated;
   final AgentWorkspaceBuildFactsContext buildFacts;
   final AgentWorkspaceSearchResultContext? lastSearch;
+  final WorkspaceDiagnosticsSnapshot? diagnostics;
 
   factory AgentWorkspaceContext.fromWorkspaceState({
     required String activeFilePath,
@@ -3697,6 +3714,7 @@ class AgentWorkspaceContext {
     Iterable<String> dirtyDocumentIds = const <String>[],
     Iterable<DocumentState> documentSamples = const <DocumentState>[],
     AgentWorkspaceSearchResultContext? lastSearch,
+    WorkspaceDiagnosticsSnapshot? diagnostics,
     int maxFiles = 200,
     int maxDocumentSamples = 10,
   }) {
@@ -3762,6 +3780,7 @@ class AgentWorkspaceContext {
       documentSamplesTruncated: sampleTruncated,
       buildFacts: AgentWorkspaceBuildFactsContext.fromFiles(allFiles),
       lastSearch: lastSearch,
+      diagnostics: diagnostics,
     );
   }
 
@@ -3780,6 +3799,23 @@ class AgentWorkspaceContext {
       'documentSamplesTruncated': documentSamplesTruncated,
       'buildFacts': buildFacts.toJson(),
       if (lastSearch != null) 'lastSearch': lastSearch!.toJson(),
+      if (diagnostics != null) 'diagnostics': diagnostics!.toJson(),
+    };
+  }
+}
+
+class AgentTestingContext {
+  const AgentTestingContext({this.discovery, this.lastRun});
+
+  final TestDiscoveryResult? discovery;
+  final TestRunResult? lastRun;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'hasDiscovery': discovery != null,
+      'hasLastRun': lastRun != null,
+      if (discovery != null) 'discovered': discovery!.toJson(),
+      if (lastRun != null) 'lastRun': lastRun!.toJson(),
     };
   }
 }

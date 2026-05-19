@@ -24,6 +24,7 @@ void main() {
         'language',
         'commands',
         'skills',
+        'testing',
         'toolchains',
         'ideCapabilities',
       ]),
@@ -33,6 +34,8 @@ void main() {
     expect(decoded.systemPrompt, contains('Clang'));
     expect(decoded.systemPrompt, contains('commands.persistenceCommands'));
     expect(decoded.systemPrompt, contains('save/save-all'));
+    expect(decoded.systemPrompt, contains('testing.discovered.testCount'));
+    expect(decoded.systemPrompt, contains('testing.lastRun.failedTests'));
     expect(decoded.systemPrompt, contains('skills.activeSkillIds'));
     expect(decoded.systemPrompt, contains('workspace-activated coding skills'));
     expect(decoded.systemPrompt, contains('language.focusToken'));

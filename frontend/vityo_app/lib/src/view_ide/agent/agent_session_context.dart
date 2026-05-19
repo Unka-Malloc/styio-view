@@ -251,6 +251,9 @@ class AgentSessionContext {
   }
 
   AgentSessionContext withAgentCodingState({
+    AgentCommandResultContext? lastCommandResult,
+    Iterable<AgentCommandResultContext> recentCommandResults =
+        const <AgentCommandResultContext>[],
     AgentPendingPatchContext? pendingPatch,
     Iterable<AgentPendingPatchContext> recentPatchProposals =
         const <AgentPendingPatchContext>[],
@@ -274,12 +277,17 @@ class AgentSessionContext {
     final recentIdeCommandSuggestionList = recentIdeCommandSuggestions.toList(
       growable: false,
     );
+    final recentCommandResultList = recentCommandResults.toList(
+      growable: false,
+    );
     final recentCodingPlanList = recentCodingPlans.toList(growable: false);
     final recentDiagnosticSummaryList = recentDiagnosticSummaries.toList(
       growable: false,
     );
     if (pendingPatch == null &&
         recentPatchProposalList.isEmpty &&
+        lastCommandResult == null &&
+        recentCommandResultList.isEmpty &&
         pendingIdeCommandList.isEmpty &&
         recentIdeCommandSuggestionList.isEmpty &&
         recentCodingPlanList.isEmpty &&
@@ -293,6 +301,13 @@ class AgentSessionContext {
         return this;
       }
     }
+    final commandResultHistory =
+        lastCommandResult == null && recentCommandResultList.isEmpty
+        ? commands.recentResults
+        : _agentCommandResultHistory(
+            lastResult: lastCommandResult,
+            recentResults: recentCommandResultList,
+          );
     return AgentSessionContext(
       schemaVersion: schemaVersion,
       document: document,
@@ -314,7 +329,19 @@ class AgentSessionContext {
         recentCodingPlans: recentCodingPlanList,
         recentDiagnosticSummaries: recentDiagnosticSummaryList,
       ),
-      commands: commands,
+      commands: AgentCommandCatalogContext(
+        persistenceCommands: commands.persistenceCommands,
+        diagnosticCommands: commands.diagnosticCommands,
+        languageServiceCommands: commands.languageServiceCommands,
+        navigationCommands: commands.navigationCommands,
+        refactorCommands: commands.refactorCommands,
+        nativeToolCommands: commands.nativeToolCommands,
+        nativeToolCommandReadiness: commands.nativeToolCommandReadiness,
+        debugCommands: commands.debugCommands,
+        debugCommandReadiness: commands.debugCommandReadiness,
+        recentResults: commandResultHistory,
+        lastResult: lastCommandResult ?? commands.lastResult,
+      ),
       language: language,
       skills: skills,
       toolchains: toolchains,

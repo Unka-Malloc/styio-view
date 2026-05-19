@@ -11,6 +11,7 @@ const int _maxAgentPatchApplicationContextHistory = 12;
 const int _maxAgentRecentPatchProposalContexts = 6;
 const int _maxAgentPendingPatchContextEdits = 20;
 const int _maxAgentPendingPatchReplacementTextSampleLength = 2000;
+const int _maxAgentCommandResultContextHistory = 12;
 const int _maxAgentPendingIdeCommandContexts = 10;
 const int _maxAgentRecentIdeCommandSuggestionContexts = 12;
 const int _maxAgentRecentCodingPlanContexts = 8;
@@ -43,10 +44,14 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentCodePatch? _pendingPatch;
   AgentCodePatchApplicationResult? _lastPatchApplicationResult;
   AgentPatchApplicationContext? _lastPatchApplicationContext;
+  AgentCommandResultContext? _lastIdeCommandResultContext;
   bool _hasPreservedAgentState = false;
   AgentProviderResponseEnvelope? _preservedLastResponse;
   AgentCodePatch? _preservedPendingPatch;
   AgentCodePatchApplicationResult? _preservedLastPatchApplicationResult;
+  final List<AgentCommandResultContext> _recentIdeCommandResultContexts =
+      <AgentCommandResultContext>[];
+  final Set<String> _completedIdeCommandSuggestionKeys = <String>{};
   final List<AgentPatchApplicationContext> _recentPatchApplicationContexts =
       <AgentPatchApplicationContext>[];
   final List<AgentPendingPatchContext> _recentPatchProposalContexts =
@@ -74,6 +79,8 @@ class AgentCodingSessionController extends ChangeNotifier {
       _lastPatchApplicationResult;
   AgentPatchApplicationContext? get lastPatchApplicationContext =>
       _lastPatchApplicationContext;
+  AgentCommandResultContext? get lastIdeCommandResultContext =>
+      _lastIdeCommandResultContext;
   List<AgentPatchApplicationContext> get recentPatchApplicationContexts =>
       List<AgentPatchApplicationContext>.unmodifiable(
         _recentPatchApplicationContexts,
@@ -114,7 +121,10 @@ class AgentCodingSessionController extends ChangeNotifier {
     _pendingPatch = null;
     _lastPatchApplicationResult = null;
     _lastPatchApplicationContext = null;
+    _lastIdeCommandResultContext = null;
     _clearPreservedAgentState();
+    _recentIdeCommandResultContexts.clear();
+    _completedIdeCommandSuggestionKeys.clear();
     _recentPatchApplicationContexts.clear();
     _recentPatchProposalContexts.clear();
     _recentIdeCommandSuggestionContexts.clear();
@@ -213,6 +223,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         return null;
       }
       _lastResponse = response;
+      _completedIdeCommandSuggestionKeys.clear();
       _pendingPatch = _firstPatch(response);
       _recordRecentPatchProposalContext(_pendingPatch);
       _recordRecentCodingPlanContexts(response);
@@ -279,6 +290,8 @@ class AgentCodingSessionController extends ChangeNotifier {
         _pendingPatch == null &&
         _lastPatchApplicationResult == null &&
         _lastPatchApplicationContext == null &&
+        _lastIdeCommandResultContext == null &&
+        _recentIdeCommandResultContexts.isEmpty &&
         _recentPatchApplicationContexts.isEmpty &&
         _recentPatchProposalContexts.isEmpty &&
         _recentIdeCommandSuggestionContexts.isEmpty &&
@@ -295,7 +308,10 @@ class AgentCodingSessionController extends ChangeNotifier {
     _pendingPatch = null;
     _lastPatchApplicationResult = null;
     _lastPatchApplicationContext = null;
+    _lastIdeCommandResultContext = null;
     _clearPreservedAgentState();
+    _recentIdeCommandResultContexts.clear();
+    _completedIdeCommandSuggestionKeys.clear();
     _recentPatchApplicationContexts.clear();
     _recentPatchProposalContexts.clear();
     _recentIdeCommandSuggestionContexts.clear();
@@ -398,6 +414,22 @@ class AgentCodingSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void recordIdeCommandResult(AgentCommandResultContext result) {
+    if (result.commandId.trim().isEmpty) {
+      return;
+    }
+    _lastIdeCommandResultContext = result;
+    _recordRecentIdeCommandResultContext(result);
+    _completedIdeCommandSuggestionKeys.add(
+      _ideCommandSuggestionKey(result.commandId, result.input),
+    );
+    _appendConversationTurn(
+      role: AgentConversationRole.user,
+      text: _ideCommandResultConversationText(result),
+    );
+    notifyListeners();
+  }
+
   void _recordPatchApplicationResult(
     AgentCodePatch patch,
     AgentCodePatchApplicationResult result,
@@ -473,7 +505,13 @@ class AgentCodingSessionController extends ChangeNotifier {
           ? null
           : _pendingPatchContext(_pendingPatch!),
       recentPatchProposals: _recentPatchProposalContexts,
-      pendingIdeCommands: _pendingIdeCommandContexts(_lastResponse),
+      lastCommandResult: _lastIdeCommandResultContext,
+      recentCommandResults: _recentIdeCommandResultContexts,
+      pendingIdeCommands: _pendingIdeCommandContexts(_lastResponse).where(
+        (command) => !_completedIdeCommandSuggestionKeys.contains(
+          _ideCommandSuggestionKey(command.commandId, command.input),
+        ),
+      ),
       recentIdeCommandSuggestions: _recentIdeCommandSuggestionContexts,
       lastProviderFailure: _lastProviderFailure == null
           ? null
@@ -483,6 +521,17 @@ class AgentCodingSessionController extends ChangeNotifier {
       recentCodingPlans: _recentCodingPlanContexts,
       recentDiagnosticSummaries: _recentDiagnosticSummaryContexts,
     );
+  }
+
+  void _recordRecentIdeCommandResultContext(AgentCommandResultContext result) {
+    _recentIdeCommandResultContexts.insert(0, result);
+    if (_recentIdeCommandResultContexts.length >
+        _maxAgentCommandResultContextHistory) {
+      _recentIdeCommandResultContexts.removeRange(
+        _maxAgentCommandResultContextHistory,
+        _recentIdeCommandResultContexts.length,
+      );
+    }
   }
 
   void _recordRecentPatchApplicationContext(
@@ -655,6 +704,26 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 }
 
+String _ideCommandResultConversationText(AgentCommandResultContext result) {
+  final lines = <String>[
+    'IDE command result:',
+    'commandId: ${result.commandId}',
+    if (result.input != null && result.input!.trim().isNotEmpty)
+      'input: ${result.input}',
+    'applied: ${result.applied}',
+    'message: ${result.message}',
+    if (result.completedAt != null)
+      'completedAt: ${result.completedAt!.toUtc().toIso8601String()}',
+  ];
+  final metadataKeys = result.metadata.keys
+      .where((key) => key.trim().isNotEmpty)
+      .toList(growable: false);
+  if (metadataKeys.isNotEmpty) {
+    lines.add('metadataKeys: ${metadataKeys.join(', ')}');
+  }
+  return lines.join('\n');
+}
+
 String _patchApplicationConversationText(
   AgentCodePatch patch,
   AgentCodePatchApplicationResult result,
@@ -732,6 +801,10 @@ List<AgentPendingIdeCommandContext> _pendingIdeCommandContexts(
     }
   }
   return List<AgentPendingIdeCommandContext>.unmodifiable(commands);
+}
+
+String _ideCommandSuggestionKey(String commandId, String? input) {
+  return '${commandId.trim()}\u0000${(input ?? '').trim()}';
 }
 
 List<AgentCodingPlanContext> _codingPlanContexts(

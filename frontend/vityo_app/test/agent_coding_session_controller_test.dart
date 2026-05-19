@@ -181,6 +181,69 @@ void main() {
   );
 
   test(
+    'agent coding session feeds IDE command result into next prompt context',
+    () async {
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-1',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(
+              kind: AgentContentPartKind.ideCommand,
+              text: 'Run the registered build command.',
+              ideCommand: AgentIdeCommandSuggestion(
+                commandId: 'runBuild',
+                input: 'target=all',
+                reason: 'Validate the native patch.',
+              ),
+            ),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+      );
+      final completedAt = DateTime.utc(2026, 5, 19, 12, 30);
+
+      controller.updatePrompt('Suggest validation.');
+      await controller.sendPrompt();
+      controller.recordIdeCommandResult(
+        AgentCommandResultContext(
+          commandId: 'runBuild',
+          input: 'target=all',
+          applied: true,
+          message: 'Build completed.',
+          metadata: const <String, Object?>{
+            'buildResult': <String, Object?>{'success': true},
+          },
+          completedAt: completedAt,
+        ),
+      );
+      controller.updatePrompt('Continue after validation.');
+      await controller.sendPrompt();
+
+      final nextContext = adapter.requests.last.context;
+      expect(nextContext.agent.pendingIdeCommands, isEmpty);
+      expect(nextContext.commands.lastResult?.commandId, 'runBuild');
+      expect(nextContext.commands.lastResult?.input, 'target=all');
+      expect(nextContext.commands.lastResult?.applied, isTrue);
+      expect(nextContext.commands.lastResult?.message, 'Build completed.');
+      expect(nextContext.commands.recentResults.single.commandId, 'runBuild');
+      expect(
+        nextContext.commands.lastResult?.metadata['buildResult'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(
+        controller.conversationTurns.map((turn) => turn.text).join('\n'),
+        contains('IDE command result:'),
+      );
+    },
+  );
+
+  test(
     'agent coding session clear conversation resets stale error state',
     () async {
       final controller = AgentCodingSessionController(

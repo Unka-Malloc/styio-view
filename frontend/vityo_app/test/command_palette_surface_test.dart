@@ -56,6 +56,7 @@ void main() {
     expect(find.text('registered 2'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
     expect(find.text('Rename Symbol'), findsOneWidget);
+    expect(find.textContaining('Blocked: Needs input'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const ValueKey('command-palette-query-input')),
@@ -71,5 +72,17 @@ void main() {
     await tester.pump();
 
     expect(executedCommandId, AppCommandId.save);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('command-palette-query-input')),
+      'missing',
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('command-palette-empty-state')),
+      findsOneWidget,
+    );
+    expect(find.text('No commands match "missing".'), findsOneWidget);
   });
 }

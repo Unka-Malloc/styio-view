@@ -385,12 +385,12 @@ class VityoIdeCapabilityFramework {
           id: 'interaction.command-palette',
           layer: IdeCapabilityLayer.interaction,
           title: 'Command palette and keybinding resolver',
-          status: IdeCapabilityStatus.scaffolded,
+          status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/commands',
           summary:
-              'Command Palette surface is wired to StyioCommandRegistry and shell command execution.',
+              'Command Palette surface is wired to StyioCommandRegistry, shell command execution, search filtering, keyboard shortcuts, and blocked command availability reasons.',
           todo:
-              'TODO: expose registered commands through searchable palette, keyboard shortcuts, and command availability states.',
+              'TODO: promote this panel to an overlay palette with typed command inputs, recent command ranking, and richer command categories.',
           references: <String>[
             'VS Code command palette',
             'IntelliJ action search',

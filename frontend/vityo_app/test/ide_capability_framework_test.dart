@@ -73,7 +73,11 @@ void main() {
     );
     expect(
       entriesById['interaction.command-palette']?.status,
-      IdeCapabilityStatus.scaffolded,
+      IdeCapabilityStatus.wired,
+    );
+    expect(
+      entriesById['interaction.command-palette']?.summary,
+      contains('blocked command availability reasons'),
     );
     expect(
       entriesById['workspace.edit-application']?.status,

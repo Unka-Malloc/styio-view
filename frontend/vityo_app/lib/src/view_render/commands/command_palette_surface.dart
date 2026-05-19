@@ -91,43 +91,59 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: ListView.separated(
-                key: const ValueKey('command-palette-command-list'),
-                itemCount: visibleCommands.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final command = visibleCommands[index];
-                  final blockedReason = widget.blockedReasonForCommand?.call(
-                    command.id,
-                  );
-                  return ListTile(
-                    key: ValueKey('command-palette-${command.id.name}'),
-                    dense: true,
-                    title: Text(command.label),
-                    subtitle: Text(command.description),
-                    leading: const Icon(Icons.keyboard_command_key_rounded),
-                    trailing: Wrap(
-                      spacing: 8,
-                      children: [
-                        Chip(label: Text(command.shortcutHint)),
-                        if (command.requiresInput)
-                          Chip(label: Text('input ${command.inputLabel}')),
-                        if (blockedReason != null)
-                          const Chip(label: Text('blocked')),
-                      ],
+              child: visibleCommands.isEmpty
+                  ? Center(
+                      key: const ValueKey('command-palette-empty-state'),
+                      child: Text(
+                        normalizedQuery.isEmpty
+                            ? 'No commands registered.'
+                            : 'No commands match "$_query".',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    )
+                  : ListView.separated(
+                      key: const ValueKey('command-palette-command-list'),
+                      itemCount: visibleCommands.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final command = visibleCommands[index];
+                        final blockedReason = widget.blockedReasonForCommand
+                            ?.call(command.id);
+                        return ListTile(
+                          key: ValueKey('command-palette-${command.id.name}'),
+                          dense: true,
+                          title: Text(command.label),
+                          subtitle: Text(
+                            blockedReason == null
+                                ? command.description
+                                : '${command.description}\nBlocked: $blockedReason',
+                          ),
+                          leading: const Icon(
+                            Icons.keyboard_command_key_rounded,
+                          ),
+                          trailing: Wrap(
+                            spacing: 8,
+                            children: [
+                              Chip(label: Text(command.shortcutHint)),
+                              if (command.requiresInput)
+                                Chip(label: Text('input ${command.inputLabel}')),
+                              if (blockedReason != null)
+                                const Chip(label: Text('blocked')),
+                            ],
+                          ),
+                          enabled:
+                              widget.onExecuteCommand != null &&
+                              blockedReason == null,
+                          onTap:
+                              widget.onExecuteCommand == null ||
+                                  blockedReason != null
+                              ? null
+                              : () {
+                                  widget.onExecuteCommand!(command.id);
+                                },
+                        );
+                      },
                     ),
-                    enabled:
-                        widget.onExecuteCommand != null &&
-                        blockedReason == null,
-                    onTap:
-                        widget.onExecuteCommand == null || blockedReason != null
-                        ? null
-                        : () {
-                            widget.onExecuteCommand!(command.id);
-                          },
-                  );
-                },
-              ),
             ),
           ],
         ),

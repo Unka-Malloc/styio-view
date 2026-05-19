@@ -80,6 +80,14 @@ void main() {
       IdeCapabilityStatus.wired,
     );
     expect(
+      entriesById['workspace.edit-application']?.summary,
+      contains('WorkspaceEditPreview'),
+    );
+    expect(
+      entriesById['workspace.edit-application']?.todo,
+      isNot(contains('add preview')),
+    );
+    expect(
       entriesById['agent.coding-loop']?.dependencies,
       contains('workspace.edit-application'),
     );

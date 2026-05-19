@@ -464,9 +464,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/workspace/workspace_edit.dart',
           summary:
-              'WorkspaceEditPlan and WorkspaceEditApplier provide a shared text-edit application path for agent patches, code actions, rename, and formatting.',
+              'WorkspaceEditPlan, WorkspaceEditPreview, and WorkspaceEditApplier provide a shared preview and text-edit application path for agent patches, code actions, rename, and formatting.',
           todo:
-              'TODO: add preview, rollback, file create/delete operations, and UI confirmation flows.',
+              'TODO: add rollback, file create/delete operations, richer diff UI, and explicit confirmation flows.',
           dependencies: <String>[
             'foundation.registry',
             'workspace.project-model',

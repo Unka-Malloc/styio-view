@@ -100,6 +100,11 @@ void main() {
         contains('commands.nativeToolCommandReadiness.toolFamily'),
       );
       expect(decoded.systemPrompt, contains('requiredToolFamilies'));
+      expect(decoded.systemPrompt, contains('requiredCommandId'));
+      expect(
+        decoded.systemPrompt,
+        contains('before the blocked native command'),
+      );
       expect(
         decoded.systemPrompt,
         contains('toolchains.clangCpp.cmakeExecutablePath'),

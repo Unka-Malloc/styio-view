@@ -210,6 +210,7 @@ void main() {
       expect(result.applied, isFalse);
       expect(result.appliedEditCount, 0);
       expect(result.appliedDocumentIds, isEmpty);
+      expect(result.skippedNoOpDocumentIds, <String>['main.styio']);
       expect(result.message, contains('produced no text changes'));
       expect(document.text, 'value = 1\n');
       expect(document.revision, 9);

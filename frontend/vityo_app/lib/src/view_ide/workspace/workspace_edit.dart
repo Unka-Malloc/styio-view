@@ -271,12 +271,14 @@ class WorkspaceEditApplicationResult {
     required this.message,
     this.appliedEditCount = 0,
     this.appliedDocumentIds = const <String>[],
+    this.skippedNoOpDocumentIds = const <String>[],
   });
 
   final bool applied;
   final String message;
   final int appliedEditCount;
   final List<String> appliedDocumentIds;
+  final List<String> skippedNoOpDocumentIds;
 }
 
 class WorkspaceEditApplier {
@@ -346,11 +348,13 @@ class WorkspaceEditApplier {
     }
 
     final appliedDocumentIds = <String>[];
+    final skippedNoOpDocumentIds = <String>[];
     var appliedEditCount = 0;
     for (final entry in normalizedEditsByDocument.entries) {
       final document = loadedDocuments[entry.key]!;
       final nextDocument = _applyEditsToDocument(document, entry.value);
       if (nextDocument.text == document.text) {
+        skippedNoOpDocumentIds.add(entry.key);
         continue;
       }
       try {
@@ -362,6 +366,9 @@ class WorkspaceEditApplier {
               'Workspace edit plan ${plan.id} failed to save ${entry.key}: $error',
           appliedEditCount: appliedEditCount,
           appliedDocumentIds: List<String>.unmodifiable(appliedDocumentIds),
+          skippedNoOpDocumentIds: List<String>.unmodifiable(
+            skippedNoOpDocumentIds,
+          ),
         );
       }
       appliedDocumentIds.add(entry.key);
@@ -374,14 +381,21 @@ class WorkspaceEditApplier {
         message:
             'Workspace edit plan ${plan.id} produced no text changes.',
         appliedDocumentIds: const <String>[],
+        skippedNoOpDocumentIds: List<String>.unmodifiable(
+          skippedNoOpDocumentIds,
+        ),
       );
     }
 
     appliedDocumentIds.sort();
+    skippedNoOpDocumentIds.sort();
     return WorkspaceEditApplicationResult(
       applied: true,
       appliedEditCount: appliedEditCount,
       appliedDocumentIds: List<String>.unmodifiable(appliedDocumentIds),
+      skippedNoOpDocumentIds: List<String>.unmodifiable(
+        skippedNoOpDocumentIds,
+      ),
       message:
           'Applied $appliedEditCount workspace edit(s) from ${plan.source.wireValue} plan ${plan.id}.',
     );

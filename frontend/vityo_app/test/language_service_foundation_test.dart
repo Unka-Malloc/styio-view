@@ -275,6 +275,63 @@ void main() {
     expect(snapshot.referencesFor(snapshot.elements.single), hasLength(2));
   });
 
+  test('semantic snapshot narrows declaration references to symbol names', () {
+    const document = DocumentState(
+      documentId: 'fixture://analysis-declaration-reference-range',
+      text: 'value := 1\nvalue\n',
+      revision: 4,
+    );
+    const analysis = StyioDocumentAnalysis(
+      tokenSpans: <TokenSpan>[],
+      semanticSpans: <SemanticSpan>[],
+      diagnostics: <Diagnostic>[],
+      formattingEdits: <FormattingEdit>[],
+      semanticBlocks: <SemanticBlockRange>[],
+      inlayHints: <InlayHint>[],
+      documentSymbols: <DocumentSymbol>[
+        DocumentSymbol(
+          name: 'value',
+          kind: SymbolKind.variable,
+          nameRange: SourceRange(start: 0, end: 5),
+          declarationRange: SourceRange(start: 0, end: 10),
+        ),
+      ],
+      referenceSpans: <ReferenceSpan>[
+        ReferenceSpan(
+          name: 'value',
+          kind: SymbolKind.variable,
+          range: SourceRange(start: 0, end: 10),
+          targetRange: SourceRange(start: 0, end: 10),
+          isDeclaration: true,
+          access: ReferenceAccess.declaration,
+        ),
+        ReferenceSpan(
+          name: 'value',
+          kind: SymbolKind.variable,
+          range: SourceRange(start: 11, end: 16),
+          targetRange: SourceRange(start: 0, end: 10),
+          access: ReferenceAccess.read,
+        ),
+      ],
+    );
+
+    final snapshot = SemanticSnapshot.fromAnalysis(
+      document: document,
+      analysis: analysis,
+    );
+
+    expect(snapshot.referencesFor(snapshot.elements.single), hasLength(2));
+    final declarationRange = snapshot
+        .referencesFor(snapshot.elements.single)
+        .first
+        .range;
+    expect(declarationRange.start, 0);
+    expect(declarationRange.end, 5);
+    expect(snapshot.referenceAt(4)?.isDeclaration, isTrue);
+    expect(snapshot.referenceAt(5), isNull);
+    expect(snapshot.referenceAt(6), isNull);
+  });
+
   test('semantic snapshot uses half open source ranges', () {
     const document = DocumentState(
       documentId: 'fixture://semantic-range-boundary',
@@ -404,6 +461,68 @@ void main() {
       registry.providersFor('styio', capability: 'completion'),
       hasLength(1),
     );
+  });
+
+  test('language provider registry normalizes and freezes registrations', () {
+    final capabilities = <String>{
+      ' Completion ',
+      'semantic_tokens',
+      'HOVER',
+      '',
+    };
+    final registry = LanguageProviderRegistry<String>()
+      ..register(
+        LanguageProviderRegistration<String>(
+          descriptor: LanguageProviderDescriptor(
+            languageId: ' Styio ',
+            providerId: ' styio-service ',
+            displayName: ' Styio Service ',
+            priority: 10,
+            capabilities: capabilities,
+          ),
+          provider: 'styio-service-provider',
+        ),
+      );
+
+    capabilities
+      ..clear()
+      ..add('diagnostics');
+
+    final registrations = registry.providersFor('STYIO');
+    final descriptor = registrations.single.descriptor;
+    final manifest = registry.manifest(languageId: 'styio');
+
+    expect(registry.resolve('styio', capability: 'completion'), 'styio-service-provider');
+    expect(
+      registry.resolve('styio', capability: 'semantic-tokens'),
+      'styio-service-provider',
+    );
+    expect(registry.resolve('styio', capability: 'diagnostics'), isNull);
+    expect(descriptor.languageId, 'styio');
+    expect(descriptor.providerId, 'styio-service');
+    expect(descriptor.displayName, 'Styio Service');
+    expect(descriptor.capabilities, <String>{
+      'completion',
+      'hover',
+      'semantic-tokens',
+    });
+    expect(
+      () => descriptor.capabilities.add('diagnostics'),
+      throwsUnsupportedError,
+    );
+    expect(manifest.entries.single.capabilities, <String>[
+      'completion',
+      'hover',
+      'semantic-tokens',
+    ]);
+    expect(
+      registry.unregister(
+        languageId: ' STYIO ',
+        providerId: ' styio-service ',
+      ),
+      isTrue,
+    );
+    expect(registry.providersFor('styio'), isEmpty);
   });
 
   test('language provider registry manifest is metadata-only', () {

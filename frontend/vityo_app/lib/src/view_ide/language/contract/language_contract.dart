@@ -134,10 +134,20 @@ List<FormattingEdit> normalizeFormattingEditsForDocument({
     if (edit.range.start < previousEnd) {
       continue;
     }
+    if (selected.isNotEmpty &&
+        _sameFormattingInsertionOffset(selected.last, edit)) {
+      continue;
+    }
     selected.add(edit);
     previousEnd = edit.range.end;
   }
   return List.unmodifiable(selected);
+}
+
+bool _sameFormattingInsertionOffset(FormattingEdit left, FormattingEdit right) {
+  return left.range.isCollapsed &&
+      right.range.isCollapsed &&
+      left.range.start == right.range.start;
 }
 
 bool isFormattingEditValidForDocument({

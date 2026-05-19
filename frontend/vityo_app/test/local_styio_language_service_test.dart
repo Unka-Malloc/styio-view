@@ -3,7 +3,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
+import 'package:vityo_app/src/view_ide/language/features/styio_formatting_feature.dart';
+import 'package:vityo_app/src/view_ide/language/features/styio_inlay_hint_feature.dart';
+import 'package:vityo_app/src/view_ide/language/features/styio_semantic_token_feature.dart';
+import 'package:vityo_app/src/view_ide/language/features/styio_syntax_diagnostic_feature.dart';
 import 'package:vityo_app/src/view_ide/language/semantic/styio_symbol_index.dart';
+import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/local_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/language/service/project_document_rule_provider.dart';
 import 'package:vityo_app/src/view_ide/language/service/project_styio_document_service.dart';
@@ -106,6 +111,50 @@ void main() {
       analysis.diagnostics.map((diagnostic) => diagnostic.code),
       contains('local.unclosed-delimiter'),
     );
+  });
+
+  test('updates semantic block ranges when function boundaries change', () {
+    const service = LocalStyioLanguageService();
+    const initialDocument = DocumentState(
+      documentId: 'fixture://semantic-block-initial',
+      text: '#main := () => {\n  value := 1\n}\n',
+      revision: 1,
+    );
+    const expandedDocument = DocumentState(
+      documentId: 'fixture://semantic-block-expanded',
+      text: '#main := () => {\n  value := 1\n  next := value\n}\n',
+      revision: 2,
+    );
+
+    final initialBlock = service.analyzeDocument(initialDocument).semanticBlocks.single;
+    final expandedBlock = service.analyzeDocument(expandedDocument).semanticBlocks.single;
+
+    expect(initialBlock.label, 'main');
+    expect(expandedBlock.label, 'main');
+    expect(expandedBlock.range.end, greaterThan(initialBlock.range.end));
+  });
+
+  test('keeps token facts when optional local language features fail', () {
+    const service = LocalStyioLanguageService(
+      semanticTokenFeature: _ThrowingSemanticTokenFeature(),
+      syntaxDiagnosticFeature: _ThrowingSyntaxDiagnosticFeature(),
+      formattingFeature: _ThrowingFormattingFeature(),
+      inlayHintFeature: _ThrowingInlayHintFeature(),
+    );
+    const document = DocumentState(
+      documentId: 'fixture://feature-failure',
+      text: '#main := () => {\n  value := 1\n}\n',
+      revision: 1,
+    );
+
+    final analysis = service.analyzeDocument(document);
+
+    expect(analysis.tokenSpans, isNotEmpty);
+    expect(analysis.documentSymbols.map((symbol) => symbol.name), contains('main'));
+    expect(analysis.semanticSpans, isEmpty);
+    expect(analysis.diagnostics, isEmpty);
+    expect(analysis.formattingEdits, isEmpty);
+    expect(analysis.inlayHints, isEmpty);
   });
 
   test('routes local syntax diagnostic quick fixes', () {
@@ -278,5 +327,47 @@ class _FixedProjectDocumentRuleProvider implements ProjectDocumentRuleProvider {
         edits: <FormattingEdit>[],
       ),
     ];
+  }
+}
+
+class _ThrowingSemanticTokenFeature extends StyioSemanticTokenFeature {
+  const _ThrowingSemanticTokenFeature();
+
+  @override
+  List<SemanticSpan> semanticSpans({required SemanticSnapshot snapshot}) {
+    throw StateError('semantic feature unavailable');
+  }
+}
+
+class _ThrowingSyntaxDiagnosticFeature extends StyioSyntaxDiagnosticFeature {
+  const _ThrowingSyntaxDiagnosticFeature();
+
+  @override
+  List<Diagnostic> diagnosticsFor({
+    required DocumentState document,
+    required List<TokenSpan> tokens,
+  }) {
+    throw StateError('diagnostic feature unavailable');
+  }
+}
+
+class _ThrowingFormattingFeature extends StyioFormattingFeature {
+  const _ThrowingFormattingFeature();
+
+  @override
+  List<FormattingEdit> formatDocument(DocumentState document) {
+    throw StateError('formatting feature unavailable');
+  }
+}
+
+class _ThrowingInlayHintFeature extends StyioInlayHintFeature {
+  const _ThrowingInlayHintFeature();
+
+  @override
+  List<InlayHint> inlayHints({
+    required DocumentState document,
+    required SemanticSnapshot snapshot,
+  }) {
+    throw StateError('inlay hint feature unavailable');
   }
 }

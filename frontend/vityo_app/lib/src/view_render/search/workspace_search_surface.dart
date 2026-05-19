@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../agent/agent_context.dart';
+import '../../view_ide/workspace/workspace.dart';
 import '../platform/viewport_profile.dart';
 
 class WorkspaceSearchSurface extends StatefulWidget {
@@ -8,15 +9,19 @@ class WorkspaceSearchSurface extends StatefulWidget {
     super.key,
     required this.viewportProfile,
     required this.workspaceFileCount,
+    this.workspaceFiles = const <String>[],
     this.lastSearch,
     this.onSearch,
+    this.onOpenFile,
     this.onOpenMatch,
   });
 
   final ViewportProfile viewportProfile;
   final int workspaceFileCount;
+  final List<String> workspaceFiles;
   final AgentWorkspaceSearchResultContext? lastSearch;
   final Future<void> Function(String query)? onSearch;
+  final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
       onOpenMatch;
 
@@ -26,7 +31,10 @@ class WorkspaceSearchSurface extends StatefulWidget {
 
 class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
   late final TextEditingController _queryController;
+  late final TextEditingController _quickOpenController;
+  static const _quickOpenService = WorkspaceQuickOpenService();
   var _submitting = false;
+  var _quickOpenQuery = '';
 
   @override
   void initState() {
@@ -34,6 +42,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
     _queryController = TextEditingController(
       text: widget.lastSearch?.query ?? '',
     );
+    _quickOpenController = TextEditingController();
   }
 
   @override
@@ -50,6 +59,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
   @override
   void dispose() {
     _queryController.dispose();
+    _quickOpenController.dispose();
     super.dispose();
   }
 
@@ -77,6 +87,11 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
     final theme = Theme.of(context);
     final compact = widget.viewportProfile.isMobile;
     final lastSearch = widget.lastSearch;
+    final quickOpenResult = _quickOpenService.searchFiles(
+      documentIds: widget.workspaceFiles,
+      query: _quickOpenQuery,
+      maxResults: compact ? 4 : 6,
+    );
 
     return Card(
       key: const ValueKey('workspace-search-surface'),
@@ -126,6 +141,62 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Text('Quick Open', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('workspace-quick-open-input'),
+              controller: _quickOpenController,
+              decoration: const InputDecoration(
+                labelText: 'Open file by path',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _quickOpenQuery = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            if (widget.workspaceFiles.isEmpty)
+              Text(
+                'No workspace files available for quick open.',
+                style: theme.textTheme.bodySmall,
+              )
+            else if (quickOpenResult.matches.isEmpty)
+              Text(
+                'No files match "$_quickOpenQuery".',
+                style: theme.textTheme.bodySmall,
+              )
+            else
+              SizedBox(
+                height: compact ? 112 : 136,
+                child: ListView.separated(
+                  key: const ValueKey('workspace-quick-open-list'),
+                  itemCount: quickOpenResult.matches.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final match = quickOpenResult.matches[index];
+                    return ListTile(
+                      key: ValueKey(
+                        'workspace-quick-open-${match.documentId}',
+                      ),
+                      dense: true,
+                      title: Text(match.label),
+                      subtitle: Text(match.documentId),
+                      trailing: quickOpenResult.truncated &&
+                              index == quickOpenResult.matches.length - 1
+                          ? const Chip(label: Text('more'))
+                          : const Icon(Icons.open_in_new_rounded),
+                      onTap: widget.onOpenFile == null
+                          ? null
+                          : () {
+                              widget.onOpenFile!(match.documentId);
+                            },
+                    );
+                  },
+                ),
+              ),
             const SizedBox(height: 12),
             if (lastSearch == null)
               Text(

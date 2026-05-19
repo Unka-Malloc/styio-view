@@ -104,6 +104,91 @@ class WorkspaceReplacePreview {
   );
 }
 
+class WorkspaceQuickOpenMatch {
+  const WorkspaceQuickOpenMatch({
+    required this.documentId,
+    required this.label,
+    required this.score,
+  });
+
+  final String documentId;
+  final String label;
+  final int score;
+}
+
+class WorkspaceQuickOpenResult {
+  const WorkspaceQuickOpenResult({
+    required this.matches,
+    this.truncated = false,
+  });
+
+  final List<WorkspaceQuickOpenMatch> matches;
+  final bool truncated;
+}
+
+class WorkspaceQuickOpenService {
+  const WorkspaceQuickOpenService();
+
+  WorkspaceQuickOpenResult searchFiles({
+    required Iterable<String> documentIds,
+    required String query,
+    int maxResults = 20,
+  }) {
+    if (maxResults <= 0) {
+      return const WorkspaceQuickOpenResult(
+        matches: <WorkspaceQuickOpenMatch>[],
+      );
+    }
+    final orderedDocumentIds = _uniqueDocumentIds(documentIds);
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) {
+      final matches = orderedDocumentIds
+          .take(maxResults)
+          .map(
+            (documentId) => WorkspaceQuickOpenMatch(
+              documentId: documentId,
+              label: _workspaceFileLabel(documentId),
+              score: 0,
+            ),
+          )
+          .toList(growable: false);
+      return WorkspaceQuickOpenResult(
+        matches: matches,
+        truncated: orderedDocumentIds.length > maxResults,
+      );
+    }
+
+    final matches = <WorkspaceQuickOpenMatch>[];
+    for (final documentId in orderedDocumentIds) {
+      final score = _scoreWorkspaceQuickOpenMatch(
+        documentId,
+        normalizedQuery,
+      );
+      if (score == null) {
+        continue;
+      }
+      matches.add(
+        WorkspaceQuickOpenMatch(
+          documentId: documentId,
+          label: _workspaceFileLabel(documentId),
+          score: score,
+        ),
+      );
+    }
+    matches.sort((left, right) {
+      final byScore = right.score.compareTo(left.score);
+      if (byScore != 0) {
+        return byScore;
+      }
+      return left.documentId.compareTo(right.documentId);
+    });
+    return WorkspaceQuickOpenResult(
+      matches: List.unmodifiable(matches.take(maxResults)),
+      truncated: matches.length > maxResults,
+    );
+  }
+}
+
 class WorkspaceSearchService {
   const WorkspaceSearchService({required this.documentStore});
 
@@ -574,4 +659,63 @@ bool _isWorkspaceSearchWordCharacter(int? codeUnit) {
       (codeUnit >= 65 && codeUnit <= 90) ||
       (codeUnit >= 97 && codeUnit <= 122) ||
       codeUnit == 95;
+}
+
+String _workspaceFileLabel(String documentId) {
+  final normalized = documentId.replaceAll('\\', '/');
+  final slash = normalized.lastIndexOf('/');
+  return slash < 0 ? normalized : normalized.substring(slash + 1);
+}
+
+int? _scoreWorkspaceQuickOpenMatch(String documentId, String query) {
+  final normalizedPath = documentId.replaceAll('\\', '/').toLowerCase();
+  final label = _workspaceFileLabel(documentId).toLowerCase();
+  if (normalizedPath == query) {
+    return 1000;
+  }
+  if (label == query) {
+    return 950;
+  }
+  if (normalizedPath.startsWith(query)) {
+    return 900 - normalizedPath.length;
+  }
+  if (label.startsWith(query)) {
+    return 850 - label.length;
+  }
+  final labelIndex = label.indexOf(query);
+  if (labelIndex >= 0) {
+    return 700 - labelIndex - label.length;
+  }
+  final pathIndex = normalizedPath.indexOf(query);
+  if (pathIndex >= 0) {
+    return 650 - pathIndex - normalizedPath.length;
+  }
+  final fuzzyPenalty = _workspaceQuickOpenFuzzyPenalty(
+    normalizedPath,
+    query,
+  );
+  if (fuzzyPenalty == null) {
+    return null;
+  }
+  return 400 - fuzzyPenalty;
+}
+
+int? _workspaceQuickOpenFuzzyPenalty(String path, String query) {
+  var pathIndex = 0;
+  var previousMatch = -1;
+  var penalty = 0;
+  for (var queryIndex = 0; queryIndex < query.length; queryIndex += 1) {
+    final nextIndex = path.indexOf(query[queryIndex], pathIndex);
+    if (nextIndex < 0) {
+      return null;
+    }
+    if (previousMatch >= 0) {
+      penalty += nextIndex - previousMatch - 1;
+    } else {
+      penalty += nextIndex;
+    }
+    previousMatch = nextIndex;
+    pathIndex = nextIndex + 1;
+  }
+  return penalty + path.length - query.length;
 }

@@ -32,6 +32,10 @@ void main() {
       contains('match-level navigation callback'),
     );
     expect(
+      entriesById['interaction.search']?.summary,
+      contains('file quick open service'),
+    );
+    expect(
       entriesById['presentation.problems-panel']?.status,
       IdeCapabilityStatus.scaffolded,
     );

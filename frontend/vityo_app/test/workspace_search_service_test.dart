@@ -3,6 +3,52 @@ import 'package:vityo_app/src/view_ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
+  test('workspace quick open ranks exact prefix contains and fuzzy matches', () {
+    final result = const WorkspaceQuickOpenService().searchFiles(
+      documentIds: const <String>[
+        'docs/readme.md',
+        'src/main.styio',
+        'test/main_test.dart',
+        'src/lib/math.styio',
+      ],
+      query: 'main',
+    );
+    final fuzzy = const WorkspaceQuickOpenService().searchFiles(
+      documentIds: const <String>[
+        'src/workspace_search_service.dart',
+        'src/source_control_status.dart',
+      ],
+      query: 'wss',
+    );
+
+    expect(
+      result.matches.map((match) => match.documentId),
+      <String>['src/main.styio', 'test/main_test.dart'],
+    );
+    expect(result.matches.first.label, 'main.styio');
+    expect(result.truncated, isFalse);
+    expect(fuzzy.matches.single.documentId, 'src/workspace_search_service.dart');
+  });
+
+  test('workspace quick open preserves empty query order and truncates', () {
+    final result = const WorkspaceQuickOpenService().searchFiles(
+      documentIds: const <String>[
+        'src/main.styio',
+        'src/main.styio',
+        'src/lib.styio',
+        'test/main_test.dart',
+      ],
+      query: '',
+      maxResults: 2,
+    );
+
+    expect(
+      result.matches.map((match) => match.documentId),
+      <String>['src/main.styio', 'src/lib.styio'],
+    );
+    expect(result.truncated, isTrue);
+  });
+
   test('workspace search scans supplied documents through document store', () async {
     final store = InMemoryWorkspaceDocumentStore(
       seededDocuments: const <String, DocumentState>{

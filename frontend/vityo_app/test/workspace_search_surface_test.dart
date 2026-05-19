@@ -75,4 +75,54 @@ void main() {
     expect(openedMatch?.lineNumber, 1);
     expect(openedMatch?.start, 0);
   });
+
+  testWidgets('workspace search surface filters and opens quick-open files', (
+    tester,
+  ) async {
+    String? openedDocumentId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WorkspaceSearchSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            workspaceFileCount: 3,
+            workspaceFiles: const <String>[
+              'src/main.styio',
+              'src/lib/math.styio',
+              'docs/readme.md',
+            ],
+            onOpenFile: (documentId) async {
+              openedDocumentId = documentId;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('workspace-quick-open-list')),
+      findsOneWidget,
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('workspace-quick-open-input')),
+      'math',
+    );
+    await tester.pump();
+
+    expect(find.text('math.styio'), findsOneWidget);
+    expect(find.text('main.styio'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const ValueKey('workspace-quick-open-src/lib/math.styio')),
+    );
+    await tester.pump();
+
+    expect(openedDocumentId, 'src/lib/math.styio');
+  });
 }

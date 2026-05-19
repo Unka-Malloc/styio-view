@@ -216,8 +216,10 @@ class VityoShellScaffold extends StatelessWidget {
         return WorkspaceSearchSurface(
           viewportProfile: viewportProfile,
           workspaceFileCount: shell.workspaceController.files.length,
+          workspaceFiles: shell.workspaceController.files,
           lastSearch: shell.agentSessionContext.workspace.lastSearch,
           onSearch: shell.searchWorkspaceForAgent,
+          onOpenFile: shell.openWorkspaceFileForAgent,
           onOpenMatch: (match) => shell.openWorkspaceFileForAgent(
             match.documentId,
           ),

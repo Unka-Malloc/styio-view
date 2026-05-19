@@ -695,6 +695,11 @@ void main() {
         systemMessage['content'],
         contains('commands.lastResult.metadata.toolchainSelectionStatus'),
       );
+      expect(systemMessage['content'], contains('status is not selected'));
+      expect(
+        systemMessage['content'],
+        contains('before another selection or build/test retry'),
+      );
       expect(
         systemMessage['content'],
         contains('backendRouteSelection.allowed is false'),

@@ -85,6 +85,11 @@ void main() {
       );
       expect(decoded.systemPrompt, contains('backendRouteSelection'));
       expect(decoded.systemPrompt, contains('toolchainSelectionStatus'));
+      expect(decoded.systemPrompt, contains('status is not selected'));
+      expect(
+        decoded.systemPrompt,
+        contains('before another selection or build/test retry'),
+      );
       expect(
         decoded.systemPrompt,
         contains('backendRouteSelection.allowed is false'),

@@ -1338,6 +1338,7 @@ Vityo structured response contract:
 - If commands.lastResult.metadata.backendRouteSelection is present, inspect routeKind, adapterKind, allowed, previewOnly, and blockedReason before proposing build, run, test, retry, or provider/toolchain reconfiguration.
 - If commands.lastResult.metadata.backendRouteSelection.allowed is false and commands.settingsCommands includes openSettings, propose openSettings before retrying the blocked route.
 - If commands.lastResult.metadata.toolchainSelectionStatus is present, inspect toolchainId, cppStandard, and status before proposing build, test, or another selectClangCppVersion command.
+- If commands.lastResult.metadata.toolchainSelectionStatus is present, status is not selected, and commands.settingsCommands includes openSettings, propose openSettings before another selection or build/test retry.
 - If commands.lastResult.metadata.preferredBuildEngineHandoff is present, use its engineFamily, generatorFamily, arguments, and environment for the next CMake/Ninja handoff instead of inventing build flags.
 - If commands.lastResult.metadata.buildResult is present, treat it as the latest structured build outcome before proposing another build, test, debug, or code patch step.
 - If commands.lastResult.metadata.formatResult is present, treat it as the latest structured formatting outcome before proposing another formatter run or patch cleanup.

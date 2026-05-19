@@ -51,6 +51,21 @@ class HostedWorkspaceDocumentStore implements WorkspaceDocumentStore {
   }
 
   @override
+  Future<bool> deleteDocument(String path) {
+    throw UnsupportedError('Hosted workspace document deletion is not supported.');
+  }
+
+  @override
+  Future<bool> documentExists(String path) async {
+    try {
+      await loadDocument(path);
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
+  @override
   String? filePathForDocumentId(String documentId) => documentId;
 }
 

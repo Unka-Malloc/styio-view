@@ -216,8 +216,15 @@ void main() {
             firstDocumentPath,
             secondDocumentPath,
           ],
-          cursorOffsets: <String, int>{secondDocumentPath: 4},
-          selectionAnchors: <String, int>{secondDocumentPath: 1},
+          dirtyDocumentIds: <String>[firstDocumentPath],
+          cursorOffsets: <String, int>{
+            firstDocumentPath: 5,
+            secondDocumentPath: 4,
+          },
+          selectionAnchors: <String, int>{
+            firstDocumentPath: 2,
+            secondDocumentPath: 1,
+          },
         ),
       );
       final workspaceController = WorkspaceController(
@@ -274,10 +281,35 @@ void main() {
       final restoredSnapshot = await shell.restoreEditorSession();
 
       expect(restoredSnapshot?.activeDocumentId, secondDocumentPath);
+      expect(shell.dirtyDocumentPaths, <String>[firstDocumentPath]);
+      expect(workspaceController.openFilePaths, <String>[
+        firstDocumentPath,
+        secondDocumentPath,
+      ]);
       expect(workspaceController.activeFilePath, secondDocumentPath);
       expect(shell.editorController.document.documentId, secondDocumentPath);
       expect(shell.editorController.selection.start, 1);
       expect(shell.editorController.selection.end, 4);
+
+      workspaceController.openFile(firstDocumentPath);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(shell.editorController.document.documentId, firstDocumentPath);
+      expect(shell.editorController.selection.start, 2);
+      expect(shell.editorController.selection.end, 5);
+
+      shell.editorController.selectRange(baseOffset: 0, extentOffset: 3);
+      workspaceController.openFile(secondDocumentPath);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      workspaceController.openFile(firstDocumentPath);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(shell.editorController.document.documentId, firstDocumentPath);
+      expect(shell.editorController.selection.start, 0);
+      expect(shell.editorController.selection.end, 3);
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Editor session restored'),

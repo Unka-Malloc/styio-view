@@ -66,6 +66,34 @@ void main() {
     },
   );
 
+  test('filesystem store rejects escaping relative document ids', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_store_escape_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+
+    final store = FileSystemWorkspaceDocumentStore(tempRoot);
+
+    expect(
+      () => store.filePathForDocumentId('../secret.styio'),
+      throwsArgumentError,
+    );
+    await expectLater(
+      store.loadDocument('..\\secret.styio'),
+      throwsArgumentError,
+    );
+    await expectLater(
+      store.saveDocument(
+        const DocumentState(
+          documentId: '../secret.styio',
+          text: 'secret\n',
+          revision: 1,
+        ),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('filesystem store watches document text and revision changes', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_store_watch_test_',

@@ -8,6 +8,10 @@ abstract class WorkspaceDocumentStore {
 
   Future<void> saveDocument(DocumentState document);
 
+  Future<bool> deleteDocument(String path);
+
+  Future<bool> documentExists(String path);
+
   String? filePathForDocumentId(String documentId);
 }
 
@@ -47,6 +51,18 @@ class SharedPreferencesWorkspaceDocumentStore
   }
 
   @override
+  Future<bool> deleteDocument(String path) async {
+    final removedText = await _preferences.remove(_textKey(path));
+    final removedRevision = await _preferences.remove(_revisionKey(path));
+    return removedText || removedRevision;
+  }
+
+  @override
+  Future<bool> documentExists(String path) async {
+    return _preferences.getString(_textKey(path)) != null;
+  }
+
+  @override
   String? filePathForDocumentId(String documentId) => null;
 
   String _textKey(String path) => '$keyPrefix.$path.text';
@@ -70,6 +86,14 @@ class InMemoryWorkspaceDocumentStore implements WorkspaceDocumentStore {
   Future<void> saveDocument(DocumentState document) async {
     _documents[document.documentId] = document;
   }
+
+  @override
+  Future<bool> deleteDocument(String path) async {
+    return _documents.remove(path) != null;
+  }
+
+  @override
+  Future<bool> documentExists(String path) async => _documents.containsKey(path);
 
   @override
   String? filePathForDocumentId(String documentId) => null;

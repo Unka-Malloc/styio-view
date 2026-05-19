@@ -4213,14 +4213,16 @@ class ShellRuntimeModel extends ChangeNotifier {
     final restoredDirtyDocumentIds = snapshot.dirtyDocumentIds
         .where(workspaceController.files.contains)
         .toList(growable: false);
-    _dirtyDocumentPaths
-      ..clear()
-      ..addAll(restoredDirtyDocumentIds);
-    if (restoredDirtyDocumentIds.isNotEmpty) {
-      appendLog(
-        'Editor session restored dirty state for '
-        '${restoredDirtyDocumentIds.length} document(s).',
-      );
+    void restoreDirtyDocumentState() {
+      _dirtyDocumentPaths
+        ..clear()
+        ..addAll(restoredDirtyDocumentIds);
+      if (restoredDirtyDocumentIds.isNotEmpty) {
+        appendLog(
+          'Editor session restored dirty state for '
+          '${restoredDirtyDocumentIds.length} document(s).',
+        );
+      }
     }
     final restoredOpenDocumentIds = snapshot.openDocumentIds
         .where(workspaceController.files.contains)
@@ -4251,6 +4253,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           'Editor session snapshot loaded for $activeDocumentId, '
           'but the document is not available in the workspace.',
         );
+        restoreDirtyDocumentState();
         return snapshot;
       }
       _suppressWorkspaceChangedLoad = true;
@@ -4259,7 +4262,13 @@ class ShellRuntimeModel extends ChangeNotifier {
       } finally {
         _suppressWorkspaceChangedLoad = false;
       }
-      await _loadActiveWorkspaceDocument();
+      final previousSelectionTracking = _suppressSelectionTracking;
+      _suppressSelectionTracking = true;
+      try {
+        await _loadActiveWorkspaceDocument();
+      } finally {
+        _suppressSelectionTracking = previousSelectionTracking;
+      }
       documentId = editorController.document.documentId;
     }
 
@@ -4268,9 +4277,11 @@ class ShellRuntimeModel extends ChangeNotifier {
         'Editor session snapshot loaded for $activeDocumentId, '
         'current document is $documentId.',
       );
+      restoreDirtyDocumentState();
       return snapshot;
     }
 
+    restoreDirtyDocumentState();
     _restoreSelectionForDocument(documentId);
     appendLog('Editor session restored for $documentId.');
     return snapshot;

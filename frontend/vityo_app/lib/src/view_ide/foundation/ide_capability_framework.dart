@@ -568,9 +568,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/module_host',
           summary:
-              'Module manifests can be projected into stable extension manifests with activation events, contribution points, capability flags, registry lookup, Foundation DataStore persistence, and contribution route manifests for target registries.',
+              'Module manifests can be projected into stable extension manifests with activation events, contribution points, capability flags, registry lookup, Foundation DataStore persistence, extension activation sessions, trust-policy gating, and contribution route manifests for target registries.',
           todo:
-              'TODO: let command/language/debug/toolchain registries consume extension route manifests and add extension host activation.',
+              'TODO: add extension host execution isolation, lifecycle hooks, and persisted activation telemetry.',
           references: <String>[
             'VS Code extension manifest',
             'Theia extension model',

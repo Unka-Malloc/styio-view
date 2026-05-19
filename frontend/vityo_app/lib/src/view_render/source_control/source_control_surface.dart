@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../view_ide/workspace/source_control_status.dart';
 import '../platform/viewport_profile.dart';
 
 class SourceControlSurface extends StatelessWidget {
@@ -8,6 +9,7 @@ class SourceControlSurface extends StatelessWidget {
     required this.viewportProfile,
     required this.workspaceFileCount,
     required this.changedDocumentIds,
+    this.status,
     this.onOpenFile,
     this.onSaveAll,
   });
@@ -15,6 +17,7 @@ class SourceControlSurface extends StatelessWidget {
   final ViewportProfile viewportProfile;
   final int workspaceFileCount;
   final List<String> changedDocumentIds;
+  final SourceControlStatusSnapshot? status;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function()? onSaveAll;
 
@@ -22,6 +25,9 @@ class SourceControlSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = viewportProfile.isMobile;
+    final providerKind =
+        status?.providerKind.wireValue ?? 'local-dirty-documents';
+    final gitChanges = status?.changes ?? const <SourceControlFileChange>[];
 
     return Card(
       key: const ValueKey('source-control-surface'),
@@ -43,7 +49,11 @@ class SourceControlSurface extends StatelessWidget {
               children: [
                 Chip(label: Text('workspace-files $workspaceFileCount')),
                 Chip(label: Text('changed ${changedDocumentIds.length}')),
-                const Chip(label: Text('provider local-dirty-documents')),
+                Chip(label: Text('provider $providerKind')),
+                if (status?.branchName.isNotEmpty == true)
+                  Chip(label: Text('branch ${status!.branchName}')),
+                if (status != null)
+                  Chip(label: Text('git ${gitChanges.length}')),
               ],
             ),
             const SizedBox(height: 12),
@@ -60,6 +70,36 @@ class SourceControlSurface extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            if (gitChanges.isNotEmpty) ...[
+              Text('Git Changes', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.separated(
+                  key: const ValueKey('source-control-git-change-list'),
+                  itemCount: gitChanges.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final change = gitChanges[index];
+                    return ListTile(
+                      key: ValueKey('source-control-git-change-${change.path}'),
+                      dense: true,
+                      leading: const Icon(Icons.account_tree_outlined),
+                      title: Text(change.path),
+                      subtitle: Text(change.summary),
+                      trailing: change.originalPath.isEmpty
+                          ? null
+                          : Text('from ${change.originalPath}'),
+                      onTap: onOpenFile == null
+                          ? null
+                          : () {
+                              onOpenFile!(change.path);
+                            },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Text('Changes', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             if (changedDocumentIds.isEmpty)

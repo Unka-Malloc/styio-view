@@ -176,6 +176,12 @@ void main() {
     );
 
     expect(find.text('Runtime Event Replay'), findsOneWidget);
+    expect(find.text('Output Channels'), findsOneWidget);
+    expect(find.text('runtime-events 10'), findsOneWidget);
+    expect(
+      find.text('Runtime events: run.finished from styio.runtime'),
+      findsOneWidget,
+    );
     expect(find.text('Execution Graph'), findsOneWidget);
     expect(
       find.text(

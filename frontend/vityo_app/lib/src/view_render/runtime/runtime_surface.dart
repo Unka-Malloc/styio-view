@@ -115,6 +115,12 @@ class RuntimeSurface extends StatelessWidget {
                   onOpenNativeToolDiagnostics: onOpenNativeToolDiagnostics,
                 ),
                 SizedBox(height: cardSpacing),
+                _OutputChannelSection(
+                  executionSession: executionSession,
+                  runtimeEvents: runtimeEvents,
+                  nativeToolResults: nativeToolResults,
+                ),
+                SizedBox(height: cardSpacing),
                 _RuntimeGraphSection(graph: graph),
                 SizedBox(height: cardSpacing),
                 _RuntimeLaneSection(replay: replay),
@@ -176,6 +182,12 @@ class RuntimeSurface extends StatelessWidget {
                 _NativeToolResultSection(
                   results: nativeToolResults,
                   onOpenNativeToolDiagnostics: onOpenNativeToolDiagnostics,
+                ),
+                SizedBox(height: cardSpacing),
+                _OutputChannelSection(
+                  executionSession: executionSession,
+                  runtimeEvents: runtimeEvents,
+                  nativeToolResults: nativeToolResults,
                 ),
                 SizedBox(height: cardSpacing),
                 _RuntimeGraphSection(graph: graph),
@@ -603,6 +615,131 @@ class _RuntimeEventSection extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OutputChannelSection extends StatelessWidget {
+  const _OutputChannelSection({
+    required this.executionSession,
+    required this.runtimeEvents,
+    required this.nativeToolResults,
+  });
+
+  final ExecutionSession? executionSession;
+  final List<RuntimeEventEnvelope> runtimeEvents;
+  final List<NativeToolResultRecord> nativeToolResults;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final channels = _outputChannels(
+      executionSession: executionSession,
+      runtimeEvents: runtimeEvents,
+      nativeToolResults: nativeToolResults,
+    );
+    final visibleChannels = channels
+        .where((channel) => channel.eventCount > 0)
+        .toList(growable: false);
+    return Container(
+      key: const ValueKey('runtime-output-channels'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8ECF6),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Output Channels', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Filtered output channel summary for runtime events, process streams, and native tool activity. TODO: add user-selectable channel filters and persisted output history.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          if (visibleChannels.isEmpty)
+            Text(
+              'No output has been captured yet.',
+              style: theme.textTheme.bodySmall,
+            )
+          else ...[
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                for (final channel in visibleChannels)
+                  Chip(label: Text('${channel.id} ${channel.eventCount}')),
+              ],
+            ),
+            const SizedBox(height: 10),
+            for (final channel in visibleChannels.take(4))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '${channel.label}: ${channel.latestMessage}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OutputChannelSummary {
+  const _OutputChannelSummary({
+    required this.id,
+    required this.label,
+    required this.eventCount,
+    required this.latestMessage,
+  });
+
+  final String id;
+  final String label;
+  final int eventCount;
+  final String latestMessage;
+}
+
+List<_OutputChannelSummary> _outputChannels({
+  required ExecutionSession? executionSession,
+  required List<RuntimeEventEnvelope> runtimeEvents,
+  required List<NativeToolResultRecord> nativeToolResults,
+}) {
+  return <_OutputChannelSummary>[
+    _OutputChannelSummary(
+      id: 'runtime-events',
+      label: 'Runtime events',
+      eventCount: runtimeEvents.length,
+      latestMessage: runtimeEvents.isEmpty
+          ? 'No runtime event.'
+          : '${runtimeEvents.last.eventKind} from ${runtimeEvents.last.origin}',
+    ),
+    _OutputChannelSummary(
+      id: 'stdout',
+      label: 'Stdout',
+      eventCount: executionSession?.stdoutEvents.length ?? 0,
+      latestMessage: executionSession?.stdoutEvents.isEmpty ?? true
+          ? 'No stdout event.'
+          : executionSession!.stdoutEvents.last.message,
+    ),
+    _OutputChannelSummary(
+      id: 'stderr',
+      label: 'Stderr',
+      eventCount: executionSession?.stderrEvents.length ?? 0,
+      latestMessage: executionSession?.stderrEvents.isEmpty ?? true
+          ? 'No stderr event.'
+          : executionSession!.stderrEvents.last.message,
+    ),
+    _OutputChannelSummary(
+      id: 'native-tools',
+      label: 'Native tools',
+      eventCount: nativeToolResults.length,
+      latestMessage: nativeToolResults.isEmpty
+          ? 'No native tool result.'
+          : nativeToolResults.first.message,
+    ),
+  ];
 }
 
 class _RuntimeLaneSection extends StatelessWidget {

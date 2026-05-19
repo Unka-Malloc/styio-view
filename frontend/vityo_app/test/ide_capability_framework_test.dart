@@ -60,6 +60,10 @@ void main() {
       contains('workspace.diagnostics'),
     );
     expect(
+      entriesById['presentation.output-panel']?.summary,
+      contains('Output Channels'),
+    );
+    expect(
       entriesById['interaction.diagnostics']?.dependencies,
       contains('workspace.diagnostics'),
     );

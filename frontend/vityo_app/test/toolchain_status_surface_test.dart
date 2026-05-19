@@ -187,4 +187,84 @@ void main() {
     expect(surface.installHistory.single.id, 'install-1');
     expect(surface.toJson()['hasManagerSnapshot'], isTrue);
   });
+
+  test('toolchain settings surface projects Clang C++ version manager', () {
+    const report = ToolchainManagerStatusReport(
+      status: ToolchainManagerStatus.ready,
+      snapshot: ToolchainStateSnapshot(
+        targetId: 'test-target',
+        workspaceId: 'demo',
+        entries: <ToolchainStateEntry>[
+          ToolchainStateEntry(
+            id: 'clang-17',
+            kind: ToolchainKind.compiler,
+            displayName: 'Clang 17',
+            executablePath: '/opt/clang-17/bin/clang++',
+            active: true,
+            version: '17.0.6',
+            metadata: <String, Object?>{
+              'compilerFamily': 'clang',
+              'cCompilerPath': '/opt/clang-17/bin/clang',
+              'cxxCompilerPath': '/opt/clang-17/bin/clang++',
+              'source': 'system',
+            },
+          ),
+          ToolchainStateEntry(
+            id: 'clang-18',
+            kind: ToolchainKind.compiler,
+            displayName: 'Clang 18',
+            executablePath: '/opt/clang-18/bin/clang++',
+            active: false,
+            version: '18.1.8',
+            metadata: <String, Object?>{
+              'compilerFamily': 'clang',
+              'cCompilerPath': '/opt/clang-18/bin/clang',
+              'cxxCompilerPath': '/opt/clang-18/bin/clang++',
+              'source': 'manual',
+            },
+          ),
+          ToolchainStateEntry(
+            id: 'cmake',
+            kind: ToolchainKind.buildTool,
+            displayName: 'CMake',
+            executablePath: '/usr/bin/cmake',
+            active: true,
+            metadata: <String, Object?>{'toolFamily': 'cmake'},
+          ),
+          ToolchainStateEntry(
+            id: 'ninja',
+            kind: ToolchainKind.buildTool,
+            displayName: 'Ninja',
+            executablePath: '/usr/bin/ninja',
+            active: false,
+            metadata: <String, Object?>{'toolFamily': 'ninja'},
+          ),
+        ],
+      ),
+      requirement: ToolchainRequirement(kind: ToolchainKind.compiler),
+      resolution: ToolchainResolution(
+        status: ToolchainResolutionStatus.resolved,
+        requirement: ToolchainRequirement(kind: ToolchainKind.compiler),
+      ),
+    );
+
+    final surface = ToolchainSettingsSurface.fromManagerStatusReport(report);
+    final clangCpp = surface.clangCppVersions;
+    final json = surface.toJson();
+
+    expect(clangCpp, isNotNull);
+    expect(clangCpp!.activeVersionId, 'clang-17');
+    expect(clangCpp.preferenceStatus, 'activeDefault');
+    expect(clangCpp.defaultCppStandard, '20');
+    expect(clangCpp.defaultCompilerFlag, '-std=c++20');
+    expect(
+      clangCpp.candidates.map((candidate) => candidate.versionId),
+      <String>['clang-17', 'clang-18'],
+    );
+    expect(clangCpp.candidates.first.active, isTrue);
+    expect(clangCpp.cmakeAvailable, isTrue);
+    expect(clangCpp.ninjaAvailable, isTrue);
+    expect(clangCpp.preferredBuildEngineHandoff?.label, 'cmake+ninja');
+    expect(json['clangCppVersions'], isA<Map<String, Object?>>());
+  });
 }

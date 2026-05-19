@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/theme/vityo_theme.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
@@ -10,6 +11,50 @@ import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/settings/settings_surface.dart';
 
 void main() {
+  testWidgets('settings surface saves persisted theme accent override', (
+    tester,
+  ) async {
+    VityoThemeOverride? savedOverride;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            toolchainStatus: const ToolchainStatusSurface(
+              source: 'project',
+              severity: ToolchainStatusSeverity.ready,
+              title: 'Toolchain ready',
+              message: 'Ready.',
+              recoveryActions: <ToolchainRecoveryAction>[],
+            ),
+            onSaveThemeOverride: (override) async {
+              savedOverride = override;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('settings-theme-card')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('settings-theme-accent-input')),
+      '#00A878',
+    );
+    final saveThemeButton = find.byKey(
+      const ValueKey('settings-theme-save-button'),
+    );
+    await tester.ensureVisible(saveThemeButton);
+    await tester.tap(saveThemeButton);
+    await tester.pump();
+
+    expect(savedOverride?.accent, const Color(0xFF00A878));
+  });
+
   testWidgets('settings surface renders manager-backed toolchain status', (
     tester,
   ) async {
@@ -218,5 +263,118 @@ void main() {
     await tester.pump();
 
     expect(clearedToolchains, <ToolchainKind>[ToolchainKind.runner]);
+  });
+
+  testWidgets('settings surface renders Clang C++ version manager', (
+    tester,
+  ) async {
+    final selectedToolchains = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            toolchainStatus: const ToolchainStatusSurface(
+              source: 'manager-report',
+              severity: ToolchainStatusSeverity.ready,
+              title: 'Toolchain ready',
+              message: 'Ready.',
+              recoveryActions: <ToolchainRecoveryAction>[],
+            ),
+            toolchainSettings: ToolchainSettingsSurface.fromManagerStatusReport(
+              const ToolchainManagerStatusReport(
+                status: ToolchainManagerStatus.ready,
+                snapshot: ToolchainStateSnapshot(
+                  targetId: 'settings-test',
+                  workspaceId: 'demo',
+                  entries: <ToolchainStateEntry>[
+                    ToolchainStateEntry(
+                      id: 'clang-17',
+                      kind: ToolchainKind.compiler,
+                      displayName: 'Clang 17',
+                      executablePath: '/opt/clang-17/bin/clang++',
+                      active: true,
+                      version: '17.0.6',
+                      metadata: <String, Object?>{
+                        'compilerFamily': 'clang',
+                        'cCompilerPath': '/opt/clang-17/bin/clang',
+                        'cxxCompilerPath': '/opt/clang-17/bin/clang++',
+                        'source': 'system',
+                      },
+                    ),
+                    ToolchainStateEntry(
+                      id: 'clang-18',
+                      kind: ToolchainKind.compiler,
+                      displayName: 'Clang 18',
+                      executablePath: '/opt/clang-18/bin/clang++',
+                      active: false,
+                      version: '18.1.8',
+                      metadata: <String, Object?>{
+                        'compilerFamily': 'clang',
+                        'cCompilerPath': '/opt/clang-18/bin/clang',
+                        'cxxCompilerPath': '/opt/clang-18/bin/clang++',
+                        'source': 'manual',
+                      },
+                    ),
+                    ToolchainStateEntry(
+                      id: 'cmake',
+                      kind: ToolchainKind.buildTool,
+                      displayName: 'CMake',
+                      executablePath: '/usr/bin/cmake',
+                      active: true,
+                      metadata: <String, Object?>{'toolFamily': 'cmake'},
+                    ),
+                    ToolchainStateEntry(
+                      id: 'ninja',
+                      kind: ToolchainKind.buildTool,
+                      displayName: 'Ninja',
+                      executablePath: '/usr/bin/ninja',
+                      active: false,
+                      metadata: <String, Object?>{'toolFamily': 'ninja'},
+                    ),
+                  ],
+                ),
+                requirement: ToolchainRequirement(kind: ToolchainKind.compiler),
+                resolution: ToolchainResolution(
+                  status: ToolchainResolutionStatus.resolved,
+                  requirement: ToolchainRequirement(
+                    kind: ToolchainKind.compiler,
+                  ),
+                ),
+              ),
+            ),
+            onSelectToolchain: (id) async {
+              selectedToolchains.add(id);
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('settings-clang-cpp-version-manager')),
+      findsOneWidget,
+    );
+    expect(find.text('preference activeDefault'), findsOneWidget);
+    expect(find.text('standard c++20'), findsOneWidget);
+    expect(find.text('flag -std=c++20'), findsOneWidget);
+    expect(find.text('handoff cmake+ninja'), findsOneWidget);
+    expect(find.text('active clang Clang 17 17.0.6 system'), findsOneWidget);
+    expect(find.text('clang Clang 18 18.1.8 manual'), findsOneWidget);
+
+    final selectClang18Button = find.descendant(
+      of: find.byKey(const ValueKey('settings-clang-cpp-version-clang-18')),
+      matching: find.byTooltip('Select Clang 18'),
+    );
+    await tester.ensureVisible(selectClang18Button);
+    await tester.tap(selectClang18Button);
+    await tester.pump();
+
+    expect(selectedToolchains, <String>['clang-18']);
   });
 }

@@ -1,5 +1,6 @@
 import '../backend_toolchain/project_graph_contract.dart';
 import '../backend_toolchain/toolchain_management_adapter.dart';
+import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_configuration_store.dart';
 import '../toolchain/toolchain_install_executor.dart'
@@ -254,6 +255,7 @@ class ToolchainSettingsSurface {
     required this.installHistory,
     this.targetId,
     this.workspaceId,
+    this.clangCppVersions,
   });
 
   factory ToolchainSettingsSurface.fromStatus(ToolchainStatusSurface status) {
@@ -287,6 +289,9 @@ class ToolchainSettingsSurface {
       capabilities: report.capabilities
           .map(ToolchainCapabilitySurface.fromCapability)
           .toList(growable: false),
+      clangCppVersions: ClangCppVersionSettingsSurface.fromSnapshot(
+        report.snapshot,
+      ),
       recoveryState: ToolchainRecoveryStateSurface.fromState(
         report.recoveryState,
       ),
@@ -303,6 +308,7 @@ class ToolchainSettingsSurface {
   final String? workspaceId;
   final List<ToolchainCandidateSurface> toolchains;
   final List<ToolchainCapabilitySurface> capabilities;
+  final ClangCppVersionSettingsSurface? clangCppVersions;
   final ToolchainRecoveryStateSurface recoveryState;
   final List<ToolchainInstallHistorySurface> installHistory;
 
@@ -319,11 +325,191 @@ class ToolchainSettingsSurface {
       'capabilities': capabilities
           .map((capability) => capability.toJson())
           .toList(growable: false),
+      if (clangCppVersions != null)
+        'clangCppVersions': clangCppVersions!.toJson(),
       'recoveryState': recoveryState.toJson(),
       'installHistory': installHistory
           .map((entry) => entry.toJson())
           .toList(growable: false),
       'hasManagerSnapshot': hasManagerSnapshot,
+    };
+  }
+}
+
+class ClangCppVersionSettingsSurface {
+  const ClangCppVersionSettingsSurface({
+    required this.candidates,
+    required this.preferenceStatus,
+    required this.defaultCppStandard,
+    required this.defaultCompilerFlag,
+    required this.cmakeAvailable,
+    required this.ninjaAvailable,
+    required this.buildEngineHandoffs,
+    this.activeVersionId,
+    this.requestedVersionId,
+    this.preferenceMessage,
+    this.preferredBuildEngineHandoff,
+  });
+
+  static ClangCppVersionSettingsSurface? fromSnapshot(
+    ToolchainStateSnapshot snapshot,
+  ) {
+    final manager = ClangCppVersionManager.fromSnapshot(snapshot);
+    if (!manager.hasCandidates) {
+      return null;
+    }
+    final selection = manager.select();
+    final handoffs =
+        selection?.buildEngineHandoffs
+            .map(ClangCppBuildEngineHandoffSurface.fromHandoff)
+            .toList(growable: false) ??
+        const <ClangCppBuildEngineHandoffSurface>[];
+    final preferred = selection?.preferredBuildEngineHandoff;
+    return ClangCppVersionSettingsSurface(
+      candidates: manager.candidates
+          .map(
+            (candidate) => ClangCppVersionCandidateSurface.fromCandidate(
+              candidate,
+              active: candidate.versionId == manager.activeVersionId,
+            ),
+          )
+          .toList(growable: false),
+      activeVersionId: manager.activeVersionId,
+      requestedVersionId: manager.requestedVersionId,
+      preferenceStatus: manager.preferenceStatus.name,
+      preferenceMessage: manager.preferenceMessage,
+      defaultCppStandard: manager.defaultCppStandard.cmakeValue,
+      defaultCompilerFlag: manager.defaultCppStandard.compilerFlag,
+      cmakeAvailable: manager.cmakeAvailable,
+      ninjaAvailable: manager.ninjaAvailable,
+      buildEngineHandoffs: handoffs,
+      preferredBuildEngineHandoff: preferred == null
+          ? null
+          : ClangCppBuildEngineHandoffSurface.fromHandoff(preferred),
+    );
+  }
+
+  final List<ClangCppVersionCandidateSurface> candidates;
+  final String? activeVersionId;
+  final String? requestedVersionId;
+  final String preferenceStatus;
+  final String? preferenceMessage;
+  final String defaultCppStandard;
+  final String defaultCompilerFlag;
+  final bool cmakeAvailable;
+  final bool ninjaAvailable;
+  final List<ClangCppBuildEngineHandoffSurface> buildEngineHandoffs;
+  final ClangCppBuildEngineHandoffSurface? preferredBuildEngineHandoff;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'candidateCount': candidates.length,
+      'candidates': candidates
+          .map((candidate) => candidate.toJson())
+          .toList(growable: false),
+      if (activeVersionId != null) 'activeVersionId': activeVersionId,
+      if (requestedVersionId != null) 'requestedVersionId': requestedVersionId,
+      'preferenceStatus': preferenceStatus,
+      if (preferenceMessage != null) 'preferenceMessage': preferenceMessage,
+      'defaultCppStandard': defaultCppStandard,
+      'defaultCompilerFlag': defaultCompilerFlag,
+      'cmakeAvailable': cmakeAvailable,
+      'ninjaAvailable': ninjaAvailable,
+      'buildEngineHandoffs': buildEngineHandoffs
+          .map((handoff) => handoff.toJson())
+          .toList(growable: false),
+      if (preferredBuildEngineHandoff != null)
+        'preferredBuildEngineHandoff': preferredBuildEngineHandoff!.toJson(),
+    };
+  }
+}
+
+class ClangCppVersionCandidateSurface {
+  const ClangCppVersionCandidateSurface({
+    required this.versionId,
+    required this.displayName,
+    required this.cCompilerPath,
+    required this.cxxCompilerPath,
+    required this.active,
+    this.version,
+    this.source,
+  });
+
+  factory ClangCppVersionCandidateSurface.fromCandidate(
+    ClangCppVersionCandidate candidate, {
+    required bool active,
+  }) {
+    return ClangCppVersionCandidateSurface(
+      versionId: candidate.versionId,
+      displayName: candidate.displayName,
+      cCompilerPath: candidate.cCompilerPath,
+      cxxCompilerPath: candidate.cxxCompilerPath,
+      active: active,
+      version: candidate.version,
+      source: candidate.source,
+    );
+  }
+
+  final String versionId;
+  final String displayName;
+  final String cCompilerPath;
+  final String cxxCompilerPath;
+  final bool active;
+  final String? version;
+  final String? source;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'versionId': versionId,
+      'displayName': displayName,
+      'cCompilerPath': cCompilerPath,
+      'cxxCompilerPath': cxxCompilerPath,
+      'active': active,
+      if (version != null) 'version': version,
+      if (source != null) 'source': source,
+    };
+  }
+}
+
+class ClangCppBuildEngineHandoffSurface {
+  const ClangCppBuildEngineHandoffSurface({
+    required this.engineFamily,
+    required this.executablePath,
+    required this.arguments,
+    required this.environment,
+    this.generatorFamily,
+  });
+
+  factory ClangCppBuildEngineHandoffSurface.fromHandoff(
+    ClangCppBuildEngineHandoff handoff,
+  ) {
+    return ClangCppBuildEngineHandoffSurface(
+      engineFamily: handoff.engineFamily,
+      executablePath: handoff.executablePath,
+      generatorFamily: handoff.generatorFamily,
+      arguments: handoff.arguments,
+      environment: handoff.environment,
+    );
+  }
+
+  final String engineFamily;
+  final String? generatorFamily;
+  final String executablePath;
+  final List<String> arguments;
+  final Map<String, String> environment;
+
+  String get label {
+    final generator = generatorFamily == null ? '' : '+$generatorFamily';
+    return '$engineFamily$generator';
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'engineFamily': engineFamily,
+      if (generatorFamily != null) 'generatorFamily': generatorFamily,
+      'executablePath': executablePath,
+      'arguments': arguments,
+      if (environment.isNotEmpty) 'environment': environment,
     };
   }
 }

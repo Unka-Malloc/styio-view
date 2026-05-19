@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/toolchain/toolchain_catalog.dart';
 import '../platform/viewport_profile.dart';
+import '../theme/theme.dart';
 
 class SettingsSurface extends StatelessWidget {
   const SettingsSurface({
@@ -16,6 +17,8 @@ class SettingsSurface extends StatelessWidget {
     this.onSelectToolchain,
     this.onClearToolchain,
     this.onExecuteToolchainInstallPlan,
+    this.themeOverride = const VityoThemeOverride(),
+    this.onSaveThemeOverride,
   });
 
   final ViewportProfile viewportProfile;
@@ -28,6 +31,8 @@ class SettingsSurface extends StatelessWidget {
   final Future<void> Function(String id)? onSelectToolchain;
   final Future<void> Function(ToolchainKind kind)? onClearToolchain;
   final Future<void> Function()? onExecuteToolchainInstallPlan;
+  final VityoThemeOverride themeOverride;
+  final Future<void> Function(VityoThemeOverride override)? onSaveThemeOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -61,12 +66,152 @@ class SettingsSurface extends StatelessWidget {
                 onClearToolchain: onClearToolchain,
                 onExecuteToolchainInstallPlan: onExecuteToolchainInstallPlan,
               ),
+              const SizedBox(height: 14),
+              _ThemeSettingsCard(
+                themeOverride: themeOverride,
+                onSaveThemeOverride: onSaveThemeOverride,
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+class _ThemeSettingsCard extends StatefulWidget {
+  const _ThemeSettingsCard({
+    required this.themeOverride,
+    required this.onSaveThemeOverride,
+  });
+
+  final VityoThemeOverride themeOverride;
+  final Future<void> Function(VityoThemeOverride override)? onSaveThemeOverride;
+
+  @override
+  State<_ThemeSettingsCard> createState() => _ThemeSettingsCardState();
+}
+
+class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
+  late final TextEditingController _accentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _accentController = TextEditingController(
+      text: _colorToHex(widget.themeOverride.accent),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _ThemeSettingsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextText = _colorToHex(widget.themeOverride.accent);
+    if (_accentController.text != nextText) {
+      _accentController.text = nextText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _accentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('settings-theme-card'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8EFE6),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Theme Settings', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Persist a workspace theme override through Configuration DataStore.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            key: const ValueKey('settings-theme-accent-input'),
+            controller: _accentController,
+            decoration: const InputDecoration(
+              labelText: 'Accent color',
+              hintText: '#2F6F73',
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                key: const ValueKey('settings-theme-save-button'),
+                onPressed: widget.onSaveThemeOverride == null
+                    ? null
+                    : () {
+                        final accent = _parseHexColor(_accentController.text);
+                        if (accent == null) {
+                          return;
+                        }
+                        widget.onSaveThemeOverride!(
+                          widget.themeOverride.copyWith(accent: accent),
+                        );
+                      },
+                child: const Text('Save theme override'),
+              ),
+              OutlinedButton(
+                key: const ValueKey('settings-theme-reset-button'),
+                onPressed: widget.onSaveThemeOverride == null
+                    ? null
+                    : () {
+                        widget.onSaveThemeOverride!(const VityoThemeOverride());
+                      },
+                child: const Text('Reset theme'),
+              ),
+              if (widget.themeOverride.accent != null)
+                Chip(
+                  label: Text(
+                    'accent ${_colorToHex(widget.themeOverride.accent)}',
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _colorToHex(Color? color) {
+  if (color == null) {
+    return '';
+  }
+  final rgb = color.toARGB32() & 0x00FFFFFF;
+  return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+}
+
+Color? _parseHexColor(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  final normalized = trimmed.startsWith('#') ? trimmed.substring(1) : trimmed;
+  if (normalized.length != 6 && normalized.length != 8) {
+    return null;
+  }
+  final parsed = int.tryParse(normalized, radix: 16);
+  if (parsed == null) {
+    return null;
+  }
+  return Color(normalized.length == 6 ? 0xFF000000 | parsed : parsed);
 }
 
 class _ToolchainSettingsCard extends StatelessWidget {
@@ -152,6 +297,13 @@ class _ToolchainSettingsCard extends StatelessWidget {
                   .toList(growable: false),
             ),
           ],
+          if (settings.clangCppVersions != null) ...[
+            const SizedBox(height: 14),
+            _ClangCppVersionManagerView(
+              versions: settings.clangCppVersions!,
+              onSelectToolchain: onSelectToolchain,
+            ),
+          ],
           const SizedBox(height: 14),
           _ToolchainCandidateList(
             toolchains: settings.toolchains,
@@ -179,6 +331,108 @@ class _ToolchainSettingsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ClangCppVersionManagerView extends StatelessWidget {
+  const _ClangCppVersionManagerView({
+    required this.versions,
+    required this.onSelectToolchain,
+  });
+
+  final ClangCppVersionSettingsSurface versions;
+  final Future<void> Function(String id)? onSelectToolchain;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final preferred = versions.preferredBuildEngineHandoff;
+    return Column(
+      key: const ValueKey('settings-clang-cpp-version-manager'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Clang/C++ Versions', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        Text(
+          'IDE-selected Clang/C++ compiler version and external build engine handoff.',
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            Chip(label: Text('preference ${versions.preferenceStatus}')),
+            Chip(label: Text('standard c++${versions.defaultCppStandard}')),
+            Chip(label: Text('flag ${versions.defaultCompilerFlag}')),
+            Chip(label: Text('cmake ${versions.cmakeAvailable}')),
+            Chip(label: Text('ninja ${versions.ninjaAvailable}')),
+            if (preferred != null)
+              Chip(
+                key: const ValueKey('settings-clang-cpp-preferred-handoff'),
+                label: Text('handoff ${preferred.label}'),
+              ),
+          ],
+        ),
+        if (versions.preferenceMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(versions.preferenceMessage!, style: theme.textTheme.bodySmall),
+        ],
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: versions.candidates
+              .map(
+                (candidate) => Chip(
+                  key: ValueKey(
+                    'settings-clang-cpp-version-${candidate.versionId}',
+                  ),
+                  label: Text(_clangCppCandidateLabel(candidate)),
+                  deleteIcon: candidate.active
+                      ? null
+                      : const Icon(Icons.check_circle_outline),
+                  onDeleted: candidate.active || onSelectToolchain == null
+                      ? null
+                      : () {
+                          onSelectToolchain!(candidate.versionId);
+                        },
+                  deleteButtonTooltipMessage: candidate.active
+                      ? null
+                      : 'Select ${candidate.displayName}',
+                ),
+              )
+              .toList(growable: false),
+        ),
+        if (versions.buildEngineHandoffs.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: versions.buildEngineHandoffs
+                .map(
+                  (handoff) => Chip(
+                    key: ValueKey(
+                      'settings-clang-cpp-handoff-${handoff.label}',
+                    ),
+                    label: Text('${handoff.label} ${handoff.executablePath}'),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+String _clangCppCandidateLabel(ClangCppVersionCandidateSurface candidate) {
+  return <String>[
+    if (candidate.active) 'active',
+    'clang',
+    candidate.displayName,
+    if (candidate.version != null) candidate.version!,
+    if (candidate.source != null) candidate.source!,
+  ].join(' ');
 }
 
 class _ToolchainInstallPlanView extends StatelessWidget {

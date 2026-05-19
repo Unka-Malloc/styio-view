@@ -4,6 +4,7 @@ import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
@@ -110,6 +111,104 @@ void main() {
     expect(savedProfile?.systemPrompt, 'Use Vityo IDE context.');
     expect(savedProfile?.contextChannels, isNot(contains('runtime')));
     expect(savedBearerToken, 'test-token');
+  });
+
+  testWidgets('agent surface renders provider execution resolution', (
+    tester,
+  ) async {
+    const resolution = AgentProviderExecutionResolution(
+      profileId: 'configured-agent',
+      status: AgentProviderExecutionResolutionStatus.fallbackReady,
+      selectedEndpointIndex: 1,
+      endpoints: <AgentProviderEndpointReadiness>[
+        AgentProviderEndpointReadiness(
+          endpointIndex: 0,
+          fallback: false,
+          endpoint: AgentProviderEndpoint(
+            route: AgentProviderRoute.desktopLocalBridge,
+            baseUrl: 'http://127.0.0.1:11434/v1',
+            model: 'gpt-local',
+          ),
+          plan: AgentProviderExecutionPlan(
+            routeKind: AgentProviderExecutionRouteKind.blocked,
+            providerKind: AgentProviderKind.localOnlyFallback,
+            route: AgentProviderRoute.desktopLocalBridge,
+            endpointBaseUrl: 'http://127.0.0.1:11434/v1',
+            blockReason:
+                AgentProviderExecutionBlockReason.localBridgeUnavailable,
+          ),
+          credentialReadiness: AgentProviderCredentialReadiness.notReferenced,
+        ),
+        AgentProviderEndpointReadiness(
+          endpointIndex: 1,
+          fallback: true,
+          endpoint: AgentProviderEndpoint(
+            route: AgentProviderRoute.webHosted,
+            baseUrl: 'https://agent.example.test/v1',
+            model: 'gpt-cloud',
+          ),
+          plan: AgentProviderExecutionPlan(
+            routeKind: AgentProviderExecutionRouteKind.cloud,
+            providerKind: AgentProviderKind.cloudOpenAICompatible,
+            route: AgentProviderRoute.webHosted,
+            endpointBaseUrl: 'https://agent.example.test/v1',
+          ),
+          credentialReadiness: AgentProviderCredentialReadiness.available,
+        ),
+      ],
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      providerExecutionResolution: resolution,
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-provider-execution-status')),
+      findsOneWidget,
+    );
+    expect(find.text('Execution status: fallback_ready'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Selected fallback cloud endpoint: https://agent.example.test/v1',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-provider-execution-endpoint-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-provider-execution-endpoint-1')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('agent surface rejects provider profile without context channels', (

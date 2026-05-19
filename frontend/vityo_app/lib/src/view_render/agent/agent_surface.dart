@@ -295,6 +295,7 @@ class _AgentProviderProfileSectionState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final providerFailure = widget.controller.lastProviderFailure;
+    final executionResolution = widget.controller.providerExecutionResolution;
     final locked =
         _saving ||
         widget.controller.sending ||
@@ -330,6 +331,12 @@ class _AgentProviderProfileSectionState
                   color: theme.colorScheme.onErrorContainer,
                 ),
               ),
+            ),
+          ],
+          if (executionResolution != null) ...[
+            const SizedBox(height: 8),
+            _AgentProviderExecutionStatusCard(
+              resolution: executionResolution,
             ),
           ],
           const SizedBox(height: 8),
@@ -521,6 +528,65 @@ class _AgentProviderProfileSectionState
         });
       }
     }
+  }
+}
+
+class _AgentProviderExecutionStatusCard extends StatelessWidget {
+  const _AgentProviderExecutionStatusCard({required this.resolution});
+
+  final AgentProviderExecutionResolution resolution;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selected = resolution.selectedEndpoint;
+    return Container(
+      key: const ValueKey('agent-provider-execution-status'),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Execution status: ${resolution.status.wireValue}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            selected == null
+                ? 'No executable provider endpoint is available.'
+                : 'Selected ${selected.fallback ? 'fallback' : 'primary'} ${selected.plan.routeKind.wireValue} endpoint: ${selected.endpoint.baseUrl}',
+            key: const ValueKey('agent-provider-execution-selected'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final endpoint in resolution.endpoints)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '${endpoint.fallback ? 'Fallback' : 'Primary'} ${endpoint.endpointIndex}: ${endpoint.plan.routeKind.wireValue}, credential ${endpoint.credentialReadiness.wireValue}, executable ${endpoint.executable}',
+                key: ValueKey(
+                  'agent-provider-execution-endpoint-${endpoint.endpointIndex}',
+                ),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 

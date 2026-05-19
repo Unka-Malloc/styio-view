@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'agent_code_patch_applier.dart';
 import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
+import 'agent_provider_route_executor.dart';
 import 'agent_session_context.dart';
 
 typedef AgentSessionContextProvider = AgentSessionContext Function();
@@ -25,7 +26,8 @@ class AgentCodingSessionController extends ChangeNotifier {
     this.maxConversationTurns = 20,
     this.maxConversationTurnTextLength = 12000,
     this.maxAttachments = 10,
-  });
+    AgentProviderExecutionResolution? providerExecutionResolution,
+  }) : _providerExecutionResolution = providerExecutionResolution;
 
   AgentPromptProfile profile;
   AgentProviderAdapter adapter;
@@ -64,6 +66,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   final List<AgentDiagnosticSummaryContext> _recentDiagnosticSummaryContexts =
       <AgentDiagnosticSummaryContext>[];
   String? _providerMountMessage;
+  AgentProviderExecutionResolution? _providerExecutionResolution;
   String? _lastError;
   AgentProviderTransportException? _lastProviderFailure;
   String? _activeProviderRequestId;
@@ -88,6 +91,8 @@ class AgentCodingSessionController extends ChangeNotifier {
         _recentPatchApplicationContexts,
       );
   String? get providerMountMessage => _providerMountMessage;
+  AgentProviderExecutionResolution? get providerExecutionResolution =>
+      _providerExecutionResolution;
   AgentProviderKind get providerKind => adapter.kind;
   bool get providerSupportsCodePatch => adapter.supportsCodePatch;
   String get providerSummary =>
@@ -109,9 +114,11 @@ class AgentCodingSessionController extends ChangeNotifier {
     required AgentPromptProfile profile,
     required AgentProviderAdapter adapter,
     String? message,
+    AgentProviderExecutionResolution? executionResolution,
   }) {
     this.profile = profile;
     this.adapter = adapter;
+    _providerExecutionResolution = executionResolution;
     _activeRequestSerial += 1;
     _patchApplicationSerial += 1;
     _cancelActiveProviderRequest();

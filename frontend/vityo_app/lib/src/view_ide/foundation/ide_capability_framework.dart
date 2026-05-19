@@ -490,8 +490,10 @@ class VityoIdeCapabilityFramework {
           title: 'Execution manager and shell runtime',
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/execution',
+          summary:
+              'ExecutionSession, runtime events, and native tool results expose stable serializable execution result contracts for UI and Agent consumers.',
           todo:
-              'TODO: align run/test/build execution result contracts across hosted, local, and toolchain-backed routes.',
+              'TODO: persist execution result history and normalize hosted/toolchain-specific metadata fields.',
           references: <String>['VS Code tasks', 'Theia task service'],
         ),
         IdeCapabilityDescriptor(

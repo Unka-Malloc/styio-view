@@ -137,6 +137,35 @@ class NativeToolResultRecord {
   final DateTime completedAt;
 
   String get commandId => command.name;
+
+  ExecutionResultContract toResultContract() {
+    return ExecutionResultContract(
+      source: 'native-tool',
+      id: commandId,
+      kind: commandId,
+      status: applied
+          ? ExecutionSessionStatus.succeeded.name
+          : ExecutionSessionStatus.failed.name,
+      message: message,
+      diagnosticCount: diagnostics.length,
+      stdoutCount: 0,
+      stderrCount: 0,
+      metadata: metadata,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'commandId': commandId,
+      'label': label,
+      'applied': applied,
+      'message': message,
+      'metadata': metadata,
+      'diagnosticCount': diagnostics.length,
+      'completedAt': completedAt.toIso8601String(),
+      'executionResult': toResultContract().toJson(),
+    };
+  }
 }
 
 enum DebugSessionStatus {

@@ -13,6 +13,10 @@ class ExecutionLogEvent {
   const ExecutionLogEvent({required this.message});
 
   final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{'message': message};
+  }
 }
 
 class ExecutionSession {
@@ -35,6 +39,44 @@ class ExecutionSession {
   final List<Diagnostic> diagnostics;
   final List<ExecutionLogEvent> stdoutEvents;
   final List<ExecutionLogEvent> stderrEvents;
+
+  ExecutionResultContract toResultContract({
+    String source = 'execution-session',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExecutionResultContract(
+      source: source,
+      id: sessionId,
+      kind: kind,
+      status: status.name,
+      message: statusMessage,
+      diagnosticCount: diagnostics.length,
+      stdoutCount: stdoutEvents.length,
+      stderrCount: stderrEvents.length,
+      metadata: metadata,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'sessionId': sessionId,
+      'kind': kind,
+      'status': status.name,
+      'statusMessage': statusMessage,
+      if (unitRange != null)
+        'unitRange': <String, int>{
+          'start': unitRange!.start,
+          'end': unitRange!.end,
+        },
+      'diagnosticCount': diagnostics.length,
+      'stdoutCount': stdoutEvents.length,
+      'stderrCount': stderrEvents.length,
+      if (stdoutEvents.isNotEmpty)
+        'stdout': stdoutEvents.map((event) => event.toJson()).toList(),
+      if (stderrEvents.isNotEmpty)
+        'stderr': stderrEvents.map((event) => event.toJson()).toList(),
+    };
+  }
 }
 
 class RuntimeEventEnvelope {
@@ -55,6 +97,63 @@ class RuntimeEventEnvelope {
   final String eventKind;
   final String origin;
   final Map<String, Object?> payload;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'schemaVersion': schemaVersion,
+      'sessionId': sessionId,
+      'sequence': sequence,
+      'timestamp': timestamp.toIso8601String(),
+      'eventKind': eventKind,
+      'origin': origin,
+      'payload': payload,
+    };
+  }
+}
+
+class ExecutionResultContract {
+  const ExecutionResultContract({
+    required this.source,
+    required this.id,
+    required this.kind,
+    required this.status,
+    required this.message,
+    required this.diagnosticCount,
+    required this.stdoutCount,
+    required this.stderrCount,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String source;
+  final String id;
+  final String kind;
+  final String status;
+  final String message;
+  final int diagnosticCount;
+  final int stdoutCount;
+  final int stderrCount;
+  final Map<String, Object?> metadata;
+
+  bool get succeeded => status == ExecutionSessionStatus.succeeded.name;
+  bool get failed => status == ExecutionSessionStatus.failed.name;
+  bool get blocked => status == ExecutionSessionStatus.blocked.name;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'source': source,
+      'id': id,
+      'kind': kind,
+      'status': status,
+      'message': message,
+      'succeeded': succeeded,
+      'failed': failed,
+      'blocked': blocked,
+      'diagnosticCount': diagnosticCount,
+      'stdoutCount': stdoutCount,
+      'stderrCount': stderrCount,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
 }
 
 abstract class ExecutionAdapter {

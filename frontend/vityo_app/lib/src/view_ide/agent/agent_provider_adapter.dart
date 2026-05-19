@@ -710,7 +710,10 @@ class OpenAICompatibleAgentProviderAdapter
       'Content-Type': 'application/json',
       if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
-    final body = _openAICompatibleRequestBody(request);
+    final body = _openAICompatibleRequestBody(
+      request,
+      endpointOverride: endpoint,
+    );
     final cancellableTransport = transport is CancellableAgentProviderTransport
         ? transport as CancellableAgentProviderTransport
         : null;
@@ -890,8 +893,9 @@ class LocalOnlyAgentProviderAdapter implements AgentProviderAdapter {
 }
 
 Map<String, Object?> _openAICompatibleRequestBody(
-  AgentProviderRequest request,
-) {
+  AgentProviderRequest request, {
+  AgentProviderEndpoint? endpointOverride,
+}) {
   final contextJson = jsonEncode(
     request.context.toJsonForChannels(request.profile.contextChannels),
   );
@@ -909,7 +913,7 @@ Map<String, Object?> _openAICompatibleRequestBody(
         },
       );
   return <String, Object?>{
-    'model': request.profile.endpoint.model,
+    'model': endpointOverride?.model ?? request.profile.endpoint.model,
     'messages': <Map<String, Object?>>[
       <String, Object?>{
         'role': 'system',

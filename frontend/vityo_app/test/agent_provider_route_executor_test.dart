@@ -65,6 +65,30 @@ void main() {
     expect(plan.providerKind, AgentProviderKind.localOnlyFallback);
   });
 
+  test('agent prompt profile serializes fallback endpoints', () {
+    final profile = _profile(
+      route: AgentProviderRoute.desktopLocalBridge,
+      baseUrl: 'http://localhost:11434/v1',
+      fallbackEndpoints: const <AgentProviderEndpoint>[
+        AgentProviderEndpoint(
+          route: AgentProviderRoute.webHosted,
+          baseUrl: 'https://agent.example.test/v1',
+          model: 'gpt-cloud-fallback',
+        ),
+      ],
+    );
+
+    final reloaded = AgentPromptProfile.fromJson(profile.toJson());
+
+    expect(reloaded.endpoint.baseUrl, 'http://localhost:11434/v1');
+    expect(reloaded.fallbackEndpoints, hasLength(1));
+    expect(
+      reloaded.fallbackEndpoints.single.baseUrl,
+      'https://agent.example.test/v1',
+    );
+    expect(reloaded.fallbackEndpoints.single.model, 'gpt-cloud-fallback');
+  });
+
   test('agent provider factory routes loopback requests to local transport', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_agent_route_executor_test_',
@@ -108,11 +132,75 @@ void main() {
     );
     expect(localTransport.lastBody['model'], 'gpt-route-test');
   });
+
+  test('agent provider factory fails over from blocked bridge to cloud', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_agent_route_failover_test_',
+    );
+    addTearDown(() async {
+      if (await tempRoot.exists()) {
+        await tempRoot.delete(recursive: true);
+      }
+    });
+    final unsupportedManager = UnsupportedLocalServiceManager(
+      facts: const LocalServiceFacts(
+        targetId: 'unsupported',
+        operatingSystem: 'linux',
+        distributionId: 'generic',
+        architecture: 'x64',
+        providerKind: LocalServiceProviderKind.unsupported,
+        supportsLoopbackHttpServer: false,
+        supportsEphemeralPort: false,
+      ),
+    );
+    final cloudTransport = _RecordingTransport();
+    final localTransport = _RecordingTransport();
+    final factory = ConfiguredAgentProviderAdapterFactory(
+      configurationStore: _configurationStore(tempRoot),
+      transport: cloudTransport,
+      localBridgeTransport: localTransport,
+      localServiceManager: unsupportedManager,
+    );
+    final profile = _profile(
+      route: AgentProviderRoute.desktopLocalBridge,
+      baseUrl: 'http://127.0.0.1:11434/v1',
+      fallbackEndpoints: const <AgentProviderEndpoint>[
+        AgentProviderEndpoint(
+          route: AgentProviderRoute.webHosted,
+          baseUrl: 'https://agent.example.test/v1',
+          model: 'gpt-cloud-fallback',
+        ),
+      ],
+    );
+
+    final adapter = await factory.create(profile);
+    await adapter.send(
+      AgentProviderRequest(
+        requestId: 'failover-request',
+        profile: profile,
+        context: _emptyContext(),
+        userPrompt: 'Use fallback.',
+      ),
+    );
+
+    expect(adapter.kind, AgentProviderKind.cloudOpenAICompatible);
+    expect(adapter.adapterId, 'openai-compatible-cloud');
+    expect(cloudTransport.callCount, 1);
+    expect(localTransport.callCount, 0);
+    expect(
+      cloudTransport.lastEndpoint.toString(),
+      'https://agent.example.test/v1/chat/completions',
+    );
+    expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
+  });
 }
 
 AgentPromptProfile _profile({
   required AgentProviderRoute route,
   required String baseUrl,
+  String model = 'gpt-route-test',
+  List<AgentProviderEndpoint> fallbackEndpoints =
+      const <AgentProviderEndpoint>[],
 }) {
   return AgentPromptProfile(
     profileId: 'route-test',
@@ -121,8 +209,9 @@ AgentPromptProfile _profile({
     endpoint: AgentProviderEndpoint(
       route: route,
       baseUrl: baseUrl,
-      model: 'gpt-route-test',
+      model: model,
     ),
+    fallbackEndpoints: fallbackEndpoints,
   );
 }
 

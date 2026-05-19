@@ -70,25 +70,48 @@ class ConfiguredAgentProviderAdapterFactory {
   }
 
   Future<AgentProviderAdapter> create(AgentPromptProfile profile) async {
-    final executionPlan =
-        (routeExecutor ??
-                AgentProviderRouteExecutor(
-                  localServiceManager: localServiceManager,
-                ))
-            .planFor(profile);
+    final execution = _resolveExecution(profile);
+    if (execution == null) {
+      return const LocalOnlyAgentProviderAdapter();
+    }
+    final executionPlan = execution.plan;
+    final endpoint = execution.profile.endpoint;
     if (!executionPlan.executable) {
       return const LocalOnlyAgentProviderAdapter();
     }
     final token = await AgentProviderCredentialResolver(
       configurationStore: configurationStore,
-    ).bearerTokenForEndpoint(profile.endpoint);
+    ).bearerTokenForEndpoint(endpoint);
     return OpenAICompatibleAgentProviderAdapter(
       transport: _transportFor(executionPlan),
-      endpoint: profile.endpoint,
+      endpoint: endpoint,
       authorizationToken: token,
       adapterId: executionPlan.adapterId,
       providerKind: executionPlan.providerKind,
     );
+  }
+
+  _ResolvedAgentProviderExecution? _resolveExecution(
+    AgentPromptProfile profile,
+  ) {
+    final executor =
+        routeExecutor ??
+        AgentProviderRouteExecutor(localServiceManager: localServiceManager);
+    final candidates = <AgentPromptProfile>[
+      profile,
+      for (final endpoint in profile.fallbackEndpoints)
+        profile.copyWith(endpoint: endpoint),
+    ];
+    for (final candidate in candidates) {
+      final plan = executor.planFor(candidate);
+      if (plan.executable) {
+        return _ResolvedAgentProviderExecution(
+          profile: candidate,
+          plan: plan,
+        );
+      }
+    }
+    return null;
   }
 
   AgentProviderTransport _transportFor(AgentProviderExecutionPlan plan) {
@@ -97,4 +120,14 @@ class ConfiguredAgentProviderAdapterFactory {
     }
     return transport;
   }
+}
+
+class _ResolvedAgentProviderExecution {
+  const _ResolvedAgentProviderExecution({
+    required this.profile,
+    required this.plan,
+  });
+
+  final AgentPromptProfile profile;
+  final AgentProviderExecutionPlan plan;
 }

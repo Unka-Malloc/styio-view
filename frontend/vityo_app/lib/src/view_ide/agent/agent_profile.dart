@@ -115,6 +115,7 @@ class AgentPromptProfile {
     required this.displayName,
     required this.systemPrompt,
     required this.endpoint,
+    this.fallbackEndpoints = const <AgentProviderEndpoint>[],
     this.contextChannels = defaultContextChannels,
   });
 
@@ -136,6 +137,7 @@ class AgentPromptProfile {
   final String displayName;
   final String systemPrompt;
   final AgentProviderEndpoint endpoint;
+  final List<AgentProviderEndpoint> fallbackEndpoints;
   final List<String> contextChannels;
 
   bool get allowsLocalBridge => endpoint.route.allowsLocalBridge;
@@ -146,12 +148,17 @@ class AgentPromptProfile {
       'displayName': displayName,
       'systemPrompt': systemPrompt,
       'endpoint': endpoint.toJson(),
+      if (fallbackEndpoints.isNotEmpty)
+        'fallbackEndpoints': fallbackEndpoints
+            .map((endpoint) => endpoint.toJson())
+            .toList(growable: false),
       'contextChannels': contextChannels,
     };
   }
 
   factory AgentPromptProfile.fromJson(Map<String, Object?> json) {
     final channelsJson = json['contextChannels'];
+    final fallbackEndpointsJson = json['fallbackEndpoints'];
     return AgentPromptProfile(
       profileId: json['profileId'] as String? ?? 'default',
       displayName: json['displayName'] as String? ?? 'Default',
@@ -159,9 +166,30 @@ class AgentPromptProfile {
       endpoint: AgentProviderEndpoint.fromJson(
         Map<String, Object?>.from(json['endpoint'] as Map? ?? const {}),
       ),
+      fallbackEndpoints: fallbackEndpointsJson is List
+          ? fallbackEndpointsJson
+              .map(_agentProviderEndpointFromJson)
+              .whereType<AgentProviderEndpoint>()
+              .toList(growable: false)
+          : const <AgentProviderEndpoint>[],
       contextChannels: channelsJson is List
           ? channelsJson.whereType<String>().toList(growable: false)
           : defaultContextChannels,
+    );
+  }
+
+  AgentPromptProfile copyWith({
+    AgentProviderEndpoint? endpoint,
+    List<AgentProviderEndpoint>? fallbackEndpoints,
+    List<String>? contextChannels,
+  }) {
+    return AgentPromptProfile(
+      profileId: profileId,
+      displayName: displayName,
+      systemPrompt: systemPrompt,
+      endpoint: endpoint ?? this.endpoint,
+      fallbackEndpoints: fallbackEndpoints ?? this.fallbackEndpoints,
+      contextChannels: contextChannels ?? this.contextChannels,
     );
   }
 
@@ -181,6 +209,20 @@ class AgentPromptProfile {
       ),
     );
   }
+}
+
+AgentProviderEndpoint? _agentProviderEndpointFromJson(Object? value) {
+  if (value is Map<String, Object?>) {
+    return AgentProviderEndpoint.fromJson(value);
+  }
+  if (value is Map) {
+    return AgentProviderEndpoint.fromJson(
+      value.map(
+        (key, value) => MapEntry<String, Object?>(key.toString(), value),
+      ),
+    );
+  }
+  return null;
 }
 
 AgentProviderRoute _agentProviderRouteFromWireValue(String? value) {

@@ -359,6 +359,8 @@ void main() {
     final debugCommands = commandsJson['debugCommands']! as List<Object?>;
     final debugCommandReadiness =
         commandsJson['debugCommandReadiness']! as List<Object?>;
+    final settingsCommands =
+        commandsJson['settingsCommands']! as List<Object?>;
     final debugBreakpoints = debugJson['breakpoints']! as List<Object?>;
     final debugThreads = debugJson['threads']! as List<Object?>;
     final debugStackFrames = debugJson['stackFrames']! as List<Object?>;
@@ -908,6 +910,10 @@ void main() {
     expect(
       (debugCommandReadiness.last! as Map<String, Object?>)['candidateIds'],
       <String>['frame-0'],
+    );
+    expect(
+      (settingsCommands.single! as Map<String, Object?>)['id'],
+      'openSettings',
     );
     expect(skillsJson['skillIds'], contains('cpp-clang-toolchain-defaults'));
     expect(skillsJson['skillIds'], contains('cpp-compilation-database'));

@@ -72,6 +72,7 @@ void main() {
         decoded.systemPrompt,
         contains('metadata.completedRequiredCommandFor'),
       );
+      expect(decoded.systemPrompt, contains('commands.settingsCommands'));
       expect(decoded.systemPrompt, contains('metadata.formatResult'));
       expect(decoded.systemPrompt, contains('staticAnalysisResult'));
       expect(

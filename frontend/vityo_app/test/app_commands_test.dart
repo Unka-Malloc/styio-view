@@ -272,6 +272,10 @@ void main() {
       ],
     );
     expect(
+      StyioCommandRegistry.settingsCommands.map((command) => command.id),
+      <AppCommandId>[AppCommandId.openSettings],
+    );
+    expect(
       StyioCommandRegistry.deploymentCommands.map((command) => command.id),
       <AppCommandId>[AppCommandId.packProject, AppCommandId.preparePublish],
     );

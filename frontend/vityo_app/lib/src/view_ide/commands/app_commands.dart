@@ -491,6 +491,13 @@ class StyioCommandRegistry {
     },
   );
 
+  static Iterable<AppCommandDescriptor> get settingsCommands => commands.where(
+    (command) => switch (command.id) {
+      AppCommandId.openSettings => true,
+      _ => false,
+    },
+  );
+
   static Iterable<AppCommandDescriptor> get workflowCommands => commands.where(
     (command) => switch (command.id) {
       AppCommandId.run ||

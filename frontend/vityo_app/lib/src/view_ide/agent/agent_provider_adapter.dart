@@ -865,6 +865,8 @@ class LocalOnlyAgentProviderAdapter implements AgentProviderAdapter {
             request.context.commands.debugReadyCommandCount,
         'debugBlockedCommandCount':
             request.context.commands.debugBlockedCommandCount,
+        'settingsCommandCount':
+            request.context.commands.settingsCommands.length,
         'recentCommandResultCount':
             request.context.commands.recentResults.length,
         if (request.context.commands.recentResults.isNotEmpty)
@@ -1025,6 +1027,7 @@ Map<String, Object?> _openAICompatibleRequestBody(
       'debugReadyCommandCount': request.context.commands.debugReadyCommandCount,
       'debugBlockedCommandCount':
           request.context.commands.debugBlockedCommandCount,
+      'settingsCommandCount': request.context.commands.settingsCommands.length,
       ..._lastCommandResultMetadata(request.context.commands.lastResult),
       'recentCommandResultCount': request.context.commands.recentResults.length,
       if (request.context.commands.recentResults.isNotEmpty)
@@ -1256,7 +1259,7 @@ Vityo structured response contract:
 - If the IDE context includes language.serviceStatus, inspect capability states before using language facts; treat derived or fallback-backed facts as weaker evidence than available StyioService payloads, and do not present unsupported or unavailable capabilities as real compiler truth.
 - If the IDE context includes debug.status, debug.launch.ready, debug.breakpoints, debug.threads, debug.stackFrames, or debug.variables, treat them as the latest IDE debugger facts before proposing debug commands or patches. Do not propose launch, continue, or step actions when debug.launch.ready is false.
 - When proposing selectDebugThread or selectDebugStackFrame, use an id from debug.threads or debug.stackFrames instead of inventing thread or frame ids.
-- If the IDE context includes commands.persistenceCommands, commands.diagnosticCommands, commands.navigationCommands, commands.refactorCommands, commands.nativeToolCommands, or commands.debugCommands, prefer those registered IDE actions for save/save-all, diagnostics, quick fixes, definitions, references, refactors, native tool actions, and debug actions instead of inventing unsupported commands.
+- If the IDE context includes commands.persistenceCommands, commands.diagnosticCommands, commands.navigationCommands, commands.refactorCommands, commands.nativeToolCommands, commands.debugCommands, or commands.settingsCommands, prefer those registered IDE actions for save/save-all, diagnostics, quick fixes, definitions, references, refactors, native tool actions, debug actions, and settings/profile recovery instead of inventing unsupported commands.
 - If commands.nativeToolCommandReadiness is present, inspect each entry's ready flag, requiredKind, requiredToolFamily, requiredToolFamilies, toolFamily, toolchainId, requiredCommandId, dirtyDocumentIds, and reason before proposing runBuild, formatActiveDocument, runStaticAnalysis, or runTests.
 - If commands.debugCommandReadiness is present, inspect each entry's ready flag, requiredState, requiredCommandId, dirtyDocumentIds, candidateIds, and reason before proposing startDebugging, continueDebugging, stepOver, selectDebugThread, selectDebugStackFrame, or stopDebugging.
 - If a command readiness entry is not ready and includes requiredCommandId, propose that registered required command before the blocked command.

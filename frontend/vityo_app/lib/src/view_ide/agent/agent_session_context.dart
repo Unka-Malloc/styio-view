@@ -340,6 +340,7 @@ class AgentSessionContext {
         nativeToolCommandReadiness: commands.nativeToolCommandReadiness,
         debugCommands: commands.debugCommands,
         debugCommandReadiness: commands.debugCommandReadiness,
+        settingsCommands: commands.settingsCommands,
         recentResults: commandResultHistory,
         lastResult: lastCommandResult ?? commands.lastResult,
       ),
@@ -2770,6 +2771,7 @@ class AgentCommandCatalogContext {
     required this.nativeToolCommandReadiness,
     required this.debugCommands,
     required this.debugCommandReadiness,
+    required this.settingsCommands,
     this.recentResults = const <AgentCommandResultContext>[],
     this.lastResult,
   });
@@ -2783,6 +2785,7 @@ class AgentCommandCatalogContext {
   final List<AgentNativeToolCommandReadinessContext> nativeToolCommandReadiness;
   final List<AgentCommandContext> debugCommands;
   final List<AgentDebugCommandReadinessContext> debugCommandReadiness;
+  final List<AgentCommandContext> settingsCommands;
   final List<AgentCommandResultContext> recentResults;
   final AgentCommandResultContext? lastResult;
 
@@ -2837,6 +2840,9 @@ class AgentCommandCatalogContext {
         debug: debug,
         dirtyDocumentIds: dirtyDocumentIds,
       ),
+      settingsCommands: StyioCommandRegistry.settingsCommands
+          .map(AgentCommandContext.fromDescriptor)
+          .toList(growable: false),
       recentResults: resultHistory,
       lastResult: lastResult,
     );
@@ -2870,6 +2876,9 @@ class AgentCommandCatalogContext {
           .toList(growable: false),
       'debugCommandReadiness': debugCommandReadiness
           .map((readiness) => readiness.toJson())
+          .toList(growable: false),
+      'settingsCommands': settingsCommands
+          .map((command) => command.toJson())
           .toList(growable: false),
       if (recentResults.isNotEmpty)
         'recentResults': recentResults

@@ -623,6 +623,7 @@ void main() {
         contains('before the blocked command'),
       );
       expect(systemMessage['content'], contains('commands.debugCommands'));
+      expect(systemMessage['content'], contains('commands.settingsCommands'));
       expect(
         systemMessage['content'],
         contains('commands.debugCommandReadiness'),
@@ -785,6 +786,7 @@ void main() {
       expect(metadata['navigationCommandCount'], 5);
       expect(metadata['refactorCommandCount'], 3);
       expect(metadata['debugCommandCount'], 7);
+      expect(metadata['settingsCommandCount'], 1);
       expect(metadata['recentCommandResultCount'], 1);
       expect(metadata['recentCommandIds'], <String>['searchWorkspace']);
       expect(metadata['lastCommandId'], 'searchWorkspace');

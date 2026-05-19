@@ -180,6 +180,7 @@ class _AgentProviderProfileSectionState
   late final TextEditingController _bearerTokenController;
   late Set<String> _contextChannels;
   late String _profileSignature;
+  late String _lockSignature;
   String? _failureSignature;
   bool _saving = false;
   String? _errorMessage;
@@ -195,6 +196,7 @@ class _AgentProviderProfileSectionState
     _bearerTokenController = TextEditingController();
     _contextChannels = profile.contextChannels.toSet();
     _profileSignature = _profileSignatureFor(profile);
+    _lockSignature = _lockSignatureFor(widget.controller);
     _failureSignature = _failureSignatureFor(
       widget.controller.lastProviderFailure,
     );
@@ -207,6 +209,7 @@ class _AgentProviderProfileSectionState
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_syncFromController);
       widget.controller.addListener(_syncFromController);
+      _lockSignature = _lockSignatureFor(widget.controller);
       _setProfileFields(widget.controller.profile);
     }
   }
@@ -228,8 +231,10 @@ class _AgentProviderProfileSectionState
     final failureSignature = _failureSignatureFor(
       widget.controller.lastProviderFailure,
     );
+    final lockSignature = _lockSignatureFor(widget.controller);
     if (_profileSignature == profileSignature &&
-        _failureSignature == failureSignature) {
+        _failureSignature == failureSignature &&
+        _lockSignature == lockSignature) {
       return;
     }
     if (!mounted) {
@@ -241,6 +246,7 @@ class _AgentProviderProfileSectionState
         _errorMessage = null;
       }
       _failureSignature = failureSignature;
+      _lockSignature = lockSignature;
     });
   }
 
@@ -277,10 +283,23 @@ class _AgentProviderProfileSectionState
     ].join('\n');
   }
 
+  String _lockSignatureFor(AgentCodingSessionController controller) {
+    return [
+      controller.sending,
+      controller.applyingPatch,
+      controller.applyingIdeCommand,
+    ].join('\n');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final providerFailure = widget.controller.lastProviderFailure;
+    final locked =
+        _saving ||
+        widget.controller.sending ||
+        widget.controller.applyingPatch ||
+        widget.controller.applyingIdeCommand;
     return Container(
       key: const ValueKey('agent-provider-profile-section'),
       width: double.infinity,
@@ -316,7 +335,7 @@ class _AgentProviderProfileSectionState
           const SizedBox(height: 8),
           FilledButton(
             key: const ValueKey('agent-profile-save-button'),
-            onPressed: _saving ? null : _saveProfile,
+            onPressed: locked ? null : _saveProfile,
             child: Text(_saving ? 'Saving...' : 'Save Provider Profile'),
           ),
           const SizedBox(height: 10),
@@ -332,7 +351,7 @@ class _AgentProviderProfileSectionState
                   child: GestureDetector(
                     key: ValueKey('agent-context-channel-$channel'),
                     behavior: HitTestBehavior.opaque,
-                    onTap: _saving
+                    onTap: locked
                         ? null
                         : () {
                             final selected = !_contextChannels.contains(
@@ -350,7 +369,7 @@ class _AgentProviderProfileSectionState
                       child: FilterChip(
                         label: Text(channel),
                         selected: _contextChannels.contains(channel),
-                        onSelected: _saving ? null : (_) {},
+                        onSelected: locked ? null : (_) {},
                       ),
                     ),
                   ),
@@ -370,7 +389,7 @@ class _AgentProviderProfileSectionState
           TextFormField(
             key: const ValueKey('agent-profile-display-name-input'),
             controller: _displayNameController,
-            enabled: !_saving,
+            enabled: !locked,
             decoration: const InputDecoration(
               labelText: 'Display name',
               border: OutlineInputBorder(),
@@ -380,7 +399,7 @@ class _AgentProviderProfileSectionState
           TextFormField(
             key: const ValueKey('agent-profile-base-url-input'),
             controller: _baseUrlController,
-            enabled: !_saving,
+            enabled: !locked,
             decoration: const InputDecoration(
               labelText: 'OpenAI-compatible base URL',
               border: OutlineInputBorder(),
@@ -390,7 +409,7 @@ class _AgentProviderProfileSectionState
           TextFormField(
             key: const ValueKey('agent-profile-model-input'),
             controller: _modelController,
-            enabled: !_saving,
+            enabled: !locked,
             decoration: const InputDecoration(
               labelText: 'Model',
               border: OutlineInputBorder(),
@@ -400,7 +419,7 @@ class _AgentProviderProfileSectionState
           TextFormField(
             key: const ValueKey('agent-profile-system-prompt-input'),
             controller: _systemPromptController,
-            enabled: !_saving,
+            enabled: !locked,
             minLines: 2,
             maxLines: 4,
             decoration: const InputDecoration(
@@ -412,7 +431,7 @@ class _AgentProviderProfileSectionState
           TextFormField(
             key: const ValueKey('agent-profile-bearer-token-input'),
             controller: _bearerTokenController,
-            enabled: !_saving,
+            enabled: !locked,
             obscureText: true,
             decoration: const InputDecoration(
               labelText: 'Bearer token (optional)',

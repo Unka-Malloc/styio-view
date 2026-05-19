@@ -1119,6 +1119,10 @@ void main() {
       find.widgetWithText(FilledButton, 'Send'),
     );
     expect(sendButton.onPressed, isNull);
+    final profileSaveButton = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('agent-profile-save-button')),
+    );
+    expect(profileSaveButton.onPressed, isNull);
     expect(
       tester
           .widget<OutlinedButton>(

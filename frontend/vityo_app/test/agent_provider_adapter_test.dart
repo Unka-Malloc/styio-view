@@ -624,6 +624,10 @@ void main() {
       expect(systemMessage['content'], contains('debug.stackFrames'));
       expect(systemMessage['content'], contains('commands.lastResult'));
       expect(systemMessage['content'], contains('commands.recentResults'));
+      expect(
+        systemMessage['content'],
+        contains('commands.recentResults includes metadata.requiredCommand'),
+      );
       expect(systemMessage['content'], contains('agent.pendingPatch'));
       expect(systemMessage['content'], contains('agent.recentPatchProposals'));
       expect(systemMessage['content'], contains('agent.pendingIdeCommands'));

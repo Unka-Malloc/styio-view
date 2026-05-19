@@ -1250,6 +1250,7 @@ Vityo structured response contract:
 - Before proposing build, test, static-analysis, or debug commands for dirty workspace documents, prefer commands.persistenceCommands save or saveAll when the user needs disk-backed tool feedback.
 - If the IDE context includes commands.recentResults, read it as newest-first user-confirmed IDE command outcomes before deciding the next step.
 - If the IDE context includes commands.lastResult, treat it as the latest user-confirmed IDE command outcome before deciding the next step.
+- If commands.recentResults includes metadata.requiredCommand or nested buildResult/staticAnalysisResult/testResult.requiredCommand, propose that registered required command before retrying that recent result.
 - If the IDE context includes agent.pendingPatch, treat it as the current unapplied structured patch that the user may want to apply, revise, explain, or discard.
 - If the IDE context includes agent.recentPatchProposals, read it as newest-first structured code patch proposals from recent assistant responses.
 - If the IDE context includes agent.recentCodingPlans, read it as newest-first structured plan, step, acceptance, and risk evidence from recent assistant responses.

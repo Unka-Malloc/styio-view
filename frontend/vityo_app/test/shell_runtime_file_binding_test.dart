@@ -1191,8 +1191,39 @@ void main() {
     expect(rejectedResult?.applied, isFalse);
     expect(rejectedResult?.metadata['toolchainId'], 'fake-cmake');
     expect(rejectedResult?.metadata['toolchainSelectionStatus'], 'missing');
+    expect(
+      rejectedResult?.metadata['toolchainSelectionMessage'],
+      contains('not a registered Clang/C++ compiler candidate'),
+    );
     expect(rejectedResult?.message, contains('failed for fake-cmake'));
     expect(rejectedPreference, isNull);
+
+    final unsupportedStandard = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(
+        commandId: 'selectClangCppVersion',
+        input: 'fake-clang-18 c++2b',
+      ),
+    );
+    final unsupportedStandardResult =
+        shell.agentSessionContext.commands.lastResult;
+    final unsupportedStandardPreference = await manager
+        .loadClangCppVersionPreference();
+
+    expect(unsupportedStandard, isFalse);
+    expect(unsupportedStandardResult?.commandId, 'selectClangCppVersion');
+    expect(unsupportedStandardResult?.applied, isFalse);
+    expect(unsupportedStandardResult?.metadata['toolchainId'], 'fake-clang-18');
+    expect(unsupportedStandardResult?.metadata['cppStandard'], 'c++2b');
+    expect(
+      unsupportedStandardResult?.metadata['toolchainSelectionStatus'],
+      'missing',
+    );
+    expect(
+      unsupportedStandardResult?.metadata['toolchainSelectionMessage'],
+      contains('unsupported C++ standard c++2b'),
+    );
+    expect(unsupportedStandardResult?.message, contains('failed for'));
+    expect(unsupportedStandardPreference, isNull);
 
     final applied = await shell.applyAgentIdeCommandSuggestion(
       const AgentIdeCommandSuggestion(

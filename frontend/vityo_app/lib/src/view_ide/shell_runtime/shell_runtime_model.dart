@@ -1131,11 +1131,13 @@ class ShellRuntimeModel extends ChangeNotifier {
           applied: applied,
           message: applied
               ? 'Agent command selectClangCppVersion selected ${parsed.versionId}.'
-              : 'Agent command selectClangCppVersion failed for ${parsed.versionId}.',
+              : 'Agent command selectClangCppVersion failed for ${parsed.versionId}: ${result?.message ?? "selection was not applied"}.',
           metadata: <String, Object?>{
             'toolchainId': parsed.versionId,
             if (parsed.cppStandard != null) 'cppStandard': parsed.cppStandard,
             if (result != null) 'toolchainSelectionStatus': result.status.name,
+            if (result?.message != null)
+              'toolchainSelectionMessage': result!.message,
             if (selection != null)
               ..._agentClangCppSelectionMetadata(selection),
           },
@@ -3121,12 +3123,34 @@ class ShellRuntimeModel extends ChangeNotifier {
       );
     }
 
+    final requestedCppStandard = cppStandard == null
+        ? null
+        : CppLanguageStandard.fromWireValue(cppStandard);
+    if (cppStandard != null &&
+        cppStandard.trim().isNotEmpty &&
+        requestedCppStandard == null) {
+      final supportedStandards = CppLanguageStandard.values
+          .map((standard) => 'c++${standard.cmakeValue}')
+          .join(', ');
+      final message =
+          'Clang/C++ version selection failed: unsupported C++ standard $cppStandard. Supported standards: $supportedStandards.';
+      appendLog(message);
+      notifyListeners();
+      return ToolchainSelectionResult(
+        status: ToolchainSelectionStatus.missing,
+        kind: ToolchainKind.compiler,
+        toolchainId: versionId,
+        message: message,
+        snapshot: snapshotBeforeSelection,
+      );
+    }
+
     final result = await manager.selectToolchain(versionId);
     if (result.succeeded) {
       final preference = ClangCppVersionPreference(
         versionId: versionId,
         cppStandard:
-            CppLanguageStandard.fromWireValue(cppStandard) ??
+            requestedCppStandard ??
             _clangCppVersionPreference?.cppStandard ??
             CppLanguageStandard.cpp20,
       );

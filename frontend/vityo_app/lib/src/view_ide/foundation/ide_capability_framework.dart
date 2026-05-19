@@ -518,7 +518,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/debugger',
           summary:
-              'DAP launch contracts, breakpoint serialization, launch profiles, workspace launch configuration sets, Foundation DataStore persistence, and runtime task projection are wired.',
+              'DAP launch contracts, breakpoint serialization, launch profiles, workspace launch configuration sets, Foundation DataStore persistence, runtime task projection, and extension debugger route consumption are wired.',
           todo:
               'TODO: wire non-C++ debug adapters, launch UI editing, DAP event task history, and test debug handoff.',
           references: <String>['Debug Adapter Protocol'],

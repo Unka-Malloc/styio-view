@@ -300,6 +300,7 @@ class AppBootstrap {
       transport: NetworkAgentProviderTransport(
         networkManager: platformManagers.network,
       ),
+      localServiceManager: platformManagers.localService,
     );
     final agentProviderRegistry = agentProviderFactory.createRegistry();
     final agentCodingController = await createAgentCodingSessionController(

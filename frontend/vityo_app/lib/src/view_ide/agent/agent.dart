@@ -5,6 +5,7 @@ export 'agent_profile.dart';
 export 'agent_provider_credential_resolver.dart';
 export 'agent_provider_configurator.dart';
 export 'agent_provider_network_transport.dart';
+export 'agent_provider_route_executor.dart';
 export 'agent_provider_registry.dart';
 export 'agent_prompt_profile_store.dart';
 export 'agent_provider_adapter.dart';

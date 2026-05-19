@@ -683,17 +683,19 @@ class OpenAICompatibleAgentProviderAdapter
     required this.endpoint,
     this.authorizationToken,
     this.adapterId = 'openai-compatible',
+    this.providerKind = AgentProviderKind.cloudOpenAICompatible,
   });
 
   final AgentProviderTransport transport;
   final AgentProviderEndpoint endpoint;
   final String? authorizationToken;
+  final AgentProviderKind providerKind;
 
   @override
   final String adapterId;
 
   @override
-  AgentProviderKind get kind => AgentProviderKind.cloudOpenAICompatible;
+  AgentProviderKind get kind => providerKind;
 
   @override
   bool get supportsCodePatch => true;

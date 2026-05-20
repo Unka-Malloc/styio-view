@@ -55,7 +55,7 @@ class EditorRenderSnapshot {
       activeTokenText: activeToken?.lexeme ?? '',
       activeSemanticKind: activeSemanticKind?.name ?? '',
       todo:
-          'TODO: bind this snapshot to the concrete scroll controller and theme-driven TextStyle pipeline.',
+          'TODO: bind this snapshot to the concrete scroll controller viewport state.',
     );
   }
 

@@ -187,8 +187,7 @@ class EditorSemanticThemeBinding {
             decorationColor: entry.value,
           ),
       },
-      todo:
-          'TODO: bind these render styles into the concrete TextSpan/TextStyle pipeline.',
+      todo: 'TODO: persist user-editable semantic theme choices.',
     );
   }
 

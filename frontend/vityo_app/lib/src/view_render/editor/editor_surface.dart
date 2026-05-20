@@ -8,6 +8,7 @@ import '../../view_ide/editor/document_state.dart';
 import '../../view_ide/editor/editor_controller.dart';
 import '../../view_ide/editor/editor_render_layers.dart';
 import '../../view_ide/editor/selection_state.dart';
+import 'editor_text_style_binding.dart';
 
 List<CompletionItem> mergeCompletionItems(
   Iterable<CompletionItem> primary,
@@ -33,6 +34,7 @@ class EditorSurface extends StatelessWidget {
     this.languageServiceStatus,
     this.fileBindingSnapshot,
     this.closeRequestSurface,
+    this.semanticThemeBinding,
     this.onAcceptExternalChange,
     this.onSaveLocalChanges,
     this.onDiscardLocalChanges,
@@ -54,6 +56,7 @@ class EditorSurface extends StatelessWidget {
   final LanguageServiceStatusSurface? languageServiceStatus;
   final DocumentResourceBindingSnapshot? fileBindingSnapshot;
   final EditorCloseRequestSurface? closeRequestSurface;
+  final EditorSemanticThemeBinding? semanticThemeBinding;
   final VoidCallback? onAcceptExternalChange;
   final VoidCallback? onSaveLocalChanges;
   final VoidCallback? onDiscardLocalChanges;
@@ -78,6 +81,11 @@ class EditorSurface extends StatelessWidget {
         final document = controller.document;
         final selection = controller.selection;
         final renderPlan = controller.renderPlan;
+        final semanticThemeBinding =
+            this.semanticThemeBinding ??
+            EditorSemanticThemeBinding.fromTheme(
+              EditorSemanticTheme.foundation(),
+            );
         final analysis = controller.analysis;
         final hover = projectHoverAtSelection ?? controller.hoverAtSelection;
         final completions = mergeCompletionItems(
@@ -242,8 +250,7 @@ class EditorSurface extends StatelessWidget {
                                               : 'glyph substitution off',
                                         ),
                                         onSelected: (_) {
-                                          controller
-                                              .toggleGlyphSubstitution();
+                                          controller.toggleGlyphSubstitution();
                                         },
                                       ),
                                     ],
@@ -251,32 +258,138 @@ class EditorSurface extends StatelessWidget {
                                   const SizedBox(height: 16),
                                 ],
                                 Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final mobileFamily = viewportProfile.isMobile;
-                                  final scrollStackedPane =
-                                      mobileFamily &&
-                                      constraints.maxHeight < 460;
-                                  final inspectorHeight =
-                                      constraints.maxHeight >= 720
-                                      ? 240.0
-                                      : constraints.maxHeight >= 560
-                                      ? 200.0
-                                      : 160.0;
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final mobileFamily =
+                                          viewportProfile.isMobile;
+                                      final scrollStackedPane =
+                                          mobileFamily &&
+                                          constraints.maxHeight < 460;
+                                      final inspectorHeight =
+                                          constraints.maxHeight >= 720
+                                          ? 240.0
+                                          : constraints.maxHeight >= 560
+                                          ? 200.0
+                                          : 160.0;
 
-                                  if (scrollStackedPane) {
-                                    return KeyedSubtree(
-                                      key: const ValueKey(
-                                        'editor-language-family-mobile',
-                                      ),
-                                      child: SingleChildScrollView(
-                                        key: ValueKey(
-                                          'editor-language-layout-scroll-${viewportProfile.label.toLowerCase()}',
+                                      if (scrollStackedPane) {
+                                        return KeyedSubtree(
+                                          key: const ValueKey(
+                                            'editor-language-family-mobile',
+                                          ),
+                                          child: SingleChildScrollView(
+                                            key: ValueKey(
+                                              'editor-language-layout-scroll-${viewportProfile.label.toLowerCase()}',
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                SizedBox(
+                                                  height: 320,
+                                                  child: _SourcePreviewPane(
+                                                    controller: controller,
+                                                    viewportProfile:
+                                                        viewportProfile,
+                                                    hover: hover,
+                                                    completions: completions,
+                                                    activeReferences:
+                                                        activeReferences,
+                                                    activeToken: activeToken,
+                                                    activeSemanticKind:
+                                                        activeSemanticKind,
+                                                    document: document,
+                                                    selection: selection,
+                                                    analysis: analysis,
+                                                    renderPlan: renderPlan,
+                                                    semanticThemeBinding:
+                                                        semanticThemeBinding,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                SizedBox(
+                                                  height: 180,
+                                                  child: _LanguageServicePane(
+                                                    controller: controller,
+                                                    viewportProfile:
+                                                        viewportProfile,
+                                                    analysis: analysis,
+                                                    hover: hover,
+                                                    completions: completions,
+                                                    activeToken: activeToken,
+                                                    activeSemanticKind:
+                                                        activeSemanticKind,
+                                                    languageServiceStatus:
+                                                        visibleServiceStatus,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      if (mobileFamily) {
+                                        return KeyedSubtree(
+                                          key: const ValueKey(
+                                            'editor-language-family-mobile',
+                                          ),
+                                          child: Column(
+                                            key: const ValueKey(
+                                              'editor-language-layout-mobile',
+                                            ),
+                                            children: [
+                                              Expanded(
+                                                child: _SourcePreviewPane(
+                                                  controller: controller,
+                                                  viewportProfile:
+                                                      viewportProfile,
+                                                  hover: hover,
+                                                  completions: completions,
+                                                  activeReferences:
+                                                      activeReferences,
+                                                  activeToken: activeToken,
+                                                  activeSemanticKind:
+                                                      activeSemanticKind,
+                                                  document: document,
+                                                  selection: selection,
+                                                  analysis: analysis,
+                                                  renderPlan: renderPlan,
+                                                  semanticThemeBinding:
+                                                      semanticThemeBinding,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 16),
+                                              SizedBox(
+                                                height: inspectorHeight,
+                                                child: _LanguageServicePane(
+                                                  controller: controller,
+                                                  viewportProfile:
+                                                      viewportProfile,
+                                                  analysis: analysis,
+                                                  hover: hover,
+                                                  completions: completions,
+                                                  activeToken: activeToken,
+                                                  activeSemanticKind:
+                                                      activeSemanticKind,
+                                                  languageServiceStatus:
+                                                      visibleServiceStatus,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+
+                                      return KeyedSubtree(
+                                        key: const ValueKey(
+                                          'editor-language-family-desktop',
                                         ),
-                                        child: Column(
+                                        child: Row(
+                                          key: const ValueKey(
+                                            'editor-language-layout-desktop',
+                                          ),
                                           children: [
-                                            SizedBox(
-                                              height: 320,
+                                            Expanded(
+                                              flex: 5,
                                               child: _SourcePreviewPane(
                                                 controller: controller,
                                                 viewportProfile:
@@ -292,11 +405,15 @@ class EditorSurface extends StatelessWidget {
                                                 selection: selection,
                                                 analysis: analysis,
                                                 renderPlan: renderPlan,
+                                                semanticThemeBinding:
+                                                    semanticThemeBinding,
                                               ),
                                             ),
-                                            const SizedBox(height: 16),
+                                            const SizedBox(width: 16),
                                             SizedBox(
-                                              height: 180,
+                                              width: constraints.maxWidth >= 760
+                                                  ? 300
+                                                  : 248,
                                               child: _LanguageServicePane(
                                                 controller: controller,
                                                 viewportProfile:
@@ -313,108 +430,10 @@ class EditorSurface extends StatelessWidget {
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    );
-                                  }
-
-                                  if (mobileFamily) {
-                                    return KeyedSubtree(
-                                      key: const ValueKey(
-                                        'editor-language-family-mobile',
-                                      ),
-                                      child: Column(
-                                        key: const ValueKey(
-                                          'editor-language-layout-mobile',
-                                        ),
-                                        children: [
-                                          Expanded(
-                                            child: _SourcePreviewPane(
-                                              controller: controller,
-                                              viewportProfile: viewportProfile,
-                                              hover: hover,
-                                              completions: completions,
-                                              activeReferences:
-                                                  activeReferences,
-                                              activeToken: activeToken,
-                                              activeSemanticKind:
-                                                  activeSemanticKind,
-                                              document: document,
-                                              selection: selection,
-                                              analysis: analysis,
-                                              renderPlan: renderPlan,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          SizedBox(
-                                            height: inspectorHeight,
-                                            child: _LanguageServicePane(
-                                              controller: controller,
-                                              viewportProfile: viewportProfile,
-                                              analysis: analysis,
-                                              hover: hover,
-                                              completions: completions,
-                                              activeToken: activeToken,
-                                              activeSemanticKind:
-                                                  activeSemanticKind,
-                                              languageServiceStatus:
-                                                  visibleServiceStatus,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }
-
-                                  return KeyedSubtree(
-                                    key: const ValueKey(
-                                      'editor-language-family-desktop',
-                                    ),
-                                    child: Row(
-                                      key: const ValueKey(
-                                        'editor-language-layout-desktop',
-                                      ),
-                                      children: [
-                                        Expanded(
-                                          flex: 5,
-                                          child: _SourcePreviewPane(
-                                            controller: controller,
-                                            viewportProfile: viewportProfile,
-                                            hover: hover,
-                                            completions: completions,
-                                            activeReferences: activeReferences,
-                                            activeToken: activeToken,
-                                            activeSemanticKind:
-                                                activeSemanticKind,
-                                            document: document,
-                                            selection: selection,
-                                            analysis: analysis,
-                                            renderPlan: renderPlan,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        SizedBox(
-                                          width: constraints.maxWidth >= 760
-                                              ? 300
-                                              : 248,
-                                          child: _LanguageServicePane(
-                                            controller: controller,
-                                            viewportProfile: viewportProfile,
-                                            analysis: analysis,
-                                            hover: hover,
-                                            completions: completions,
-                                            activeToken: activeToken,
-                                            activeSemanticKind:
-                                                activeSemanticKind,
-                                            languageServiceStatus:
-                                                visibleServiceStatus,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
+                                      );
+                                    },
+                                  ),
+                                ),
                               ],
                             );
                           },
@@ -820,6 +839,7 @@ class _SourcePreviewPane extends StatefulWidget {
     required this.selection,
     required this.analysis,
     required this.renderPlan,
+    required this.semanticThemeBinding,
   });
 
   final EditorSessionController controller;
@@ -833,6 +853,7 @@ class _SourcePreviewPane extends StatefulWidget {
   final SelectionState selection;
   final StyioDocumentAnalysis analysis;
   final EditorRenderPlan renderPlan;
+  final EditorSemanticThemeBinding semanticThemeBinding;
 
   @override
   State<_SourcePreviewPane> createState() => _SourcePreviewPaneState();
@@ -2670,6 +2691,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           selection: widget.selection,
                           analysis: widget.analysis,
                           renderPlan: widget.renderPlan,
+                          semanticThemeBinding: widget.semanticThemeBinding,
                           lineStarts: lineStarts,
                           semanticBlocks: semanticBlocks,
                           maxRenderedLineCount: _maxRenderedPreviewLines,
@@ -4685,6 +4707,7 @@ class _HighlightedLineRow extends StatelessWidget {
     required this.lineIndex,
     required this.lineStarts,
     required this.renderPlan,
+    required this.semanticThemeBinding,
     required this.onTapDown,
     required this.onPanStart,
     required this.onPanUpdate,
@@ -4699,6 +4722,7 @@ class _HighlightedLineRow extends StatelessWidget {
   final int lineIndex;
   final List<int> lineStarts;
   final EditorRenderPlan renderPlan;
+  final EditorSemanticThemeBinding semanticThemeBinding;
   final ValueChanged<TapDownDetails> onTapDown;
   final ValueChanged<DragStartDetails> onPanStart;
   final ValueChanged<DragUpdateDetails> onPanUpdate;
@@ -4765,6 +4789,7 @@ class _HighlightedLineRow extends StatelessWidget {
                         activeTokenRange: activeTokenRange,
                         selection: selection,
                         renderPlan: renderPlan,
+                        semanticThemeBinding: semanticThemeBinding,
                       ),
                     ),
                     softWrap: false,
@@ -6071,6 +6096,7 @@ List<Widget> _buildPreviewChildren(
   required SelectionState selection,
   required StyioDocumentAnalysis analysis,
   required EditorRenderPlan renderPlan,
+  required EditorSemanticThemeBinding semanticThemeBinding,
   required List<int> lineStarts,
   required List<_SemanticLineBlock> semanticBlocks,
   required int maxRenderedLineCount,
@@ -6144,6 +6170,7 @@ List<Widget> _buildPreviewChildren(
                     activeLineIndex: activeLineIndex,
                     lineStarts: lineStarts,
                     renderPlan: renderPlan,
+                    semanticThemeBinding: semanticThemeBinding,
                     onTapLine: onTapLine,
                     onPanStartLine: onPanStartLine,
                     onPanUpdateLine: onPanUpdateLine,
@@ -6180,6 +6207,7 @@ List<Widget> _buildPreviewChildren(
         activeLineIndex: activeLineIndex,
         lineStarts: lineStarts,
         renderPlan: renderPlan,
+        semanticThemeBinding: semanticThemeBinding,
         onTapLine: onTapLine,
         onPanStartLine: onPanStartLine,
         onPanUpdateLine: onPanUpdateLine,
@@ -6291,6 +6319,7 @@ List<Widget> _buildLineWithInlineFeedback(
   required int activeLineIndex,
   required List<int> lineStarts,
   required EditorRenderPlan renderPlan,
+  required EditorSemanticThemeBinding semanticThemeBinding,
   required void Function(int lineIndex, TapDownDetails details) onTapLine,
   required void Function(int lineIndex, DragStartDetails details)
   onPanStartLine,
@@ -6309,6 +6338,7 @@ List<Widget> _buildLineWithInlineFeedback(
       lineIndex: lineIndex,
       lineStarts: lineStarts,
       renderPlan: renderPlan,
+      semanticThemeBinding: semanticThemeBinding,
       onTapDown: (details) => onTapLine(lineIndex, details),
       onPanStart: (details) => onPanStartLine(lineIndex, details),
       onPanUpdate: (details) => onPanUpdateLine(lineIndex, details),
@@ -6357,6 +6387,7 @@ List<InlineSpan> _buildLineSpans(
   required SourceRange? activeTokenRange,
   required SelectionState selection,
   required EditorRenderPlan renderPlan,
+  required EditorSemanticThemeBinding semanticThemeBinding,
 }) {
   final spans = <InlineSpan>[];
   final caretOffset = selection.isCollapsed ? selection.end : null;
@@ -6407,6 +6438,7 @@ List<InlineSpan> _buildLineSpans(
           tokenKind: TokenKind.whitespace,
           semanticKind: null,
           diagnosticSeverity: null,
+          semanticThemeBinding: semanticThemeBinding,
         ),
       ),
     );
@@ -6432,6 +6464,7 @@ List<InlineSpan> _buildLineSpans(
         tokenKind: TokenKind.whitespace,
         semanticKind: null,
         diagnosticSeverity: null,
+        semanticThemeBinding: semanticThemeBinding,
       );
       _appendCaretIfNeeded(
         spans,
@@ -6479,6 +6512,7 @@ List<InlineSpan> _buildLineSpans(
           activeToken:
               activeTokenRange != null &&
               _sameRange(activeTokenRange, tokenRange),
+          semanticThemeBinding: semanticThemeBinding,
           enableGlyphSubstitution:
               renderPlan.activeLayers.contains(EditorRenderLayer.decoration) &&
               renderPlan.glyphSubstitutionEnabled &&
@@ -6495,6 +6529,7 @@ List<InlineSpan> _buildLineSpans(
       tokenKind: TokenKind.whitespace,
       semanticKind: null,
       diagnosticSeverity: null,
+      semanticThemeBinding: semanticThemeBinding,
     );
     _appendCaretIfNeeded(
       spans,
@@ -6548,6 +6583,7 @@ List<InlineSpan> _inlineSpansForToken(
   required DiagnosticSeverity? diagnosticSeverity,
   required ReferenceSpan? activeReference,
   required bool activeToken,
+  required EditorSemanticThemeBinding semanticThemeBinding,
   required bool enableGlyphSubstitution,
 }) {
   final style = _textStyleForToken(
@@ -6555,6 +6591,7 @@ List<InlineSpan> _inlineSpansForToken(
     tokenKind: token.kind,
     semanticKind: semanticKind,
     diagnosticSeverity: diagnosticSeverity,
+    semanticThemeBinding: semanticThemeBinding,
   );
   final referenceHighlightColor = _referenceHighlightColor(activeReference);
 
@@ -6800,101 +6837,15 @@ TextStyle _textStyleForToken(
   required TokenKind tokenKind,
   required SemanticKind? semanticKind,
   required DiagnosticSeverity? diagnosticSeverity,
+  required EditorSemanticThemeBinding semanticThemeBinding,
 }) {
-  Color color;
-  FontWeight weight = FontWeight.w500;
-
-  switch (tokenKind) {
-    case TokenKind.keyword:
-      color = const Color(0xFF6450A7);
-      break;
-    case TokenKind.identifier:
-      color = const Color(0xFF2C2725);
-      break;
-    case TokenKind.number:
-      color = const Color(0xFF0F7B68);
-      break;
-    case TokenKind.string:
-      color = const Color(0xFFAF5B33);
-      break;
-    case TokenKind.comment:
-      color = const Color(0xFF9A9185);
-      break;
-    case TokenKind.operator:
-      color = const Color(0xFF255A96);
-      break;
-    case TokenKind.punctuation:
-      color = const Color(0xFF6D655E);
-      break;
-    case TokenKind.whitespace:
-      color = const Color(0xFF2C2725);
-      weight = FontWeight.w400;
-      break;
-    case TokenKind.unknown:
-      color = const Color(0xFFCB4D45);
-      break;
-  }
-
-  switch (semanticKind) {
-    case SemanticKind.function:
-      color = const Color(0xFFAA4D7D);
-      weight = FontWeight.w700;
-      break;
-    case SemanticKind.pipeline:
-      color = const Color(0xFF25637A);
-      weight = FontWeight.w700;
-      break;
-    case SemanticKind.state:
-      color = const Color(0xFF847A22);
-      weight = FontWeight.w700;
-      break;
-    case SemanticKind.resource:
-      color = const Color(0xFF8B5E28);
-      weight = FontWeight.w700;
-      break;
-    case SemanticKind.variable:
-      color = const Color(0xFF6A4C33);
-      weight = FontWeight.w600;
-      break;
-    case SemanticKind.parameter:
-      color = const Color(0xFF355E97);
-      weight = FontWeight.w600;
-      break;
-    case SemanticKind.typeName:
-      color = const Color(0xFF4D6D2A);
-      weight = FontWeight.w700;
-      break;
-    case null:
-      break;
-  }
-
-  var decoration = TextDecoration.none;
-  var decorationColor = color;
-  var decorationStyle = TextDecorationStyle.solid;
-
-  if (diagnosticSeverity != null) {
-    decoration = TextDecoration.underline;
-    decorationStyle = TextDecorationStyle.wavy;
-    switch (diagnosticSeverity) {
-      case DiagnosticSeverity.error:
-        decorationColor = const Color(0xFFCB4D45);
-        break;
-      case DiagnosticSeverity.warning:
-        decorationColor = const Color(0xFFD5962A);
-        break;
-      case DiagnosticSeverity.hint:
-        decorationColor = const Color(0xFF6980B5);
-        break;
-    }
-  }
-
-  return Theme.of(context).textTheme.bodyMedium!.copyWith(
-    fontFamily: 'monospace',
-    color: color,
-    fontWeight: weight,
-    decoration: decoration,
-    decorationColor: decorationColor,
-    decorationStyle: decorationStyle,
+  return EditorFlutterTextStyleBinding(
+    semanticThemeBinding: semanticThemeBinding,
+  ).styleForToken(
+    baseStyle: Theme.of(context).textTheme.bodyMedium!,
+    tokenKind: tokenKind,
+    semanticKind: semanticKind,
+    diagnosticSeverity: diagnosticSeverity,
   );
 }
 

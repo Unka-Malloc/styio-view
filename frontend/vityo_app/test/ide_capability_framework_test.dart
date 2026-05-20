@@ -250,8 +250,12 @@ void main() {
       contains('EditorSemanticThemeBinding render styles'),
     );
     expect(
+      entriesById['editor.rendering']?.summary,
+      contains('Flutter TextSpan/TextStyle binding'),
+    );
+    expect(
       entriesById['editor.rendering']?.todo,
-      contains('TextSpan/TextStyle pipeline'),
+      contains('scroll controller viewport'),
     );
     expect(
       entriesById['workspace.edit-application']?.status,

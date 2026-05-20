@@ -1,7 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/editor.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
+import 'package:vityo_app/src/view_render/editor/editor.dart';
 
 void main() {
   test('editor render plan round trips active layers', () {
@@ -48,7 +50,31 @@ void main() {
           ?.decoration,
       'underline',
     );
-    expect(binding.toJson()['todo'], contains('TextSpan/TextStyle'));
+    expect(binding.toJson()['todo'], contains('user-editable'));
+  });
+
+  test('editor Flutter text style binding consumes semantic theme styles', () {
+    const theme = EditorSemanticTheme(
+      themeId: 'test.semantic',
+      semanticColors: <String, int>{'function': 0xFF010203},
+      diagnosticUnderlineColors: <String, int>{'warning': 0xFF0A0B0C},
+    );
+    final binding = EditorFlutterTextStyleBinding(
+      semanticThemeBinding: EditorSemanticThemeBinding.fromTheme(theme),
+    );
+
+    final style = binding.styleForToken(
+      baseStyle: const TextStyle(fontSize: 14),
+      tokenKind: TokenKind.identifier,
+      semanticKind: SemanticKind.function,
+      diagnosticSeverity: DiagnosticSeverity.warning,
+    );
+
+    expect(style.color, const Color(0xFF010203));
+    expect(style.fontWeight, FontWeight.w600);
+    expect(style.decoration, TextDecoration.underline);
+    expect(style.decorationStyle, TextDecorationStyle.wavy);
+    expect(style.decorationColor, const Color(0xFF0A0B0C));
   });
 
   test('editor render snapshot captures controller presentation facts', () {
@@ -81,7 +107,7 @@ void main() {
       isA<Map<String, Object?>>(),
     );
     expect(restored.toJson()['hasCodeActionWidget'], isFalse);
-    expect(restored.toJson()['todo'], contains('concrete scroll controller'));
+    expect(restored.toJson()['todo'], contains('scroll controller viewport'));
   });
 
   test('editor render snapshot exposes code action widget availability', () {

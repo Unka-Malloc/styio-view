@@ -231,6 +231,11 @@ void main() {
 
     expect(adapter.requests.single.userPrompt, 'Retry this failed prompt.');
     expect(controller.draftPrompt, isEmpty);
+    expect(
+      find.byKey(const ValueKey('agent-recovery-dispatch-status')),
+      findsOneWidget,
+    );
+    expect(find.text('Agent recovery request dispatched.'), findsOneWidget);
     expect(find.text('recovery ok'), findsOneWidget);
   });
 

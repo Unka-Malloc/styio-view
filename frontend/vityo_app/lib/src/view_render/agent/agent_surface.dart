@@ -1188,6 +1188,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
   late final TextEditingController _promptController;
   bool _applyingPatch = false;
   String? _lastCommandApplicationMessage;
+  String? _recoveryDispatchMessage;
   AgentIdeCommandSuggestion? _lastRetryableCommandSuggestion;
 
   @override
@@ -1317,6 +1318,25 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     } finally {
       widget.controller.endIdeCommandApplication();
     }
+  }
+
+  Future<void> _dispatchRecoveryAction(
+    AgentCodingSessionController controller,
+    AgentCodingSessionRecoveryAction action,
+  ) async {
+    setState(() {
+      _recoveryDispatchMessage = 'Running recovery...';
+    });
+    final result = await controller.dispatchRecoveryRequestDraft(
+      action,
+      confirmed: true,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _recoveryDispatchMessage = result.message;
+    });
   }
 
   String _appliedIdeCommandMessage(AgentIdeCommandSuggestion command) {
@@ -1718,9 +1738,17 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                             ),
                             onPressed: applyingAction || controller.sending
                                 ? null
-                                : () => controller.restoreRecoveryDraft(
-                                    recoveryPlan.recommendedAction,
-                                  ),
+                                : () {
+                                    final restored = controller
+                                        .restoreRecoveryDraft(
+                                          recoveryPlan.recommendedAction,
+                                        );
+                                    if (restored) {
+                                      setState(() {
+                                        _recoveryDispatchMessage = null;
+                                      });
+                                    }
+                                  },
                             child: const Text('Restore Prompt'),
                           ),
                           FilledButton.tonal(
@@ -1730,9 +1758,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                             onPressed: applyingAction || controller.sending
                                 ? null
                                 : () => unawaited(
-                                    controller.dispatchRecoveryRequestDraft(
+                                    _dispatchRecoveryAction(
+                                      controller,
                                       recoveryPlan.recommendedAction,
-                                      confirmed: true,
                                     ),
                                   ),
                             child: const Text('Run Recovery'),
@@ -1741,6 +1769,14 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                       ),
                     ],
                   ),
+                ),
+              ],
+              if (_recoveryDispatchMessage != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _recoveryDispatchMessage!,
+                  key: const ValueKey('agent-recovery-dispatch-status'),
+                  style: theme.textTheme.bodySmall,
                 ),
               ],
               if (responseText != null && responseText.isNotEmpty) ...[

@@ -227,6 +227,160 @@ class WorkspaceSearchHistoryStore {
   }
 }
 
+class WorkspaceSearchFilterState {
+  const WorkspaceSearchFilterState({
+    required this.workspaceId,
+    this.caseSensitive = false,
+    this.wholeWord = false,
+    this.useRegex = false,
+    this.includeGlob = '',
+    this.excludeGlob = '',
+    this.updatedAt,
+  });
+
+  factory WorkspaceSearchFilterState.fromJson(Map<String, Object?> json) {
+    return WorkspaceSearchFilterState(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      caseSensitive: json['caseSensitive'] as bool? ?? false,
+      wholeWord: json['wholeWord'] as bool? ?? false,
+      useRegex: json['useRegex'] as bool? ?? false,
+      includeGlob: json['includeGlob'] as String? ?? '',
+      excludeGlob: json['excludeGlob'] as String? ?? '',
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final bool caseSensitive;
+  final bool wholeWord;
+  final bool useRegex;
+  final String includeGlob;
+  final String excludeGlob;
+  final DateTime? updatedAt;
+
+  bool get active {
+    return caseSensitive ||
+        wholeWord ||
+        useRegex ||
+        includeGlob.trim().isNotEmpty ||
+        excludeGlob.trim().isNotEmpty;
+  }
+
+  WorkspaceSearchFilterState copyWith({
+    String? workspaceId,
+    bool? caseSensitive,
+    bool? wholeWord,
+    bool? useRegex,
+    String? includeGlob,
+    String? excludeGlob,
+    DateTime? updatedAt,
+  }) {
+    return WorkspaceSearchFilterState(
+      workspaceId: workspaceId ?? this.workspaceId,
+      caseSensitive: caseSensitive ?? this.caseSensitive,
+      wholeWord: wholeWord ?? this.wholeWord,
+      useRegex: useRegex ?? this.useRegex,
+      includeGlob: includeGlob ?? this.includeGlob,
+      excludeGlob: excludeGlob ?? this.excludeGlob,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'caseSensitive': caseSensitive,
+      'wholeWord': wholeWord,
+      'useRegex': useRegex,
+      if (includeGlob.isNotEmpty) 'includeGlob': includeGlob,
+      if (excludeGlob.isNotEmpty) 'excludeGlob': excludeGlob,
+      'active': active,
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class WorkspaceSearchFilterStore {
+  WorkspaceSearchFilterStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'workspace.search-filters',
+             layer: 'interaction',
+             stateFamily: 'search-filters',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const WorkspaceSearchFilterStore({required FoundationDataStoreOwner owner})
+    : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'workspace.search-filters';
+  static const String _key = 'result-filter-state';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<WorkspaceSearchFilterState> readFilters({
+    required String workspaceId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return WorkspaceSearchFilterState(workspaceId: workspaceId);
+    }
+    final filters = WorkspaceSearchFilterState.fromJson(value);
+    return filters.workspaceId.isEmpty
+        ? filters.copyWith(workspaceId: workspaceId)
+        : filters;
+  }
+
+  Future<WorkspaceSearchFilterState> saveFilters(
+    WorkspaceSearchFilterState filters,
+  ) async {
+    final next = filters.copyWith(updatedAt: DateTime.now().toUtc());
+    await _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: next.toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: next.workspaceId,
+    );
+    return next;
+  }
+
+  Future<bool> deleteFilters({required String workspaceId}) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+
+  Stream<FoundationDataStoreChange> watchFilters({
+    required String workspaceId,
+  }) {
+    return _owner.watchJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+}
+
 WorkspaceSearchHistoryMode _workspaceSearchHistoryModeFromWireValue(
   String value,
 ) {

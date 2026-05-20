@@ -369,9 +369,8 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
-              'Workspace text search service, in-memory search index snapshot, WorkspaceSearchIndexController stale-revision refresh execution, persistent index invalidation key contract, symbol search service, file quick open service, replace preview contract with before/after diff summary, replace apply confirmation, search history persistence, search history/index summaries in the user surface, agent search command, and match-level navigation callback are wired.',
-          todo:
-              'TODO: add persistent result filters and virtualized multi-file diff expansion.',
+              'Workspace text search service, in-memory search index snapshot, WorkspaceSearchIndexController stale-revision refresh execution, persistent index invalidation key contract, symbol search service, file quick open service, replace preview contract with before/after diff summary, replace apply confirmation, search history persistence, persisted result filter state, search history/index/filter summaries in the user surface, agent search command, and match-level navigation callback are wired.',
+          todo: 'TODO: add virtualized multi-file diff expansion.',
           references: <String>[
             'VS Code search service',
             'IntelliJ Search Everywhere',

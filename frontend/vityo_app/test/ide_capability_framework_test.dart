@@ -48,6 +48,10 @@ void main() {
       contains('WorkspaceSearchIndexController stale-revision refresh'),
     );
     expect(
+      entriesById['interaction.search']?.summary,
+      contains('persisted result filter state'),
+    );
+    expect(
       entriesById['presentation.problems-panel']?.status,
       IdeCapabilityStatus.scaffolded,
     );

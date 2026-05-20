@@ -722,6 +722,35 @@ void main() {
     expect(await store.deleteHistory(workspaceId: 'demo'), isTrue);
     expect((await store.readHistory(workspaceId: 'demo')).records, isEmpty);
   });
+
+  test('workspace search filters persist through DataStore', () async {
+    final store = WorkspaceSearchFilterStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+
+    final saved = await store.saveFilters(
+      const WorkspaceSearchFilterState(
+        workspaceId: 'demo',
+        caseSensitive: true,
+        wholeWord: true,
+        useRegex: true,
+        includeGlob: 'src/**',
+        excludeGlob: 'build/**',
+      ),
+    );
+    final restored = await store.readFilters(workspaceId: 'demo');
+
+    expect(saved.active, isTrue);
+    expect(restored.workspaceId, 'demo');
+    expect(restored.caseSensitive, isTrue);
+    expect(restored.wholeWord, isTrue);
+    expect(restored.useRegex, isTrue);
+    expect(restored.includeGlob, 'src/**');
+    expect(restored.excludeGlob, 'build/**');
+    expect(restored.toJson()['active'], isTrue);
+    expect(await store.deleteFilters(workspaceId: 'demo'), isTrue);
+    expect((await store.readFilters(workspaceId: 'demo')).active, isFalse);
+  });
 }
 
 Future<FoundationDataStore> _createDataStore() async {

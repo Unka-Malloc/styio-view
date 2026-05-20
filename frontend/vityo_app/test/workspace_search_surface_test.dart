@@ -92,6 +92,12 @@ void main() {
                 ),
               ],
             ),
+            searchFilters: const WorkspaceSearchFilterState(
+              workspaceId: 'demo',
+              caseSensitive: true,
+              wholeWord: true,
+              includeGlob: 'src/**',
+            ),
             lastSearch: lastSearch,
             lastSymbolSearch: lastSymbolSearch,
             onSearch: (query) async {
@@ -117,6 +123,10 @@ void main() {
     expect(find.text('index-docs 2'), findsOneWidget);
     expect(find.text('index-key 2'), findsOneWidget);
     expect(find.text('history 1'), findsOneWidget);
+    expect(find.text('filters active'), findsOneWidget);
+    expect(find.text('case-sensitive'), findsOneWidget);
+    expect(find.text('whole-word'), findsOneWidget);
+    expect(find.text('include src/**'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('workspace-search-history')),
       findsOneWidget,

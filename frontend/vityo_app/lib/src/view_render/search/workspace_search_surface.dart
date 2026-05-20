@@ -15,6 +15,7 @@ class WorkspaceSearchSurface extends StatefulWidget {
     this.lastReplacePreview,
     this.searchIndex,
     this.searchHistory,
+    this.searchFilters,
     this.onSearch,
     this.onOpenFile,
     this.onPreviewReplace,
@@ -31,6 +32,7 @@ class WorkspaceSearchSurface extends StatefulWidget {
   final WorkspaceReplacePreview? lastReplacePreview;
   final WorkspaceSearchIndex? searchIndex;
   final WorkspaceSearchHistory? searchHistory;
+  final WorkspaceSearchFilterState? searchFilters;
   final Future<void> Function(String query)? onSearch;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function(String query, String replacement)?
@@ -155,6 +157,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
     final lastSymbolSearch = widget.lastSymbolSearch;
     final searchIndex = widget.searchIndex;
     final searchHistory = widget.searchHistory;
+    final searchFilters = widget.searchFilters;
     final quickOpenResult = _quickOpenService.searchFiles(
       documentIds: widget.workspaceFiles,
       query: _quickOpenQuery,
@@ -176,7 +179,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Text and symbol search entry for workspace-wide edits, quick navigation, indexed search summaries, persisted history, and agent-confirmed code changes. TODO: add background incremental index refresh and persistent result filters.',
+              'Text and symbol search entry for workspace-wide edits, quick navigation, indexed search summaries, persisted history, persisted result filters, and agent-confirmed code changes. TODO: add virtualized multi-file diff expansion.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -201,6 +204,24 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
                 ],
                 if (searchHistory != null)
                   Chip(label: Text('history ${searchHistory.records.length}')),
+                if (searchFilters != null) ...[
+                  Chip(
+                    label: Text(
+                      searchFilters.active
+                          ? 'filters active'
+                          : 'filters inactive',
+                    ),
+                  ),
+                  if (searchFilters.caseSensitive)
+                    const Chip(label: Text('case-sensitive')),
+                  if (searchFilters.wholeWord)
+                    const Chip(label: Text('whole-word')),
+                  if (searchFilters.useRegex) const Chip(label: Text('regex')),
+                  if (searchFilters.includeGlob.trim().isNotEmpty)
+                    Chip(label: Text('include ${searchFilters.includeGlob}')),
+                  if (searchFilters.excludeGlob.trim().isNotEmpty)
+                    Chip(label: Text('exclude ${searchFilters.excludeGlob}')),
+                ],
               ],
             ),
             const SizedBox(height: 12),

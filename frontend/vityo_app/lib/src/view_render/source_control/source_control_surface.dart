@@ -24,6 +24,7 @@ class SourceControlSurface extends StatelessWidget {
     this.onPreviewDiff,
     this.onStagePaths,
     this.onUnstagePaths,
+    this.onSwitchBranch,
     this.onOpenCommit,
   });
 
@@ -44,6 +45,8 @@ class SourceControlSurface extends StatelessWidget {
   final Future<void> Function(String documentId)? onPreviewDiff;
   final Future<void> Function(List<String> paths)? onStagePaths;
   final Future<void> Function(List<String> paths)? onUnstagePaths;
+  final Future<void> Function(SourceControlBranchSwitchPlan plan)?
+  onSwitchBranch;
   final Future<void> Function()? onOpenCommit;
 
   @override
@@ -83,7 +86,7 @@ class SourceControlSurface extends StatelessWidget {
               Text('Source Control', style: theme.textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                'Local IDE change surface backed by dirty editor documents and injectable SCM providers. Stage and unstage use the source control action provider when configured. Commit dialog state records draft validation. TODO: add branch picker, history view, and richer diff confirmation.',
+                'Local IDE change surface backed by dirty editor documents and injectable SCM providers. Stage, unstage, branch switch planning, history summaries, and commit dialog state are surfaced here. TODO: add richer diff confirmation.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),
@@ -147,7 +150,10 @@ class SourceControlSurface extends StatelessWidget {
                         dialogState: commitDialogState,
                       ),
                     if (branchSnapshot != null)
-                      _BranchPickerSummary(snapshot: branchSnapshot!),
+                      _BranchPickerSummary(
+                        snapshot: branchSnapshot!,
+                        onSwitchBranch: onSwitchBranch,
+                      ),
                     if (historySnapshot != null)
                       _HistorySummary(snapshot: historySnapshot!),
                     if (providerAdapters.isNotEmpty)
@@ -410,25 +416,93 @@ class _CommitDraftCard extends StatelessWidget {
 }
 
 class _BranchPickerSummary extends StatelessWidget {
-  const _BranchPickerSummary({required this.snapshot});
+  const _BranchPickerSummary({required this.snapshot, this.onSwitchBranch});
 
   final SourceControlBranchSnapshot snapshot;
+  final Future<void> Function(SourceControlBranchSwitchPlan plan)?
+  onSwitchBranch;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return _SourceControlSummaryCard(
+    return Container(
       key: const ValueKey('source-control-branch-picker-summary'),
-      title: 'Branches',
-      lines: <String>[
-        snapshot.available
-            ? 'current ${snapshot.currentBranch}'
-            : snapshot.message,
-        'available ${snapshot.branches.length}',
-        if (snapshot.branches.isNotEmpty) snapshot.branches.take(4).join(', '),
-      ],
-      icon: Icons.account_tree_rounded,
-      color: theme.colorScheme.secondaryContainer,
+      constraints: const BoxConstraints(minWidth: 240, maxWidth: 340),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.account_tree_rounded, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Branches', style: theme.textTheme.titleSmall),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            snapshot.available
+                ? 'current ${snapshot.currentBranch}'
+                : snapshot.message,
+            style: theme.textTheme.bodySmall,
+          ),
+          Text(
+            'available ${snapshot.branches.length}',
+            style: theme.textTheme.bodySmall,
+          ),
+          if (snapshot.branches.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final branch in snapshot.branches.take(6))
+                  _BranchSwitchButton(
+                    snapshot: snapshot,
+                    branch: branch,
+                    onSwitchBranch: onSwitchBranch,
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BranchSwitchButton extends StatelessWidget {
+  const _BranchSwitchButton({
+    required this.snapshot,
+    required this.branch,
+    required this.onSwitchBranch,
+  });
+
+  final SourceControlBranchSnapshot snapshot;
+  final String branch;
+  final Future<void> Function(SourceControlBranchSwitchPlan plan)?
+  onSwitchBranch;
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = SourceControlBranchSwitchPlan.fromSnapshot(
+      snapshot: snapshot,
+      targetBranch: branch,
+    );
+    return OutlinedButton(
+      key: ValueKey('source-control-switch-branch-$branch'),
+      onPressed: plan.canRun && onSwitchBranch != null
+          ? () {
+              onSwitchBranch!(plan);
+            }
+          : null,
+      child: Text(branch),
     );
   }
 }
@@ -450,6 +524,8 @@ class _HistorySummary extends StatelessWidget {
             ? 'entries ${snapshot.entries.length}'
             : snapshot.message,
         if (latest != null) '${latest.shortRevision} · ${latest.summary}',
+        for (final entry in snapshot.entries.skip(1).take(2))
+          '${entry.shortRevision} · ${entry.summary}',
       ],
       icon: Icons.history_rounded,
       color: theme.colorScheme.surfaceContainerHighest,

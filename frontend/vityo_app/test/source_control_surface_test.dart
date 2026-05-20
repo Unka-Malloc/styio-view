@@ -13,6 +13,7 @@ void main() {
     String? previewedDocumentId;
     List<String>? stagedPaths;
     List<String>? unstagedPaths;
+    SourceControlBranchSwitchPlan? switchedBranchPlan;
     var saveAllCount = 0;
     var refreshCount = 0;
     var openCommitCount = 0;
@@ -72,6 +73,11 @@ R  src/old.styio -> src/new.styio
                   shortRevision: 'abcdef1',
                   summary: 'Add source control UI',
                 ),
+                SourceControlHistoryEntry(
+                  revision: '123456789',
+                  shortRevision: '1234567',
+                  summary: 'Wire branch picker',
+                ),
               ],
             ),
             adapterRegistry: SourceControlProviderAdapterRegistry(
@@ -106,6 +112,9 @@ R  src/old.styio -> src/new.styio
             onUnstagePaths: (paths) async {
               unstagedPaths = paths;
             },
+            onSwitchBranch: (plan) async {
+              switchedBranchPlan = plan;
+            },
             onOpenCommit: () async {
               openCommitCount += 1;
             },
@@ -124,7 +133,7 @@ R  src/old.styio -> src/new.styio
     expect(find.text('provider git'), findsOneWidget);
     expect(find.text('branch ai-dev'), findsOneWidget);
     expect(find.text('branches 3'), findsOneWidget);
-    expect(find.text('history 1'), findsOneWidget);
+    expect(find.text('history 2'), findsOneWidget);
     expect(find.text('providers 2'), findsOneWidget);
     expect(find.text('draft ready'), findsOneWidget);
     expect(find.text('commit-dialog ready'), findsOneWidget);
@@ -147,7 +156,9 @@ R  src/old.styio -> src/new.styio
     expect(find.text('Add source control UI'), findsWidgets);
     expect(find.text('dialog ready'), findsOneWidget);
     expect(find.text('current ai-dev'), findsOneWidget);
+    expect(find.text('feature/scm'), findsOneWidget);
     expect(find.text('abcdef1 · Add source control UI'), findsOneWidget);
+    expect(find.text('1234567 · Wire branch picker'), findsOneWidget);
     expect(find.text('Git: status, diff, actions, branches'), findsOneWidget);
     expect(find.text('Acme SCM: status, diff'), findsOneWidget);
     expect(find.text('git 2'), findsOneWidget);
@@ -184,6 +195,7 @@ R  src/old.styio -> src/new.styio
     await tapVisible('source-control-stage-all');
     await tapVisible('source-control-unstage-all');
     await tapVisible('source-control-open-commit');
+    await tapVisible('source-control-switch-branch-feature/scm');
 
     await tapVisible('source-control-git-change-src/new.styio');
     expect(openedDocumentId, 'src/new.styio');
@@ -195,6 +207,7 @@ R  src/old.styio -> src/new.styio
     expect(previewedDocumentId, 'src/main.styio');
     expect(stagedPaths, <String>['src/main.styio']);
     expect(unstagedPaths, <String>['src/new.styio']);
+    expect(switchedBranchPlan?.summary, 'switch ai-dev -> feature/scm');
     expect(saveAllCount, 1);
     expect(refreshCount, 1);
     expect(openCommitCount, 1);

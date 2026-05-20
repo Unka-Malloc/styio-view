@@ -612,19 +612,78 @@ class _HistorySummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final latest = snapshot.entries.isEmpty ? null : snapshot.entries.first;
-    return _SourceControlSummaryCard(
+    return Container(
       key: const ValueKey('source-control-history-summary'),
-      title: 'History',
-      lines: <String>[
-        snapshot.available
-            ? 'entries ${snapshot.entries.length}'
-            : snapshot.message,
-        if (latest != null) '${latest.shortRevision} · ${latest.summary}',
-        for (final entry in snapshot.entries.skip(1).take(2))
-          '${entry.shortRevision} · ${entry.summary}',
+      width: 320,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.history_rounded, size: 18),
+              const SizedBox(width: 6),
+              Text('History', style: theme.textTheme.titleSmall),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            snapshot.available
+                ? 'entries ${snapshot.entries.length}'
+                : snapshot.message,
+            style: theme.textTheme.bodySmall,
+          ),
+          if (latest != null)
+            Text(
+              'latest ${latest.shortRevision} · ${latest.summary}',
+              style: theme.textTheme.bodySmall,
+            ),
+          for (final entry in snapshot.entries.take(5))
+            _HistoryEntryTile(entry: entry),
+          if (snapshot.entries.length > 5)
+            Text(
+              'TODO: virtualize older history rows.',
+              style: theme.textTheme.bodySmall,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryEntryTile extends StatelessWidget {
+  const _HistoryEntryTile({required this.entry});
+
+  final SourceControlHistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final detailLines = <String>[
+      'revision ${entry.revision}',
+      if (entry.author.isNotEmpty) 'author ${entry.author}',
+      if (entry.authoredAt.isNotEmpty) 'authored ${entry.authoredAt}',
+      'TODO: wire commit diff preview for this history row.',
+    ];
+    return ExpansionTile(
+      key: ValueKey('source-control-history-entry-${entry.shortRevision}'),
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(left: 8, bottom: 6),
+      title: Text(
+        '${entry.shortRevision} · ${entry.summary}',
+        style: theme.textTheme.bodySmall,
+      ),
+      children: [
+        for (final line in detailLines)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(line, style: theme.textTheme.bodySmall),
+          ),
       ],
-      icon: Icons.history_rounded,
-      color: theme.colorScheme.surfaceContainerHighest,
     );
   }
 }

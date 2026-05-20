@@ -73,6 +73,8 @@ R  src/old.styio -> src/new.styio
                   revision: 'abcdef123',
                   shortRevision: 'abcdef1',
                   summary: 'Add source control UI',
+                  author: 'Vityo Bot',
+                  authoredAt: '2026-05-20',
                 ),
                 SourceControlHistoryEntry(
                   revision: '123456789',
@@ -163,6 +165,17 @@ R  src/old.styio -> src/new.styio
     expect(find.text('feature/scm'), findsOneWidget);
     expect(find.text('abcdef1 · Add source control UI'), findsOneWidget);
     expect(find.text('1234567 · Wire branch picker'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('source-control-history-entry-abcdef1')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('source-control-history-entry-abcdef1')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('revision abcdef123'), findsOneWidget);
+    expect(find.text('author Vityo Bot'), findsOneWidget);
+    expect(find.text('authored 2026-05-20'), findsOneWidget);
     expect(find.text('Git: status, diff, actions, branches'), findsOneWidget);
     expect(find.text('Acme SCM: status, diff'), findsOneWidget);
     expect(find.text('git 2'), findsOneWidget);

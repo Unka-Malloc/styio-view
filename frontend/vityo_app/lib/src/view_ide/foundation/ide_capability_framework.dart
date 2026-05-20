@@ -574,7 +574,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, Source Control Agent context bridge, failed-test rerun context, patch application loop, persisted coding session history, and embeddable activity history surface.',
+              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, Source Control Agent context bridge, failed-test rerun context, StyioService readiness checkpoints, patch application loop, persisted coding session history, and embeddable activity history surface.',
           dependencies: <String>['workspace.edit-application'],
           references: <String>[
             'VS Code chat participants',

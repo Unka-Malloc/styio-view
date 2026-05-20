@@ -747,6 +747,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       sourceControlDiff: sourceControlDiffPreview,
       testDiscovery: testDiscovery,
       lastTestRun: lastTestRun,
+      workspaceRoot: workspaceController.activeProject.workspaceRoot,
       activeFilePath: workspaceController.activeFilePath,
       toolchainSnapshot:
           toolchainStatusReport?.value.snapshot ?? _lastToolchainSnapshot,
@@ -904,13 +905,21 @@ class ShellRuntimeModel extends ChangeNotifier {
     final diffSnapshot = changedPath.isEmpty
         ? null
         : await previewSourceControlDiff(changedPath);
+    final context = agentSessionContext;
     final metadata = <String, Object?>{
+      'agentContextSchemaVersion': context.schemaVersion,
+      'workspaceRoot': workspaceController.activeProject.workspaceRoot,
       'workspaceDiagnostics': diagnosticsSnapshot.toJson(),
       'sourceControl': sourceControlSnapshot.toJson(),
       'projectLanguage': projectLanguage,
+      'languageServiceStatus': context.language.serviceStatus?.toJson(),
+      'testing': context.testing.toJson(),
       'dirtyDocumentIds': dirtyDocumentPaths,
       'openDocumentIds': workspaceController.openFilePaths,
       if (diffSnapshot != null) 'sourceControlDiff': diffSnapshot.toJson(),
+      if (context.workspace.sourceControlContext != null)
+        'sourceControlContext': context.workspace.sourceControlContext!
+            .toJson(),
       if (workspaceEditPreview != null)
         'workspaceEditPreview': workspaceEditPreview.toJson(),
     };

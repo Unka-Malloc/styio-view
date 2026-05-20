@@ -333,7 +333,7 @@ void main() {
       final diffPreview = await shell.previewSourceControlDiff(documentPath);
       final diffJson =
           shell.agentSessionContext.toJson()['workspace']!
-                  as Map<String, Object?>;
+              as Map<String, Object?>;
       final sourceControlDiffJson =
           diffJson['sourceControlDiff']! as Map<String, Object?>;
       expect(diffPreview.available, isTrue);
@@ -378,6 +378,27 @@ void main() {
         checkpointCommandResult?.metadata['projectLanguage'],
         isA<Map<String, Object?>>(),
       );
+      expect(
+        checkpointCommandResult?.metadata['agentContextSchemaVersion'],
+        45,
+      );
+      expect(
+        checkpointCommandResult?.metadata['sourceControlContext'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(
+        checkpointCommandResult?.metadata['languageServiceStatus'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(
+        checkpointCommandResult?.metadata['testing'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(
+        (checkpointCommandResult?.metadata['sourceControlContext']!
+            as Map<String, Object?>)['unstagedPaths'],
+        contains(documentPath),
+      );
 
       final agentCheckpointApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(
@@ -387,12 +408,13 @@ void main() {
       final agentCheckpointResult =
           shell.agentSessionContext.commands.lastResult;
       expect(agentCheckpointApplied, isTrue);
-      expect(
-        agentCheckpointResult?.commandId,
-        'collectAgentCodingCheckpoint',
-      );
+      expect(agentCheckpointResult?.commandId, 'collectAgentCodingCheckpoint');
       expect(
         agentCheckpointResult?.metadata['projectLanguage'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(
+        agentCheckpointResult?.metadata['sourceControlContext'],
         isA<Map<String, Object?>>(),
       );
 
@@ -409,11 +431,12 @@ void main() {
         isA<Map<String, Object?>>(),
       );
 
-      final agentDiagnosticsApplied = await shell.applyAgentIdeCommandSuggestion(
-        const AgentIdeCommandSuggestion(
-          commandId: 'refreshWorkspaceDiagnostics',
-        ),
-      );
+      final agentDiagnosticsApplied = await shell
+          .applyAgentIdeCommandSuggestion(
+            const AgentIdeCommandSuggestion(
+              commandId: 'refreshWorkspaceDiagnostics',
+            ),
+          );
       final agentDiagnosticsResult =
           shell.agentSessionContext.commands.lastResult;
       expect(agentDiagnosticsApplied, isTrue);
@@ -521,7 +544,10 @@ void main() {
       expect(shell.workspaceController.activeFilePath, libPath);
       expect(shell.editorController.document.documentId, libPath);
       expect(shell.editorController.selection.start, definitionStart);
-      expect(shell.editorController.selection.end, definitionStart + 'blend'.length);
+      expect(
+        shell.editorController.selection.end,
+        definitionStart + 'blend'.length,
+      );
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Project definition selected: blend'),
@@ -630,16 +656,28 @@ void main() {
 
       await shell.executeCommand(AppCommandId.collectProjectLanguageContext);
       final projectLanguage =
-          shell.agentSessionContext.commands.lastResult?.metadata['projectLanguage']
+          shell
+                  .agentSessionContext
+                  .commands
+                  .lastResult
+                  ?.metadata['projectLanguage']
               as Map<String, Object?>;
       final hover = projectLanguage['hover']! as Map<String, Object?>;
       expect(projectLanguage['definitionCount'], 1);
       expect(projectLanguage['referenceCount'], 2);
       expect(hover['label'], contains('function blend'));
-      expect(shell.projectHoverAtSelection?.markdown, contains('function blend'));
-      expect(shell.mergedHoverAtSelection?.markdown, contains('function blend'));
       expect(
-        shell.mergedCompletionsAtSelection.map((completion) => completion.label),
+        shell.projectHoverAtSelection?.markdown,
+        contains('function blend'),
+      );
+      expect(
+        shell.mergedHoverAtSelection?.markdown,
+        contains('function blend'),
+      );
+      expect(
+        shell.mergedCompletionsAtSelection.map(
+          (completion) => completion.label,
+        ),
         contains('blend'),
       );
 
@@ -662,203 +700,211 @@ void main() {
     },
   );
 
-  test('rename symbol applies project edits across workspace documents', () async {
-    const mainPath = '/workspace/demo/src/main.styio';
-    const libPath = '/workspace/demo/src/lib/math.styio';
-    final mainText = File(
-      'test/fixtures/styio_language/project_definition/main.true.styio',
-    ).readAsStringSync();
-    final libText = File(
-      'test/fixtures/styio_language/project_definition/lib_math.true.styio',
-    ).readAsStringSync();
-    final initialGraph = _projectGraph(
-      compilerVersion: '0.0.5',
-      compilePlanReady: true,
-      editorFiles: const <String>[mainPath, libPath],
-    );
-    final workspaceDocumentStore = InMemoryWorkspaceDocumentStore(
-      seededDocuments: <String, DocumentState>{
-        mainPath: DocumentState(documentId: mainPath, text: mainText, revision: 1),
-        libPath: DocumentState(documentId: libPath, text: libText, revision: 1),
-      },
-    );
-    final shell = ShellModel(
-      platformTarget: PlatformTarget.macos,
-      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
-      projectGraphAdapter: _SequenceProjectGraphAdapter(
-        snapshots: <ProjectGraphSnapshot>[initialGraph],
-      ),
-      workspaceController: WorkspaceController(projectSnapshot: initialGraph),
-      workspaceDocumentStore: workspaceDocumentStore,
-      moduleRegistry: ModuleRegistry(
-        platformTarget: PlatformTarget.macos,
-        definitions: const [],
-      ),
-      nativeModuleLoader: const NoopNativeModuleLoader(
-        platformTarget: PlatformTarget.macos,
-      ),
-      editorController: EditorSessionController(
-        initialDocument: DocumentState(
-          documentId: mainPath,
-          text: mainText,
-          revision: 1,
-        ),
-        languageService: const SimpleStyioLanguageService(),
-      ),
-      executionAdapter: const _SuccessfulExecutionAdapter(
-        sessionId: 'shell-project-rename',
-      ),
-      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
-          const _SuccessfulExecutionAdapter(sessionId: 'shell-project-rename'),
-      runtimeEventAdapter: createRuntimeEventAdapter(
-        platformTarget: PlatformTarget.macos,
-      ),
-      dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
-      deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-      toolchainManagementAdapter:
-          const _SuccessfulToolchainManagementAdapter(),
-    );
-    addTearDown(shell.dispose);
-
-    shell.editorController.selectCollapsed(mainText.indexOf('blend()') + 1);
-
-    final applied = await shell.renameSymbolAtSelection('combine');
-    final renamedLibrary = await workspaceDocumentStore.loadDocument(libPath);
-
-    expect(applied, isTrue);
-    expect(shell.editorController.document.text, contains('combine()'));
-    expect(shell.editorController.document.text, isNot(contains('blend()')));
-    expect(renamedLibrary.text, contains('#combine := () =>'));
-    expect(renamedLibrary.text, isNot(contains('#blend := () =>')));
-    expect(shell.dirtyDocumentPaths, contains(mainPath));
-    expect(
-      shell.debugLog.any(
-        (entry) => entry.contains('Project rename applied: blend -> combine'),
-      ),
-      isTrue,
-    );
-  });
-
   test(
-    'apply quick fix falls back to project workspace quick fixes',
+    'rename symbol applies project edits across workspace documents',
     () async {
       const mainPath = '/workspace/demo/src/main.styio';
+      const libPath = '/workspace/demo/src/lib/math.styio';
       final mainText = File(
-        'test/fixtures/workspace_diagnostics/duplicate_import.true.styio',
+        'test/fixtures/styio_language/project_definition/main.true.styio',
+      ).readAsStringSync();
+      final libText = File(
+        'test/fixtures/styio_language/project_definition/lib_math.true.styio',
       ).readAsStringSync();
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
         compilePlanReady: true,
-        editorFiles: const <String>[mainPath],
+        editorFiles: const <String>[mainPath, libPath],
       );
-
-      ShellModel createShell(String sessionId) {
-        return ShellModel(
+      final workspaceDocumentStore = InMemoryWorkspaceDocumentStore(
+        seededDocuments: <String, DocumentState>{
+          mainPath: DocumentState(
+            documentId: mainPath,
+            text: mainText,
+            revision: 1,
+          ),
+          libPath: DocumentState(
+            documentId: libPath,
+            text: libText,
+            revision: 1,
+          ),
+        },
+      );
+      final shell = ShellModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[initialGraph],
+        ),
+        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+        workspaceDocumentStore: workspaceDocumentStore,
+        moduleRegistry: ModuleRegistry(
           platformTarget: PlatformTarget.macos,
-          supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
-          projectGraphAdapter: _SequenceProjectGraphAdapter(
-            snapshots: <ProjectGraphSnapshot>[initialGraph],
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: DocumentState(
+            documentId: mainPath,
+            text: mainText,
+            revision: 1,
           ),
-          workspaceController: WorkspaceController(
-            projectSnapshot: initialGraph,
-          ),
-          workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
-            seededDocuments: <String, DocumentState>{
-              mainPath: DocumentState(
-                documentId: mainPath,
-                text: mainText,
-                revision: 1,
-              ),
-            },
-          ),
-          moduleRegistry: ModuleRegistry(
-            platformTarget: PlatformTarget.macos,
-            definitions: const [],
-          ),
-          nativeModuleLoader: const NoopNativeModuleLoader(
-            platformTarget: PlatformTarget.macos,
-          ),
-          editorController: EditorSessionController(
-            initialDocument: DocumentState(
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: const _SuccessfulExecutionAdapter(
+          sessionId: 'shell-project-rename',
+        ),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            const _SuccessfulExecutionAdapter(
+              sessionId: 'shell-project-rename',
+            ),
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        toolchainManagementAdapter:
+            const _SuccessfulToolchainManagementAdapter(),
+      );
+      addTearDown(shell.dispose);
+
+      shell.editorController.selectCollapsed(mainText.indexOf('blend()') + 1);
+
+      final applied = await shell.renameSymbolAtSelection('combine');
+      final renamedLibrary = await workspaceDocumentStore.loadDocument(libPath);
+
+      expect(applied, isTrue);
+      expect(shell.editorController.document.text, contains('combine()'));
+      expect(shell.editorController.document.text, isNot(contains('blend()')));
+      expect(renamedLibrary.text, contains('#combine := () =>'));
+      expect(renamedLibrary.text, isNot(contains('#blend := () =>')));
+      expect(shell.dirtyDocumentPaths, contains(mainPath));
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Project rename applied: blend -> combine'),
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('apply quick fix falls back to project workspace quick fixes', () async {
+    const mainPath = '/workspace/demo/src/main.styio';
+    final mainText = File(
+      'test/fixtures/workspace_diagnostics/duplicate_import.true.styio',
+    ).readAsStringSync();
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+      editorFiles: const <String>[mainPath],
+    );
+
+    ShellModel createShell(String sessionId) {
+      return ShellModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[initialGraph],
+        ),
+        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+          seededDocuments: <String, DocumentState>{
+            mainPath: DocumentState(
               documentId: mainPath,
               text: mainText,
               revision: 1,
             ),
-            languageService: const SimpleStyioLanguageService(),
+          },
+        ),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: DocumentState(
+            documentId: mainPath,
+            text: mainText,
+            revision: 1,
           ),
-          executionAdapter: _SuccessfulExecutionAdapter(sessionId: sessionId),
-          executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
-              _SuccessfulExecutionAdapter(sessionId: sessionId),
-          runtimeEventAdapter: createRuntimeEventAdapter(
-            platformTarget: PlatformTarget.macos,
-          ),
-          dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
-          deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-          toolchainManagementAdapter:
-              const _SuccessfulToolchainManagementAdapter(),
-        );
-      }
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: _SuccessfulExecutionAdapter(sessionId: sessionId),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            _SuccessfulExecutionAdapter(sessionId: sessionId),
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        toolchainManagementAdapter:
+            const _SuccessfulToolchainManagementAdapter(),
+      );
+    }
 
-      final commandShell = createShell('shell-project-workspace-fix-command');
-      addTearDown(commandShell.dispose);
-      final fixes = await commandShell.collectProjectWorkspaceQuickFixes();
-      expect(fixes.map((fix) => fix.label), contains('Clean up project imports'));
-      final preview = await commandShell.previewFirstProjectWorkspaceQuickFix();
-      expect(preview?.summary, 'Clean up project imports');
-      expect(preview?.editCount, greaterThan(0));
-      expect(commandShell.lastWorkspaceEditPreview, same(preview));
-      await commandShell.executeCommand(AppCommandId.previewQuickFix);
-      final previewResult = commandShell.agentSessionContext.commands.lastResult;
-      expect(previewResult?.commandId, 'previewQuickFix');
-      expect(previewResult?.applied, isTrue);
-      expect(
-        previewResult?.metadata['workspaceEditPreview'],
-        isA<Map<String, Object?>>(),
-      );
-      final checkpoint = await commandShell.collectAgentCodingCheckpoint();
-      final workspaceEditPreview =
-          checkpoint['workspaceEditPreview']! as Map<String, Object?>;
-      expect(workspaceEditPreview['summary'], 'Clean up project imports');
-      expect(workspaceEditPreview['editCount'], greaterThan(0));
+    final commandShell = createShell('shell-project-workspace-fix-command');
+    addTearDown(commandShell.dispose);
+    final fixes = await commandShell.collectProjectWorkspaceQuickFixes();
+    expect(fixes.map((fix) => fix.label), contains('Clean up project imports'));
+    final preview = await commandShell.previewFirstProjectWorkspaceQuickFix();
+    expect(preview?.summary, 'Clean up project imports');
+    expect(preview?.editCount, greaterThan(0));
+    expect(commandShell.lastWorkspaceEditPreview, same(preview));
+    await commandShell.executeCommand(AppCommandId.previewQuickFix);
+    final previewResult = commandShell.agentSessionContext.commands.lastResult;
+    expect(previewResult?.commandId, 'previewQuickFix');
+    expect(previewResult?.applied, isTrue);
+    expect(
+      previewResult?.metadata['workspaceEditPreview'],
+      isA<Map<String, Object?>>(),
+    );
+    final checkpoint = await commandShell.collectAgentCodingCheckpoint();
+    final workspaceEditPreview =
+        checkpoint['workspaceEditPreview']! as Map<String, Object?>;
+    expect(workspaceEditPreview['summary'], 'Clean up project imports');
+    expect(workspaceEditPreview['editCount'], greaterThan(0));
 
-      await commandShell.executeCommand(AppCommandId.applyQuickFix);
+    await commandShell.executeCommand(AppCommandId.applyQuickFix);
 
-      expect(commandShell.editorController.document.text, contains('@import'));
-      expect(
-        '@import'.allMatches(commandShell.editorController.document.text),
-        hasLength(1),
-      );
-      expect(commandShell.dirtyDocumentPaths, contains(mainPath));
+    expect(commandShell.editorController.document.text, contains('@import'));
+    expect(
+      '@import'.allMatches(commandShell.editorController.document.text),
+      hasLength(1),
+    );
+    expect(commandShell.dirtyDocumentPaths, contains(mainPath));
 
-      final agentShell = createShell('shell-project-workspace-fix-agent');
-      addTearDown(agentShell.dispose);
-      final previewApplied = await agentShell.applyAgentIdeCommandSuggestion(
-        const AgentIdeCommandSuggestion(commandId: 'previewQuickFix'),
-      );
-      expect(previewApplied, isTrue);
-      expect(
-        agentShell
-            .agentSessionContext
-            .commands
-            .lastResult
-            ?.metadata['workspaceEditPreview'],
-        isA<Map<String, Object?>>(),
-      );
-      final applied = await agentShell.applyAgentIdeCommandSuggestion(
-        const AgentIdeCommandSuggestion(commandId: 'applyQuickFix'),
-      );
+    final agentShell = createShell('shell-project-workspace-fix-agent');
+    addTearDown(agentShell.dispose);
+    final previewApplied = await agentShell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(commandId: 'previewQuickFix'),
+    );
+    expect(previewApplied, isTrue);
+    expect(
+      agentShell
+          .agentSessionContext
+          .commands
+          .lastResult
+          ?.metadata['workspaceEditPreview'],
+      isA<Map<String, Object?>>(),
+    );
+    final applied = await agentShell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(commandId: 'applyQuickFix'),
+    );
 
-      expect(applied, isTrue);
-      expect(
-        agentShell.agentSessionContext.commands.lastResult?.message,
-        contains('project workspace fix'),
-      );
-      expect(
-        '@import'.allMatches(agentShell.editorController.document.text),
-        hasLength(1),
-      );
-    },
-  );
+    expect(applied, isTrue);
+    expect(
+      agentShell.agentSessionContext.commands.lastResult?.message,
+      contains('project workspace fix'),
+    );
+    expect(
+      '@import'.allMatches(agentShell.editorController.document.text),
+      hasLength(1),
+    );
+  });
 
   test(
     'restores editor session active document through workspace route',

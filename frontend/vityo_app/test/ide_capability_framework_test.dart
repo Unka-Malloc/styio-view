@@ -191,6 +191,10 @@ void main() {
       entriesById['agent.coding-loop']?.summary,
       contains('failed-test rerun context'),
     );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('StyioService readiness checkpoints'),
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

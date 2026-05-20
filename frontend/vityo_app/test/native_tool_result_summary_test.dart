@@ -92,12 +92,8 @@ void main() {
   test('native tool summary explains agent coding checkpoint metadata', () {
     expect(
       nativeToolMetadataSummaryText(const <String, Object?>{
-        'workspaceDiagnostics': <String, Object?>{
-          'totalCount': 2,
-        },
-        'sourceControl': <String, Object?>{
-          'changeCount': 1,
-        },
+        'workspaceDiagnostics': <String, Object?>{'totalCount': 2},
+        'sourceControl': <String, Object?>{'changeCount': 1},
         'sourceControlDiff': <String, Object?>{
           'path': 'src/main.styio',
           'lineCount': 7,
@@ -107,8 +103,16 @@ void main() {
           'referenceCount': 2,
           'completionCount': 3,
         },
+        'languageServiceStatus': <String, Object?>{
+          'syntaxValidationReady': true,
+          'semanticFactsReady': false,
+        },
+        'testing': <String, Object?>{
+          'hasLastRun': true,
+          'hasFailingTests': true,
+        },
       }),
-      'checkpoint diagnostics 2 · source changes 1 · diff src/main.styio 7 lines · language defs 1 refs 2 completions 3',
+      'checkpoint diagnostics 2 · source changes 1 · diff src/main.styio 7 lines · language defs 1 refs 2 completions 3 · styio syntax ready semantic not-ready · tests failing',
     );
   });
 }

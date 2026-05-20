@@ -81,11 +81,21 @@ String? nativeToolMetadataSummaryText(
     final languageSummary = projectLanguage is Map<String, Object?>
         ? _checkpointProjectLanguageSummary(projectLanguage)
         : null;
+    final languageServiceStatus = metadata['languageServiceStatus'];
+    final languageStatusSummary = languageServiceStatus is Map<String, Object?>
+        ? _checkpointLanguageServiceSummary(languageServiceStatus)
+        : null;
+    final testing = metadata['testing'];
+    final testingSummary = testing is Map<String, Object?>
+        ? _checkpointTestingSummary(testing)
+        : null;
     return <String>[
       'checkpoint diagnostics $diagnosticCount',
       'source changes $sourceChangeCount',
       if (diffSummary != null) diffSummary,
       if (languageSummary != null) languageSummary,
+      if (languageStatusSummary != null) languageStatusSummary,
+      if (testingSummary != null) testingSummary,
     ].join(' · ');
   }
 
@@ -145,6 +155,29 @@ String? _checkpointProjectLanguageSummary(
     return null;
   }
   return 'language defs ${definitionCount ?? 0} refs ${referenceCount ?? 0} completions ${completionCount ?? 0}';
+}
+
+String? _checkpointLanguageServiceSummary(
+  Map<String, Object?> languageServiceStatus,
+) {
+  final syntaxReady = languageServiceStatus['syntaxValidationReady'];
+  final semanticReady = languageServiceStatus['semanticFactsReady'];
+  if (syntaxReady is! bool && semanticReady is! bool) {
+    return null;
+  }
+  return 'styio syntax ${syntaxReady == true ? 'ready' : 'not-ready'} semantic ${semanticReady == true ? 'ready' : 'not-ready'}';
+}
+
+String? _checkpointTestingSummary(Map<String, Object?> testing) {
+  final hasLastRun = testing['hasLastRun'];
+  final hasFailingTests = testing['hasFailingTests'];
+  if (hasLastRun is! bool && hasFailingTests is! bool) {
+    return null;
+  }
+  if (hasFailingTests == true) {
+    return 'tests failing';
+  }
+  return hasLastRun == true ? 'tests recorded' : 'tests not-run';
 }
 
 int nativeToolMetadataDiagnosticCount(Map<String, Object?> metadata) {

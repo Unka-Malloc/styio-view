@@ -148,16 +148,12 @@ class AgentCodingSkillRegistry {
       skill.title,
       ...skill.appliesTo,
       ...skill.toolchainDefaults,
-      ...skill.instructions,
-      ...skill.validationHints,
     ].map(_normalizeSignal).toList(growable: false);
 
     return signals
         .where((signal) {
           return searchable.any((candidate) {
-            return candidate == signal ||
-                candidate.contains(signal) ||
-                signal.contains(candidate);
+            return _signalMatchesCandidate(signal, candidate);
           });
         })
         .toList(growable: false);
@@ -204,6 +200,13 @@ class AgentCodingSkillRegistry {
 
   String _normalizeSignal(String signal) {
     return signal.trim().toLowerCase();
+  }
+
+  bool _signalMatchesCandidate(String signal, String candidate) {
+    if (signal == candidate || signal.contains(candidate)) {
+      return true;
+    }
+    return signal.length >= 8 && candidate.contains(signal);
   }
 }
 

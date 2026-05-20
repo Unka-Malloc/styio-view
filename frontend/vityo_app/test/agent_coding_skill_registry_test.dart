@@ -17,9 +17,28 @@ void main() {
     expect(selection.isEmpty, isFalse);
     expect(selection.skillIds.first, 'styio-language-service-truth');
     expect(selection.skillIds, contains('styio-ide-feature-loop'));
+    expect(selection.skillIds, isNot(contains('styio-cpp-compiler-project')));
     expect(selection.promptSections.join('\n'), contains('StyioService'));
     expect(selection.promptSections.join('\n'), contains('SemanticSnapshot'));
     expect(selection.toJson()['matchCount'], greaterThanOrEqualTo(2));
+  });
+
+  test('agent coding skill registry requires explicit compiler signal', () {
+    final genericStyio = const AgentCodingSkillRegistry().selectForContext(
+      languages: const <String>['Styio'],
+      documentPaths: const <String>['/workspace/demo/src/main.styio'],
+      limit: 10,
+    );
+    final compilerStyio = const AgentCodingSkillRegistry().selectForContext(
+      taskHints: const <String>['Styio compiler'],
+      limit: 10,
+    );
+
+    expect(
+      genericStyio.skillIds,
+      isNot(contains('styio-cpp-compiler-project')),
+    );
+    expect(compilerStyio.skillIds, contains('styio-cpp-compiler-project'));
   });
 
   test(

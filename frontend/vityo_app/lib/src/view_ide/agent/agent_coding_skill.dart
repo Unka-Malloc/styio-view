@@ -332,7 +332,7 @@ class AgentCodingSkillCatalog {
       skillId: 'styio-cpp-compiler-project',
       title: 'Styio C++ Compiler Project',
       appliesTo: <String>[
-        'Styio',
+        'Styio compiler',
         'compiler parser',
         'compiler semantic analysis',
         'IR lowering',

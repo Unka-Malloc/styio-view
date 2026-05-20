@@ -1,6 +1,19 @@
 import '../foundation/foundation.dart';
 import 'source_control_status.dart';
 
+enum SourceControlCommitDialogStatus { closed, editing, ready, blocked }
+
+extension SourceControlCommitDialogStatusX on SourceControlCommitDialogStatus {
+  String get wireValue {
+    return switch (this) {
+      SourceControlCommitDialogStatus.closed => 'closed',
+      SourceControlCommitDialogStatus.editing => 'editing',
+      SourceControlCommitDialogStatus.ready => 'ready',
+      SourceControlCommitDialogStatus.blocked => 'blocked',
+    };
+  }
+}
+
 class SourceControlCommitDraft {
   const SourceControlCommitDraft({
     required this.workspaceId,
@@ -71,6 +84,75 @@ class SourceControlCommitDraft {
       'hasMessage': hasMessage,
       'commitPlan': toCommitActionPlan().toJson(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class SourceControlCommitDialogState {
+  const SourceControlCommitDialogState({
+    required this.draft,
+    required this.status,
+    this.validationMessage = '',
+  });
+
+  factory SourceControlCommitDialogState.fromDraft({
+    required SourceControlCommitDraft draft,
+    bool open = false,
+  }) {
+    if (!open) {
+      return SourceControlCommitDialogState(
+        draft: draft,
+        status: SourceControlCommitDialogStatus.closed,
+      );
+    }
+    final plan = draft.toCommitActionPlan();
+    if (plan.canRun) {
+      return SourceControlCommitDialogState(
+        draft: draft,
+        status: SourceControlCommitDialogStatus.ready,
+      );
+    }
+    return SourceControlCommitDialogState(
+      draft: draft,
+      status: SourceControlCommitDialogStatus.blocked,
+      validationMessage: plan.blockedReason,
+    );
+  }
+
+  final SourceControlCommitDraft draft;
+  final SourceControlCommitDialogStatus status;
+  final String validationMessage;
+
+  SourceControlActionPlan get plan => draft.toCommitActionPlan();
+  bool get open => status != SourceControlCommitDialogStatus.closed;
+  bool get canSubmit => status == SourceControlCommitDialogStatus.ready;
+
+  SourceControlCommitDialogState edit({
+    String? message,
+    List<String>? selectedPaths,
+    bool? amend,
+    bool? signOff,
+  }) {
+    return SourceControlCommitDialogState.fromDraft(
+      open: open,
+      draft: draft.copyWith(
+        message: message,
+        selectedPaths: selectedPaths,
+        amend: amend,
+        signOff: signOff,
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'open': open,
+      'canSubmit': canSubmit,
+      'validationMessage': validationMessage,
+      'draft': draft.toJson(),
+      'plan': plan.toJson(),
     };
   }
 }

@@ -13,6 +13,7 @@ class SourceControlSurface extends StatelessWidget {
     this.status,
     this.diffPreview,
     this.commitDraft,
+    this.commitDialogState,
     this.branchSnapshot,
     this.historySnapshot,
     this.onOpenFile,
@@ -30,6 +31,7 @@ class SourceControlSurface extends StatelessWidget {
   final SourceControlStatusSnapshot? status;
   final SourceControlDiffSnapshot? diffPreview;
   final SourceControlCommitDraft? commitDraft;
+  final SourceControlCommitDialogState? commitDialogState;
   final SourceControlBranchSnapshot? branchSnapshot;
   final SourceControlHistorySnapshot? historySnapshot;
   final Future<void> Function(String documentId)? onOpenFile;
@@ -68,7 +70,7 @@ class SourceControlSurface extends StatelessWidget {
               Text('Source Control', style: theme.textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                'Local IDE change surface backed by dirty editor documents and injectable SCM providers. Stage and unstage use the source control action provider when configured. TODO: add commit message dialog, branch picker, history view, and richer diff confirmation.',
+                'Local IDE change surface backed by dirty editor documents and injectable SCM providers. Stage and unstage use the source control action provider when configured. Commit dialog state records draft validation. TODO: add branch picker, history view, and richer diff confirmation.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),
@@ -101,6 +103,12 @@ class SourceControlSurface extends StatelessWidget {
                             : 'draft pending',
                       ),
                     ),
+                  if (commitDialogState != null)
+                    Chip(
+                      label: Text(
+                        'commit-dialog ${commitDialogState!.status.wireValue}',
+                      ),
+                    ),
                   if (status != null)
                     Chip(label: Text('git ${gitChanges.length}')),
                   if (status != null)
@@ -118,7 +126,10 @@ class SourceControlSurface extends StatelessWidget {
                   runSpacing: 12,
                   children: [
                     if (commitDraft != null)
-                      _CommitDraftCard(draft: commitDraft!),
+                      _CommitDraftCard(
+                        draft: commitDraft!,
+                        dialogState: commitDialogState,
+                      ),
                     if (branchSnapshot != null)
                       _BranchPickerSummary(snapshot: branchSnapshot!),
                     if (historySnapshot != null)
@@ -300,9 +311,10 @@ class SourceControlSurface extends StatelessWidget {
 }
 
 class _CommitDraftCard extends StatelessWidget {
-  const _CommitDraftCard({required this.draft});
+  const _CommitDraftCard({required this.draft, this.dialogState});
 
   final SourceControlCommitDraft draft;
+  final SourceControlCommitDialogState? dialogState;
 
   @override
   Widget build(BuildContext context) {
@@ -315,6 +327,12 @@ class _CommitDraftCard extends StatelessWidget {
         draft.hasMessage ? draft.message.trim() : 'Missing commit message',
         'selected ${draft.selectedPaths.length} · risk ${plan.risk.wireValue}',
         plan.canRun ? 'ready to commit' : plan.blockedReason,
+        if (dialogState != null)
+          dialogState!.canSubmit
+              ? 'dialog ready'
+              : 'dialog ${dialogState!.status.wireValue}',
+        if (dialogState?.validationMessage.isNotEmpty == true)
+          dialogState!.validationMessage,
       ],
       icon: Icons.commit_rounded,
       color: theme.colorScheme.tertiaryContainer,

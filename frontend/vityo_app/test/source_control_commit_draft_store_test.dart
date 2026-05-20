@@ -34,6 +34,32 @@ void main() {
     expect(SourceControlCommitDraft.fromJson(draft.toJson()).signOff, isTrue);
   });
 
+  test('source control commit dialog state validates editable draft', () {
+    final closed = SourceControlCommitDialogState.fromDraft(
+      draft: const SourceControlCommitDraft(workspaceId: 'demo'),
+    );
+    final blocked = SourceControlCommitDialogState.fromDraft(
+      open: true,
+      draft: const SourceControlCommitDraft(workspaceId: 'demo'),
+    );
+    final ready = blocked.edit(
+      message: 'Commit source control dialog',
+      selectedPaths: const <String>['src/main.styio'],
+      signOff: true,
+    );
+
+    expect(closed.open, isFalse);
+    expect(closed.status, SourceControlCommitDialogStatus.closed);
+    expect(blocked.open, isTrue);
+    expect(blocked.canSubmit, isFalse);
+    expect(blocked.validationMessage, contains('commit message'));
+    expect(ready.status, SourceControlCommitDialogStatus.ready);
+    expect(ready.canSubmit, isTrue);
+    expect(ready.draft.selectedPaths, <String>['src/main.styio']);
+    expect(ready.toJson()['status'], 'ready');
+    expect(ready.toJson()['plan'], isA<Map<String, Object?>>());
+  });
+
   test(
     'source control commit draft persists through Foundation DataStore',
     () async {

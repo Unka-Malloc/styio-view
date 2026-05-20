@@ -47,6 +47,14 @@ R  src/old.styio -> src/new.styio
               message: 'Add source control UI',
               selectedPaths: <String>['src/main.styio'],
             ),
+            commitDialogState: SourceControlCommitDialogState.fromDraft(
+              open: true,
+              draft: const SourceControlCommitDraft(
+                workspaceId: 'demo',
+                message: 'Add source control UI',
+                selectedPaths: <String>['src/main.styio'],
+              ),
+            ),
             branchSnapshot: const SourceControlBranchSnapshot(
               providerKind: SourceControlProviderKind.git,
               currentBranch: 'ai-dev',
@@ -100,6 +108,7 @@ R  src/old.styio -> src/new.styio
     expect(find.text('branches 3'), findsOneWidget);
     expect(find.text('history 1'), findsOneWidget);
     expect(find.text('draft ready'), findsOneWidget);
+    expect(find.text('commit-dialog ready'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('source-control-commit-draft-card')),
       findsOneWidget,
@@ -113,6 +122,7 @@ R  src/old.styio -> src/new.styio
       findsOneWidget,
     );
     expect(find.text('Add source control UI'), findsWidgets);
+    expect(find.text('dialog ready'), findsOneWidget);
     expect(find.text('current ai-dev'), findsOneWidget);
     expect(find.text('abcdef1 · Add source control UI'), findsOneWidget);
     expect(find.text('git 2'), findsOneWidget);

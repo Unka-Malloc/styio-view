@@ -48,6 +48,9 @@ void main() {
     expect(decoded.systemPrompt, contains('skills.activeSkillIds'));
     expect(decoded.systemPrompt, contains('workspace-activated coding skills'));
     expect(decoded.systemPrompt, contains('workspace.sourceControlContext'));
+    expect(decoded.systemPrompt, contains('commands.sourceControlCommands'));
+    expect(decoded.systemPrompt, contains('stageSourceControl'));
+    expect(decoded.systemPrompt, contains('unstageSourceControl'));
     expect(
       decoded.systemPrompt,
       contains('workspace.sourceControlContext.requiresHumanConfirmation'),

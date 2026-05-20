@@ -238,6 +238,10 @@ void main() {
       contains('last action results'),
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('Agent stage/unstage command routing'),
+    );
+    expect(
       entriesById['extension.marketplace']?.status,
       IdeCapabilityStatus.scaffolded,
     );
@@ -370,6 +374,10 @@ void main() {
     expect(
       entriesById['agent.coding-loop']?.summary,
       contains('Source Control Agent context bridge'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('Source Control stage/unstage command routing'),
     );
     expect(
       entriesById['agent.coding-loop']?.summary,

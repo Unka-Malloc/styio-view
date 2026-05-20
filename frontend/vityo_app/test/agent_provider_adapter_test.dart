@@ -868,6 +868,8 @@ void main() {
         systemMessage['content'],
         contains('workspace.sourceControlContext'),
       );
+      expect(systemMessage['content'], contains('stageSourceControl'));
+      expect(systemMessage['content'], contains('unstageSourceControl'));
       expect(systemMessage['content'], contains('testing.rerunFailed'));
       expect(systemMessage['content'], contains('testing.debugFailed'));
       expect(

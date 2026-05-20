@@ -2555,6 +2555,43 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: <String, Object?>{'sourceControlDiff': snapshot.toJson()},
         );
         return snapshot.available;
+      case 'stageSourceControl':
+      case 'unstageSourceControl':
+        final paths = (suggestion.input ?? '')
+            .split(RegExp(r'[\n,]+'))
+            .map((path) => path.trim())
+            .where((path) => path.isNotEmpty)
+            .toList(growable: false);
+        if (paths.isEmpty) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message:
+                'Agent command ${suggestion.commandId} skipped: changed file path input is required.',
+            metadata: const <String, Object?>{
+              'requiredInput': 'Changed file path(s)',
+            },
+          );
+          return false;
+        }
+        final result = suggestion.commandId == 'stageSourceControl'
+            ? await stageSourceControlPaths(paths)
+            : await unstageSourceControlPaths(paths);
+        final sourceControlContext = sourceControlStatusController
+            ?.agentContextSnapshot
+            .toJson();
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: result.applied,
+          message: _sourceControlActionMessage(result),
+          metadata: <String, Object?>{
+            'pathCount': paths.length,
+            'sourceControlAction': result.toJson(),
+            if (sourceControlContext != null)
+              'sourceControlContext': sourceControlContext,
+          },
+        );
+        return result.applied;
       case 'collectAgentCodingCheckpoint':
         final metadata = await collectAgentCodingCheckpoint();
         _recordAgentIdeCommandResult(
@@ -3378,6 +3415,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
       case AppCommandId.previewSourceControlDiff:
+      case AppCommandId.stageSourceControl:
+      case AppCommandId.unstageSourceControl:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:
@@ -3452,6 +3491,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
       case AppCommandId.previewSourceControlDiff:
+      case AppCommandId.stageSourceControl:
+      case AppCommandId.unstageSourceControl:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:
@@ -5863,6 +5904,18 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: <String, Object?>{'sourceControlDiff': snapshot.toJson()},
         );
         return;
+      case AppCommandId.stageSourceControl:
+      case AppCommandId.unstageSourceControl:
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: false,
+          message:
+              '${StyioCommandRegistry.descriptorFor(commandId).label} requires changed file path input.',
+          metadata: const <String, Object?>{
+            'requiredInput': 'Changed file path(s)',
+          },
+        );
+        return;
       case AppCommandId.collectAgentCodingCheckpoint:
         final metadata = await collectAgentCodingCheckpoint();
         _recordAgentIdeCommandResult(
@@ -6221,6 +6274,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.searchWorkspace:
       case AppCommandId.renameSymbol:
       case AppCommandId.previewSourceControlDiff:
+      case AppCommandId.stageSourceControl:
+      case AppCommandId.unstageSourceControl:
       case AppCommandId.selectClangCppVersion:
         await applyAgentIdeCommandSuggestion(
           AgentIdeCommandSuggestion(
@@ -6511,6 +6566,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
       case AppCommandId.previewSourceControlDiff:
+      case AppCommandId.stageSourceControl:
+      case AppCommandId.unstageSourceControl:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:

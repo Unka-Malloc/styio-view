@@ -27,6 +27,8 @@ enum AppCommandId {
   refreshWorkspaceDiagnostics,
   refreshSourceControl,
   previewSourceControlDiff,
+  stageSourceControl,
+  unstageSourceControl,
   collectAgentCodingCheckpoint,
   collectProjectLanguageContext,
   retryAgentProvider,
@@ -120,7 +122,9 @@ extension AppCommandIdX on AppCommandId {
         AppCommandCategory.diagnostics,
       AppCommandId.refreshLanguageService => AppCommandCategory.languageService,
       AppCommandId.refreshSourceControl ||
-      AppCommandId.previewSourceControlDiff => AppCommandCategory.sourceControl,
+      AppCommandId.previewSourceControlDiff ||
+      AppCommandId.stageSourceControl ||
+      AppCommandId.unstageSourceControl => AppCommandCategory.sourceControl,
       AppCommandId.collectAgentCodingCheckpoint ||
       AppCommandId.collectProjectLanguageContext ||
       AppCommandId.retryAgentProvider ||
@@ -455,6 +459,24 @@ class StyioCommandRegistry {
           'Preview the current unified diff for a changed workspace file.',
       requiresInput: true,
       inputLabel: 'Changed file path',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.stageSourceControl,
+      label: 'Stage Source Control Paths',
+      shortcutHint: 'Route',
+      description:
+          'Stage one or more changed workspace paths through the source-control action contract.',
+      requiresInput: true,
+      inputLabel: 'Changed file path(s)',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.unstageSourceControl,
+      label: 'Unstage Source Control Paths',
+      shortcutHint: 'Route',
+      description:
+          'Unstage one or more changed workspace paths through the source-control action contract.',
+      requiresInput: true,
+      inputLabel: 'Changed file path(s)',
     ),
     AppCommandDescriptor(
       id: AppCommandId.collectAgentCodingCheckpoint,

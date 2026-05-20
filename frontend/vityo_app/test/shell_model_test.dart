@@ -364,6 +364,64 @@ void main() {
         isA<Map<String, Object?>>(),
       );
 
+      final missingStageApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'stageSourceControl'),
+      );
+      final missingStageResult = shell.agentSessionContext.commands.lastResult;
+      expect(missingStageApplied, isFalse);
+      expect(missingStageResult?.commandId, 'stageSourceControl');
+      expect(
+        missingStageResult?.metadata['requiredInput'],
+        'Changed file path(s)',
+      );
+
+      final agentStageApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'stageSourceControl',
+          input: documentPath,
+        ),
+      );
+      final agentStageResult = shell.agentSessionContext.commands.lastResult;
+      expect(agentStageApplied, isTrue);
+      expect(agentStageResult?.commandId, 'stageSourceControl');
+      expect(agentStageResult?.metadata['pathCount'], 1);
+      final agentStageAction =
+          agentStageResult?.metadata['sourceControlAction']!
+              as Map<String, Object?>;
+      expect(agentStageAction['kind'], 'stage');
+      expect(agentStageAction['paths'], <String>[documentPath]);
+      final agentStageContext =
+          agentStageResult?.metadata['sourceControlContext']!
+              as Map<String, Object?>;
+      expect(
+        (agentStageContext['lastActionResult']!
+            as Map<String, Object?>)['kind'],
+        'stage',
+      );
+
+      final agentUnstageApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'unstageSourceControl',
+          input: documentPath,
+        ),
+      );
+      final agentUnstageResult = shell.agentSessionContext.commands.lastResult;
+      expect(agentUnstageApplied, isTrue);
+      expect(agentUnstageResult?.commandId, 'unstageSourceControl');
+      final agentUnstageAction =
+          agentUnstageResult?.metadata['sourceControlAction']!
+              as Map<String, Object?>;
+      expect(agentUnstageAction['kind'], 'unstage');
+      expect(agentUnstageAction['paths'], <String>[documentPath]);
+      final agentUnstageContext =
+          agentUnstageResult?.metadata['sourceControlContext']!
+              as Map<String, Object?>;
+      expect(
+        (agentUnstageContext['lastActionResult']!
+            as Map<String, Object?>)['kind'],
+        'unstage',
+      );
+
       await shell.executeCommand(AppCommandId.collectAgentCodingCheckpoint);
       final checkpointCommandResult =
           shell.agentSessionContext.commands.lastResult;
@@ -415,7 +473,7 @@ void main() {
       final lastSourceControlAction =
           checkpointSourceControlContext['lastActionResult']!
               as Map<String, Object?>;
-      expect(lastSourceControlAction['kind'], 'stage');
+      expect(lastSourceControlAction['kind'], 'unstage');
       expect(lastSourceControlAction['applied'], isTrue);
       expect(lastSourceControlAction['message'], contains('/workspace/demo'));
 
@@ -486,6 +544,15 @@ void main() {
       expect(agentRefreshApplied, isTrue);
       expect(agentRefreshResult?.commandId, 'refreshSourceControl');
       expect(agentRefreshResult?.message, contains('Source control refreshed'));
+
+      await shell.executeCommand(AppCommandId.stageSourceControl);
+      final directStageResult = shell.agentSessionContext.commands.lastResult;
+      expect(directStageResult?.commandId, 'stageSourceControl');
+      expect(directStageResult?.applied, isFalse);
+      expect(
+        directStageResult?.metadata['requiredInput'],
+        'Changed file path(s)',
+      );
 
       await shell.executeCommand(AppCommandId.previewQuickFix);
       final semanticLanguageJson =

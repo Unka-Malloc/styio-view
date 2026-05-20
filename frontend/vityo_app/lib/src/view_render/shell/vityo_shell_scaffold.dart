@@ -2116,6 +2116,10 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.account_tree_rounded;
     case AppCommandId.previewSourceControlDiff:
       return Icons.difference_outlined;
+    case AppCommandId.stageSourceControl:
+      return Icons.add_task_rounded;
+    case AppCommandId.unstageSourceControl:
+      return Icons.remove_done_outlined;
     case AppCommandId.collectAgentCodingCheckpoint:
       return Icons.assignment_turned_in_outlined;
     case AppCommandId.collectProjectLanguageContext:

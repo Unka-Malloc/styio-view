@@ -117,6 +117,12 @@ void main() {
       final previewSourceControlDiff = StyioCommandRegistry.descriptorFor(
         AppCommandId.previewSourceControlDiff,
       );
+      final stageSourceControl = StyioCommandRegistry.descriptorFor(
+        AppCommandId.stageSourceControl,
+      );
+      final unstageSourceControl = StyioCommandRegistry.descriptorFor(
+        AppCommandId.unstageSourceControl,
+      );
       final collectAgentCodingCheckpoint = StyioCommandRegistry.descriptorFor(
         AppCommandId.collectAgentCodingCheckpoint,
       );
@@ -266,6 +272,14 @@ void main() {
       expect(previewSourceControlDiff.shortcutHint, 'Route');
       expect(previewSourceControlDiff.requiresInput, isTrue);
       expect(previewSourceControlDiff.inputLabel, 'Changed file path');
+      expect(stageSourceControl.label, 'Stage Source Control Paths');
+      expect(stageSourceControl.category, AppCommandCategory.sourceControl);
+      expect(stageSourceControl.requiresInput, isTrue);
+      expect(stageSourceControl.inputLabel, 'Changed file path(s)');
+      expect(unstageSourceControl.label, 'Unstage Source Control Paths');
+      expect(unstageSourceControl.category, AppCommandCategory.sourceControl);
+      expect(unstageSourceControl.requiresInput, isTrue);
+      expect(unstageSourceControl.inputLabel, 'Changed file path(s)');
 
       expect(collectAgentCodingCheckpoint.label, 'Collect Coding Checkpoint');
       expect(collectAgentCodingCheckpoint.shortcutHint, 'Route');
@@ -373,6 +387,8 @@ void main() {
       <AppCommandId>[
         AppCommandId.refreshSourceControl,
         AppCommandId.previewSourceControlDiff,
+        AppCommandId.stageSourceControl,
+        AppCommandId.unstageSourceControl,
       ],
     );
     expect(

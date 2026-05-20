@@ -72,6 +72,14 @@ void main() {
       contains('SemanticSnapshotProvider'),
     );
     expect(
+      entriesById['service.semantic-snapshot']?.summary,
+      contains('SemanticSnapshotPanelEventStateController'),
+    );
+    expect(
+      entriesById['service.semantic-snapshot']?.summary,
+      contains('SemanticSnapshotPanelEventStore persisted telemetry'),
+    );
+    expect(
       entriesById['service.remote-service']?.summary,
       contains('HostedBackendRetryActionExecutor'),
     );

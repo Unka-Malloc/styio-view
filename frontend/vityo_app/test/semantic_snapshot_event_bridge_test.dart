@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
 
 void main() {
@@ -87,5 +91,104 @@ void main() {
       );
       expect(received.single.payload['newName'], 'newName');
     },
+  );
+
+  test(
+    'semantic snapshot panel state controller records dispatched events',
+    () {
+      final controller = SemanticSnapshotPanelEventStateController();
+      const bridge = SemanticSnapshotEventBridge();
+      final dispatcher = SemanticSnapshotPanelEventDispatcher(
+        sinks: <SemanticSnapshotPanelEventSink>[
+          controller.sinkFor(SemanticSnapshotPanelEventTarget.problems),
+          controller.sinkFor(SemanticSnapshotPanelEventTarget.refactor),
+        ],
+      );
+      final event = bridge.codeActionApplyEvent(
+        documentId: 'src/main.styio',
+        timestamp: DateTime.utc(2026, 5, 20, 3),
+        result: const SemanticSnapshotCodeActionApplyResult(
+          actionId: 'insert-assignment',
+          label: 'Insert assignment',
+          diagnosticCode: 'missing-assignment',
+          status: SemanticSnapshotCodeActionApplyStatus.applied,
+          editCount: 1,
+          appliedEditCount: 1,
+          message: 'Applied.',
+        ),
+      );
+
+      final report = dispatcher.dispatch(event);
+      final state = controller.stateFor(
+        SemanticSnapshotPanelEventTarget.problems,
+      );
+
+      expect(report.deliveredSinkIds, <String>['problems-state-store']);
+      expect(state.revision, 1);
+      expect(state.events.single.documentId, 'src/main.styio');
+      expect(
+        state.events.single.kind,
+        SemanticSnapshotTelemetryEventKind.codeActionApply,
+      );
+    },
+  );
+
+  test('semantic snapshot panel event store persists telemetry', () async {
+    final store = SemanticSnapshotPanelEventStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+    final event = SemanticSnapshotPanelEvent(
+      target: SemanticSnapshotPanelEventTarget.refactor,
+      kind: SemanticSnapshotTelemetryEventKind.renameSafety,
+      documentId: 'src/main.styio',
+      message: 'Rename is safe.',
+      payload: <String, Object?>{'newName': 'nextName'},
+      timestamp: DateTime.utc(2026, 5, 20, 4),
+    );
+
+    final state = await store.recordEvent(workspaceId: 'demo', event: event);
+    final restored = await store.readState(
+      workspaceId: 'demo',
+      target: SemanticSnapshotPanelEventTarget.refactor,
+    );
+
+    expect(state.revision, 1);
+    expect(restored.events.single.payload['newName'], 'nextName');
+    expect(restored.toJson()['target'], 'refactor');
+    expect(
+      await store.clearState(
+        workspaceId: 'demo',
+        target: SemanticSnapshotPanelEventTarget.refactor,
+      ),
+      isTrue,
+    );
+    expect(
+      (await store.readState(
+        workspaceId: 'demo',
+        target: SemanticSnapshotPanelEventTarget.refactor,
+      )).events,
+      isEmpty,
+    );
+  });
+}
+
+Future<FoundationDataStore> _createDataStore() async {
+  final tempRoot = await Directory.systemTemp.createTemp(
+    'vityo_semantic_panel_event_test_',
+  );
+  addTearDown(() => tempRoot.delete(recursive: true));
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: tempRoot.path,
+      homePath: tempRoot.path,
+    ),
+  );
+  return FoundationDataStore(
+    resourceCoordinator: FoundationResourceCoordinator(
+      resourceManager: resourceManager,
+      fileSystemManager: fileSystemManager,
+    ),
+    fileSystemManager: fileSystemManager,
   );
 }

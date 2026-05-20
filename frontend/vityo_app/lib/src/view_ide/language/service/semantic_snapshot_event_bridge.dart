@@ -1,4 +1,5 @@
 import '../../runtime/runtime_output_channels.dart';
+import '../../foundation/foundation.dart';
 import 'semantic_snapshot_provider.dart';
 
 enum SemanticSnapshotTelemetryEventKind {
@@ -39,6 +40,16 @@ extension SemanticSnapshotPanelEventTargetX
   };
 }
 
+SemanticSnapshotPanelEventTarget? _semanticSnapshotPanelEventTargetFromWire(
+  Object? value,
+) {
+  return switch (value) {
+    'problems' => SemanticSnapshotPanelEventTarget.problems,
+    'refactor' => SemanticSnapshotPanelEventTarget.refactor,
+    _ => null,
+  };
+}
+
 typedef SemanticSnapshotPanelEventHandler =
     void Function(SemanticSnapshotPanelEvent event);
 
@@ -51,6 +62,23 @@ class SemanticSnapshotPanelEvent {
     required this.payload,
     required this.timestamp,
   });
+
+  factory SemanticSnapshotPanelEvent.fromJson(Map<String, Object?> json) {
+    return SemanticSnapshotPanelEvent(
+      target:
+          _semanticSnapshotPanelEventTargetFromWire(json['target']) ??
+          SemanticSnapshotPanelEventTarget.problems,
+      kind:
+          _semanticSnapshotTelemetryEventKindFromWire(json['kind']) ??
+          SemanticSnapshotTelemetryEventKind.codeActionDiscovery,
+      documentId: json['documentId'] as String? ?? '',
+      message: json['message'] as String? ?? '',
+      payload: _payloadFromJson(json['payload']),
+      timestamp:
+          DateTime.tryParse(json['timestamp'] as String? ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+  }
 
   final SemanticSnapshotPanelEventTarget target;
   final SemanticSnapshotTelemetryEventKind kind;
@@ -207,6 +235,217 @@ class SemanticSnapshotPanelEventDispatcher {
   }
 }
 
+class SemanticSnapshotPanelEventState {
+  const SemanticSnapshotPanelEventState({
+    required this.target,
+    this.events = const <SemanticSnapshotPanelEvent>[],
+    this.revision = 0,
+    this.updatedAt,
+  });
+
+  factory SemanticSnapshotPanelEventState.empty(
+    SemanticSnapshotPanelEventTarget target,
+  ) {
+    return SemanticSnapshotPanelEventState(target: target);
+  }
+
+  factory SemanticSnapshotPanelEventState.fromJson(Map<String, Object?> json) {
+    final target =
+        _semanticSnapshotPanelEventTargetFromWire(json['target']) ??
+        SemanticSnapshotPanelEventTarget.problems;
+    final events = <SemanticSnapshotPanelEvent>[];
+    final rawEvents = json['events'];
+    if (rawEvents is List) {
+      for (final rawEvent in rawEvents) {
+        if (rawEvent is Map) {
+          events.add(
+            SemanticSnapshotPanelEvent.fromJson(
+              Map<String, Object?>.from(rawEvent),
+            ),
+          );
+        }
+      }
+    }
+    return SemanticSnapshotPanelEventState(
+      target: target,
+      events: List.unmodifiable(events),
+      revision: json['revision'] as int? ?? 0,
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final SemanticSnapshotPanelEventTarget target;
+  final List<SemanticSnapshotPanelEvent> events;
+  final int revision;
+  final DateTime? updatedAt;
+
+  SemanticSnapshotPanelEventState record(
+    SemanticSnapshotPanelEvent event, {
+    int maxEvents = 50,
+    DateTime? updatedAt,
+  }) {
+    return SemanticSnapshotPanelEventState(
+      target: target,
+      events: <SemanticSnapshotPanelEvent>[
+        event,
+        ...events.where(
+          (candidate) =>
+              candidate.documentId != event.documentId ||
+              candidate.kind != event.kind ||
+              candidate.timestamp != event.timestamp,
+        ),
+      ].take(maxEvents).toList(growable: false),
+      revision: revision + 1,
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'target': target.wireValue,
+      'revision': revision,
+      'events': events.map((event) => event.toJson()).toList(growable: false),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class SemanticSnapshotPanelEventStateController {
+  SemanticSnapshotPanelEventStateController({
+    Iterable<SemanticSnapshotPanelEventTarget> targets =
+        SemanticSnapshotPanelEventTarget.values,
+  }) : _states =
+           <SemanticSnapshotPanelEventTarget, SemanticSnapshotPanelEventState>{
+             for (final target in targets)
+               target: SemanticSnapshotPanelEventState.empty(target),
+           };
+
+  final Map<SemanticSnapshotPanelEventTarget, SemanticSnapshotPanelEventState>
+  _states;
+
+  SemanticSnapshotPanelEventState stateFor(
+    SemanticSnapshotPanelEventTarget target,
+  ) {
+    return _states[target] ?? SemanticSnapshotPanelEventState.empty(target);
+  }
+
+  SemanticSnapshotPanelEventSink sinkFor(
+    SemanticSnapshotPanelEventTarget target,
+  ) {
+    return SemanticSnapshotPanelEventSink(
+      id: '${target.wireValue}-state-store',
+      target: target,
+      handle: handle,
+    );
+  }
+
+  void handle(SemanticSnapshotPanelEvent event) {
+    _states[event.target] = stateFor(event.target).record(event);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      for (final entry in _states.entries)
+        entry.key.wireValue: entry.value.toJson(),
+    };
+  }
+}
+
+class SemanticSnapshotPanelEventStore {
+  SemanticSnapshotPanelEventStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'service.semantic-snapshot.panel-events',
+             layer: 'service',
+             stateFamily: 'semantic-snapshot-panel-events',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const SemanticSnapshotPanelEventStore({
+    required FoundationDataStoreOwner owner,
+  }) : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'service.semantic-snapshot.panel-events';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<SemanticSnapshotPanelEventState> readState({
+    required String workspaceId,
+    required SemanticSnapshotPanelEventTarget target,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _keyFor(target),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return SemanticSnapshotPanelEventState.empty(target);
+    }
+    final state = SemanticSnapshotPanelEventState.fromJson(value);
+    return state.target == target
+        ? state
+        : SemanticSnapshotPanelEventState(
+            target: target,
+            events: state.events,
+            revision: state.revision,
+            updatedAt: state.updatedAt,
+          );
+  }
+
+  Future<SemanticSnapshotPanelEventState> recordEvent({
+    required String workspaceId,
+    required SemanticSnapshotPanelEvent event,
+    int maxEvents = 50,
+  }) async {
+    final next = (await readState(
+      workspaceId: workspaceId,
+      target: event.target,
+    )).record(event, maxEvents: maxEvents, updatedAt: event.timestamp);
+    await saveState(workspaceId: workspaceId, state: next);
+    return next;
+  }
+
+  Future<SemanticSnapshotPanelEventState> saveState({
+    required String workspaceId,
+    required SemanticSnapshotPanelEventState state,
+  }) async {
+    await _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _keyFor(state.target),
+      value: state.toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    return state;
+  }
+
+  Future<bool> clearState({
+    required String workspaceId,
+    required SemanticSnapshotPanelEventTarget target,
+  }) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _keyFor(target),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+
+  String _keyFor(SemanticSnapshotPanelEventTarget target) {
+    return 'panel-events-${target.wireValue}';
+  }
+}
+
 class SemanticSnapshotEventBridge {
   const SemanticSnapshotEventBridge({
     this.channelId = 'language.semantic',
@@ -284,4 +523,16 @@ class SemanticSnapshotEventBridge {
       },
     );
   }
+}
+
+Map<String, Object?> _payloadFromJson(Object? value) {
+  if (value is Map<String, Object?>) {
+    return value;
+  }
+  if (value is Map) {
+    return value.map(
+      (key, value) => MapEntry<String, Object?>(key.toString(), value),
+    );
+  }
+  return const <String, Object?>{};
 }

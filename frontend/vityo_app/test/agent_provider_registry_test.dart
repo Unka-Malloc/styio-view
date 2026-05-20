@@ -43,9 +43,17 @@ void main() {
       );
 
       final resolved = registry.resolve(profile);
+      final plan = registry.selectionPlan(profile);
       final adapter = await registry.createAdapter(profile);
 
       expect(resolved?.providerId, 'high');
+      expect(plan.ready, isTrue);
+      expect(plan.selectedProvider?.providerId, 'high');
+      expect(plan.candidates.map((candidate) => candidate.providerId), <String>[
+        'high',
+        'low',
+      ]);
+      expect(plan.toJson()['selectedProvider'], isA<Map<String, Object?>>());
       expect(adapter, same(highPriorityAdapter));
     },
   );
@@ -84,8 +92,13 @@ void main() {
   test('agent provider registry reports unsupported profile routes', () async {
     final registry = AgentProviderRegistry();
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    final plan = registry.selectionPlan(profile);
 
     expect(registry.resolve(profile), isNull);
+    expect(plan.ready, isFalse);
+    expect(plan.status, AgentProviderSelectionStatus.unsupportedProfile);
+    expect(plan.toJson()['candidateCount'], 0);
+    expect(plan.toJson()['todo'], startsWith('TODO:'));
     await expectLater(
       registry.createAdapter(profile),
       throwsA(isA<StateError>()),

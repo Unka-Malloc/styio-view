@@ -4,6 +4,17 @@ import 'agent_provider_adapter.dart';
 typedef RegisteredAgentProviderAdapterCreator =
     Future<AgentProviderAdapter> Function(AgentPromptProfile profile);
 
+enum AgentProviderSelectionStatus { ready, unsupportedProfile }
+
+extension AgentProviderSelectionStatusX on AgentProviderSelectionStatus {
+  String get wireValue {
+    return switch (this) {
+      AgentProviderSelectionStatus.ready => 'ready',
+      AgentProviderSelectionStatus.unsupportedProfile => 'unsupported_profile',
+    };
+  }
+}
+
 class AgentProviderRegistration {
   const AgentProviderRegistration({
     required this.providerId,
@@ -57,6 +68,48 @@ class AgentProviderRegistration {
   }
 }
 
+class AgentProviderSelectionPlan {
+  const AgentProviderSelectionPlan({
+    required this.status,
+    required this.route,
+    required this.protocol,
+    required this.requiresCredential,
+    required this.candidates,
+    this.selectedProvider,
+    this.message = '',
+    this.todo = '',
+  });
+
+  final AgentProviderSelectionStatus status;
+  final AgentProviderRoute route;
+  final String protocol;
+  final bool requiresCredential;
+  final List<AgentProviderRegistrationManifest> candidates;
+  final AgentProviderRegistrationManifest? selectedProvider;
+  final String message;
+  final String todo;
+
+  bool get ready => status == AgentProviderSelectionStatus.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'route': route.wireValue,
+      'protocol': protocol,
+      'requiresCredential': requiresCredential,
+      'ready': ready,
+      if (selectedProvider != null)
+        'selectedProvider': selectedProvider!.toJson(),
+      'candidateCount': candidates.length,
+      'candidates': candidates
+          .map((candidate) => candidate.toJson())
+          .toList(growable: false),
+      if (message.isNotEmpty) 'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
 class AgentProviderRegistry {
   AgentProviderRegistry({
     Iterable<AgentProviderRegistration> registrations =
@@ -96,6 +149,34 @@ class AgentProviderRegistry {
       }
     }
     return null;
+  }
+
+  AgentProviderSelectionPlan selectionPlan(AgentPromptProfile profile) {
+    final candidates = registrations
+        .where((registration) => registration.supportsProfile(profile))
+        .map((registration) => registration.toManifest())
+        .toList(growable: false);
+    final selectedProvider = candidates.isEmpty ? null : candidates.first;
+    return AgentProviderSelectionPlan(
+      status: selectedProvider == null
+          ? AgentProviderSelectionStatus.unsupportedProfile
+          : AgentProviderSelectionStatus.ready,
+      route: profile.endpoint.route,
+      protocol: profile.endpoint.protocol,
+      requiresCredential: profile.endpoint.requiresCredential,
+      selectedProvider: selectedProvider,
+      candidates: List<AgentProviderRegistrationManifest>.unmodifiable(
+        candidates,
+      ),
+      message: selectedProvider == null
+          ? 'No agent provider registration supports this route and protocol.'
+          : 'Agent provider registration is ready.',
+      todo: selectedProvider == null
+          ? 'TODO: install or enable an agent provider contribution for this profile.'
+          : profile.endpoint.requiresCredential
+          ? 'TODO: resolve this profile credential through Credential DataStore before sending.'
+          : '',
+    );
   }
 
   Future<AgentProviderAdapter> createAdapter(AgentPromptProfile profile) async {

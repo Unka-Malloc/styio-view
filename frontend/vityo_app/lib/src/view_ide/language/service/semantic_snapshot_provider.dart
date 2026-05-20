@@ -269,9 +269,43 @@ class SemanticSnapshotFeatureMatrix {
         .toList(growable: false);
   }
 
+  int get availableFeatureCount {
+    return supports.where((support) => support.available).length;
+  }
+
+  int get serviceBackedFeatureCount {
+    return supports
+        .where(
+          (support) =>
+              support.available &&
+              support.confidence ==
+                  SemanticSnapshotFeatureConfidence.serviceBacked,
+        )
+        .length;
+  }
+
+  int get localFallbackFeatureCount {
+    return supports
+        .where(
+          (support) =>
+              support.available &&
+              support.confidence ==
+                  SemanticSnapshotFeatureConfidence.localFallback,
+        )
+        .length;
+  }
+
+  int get unavailableFeatureCount {
+    return supports.where((support) => !support.available).length;
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'source': source.wireValue,
+      'availableFeatureCount': availableFeatureCount,
+      'serviceBackedFeatureCount': serviceBackedFeatureCount,
+      'localFallbackFeatureCount': localFallbackFeatureCount,
+      'unavailableFeatureCount': unavailableFeatureCount,
       'supports': supports
           .map((support) => support.toJson())
           .toList(growable: false),

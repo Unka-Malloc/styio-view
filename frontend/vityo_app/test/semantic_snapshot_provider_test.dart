@@ -84,6 +84,16 @@ void main() {
           as List<Object?>),
       contains('code-actions'),
     );
+    expect(
+      (result.toJson()['featureMatrix']!
+          as Map<String, Object?>)['serviceBackedFeatureCount'],
+      greaterThan(0),
+    );
+    expect(
+      (result.toJson()['featureMatrix']!
+          as Map<String, Object?>)['localFallbackFeatureCount'],
+      0,
+    );
   });
 
   test(
@@ -138,6 +148,16 @@ void main() {
         SemanticSnapshotFeatureConfidence.unavailable,
       );
       expect(result.toJson()['usedFallback'], isTrue);
+      expect(
+        (result.toJson()['featureMatrix']!
+            as Map<String, Object?>)['localFallbackFeatureCount'],
+        greaterThan(0),
+      );
+      expect(
+        (result.toJson()['featureMatrix']!
+            as Map<String, Object?>)['serviceBackedFeatureCount'],
+        0,
+      );
       expect(
         (((result.toJson()['featureMatrix']!
                     as Map<String, Object?>)['supports']!

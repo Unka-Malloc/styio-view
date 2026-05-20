@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_registry.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/backend_toolchain/execution_adapter.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
@@ -452,7 +453,7 @@ void main() {
     final testingDebugRoute =
         testingJson['debugFailedRoutePlan']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 46);
+    expect(json['schemaVersion'], 47);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1486,7 +1487,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 46);
+    expect(json['schemaVersion'], 47);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1778,6 +1779,35 @@ void main() {
         operation: 'agent.provider.postJson',
         recoveryHint: 'Retry the provider request.',
       ),
+      providerSelectionPlan: const AgentProviderSelectionPlan(
+        status: AgentProviderSelectionStatus.ready,
+        route: AgentProviderRoute.webHosted,
+        protocol: 'openai-compatible',
+        requiresCredential: true,
+        selectedProvider: AgentProviderRegistrationManifest(
+          providerId: 'cloud',
+          displayName: 'Cloud Provider',
+          kind: AgentProviderKind.cloudOpenAICompatible,
+          priority: 10,
+          supportsCodePatch: true,
+          supportedRoutes: <String>['web-hosted'],
+          supportedProtocols: <String>['openai-compatible'],
+          capabilities: <String>['plan', 'code_patch'],
+        ),
+        candidates: <AgentProviderRegistrationManifest>[
+          AgentProviderRegistrationManifest(
+            providerId: 'cloud',
+            displayName: 'Cloud Provider',
+            kind: AgentProviderKind.cloudOpenAICompatible,
+            priority: 10,
+            supportsCodePatch: true,
+            supportedRoutes: <String>['web-hosted'],
+            supportedProtocols: <String>['openai-compatible'],
+            capabilities: <String>['plan', 'code_patch'],
+          ),
+        ],
+        message: 'Agent provider registration is ready.',
+      ),
       providerExecutionResolution: const AgentProviderExecutionResolution(
         profileId: 'cloud',
         status: AgentProviderExecutionResolutionStatus.fallbackReady,
@@ -1824,6 +1854,8 @@ void main() {
     final failure = agentJson['lastProviderFailure']! as Map<String, Object?>;
     final providerExecution =
         agentJson['providerExecution']! as Map<String, Object?>;
+    final providerSelection =
+        agentJson['providerSelection']! as Map<String, Object?>;
     final endpoints = providerExecution['endpoints']! as List<Object?>;
 
     expect(failure['kind'], 'timeout');
@@ -1831,6 +1863,14 @@ void main() {
     expect(failure['operation'], 'agent.provider.postJson');
     expect(failure['recoveryHint'], 'Retry the provider request.');
     expect(providerExecution['status'], 'fallback_ready');
+    expect(providerSelection['status'], 'ready');
+    expect(providerSelection['requiresCredential'], isTrue);
+    expect(providerSelection['candidateCount'], 1);
+    expect(
+      (providerSelection['selectedProvider']!
+          as Map<String, Object?>)['providerId'],
+      'cloud',
+    );
     expect(providerExecution['selectedEndpointIndex'], 1);
     expect(providerExecution['missingCredentialEndpointCount'], 1);
     expect(

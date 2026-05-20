@@ -697,6 +697,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       lastProviderFailure: _lastProviderFailure == null
           ? null
           : _providerFailureContext(_lastProviderFailure!),
+      providerSelectionPlan: _providerSelectionPlan,
       providerExecutionResolution: _providerExecutionResolution,
       lastPatchApplication: _lastPatchApplicationContext,
       recentPatchApplications: _recentPatchApplicationContexts,

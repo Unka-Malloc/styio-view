@@ -203,7 +203,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      46,
+      47,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -884,7 +884,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 46);
+      expect(metadata['contextSchemaVersion'], 47);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

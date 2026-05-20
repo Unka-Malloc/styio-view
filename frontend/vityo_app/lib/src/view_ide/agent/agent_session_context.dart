@@ -16,6 +16,7 @@ import '../workspace/workspace.dart';
 import 'agent_coding_skill.dart';
 import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
+import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
 
 const int _maxAgentCommandResultHistory = 12;
@@ -112,6 +113,7 @@ class AgentSessionContext {
     Iterable<AgentPendingIdeCommandContext> recentIdeCommandSuggestions =
         const <AgentPendingIdeCommandContext>[],
     AgentProviderFailureContext? lastProviderFailure,
+    AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
@@ -150,7 +152,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 46,
+      schemaVersion: 47,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -182,6 +184,9 @@ class AgentSessionContext {
         pendingIdeCommands: pendingIdeCommands,
         recentIdeCommandSuggestions: recentIdeCommandSuggestions,
         lastProviderFailure: lastProviderFailure,
+        providerSelection: providerSelectionPlan == null
+            ? null
+            : AgentProviderSelectionContext.fromPlan(providerSelectionPlan),
         providerExecution: providerExecutionResolution == null
             ? null
             : AgentProviderExecutionContext.fromResolution(
@@ -320,6 +325,7 @@ class AgentSessionContext {
     Iterable<AgentPendingIdeCommandContext> recentIdeCommandSuggestions =
         const <AgentPendingIdeCommandContext>[],
     AgentProviderFailureContext? lastProviderFailure,
+    AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
@@ -352,6 +358,7 @@ class AgentSessionContext {
         recentCodingPlanList.isEmpty &&
         recentDiagnosticSummaryList.isEmpty &&
         lastProviderFailure == null &&
+        providerSelectionPlan == null &&
         providerExecutionResolution == null &&
         lastPatchApplication == null) {
       final recentPatchApplicationList = recentPatchApplications.toList(
@@ -384,6 +391,9 @@ class AgentSessionContext {
         pendingIdeCommands: pendingIdeCommandList,
         recentIdeCommandSuggestions: recentIdeCommandSuggestionList,
         lastProviderFailure: lastProviderFailure,
+        providerSelection: providerSelectionPlan == null
+            ? agent.providerSelection
+            : AgentProviderSelectionContext.fromPlan(providerSelectionPlan),
         providerExecution: providerExecutionResolution == null
             ? agent.providerExecution
             : AgentProviderExecutionContext.fromResolution(
@@ -428,6 +438,7 @@ class AgentCodingLoopContext {
     this.pendingIdeCommands = const <AgentPendingIdeCommandContext>[],
     this.recentIdeCommandSuggestions = const <AgentPendingIdeCommandContext>[],
     this.lastProviderFailure,
+    this.providerSelection,
     this.providerExecution,
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
@@ -444,6 +455,7 @@ class AgentCodingLoopContext {
     Iterable<AgentPendingIdeCommandContext> recentIdeCommandSuggestions =
         const <AgentPendingIdeCommandContext>[],
     AgentProviderFailureContext? lastProviderFailure,
+    AgentProviderSelectionContext? providerSelection,
     AgentProviderExecutionContext? providerExecution,
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
@@ -465,6 +477,7 @@ class AgentCodingLoopContext {
         growable: false,
       ),
       lastProviderFailure: lastProviderFailure,
+      providerSelection: providerSelection,
       providerExecution: providerExecution,
       lastPatchApplication: history.isEmpty ? null : history.first,
       recentPatchApplications: history,
@@ -480,6 +493,7 @@ class AgentCodingLoopContext {
   final List<AgentPendingIdeCommandContext> pendingIdeCommands;
   final List<AgentPendingIdeCommandContext> recentIdeCommandSuggestions;
   final AgentProviderFailureContext? lastProviderFailure;
+  final AgentProviderSelectionContext? providerSelection;
   final AgentProviderExecutionContext? providerExecution;
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
@@ -503,6 +517,8 @@ class AgentCodingLoopContext {
             .toList(growable: false),
       if (lastProviderFailure != null)
         'lastProviderFailure': lastProviderFailure!.toJson(),
+      if (providerSelection != null)
+        'providerSelection': providerSelection!.toJson(),
       if (providerExecution != null)
         'providerExecution': providerExecution!.toJson(),
       if (lastPatchApplication != null)
@@ -704,6 +720,65 @@ class AgentProviderEndpointExecutionContext {
       'probeStatus': probeStatus,
       'executable': executable,
       if (blockReason != null) 'blockReason': blockReason,
+    };
+  }
+}
+
+class AgentProviderSelectionContext {
+  const AgentProviderSelectionContext({
+    required this.status,
+    required this.route,
+    required this.protocol,
+    required this.requiresCredential,
+    required this.ready,
+    this.selectedProvider,
+    this.candidates = const <AgentProviderRegistrationManifest>[],
+    this.message = '',
+    this.todo = '',
+  });
+
+  factory AgentProviderSelectionContext.fromPlan(
+    AgentProviderSelectionPlan plan,
+  ) {
+    return AgentProviderSelectionContext(
+      status: plan.status.wireValue,
+      route: plan.route.wireValue,
+      protocol: plan.protocol,
+      requiresCredential: plan.requiresCredential,
+      ready: plan.ready,
+      selectedProvider: plan.selectedProvider,
+      candidates: plan.candidates,
+      message: plan.message,
+      todo: plan.todo,
+    );
+  }
+
+  final String status;
+  final String route;
+  final String protocol;
+  final bool requiresCredential;
+  final bool ready;
+  final AgentProviderRegistrationManifest? selectedProvider;
+  final List<AgentProviderRegistrationManifest> candidates;
+  final String message;
+  final String todo;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status,
+      'route': route,
+      'protocol': protocol,
+      'requiresCredential': requiresCredential,
+      'ready': ready,
+      if (selectedProvider != null)
+        'selectedProvider': selectedProvider!.toJson(),
+      'candidateCount': candidates.length,
+      if (candidates.isNotEmpty)
+        'candidates': candidates
+            .map((candidate) => candidate.toJson())
+            .toList(growable: false),
+      if (message.isNotEmpty) 'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
     };
   }
 }

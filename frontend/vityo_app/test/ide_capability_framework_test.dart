@@ -88,6 +88,10 @@ void main() {
       contains('TerminalInteractionController'),
     );
     expect(
+      entriesById['runtime.terminal']?.summary,
+      contains('script-PTY stdout/stderr merged output streams'),
+    );
+    expect(
       entriesById['interaction.testing']?.status,
       IdeCapabilityStatus.scaffolded,
     );

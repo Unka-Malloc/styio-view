@@ -41,31 +41,36 @@ void main() {
     expect(plan.backendArguments.join(' '), contains('/bin/sh'));
   });
 
-  test('pty manager runs command inside a real tty on linux script backend', () async {
-    final facts = await const LocalPtyProber().probe();
-    final manager = LocalPtyManager(facts: facts);
+  test(
+    'pty manager runs command inside a real tty on linux script backend',
+    () async {
+      final facts = await const LocalPtyProber().probe();
+      final manager = LocalPtyManager(facts: facts);
 
-    expect(facts.supportsPty, isTrue);
-    expect(manager.compatibility.providerKind, PtyProviderKind.scriptUtility);
+      expect(facts.supportsPty, isTrue);
+      expect(manager.compatibility.providerKind, PtyProviderKind.scriptUtility);
 
-    final session = await manager.start(
-      const PtySessionRequest(
-        executablePath: '/bin/sh',
-        arguments: <String>[
-          '-c',
-          'test -t 1 && printf tty-ok || printf no-tty',
-        ],
-      ),
-    );
-    final outputFuture = session.output.join();
-    final exitCode = await session.exitCode.timeout(const Duration(seconds: 5));
-    final output = await outputFuture.timeout(const Duration(seconds: 5));
+      final session = await manager.start(
+        const PtySessionRequest(
+          executablePath: '/bin/sh',
+          arguments: <String>[
+            '-c',
+            'test -t 1 && printf tty-ok || printf no-tty',
+          ],
+        ),
+      );
+      final outputFuture = session.output.join();
+      final exitCode = await session.exitCode.timeout(
+        const Duration(seconds: 5),
+      );
+      final output = await outputFuture.timeout(const Duration(seconds: 5));
 
-    expect(session.state, PtySessionState.exited);
-    expect(exitCode, 0);
-    expect(output, contains('tty-ok'));
-    expect(output, isNot(contains('no-tty')));
-  });
+      expect(session.state, PtySessionState.exited);
+      expect(exitCode, 0);
+      expect(output, contains('tty-ok'));
+      expect(output, isNot(contains('no-tty')));
+    },
+  );
 
   test('pty manager exposes structured resize degradation', () async {
     final manager = LocalPtyManager.linuxDebianArmForTest(
@@ -89,6 +94,46 @@ void main() {
     expect(exitCode, 0);
     expect(output, contains('resize-test'));
   });
+
+  test(
+    'pty manager merges backend stdout and stderr into terminal output',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_fake_script_pty_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final fakeScript = File('${tempRoot.path}/fake-script.sh');
+      await fakeScript.writeAsString('''
+#!/bin/sh
+printf "fake-stdout\\n"
+printf "fake-stderr\\n" >&2
+''');
+      await Process.run('chmod', <String>['+x', fakeScript.path]);
+      final manager = LocalPtyManager.linuxDebianArmForTest(
+        scriptUtilityPath: fakeScript.path,
+      );
+
+      final session = await manager.start(
+        const PtySessionRequest(
+          executablePath: '/bin/echo',
+          arguments: <String>['ignored'],
+        ),
+      );
+      final outputFuture = session.output.join();
+      final exitCode = await session.exitCode.timeout(
+        const Duration(seconds: 5),
+      );
+      final output = await outputFuture.timeout(const Duration(seconds: 5));
+
+      expect(exitCode, 0);
+      expect(output, contains('fake-stdout'));
+      expect(output, contains('fake-stderr'));
+    },
+  );
 
   test('pty manager classifies unsupported sessions structurally', () async {
     final manager = UnsupportedPtyManager(

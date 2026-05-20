@@ -14,7 +14,9 @@ Future<PtyManager> createPlatformPtyManager({
   PtyProber? prober,
   PlatformContextSnapshot? platformContext,
 }) async {
-  final adapter = platformContext == null ? null : PlatformAdapter(platformContext);
+  final adapter = platformContext == null
+      ? null
+      : PlatformAdapter(platformContext);
   final facts =
       adapter?.context.pty ?? await (prober ?? const LocalPtyProber()).probe();
   return LocalPtyManager(facts: facts, adapter: adapter?.ptyAdapter);
@@ -106,7 +108,29 @@ class ScriptUtilityPtySession implements PtySession {
     required io.Process process,
     required this.supportsResize,
   }) : _process = process {
-    _output = _process.stdout.transform(utf8.decoder).asBroadcastStream();
+    _outputController = StreamController<String>.broadcast();
+    var pendingStreams = 2;
+    void handleDone() {
+      pendingStreams -= 1;
+      if (pendingStreams == 0 && !_outputController.isClosed) {
+        unawaited(_outputController.close());
+      }
+    }
+
+    _process.stdout
+        .transform(utf8.decoder)
+        .listen(
+          _outputController.add,
+          onError: _outputController.addError,
+          onDone: handleDone,
+        );
+    _process.stderr
+        .transform(utf8.decoder)
+        .listen(
+          _outputController.add,
+          onError: _outputController.addError,
+          onDone: handleDone,
+        );
     _exitCode = _process.exitCode.then((code) {
       if (_state != PtySessionState.closed) {
         _state = code == 0 ? PtySessionState.exited : PtySessionState.failed;
@@ -117,7 +141,7 @@ class ScriptUtilityPtySession implements PtySession {
 
   final io.Process _process;
   final bool supportsResize;
-  late final Stream<String> _output;
+  late final StreamController<String> _outputController;
   late final Future<int> _exitCode;
   PtySessionState _state = PtySessionState.running;
 
@@ -128,7 +152,7 @@ class ScriptUtilityPtySession implements PtySession {
   PtySessionState get state => _state;
 
   @override
-  Stream<String> get output => _output;
+  Stream<String> get output => _outputController.stream;
 
   @override
   Future<int?> get exitCode => _exitCode;

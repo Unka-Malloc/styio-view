@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../language/language_contract.dart';
 import '../../language/service/language_service_foundation.dart';
+import '../../language/service/semantic_snapshot_provider.dart';
 import '../../language/styio_language_service.dart';
 import '../document/document_state.dart';
 import '../render_plan/editor_render_layers.dart';
@@ -198,6 +199,39 @@ class EditorSessionController extends ChangeNotifier {
     }
 
     return fixes;
+  }
+
+  List<SemanticSnapshotCodeActionFact> codeActionFactsForDiagnostics(
+    Iterable<Diagnostic> diagnostics,
+  ) {
+    final provider = SemanticSnapshotProvider(
+      languageService: _languageService,
+    );
+    final facts = <SemanticSnapshotCodeActionFact>[];
+    final seenSignatures = <String>{};
+
+    for (final diagnostic in diagnostics) {
+      final result = provider.codeActionsForDiagnostic(
+        document: _document,
+        diagnostic: diagnostic,
+      );
+      for (final action in result.actions) {
+        final signature = [
+          action.label,
+          for (final edit in action.edits)
+            '${edit.range.start}:${edit.range.end}:${edit.newText}',
+        ].join('|');
+        if (seenSignatures.add(signature)) {
+          facts.add(action);
+        }
+      }
+    }
+
+    return facts;
+  }
+
+  List<SemanticSnapshotCodeActionFact> get codeActionFactsAtSelection {
+    return codeActionFactsForDiagnostics(diagnosticsAtSelection);
   }
 
   List<DiagnosticQuickFix> get contextActionsAtSelection {

@@ -291,7 +291,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'SemanticSnapshotProvider converts StyioService analysis into resolved elements/references, exposes StyioService-backed code action raw edit facts and rename safety facts, publishes a feature coverage matrix for hover/definition/references/completion/rename/code action consumers, and only falls back to local snapshots when service semantic facts are missing.',
           todo:
-              'TODO: enrich StyioService rename safety with cross-file/workspace conflict facts and bind code action facts to the concrete editor lightbulb/apply flow.',
+              'TODO: enrich StyioService rename safety with cross-file/workspace conflict facts and connect code action fact telemetry to final apply/result reporting.',
           references: <String>[
             'LSP textDocument/semanticTokens',
             'IntelliJ PSI and symbol resolve',
@@ -421,7 +421,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/editor',
           summary:
-              'Editor surface renders document, tabs, selection, token/semantic/diagnostic layers, folding, hover, completion, code-action facts, and serializable EditorRenderSnapshot contracts for UI and Agent consumers.',
+              'Editor surface renders document, tabs, selection, token/semantic/diagnostic layers, folding, hover, completion, code-action facts, EditorCodeActionWidgetState, and serializable EditorRenderSnapshot contracts for UI and Agent consumers.',
           todo:
               'TODO: bind virtualized row windows and semantic theme contracts to the concrete scroll controller/TextStyle pipeline.',
           references: <String>['Monaco editor', 'VS Code workbench editor'],

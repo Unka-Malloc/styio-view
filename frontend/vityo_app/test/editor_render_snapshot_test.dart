@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/editor.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
+import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 
 void main() {
   test('editor render plan round trips active layers', () {
@@ -94,6 +95,34 @@ void main() {
 
     expect(snapshot.hasCodeActionWidget, isTrue);
     expect(snapshot.toJson()['hasCodeActionWidget'], isTrue);
+  });
+
+  test('editor render snapshot exposes lightbulb action state', () {
+    const text = 'let stream\n';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('stream') + 2),
+    );
+    addTearDown(controller.dispose);
+
+    final snapshot = EditorRenderSnapshot.fromController(controller);
+    final restored = EditorRenderSnapshot.fromJson(snapshot.toJson());
+
+    expect(snapshot.codeActionWidget.visible, isTrue);
+    expect(snapshot.codeActionWidget.actionCount, greaterThanOrEqualTo(1));
+    expect(snapshot.codeActionWidget.serviceFactCount, greaterThanOrEqualTo(1));
+    expect(snapshot.codeActionWidget.primaryLabel, isNotEmpty);
+    expect(restored.codeActionWidget.visible, isTrue);
+    expect(restored.codeActionWidget.primaryLabel, isNotEmpty);
+    expect(
+      (restored.toJson()['codeActionWidget']! as Map<String, Object?>)['todo'],
+      contains('lightbulb popup'),
+    );
   });
 
   test('editor virtualized row window includes overscan around viewport', () {

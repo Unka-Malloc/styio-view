@@ -89,7 +89,10 @@ void main() {
       'value',
       'VALUE',
     ]);
-    expect(controller.searchDocument('value', caseSensitive: true), hasLength(1));
+    expect(
+      controller.searchDocument('value', caseSensitive: true),
+      hasLength(1),
+    );
     expect(
       EditorSessionController(
         initialDocument: const DocumentState(
@@ -130,7 +133,10 @@ void main() {
 
     expect(controller.glyphSubstitutionEnabled, isTrue);
     expect(controller.selectedSourceText, '->');
-    expect(controller.searchDocument('|>').single.range.start, text.indexOf('|>'));
+    expect(
+      controller.searchDocument('|>').single.range.start,
+      text.indexOf('|>'),
+    );
     expect(controller.searchDocument('->').single.range.start, arrowStart);
 
     controller.toggleGlyphSubstitution();
@@ -175,17 +181,10 @@ void main() {
 
     final matches = controller.searchDocument(r'value\d+', useRegex: true);
 
-    expect(matches.map((match) => match.text), <String>[
-      'value1',
-      'value22',
-    ]);
+    expect(matches.map((match) => match.text), <String>['value1', 'value22']);
     expect(controller.searchDocument(r'value[', useRegex: true), isEmpty);
     expect(
-      controller.replaceAllSearchMatches(
-        r'value\d+',
-        'item',
-        useRegex: true,
-      ),
+      controller.replaceAllSearchMatches(r'value\d+', 'item', useRegex: true),
       2,
     );
     expect(controller.document.text, 'item item value_count');
@@ -1359,7 +1358,12 @@ value = blend(left: )
       (item) => item.code == 'missing-assignment',
     );
     final quickFix = controller.quickFixesForDiagnostics([diagnostic]).single;
+    final codeActionFact = controller.codeActionFactsForDiagnostics([
+      diagnostic,
+    ]).single;
 
+    expect(codeActionFact.label, quickFix.label);
+    expect(codeActionFact.hasEdits, isTrue);
     controller.applyDiagnosticQuickFix(quickFix);
 
     expect(controller.document.text, 'let stream = value\n');

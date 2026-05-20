@@ -1,4 +1,5 @@
 import '../controller/editor_controller.dart';
+import '../../language/language_contract.dart';
 import 'editor_render_layers.dart';
 
 class EditorRenderSnapshot {
@@ -17,6 +18,7 @@ class EditorRenderSnapshot {
     this.hoverAvailable = false,
     this.completionCount = 0,
     this.contextActionCount = 0,
+    this.codeActionWidget = const EditorCodeActionWidgetState.hidden(),
     this.activeTokenText = '',
     this.activeSemanticKind = '',
     this.todo = '',
@@ -49,6 +51,7 @@ class EditorRenderSnapshot {
       hoverAvailable: controller.hoverAtSelection != null,
       completionCount: controller.completionsAtSelection.length,
       contextActionCount: controller.contextActionsAtSelection.length,
+      codeActionWidget: EditorCodeActionWidgetState.fromController(controller),
       activeTokenText: activeToken?.lexeme ?? '',
       activeSemanticKind: activeSemanticKind?.name ?? '',
       todo:
@@ -84,6 +87,9 @@ class EditorRenderSnapshot {
       hoverAvailable: json['hoverAvailable'] as bool? ?? false,
       completionCount: json['completionCount'] as int? ?? 0,
       contextActionCount: json['contextActionCount'] as int? ?? 0,
+      codeActionWidget: _editorCodeActionWidgetStateFromJson(
+        json['codeActionWidget'],
+      ),
       activeTokenText: json['activeTokenText'] as String? ?? '',
       activeSemanticKind: json['activeSemanticKind'] as String? ?? '',
       todo: json['todo'] as String? ?? '',
@@ -104,6 +110,7 @@ class EditorRenderSnapshot {
   final bool hoverAvailable;
   final int completionCount;
   final int contextActionCount;
+  final EditorCodeActionWidgetState codeActionWidget;
   final String activeTokenText;
   final String activeSemanticKind;
   final String todo;
@@ -129,10 +136,135 @@ class EditorRenderSnapshot {
       'completionCount': completionCount,
       'contextActionCount': contextActionCount,
       'hasCodeActionWidget': hasCodeActionWidget,
+      'codeActionWidget': codeActionWidget.toJson(),
       if (activeTokenText.isNotEmpty) 'activeTokenText': activeTokenText,
       if (activeSemanticKind.isNotEmpty)
         'activeSemanticKind': activeSemanticKind,
       if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class EditorCodeActionWidgetState {
+  const EditorCodeActionWidgetState({
+    required this.visible,
+    required this.diagnosticCount,
+    required this.actionCount,
+    required this.serviceFactCount,
+    required this.primaryLabel,
+    required this.actions,
+    this.todo = '',
+  });
+
+  const EditorCodeActionWidgetState.hidden()
+    : visible = false,
+      diagnosticCount = 0,
+      actionCount = 0,
+      serviceFactCount = 0,
+      primaryLabel = '',
+      actions = const <EditorCodeActionWidgetAction>[],
+      todo = '';
+
+  factory EditorCodeActionWidgetState.fromController(
+    EditorSessionController controller,
+  ) {
+    final diagnostics = controller.diagnosticsAtSelection;
+    final actions = controller.contextActionsAtSelection;
+    final serviceFacts = controller.codeActionFactsAtSelection;
+    return EditorCodeActionWidgetState(
+      visible: actions.isNotEmpty,
+      diagnosticCount: diagnostics.length,
+      actionCount: actions.length,
+      serviceFactCount: serviceFacts.length,
+      primaryLabel: actions.isEmpty ? '' : actions.first.label,
+      actions: actions
+          .map(EditorCodeActionWidgetAction.fromQuickFix)
+          .toList(growable: false),
+      todo:
+          'TODO: bind this widget state to the editor lightbulb popup and explicit apply command routing.',
+    );
+  }
+
+  factory EditorCodeActionWidgetState.fromJson(Map<String, Object?> json) {
+    final actions = json['actions'];
+    return EditorCodeActionWidgetState(
+      visible: json['visible'] as bool? ?? false,
+      diagnosticCount: json['diagnosticCount'] as int? ?? 0,
+      actionCount: json['actionCount'] as int? ?? 0,
+      serviceFactCount: json['serviceFactCount'] as int? ?? 0,
+      primaryLabel: json['primaryLabel'] as String? ?? '',
+      actions: actions is List
+          ? actions
+                .whereType<Map>()
+                .map(
+                  (action) => EditorCodeActionWidgetAction.fromJson(
+                    action.map(
+                      (key, value) =>
+                          MapEntry<String, Object?>(key.toString(), value),
+                    ),
+                  ),
+                )
+                .toList(growable: false)
+          : const <EditorCodeActionWidgetAction>[],
+      todo: json['todo'] as String? ?? '',
+    );
+  }
+
+  final bool visible;
+  final int diagnosticCount;
+  final int actionCount;
+  final int serviceFactCount;
+  final String primaryLabel;
+  final List<EditorCodeActionWidgetAction> actions;
+  final String todo;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'visible': visible,
+      'diagnosticCount': diagnosticCount,
+      'actionCount': actionCount,
+      'serviceFactCount': serviceFactCount,
+      if (primaryLabel.isNotEmpty) 'primaryLabel': primaryLabel,
+      'actions': actions
+          .map((action) => action.toJson())
+          .toList(growable: false),
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class EditorCodeActionWidgetAction {
+  const EditorCodeActionWidgetAction({
+    required this.label,
+    required this.editCount,
+    this.detail = '',
+  });
+
+  factory EditorCodeActionWidgetAction.fromQuickFix(DiagnosticQuickFix fix) {
+    return EditorCodeActionWidgetAction(
+      label: fix.label,
+      detail: fix.detail,
+      editCount: fix.edits.length,
+    );
+  }
+
+  factory EditorCodeActionWidgetAction.fromJson(Map<String, Object?> json) {
+    return EditorCodeActionWidgetAction(
+      label: json['label'] as String? ?? '',
+      detail: json['detail'] as String? ?? '',
+      editCount: json['editCount'] as int? ?? 0,
+    );
+  }
+
+  final String label;
+  final String detail;
+  final int editCount;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'label': label,
+      if (detail.isNotEmpty) 'detail': detail,
+      'editCount': editCount,
     };
   }
 }
@@ -214,6 +346,22 @@ class EditorVirtualizedRowWindow {
       'coversFullDocument': coversFullDocument,
     };
   }
+}
+
+EditorCodeActionWidgetState _editorCodeActionWidgetStateFromJson(
+  Object? value,
+) {
+  if (value is Map<String, Object?>) {
+    return EditorCodeActionWidgetState.fromJson(value);
+  }
+  if (value is Map) {
+    return EditorCodeActionWidgetState.fromJson(
+      value.map(
+        (key, value) => MapEntry<String, Object?>(key.toString(), value),
+      ),
+    );
+  }
+  return const EditorCodeActionWidgetState.hidden();
 }
 
 EditorVirtualizedRowWindow _editorVirtualizedRowWindowFromJson(Object? value) {

@@ -11,6 +11,7 @@ import 'toolchain_install_executor.dart';
 import 'toolchain_install_policy.dart';
 import 'toolchain_resolver.dart';
 import 'toolchain_runtime.dart';
+import 'styio_toolchain_lifecycle.dart';
 
 class ToolchainStateEntry {
   const ToolchainStateEntry({
@@ -201,6 +202,88 @@ class ToolchainManagerStatusReport {
       if (health != null) 'health': health!.toJson(),
       if (message != null) 'message': message,
       'ready': ready,
+    };
+  }
+}
+
+class ToolchainManagerBootstrapSummary {
+  const ToolchainManagerBootstrapSummary({
+    required this.managerReport,
+    required this.styioLifecycle,
+    required this.settingsActionIds,
+    required this.installerActionIds,
+    required this.projectBootstrapActionIds,
+  });
+
+  factory ToolchainManagerBootstrapSummary.fromReports({
+    required ToolchainManagerStatusReport managerReport,
+    required StyioToolchainLifecycleReport styioLifecycle,
+  }) {
+    final settingsActions = <String>{
+      ...managerReport.recoveryState.actionIds,
+      for (final role in styioLifecycle.selectableRequiredRoles)
+        'select-styio-${role.role.wireValue}',
+      for (final role in styioLifecycle.missingRequiredRoles)
+        'install-styio-${role.role.wireValue}',
+    };
+    final installerActions = <String>{
+      if (styioLifecycle.missingRequiredRoles.isNotEmpty)
+        'install-managed-styio-toolchain',
+      if (managerReport.recoveryState.kind ==
+          ToolchainRecoveryStateKind.retryAvailable)
+        'retry-toolchain-action',
+      if (styioLifecycle.ready) 'verify-styio-toolchain',
+    };
+    final projectBootstrapActions = <String>{
+      if (managerReport.ready && styioLifecycle.ready)
+        'validate-project-toolchain'
+      else ...<String>{'open-toolchain-settings', 'bootstrap-styio-toolchain'},
+    };
+    return ToolchainManagerBootstrapSummary(
+      managerReport: managerReport,
+      styioLifecycle: styioLifecycle,
+      settingsActionIds: List<String>.unmodifiable(settingsActions),
+      installerActionIds: List<String>.unmodifiable(installerActions),
+      projectBootstrapActionIds: List<String>.unmodifiable(
+        projectBootstrapActions,
+      ),
+    );
+  }
+
+  final ToolchainManagerStatusReport managerReport;
+  final StyioToolchainLifecycleReport styioLifecycle;
+  final List<String> settingsActionIds;
+  final List<String> installerActionIds;
+  final List<String> projectBootstrapActionIds;
+
+  bool get ready => managerReport.ready && styioLifecycle.ready;
+
+  Map<String, Object?> get agentContext {
+    final activeEntries = managerReport.snapshot.entries
+        .where((entry) => entry.active)
+        .toList(growable: false);
+    return <String, Object?>{
+      'toolchainReady': ready,
+      'managerStatus': managerReport.status.name,
+      'styioLifecycleState': styioLifecycle.state.name,
+      'activeToolchains': activeEntries
+          .map((entry) => entry.toJson())
+          .toList(growable: false),
+      'requiredStyioRoles': styioLifecycle.requiredRoles
+          .map((role) => role.wireValue)
+          .toList(growable: false),
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'managerReport': managerReport.toJson(),
+      'styioLifecycle': styioLifecycle.toJson(),
+      'settingsActionIds': settingsActionIds,
+      'installerActionIds': installerActionIds,
+      'projectBootstrapActionIds': projectBootstrapActionIds,
+      'agentContext': agentContext,
     };
   }
 }
@@ -956,6 +1039,23 @@ class ToolchainManager {
       installHistory: installHistory,
       health: health,
       message: health.message,
+    );
+  }
+
+  Future<ToolchainManagerBootstrapSummary> bootstrapSummary({
+    ToolchainKind kind = ToolchainKind.languageService,
+    ToolchainRequirement? requirement,
+    List<StyioToolchainRole> requiredStyioRoles =
+        StyioToolchainLifecycleManager.defaultRequiredRoles,
+  }) async {
+    final report = await statusReport(kind: kind, requirement: requirement);
+    final catalog = await loadCatalog();
+    final lifecycle = StyioToolchainLifecycleManager(
+      catalog: catalog,
+    ).inspect(requiredRoles: requiredStyioRoles);
+    return ToolchainManagerBootstrapSummary.fromReports(
+      managerReport: report,
+      styioLifecycle: lifecycle,
     );
   }
 

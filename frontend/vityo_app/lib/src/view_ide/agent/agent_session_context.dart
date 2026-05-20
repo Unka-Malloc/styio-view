@@ -71,6 +71,7 @@ class AgentSessionContext {
     Iterable<String> openDocumentIds = const <String>[],
     Iterable<String> dirtyDocumentIds = const <String>[],
     Iterable<DocumentState> workspaceDocuments = const <DocumentState>[],
+    String workspaceRoot = '',
     AgentWorkspaceSearchResultContext? lastWorkspaceSearch,
     AgentWorkspaceSymbolSearchResultContext? lastWorkspaceSymbolSearch,
     WorkspaceDiagnosticsSnapshot? workspaceDiagnostics,
@@ -137,6 +138,7 @@ class AgentSessionContext {
         activeDocument: document,
         workspaceDocuments: workspaceDocuments,
       ),
+      workspaceRoot: workspaceRoot,
       lastSearch: lastWorkspaceSearch,
       lastSymbolSearch: lastWorkspaceSymbolSearch,
       diagnostics: workspaceDiagnostics,
@@ -147,7 +149,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 43,
+      schemaVersion: 44,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -3732,11 +3734,13 @@ class AgentWorkspaceContext {
     required this.documentSamples,
     required this.documentSamplesTruncated,
     required this.buildFacts,
+    this.workspaceRoot = '',
     this.lastSearch,
     this.lastSymbolSearch,
     this.diagnostics,
     this.sourceControlStatus,
     this.sourceControlDiff,
+    this.sourceControlContext,
   });
 
   final String activeFilePath;
@@ -3749,11 +3753,13 @@ class AgentWorkspaceContext {
   final List<AgentWorkspaceDocumentSampleContext> documentSamples;
   final bool documentSamplesTruncated;
   final AgentWorkspaceBuildFactsContext buildFacts;
+  final String workspaceRoot;
   final AgentWorkspaceSearchResultContext? lastSearch;
   final AgentWorkspaceSymbolSearchResultContext? lastSymbolSearch;
   final WorkspaceDiagnosticsSnapshot? diagnostics;
   final SourceControlStatusSnapshot? sourceControlStatus;
   final SourceControlDiffSnapshot? sourceControlDiff;
+  final SourceControlAgentContextSnapshot? sourceControlContext;
 
   factory AgentWorkspaceContext.fromWorkspaceState({
     required String activeFilePath,
@@ -3761,6 +3767,7 @@ class AgentWorkspaceContext {
     Iterable<String> openDocumentIds = const <String>[],
     Iterable<String> dirtyDocumentIds = const <String>[],
     Iterable<DocumentState> documentSamples = const <DocumentState>[],
+    String workspaceRoot = '',
     AgentWorkspaceSearchResultContext? lastSearch,
     AgentWorkspaceSymbolSearchResultContext? lastSymbolSearch,
     WorkspaceDiagnosticsSnapshot? diagnostics,
@@ -3809,6 +3816,15 @@ class AgentWorkspaceContext {
     final sampleTruncated = sampledDocuments.length > maxDocumentSamples;
     final openSet = normalizedOpenDocumentIds.toSet();
     final dirtySet = normalizedDirtyDocumentIds.toSet();
+    final normalizedWorkspaceRoot = workspaceRoot.trim();
+    final sourceControlContext =
+        sourceControlStatus == null && sourceControlDiff == null
+        ? null
+        : SourceControlAgentContextSnapshot.fromState(
+            workspaceRoot: normalizedWorkspaceRoot,
+            status: sourceControlStatus,
+            diffPreview: sourceControlDiff,
+          );
     return AgentWorkspaceContext(
       activeFilePath: activeFilePath,
       fileCount: allFiles.length,
@@ -3830,17 +3846,20 @@ class AgentWorkspaceContext {
           .toList(growable: false),
       documentSamplesTruncated: sampleTruncated,
       buildFacts: AgentWorkspaceBuildFactsContext.fromFiles(allFiles),
+      workspaceRoot: normalizedWorkspaceRoot,
       lastSearch: lastSearch,
       lastSymbolSearch: lastSymbolSearch,
       diagnostics: diagnostics,
       sourceControlStatus: sourceControlStatus,
       sourceControlDiff: sourceControlDiff,
+      sourceControlContext: sourceControlContext,
     );
   }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'activeFilePath': activeFilePath,
+      if (workspaceRoot.isNotEmpty) 'workspaceRoot': workspaceRoot,
       'fileCount': fileCount,
       'files': files,
       'filesTruncated': filesTruncated,
@@ -3860,6 +3879,8 @@ class AgentWorkspaceContext {
         'sourceControl': sourceControlStatus!.toJson(),
       if (sourceControlDiff != null)
         'sourceControlDiff': sourceControlDiff!.toJson(),
+      if (sourceControlContext != null)
+        'sourceControlContext': sourceControlContext!.toJson(),
     };
   }
 }

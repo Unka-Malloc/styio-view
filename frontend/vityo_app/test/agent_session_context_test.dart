@@ -313,6 +313,7 @@ void main() {
         path: '/workspace/demo/src/main.styio',
         unifiedDiff: 'diff --git a/src/main.styio b/src/main.styio\n+value\n',
       ),
+      workspaceRoot: '/workspace/demo',
       testDiscovery: const TestDiscoveryResult(
         providerId: 'ctest-discovery',
         roots: <TestNode>[
@@ -440,16 +441,28 @@ void main() {
         workspaceJson['sourceControl']! as Map<String, Object?>;
     final sourceControlDiff =
         workspaceJson['sourceControlDiff']! as Map<String, Object?>;
+    final sourceControlContext =
+        workspaceJson['sourceControlContext']! as Map<String, Object?>;
     final testingDiscovery = testingJson['discovered']! as Map<String, Object?>;
     final testingLastRun = testingJson['lastRun']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 43);
+    expect(json['schemaVersion'], 44);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
     expect(sourceControl['branchName'], 'ai-dev');
     expect(sourceControlDiff['path'], '/workspace/demo/src/main.styio');
     expect(sourceControlDiff['unifiedDiff'], contains('+value'));
+    expect(sourceControlContext['workspaceRoot'], '/workspace/demo');
+    expect(sourceControlContext['providerKind'], 'git');
+    expect(sourceControlContext['branchName'], 'ai-dev');
+    expect(sourceControlContext['unstagedPaths'], <String>[
+      '/workspace/demo/src/main.styio',
+    ]);
+    expect(
+      sourceControlContext['diffReview'],
+      containsPair('additionCount', 1),
+    );
     expect(testingJson['hasDiscovery'], isTrue);
     expect(testingJson['hasLastRun'], isTrue);
     expect(testingDiscovery['testCount'], 1);
@@ -1453,7 +1466,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 43);
+    expect(json['schemaVersion'], 44);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);

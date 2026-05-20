@@ -179,6 +179,10 @@ void main() {
       entriesById['agent.provider']?.summary,
       contains('Credential DataStore-backed bearer token references'),
     );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('Source Control Agent context bridge'),
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

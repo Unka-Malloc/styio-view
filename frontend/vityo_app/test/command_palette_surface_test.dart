@@ -131,6 +131,58 @@ void main() {
     expect(find.text('visible 1'), findsOneWidget);
   });
 
+  testWidgets('command palette uses recent history ranking', (tester) async {
+    AppCommandId? executedCommandId;
+    AppCommandId? recordedCommandId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPaletteSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            recentHistory: const CommandPaletteRecentCommandHistory(
+              workspaceId: 'demo',
+              commandIds: <AppCommandId>[AppCommandId.save],
+            ),
+            commands: const <AppCommandDescriptor>[
+              AppCommandDescriptor(
+                id: AppCommandId.renameSymbol,
+                label: 'Rename Symbol',
+                shortcutHint: 'Route',
+                description: 'Rename selected symbol.',
+              ),
+              AppCommandDescriptor(
+                id: AppCommandId.save,
+                label: 'Save',
+                shortcutHint: 'Cmd/Ctrl+S',
+                description: 'Save current file.',
+              ),
+            ],
+            onRecordRecentCommand: (commandId) async {
+              recordedCommandId = commandId;
+            },
+            onExecuteCommand: (commandId) async {
+              executedCommandId = commandId;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('recent 1'), findsOneWidget);
+    expect(find.text('selected Save'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('command-palette-save')));
+    await tester.pump();
+
+    expect(recordedCommandId, AppCommandId.save);
+    expect(executedCommandId, AppCommandId.save);
+  });
+
   testWidgets('command palette keyboard navigation executes selection', (
     tester,
   ) async {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,13 +11,17 @@ class CommandPaletteSurface extends StatefulWidget {
     super.key,
     required this.viewportProfile,
     this.commands = StyioCommandRegistry.commands,
+    this.recentHistory,
     this.onExecuteCommand,
+    this.onRecordRecentCommand,
     this.blockedReasonForCommand,
   });
 
   final ViewportProfile viewportProfile;
   final List<AppCommandDescriptor> commands;
+  final CommandPaletteRecentCommandHistory? recentHistory;
   final Future<void> Function(AppCommandId commandId)? onExecuteCommand;
+  final Future<void> Function(AppCommandId commandId)? onRecordRecentCommand;
   final String? Function(AppCommandId commandId)? blockedReasonForCommand;
 
   @override
@@ -45,7 +51,11 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     final compact = widget.viewportProfile.isMobile;
     final overlayState = CommandPaletteModel(commands: widget.commands)
         .overlayStateFor(
-          CommandPaletteQueryState(query: _query),
+          CommandPaletteQueryState(
+            query: _query,
+            recentCommandIds:
+                widget.recentHistory?.commandIds ?? const <AppCommandId>[],
+          ),
           selectedIndex: _selectedIndex,
         );
     final visibleEntries = overlayState.entries;
@@ -81,7 +91,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
               Text('Command Palette', style: theme.textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                'Searchable command registry surface backed by reusable query scoring, overlay selection state, and typed input draft contracts. TODO: persist recent command ranking and bind keyboard navigation to the overlay state.',
+                'Searchable command registry surface backed by reusable query scoring, overlay selection state, persisted recent command ranking, keyboard navigation, and typed input draft contracts. TODO: expose richer command category filters.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),
@@ -106,6 +116,12 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                 children: [
                   Chip(label: Text('registered ${widget.commands.length}')),
                   Chip(label: Text('visible ${overlayState.visibleCount}')),
+                  if (widget.recentHistory != null)
+                    Chip(
+                      label: Text(
+                        'recent ${widget.recentHistory!.commandIds.length}',
+                      ),
+                    ),
                   if (overlayState.selectedEntry != null)
                     Chip(
                       key: const ValueKey('command-palette-selected-chip'),
@@ -155,6 +171,10 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                               children: [
                                 Chip(label: Text(command.category.wireValue)),
                                 Chip(label: Text(command.shortcutHint)),
+                                if (entry.recent)
+                                  Chip(
+                                    label: Text('recent ${entry.recentRank}'),
+                                  ),
                                 if (command.requiresInput)
                                   Chip(
                                     label: Text('input ${command.inputLabel}'),
@@ -171,7 +191,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                                     blockedReason != null
                                 ? null
                                 : () {
-                                    widget.onExecuteCommand!(command.id);
+                                    _executeCommand(command.id);
                                   },
                           );
                         },
@@ -202,6 +222,16 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     if (widget.blockedReasonForCommand?.call(commandId) != null) {
       return;
     }
-    widget.onExecuteCommand!(commandId);
+    _executeCommand(commandId);
+  }
+
+  void _executeCommand(AppCommandId commandId) {
+    if (widget.onExecuteCommand == null) {
+      return;
+    }
+    if (widget.onRecordRecentCommand != null) {
+      unawaited(widget.onRecordRecentCommand!(commandId));
+    }
+    unawaited(widget.onExecuteCommand!(commandId));
   }
 }

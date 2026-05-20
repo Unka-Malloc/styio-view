@@ -75,6 +75,7 @@ class _AgentActivityRecordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final errorMessage = record.errorMessage?.trim();
     final statusColor = record.succeeded
         ? theme.colorScheme.primary
         : theme.colorScheme.error;
@@ -113,6 +114,18 @@ class _AgentActivityRecordTile extends StatelessWidget {
             '${record.providerKind} / ${record.profileId} / ${record.requestId}',
             style: theme.textTheme.bodySmall,
           ),
+          if (errorMessage != null && errorMessage.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Error: $errorMessage',
+              key: const ValueKey('agent-activity-record-error'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
           if (record.responseTextSample.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
@@ -131,6 +144,9 @@ class _AgentActivityRecordTile extends StatelessWidget {
               _ActivityChip(label: 'patches ${record.patchCount}'),
               _ActivityChip(label: 'commands ${record.ideCommandCount}'),
               _ActivityChip(label: 'plans ${record.planCount}'),
+              _ActivityChip(
+                label: 'diagnostics ${record.diagnosticSummaryCount}',
+              ),
             ],
           ),
         ],

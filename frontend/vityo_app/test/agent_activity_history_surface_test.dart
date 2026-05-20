@@ -47,6 +47,7 @@ void main() {
           patchCount: 1,
           ideCommandCount: 1,
           planCount: 1,
+          diagnosticSummaryCount: 1,
         ),
       ],
     );
@@ -62,6 +63,40 @@ void main() {
     expect(find.text('succeeded'), findsOneWidget);
     expect(find.text('patches 1'), findsOneWidget);
     expect(find.text('commands 1'), findsOneWidget);
+    expect(find.text('diagnostics 1'), findsOneWidget);
+  });
+
+  testWidgets('agent activity history surface renders failed record reason', (
+    tester,
+  ) async {
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord.failure(
+          requestId: 'agent-failed',
+          profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+          providerKind: AgentProviderKind.cloudOpenAICompatible,
+          prompt: 'Fix parser diagnostics.',
+          errorMessage: 'provider timed out',
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: AgentActivityHistorySurface(history: history)),
+      ),
+    );
+
+    expect(find.text('Fix parser diagnostics.'), findsOneWidget);
+    expect(find.text('failed'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('agent-activity-record-error')),
+      findsOneWidget,
+    );
+    expect(find.text('Error: provider timed out'), findsOneWidget);
   });
 
   testWidgets('agent surface embeds activity history when provided', (

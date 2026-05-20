@@ -151,7 +151,10 @@ void main() {
     expect(retryCommand?.requiresProviderSelection, isFalse);
     expect(failoverCommand?.commandId, 'failoverAgentProvider');
     expect(failoverCommand?.requiresProviderSelection, isTrue);
-    expect(failoverCommand?.toJson()['todo'], contains('TODO:'));
+    expect(
+      failoverCommand?.toJson()['todo'],
+      contains('saved-provider profile picker'),
+    );
     final retryDraft = history.toRecoveryRequestDraft(
       AgentCodingSessionRecoveryAction.retrySameProvider,
     );

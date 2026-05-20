@@ -351,7 +351,7 @@ class AgentCodingSessionRecoveryPlan {
       availableActions: actions,
       checkpoint: checkpoint,
       todo:
-          'TODO: bind recovery plan actions to provider retry, failover, and replay command execution.',
+          'TODO: add saved-provider profile selection before failover recovery dispatch.',
     );
   }
 
@@ -461,7 +461,7 @@ class AgentCodingSessionRecoveryCommandPlan {
           action == AgentCodingSessionRecoveryAction.failoverProvider,
       promptSample: checkpoint.latestPromptSample,
       todo:
-          'TODO: route this recovery command through the command palette, Agent UI, and provider execution adapter.',
+          'TODO: replace failover free-form profile input with a saved-provider profile picker.',
     );
   }
 

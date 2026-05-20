@@ -14,8 +14,12 @@ class TestingSurface extends StatelessWidget {
     this.discovery,
     this.lastRun,
     this.runHistory = const <TestRunResult>[],
+    this.configurationSet,
     this.onRunTests,
+    this.onRunConfiguration,
+    this.onDebugConfiguration,
     this.onRerunFailed,
+    this.onSelectRunConfiguration,
     this.onSelectFailedTest,
     this.onOpenDiagnostics,
   });
@@ -25,8 +29,14 @@ class TestingSurface extends StatelessWidget {
   final TestDiscoveryResult? discovery;
   final TestRunResult? lastRun;
   final List<TestRunResult> runHistory;
+  final TestRunConfigurationSet? configurationSet;
   final Future<void> Function()? onRunTests;
+  final Future<void> Function(TestRunConfiguration configuration)?
+  onRunConfiguration;
+  final Future<void> Function(TestRunConfiguration configuration)?
+  onDebugConfiguration;
   final Future<void> Function()? onRerunFailed;
+  final ValueChanged<TestRunConfiguration>? onSelectRunConfiguration;
   final ValueChanged<Map<String, Object?>>? onSelectFailedTest;
   final VoidCallback? onOpenDiagnostics;
 
@@ -41,6 +51,7 @@ class TestingSurface extends StatelessWidget {
     final testResult = lastRun?.toJson() ?? _testResultMap(latest);
     final failedTests = _failedTests(testResult);
     final diagnosticCount = latest?.diagnostics.length ?? 0;
+    final selectedConfiguration = configurationSet?.selectedConfiguration;
 
     return Card(
       key: const ValueKey('testing-surface'),
@@ -52,7 +63,7 @@ class TestingSurface extends StatelessWidget {
             Text('Testing', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              'Test result surface backed by registered test providers, run configurations, failed-test rerun planning, the runTests command, and native tool result records. TODO: add debug-test launch UI and richer failure navigation.',
+              'Test result surface backed by registered test providers, persisted run configurations, failed-test rerun planning, the runTests command, and native tool result records. TODO: add richer failure navigation and concrete debug adapter launch routing.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -62,6 +73,22 @@ class TestingSurface extends StatelessWidget {
               children: [
                 Chip(label: Text('test-runs ${testResults.length}')),
                 Chip(label: Text('history ${runHistory.length}')),
+                if (configurationSet != null)
+                  Chip(
+                    label: Text(
+                      'configs ${configurationSet!.configurations.length}',
+                    ),
+                  ),
+                if (selectedConfiguration != null)
+                  Chip(label: Text('selected ${selectedConfiguration.id}')),
+                if (selectedConfiguration != null)
+                  Chip(
+                    label: Text(
+                      selectedConfiguration.ready
+                          ? 'config ready'
+                          : 'config blocked',
+                    ),
+                  ),
                 if (discovery != null)
                   Chip(label: Text('discovered ${discovery!.testCount}')),
                 Chip(label: Text('status ${testResult['status'] ?? 'none'}')),
@@ -86,6 +113,32 @@ class TestingSurface extends StatelessWidget {
                   icon: const Icon(Icons.science_outlined),
                   label: const Text('Run Tests'),
                 ),
+                if (selectedConfiguration != null)
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('testing-run-selected-configuration'),
+                    onPressed:
+                        selectedConfiguration.ready &&
+                            onRunConfiguration != null
+                        ? () {
+                            onRunConfiguration!(selectedConfiguration);
+                          }
+                        : null,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Run Selected'),
+                  ),
+                if (selectedConfiguration != null)
+                  OutlinedButton.icon(
+                    key: const ValueKey('testing-debug-selected-configuration'),
+                    onPressed:
+                        selectedConfiguration.ready &&
+                            onDebugConfiguration != null
+                        ? () {
+                            onDebugConfiguration!(selectedConfiguration);
+                          }
+                        : null,
+                    icon: const Icon(Icons.bug_report_outlined),
+                    label: const Text('Debug Selected'),
+                  ),
                 if (failedTests.isNotEmpty)
                   OutlinedButton.icon(
                     key: const ValueKey('testing-rerun-failed'),
@@ -184,6 +237,44 @@ class TestingSurface extends StatelessWidget {
                           ),
                         ),
                     ],
+                    if (configurationSet?.configurations.isNotEmpty ==
+                        true) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          top: 8,
+                          bottom: 4,
+                        ),
+                        child: Text(
+                          'Run Configurations',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      ),
+                      for (final configuration
+                          in configurationSet!.configurations.take(6))
+                        ListTile(
+                          key: ValueKey(
+                            'testing-run-configuration-${configuration.id}',
+                          ),
+                          dense: true,
+                          selected:
+                              configuration.id ==
+                              configurationSet!.selectedConfiguration?.id,
+                          leading: Icon(
+                            configuration.debug
+                                ? Icons.bug_report_outlined
+                                : Icons.play_circle_outline,
+                          ),
+                          title: Text(configuration.label),
+                          subtitle: Text(_configurationSummary(configuration)),
+                          onTap: onSelectRunConfiguration == null
+                              ? null
+                              : () {
+                                  onSelectRunConfiguration!(configuration);
+                                },
+                        ),
+                    ],
                     if (failedTests.isNotEmpty) ...[
                       Padding(
                         padding: const EdgeInsets.only(
@@ -219,6 +310,17 @@ class TestingSurface extends StatelessWidget {
       ),
     );
   }
+}
+
+String _configurationSummary(TestRunConfiguration configuration) {
+  final parts = <String>[
+    configuration.ready ? 'ready' : 'blocked',
+    if (configuration.providerId.isNotEmpty) configuration.providerId,
+    if (configuration.targetId.isNotEmpty) 'target ${configuration.targetId}',
+    if (configuration.filter.isNotEmpty) 'filter ${configuration.filter}',
+    if (configuration.debug) 'debug',
+  ];
+  return parts.join(' · ');
 }
 
 Map<String, Object?> _testResultMap(NativeToolResultRecord? result) {

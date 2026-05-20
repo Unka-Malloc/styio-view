@@ -15,6 +15,9 @@ void main() {
     var runCount = 0;
     var rerunFailedCount = 0;
     var diagnosticsOpenCount = 0;
+    TestRunConfiguration? selectedConfiguration;
+    TestRunConfiguration? runConfiguration;
+    TestRunConfiguration? debugConfiguration;
     Map<String, Object?>? selectedFailedTest;
 
     await tester.pumpWidget(
@@ -69,11 +72,41 @@ void main() {
                 failedCount: 1,
               ),
             ],
+            configurationSet: const TestRunConfigurationSet(
+              workspaceId: 'demo',
+              selectedConfigurationId: 'all',
+              configurations: <TestRunConfiguration>[
+                TestRunConfiguration(
+                  id: 'all',
+                  label: 'All CTest tests',
+                  workspaceRoot: '/workspace/vityo',
+                  providerId: 'ctest',
+                ),
+                TestRunConfiguration(
+                  id: 'debug-parser',
+                  label: 'Debug parser test',
+                  workspaceRoot: '/workspace/vityo',
+                  providerId: 'ctest',
+                  targetId: 'parser',
+                  filter: 'resource',
+                  debug: true,
+                ),
+              ],
+            ),
             onRunTests: () async {
               runCount += 1;
             },
+            onRunConfiguration: (configuration) async {
+              runConfiguration = configuration;
+            },
+            onDebugConfiguration: (configuration) async {
+              debugConfiguration = configuration;
+            },
             onRerunFailed: () async {
               rerunFailedCount += 1;
+            },
+            onSelectRunConfiguration: (configuration) {
+              selectedConfiguration = configuration;
             },
             onSelectFailedTest: (failedTest) {
               selectedFailedTest = failedTest;
@@ -90,22 +123,43 @@ void main() {
     expect(find.text('Testing'), findsOneWidget);
     expect(find.text('test-runs 1'), findsOneWidget);
     expect(find.text('history 1'), findsOneWidget);
+    expect(find.text('configs 2'), findsOneWidget);
+    expect(find.text('selected all'), findsOneWidget);
+    expect(find.text('config ready'), findsOneWidget);
     expect(find.text('status failed'), findsOneWidget);
     expect(find.text('runner ctest'), findsOneWidget);
     expect(find.text('total 2'), findsOneWidget);
     expect(find.text('passed 1'), findsOneWidget);
     expect(find.text('failed 1'), findsOneWidget);
     expect(find.text('Run History'), findsOneWidget);
-    expect(find.text('parser rejects invalid resource'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('testing-run-tests')));
+    await tester.tap(
+      find.byKey(const ValueKey('testing-run-selected-configuration')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('testing-debug-selected-configuration')),
+    );
     await tester.tap(find.byKey(const ValueKey('testing-rerun-failed')));
-    await tester.ensureVisible(
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('testing-run-configuration-debug-parser')),
+      120,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.pump();
+    expect(find.text('Debug parser test'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey('testing-run-configuration-debug-parser')),
+    );
+    await tester.scrollUntilVisible(
       find.byKey(
         const ValueKey('testing-failed-parser rejects invalid resource'),
       ),
+      120,
+      scrollable: find.byType(Scrollable),
     );
     await tester.pump();
+    expect(find.text('parser rejects invalid resource'), findsOneWidget);
     await tester.tap(
       find.byKey(
         const ValueKey('testing-failed-parser rejects invalid resource'),
@@ -115,7 +169,10 @@ void main() {
     await tester.pump();
 
     expect(runCount, 1);
+    expect(runConfiguration?.id, 'all');
+    expect(debugConfiguration?.id, 'all');
     expect(rerunFailedCount, 1);
+    expect(selectedConfiguration?.id, 'debug-parser');
     expect(selectedFailedTest?['name'], 'parser rejects invalid resource');
     expect(diagnosticsOpenCount, 1);
   });

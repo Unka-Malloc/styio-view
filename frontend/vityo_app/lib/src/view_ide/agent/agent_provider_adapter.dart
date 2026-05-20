@@ -804,6 +804,16 @@ abstract class CancellableAgentProviderTransport
   void cancelRequest(String requestId);
 }
 
+abstract class StreamingAgentProviderTransport
+    implements AgentProviderTransport {
+  Stream<AgentProviderStreamEvent> postJsonStream({
+    required String requestId,
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  });
+}
+
 enum AgentProviderTransportFailureKind {
   unsupported,
   timeout,
@@ -859,7 +869,10 @@ class AgentProviderTransportException implements Exception {
 }
 
 class OpenAICompatibleAgentProviderAdapter
-    implements AgentProviderAdapter, CancellableAgentProviderAdapter {
+    implements
+        AgentProviderAdapter,
+        CancellableAgentProviderAdapter,
+        StreamingAgentProviderAdapter {
   const OpenAICompatibleAgentProviderAdapter({
     required this.transport,
     required this.endpoint,
@@ -888,10 +901,7 @@ class OpenAICompatibleAgentProviderAdapter
   ) async {
     final token = authorizationToken?.trim();
     final endpointUri = _chatCompletionsEndpoint(endpoint.baseUrl);
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
+    final headers = _openAIProviderHeaders(token);
     final body = _openAICompatibleRequestBody(
       request,
       endpointOverride: endpoint,
@@ -918,6 +928,23 @@ class OpenAICompatibleAgentProviderAdapter
   }
 
   @override
+  Stream<AgentProviderStreamEvent> stream(AgentProviderRequest request) {
+    final endpointUri = _chatCompletionsEndpoint(endpoint.baseUrl);
+    final body = _openAICompatibleRequestBody(
+      request,
+      endpointOverride: endpoint,
+    );
+    return _streamFromTransportOrFallback(
+      request: request,
+      transport: transport,
+      endpoint: endpointUri,
+      headers: _openAIProviderHeaders(authorizationToken?.trim()),
+      body: body,
+      fallback: () => send(request),
+    );
+  }
+
+  @override
   void cancelRequest(String requestId) {
     final cancellableTransport = transport is CancellableAgentProviderTransport
         ? transport as CancellableAgentProviderTransport
@@ -927,7 +954,10 @@ class OpenAICompatibleAgentProviderAdapter
 }
 
 class OpenAIResponsesAgentProviderAdapter
-    implements AgentProviderAdapter, CancellableAgentProviderAdapter {
+    implements
+        AgentProviderAdapter,
+        CancellableAgentProviderAdapter,
+        StreamingAgentProviderAdapter {
   const OpenAIResponsesAgentProviderAdapter({
     required this.transport,
     required this.endpoint,
@@ -955,10 +985,7 @@ class OpenAIResponsesAgentProviderAdapter
     AgentProviderRequest request,
   ) async {
     final token = authorizationToken?.trim();
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
+    final headers = _openAIProviderHeaders(token);
     final body = _openAIResponsesRequestBody(
       request,
       endpointOverride: endpoint,
@@ -986,11 +1013,82 @@ class OpenAIResponsesAgentProviderAdapter
   }
 
   @override
+  Stream<AgentProviderStreamEvent> stream(AgentProviderRequest request) {
+    final body = _openAIResponsesRequestBody(
+      request,
+      endpointOverride: endpoint,
+    );
+    return _streamFromTransportOrFallback(
+      request: request,
+      transport: transport,
+      endpoint: _responsesEndpoint(endpoint.baseUrl),
+      headers: _openAIProviderHeaders(authorizationToken?.trim()),
+      body: body,
+      fallback: () => send(request),
+    );
+  }
+
+  @override
   void cancelRequest(String requestId) {
     final cancellableTransport = transport is CancellableAgentProviderTransport
         ? transport as CancellableAgentProviderTransport
         : null;
     cancellableTransport?.cancelRequest(requestId);
+  }
+}
+
+Map<String, String> _openAIProviderHeaders(String? token) {
+  return <String, String>{
+    'Content-Type': 'application/json',
+    if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+  };
+}
+
+Stream<AgentProviderStreamEvent> _streamFromTransportOrFallback({
+  required AgentProviderRequest request,
+  required AgentProviderTransport transport,
+  required Uri endpoint,
+  required Map<String, String> headers,
+  required Map<String, Object?> body,
+  required Future<AgentProviderResponseEnvelope> Function() fallback,
+}) async* {
+  yield AgentProviderStreamEvent.started(request.requestId);
+  final streamingTransport = transport is StreamingAgentProviderTransport
+      ? transport
+      : null;
+  try {
+    if (streamingTransport == null) {
+      final response = await fallback();
+      yield AgentProviderStreamEvent.completed(
+        requestId: request.requestId,
+        response: response,
+        metadata: const <String, Object?>{
+          'streamFallback': true,
+          'TODO': 'Bind a platform SSE transport for token-level streaming.',
+        },
+      );
+      return;
+    }
+    yield* streamingTransport.postJsonStream(
+      requestId: request.requestId,
+      endpoint: endpoint,
+      headers: headers,
+      body: <String, Object?>{...body, 'stream': true},
+    );
+  } on AgentProviderTransportException catch (error) {
+    yield AgentProviderStreamEvent.failed(
+      requestId: request.requestId,
+      message: error.message,
+      metadata: <String, Object?>{'failure': error.toJson()},
+    );
+  } on Object catch (error) {
+    yield AgentProviderStreamEvent.failed(
+      requestId: request.requestId,
+      message: 'Agent provider stream failed: $error',
+      metadata: <String, Object?>{
+        'kind': AgentProviderTransportFailureKind.unknown.name,
+      },
+    );
   }
 }
 

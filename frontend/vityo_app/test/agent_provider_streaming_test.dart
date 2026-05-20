@@ -90,26 +90,90 @@ void main() {
 
   test('streaming adapter can reuse collector for send contract', () async {
     final adapter = _FakeStreamingAgentProviderAdapter();
-    final request = AgentProviderRequest(
-      requestId: 'agent-stream-adapter',
-      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
-      context: AgentSessionContext.fromEditorState(
-        document: const DocumentState(
-          documentId: 'main.styio',
-          text: 'value := 1\n',
-          revision: 1,
-        ),
-        selection: const SelectionState.collapsed(0),
-        diagnostics: const [],
-      ),
-      userPrompt: 'Plan this change.',
-    );
+    final request = _agentRequest('agent-stream-adapter');
 
     final response = await adapter.send(request);
 
     expect(adapter.supportsCodePatch, isTrue);
     expect(response.contentParts.single.text, 'streamed response');
     expect(adapter.streamedRequestIds, <String>[request.requestId]);
+  });
+
+  test(
+    'OpenAI-compatible adapter delegates stream requests to transport',
+    () async {
+      final request = _agentRequest('agent-stream-openai-compatible');
+      final transport = _RecordingStreamingAgentProviderTransport();
+      final adapter = OpenAICompatibleAgentProviderAdapter(
+        transport: transport,
+        endpoint: request.profile.endpoint,
+        authorizationToken: '  test-token  ',
+      );
+
+      final events = await adapter.stream(request).toList();
+
+      expect(events.map((event) => event.kind), <AgentProviderStreamEventKind>[
+        AgentProviderStreamEventKind.started,
+        AgentProviderStreamEventKind.contentDelta,
+        AgentProviderStreamEventKind.completed,
+      ]);
+      expect(
+        transport.endpoint.toString(),
+        '/api/styio-agent/v1/chat/completions',
+      );
+      expect(transport.headers['Authorization'], 'Bearer test-token');
+      expect(transport.body['model'], request.profile.endpoint.model);
+      expect(transport.body['stream'], isTrue);
+    },
+  );
+
+  test(
+    'OpenAI Responses adapter delegates stream requests to transport',
+    () async {
+      final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.web,
+      );
+      final request = _agentRequest(
+        'agent-stream-openai-responses',
+        profile: profile,
+      );
+      final transport = _RecordingStreamingAgentProviderTransport();
+      final adapter = OpenAIResponsesAgentProviderAdapter(
+        transport: transport,
+        endpoint: profile.endpoint,
+        authorizationToken: 'test-token',
+      );
+
+      final events = await adapter.stream(request).toList();
+
+      expect(events.first.kind, AgentProviderStreamEventKind.started);
+      expect(events.last.kind, AgentProviderStreamEventKind.completed);
+      expect(
+        transport.endpoint.toString(),
+        'https://api.openai.com/v1/responses',
+      );
+      expect(transport.body['model'], 'gpt-5.3-codex-spark');
+      expect(transport.body['stream'], isTrue);
+      expect(transport.body['input'], isA<List<Object?>>());
+    },
+  );
+
+  test('streaming adapter falls back to single response transport', () async {
+    final request = _agentRequest('agent-stream-fallback');
+    final adapter = OpenAICompatibleAgentProviderAdapter(
+      transport: const _SingleResponseAgentProviderTransport(),
+      endpoint: request.profile.endpoint,
+    );
+
+    final events = await adapter.stream(request).toList();
+
+    expect(events.first.kind, AgentProviderStreamEventKind.started);
+    expect(events.last.kind, AgentProviderStreamEventKind.completed);
+    expect(events.last.metadata['streamFallback'], isTrue);
+    expect(
+      events.last.response?.contentParts.single.text,
+      'Fallback response.',
+    );
   });
 
   test('agent provider stream event serializes terminal state', () {
@@ -124,6 +188,28 @@ void main() {
     expect(json['terminal'], isTrue);
     expect(json['errorMessage'], 'network unavailable');
   });
+}
+
+AgentProviderRequest _agentRequest(
+  String requestId, {
+  AgentPromptProfile? profile,
+}) {
+  final promptProfile =
+      profile ?? AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+  return AgentProviderRequest(
+    requestId: requestId,
+    profile: promptProfile,
+    context: AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const [],
+    ),
+    userPrompt: 'Plan this change.',
+  );
 }
 
 class _FakeStreamingAgentProviderAdapter
@@ -156,5 +242,65 @@ class _FakeStreamingAgentProviderAdapter
       text: 'streamed response',
     );
     yield AgentProviderStreamEvent.completed(requestId: request.requestId);
+  }
+}
+
+class _RecordingStreamingAgentProviderTransport
+    implements StreamingAgentProviderTransport {
+  late Uri endpoint;
+  late Map<String, String> headers;
+  late Map<String, Object?> body;
+
+  @override
+  Future<Map<String, Object?>> postJson({
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  }) {
+    throw StateError('streaming transport postJson should not be used');
+  }
+
+  @override
+  Stream<AgentProviderStreamEvent> postJsonStream({
+    required String requestId,
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  }) async* {
+    this.endpoint = endpoint;
+    this.headers = headers;
+    this.body = body;
+    yield AgentProviderStreamEvent.delta(
+      requestId: requestId,
+      text: 'stream delta',
+    );
+    yield AgentProviderStreamEvent.completed(
+      requestId: requestId,
+      metadata: const <String, Object?>{'finishReason': 'stop'},
+    );
+  }
+}
+
+class _SingleResponseAgentProviderTransport implements AgentProviderTransport {
+  const _SingleResponseAgentProviderTransport();
+
+  @override
+  Future<Map<String, Object?>> postJson({
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  }) async {
+    return <String, Object?>{
+      'id': 'chatcmpl-stream-fallback',
+      'choices': <Object?>[
+        <String, Object?>{
+          'finish_reason': 'stop',
+          'message': <String, Object?>{
+            'role': 'assistant',
+            'content': 'Fallback response.',
+          },
+        },
+      ],
+    };
   }
 }

@@ -113,6 +113,16 @@ void main() {
             workspaceFileCount: 1,
             changedDocumentIds: const <String>['src/main.styio'],
             diffPreview: snapshot,
+            lastHunkActionResult: const SourceControlPartialPatchResult(
+              kind: SourceControlActionKind.discard,
+              path: 'src/main.styio',
+              selectedHunkIndexes: <int>[1],
+              applied: true,
+              message: 'Applied discard to 1 selected hunk(s).',
+              command: 'git',
+              arguments: <String>['apply', '--reverse', '-'],
+              exitCode: 0,
+            ),
             onSelectHunkAction: (plan) async {
               selectedPlan = plan;
             },
@@ -126,6 +136,12 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('hunk 1 · +2 -1'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('source-control-hunk-action-result')),
+      findsOneWidget,
+    );
+    expect(find.text('hunk action applied'), findsOneWidget);
+    expect(find.text('Applied discard to 1 selected hunk(s).'), findsOneWidget);
     await tester.ensureVisible(
       find.byKey(const ValueKey('source-control-hunk-discard-1')),
     );

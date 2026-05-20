@@ -18,6 +18,7 @@ class SourceControlSurface extends StatelessWidget {
     this.branchSnapshot,
     this.historySnapshot,
     this.adapterRegistry,
+    this.lastHunkActionResult,
     this.onOpenFile,
     this.onSaveAll,
     this.onRefresh,
@@ -41,6 +42,7 @@ class SourceControlSurface extends StatelessWidget {
   final SourceControlBranchSnapshot? branchSnapshot;
   final SourceControlHistorySnapshot? historySnapshot;
   final SourceControlProviderAdapterRegistry? adapterRegistry;
+  final SourceControlPartialPatchResult? lastHunkActionResult;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function()? onSaveAll;
   final Future<void> Function()? onRefresh;
@@ -334,6 +336,7 @@ class SourceControlSurface extends StatelessWidget {
                 const SizedBox(height: 8),
                 _DiffHunkActionSelection(
                   snapshot: diffPreview!,
+                  lastHunkActionResult: lastHunkActionResult,
                   onSelectHunkAction: onSelectHunkAction,
                 ),
                 const SizedBox(height: 12),
@@ -469,10 +472,12 @@ class _DiffConfirmationControls extends StatelessWidget {
 class _DiffHunkActionSelection extends StatelessWidget {
   const _DiffHunkActionSelection({
     required this.snapshot,
+    this.lastHunkActionResult,
     this.onSelectHunkAction,
   });
 
   final SourceControlDiffSnapshot snapshot;
+  final SourceControlPartialPatchResult? lastHunkActionResult;
   final Future<void> Function(SourceControlDiffHunkActionPlan plan)?
   onSelectHunkAction;
 
@@ -494,9 +499,13 @@ class _DiffHunkActionSelection extends StatelessWidget {
           Text('Hunk action selection', style: theme.textTheme.titleSmall),
           const SizedBox(height: 4),
           Text(
-            'Select hunk-level stage/discard plans without executing partial patches yet. TODO: bind to SCM partial patch provider.',
+            'Select hunk-level stage/discard plans and route them through the configured SCM partial patch provider.',
             style: theme.textTheme.bodySmall,
           ),
+          if (lastHunkActionResult != null) ...[
+            const SizedBox(height: 8),
+            _HunkActionResultRow(result: lastHunkActionResult!),
+          ],
           const SizedBox(height: 8),
           if (hunks.isEmpty)
             Text(
@@ -572,6 +581,45 @@ class _DiffHunkActionSelection extends StatelessWidget {
               'TODO: virtualize older diff hunk rows.',
               style: theme.textTheme.bodySmall,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HunkActionResultRow extends StatelessWidget {
+  const _HunkActionResultRow({required this.result});
+
+  final SourceControlPartialPatchResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('source-control-hunk-action-result'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: result.applied
+            ? theme.colorScheme.secondaryContainer
+            : theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Chip(
+            label: Text(
+              result.applied ? 'hunk action applied' : 'hunk action failed',
+            ),
+          ),
+          Chip(label: Text(result.kind.wireValue)),
+          Chip(label: Text('${result.selectedHunkIndexes.length} hunk(s)')),
+          if (result.exitCode != null)
+            Chip(label: Text('exit ${result.exitCode}')),
+          if (result.message.isNotEmpty) Text(result.message),
         ],
       ),
     );

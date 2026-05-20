@@ -204,6 +204,7 @@ class VityoShellScaffold extends StatelessWidget {
             changedDocumentIds: shell.dirtyDocumentPaths,
             status: shell.sourceControlStatusSnapshot,
             diffPreview: shell.sourceControlDiffPreview,
+            lastHunkActionResult: shell.sourceControlHunkActionResult,
             onOpenFile: shell.openWorkspaceFileForAgent,
             onSaveAll: () {
               return shell.executeCommand(AppCommandId.saveAll);
@@ -215,6 +216,7 @@ class VityoShellScaffold extends StatelessWidget {
             onStagePaths: shell.stageSourceControlPaths,
             onUnstagePaths: shell.unstageSourceControlPaths,
             onConfirmDiffAction: shell.confirmSourceControlDiffAction,
+            onSelectHunkAction: shell.confirmSourceControlHunkAction,
           );
         }
 

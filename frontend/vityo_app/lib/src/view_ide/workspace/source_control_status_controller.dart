@@ -8,24 +8,30 @@ class SourceControlStatusController extends ChangeNotifier {
     required this.workspaceRoot,
     this.diffProvider,
     this.actionProvider,
+    this.partialPatchProvider,
   });
 
   final SourceControlStatusProvider provider;
   final SourceControlDiffProvider? diffProvider;
   final SourceControlActionProvider? actionProvider;
+  final SourceControlPartialPatchProvider? partialPatchProvider;
   final String workspaceRoot;
 
   SourceControlStatusSnapshot? _snapshot;
   SourceControlDiffSnapshot? _diffPreview;
   SourceControlActionResult? _lastActionResult;
+  SourceControlPartialPatchResult? _lastPartialPatchResult;
   SourceControlActionPlan? _pendingActionPlan;
   int _generation = 0;
   int _diffGeneration = 0;
   int _actionGeneration = 0;
+  int _partialPatchGeneration = 0;
 
   SourceControlStatusSnapshot? get snapshot => _snapshot;
   SourceControlDiffSnapshot? get diffPreview => _diffPreview;
   SourceControlActionResult? get lastActionResult => _lastActionResult;
+  SourceControlPartialPatchResult? get lastPartialPatchResult =>
+      _lastPartialPatchResult;
   SourceControlActionPlan? get pendingActionPlan => _pendingActionPlan;
   bool get hasSnapshot => _snapshot != null;
   bool get hasDiffPreview => _diffPreview != null;
@@ -111,6 +117,31 @@ class SourceControlStatusController extends ChangeNotifier {
           );
     if (generation == _actionGeneration) {
       _lastActionResult = result;
+      notifyListeners();
+    }
+    return result;
+  }
+
+  Future<SourceControlPartialPatchResult> runHunkAction(
+    SourceControlDiffHunkActionPlan plan,
+  ) async {
+    final provider = partialPatchProvider;
+    final generation = ++_partialPatchGeneration;
+    final result = provider == null
+        ? SourceControlPartialPatchResult(
+            kind: plan.kind,
+            path: plan.path,
+            selectedHunkIndexes: plan.selectedHunkIndexes,
+            applied: false,
+            message:
+                'Source control hunk action skipped: no partial patch provider is configured.',
+          )
+        : await provider.runHunkAction(
+            workspaceRoot: workspaceRoot,
+            plan: plan,
+          );
+    if (generation == _partialPatchGeneration) {
+      _lastPartialPatchResult = result;
       notifyListeners();
     }
     return result;

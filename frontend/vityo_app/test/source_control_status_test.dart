@@ -690,6 +690,44 @@ diff --git a/src/main.styio b/src/main.styio
     expect(controller.lastActionResult, same(result));
   });
 
+  test('source control status controller records hunk action result', () async {
+    const diff = SourceControlDiffSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      path: 'src/main.styio',
+      unifiedDiff: '''
+diff --git a/src/main.styio b/src/main.styio
+--- a/src/main.styio
++++ b/src/main.styio
+@@ -1,1 +1,1 @@
+-old
++new
+''',
+    );
+    final controller = SourceControlStatusController(
+      provider: const StaticSourceControlStatusProvider(
+        SourceControlStatusSnapshot(
+          providerKind: SourceControlProviderKind.git,
+          changes: <SourceControlFileChange>[],
+        ),
+      ),
+      partialPatchProvider: const _FakeSourceControlPartialPatchProvider(),
+      workspaceRoot: '/workspace/vityo',
+    );
+    addTearDown(controller.dispose);
+    final plan = SourceControlDiffHunkActionPlan.fromDiff(
+      snapshot: diff,
+      kind: SourceControlActionKind.stage,
+      selectedHunkIndexes: const <int>[0],
+    );
+
+    final result = await controller.runHunkAction(plan);
+
+    expect(result.applied, isTrue);
+    expect(result.kind, SourceControlActionKind.stage);
+    expect(result.selectedHunkIndexes, <int>[0]);
+    expect(controller.lastPartialPatchResult, same(result));
+  });
+
   test(
     'source control status controller reports missing action provider',
     () async {
@@ -731,6 +769,28 @@ class _FakeSourceControlActionProvider extends SourceControlActionProvider {
       kind: request.kind,
       applied: true,
       paths: request.paths,
+      message: workspaceRoot,
+    );
+  }
+}
+
+class _FakeSourceControlPartialPatchProvider
+    extends SourceControlPartialPatchProvider {
+  const _FakeSourceControlPartialPatchProvider();
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlPartialPatchResult> runHunkAction({
+    required String workspaceRoot,
+    required SourceControlDiffHunkActionPlan plan,
+  }) async {
+    return SourceControlPartialPatchResult(
+      kind: plan.kind,
+      path: plan.path,
+      selectedHunkIndexes: plan.selectedHunkIndexes,
+      applied: true,
       message: workspaceRoot,
     );
   }

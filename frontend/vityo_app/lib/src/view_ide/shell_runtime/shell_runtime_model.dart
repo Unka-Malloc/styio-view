@@ -682,6 +682,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _localDirtySourceControlStatusSnapshot();
   SourceControlDiffSnapshot? get sourceControlDiffPreview =>
       sourceControlStatusController?.diffPreview;
+  SourceControlPartialPatchResult? get sourceControlHunkActionResult =>
+      sourceControlStatusController?.lastPartialPatchResult;
 
   SemanticSnapshotPanelViewModel? semanticPanelViewModelFor(
     SemanticSnapshotPanelEventTarget target,
@@ -1125,6 +1127,40 @@ class ShellRuntimeModel extends ChangeNotifier {
       return Future<SourceControlActionResult>.value(result);
     }
     return runSourceControlAction(plan.toActionRequest());
+  }
+
+  Future<SourceControlPartialPatchResult> confirmSourceControlHunkAction(
+    SourceControlDiffHunkActionPlan plan,
+  ) async {
+    final controller = sourceControlStatusController;
+    final result = controller == null
+        ? SourceControlPartialPatchResult(
+            kind: plan.kind,
+            path: plan.path,
+            selectedHunkIndexes: plan.selectedHunkIndexes,
+            applied: false,
+            message:
+                'Source control hunk action skipped: no source control controller is configured.',
+          )
+        : await controller.runHunkAction(plan);
+    appendLog(_sourceControlHunkActionMessage(result));
+    if (result.applied) {
+      await refreshSourceControlStatus();
+    } else {
+      notifyListeners();
+    }
+    return result;
+  }
+
+  String _sourceControlHunkActionMessage(
+    SourceControlPartialPatchResult result,
+  ) {
+    if (result.message.isNotEmpty) {
+      return result.message;
+    }
+    return result.applied
+        ? 'Source control hunk action applied: ${result.kind.wireValue} ${result.selectedHunkIndexes.length} hunk(s).'
+        : 'Source control hunk action failed: ${result.kind.wireValue} ${result.selectedHunkIndexes.length} hunk(s).';
   }
 
   Future<void> rerunFailedTests() async {

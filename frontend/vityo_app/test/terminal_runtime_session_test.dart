@@ -432,6 +432,161 @@ void main() {
       'wrong-route',
     );
   });
+
+  test(
+    'toolchain manager runtime execution adapter runs handoff into live output',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_toolchain_runtime_handoff_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final manager = await _createToolchainManager(tempRoot);
+      final registration = await manager.registerToolchain(
+        const ToolchainDescriptor(
+          id: 'sh-test-runner',
+          kind: ToolchainKind.testRunner,
+          displayName: 'Shell Test Runner',
+          executablePath: '/bin/sh',
+        ),
+        activate: true,
+      );
+      const definition = RuntimeTaskDefinition(
+        id: 'tool-test',
+        label: 'Tool test',
+        kind: RuntimeTaskKind.test,
+        command: 'test-runner',
+        arguments: <String>['-c', 'printf toolchain-ok'],
+        metadata: <String, Object?>{'toolchainKind': 'test-runner'},
+      );
+      final binding = const RuntimeExecutionPlanner()
+          .plan(definition: definition)
+          .createHandoff(
+            target: RuntimeExecutionHandoffTarget.toolchainManager,
+            outputChannelId: 'toolchain.runtime',
+          )
+          .bind();
+      final buffer = RuntimeOutputLiveBuffer();
+      addTearDown(buffer.dispose);
+      final adapter = ToolchainManagerRuntimeExecutionAdapter(
+        toolchainManager: manager,
+        clock: () => DateTime.utc(2026, 5, 20, 12),
+      );
+
+      final result = await adapter.executeHandoff(
+        binding: binding,
+        buffer: buffer,
+      );
+
+      expect(registration.succeeded, isTrue);
+      expect(result.executed, isTrue);
+      expect(result.succeeded, isTrue);
+      expect(result.runtimeResult?.toolchainId, 'sh-test-runner');
+      expect(result.toJson()['succeeded'], isTrue);
+      expect(
+        buffer.snapshot.visibleEvents.map((event) => event.message),
+        containsAll(<String>[
+          'Runtime toolchain handoff tool-test completed.',
+          'toolchain-ok',
+        ]),
+      );
+      expect(
+        buffer.snapshot.visibleEvents.first.metadata['toolchainRuntimeStatus'],
+        'succeeded',
+      );
+      expect(buffer.snapshot.visibleEvents.last.metadata['stream'], 'stdout');
+    },
+  );
+
+  test(
+    'toolchain manager runtime execution adapter rejects wrong route',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_toolchain_runtime_wrong_route_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final manager = await _createToolchainManager(tempRoot);
+      const definition = RuntimeTaskDefinition(
+        id: 'shell-run',
+        label: 'Shell run',
+        kind: RuntimeTaskKind.shell,
+        command: 'printf',
+      );
+      final binding = const RuntimeExecutionPlanner()
+          .plan(definition: definition)
+          .createHandoff(target: RuntimeExecutionHandoffTarget.shellManager)
+          .bind();
+      final buffer = RuntimeOutputLiveBuffer();
+      addTearDown(buffer.dispose);
+      final adapter = ToolchainManagerRuntimeExecutionAdapter(
+        toolchainManager: manager,
+        clock: () => DateTime.utc(2026, 5, 20, 12),
+      );
+
+      final result = await adapter.executeHandoff(
+        binding: binding,
+        buffer: buffer,
+      );
+
+      expect(result.status, ToolchainManagerRuntimeExecutionStatus.wrongRoute);
+      expect(result.succeeded, isFalse);
+      expect(buffer.snapshot.visibleEvents.single.message, contains('ignored'));
+      expect(
+        buffer
+            .snapshot
+            .visibleEvents
+            .single
+            .metadata['runtimeToolchainExecutionStatus'],
+        'wrong-route',
+      );
+    },
+  );
+}
+
+Future<ToolchainManager> _createToolchainManager(Directory root) async {
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: root.path,
+      homePath: root.path,
+    ),
+  );
+  final configurationStore = ConfigurationStore(
+    dataStore: FoundationDataStore(
+      resourceCoordinator: FoundationResourceCoordinator(
+        resourceManager: resourceManager,
+        fileSystemManager: fileSystemManager,
+      ),
+      fileSystemManager: fileSystemManager,
+    ),
+    credentialDataStore: InMemoryCredentialDataStore(),
+  );
+  final platformManagers = await createPlatformManagerBundle(
+    platformContext: PlatformContextSnapshot.compose(
+      targetId: 'toolchain-runtime-test',
+      fileSystem: FileSystemFacts.linuxDebianArm(
+        targetId: 'toolchain-runtime-test',
+      ),
+      shell: ShellFacts.linuxDebianArm(
+        targetId: 'toolchain-runtime-test',
+        defaultShellPath: '/bin/sh',
+      ),
+    ),
+  );
+  return ToolchainManager(
+    configurationStore: ToolchainConfigurationStore(
+      configurationStore: configurationStore,
+    ),
+    platformManagers: platformManagers,
+    workspaceId: 'demo',
+  );
 }
 
 class _FakePtyManager implements PtyManager {

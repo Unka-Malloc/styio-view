@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../environment/configuration/environment_variable_configuration.dart';
 import '../environment/system_compatibility/platform_manager/platform_manager.dart';
+import '../runtime/runtime.dart';
 import 'clang_cpp_version_configuration.dart';
 import 'toolchain_catalog.dart';
 import 'toolchain_configuration_store.dart';
@@ -285,6 +286,209 @@ class ToolchainManagerBootstrapSummary {
       'projectBootstrapActionIds': projectBootstrapActionIds,
       'agentContext': agentContext,
     };
+  }
+}
+
+enum ToolchainManagerRuntimeExecutionStatus { executed, blocked, wrongRoute }
+
+extension ToolchainManagerRuntimeExecutionStatusX
+    on ToolchainManagerRuntimeExecutionStatus {
+  String get wireValue => switch (this) {
+    ToolchainManagerRuntimeExecutionStatus.executed => 'executed',
+    ToolchainManagerRuntimeExecutionStatus.blocked => 'blocked',
+    ToolchainManagerRuntimeExecutionStatus.wrongRoute => 'wrong-route',
+  };
+}
+
+class ToolchainManagerRuntimeExecutionResult {
+  const ToolchainManagerRuntimeExecutionResult({
+    required this.binding,
+    required this.status,
+    required this.outputEvents,
+    this.runtimeResult,
+  });
+
+  final RuntimeExecutionHandoffBinding binding;
+  final ToolchainManagerRuntimeExecutionStatus status;
+  final List<RuntimeOutputEvent> outputEvents;
+  final ToolchainRuntimeResult? runtimeResult;
+
+  bool get executed =>
+      status == ToolchainManagerRuntimeExecutionStatus.executed;
+  bool get succeeded => runtimeResult?.succeeded ?? false;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'executed': executed,
+      'succeeded': succeeded,
+      'binding': binding.toJson(),
+      'outputEvents': outputEvents
+          .map((event) => event.toJson())
+          .toList(growable: false),
+      if (runtimeResult != null) 'runtimeResult': runtimeResult!.toJson(),
+    };
+  }
+}
+
+class ToolchainManagerRuntimeExecutionAdapter {
+  ToolchainManagerRuntimeExecutionAdapter({
+    required this.toolchainManager,
+    RuntimeTaskClock? clock,
+  }) : _clock = clock ?? DateTime.now().toUtc;
+
+  final ToolchainManager toolchainManager;
+  final RuntimeTaskClock _clock;
+
+  Future<ToolchainManagerRuntimeExecutionResult> executeHandoff({
+    required RuntimeExecutionHandoffBinding binding,
+    required RuntimeOutputLiveBuffer buffer,
+    ToolchainKind? kind,
+    ToolchainRequirement? requirement,
+    Iterable<EnvironmentVariableOverlay> environmentOverlays =
+        const <EnvironmentVariableOverlay>[],
+    Duration? timeout,
+    String? standardInput,
+  }) async {
+    if (binding.managerId != 'toolchain-manager') {
+      return _controlResult(
+        binding: binding,
+        buffer: buffer,
+        status: ToolchainManagerRuntimeExecutionStatus.wrongRoute,
+        message:
+            'Runtime toolchain execution ignored non-toolchain route ${binding.managerId}.',
+      );
+    }
+    if (!binding.ready) {
+      return _controlResult(
+        binding: binding,
+        buffer: buffer,
+        status: ToolchainManagerRuntimeExecutionStatus.blocked,
+        message: 'Runtime toolchain execution blocked before process start.',
+      );
+    }
+
+    final runtimeResult = await toolchainManager.run(
+      kind: kind ?? _toolchainKindForBinding(binding),
+      requirement: requirement,
+      arguments: binding.handoff.arguments,
+      environment: binding.handoff.environment,
+      environmentOverlays: environmentOverlays,
+      workingDirectory: binding.handoff.workingDirectory,
+      timeout: timeout,
+      standardInput: standardInput,
+    );
+    final outputEvents = _eventsForResult(
+      binding: binding,
+      runtimeResult: runtimeResult,
+    );
+    for (final event in outputEvents) {
+      buffer.addEvent(event, now: event.timestamp);
+    }
+    return ToolchainManagerRuntimeExecutionResult(
+      binding: binding,
+      status: ToolchainManagerRuntimeExecutionStatus.executed,
+      outputEvents: List<RuntimeOutputEvent>.unmodifiable(outputEvents),
+      runtimeResult: runtimeResult,
+    );
+  }
+
+  ToolchainManagerRuntimeExecutionResult _controlResult({
+    required RuntimeExecutionHandoffBinding binding,
+    required RuntimeOutputLiveBuffer buffer,
+    required ToolchainManagerRuntimeExecutionStatus status,
+    required String message,
+  }) {
+    final outputEvent = binding.outputEvent(
+      message: message,
+      timestamp: _clock(),
+      kind: RuntimeOutputChannelKind.runtimeEvents,
+      metadata: <String, Object?>{
+        'runtimeToolchainExecutionStatus': status.wireValue,
+      },
+    );
+    buffer.addEvent(outputEvent, now: outputEvent.timestamp);
+    return ToolchainManagerRuntimeExecutionResult(
+      binding: binding,
+      status: status,
+      outputEvents: <RuntimeOutputEvent>[outputEvent],
+    );
+  }
+
+  List<RuntimeOutputEvent> _eventsForResult({
+    required RuntimeExecutionHandoffBinding binding,
+    required ToolchainRuntimeResult runtimeResult,
+  }) {
+    final timestamp = _clock();
+    final events = <RuntimeOutputEvent>[
+      binding.outputEvent(
+        message:
+            runtimeResult.message ??
+            (runtimeResult.succeeded
+                ? 'Runtime toolchain handoff ${binding.handoff.taskId} completed.'
+                : 'Runtime toolchain handoff ${binding.handoff.taskId} failed.'),
+        timestamp: timestamp,
+        kind: RuntimeOutputChannelKind.nativeTools,
+        metadata: <String, Object?>{
+          'runtimeToolchainExecutionStatus':
+              ToolchainManagerRuntimeExecutionStatus.executed.wireValue,
+          'toolchainRuntimeStatus': runtimeResult.status.name,
+          'toolchainId': runtimeResult.toolchainId,
+          'succeeded': runtimeResult.succeeded,
+          if (runtimeResult.exitCode != null)
+            'exitCode': runtimeResult.exitCode,
+        },
+      ),
+    ];
+    events.addAll(
+      _streamEvents(
+        binding: binding,
+        stream: 'stdout',
+        kind: RuntimeOutputChannelKind.stdout,
+        output: runtimeResult.stdout,
+        timestamp: timestamp,
+      ),
+    );
+    events.addAll(
+      _streamEvents(
+        binding: binding,
+        stream: 'stderr',
+        kind: RuntimeOutputChannelKind.stderr,
+        output: runtimeResult.stderr,
+        timestamp: timestamp,
+      ),
+    );
+    return events;
+  }
+
+  List<RuntimeOutputEvent> _streamEvents({
+    required RuntimeExecutionHandoffBinding binding,
+    required String stream,
+    required RuntimeOutputChannelKind kind,
+    required String output,
+    required DateTime timestamp,
+  }) {
+    final chunks = _outputChunks(output);
+    return <RuntimeOutputEvent>[
+      for (var index = 0; index < chunks.length; index += 1)
+        RuntimeOutputEvent(
+          channelId: '${binding.outputChannel.id}.$stream',
+          label: '${binding.outputChannel.label} $stream',
+          kind: kind,
+          message: chunks[index],
+          timestamp: timestamp,
+          metadata: <String, Object?>{
+            'taskId': binding.handoff.taskId,
+            'managerId': binding.managerId,
+            'routeKind': binding.routeKind,
+            'runtimeToolchainExecutionStatus':
+                ToolchainManagerRuntimeExecutionStatus.executed.wireValue,
+            'stream': stream,
+            'chunkIndex': index,
+            'chunkCount': chunks.length,
+          },
+        ),
+    ];
   }
 }
 
@@ -1214,6 +1418,35 @@ class ToolchainManager {
       timeout: timeout,
     );
   }
+}
+
+ToolchainKind _toolchainKindForBinding(RuntimeExecutionHandoffBinding binding) {
+  final metadata = binding.handoff.plan.definition.metadata;
+  final explicitKind = metadata['toolchainKind'] ?? metadata['toolchain.kind'];
+  if (explicitKind is String && explicitKind.trim().isNotEmpty) {
+    return toolchainKindFromWireValue(explicitKind);
+  }
+  return switch (binding.handoff.plan.definition.kind) {
+    RuntimeTaskKind.build => ToolchainKind.buildTool,
+    RuntimeTaskKind.test => ToolchainKind.testRunner,
+    RuntimeTaskKind.debug => ToolchainKind.debugger,
+    RuntimeTaskKind.shell => ToolchainKind.terminal,
+    RuntimeTaskKind.run ||
+    RuntimeTaskKind.agent ||
+    RuntimeTaskKind.toolchain => ToolchainKind.runner,
+  };
+}
+
+List<String> _outputChunks(String output) {
+  if (output.isEmpty) {
+    return const <String>[];
+  }
+  final normalized = output.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  final lines = normalized.split('\n');
+  if (lines.isNotEmpty && lines.last.isEmpty) {
+    lines.removeLast();
+  }
+  return lines.isEmpty ? <String>[output] : lines;
 }
 
 class _ToolchainInstallRollbackResult {

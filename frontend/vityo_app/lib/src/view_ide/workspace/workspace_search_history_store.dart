@@ -381,6 +381,150 @@ class WorkspaceSearchFilterStore {
   }
 }
 
+class WorkspaceReplacePreviewExpansionState {
+  const WorkspaceReplacePreviewExpansionState({
+    required this.workspaceId,
+    this.expandedDocumentIds = const <String>[],
+    this.updatedAt,
+  });
+
+  factory WorkspaceReplacePreviewExpansionState.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return WorkspaceReplacePreviewExpansionState(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      expandedDocumentIds: _jsonStringList(json['expandedDocumentIds']),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final List<String> expandedDocumentIds;
+  final DateTime? updatedAt;
+
+  bool isExpanded(String documentId) {
+    return expandedDocumentIds.contains(documentId.trim());
+  }
+
+  WorkspaceReplacePreviewExpansionState toggleDocument(String documentId) {
+    final normalized = documentId.trim();
+    if (normalized.isEmpty) {
+      return this;
+    }
+    final nextExpanded = isExpanded(normalized)
+        ? expandedDocumentIds
+              .where((expandedId) => expandedId != normalized)
+              .toList(growable: false)
+        : _sortedStrings(<String>[...expandedDocumentIds, normalized]);
+    return copyWith(
+      expandedDocumentIds: nextExpanded,
+      updatedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  WorkspaceReplacePreviewExpansionState copyWith({
+    String? workspaceId,
+    List<String>? expandedDocumentIds,
+    DateTime? updatedAt,
+  }) {
+    return WorkspaceReplacePreviewExpansionState(
+      workspaceId: workspaceId ?? this.workspaceId,
+      expandedDocumentIds: expandedDocumentIds == null
+          ? this.expandedDocumentIds
+          : _sortedStrings(expandedDocumentIds),
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'expandedCount': expandedDocumentIds.length,
+      'expandedDocumentIds': expandedDocumentIds,
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class WorkspaceReplacePreviewExpansionStore {
+  WorkspaceReplacePreviewExpansionStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'workspace.replace-preview-expansion',
+             layer: 'interaction',
+             stateFamily: 'replace-preview-expansion',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const WorkspaceReplacePreviewExpansionStore({required this.owner});
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName =
+      'workspace.replace-preview-expansion';
+  static const String _key = 'expanded-documents';
+
+  final FoundationDataStoreOwner owner;
+
+  Future<WorkspaceReplacePreviewExpansionState> readState({
+    required String workspaceId,
+  }) async {
+    final value = await owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return WorkspaceReplacePreviewExpansionState(workspaceId: workspaceId);
+    }
+    final state = WorkspaceReplacePreviewExpansionState.fromJson(value);
+    return state.workspaceId.isEmpty
+        ? state.copyWith(workspaceId: workspaceId)
+        : state;
+  }
+
+  Future<WorkspaceReplacePreviewExpansionState> saveState({
+    required WorkspaceReplacePreviewExpansionState state,
+  }) async {
+    final next = state.copyWith(updatedAt: DateTime.now().toUtc());
+    await owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: next.toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: next.workspaceId,
+    );
+    return next;
+  }
+
+  Future<WorkspaceReplacePreviewExpansionState> toggleDocument({
+    required String workspaceId,
+    required String documentId,
+  }) async {
+    final current = await readState(workspaceId: workspaceId);
+    final next = current.toggleDocument(documentId);
+    await saveState(state: next);
+    return next;
+  }
+
+  Future<bool> deleteState({required String workspaceId}) {
+    return owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+}
+
 WorkspaceSearchHistoryMode _workspaceSearchHistoryModeFromWireValue(
   String value,
 ) {
@@ -406,4 +550,21 @@ List<WorkspaceSearchHistoryRecord> _jsonSearchHistoryRecords(Object? value) {
         ),
       )
       .toList(growable: false);
+}
+
+List<String> _jsonStringList(Object? value) {
+  if (value is! List) {
+    return const <String>[];
+  }
+  return _sortedStrings(value.map((entry) => entry.toString()));
+}
+
+List<String> _sortedStrings(Iterable<String> values) {
+  final normalized = values
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet()
+      .toList(growable: false);
+  normalized.sort();
+  return normalized;
 }

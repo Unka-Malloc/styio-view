@@ -788,6 +788,44 @@ void main() {
     expect(await store.deleteFilters(workspaceId: 'demo'), isTrue);
     expect((await store.readFilters(workspaceId: 'demo')).active, isFalse);
   });
+
+  test('workspace replace preview expansion state persists through DataStore', (
+  ) async {
+    final store = WorkspaceReplacePreviewExpansionStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+
+    final expanded = await store.toggleDocument(
+      workspaceId: 'demo',
+      documentId: 'src/main.styio',
+    );
+    final collapsed = await store.toggleDocument(
+      workspaceId: 'demo',
+      documentId: 'src/main.styio',
+    );
+    await store.saveState(
+      state: const WorkspaceReplacePreviewExpansionState(
+        workspaceId: 'demo',
+        expandedDocumentIds: <String>['src/lib.styio', 'src/main.styio'],
+      ),
+    );
+    final restored = await store.readState(workspaceId: 'demo');
+
+    expect(expanded.expandedDocumentIds, <String>['src/main.styio']);
+    expect(collapsed.expandedDocumentIds, isEmpty);
+    expect(restored.workspaceId, 'demo');
+    expect(restored.expandedDocumentIds, <String>[
+      'src/lib.styio',
+      'src/main.styio',
+    ]);
+    expect(restored.isExpanded('src/main.styio'), isTrue);
+    expect(restored.toJson()['expandedCount'], 2);
+    expect(await store.deleteState(workspaceId: 'demo'), isTrue);
+    expect(
+      (await store.readState(workspaceId: 'demo')).expandedDocumentIds,
+      isEmpty,
+    );
+  });
 }
 
 Future<FoundationDataStore> _createDataStore() async {

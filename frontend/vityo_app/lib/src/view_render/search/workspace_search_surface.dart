@@ -17,10 +17,12 @@ class WorkspaceSearchSurface extends StatefulWidget {
     this.searchIndex,
     this.searchHistory,
     this.searchFilters,
+    this.replaceExpansionState,
     this.onSearch,
     this.onOpenFile,
     this.onPreviewReplace,
     this.onApplyReplacePreview,
+    this.onToggleReplaceDocumentExpansion,
     this.onOpenMatch,
     this.onOpenSymbolMatch,
   });
@@ -35,12 +37,15 @@ class WorkspaceSearchSurface extends StatefulWidget {
   final WorkspaceSearchIndex? searchIndex;
   final WorkspaceSearchHistory? searchHistory;
   final WorkspaceSearchFilterState? searchFilters;
+  final WorkspaceReplacePreviewExpansionState? replaceExpansionState;
   final Future<void> Function(String query)? onSearch;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function(String query, String replacement)?
   onPreviewReplace;
   final Future<void> Function(WorkspaceReplacePreview preview)?
   onApplyReplacePreview;
+  final Future<void> Function(String documentId)?
+  onToggleReplaceDocumentExpansion;
   final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
   onOpenMatch;
   final Future<void> Function(AgentWorkspaceSymbolMatchContext match)?
@@ -181,7 +186,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Text and symbol search entry for workspace-wide edits, quick navigation, indexed search summaries, persisted history, persisted result filters, virtualized replace-preview windows, and agent-confirmed code changes. TODO: persist multi-file diff expansion state.',
+              'Text and symbol search entry for workspace-wide edits, quick navigation, indexed search summaries, persisted history, persisted result filters, virtualized replace-preview windows, persisted multi-file diff expansion state, and agent-confirmed code changes.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -206,6 +211,12 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
                 ],
                 if (searchHistory != null)
                   Chip(label: Text('history ${searchHistory.records.length}')),
+                if (widget.replaceExpansionState != null)
+                  Chip(
+                    label: Text(
+                      'expanded ${widget.replaceExpansionState!.expandedDocumentIds.length}',
+                    ),
+                  ),
                 if (searchFilters != null) ...[
                   Chip(
                     label: Text(
@@ -296,10 +307,13 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
               _WorkspaceReplacePreviewView(
                 preview: widget.lastReplacePreview!,
                 window: widget.lastReplacePreviewWindow,
+                expansionState: widget.replaceExpansionState,
                 applying: _applyingReplace,
                 onApply: widget.onApplyReplacePreview == null
                     ? null
                     : _applyReplacePreview,
+                onToggleDocumentExpansion:
+                    widget.onToggleReplaceDocumentExpansion,
               ),
             ],
             if (searchHistory != null && searchHistory.records.isNotEmpty) ...[
@@ -489,14 +503,18 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
   const _WorkspaceReplacePreviewView({
     required this.preview,
     this.window,
+    this.expansionState,
     required this.applying,
     required this.onApply,
+    this.onToggleDocumentExpansion,
   });
 
   final WorkspaceReplacePreview preview;
   final WorkspaceReplacePreviewWindow? window;
+  final WorkspaceReplacePreviewExpansionState? expansionState;
   final bool applying;
   final Future<void> Function()? onApply;
+  final Future<void> Function(String documentId)? onToggleDocumentExpansion;
 
   @override
   Widget build(BuildContext context) {
@@ -523,6 +541,12 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
               const Chip(label: Text('has more documents')),
             Chip(label: Text('failures ${preview.failures.length}')),
             Chip(label: Text('truncated ${preview.truncated}')),
+            if (expansionState != null)
+              Chip(
+                label: Text(
+                  'expanded ${expansionState!.expandedDocumentIds.length}',
+                ),
+              ),
           ],
         ),
         const SizedBox(height: 8),
@@ -566,9 +590,27 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final document = activeWindow.documents[index];
+                final expanded =
+                    expansionState?.isExpanded(document.documentId) ?? false;
                 return ListTile(
                   dense: true,
                   title: Text(document.documentId),
+                  trailing: IconButton(
+                    key: ValueKey(
+                      'workspace-replace-toggle-${document.documentId}',
+                    ),
+                    tooltip: expanded ? 'Collapse diff' : 'Expand diff',
+                    onPressed: onToggleDocumentExpansion == null
+                        ? null
+                        : () {
+                            onToggleDocumentExpansion!(document.documentId);
+                          },
+                    icon: Icon(
+                      expanded
+                          ? Icons.unfold_less_rounded
+                          : Icons.unfold_more_rounded,
+                    ),
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -577,10 +619,14 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Before: ${_workspaceReplacePreviewSnippet(document.beforeText)}',
+                        expanded
+                            ? 'Before full: ${_workspaceReplacePreviewExpandedText(document.beforeText)}'
+                            : 'Before: ${_workspaceReplacePreviewSnippet(document.beforeText)}',
                       ),
                       Text(
-                        'After: ${_workspaceReplacePreviewSnippet(document.afterText)}',
+                        expanded
+                            ? 'After full: ${_workspaceReplacePreviewExpandedText(document.afterText)}'
+                            : 'After: ${_workspaceReplacePreviewSnippet(document.afterText)}',
                       ),
                     ],
                   ),
@@ -591,6 +637,18 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
       ],
     );
   }
+}
+
+String _workspaceReplacePreviewExpandedText(String text, {int maxLength = 240}) {
+  final normalized = text
+      .split('\n')
+      .where((line) => line.trim().isNotEmpty)
+      .join(' / ')
+      .trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return '${normalized.substring(0, maxLength - 3)}...';
 }
 
 String _workspaceReplacePreviewSnippet(String text, {int maxLength = 96}) {

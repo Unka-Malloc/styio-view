@@ -230,6 +230,7 @@ void main() {
   ) async {
     String? previewQuery;
     String? previewReplacement;
+    String? toggledDocumentId;
     WorkspaceReplacePreview? appliedPreview;
     const replacePreview = WorkspaceReplacePreview(
       documents: <WorkspaceReplacePreviewDocument>[
@@ -262,12 +263,19 @@ void main() {
             workspaceFileCount: 1,
             lastReplacePreview: replacePreview,
             lastReplacePreviewWindow: replacePreview.window(documentLimit: 1),
+            replaceExpansionState: const WorkspaceReplacePreviewExpansionState(
+              workspaceId: 'demo',
+              expandedDocumentIds: <String>['src/main.styio'],
+            ),
             onPreviewReplace: (query, replacement) async {
               previewQuery = query;
               previewReplacement = replacement;
             },
             onApplyReplacePreview: (preview) async {
               appliedPreview = preview;
+            },
+            onToggleReplaceDocumentExpansion: (documentId) async {
+              toggledDocumentId = documentId;
             },
           ),
         ),
@@ -297,10 +305,19 @@ void main() {
     expect(find.text('documents 2'), findsOneWidget);
     expect(find.text('replace-window 0-1/2'), findsOneWidget);
     expect(find.text('has more documents'), findsOneWidget);
+    expect(find.text('expanded 1'), findsWidgets);
     expect(find.text('src/main.styio'), findsOneWidget);
     expect(find.text('src/lib.styio'), findsNothing);
-    expect(find.text('Before: needle := 1'), findsOneWidget);
-    expect(find.text('After: value := 1'), findsOneWidget);
+    expect(find.text('Before full: needle := 1'), findsOneWidget);
+    expect(find.text('After full: value := 1'), findsOneWidget);
+
+    final toggleButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('workspace-replace-toggle-src/main.styio')),
+    );
+    toggleButton.onPressed!();
+    await tester.pump();
+
+    expect(toggledDocumentId, 'src/main.styio');
 
     await tester.tap(
       find.byKey(const ValueKey('workspace-replace-apply-submit')),

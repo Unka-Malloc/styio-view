@@ -272,6 +272,21 @@ class TestingSessionController extends ChangeNotifier {
   bool get hasDiscovery => _discovery != null;
   bool get hasLastRun => _lastRun != null;
 
+  String providerRetryPlanMessage(String surface) {
+    final retryPlan = providerCatalog?.retryPlan();
+    if (retryPlan == null) {
+      return 'Testing provider retry plan is unavailable.';
+    }
+    final surfaceActions = retryPlan.actions
+        .where((action) => action.surface == surface)
+        .toList(growable: false);
+    if (surfaceActions.isEmpty) {
+      return retryPlan.message;
+    }
+    final labels = surfaceActions.map((action) => action.label).join(', ');
+    return '${retryPlan.message} Retry actions: $labels.';
+  }
+
   void recordDiscoveryResult(TestDiscoveryResult result) {
     _discoveryGeneration++;
     _discovery = result;
@@ -311,12 +326,12 @@ class TestingSessionController extends ChangeNotifier {
     final provider = discoveryProvider ?? providerCatalog?.discoveryProvider();
     final generation = ++_discoveryGeneration;
     if (provider == null) {
-      final result = const TestDiscoveryResult(
+      final result = TestDiscoveryResult(
         providerId: 'unavailable',
         roots: <TestNode>[],
         message:
             'Test discovery provider is not configured. '
-            'TODO: register Styio test discovery and external runner adapters in TestingProviderCatalog.',
+            '${providerRetryPlanMessage('discovery')}',
       );
       _storeDiscovery(result, generation);
       return result;
@@ -332,7 +347,7 @@ class TestingSessionController extends ChangeNotifier {
         roots: const <TestNode>[],
         message:
             'Test discovery unavailable: $error. '
-            'TODO: expose provider health and retry actions.',
+            '${providerRetryPlanMessage('discovery')}',
       );
       _storeDiscovery(result, generation);
       return result;
@@ -357,12 +372,12 @@ class TestingSessionController extends ChangeNotifier {
       );
       await _persistRuntimeTask(finishedTask);
       final result = _attachRuntimeTask(
-        const TestRunResult(
+        TestRunResult(
           providerId: 'unavailable',
           status: TestRunStatus.error,
           message:
               'Test run provider is not configured. '
-              'TODO: register Styio, CTest, and custom task adapters in TestingProviderCatalog.',
+              '${providerRetryPlanMessage('run')}',
         ),
         finishedTask,
       );
@@ -410,7 +425,7 @@ class TestingSessionController extends ChangeNotifier {
           status: TestRunStatus.error,
           message:
               'Test run unavailable: $error. '
-              'TODO: expose runner logs and retry actions.',
+              '${providerRetryPlanMessage('run')}',
         ),
         finishedTask,
       );

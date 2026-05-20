@@ -464,10 +464,53 @@ void main() {
 
     expect(discovery.providerId, 'unavailable');
     expect(discovery.message, contains('not configured'));
+    expect(discovery.message, contains('Testing provider retry plan'));
     expect(run.providerId, 'unavailable');
     expect(run.status, TestRunStatus.error);
     expect(run.message, contains('not configured'));
+    expect(run.message, contains('Testing provider retry plan'));
   });
+
+  test(
+    'testing session controller surfaces provider retry actions on failures',
+    () async {
+      final catalog = TestingProviderCatalog()
+        ..registerDiscoveryProvider(
+          const TestingDiscoveryProviderRegistration(
+            id: 'throwing-discovery',
+            provider: _ThrowingTestDiscoveryProvider(),
+            state: FoundationRegistryEntryState.active,
+          ),
+        )
+        ..registerRunProvider(
+          const TestingProviderRegistration(
+            id: 'throwing-runner',
+            provider: _ThrowingTestRunProvider(),
+            state: FoundationRegistryEntryState.active,
+          ),
+        );
+      final controller = TestingSessionController(providerCatalog: catalog);
+      addTearDown(controller.dispose);
+
+      final discovery = await controller.discover(
+        const TestDiscoveryRequest(workspaceRoot: '/workspace/vityo'),
+      );
+      final run = await controller.run(
+        const TestRunRequest(workspaceRoot: '/workspace/vityo'),
+      );
+
+      expect(discovery.message, contains('Testing providers: discovery ready'));
+      expect(
+        discovery.message,
+        contains('Retry actions: Retry discovery with throwing-discovery'),
+      );
+      expect(run.message, contains('Testing providers: discovery ready'));
+      expect(
+        run.message,
+        contains('Retry actions: Retry run with throwing-runner'),
+      );
+    },
+  );
 
   test('testing session controller accepts externally recorded results', () {
     final controller = TestingSessionController();
@@ -710,5 +753,29 @@ class _CapturingTestRunProvider extends TestRunProvider {
   @override
   Future<TestRunResult> run(TestRunRequest request) async {
     return onRun(request);
+  }
+}
+
+class _ThrowingTestDiscoveryProvider extends TestDiscoveryProvider {
+  const _ThrowingTestDiscoveryProvider();
+
+  @override
+  String get providerId => 'throwing-discovery';
+
+  @override
+  Future<TestDiscoveryResult> discover(TestDiscoveryRequest request) async {
+    throw StateError('discovery failed');
+  }
+}
+
+class _ThrowingTestRunProvider extends TestRunProvider {
+  const _ThrowingTestRunProvider();
+
+  @override
+  String get providerId => 'throwing-runner';
+
+  @override
+  Future<TestRunResult> run(TestRunRequest request) async {
+    throw StateError('run failed');
   }
 }

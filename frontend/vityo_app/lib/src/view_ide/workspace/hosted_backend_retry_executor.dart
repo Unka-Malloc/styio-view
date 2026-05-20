@@ -1,6 +1,7 @@
 import '../backend_toolchain/hosted_control_plane.dart';
 import '../backend_toolchain/project_graph_contract.dart';
 import '../platform/platform_target.dart';
+import '../runtime/runtime_output_channels.dart';
 import 'hosted_workspace_lifecycle.dart';
 
 enum HostedBackendRetryActionExecutionStatus {
@@ -48,6 +49,65 @@ class HostedBackendRetryActionExecutionResult {
       'successful': successful,
       'message': message,
       if (response != null) 'response': response,
+    };
+  }
+}
+
+class HostedBackendRetryRuntimeOutputBinding {
+  const HostedBackendRetryRuntimeOutputBinding({
+    required this.workspaceId,
+    required this.result,
+    this.action,
+  });
+
+  final String workspaceId;
+  final HostedBackendRetryActionExecutionResult result;
+  final HostedBackendRetryAction? action;
+
+  RuntimeOutputEvent runtimeOutputEvent({
+    DateTime? timestamp,
+    String channelId = '',
+  }) {
+    return RuntimeOutputEvent(
+      channelId: channelId.trim().isEmpty
+          ? 'hosted.retry.$workspaceId'
+          : channelId.trim(),
+      label: 'Hosted Retry',
+      kind: RuntimeOutputChannelKind.runtimeEvents,
+      message: result.message,
+      timestamp: (timestamp ?? DateTime.now()).toUtc(),
+      metadata: <String, Object?>{
+        'workspaceId': workspaceId,
+        'hostedRetryActionId': result.actionId,
+        'hostedRetryKind': result.kind.label,
+        'hostedRetryStatus': result.status.label,
+        'successful': result.successful,
+        if (action != null) 'actionEnabled': action!.enabled,
+      },
+    );
+  }
+
+  RuntimeOutputPanelSnapshot outputPanelSnapshot({
+    DateTime? timestamp,
+    String channelId = '',
+    RuntimeOutputChannelFilterState filter =
+        const RuntimeOutputChannelFilterState(),
+  }) {
+    return RuntimeOutputPanelSnapshot(
+      events: <RuntimeOutputEvent>[
+        runtimeOutputEvent(timestamp: timestamp, channelId: channelId),
+      ],
+      filter: filter,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    final snapshot = outputPanelSnapshot();
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'result': result.toJson(),
+      if (action != null) 'action': action!.toJson(),
+      'outputSnapshot': snapshot.toJson(),
     };
   }
 }

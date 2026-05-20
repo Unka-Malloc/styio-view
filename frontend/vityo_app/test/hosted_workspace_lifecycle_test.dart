@@ -136,6 +136,14 @@ void main() {
       expect(result.successful, isTrue);
       expect(result.message, 'project graph refreshed');
       expect(client.projectGraphWorkspaceIds, <String>['hosted-demo']);
+
+      final output = HostedBackendRetryRuntimeOutputBinding(
+        workspaceId: project.hostedWorkspace!.workspaceId,
+        action: report.actionFor(HostedBackendRetryActionKind.retryConnect),
+        result: result,
+      ).outputPanelSnapshot(timestamp: DateTime.utc(2026, 5, 20));
+      expect(output.events.single.metadata['hostedRetryStatus'], 'completed');
+      expect(output.events.single.metadata['successful'], isTrue);
     },
   );
 

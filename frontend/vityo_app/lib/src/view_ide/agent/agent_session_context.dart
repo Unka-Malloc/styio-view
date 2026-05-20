@@ -38,6 +38,7 @@ class AgentSessionContext {
     required this.testing,
     required this.toolchains,
     required this.ideCapabilities,
+    required this.ideCapabilityClosure,
   });
 
   final int schemaVersion;
@@ -56,6 +57,7 @@ class AgentSessionContext {
   final AgentTestingContext testing;
   final AgentToolchainContext toolchains;
   final IdeCapabilityFrameworkSnapshot ideCapabilities;
+  final IdeCapabilityClosureReport ideCapabilityClosure;
 
   factory AgentSessionContext.fromEditorState({
     required DocumentState document,
@@ -141,8 +143,11 @@ class AgentSessionContext {
       sourceControlStatus: sourceControlStatus,
       sourceControlDiff: sourceControlDiff,
     );
+    final capabilitySnapshot =
+        ideCapabilityFramework ??
+        const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 42,
+      schemaVersion: 43,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -227,9 +232,10 @@ class AgentSessionContext {
         lastRun: lastTestRun,
       ),
       toolchains: toolchainContext,
-      ideCapabilities:
-          ideCapabilityFramework ??
-          const VityoIdeCapabilityFramework().snapshot(),
+      ideCapabilities: capabilitySnapshot,
+      ideCapabilityClosure: const IdeCapabilityClosureGate().evaluate(
+        capabilitySnapshot,
+      ),
     );
   }
 
@@ -253,6 +259,7 @@ class AgentSessionContext {
       'testing': testing.toJson(),
       'toolchains': toolchains.toJson(),
       'ideCapabilities': ideCapabilities.toJson(),
+      'ideCapabilityClosure': ideCapabilityClosure.toJson(),
     };
   }
 
@@ -281,6 +288,8 @@ class AgentSessionContext {
       if (channelSet.contains('toolchains')) 'toolchains': toolchains.toJson(),
       if (channelSet.contains('ideCapabilities'))
         'ideCapabilities': ideCapabilities.toJson(),
+      if (channelSet.contains('ideCapabilityClosure'))
+        'ideCapabilityClosure': ideCapabilityClosure.toJson(),
     };
   }
 
@@ -398,6 +407,7 @@ class AgentSessionContext {
       testing: testing,
       toolchains: toolchains,
       ideCapabilities: ideCapabilities,
+      ideCapabilityClosure: ideCapabilityClosure,
     );
   }
 }

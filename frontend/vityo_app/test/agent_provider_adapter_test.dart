@@ -48,6 +48,8 @@ void main() {
     final documentJson = contextJson['document']! as Map<String, Object?>;
     final ideCapabilitiesJson =
         contextJson['ideCapabilities']! as Map<String, Object?>;
+    final ideCapabilityClosureJson =
+        contextJson['ideCapabilityClosure']! as Map<String, Object?>;
     final ideCapabilityIds = (ideCapabilitiesJson['entries']! as List<Object?>)
         .map((entry) => (entry! as Map<String, Object?>)['id'])
         .toSet();
@@ -61,6 +63,7 @@ void main() {
     expect(documentJson['documentId'], '/workspace/demo/src/main.styio');
     expect(ideCapabilitiesJson['version'], 'vityo-ide-capability-framework-v1');
     expect(ideCapabilitiesJson['missingRequiredCapabilityIds'], isEmpty);
+    expect(ideCapabilityClosureJson['isFrameworkClosed'], isTrue);
     expect(ideCapabilityIds, contains('interaction.search'));
     expect(ideCapabilityIds, contains('agent.coding-loop'));
   });
@@ -199,7 +202,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      42,
+      43,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -841,8 +844,9 @@ void main() {
       expect(systemMessage['content'], contains('toolchains.activeCompiler'));
       expect(systemMessage['content'], contains('toolchains.nativeTools'));
       expect(systemMessage['content'], contains('skills.activeSkillIds'));
+      expect(systemMessage['content'], contains('ideCapabilityClosure'));
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 42);
+      expect(metadata['contextSchemaVersion'], 43);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

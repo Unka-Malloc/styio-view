@@ -65,6 +65,69 @@ void main() {
     expect(snapshot.toJson()['discovery'], isA<Map<String, Object?>>());
   });
 
+  test('workspace file explorer watch snapshot applies file system events', () {
+    final plan = const WorkspaceFileExplorerWatchPlan(
+      rootPath: '/workspace/fixture',
+    ).activate(message: 'watcher attached');
+    final watch = WorkspaceFileExplorerWatchSnapshot(
+      plan: plan,
+      baseFilePaths: const <String>[
+        'README.md',
+        'src/old.styio',
+        'src/stale.styio',
+      ],
+      events: <WorkspaceFileExplorerWatchEvent>[
+        WorkspaceFileExplorerWatchEvent(
+          kind: WorkspaceFileExplorerWatchEventKind.created,
+          path: 'src/new.styio',
+          timestamp: DateTime.utc(2026, 5, 20, 12),
+        ),
+        WorkspaceFileExplorerWatchEvent(
+          kind: WorkspaceFileExplorerWatchEventKind.renamed,
+          path: 'src/old.styio',
+          nextPath: 'src/current.styio',
+          timestamp: DateTime.utc(2026, 5, 20, 12, 1),
+        ),
+        WorkspaceFileExplorerWatchEvent(
+          kind: WorkspaceFileExplorerWatchEventKind.deleted,
+          path: 'src/stale.styio',
+          timestamp: DateTime.utc(2026, 5, 20, 12, 2),
+        ),
+        WorkspaceFileExplorerWatchEvent(
+          kind: WorkspaceFileExplorerWatchEventKind.created,
+          path: '../outside.styio',
+          timestamp: DateTime.utc(2026, 5, 20, 12, 3),
+        ),
+      ],
+    );
+    final workspaceController = WorkspaceController(
+      projectSnapshot: _projectGraph(editorFiles: const <String>['README.md']),
+    );
+    final controller = WorkspaceFileExplorerController(
+      workspaceController: workspaceController,
+      operationService: WorkspaceFileOperationService(
+        workspaceController: workspaceController,
+        documentStore: InMemoryWorkspaceDocumentStore(),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    final snapshot = controller.snapshotFromWatch(watch);
+
+    expect(plan.active, isTrue);
+    expect(watch.filePaths, <String>[
+      'README.md',
+      'src/current.styio',
+      'src/new.styio',
+    ]);
+    expect(watch.toJson()['eventCount'], 4);
+    expect(watch.toDiscoveryResult().source, 'file-system-manager.watch');
+    expect(snapshot.watch, same(watch));
+    expect(snapshot.discovery?.fileCount, 3);
+    expect(snapshot.fileCount, 3);
+    expect(snapshot.toJson()['watch'], isA<Map<String, Object?>>());
+  });
+
   test('workspace file explorer builds confirmation plans for actions', () {
     const deleteRequest = WorkspaceFileExplorerActionRequest(
       kind: WorkspaceFileOperationKind.delete,

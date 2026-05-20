@@ -56,6 +56,7 @@ class WorkspaceFileExplorerSnapshot {
     required this.openFilePaths,
     this.state,
     this.discovery,
+    this.watch,
   });
 
   final List<WorkspaceFileExplorerNode> roots;
@@ -63,6 +64,7 @@ class WorkspaceFileExplorerSnapshot {
   final List<String> openFilePaths;
   final WorkspaceFileExplorerState? state;
   final WorkspaceFileExplorerDiscoveryResult? discovery;
+  final WorkspaceFileExplorerWatchSnapshot? watch;
 
   int get fileCount {
     return roots.fold<int>(0, (total, root) => total + root.fileCount);
@@ -75,6 +77,7 @@ class WorkspaceFileExplorerSnapshot {
       'fileCount': fileCount,
       if (state != null) 'state': state!.toJson(),
       if (discovery != null) 'discovery': discovery!.toJson(),
+      if (watch != null) 'watch': watch!.toJson(),
       'roots': roots.map((root) => root.toJson()).toList(growable: false),
     };
   }
@@ -146,6 +149,186 @@ class WorkspaceFileExplorerDiscoveryResult {
       'truncated': truncated,
       'filePaths': filePaths,
       if (ignoredPaths.isNotEmpty) 'ignoredPaths': ignoredPaths,
+    };
+  }
+}
+
+enum WorkspaceFileExplorerWatchStatus { pending, active, blocked }
+
+extension WorkspaceFileExplorerWatchStatusX
+    on WorkspaceFileExplorerWatchStatus {
+  String get wireValue {
+    return switch (this) {
+      WorkspaceFileExplorerWatchStatus.pending => 'pending',
+      WorkspaceFileExplorerWatchStatus.active => 'active',
+      WorkspaceFileExplorerWatchStatus.blocked => 'blocked',
+    };
+  }
+}
+
+enum WorkspaceFileExplorerWatchEventKind { created, modified, deleted, renamed }
+
+extension WorkspaceFileExplorerWatchEventKindX
+    on WorkspaceFileExplorerWatchEventKind {
+  String get wireValue {
+    return switch (this) {
+      WorkspaceFileExplorerWatchEventKind.created => 'created',
+      WorkspaceFileExplorerWatchEventKind.modified => 'modified',
+      WorkspaceFileExplorerWatchEventKind.deleted => 'deleted',
+      WorkspaceFileExplorerWatchEventKind.renamed => 'renamed',
+    };
+  }
+}
+
+class WorkspaceFileExplorerWatchPlan {
+  const WorkspaceFileExplorerWatchPlan({
+    required this.rootPath,
+    this.source = 'file-system-manager',
+    this.recursive = true,
+    this.includeGlobs = const <String>['**/*'],
+    this.excludeGlobs = const <String>['.git/**', 'build/**'],
+    this.status = WorkspaceFileExplorerWatchStatus.pending,
+    this.message = '',
+  });
+
+  final String rootPath;
+  final String source;
+  final bool recursive;
+  final List<String> includeGlobs;
+  final List<String> excludeGlobs;
+  final WorkspaceFileExplorerWatchStatus status;
+  final String message;
+
+  bool get active => status == WorkspaceFileExplorerWatchStatus.active;
+
+  WorkspaceFileExplorerWatchPlan activate({String message = ''}) {
+    return copyWith(
+      status: WorkspaceFileExplorerWatchStatus.active,
+      message: message,
+    );
+  }
+
+  WorkspaceFileExplorerWatchPlan block(String message) {
+    return copyWith(
+      status: WorkspaceFileExplorerWatchStatus.blocked,
+      message: message,
+    );
+  }
+
+  WorkspaceFileExplorerWatchPlan copyWith({
+    WorkspaceFileExplorerWatchStatus? status,
+    String? message,
+  }) {
+    return WorkspaceFileExplorerWatchPlan(
+      rootPath: rootPath,
+      source: source,
+      recursive: recursive,
+      includeGlobs: includeGlobs,
+      excludeGlobs: excludeGlobs,
+      status: status ?? this.status,
+      message: message ?? this.message,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'rootPath': rootPath,
+      'source': source,
+      'recursive': recursive,
+      'includeGlobs': includeGlobs,
+      'excludeGlobs': excludeGlobs,
+      'status': status.wireValue,
+      'active': active,
+      if (message.isNotEmpty) 'message': message,
+    };
+  }
+}
+
+class WorkspaceFileExplorerWatchEvent {
+  const WorkspaceFileExplorerWatchEvent({
+    required this.kind,
+    required this.path,
+    required this.timestamp,
+    this.nextPath = '',
+    this.source = 'file-system-manager',
+  });
+
+  final WorkspaceFileExplorerWatchEventKind kind;
+  final String path;
+  final String nextPath;
+  final String source;
+  final DateTime timestamp;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'path': path,
+      if (nextPath.isNotEmpty) 'nextPath': nextPath,
+      'source': source,
+      'timestamp': timestamp.toIso8601String(),
+    };
+  }
+}
+
+class WorkspaceFileExplorerWatchSnapshot {
+  const WorkspaceFileExplorerWatchSnapshot({
+    required this.plan,
+    this.baseFilePaths = const <String>[],
+    this.events = const <WorkspaceFileExplorerWatchEvent>[],
+  });
+
+  final WorkspaceFileExplorerWatchPlan plan;
+  final List<String> baseFilePaths;
+  final List<WorkspaceFileExplorerWatchEvent> events;
+
+  List<String> get filePaths {
+    final paths = <String>{};
+    for (final basePath in baseFilePaths) {
+      final normalizedPath = _normalizeWorkspaceFileExplorerPath(basePath);
+      if (_validateWorkspaceFileExplorerPath(normalizedPath) == null) {
+        paths.add(normalizedPath);
+      }
+    }
+    for (final event in events) {
+      final path = _normalizeWorkspaceFileExplorerPath(event.path);
+      final nextPath = _normalizeWorkspaceFileExplorerPath(event.nextPath);
+      if (_validateWorkspaceFileExplorerPath(path) != null) {
+        continue;
+      }
+      switch (event.kind) {
+        case WorkspaceFileExplorerWatchEventKind.created:
+          paths.add(path);
+        case WorkspaceFileExplorerWatchEventKind.modified:
+          paths.add(path);
+        case WorkspaceFileExplorerWatchEventKind.deleted:
+          paths.remove(path);
+        case WorkspaceFileExplorerWatchEventKind.renamed:
+          paths.remove(path);
+          if (_validateWorkspaceFileExplorerPath(nextPath) == null) {
+            paths.add(nextPath);
+          }
+      }
+    }
+    final result = paths.toList(growable: false)..sort();
+    return List<String>.unmodifiable(result);
+  }
+
+  int get eventCount => events.length;
+
+  WorkspaceFileExplorerDiscoveryResult toDiscoveryResult() {
+    return WorkspaceFileExplorerDiscoveryResult.fromPaths(
+      discoveredPaths: filePaths,
+      source: '${plan.source}.watch',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'plan': plan.toJson(),
+      'eventCount': eventCount,
+      'fileCount': filePaths.length,
+      'filePaths': filePaths,
+      'events': events.map((event) => event.toJson()).toList(growable: false),
     };
   }
 }
@@ -301,6 +484,19 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
       openFilePaths: workspaceController.openFilePaths,
       state: _state,
       discovery: discovery,
+    );
+  }
+
+  WorkspaceFileExplorerSnapshot snapshotFromWatch(
+    WorkspaceFileExplorerWatchSnapshot watch,
+  ) {
+    return WorkspaceFileExplorerSnapshot(
+      roots: buildWorkspaceFileExplorerTree(watch.filePaths),
+      activeFilePath: workspaceController.activeFilePath,
+      openFilePaths: workspaceController.openFilePaths,
+      state: _state,
+      discovery: watch.toDiscoveryResult(),
+      watch: watch,
     );
   }
 

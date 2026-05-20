@@ -35,6 +35,7 @@ void main() {
     expect(plan.panelById('bottom.search')?.active, isTrue);
     expect(plan.toJson()['todo'], contains('mature diagnostics'));
     expect(plan.renderBinding().compactActivityFallback, isTrue);
+    expect(plan.renderBinding().viewportKey, 'shell-viewport-mobile');
     expect(plan.renderBinding().bottomPanelExpanded, isTrue);
     expect(
       plan.renderBinding().toJson()['visiblePanelIds'],

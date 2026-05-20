@@ -4897,16 +4897,21 @@ class _InlineLanguageFeedback extends StatelessWidget {
                               quickFixes[index],
                             ),
                           ),
-                        ...compactCompletions.map(
-                          (item) => _InlineActionChip(
+                        for (
+                          var index = 0;
+                          index < compactCompletions.length;
+                          index += 1
+                        )
+                          _InlineActionChip(
                             key: ValueKey(
-                              'inline-completion-action-${item.label}',
+                              'inline-completion-action-$index-${compactCompletions[index].label}',
                             ),
                             icon: Icons.auto_awesome_rounded,
-                            label: item.label,
-                            onTap: () => controller.applyCompletionItem(item),
+                            label: compactCompletions[index].label,
+                            onTap: () => controller.applyCompletionItem(
+                              compactCompletions[index],
+                            ),
                           ),
-                        ),
                         if (formattingEdits.isNotEmpty)
                           _InlineActionChip(
                             key: const ValueKey('inline-format-action'),
@@ -4998,17 +5003,22 @@ class _InlineLanguageFeedback extends StatelessWidget {
                                         quickFixes[index],
                                       ),
                                 ),
-                              ...compactCompletions.map(
-                                (item) => _InlineActionChip(
+                              for (
+                                var index = 0;
+                                index < compactCompletions.length;
+                                index += 1
+                              )
+                                _InlineActionChip(
                                   key: ValueKey(
-                                    'inline-completion-action-${item.label}',
+                                    'inline-completion-action-$index-${compactCompletions[index].label}',
                                   ),
                                   icon: Icons.auto_awesome_rounded,
-                                  label: '${item.label} · ${item.kind.name}',
-                                  onTap: () =>
-                                      controller.applyCompletionItem(item),
+                                  label:
+                                      '${compactCompletions[index].label} · ${compactCompletions[index].kind.name}',
+                                  onTap: () => controller.applyCompletionItem(
+                                    compactCompletions[index],
+                                  ),
                                 ),
-                              ),
                               if (formattingEdits.isNotEmpty)
                                 _InlineActionChip(
                                   key: const ValueKey('inline-format-action'),

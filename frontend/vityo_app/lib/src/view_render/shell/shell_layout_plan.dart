@@ -462,9 +462,12 @@ class ShellLayoutRenderBinding {
   factory ShellLayoutRenderBinding.fromPlan(ShellLayoutPlan plan) {
     final activeBottomPanelId = 'bottom.${plan.activeBottomTab.name}';
     final activeBottomPanel = plan.panelById(activeBottomPanelId);
+    final viewportKey = plan.mode == ShellLayoutMode.compact
+        ? 'shell-viewport-mobile'
+        : 'shell-viewport-${plan.mode.wireValue}';
     return ShellLayoutRenderBinding(
       mode: plan.mode,
-      viewportKey: 'shell-viewport-${plan.mode.wireValue}',
+      viewportKey: viewportKey,
       activeBottomPanelId: activeBottomPanelId,
       visiblePanelIds: plan.visiblePanelIds,
       bottomPanelExpanded:

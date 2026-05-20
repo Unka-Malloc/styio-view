@@ -4969,9 +4969,20 @@ class ShellRuntimeModel extends ChangeNotifier {
       profile: profile,
       controller: agentCodingController,
       bearerToken: bearerToken,
+      retryTelemetrySink: _publishAgentProviderRetryTelemetry,
     );
     appendLog(result.message);
     return result;
+  }
+
+  void _publishAgentProviderRetryTelemetry(
+    AgentProviderRequest request,
+    AgentProviderRetryExecution<AgentProviderResponseEnvelope> execution,
+  ) {
+    const binding = AgentProviderStreamRuntimeOutputBinding();
+    runtimeOutputBuffer.addEvent(
+      binding.retryEventFor(execution, requestId: request.requestId),
+    );
   }
 
   Future<void> loadThemeOverride({String key = 'default'}) async {

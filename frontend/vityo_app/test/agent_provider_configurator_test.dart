@@ -142,6 +142,7 @@ void main() {
   test('agent provider configurator can mount retrying adapter', () async {
     final telemetry =
         <AgentProviderRetryExecution<AgentProviderResponseEnvelope>>[];
+    final telemetryRequestIds = <String>[];
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
       adapter: const LocalOnlyAgentProviderAdapter(),
@@ -164,7 +165,10 @@ void main() {
       retryExecutor: const AgentProviderRetryExecutor(
         policy: AgentProviderRetryPolicy(maxAttempts: 2),
       ),
-      retryTelemetrySink: telemetry.add,
+      retryTelemetrySink: (request, execution) {
+        telemetryRequestIds.add(request.requestId);
+        telemetry.add(execution);
+      },
     );
 
     final result = await configurator.saveAndMount(
@@ -185,6 +189,7 @@ void main() {
         userPrompt: 'Check retry telemetry.',
       ),
     );
+    expect(telemetryRequestIds.single, 'retry-mounted');
     expect(telemetry.single.succeeded, isTrue);
     expect(telemetry.single.attemptCount, 1);
   });

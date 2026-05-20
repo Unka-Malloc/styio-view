@@ -162,6 +162,7 @@ class AgentProviderConfigurator {
     required AgentCodingSessionController controller,
     String key = 'default',
     String? bearerToken,
+    AgentProviderResponseRetryTelemetrySink? retryTelemetrySink,
   }) async {
     final profileToSave = await _profileWithOptionalBearerToken(
       profile: profile,
@@ -180,7 +181,10 @@ class AgentProviderConfigurator {
     final executionResolution = await _resolveExecutionFor(profileToSave);
     try {
       final createdAdapter = await _createAdapter(profileToSave);
-      final adapter = _adapterWithRetry(createdAdapter);
+      final adapter = _adapterWithRetry(
+        createdAdapter,
+        retryTelemetrySink: retryTelemetrySink,
+      );
       final message = synced
           ? 'Agent provider profile saved, synced, and mounted.'
           : 'Agent provider profile saved and mounted.';
@@ -230,7 +234,10 @@ class AgentProviderConfigurator {
     }
   }
 
-  AgentProviderAdapter _adapterWithRetry(AgentProviderAdapter adapter) {
+  AgentProviderAdapter _adapterWithRetry(
+    AgentProviderAdapter adapter, {
+    AgentProviderResponseRetryTelemetrySink? retryTelemetrySink,
+  }) {
     final retryExecutor = _retryExecutor;
     if (retryExecutor == null) {
       return adapter;
@@ -241,7 +248,7 @@ class AgentProviderConfigurator {
     return RetryingAgentProviderAdapter(
       inner: adapter,
       retryExecutor: retryExecutor,
-      telemetrySink: _retryTelemetrySink,
+      telemetrySink: retryTelemetrySink ?? _retryTelemetrySink,
     );
   }
 

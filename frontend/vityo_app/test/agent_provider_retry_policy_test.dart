@@ -78,12 +78,16 @@ void main() {
     final adapter = _FlakyAgentProviderAdapter();
     final telemetry =
         <AgentProviderRetryExecution<AgentProviderResponseEnvelope>>[];
+    final telemetryRequestIds = <String>[];
     final retrying = RetryingAgentProviderAdapter(
       inner: adapter,
       retryExecutor: const AgentProviderRetryExecutor(
         policy: AgentProviderRetryPolicy(maxAttempts: 2),
       ),
-      telemetrySink: telemetry.add,
+      telemetrySink: (request, execution) {
+        telemetryRequestIds.add(request.requestId);
+        telemetry.add(execution);
+      },
     );
 
     final response = await retrying.send(
@@ -98,6 +102,7 @@ void main() {
     expect(retrying.adapterId, 'flaky:retrying');
     expect(adapter.calls, 2);
     expect(response.contentParts.single.text, 'retry ok');
+    expect(telemetryRequestIds.single, 'retry-request');
     expect(telemetry.single.succeeded, isTrue);
     expect(telemetry.single.attemptCount, 2);
     expect(telemetry.single.attempts.first.retryScheduled, isTrue);

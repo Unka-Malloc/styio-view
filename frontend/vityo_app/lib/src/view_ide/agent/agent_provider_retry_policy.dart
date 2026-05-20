@@ -5,6 +5,7 @@ typedef AgentProviderRetryDelay = Future<void> Function(Duration delay);
 typedef AgentProviderRetryClock = DateTime Function();
 typedef AgentProviderResponseRetryTelemetrySink =
     void Function(
+      AgentProviderRequest request,
       AgentProviderRetryExecution<AgentProviderResponseEnvelope> execution,
     );
 
@@ -251,7 +252,7 @@ class RetryingAgentProviderAdapter
         .execute<AgentProviderResponseEnvelope>(
           operation: (_) => inner.send(request),
         );
-    telemetrySink?.call(execution);
+    telemetrySink?.call(request, execution);
     if (execution.succeeded && execution.value != null) {
       return execution.value!;
     }

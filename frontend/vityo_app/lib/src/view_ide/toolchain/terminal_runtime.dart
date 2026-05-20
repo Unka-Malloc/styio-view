@@ -342,6 +342,138 @@ class ShellManagerRuntimeOutputAdapter {
   }
 }
 
+enum ShellManagerRuntimeExecutionStatus { executed, blocked, wrongRoute }
+
+extension ShellManagerRuntimeExecutionStatusX
+    on ShellManagerRuntimeExecutionStatus {
+  String get wireValue => switch (this) {
+    ShellManagerRuntimeExecutionStatus.executed => 'executed',
+    ShellManagerRuntimeExecutionStatus.blocked => 'blocked',
+    ShellManagerRuntimeExecutionStatus.wrongRoute => 'wrong-route',
+  };
+}
+
+class ShellManagerRuntimeExecutionResult {
+  const ShellManagerRuntimeExecutionResult({
+    required this.binding,
+    required this.status,
+    required this.outputEvent,
+    this.execution,
+  });
+
+  final RuntimeExecutionHandoffBinding binding;
+  final ShellManagerRuntimeExecutionStatus status;
+  final RuntimeOutputEvent outputEvent;
+  final ShellManagerRuntimeOutputExecution? execution;
+
+  bool get executed => status == ShellManagerRuntimeExecutionStatus.executed;
+  bool get succeeded => execution?.succeeded ?? false;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'executed': executed,
+      'succeeded': succeeded,
+      'binding': binding.toJson(),
+      'outputEvent': outputEvent.toJson(),
+      if (execution != null) 'execution': execution!.toJson(),
+    };
+  }
+}
+
+class ShellManagerRuntimeExecutionAdapter {
+  ShellManagerRuntimeExecutionAdapter({
+    required ShellManager shellManager,
+    ShellConfiguration? configuration,
+    RuntimeTaskClock? clock,
+  }) : _clock = clock ?? DateTime.now().toUtc,
+       _outputAdapter = ShellManagerRuntimeOutputAdapter(
+         shellManager: shellManager,
+         configuration: configuration,
+         clock: clock,
+       );
+
+  final RuntimeTaskClock _clock;
+  final ShellManagerRuntimeOutputAdapter _outputAdapter;
+
+  Future<ShellManagerRuntimeExecutionResult> executeHandoff({
+    required RuntimeExecutionHandoffBinding binding,
+    required RuntimeOutputLiveBuffer buffer,
+  }) async {
+    if (binding.managerId != 'shell-manager') {
+      return _controlResult(
+        binding: binding,
+        buffer: buffer,
+        status: ShellManagerRuntimeExecutionStatus.wrongRoute,
+        message:
+            'Runtime shell execution ignored non-shell route ${binding.managerId}.',
+      );
+    }
+    if (!binding.ready) {
+      return _controlResult(
+        binding: binding,
+        buffer: buffer,
+        status: ShellManagerRuntimeExecutionStatus.blocked,
+        message: 'Runtime shell execution blocked before process start.',
+      );
+    }
+
+    final execution = await _outputAdapter.runAndBind(
+      request: ShellCommandRequest(
+        command: binding.handoff.command,
+        arguments: binding.handoff.arguments,
+        environment: binding.handoff.environment,
+        workingDirectory: binding.handoff.workingDirectory,
+      ),
+      buffer: buffer,
+      channelId: binding.outputChannel.id,
+      label: binding.outputChannel.label,
+    );
+    final outputEvent = binding.outputEvent(
+      message: execution.succeeded
+          ? 'Runtime shell handoff ${binding.handoff.taskId} completed.'
+          : 'Runtime shell handoff ${binding.handoff.taskId} failed.',
+      timestamp: _clock(),
+      kind: RuntimeOutputChannelKind.runtimeEvents,
+      metadata: <String, Object?>{
+        'runtimeShellExecutionStatus':
+            ShellManagerRuntimeExecutionStatus.executed.wireValue,
+        'succeeded': execution.succeeded,
+        'eventCount': execution.eventCount,
+      },
+    );
+    buffer.addEvent(outputEvent, now: _clock());
+    return ShellManagerRuntimeExecutionResult(
+      binding: binding,
+      status: ShellManagerRuntimeExecutionStatus.executed,
+      outputEvent: outputEvent,
+      execution: execution,
+    );
+  }
+
+  ShellManagerRuntimeExecutionResult _controlResult({
+    required RuntimeExecutionHandoffBinding binding,
+    required RuntimeOutputLiveBuffer buffer,
+    required ShellManagerRuntimeExecutionStatus status,
+    required String message,
+  }) {
+    final outputEvent = binding.outputEvent(
+      message: message,
+      timestamp: _clock(),
+      kind: RuntimeOutputChannelKind.runtimeEvents,
+      metadata: <String, Object?>{
+        'runtimeShellExecutionStatus': status.wireValue,
+      },
+    );
+    buffer.addEvent(outputEvent, now: _clock());
+    return ShellManagerRuntimeExecutionResult(
+      binding: binding,
+      status: status,
+      outputEvent: outputEvent,
+    );
+  }
+}
+
 class TerminalRuntimeStartResult {
   const TerminalRuntimeStartResult({required this.session, this.taskSnapshot});
 

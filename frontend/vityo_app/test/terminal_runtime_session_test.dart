@@ -340,6 +340,98 @@ void main() {
       expect(execution.toJson()['eventCount'], 2);
     },
   );
+
+  test(
+    'shell manager runtime execution adapter runs handoff into live output',
+    () async {
+      const definition = RuntimeTaskDefinition(
+        id: 'shell-run',
+        label: 'Shell run',
+        kind: RuntimeTaskKind.shell,
+        command: 'printf',
+        arguments: <String>['handoff-ok'],
+      );
+      final binding = const RuntimeExecutionPlanner()
+          .plan(definition: definition)
+          .createHandoff(
+            target: RuntimeExecutionHandoffTarget.shellManager,
+            outputChannelId: 'shell.runtime',
+          )
+          .bind();
+      final buffer = RuntimeOutputLiveBuffer();
+      addTearDown(buffer.dispose);
+      final adapter = ShellManagerRuntimeExecutionAdapter(
+        shellManager: LocalShellManager.linuxDebianArmForTest(
+          shellPath: '/bin/sh',
+        ),
+        clock: () => DateTime.utc(2026, 5, 20, 11),
+      );
+
+      final result = await adapter.executeHandoff(
+        binding: binding,
+        buffer: buffer,
+      );
+
+      expect(result.executed, isTrue);
+      expect(result.succeeded, isTrue);
+      expect(result.execution?.eventCount, 2);
+      expect(result.toJson()['succeeded'], isTrue);
+      expect(
+        buffer.snapshot.visibleEvents.map((event) => event.message),
+        containsAll(<String>[
+          'Shell command printf completed.',
+          'handoff-ok',
+          'Runtime shell handoff shell-run completed.',
+        ]),
+      );
+      expect(
+        buffer
+            .snapshot
+            .visibleEvents
+            .last
+            .metadata['runtimeShellExecutionStatus'],
+        'executed',
+      );
+    },
+  );
+
+  test('shell manager runtime execution adapter rejects wrong route', () async {
+    const definition = RuntimeTaskDefinition(
+      id: 'tool-run',
+      label: 'Tool run',
+      kind: RuntimeTaskKind.build,
+      command: 'printf',
+    );
+    final binding = const RuntimeExecutionPlanner()
+        .plan(definition: definition)
+        .createHandoff(target: RuntimeExecutionHandoffTarget.toolchainManager)
+        .bind();
+    final buffer = RuntimeOutputLiveBuffer();
+    addTearDown(buffer.dispose);
+    final adapter = ShellManagerRuntimeExecutionAdapter(
+      shellManager: LocalShellManager.linuxDebianArmForTest(
+        shellPath: '/bin/sh',
+      ),
+      clock: () => DateTime.utc(2026, 5, 20, 11),
+    );
+
+    final result = await adapter.executeHandoff(
+      binding: binding,
+      buffer: buffer,
+    );
+
+    expect(result.status, ShellManagerRuntimeExecutionStatus.wrongRoute);
+    expect(result.succeeded, isFalse);
+    expect(buffer.snapshot.visibleEvents.single.message, contains('ignored'));
+    expect(
+      buffer
+          .snapshot
+          .visibleEvents
+          .single
+          .metadata['runtimeShellExecutionStatus'],
+      'wrong-route',
+    );
+  });
 }
 
 class _FakePtyManager implements PtyManager {

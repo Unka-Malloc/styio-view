@@ -234,8 +234,49 @@ class DebugLaunchConfiguration {
         'launch': toJson(),
         'adapterProtocol': adapterProtocol,
         'source': 'DebugLaunchConfiguration',
-        'todo':
-            'TODO: attach DAP events and debug console output to runtime task history.',
+        'debugConsole': 'runtime-output-channel',
+      },
+    );
+  }
+
+  RuntimeExecutionHandoff toRuntimeExecutionHandoff({
+    String? taskId,
+    String? label,
+    RuntimeExecutionHandoffTarget target =
+        RuntimeExecutionHandoffTarget.terminalRuntime,
+    String? outputChannelId,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final definition = toRuntimeTaskDefinition(
+      taskId: taskId,
+      label: label,
+      metadata: <String, Object?>{
+        'debugLaunchReadiness': readiness.wireValue,
+        ...metadata,
+      },
+    );
+    final plan = RuntimeExecutionPlan(
+      definition: definition,
+      status: ready
+          ? RuntimeExecutionPlanStatus.ready
+          : RuntimeExecutionPlanStatus.blockedUnrunnable,
+      message: ready
+          ? 'Debug launch $debuggerId is ready for ${target.wireValue}.'
+          : reason,
+      executionOrder: ready ? <String>[definition.id] : const <String>[],
+      metadata: <String, Object?>{
+        'debuggerId': debuggerId,
+        'adapterProtocol': adapterProtocol,
+        'debugLaunchReadiness': readiness.wireValue,
+      },
+    );
+    return plan.createHandoff(
+      target: target,
+      outputChannelId: outputChannelId ?? 'debug.$debuggerId.console',
+      metadata: <String, Object?>{
+        'debuggerId': debuggerId,
+        'adapterProtocol': adapterProtocol,
+        'debugLaunchReadiness': readiness.wireValue,
       },
     );
   }

@@ -124,6 +124,63 @@ void main() {
     },
   );
 
+  test('debug launch contract creates runtime execution handoff', () {
+    final launch = DebugLaunchConfiguration.fromToolchainDescriptor(
+      debugger: const ToolchainDescriptor(
+        id: 'lldb-dap',
+        kind: ToolchainKind.debugger,
+        displayName: 'LLDB DAP',
+        executablePath: '/usr/bin/lldb-dap',
+        metadata: <String, Object?>{
+          'adapterProtocol': 'dap',
+          'programPath': 'build/vityo',
+          'debugAdapterArguments': <String>['--stdio'],
+        },
+      ),
+      workspaceRoot: '/workspace/vityo',
+    );
+
+    final handoff = launch.toRuntimeExecutionHandoff(
+      taskId: 'debug.current',
+      target: RuntimeExecutionHandoffTarget.terminalRuntime,
+    );
+    final restored = RuntimeExecutionHandoff.fromJson(handoff.toJson());
+
+    expect(handoff.ready, isTrue);
+    expect(handoff.taskId, 'debug.current');
+    expect(handoff.target, RuntimeExecutionHandoffTarget.terminalRuntime);
+    expect(handoff.command, '/usr/bin/lldb-dap');
+    expect(handoff.arguments, <String>[
+      '--stdio',
+      '/workspace/vityo/build/vityo',
+    ]);
+    expect(handoff.outputChannelId, 'debug.lldb-dap.console');
+    expect(handoff.metadata['adapterProtocol'], 'dap');
+    expect(handoff.metadata['debugLaunchReadiness'], 'ready');
+    expect(restored.ready, isTrue);
+    expect(restored.plan.definition.kind, RuntimeTaskKind.debug);
+  });
+
+  test('debug launch handoff preserves blocked readiness', () {
+    final launch = DebugLaunchConfiguration.fromToolchainDescriptor(
+      debugger: const ToolchainDescriptor(
+        id: 'lldb-dap',
+        kind: ToolchainKind.debugger,
+        displayName: 'LLDB DAP',
+        executablePath: '/usr/bin/lldb-dap',
+        metadata: <String, Object?>{'adapterProtocol': 'dap'},
+      ),
+      workspaceRoot: '/workspace/vityo',
+    );
+
+    final handoff = launch.toRuntimeExecutionHandoff(taskId: 'debug.current');
+
+    expect(handoff.ready, isFalse);
+    expect(handoff.status, RuntimeExecutionHandoffStatus.blocked);
+    expect(handoff.metadata['debugLaunchReadiness'], 'missing-program');
+    expect(handoff.plan.message, contains('metadata.programPath'));
+  });
+
   test('debug launch profile set selects default and round trips JSON', () {
     final launch = DebugLaunchConfiguration.fromToolchainDescriptor(
       debugger: const ToolchainDescriptor(

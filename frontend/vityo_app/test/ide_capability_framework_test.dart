@@ -294,6 +294,10 @@ void main() {
       contains('Credential DataStore-backed bearer token references'),
     );
     expect(
+      entriesById['agent.provider']?.summary,
+      contains('failover provider mount execution'),
+    );
+    expect(
       entriesById['debugger.dap']?.summary,
       contains('DebugLaunchTelemetryStore'),
     );
@@ -312,6 +316,14 @@ void main() {
     expect(
       entriesById['agent.coding-loop']?.summary,
       contains('checkpoint result prompt replay'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('ShellRuntime retry/replay recovery command dispatch'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('Agent Surface recovery command action controls'),
     );
     expect(
       entriesById['agent.coding-loop']?.summary,

@@ -11,6 +11,7 @@ import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_event_bridge.dart';
+import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
 import 'package:vityo_app/src/view_ide/testing/testing.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
@@ -454,7 +455,7 @@ void main() {
     final testingDebugRoute =
         testingJson['debugFailedRoutePlan']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 48);
+    expect(json['schemaVersion'], 49);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1494,7 +1495,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 48);
+    expect(json['schemaVersion'], 49);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1769,7 +1770,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 48);
+    expect(context.schemaVersion, 49);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');
@@ -1779,6 +1780,34 @@ void main() {
       (items.single! as Map<String, Object?>)['actionLabel'],
       'Insert assignment',
     );
+  });
+
+  test('agent session context serializes semantic confidence matrix', () {
+    const document = DocumentState(
+      documentId: 'fixture://agent-semantic-confidence',
+      text: 'value := 1\nvalue\n',
+      revision: 1,
+    );
+    final snapshot = const SemanticSnapshotBuilder().build(document);
+    final matrix = SemanticSnapshotFeatureMatrix.fromSnapshot(
+      snapshot: snapshot,
+      source: SemanticSnapshotProviderSource.localBuilderFallback,
+    );
+    final context = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      semanticFeatureMatrix: matrix,
+    );
+
+    final languageJson = context.toJson()['language']! as Map<String, Object?>;
+    final semanticMatrix =
+        languageJson['semanticFeatureMatrix']! as Map<String, Object?>;
+
+    expect(semanticMatrix['source'], 'local-builder-fallback');
+    expect(semanticMatrix['localFallbackFeatureCount'], greaterThan(0));
+    expect(semanticMatrix['serviceBackedFeatureCount'], 0);
+    expect(semanticMatrix['unavailableFeatures'], contains('rename-safety'));
   });
 
   test('agent session context serializes recent diagnostic summaries', () {

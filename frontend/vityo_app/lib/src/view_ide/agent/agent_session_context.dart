@@ -100,6 +100,7 @@ class AgentSessionContext {
     Iterable<DocumentSymbol> documentSymbols = const <DocumentSymbol>[],
     Iterable<InlayHint> inlayHints = const <InlayHint>[],
     Iterable<SemanticBlockRange> semanticBlocks = const <SemanticBlockRange>[],
+    SemanticSnapshotFeatureMatrix? semanticFeatureMatrix,
     Iterable<SemanticSnapshotPanelViewModel> semanticPanelViewModels =
         const <SemanticSnapshotPanelViewModel>[],
     LanguageServiceStatusSurface? languageServiceStatus,
@@ -156,7 +157,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 48,
+      schemaVersion: 49,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -229,6 +230,7 @@ class AgentSessionContext {
         documentSymbols: documentSymbols,
         inlayHints: inlayHints,
         semanticBlocks: semanticBlocks,
+        semanticFeatureMatrix: semanticFeatureMatrix,
         semanticPanelViewModels: semanticPanelViewModels,
         serviceStatus: languageServiceStatus == null
             ? null
@@ -1538,6 +1540,7 @@ class AgentLanguageContext {
     required this.semanticBlockCount,
     required this.semanticBlocks,
     required this.semanticBlocksTruncated,
+    this.semanticFeatureMatrix,
     required this.refactorPreviewCount,
     required this.refactorPreviews,
     required this.semanticPanelViewModelCount,
@@ -1583,6 +1586,7 @@ class AgentLanguageContext {
   final int semanticBlockCount;
   final List<AgentSemanticBlockContext> semanticBlocks;
   final bool semanticBlocksTruncated;
+  final AgentSemanticFeatureMatrixContext? semanticFeatureMatrix;
   final int refactorPreviewCount;
   final List<AgentRefactorPreviewContext> refactorPreviews;
   final int semanticPanelViewModelCount;
@@ -1613,6 +1617,7 @@ class AgentLanguageContext {
     Iterable<DocumentSymbol> documentSymbols = const <DocumentSymbol>[],
     Iterable<InlayHint> inlayHints = const <InlayHint>[],
     Iterable<SemanticBlockRange> semanticBlocks = const <SemanticBlockRange>[],
+    SemanticSnapshotFeatureMatrix? semanticFeatureMatrix,
     Iterable<SemanticSnapshotPanelViewModel> semanticPanelViewModels =
         const <SemanticSnapshotPanelViewModel>[],
     AgentLanguageServiceStatusContext? serviceStatus,
@@ -1781,6 +1786,9 @@ class AgentLanguageContext {
           )
           .toList(growable: false),
       semanticBlocksTruncated: semanticBlockList.length > maxSemanticBlocks,
+      semanticFeatureMatrix: semanticFeatureMatrix == null
+          ? null
+          : AgentSemanticFeatureMatrixContext.fromMatrix(semanticFeatureMatrix),
       refactorPreviewCount: refactorPreviewList.length,
       refactorPreviews: refactorPreviewList,
       semanticPanelViewModelCount: semanticPanelViewModelList.length,
@@ -1854,6 +1862,8 @@ class AgentLanguageContext {
           .map((block) => block.toJson())
           .toList(growable: false),
       'semanticBlocksTruncated': semanticBlocksTruncated,
+      if (semanticFeatureMatrix != null)
+        'semanticFeatureMatrix': semanticFeatureMatrix!.toJson(),
       'refactorPreviewCount': refactorPreviewCount,
       'refactorPreviews': refactorPreviews
           .map((preview) => preview.toJson())
@@ -2434,6 +2444,50 @@ class AgentSemanticBlockContext {
       'start': start,
       'end': end,
       'range': range.toJson(),
+    };
+  }
+}
+
+class AgentSemanticFeatureMatrixContext {
+  const AgentSemanticFeatureMatrixContext({
+    required this.source,
+    required this.availableFeatureCount,
+    required this.serviceBackedFeatureCount,
+    required this.localFallbackFeatureCount,
+    required this.unavailableFeatureCount,
+    required this.unavailableFeatures,
+  });
+
+  final String source;
+  final int availableFeatureCount;
+  final int serviceBackedFeatureCount;
+  final int localFallbackFeatureCount;
+  final int unavailableFeatureCount;
+  final List<String> unavailableFeatures;
+
+  factory AgentSemanticFeatureMatrixContext.fromMatrix(
+    SemanticSnapshotFeatureMatrix matrix,
+  ) {
+    return AgentSemanticFeatureMatrixContext(
+      source: matrix.source.wireValue,
+      availableFeatureCount: matrix.availableFeatureCount,
+      serviceBackedFeatureCount: matrix.serviceBackedFeatureCount,
+      localFallbackFeatureCount: matrix.localFallbackFeatureCount,
+      unavailableFeatureCount: matrix.unavailableFeatureCount,
+      unavailableFeatures: matrix.unavailableFeatures
+          .map((feature) => feature.wireValue)
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'source': source,
+      'availableFeatureCount': availableFeatureCount,
+      'serviceBackedFeatureCount': serviceBackedFeatureCount,
+      'localFallbackFeatureCount': localFallbackFeatureCount,
+      'unavailableFeatureCount': unavailableFeatureCount,
+      'unavailableFeatures': unavailableFeatures,
     };
   }
 }

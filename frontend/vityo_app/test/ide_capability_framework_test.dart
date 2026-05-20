@@ -212,6 +212,10 @@ void main() {
       contains('syntax-validation readiness'),
     );
     expect(
+      entriesById['interaction.language-service-status']?.summary,
+      contains('Styio language provider readiness'),
+    );
+    expect(
       entriesById['interaction.source-control']?.status,
       IdeCapabilityStatus.scaffolded,
     );

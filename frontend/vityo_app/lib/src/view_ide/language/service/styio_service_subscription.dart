@@ -13,6 +13,10 @@ enum StyioServiceSubscriptionEventKind {
   disposed,
 }
 
+enum StyioServiceDaemonEventKind { started, analyzed, failed, stopped }
+
+enum StyioServiceDaemonLifecycleState { detached, active, failed, stopped }
+
 typedef StyioServiceDocumentContextResolver =
     String? Function(DocumentState document);
 
@@ -24,6 +28,8 @@ class StyioServiceSubscriptionEvent {
     required this.generation,
     required this.message,
     this.report,
+    this.providerId = '',
+    this.source = 'subscription-controller',
     DateTime? emittedAt,
   }) : emittedAt = emittedAt ?? DateTime.now().toUtc();
 
@@ -33,6 +39,8 @@ class StyioServiceSubscriptionEvent {
   final int generation;
   final String message;
   final StyioServiceAnalysisReport? report;
+  final String providerId;
+  final String source;
   final DateTime emittedAt;
 
   bool get analyzed => kind == StyioServiceSubscriptionEventKind.analyzed;
@@ -59,12 +67,92 @@ class StyioServiceSubscriptionEvent {
       'revision': revision,
       'generation': generation,
       'message': message,
+      if (providerId.isNotEmpty) 'providerId': providerId,
+      'source': source,
       'cachedResponseStored': cachedResponseStored,
       'semanticPanelEventCount': semanticPanelEvents().length,
       if (response != null) 'response': response.toJson(),
       if (report?.cacheSnapshot != null)
         'cacheSnapshot': report!.cacheSnapshot!.toJson(),
       'emittedAt': emittedAt.toIso8601String(),
+    };
+  }
+}
+
+class StyioServiceDaemonEvent {
+  StyioServiceDaemonEvent({
+    required this.kind,
+    required this.message,
+    this.documentId = '',
+    this.revision = 0,
+    this.report,
+    DateTime? emittedAt,
+  }) : emittedAt = emittedAt ?? DateTime.now().toUtc();
+
+  final StyioServiceDaemonEventKind kind;
+  final String documentId;
+  final int revision;
+  final String message;
+  final StyioServiceAnalysisReport? report;
+  final DateTime emittedAt;
+
+  StyioServiceSubscriptionEvent toSubscriptionEvent({
+    required int generation,
+    required String providerId,
+  }) {
+    return StyioServiceSubscriptionEvent(
+      kind: switch (kind) {
+        StyioServiceDaemonEventKind.started =>
+          StyioServiceSubscriptionEventKind.started,
+        StyioServiceDaemonEventKind.analyzed =>
+          StyioServiceSubscriptionEventKind.analyzed,
+        StyioServiceDaemonEventKind.failed =>
+          StyioServiceSubscriptionEventKind.failed,
+        StyioServiceDaemonEventKind.stopped =>
+          StyioServiceSubscriptionEventKind.cancelled,
+      },
+      documentId: documentId,
+      revision: revision,
+      generation: generation,
+      message: message,
+      report: report,
+      providerId: providerId,
+      source: 'styio-service-daemon',
+      emittedAt: emittedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.name,
+      'documentId': documentId,
+      'revision': revision,
+      'message': message,
+      if (report?.response != null) 'response': report!.response.toJson(),
+      'emittedAt': emittedAt.toIso8601String(),
+    };
+  }
+}
+
+class StyioServiceDaemonLifecycleSnapshot {
+  const StyioServiceDaemonLifecycleSnapshot({
+    required this.state,
+    this.providerId = '',
+    this.message = '',
+  });
+
+  final StyioServiceDaemonLifecycleState state;
+  final String providerId;
+  final String message;
+
+  bool get active => state == StyioServiceDaemonLifecycleState.active;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'state': state.name,
+      'active': active,
+      if (providerId.isNotEmpty) 'providerId': providerId,
+      if (message.isNotEmpty) 'message': message,
     };
   }
 }
@@ -77,12 +165,19 @@ class StyioServiceSubscriptionController {
       StreamController<StyioServiceSubscriptionEvent>.broadcast(sync: true);
 
   StreamSubscription<DocumentState>? _documentSubscription;
+  StreamSubscription<StyioServiceDaemonEvent>? _daemonSubscription;
+  StyioServiceDaemonLifecycleSnapshot _daemonLifecycle =
+      const StyioServiceDaemonLifecycleSnapshot(
+        state: StyioServiceDaemonLifecycleState.detached,
+      );
   var _generation = 0;
   var _disposed = false;
 
   Stream<StyioServiceSubscriptionEvent> get events => _events.stream;
   bool get disposed => _disposed;
   bool get listening => _documentSubscription != null;
+  bool get daemonStreamListening => _daemonSubscription != null;
+  StyioServiceDaemonLifecycleSnapshot get daemonLifecycle => _daemonLifecycle;
   int get generation => _generation;
 
   void bindDocumentStream(
@@ -103,6 +198,71 @@ class StyioServiceSubscriptionController {
         ),
       );
     });
+  }
+
+  void bindDaemonEventStream({
+    required String providerId,
+    required Stream<StyioServiceDaemonEvent> events,
+  }) {
+    _ensureActive();
+    unawaited(_daemonSubscription?.cancel());
+    _daemonLifecycle = StyioServiceDaemonLifecycleSnapshot(
+      state: StyioServiceDaemonLifecycleState.active,
+      providerId: providerId,
+      message: 'StyioService daemon stream attached.',
+    );
+    _daemonSubscription = events.listen(
+      (event) {
+        _generation += 1;
+        _emit(
+          event.toSubscriptionEvent(
+            generation: _generation,
+            providerId: providerId,
+          ),
+        );
+      },
+      onError: (Object error) {
+        _generation += 1;
+        _daemonLifecycle = StyioServiceDaemonLifecycleSnapshot(
+          state: StyioServiceDaemonLifecycleState.failed,
+          providerId: providerId,
+          message: 'StyioService daemon stream failed: $error',
+        );
+        _emit(
+          StyioServiceSubscriptionEvent(
+            kind: StyioServiceSubscriptionEventKind.failed,
+            documentId: '',
+            revision: 0,
+            generation: _generation,
+            message: _daemonLifecycle.message,
+            providerId: providerId,
+            source: 'styio-service-daemon',
+          ),
+        );
+      },
+      onDone: () {
+        _daemonSubscription = null;
+        _daemonLifecycle = StyioServiceDaemonLifecycleSnapshot(
+          state: StyioServiceDaemonLifecycleState.stopped,
+          providerId: providerId,
+          message: 'StyioService daemon stream stopped.',
+        );
+      },
+    );
+  }
+
+  Future<StyioServiceDaemonLifecycleSnapshot> stopDaemonStream({
+    String message = 'StyioService daemon stream stopped.',
+  }) async {
+    _ensureActive();
+    await _daemonSubscription?.cancel();
+    _daemonSubscription = null;
+    _daemonLifecycle = StyioServiceDaemonLifecycleSnapshot(
+      state: StyioServiceDaemonLifecycleState.stopped,
+      providerId: _daemonLifecycle.providerId,
+      message: message,
+    );
+    return _daemonLifecycle;
   }
 
   Future<StyioServiceSubscriptionEvent> refresh(
@@ -184,6 +344,13 @@ class StyioServiceSubscriptionController {
     _generation += 1;
     await _documentSubscription?.cancel();
     _documentSubscription = null;
+    await _daemonSubscription?.cancel();
+    _daemonSubscription = null;
+    _daemonLifecycle = StyioServiceDaemonLifecycleSnapshot(
+      state: StyioServiceDaemonLifecycleState.stopped,
+      providerId: _daemonLifecycle.providerId,
+      message: message,
+    );
     return _emit(
       StyioServiceSubscriptionEvent(
         kind: StyioServiceSubscriptionEventKind.cancelled,
@@ -208,6 +375,13 @@ class StyioServiceSubscriptionController {
     _generation += 1;
     await _documentSubscription?.cancel();
     _documentSubscription = null;
+    await _daemonSubscription?.cancel();
+    _daemonSubscription = null;
+    _daemonLifecycle = StyioServiceDaemonLifecycleSnapshot(
+      state: StyioServiceDaemonLifecycleState.stopped,
+      providerId: _daemonLifecycle.providerId,
+      message: 'StyioService daemon stream disposed.',
+    );
     _disposed = true;
     final event = _emit(
       StyioServiceSubscriptionEvent(

@@ -130,6 +130,53 @@ void main() {
       expect(controller.listening, isFalse);
     },
   );
+
+  test(
+    'StyioService subscription binds provider daemon stream lifecycle',
+    () async {
+      final connector = _FactoryStyioServiceConnector(
+        (request) => StyioServiceResponse(
+          status: StyioServiceStatus.succeeded,
+          documentId: request.documentId,
+          revision: request.revision,
+        ),
+      );
+      final controller = StyioServiceSubscriptionController(
+        driver: StyioServiceAnalysisDriver(connector: connector),
+      );
+      addTearDown(controller.dispose);
+      final daemonEvents = StreamController<StyioServiceDaemonEvent>();
+      addTearDown(daemonEvents.close);
+      controller.bindDaemonEventStream(
+        providerId: 'styio-daemon.fixture',
+        events: daemonEvents.stream,
+      );
+      final nextDaemonEvent = controller.events.firstWhere(
+        (event) => event.source == 'styio-service-daemon',
+      );
+
+      daemonEvents.add(
+        StyioServiceDaemonEvent(
+          kind: StyioServiceDaemonEventKind.analyzed,
+          documentId: 'fixture://daemon',
+          revision: 3,
+          message: 'daemon analyzed document',
+        ),
+      );
+      final event = await nextDaemonEvent;
+      expect(controller.daemonLifecycle.active, isTrue);
+      final stopped = await controller.stopDaemonStream();
+
+      expect(controller.daemonStreamListening, isFalse);
+      expect(event.kind, StyioServiceSubscriptionEventKind.analyzed);
+      expect(event.providerId, 'styio-daemon.fixture');
+      expect(event.documentId, 'fixture://daemon');
+      expect(event.toJson()['source'], 'styio-service-daemon');
+      expect(stopped.state, StyioServiceDaemonLifecycleState.stopped);
+      expect(stopped.providerId, 'styio-daemon.fixture');
+      expect(stopped.toJson()['active'], isFalse);
+    },
+  );
 }
 
 typedef _StyioServiceResponseFactory =

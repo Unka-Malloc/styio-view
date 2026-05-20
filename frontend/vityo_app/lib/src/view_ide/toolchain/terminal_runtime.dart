@@ -57,6 +57,21 @@ class TerminalSessionSnapshot {
         .toList(growable: false);
   }
 
+  List<RuntimeOutputProducerEmission> runtimeOutputProducerEmissions({
+    String? channelId,
+    String label = 'Terminal',
+  }) {
+    final resolvedChannelId = channelId ?? 'terminal.$sessionId';
+    return events
+        .map(
+          (event) => event.toRuntimeOutputProducerEmission(
+            channelId: resolvedChannelId,
+            label: label,
+          ),
+        )
+        .toList(growable: false);
+  }
+
   RuntimeOutputPanelSnapshot outputPanelSnapshot({
     String? channelId,
     String label = 'Terminal',
@@ -136,6 +151,36 @@ class TerminalInteractionEvent {
         if (cols != null) 'cols': cols,
         if (exitCode != null) 'exitCode': exitCode,
       },
+    );
+  }
+
+  RuntimeOutputProducerEmission toRuntimeOutputProducerEmission({
+    required String channelId,
+    required String label,
+  }) {
+    final metadata = <String, Object?>{
+      'terminalSessionId': sessionId,
+      'terminalEventKind': kind.wireValue,
+      'sequence': sequence,
+      if (rows != null) 'rows': rows,
+      if (cols != null) 'cols': cols,
+      if (exitCode != null) 'exitCode': exitCode,
+    };
+    if (kind == TerminalInteractionEventKind.output) {
+      return RuntimeOutputProducerEmission.stdout(
+        message: message,
+        timestamp: timestamp,
+        channelId: channelId,
+        label: label,
+        metadata: metadata,
+      );
+    }
+    return RuntimeOutputProducerEmission.runtimeEvent(
+      message: message.isEmpty ? kind.wireValue : message,
+      timestamp: timestamp,
+      channelId: channelId,
+      label: label,
+      metadata: metadata,
     );
   }
 }
@@ -324,6 +369,9 @@ class TerminalInteractionController extends ChangeNotifier {
   final String runtimeOutputLabel;
   final StreamController<RuntimeOutputEvent> _runtimeOutputEvents =
       StreamController<RuntimeOutputEvent>.broadcast(sync: true);
+  final StreamController<RuntimeOutputProducerEmission>
+  _runtimeOutputEmissions =
+      StreamController<RuntimeOutputProducerEmission>.broadcast(sync: true);
 
   PtySession? _session;
   StreamSubscription<String>? _outputSubscription;
@@ -336,6 +384,8 @@ class TerminalInteractionController extends ChangeNotifier {
 
   Stream<RuntimeOutputEvent> get runtimeOutputEvents =>
       _runtimeOutputEvents.stream;
+  Stream<RuntimeOutputProducerEmission> get runtimeOutputEmissions =>
+      _runtimeOutputEmissions.stream;
 
   TerminalSessionSnapshot? get snapshot {
     final session = _session;
@@ -357,6 +407,14 @@ class TerminalInteractionController extends ChangeNotifier {
     RuntimeOutputLiveBuffer buffer,
   ) {
     return buffer.bind(runtimeOutputEvents);
+  }
+
+  StreamSubscription<RuntimeOutputProducerEmission>
+  bindRuntimeOutputProducerAdapter(
+    RuntimeOutputProducerAdapter adapter,
+    RuntimeOutputLiveBuffer buffer,
+  ) {
+    return adapter.bind(runtimeOutputEmissions, buffer);
   }
 
   Future<TerminalSessionSnapshot> start({
@@ -493,12 +551,21 @@ class TerminalInteractionController extends ChangeNotifier {
         ),
       );
     }
+    if (!_runtimeOutputEmissions.isClosed) {
+      _runtimeOutputEmissions.add(
+        event.toRuntimeOutputProducerEmission(
+          channelId: 'terminal.$sessionId',
+          label: runtimeOutputLabel,
+        ),
+      );
+    }
   }
 
   @override
   void dispose() {
     unawaited(_outputSubscription?.cancel());
     unawaited(_runtimeOutputEvents.close());
+    unawaited(_runtimeOutputEmissions.close());
     super.dispose();
   }
 }

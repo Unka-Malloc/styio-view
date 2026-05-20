@@ -78,6 +78,29 @@ void main() {
       final liveSubscription = controller.bindRuntimeOutputBuffer(liveBuffer);
       addTearDown(liveSubscription.cancel);
       addTearDown(liveBuffer.dispose);
+      final producerBuffer = RuntimeOutputLiveBuffer(
+        subscriptionPlan: RuntimeOutputStreamSubscriptionPlan.forManager(
+          taskId: 'terminal.sh',
+          managerId: 'terminal-runtime',
+          routeKind: 'terminal-task',
+          channelIds: const <String>['terminal.fake-pty'],
+          kinds: const <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.runtimeEvents,
+            RuntimeOutputChannelKind.stdout,
+          ],
+          status: RuntimeOutputSubscriptionStatus.active,
+        ),
+      );
+      final terminalAdapter =
+          RuntimeOutputProducerAdapterRegistry.defaultAdapters().lookup(
+            'terminal-runtime',
+          )!;
+      final producerSubscription = controller.bindRuntimeOutputProducerAdapter(
+        terminalAdapter,
+        producerBuffer,
+      );
+      addTearDown(producerSubscription.cancel);
+      addTearDown(producerBuffer.dispose);
 
       final started = await controller.start(
         rows: 30,
@@ -143,12 +166,24 @@ void main() {
         channelId: 'terminal.fake-pty',
         label: 'Fake Terminal',
       );
+      final producerEmissions = controller.snapshot!
+          .runtimeOutputProducerEmissions(
+            channelId: 'terminal.fake-pty',
+            label: 'Fake Terminal',
+          );
       expect(runtimeEvents, hasLength(5));
       expect(runtimeEvents[1].kind, RuntimeOutputChannelKind.stdout);
       expect(runtimeEvents.last.metadata['terminalEventKind'], 'closed');
+      expect(producerEmissions, hasLength(5));
+      expect(producerEmissions[1].kind, RuntimeOutputChannelKind.stdout);
       expect(outputPanelSnapshot.visibleEvents, hasLength(5));
       expect(liveBuffer.snapshot.visibleEvents, hasLength(5));
       expect(liveBuffer.snapshot.visibleEvents[1].message, 'hello\n');
+      expect(producerBuffer.snapshot.visibleEvents, hasLength(5));
+      expect(
+        producerBuffer.snapshot.visibleEvents.first.metadata['producerId'],
+        'terminal-runtime',
+      );
       expect(
         liveBuffer.snapshot.visibleEvents.last.metadata['terminalEventKind'],
         'closed',

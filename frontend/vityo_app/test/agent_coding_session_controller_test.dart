@@ -96,6 +96,33 @@ void main() {
     },
   );
 
+  test('agent coding session consumes streaming provider events', () async {
+    final buffer = RuntimeOutputLiveBuffer();
+    addTearDown(buffer.dispose);
+    final adapter = _StreamingAgentProviderAdapter();
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: adapter,
+      contextProvider: _context,
+      runtimeOutputBuffer: buffer,
+    );
+
+    controller.updatePrompt('Stream a response.');
+    final response = await controller.sendPrompt();
+
+    expect(response?.contentParts.single.text, 'streamed answer');
+    expect(adapter.sendCalled, isFalse);
+    expect(adapter.streamedRequestIds, <String>['agent-request-1']);
+    final streamEvents = buffer.snapshot.events
+        .where((event) => event.metadata['streamEventKind'] != null)
+        .toList(growable: false);
+    expect(
+      streamEvents.map((event) => event.metadata['streamEventKind']),
+      <String>['started', 'contentDelta', 'completed'],
+    );
+    expect(buffer.snapshot.events.last.metadata['outcome'], 'succeeded');
+  });
+
   test('agent coding session publishes history restore failures', () async {
     final buffer = RuntimeOutputLiveBuffer();
     addTearDown(buffer.dispose);
@@ -1676,6 +1703,37 @@ class _FakeAgentProviderAdapter implements AgentProviderAdapter {
   ) async {
     requests.add(request);
     return response;
+  }
+}
+
+class _StreamingAgentProviderAdapter implements StreamingAgentProviderAdapter {
+  final List<String> streamedRequestIds = <String>[];
+  var sendCalled = false;
+
+  @override
+  String get adapterId => 'streaming';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.cloudOpenAICompatible;
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(AgentProviderRequest request) {
+    sendCalled = true;
+    throw StateError('streaming adapter send should not be used');
+  }
+
+  @override
+  Stream<AgentProviderStreamEvent> stream(AgentProviderRequest request) async* {
+    streamedRequestIds.add(request.requestId);
+    yield AgentProviderStreamEvent.started(request.requestId);
+    yield AgentProviderStreamEvent.delta(
+      requestId: request.requestId,
+      text: 'streamed answer',
+    );
+    yield AgentProviderStreamEvent.completed(requestId: request.requestId);
   }
 }
 

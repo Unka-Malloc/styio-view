@@ -8,6 +8,7 @@ import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
+import 'agent_provider_streaming_runtime.dart';
 import 'agent_session_context.dart';
 import 'agent_workspace_edit_adapter.dart';
 import '../runtime/runtime.dart';
@@ -293,7 +294,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       _activeProviderRequestId = request.requestId;
       _activeProviderPrompt = prompt;
       _activeProviderStartedAt = requestStartedAt;
-      final response = await adapter.send(request);
+      final response = await _sendProviderRequest(request);
       if (requestSerial != _activeRequestSerial) {
         return null;
       }
@@ -387,6 +388,26 @@ class AgentCodingSessionController extends ChangeNotifier {
         ? adapter as CancellableAgentProviderAdapter
         : null;
     cancellableAdapter?.cancelRequest(requestId);
+  }
+
+  Future<AgentProviderResponseEnvelope> _sendProviderRequest(
+    AgentProviderRequest request,
+  ) {
+    final streamingAdapter = adapter is StreamingAgentProviderAdapter
+        ? adapter as StreamingAgentProviderAdapter
+        : null;
+    if (streamingAdapter == null) {
+      return adapter.send(request);
+    }
+    const binding = AgentProviderStreamRuntimeOutputBinding();
+    final events = streamingAdapter.stream(request).map((event) {
+      _runtimeOutputBuffer?.addEvent(binding.eventFor(event));
+      return event;
+    });
+    return const AgentProviderStreamingResponseCollector().collect(
+      requestId: request.requestId,
+      events: events,
+    );
   }
 
   Future<void> _appendAgentCodingSessionHistory(

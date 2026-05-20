@@ -98,6 +98,60 @@ void main() {
     },
   );
 
+  test('credential storage policy blocks long lived unsafe secrets', () {
+    final policy = const CredentialStoragePolicy();
+    final record = CredentialSecretRecord(
+      key: const CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'openai',
+        scope: CredentialScope.user,
+      ),
+      kind: CredentialKind.token,
+      secretValue: 'long-lived-token',
+      createdAt: DateTime.utc(2026, 5, 20),
+      updatedAt: DateTime.utc(2026, 5, 20),
+    );
+    const health = CredentialDataStoreHealth(
+      protection: CredentialStorageProtection.foundationDataStore,
+      persistent: true,
+      safeForLongLivedSecrets: false,
+      message: 'FoundationDataStore is persistent but not secure.',
+    );
+
+    final decision = policy.evaluateWrite(record: record, health: health);
+
+    expect(decision.allowed, isFalse);
+    expect(decision.kind, CredentialStoragePolicyDecisionKind.blocked);
+    expect(decision.reason, contains('Long-lived credential'));
+    expect(decision.toJson()['todo'], startsWith('TODO:'));
+  });
+
+  test('credential storage policy allows platform secure storage', () {
+    final policy = const CredentialStoragePolicy();
+    final record = CredentialSecretRecord(
+      key: const CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'openai',
+        scope: CredentialScope.user,
+      ),
+      kind: CredentialKind.token,
+      secretValue: 'secure-token',
+      createdAt: DateTime.utc(2026, 5, 20),
+      updatedAt: DateTime.utc(2026, 5, 20),
+    );
+    const health = CredentialDataStoreHealth(
+      protection: CredentialStorageProtection.platformSecureStorage,
+      persistent: true,
+      safeForLongLivedSecrets: true,
+      message: 'OS-backed secure storage is available.',
+    );
+
+    final decision = policy.evaluateWrite(record: record, health: health);
+
+    expect(decision.allowed, isTrue);
+    expect(decision.kind, CredentialStoragePolicyDecisionKind.allowed);
+  });
+
   test(
     'credential references can be stored in ordinary configuration safely',
     () {

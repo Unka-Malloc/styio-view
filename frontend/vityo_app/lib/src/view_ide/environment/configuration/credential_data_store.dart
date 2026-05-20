@@ -342,6 +342,101 @@ class CredentialDataStoreHealth {
   }
 }
 
+enum CredentialStoragePolicyDecisionKind { allowed, warning, blocked }
+
+extension CredentialStoragePolicyDecisionKindX
+    on CredentialStoragePolicyDecisionKind {
+  String get wireValue => switch (this) {
+    CredentialStoragePolicyDecisionKind.allowed => 'allowed',
+    CredentialStoragePolicyDecisionKind.warning => 'warning',
+    CredentialStoragePolicyDecisionKind.blocked => 'blocked',
+  };
+}
+
+class CredentialStoragePolicyDecision {
+  const CredentialStoragePolicyDecision({
+    required this.kind,
+    required this.reason,
+    this.todo = '',
+  });
+
+  final CredentialStoragePolicyDecisionKind kind;
+  final String reason;
+  final String todo;
+
+  bool get allowed => kind != CredentialStoragePolicyDecisionKind.blocked;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'allowed': allowed,
+      'reason': reason,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class CredentialStoragePolicy {
+  const CredentialStoragePolicy({
+    this.allowUnsafePersistentLongLivedSecrets = false,
+    this.longLivedSecretThreshold = const Duration(days: 30),
+  });
+
+  final bool allowUnsafePersistentLongLivedSecrets;
+  final Duration longLivedSecretThreshold;
+
+  CredentialStoragePolicyDecision evaluateWrite({
+    required CredentialSecretRecord record,
+    required CredentialDataStoreHealth health,
+    DateTime? now,
+  }) {
+    if (health.safeForLongLivedSecrets) {
+      return CredentialStoragePolicyDecision(
+        kind: CredentialStoragePolicyDecisionKind.allowed,
+        reason:
+            'Credential store ${health.protection.wireValue} is safe for long-lived secrets.',
+      );
+    }
+
+    final longLived = _isLongLived(record, now: now);
+    if (health.persistent && longLived) {
+      if (allowUnsafePersistentLongLivedSecrets) {
+        return const CredentialStoragePolicyDecision(
+          kind: CredentialStoragePolicyDecisionKind.warning,
+          reason:
+              'Long-lived credential is allowed by explicit unsafe policy override.',
+          todo:
+              'TODO: migrate this credential to a platform secure storage adapter.',
+        );
+      }
+      return const CredentialStoragePolicyDecision(
+        kind: CredentialStoragePolicyDecisionKind.blocked,
+        reason:
+            'Long-lived credential cannot be stored in persistent non-secure storage.',
+        todo:
+            'TODO: use platform secure storage before accepting long-lived provider tokens.',
+      );
+    }
+
+    return CredentialStoragePolicyDecision(
+      kind: CredentialStoragePolicyDecisionKind.warning,
+      reason:
+          'Credential store ${health.protection.wireValue} is not safe for long-lived secrets; only short-lived or test credentials should use it.',
+      todo:
+          'TODO: replace this storage route with a platform secure storage adapter for production secrets.',
+    );
+  }
+
+  bool _isLongLived(CredentialSecretRecord record, {DateTime? now}) {
+    final expiresAt = record.expiresAt;
+    if (expiresAt == null) {
+      return true;
+    }
+    final referenceTime = now ?? DateTime.now().toUtc();
+    return expiresAt.difference(referenceTime) > longLivedSecretThreshold;
+  }
+}
+
 class CredentialInjectionBinding {
   const CredentialInjectionBinding({
     required this.targetName,

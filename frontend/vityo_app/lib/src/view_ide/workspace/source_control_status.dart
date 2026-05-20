@@ -596,6 +596,54 @@ class SourceControlDiffSnapshot {
     );
   }
 
+  List<SourceControlDiffHunk> get hunks {
+    if (unifiedDiff.trim().isEmpty) {
+      return const <SourceControlDiffHunk>[];
+    }
+    final lines = unifiedDiff.split('\n');
+    final hunks = <SourceControlDiffHunk>[];
+    var hunkStart = -1;
+    var hunkHeader = '';
+    void flush(int endLine) {
+      if (hunkStart < 0) {
+        return;
+      }
+      final hunkLines = lines.sublist(hunkStart, endLine);
+      var additions = 0;
+      var deletions = 0;
+      for (final line in hunkLines) {
+        if (line.startsWith('+') && !line.startsWith('+++')) {
+          additions += 1;
+        } else if (line.startsWith('-') && !line.startsWith('---')) {
+          deletions += 1;
+        }
+      }
+      hunks.add(
+        SourceControlDiffHunk(
+          hunkIndex: hunks.length,
+          path: path,
+          header: hunkHeader,
+          startLine: hunkStart,
+          lines: List<String>.unmodifiable(hunkLines),
+          additionCount: additions,
+          deletionCount: deletions,
+        ),
+      );
+    }
+
+    for (var index = 0; index < lines.length; index += 1) {
+      final line = lines[index];
+      if (!line.startsWith('@@')) {
+        continue;
+      }
+      flush(index);
+      hunkStart = index;
+      hunkHeader = line;
+    }
+    flush(lines.length);
+    return List<SourceControlDiffHunk>.unmodifiable(hunks);
+  }
+
   SourceControlDiffWindow window({int startLine = 0, int lineLimit = 200}) {
     return SourceControlDiffWindow.fromSnapshot(
       snapshot: this,
@@ -618,8 +666,51 @@ class SourceControlDiffSnapshot {
       if (message.isNotEmpty) 'message': message,
       'diffTruncated': truncated,
       'reviewSummary': reviewSummary.toJson(),
+      'hunks': hunks.map((hunk) => hunk.toJson()).toList(growable: false),
       'defaultWindow': window().toJson(),
       'unifiedDiff': visibleDiff,
+    };
+  }
+}
+
+class SourceControlDiffHunk {
+  const SourceControlDiffHunk({
+    required this.hunkIndex,
+    required this.path,
+    required this.header,
+    required this.startLine,
+    required this.lines,
+    required this.additionCount,
+    required this.deletionCount,
+  });
+
+  final int hunkIndex;
+  final String path;
+  final String header;
+  final int startLine;
+  final List<String> lines;
+  final int additionCount;
+  final int deletionCount;
+
+  int get endLine => startLine + lines.length;
+  bool get hasChanges => additionCount > 0 || deletionCount > 0;
+  String get summary {
+    return 'hunk ${hunkIndex + 1} · +$additionCount -$deletionCount · lines $startLine-$endLine';
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'hunkIndex': hunkIndex,
+      'path': path,
+      'header': header,
+      'startLine': startLine,
+      'endLine': endLine,
+      'lineCount': lines.length,
+      'additionCount': additionCount,
+      'deletionCount': deletionCount,
+      'hasChanges': hasChanges,
+      'summary': summary,
+      'lines': lines,
     };
   }
 }
@@ -847,6 +938,101 @@ class SourceControlDiffConfirmationPlan {
       'summary': summary,
       'reviewSummary': reviewSummary.toJson(),
       if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
+    };
+  }
+}
+
+class SourceControlDiffHunkActionPlan {
+  const SourceControlDiffHunkActionPlan({
+    required this.kind,
+    required this.path,
+    required this.selectedHunkIndexes,
+    required this.selectedHunks,
+    required this.risk,
+    required this.canSelect,
+    required this.summary,
+    this.blockedReason = '',
+  });
+
+  factory SourceControlDiffHunkActionPlan.fromDiff({
+    required SourceControlDiffSnapshot snapshot,
+    required SourceControlActionKind kind,
+    required List<int> selectedHunkIndexes,
+  }) {
+    final allHunks = snapshot.hunks;
+    final normalizedIndexes = selectedHunkIndexes
+        .where((index) => index >= 0 && index < allHunks.length)
+        .toSet()
+        .toList(growable: false)
+      ..sort();
+    final selectedHunks = normalizedIndexes
+        .map((index) => allHunks[index])
+        .toList(growable: false);
+    final risk = switch (kind) {
+      SourceControlActionKind.stage => SourceControlActionRisk.safe,
+      SourceControlActionKind.unstage => SourceControlActionRisk.safe,
+      SourceControlActionKind.discard => SourceControlActionRisk.destructive,
+      SourceControlActionKind.commit => SourceControlActionRisk.createsRevision,
+    };
+    final blockedReason = !snapshot.available
+        ? 'Source control hunk action requires an available diff preview.'
+        : snapshot.empty
+        ? 'Source control hunk action requires reviewed diff content.'
+        : allHunks.isEmpty
+        ? 'Source control hunk action requires at least one parsed hunk.'
+        : normalizedIndexes.isEmpty
+        ? 'Source control hunk action requires at least one selected hunk.'
+        : kind == SourceControlActionKind.commit
+        ? 'Source control hunk action does not support commit.'
+        : '';
+    final additions = selectedHunks.fold<int>(
+      0,
+      (total, hunk) => total + hunk.additionCount,
+    );
+    final deletions = selectedHunks.fold<int>(
+      0,
+      (total, hunk) => total + hunk.deletionCount,
+    );
+    return SourceControlDiffHunkActionPlan(
+      kind: kind,
+      path: snapshot.path,
+      selectedHunkIndexes: List<int>.unmodifiable(normalizedIndexes),
+      selectedHunks: List<SourceControlDiffHunk>.unmodifiable(selectedHunks),
+      risk: risk,
+      canSelect: blockedReason.isEmpty,
+      blockedReason: blockedReason,
+      summary:
+          '${kind.wireValue} ${normalizedIndexes.length} hunk(s) in ${snapshot.path} · +$additions -$deletions · risk ${risk.wireValue}',
+    );
+  }
+
+  final SourceControlActionKind kind;
+  final String path;
+  final List<int> selectedHunkIndexes;
+  final List<SourceControlDiffHunk> selectedHunks;
+  final SourceControlActionRisk risk;
+  final bool canSelect;
+  final String summary;
+  final String blockedReason;
+
+  bool get requiresConfirmation => risk == SourceControlActionRisk.destructive;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'path': path,
+      'selectedHunkIndexes': selectedHunkIndexes,
+      'selectedHunkCount': selectedHunks.length,
+      'risk': risk.wireValue,
+      'requiresConfirmation': requiresConfirmation,
+      'canSelect': canSelect,
+      'summary': summary,
+      if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
+      'selectedHunks': selectedHunks
+          .map((hunk) => hunk.toJson())
+          .toList(growable: false),
+      'todo':
+          'TODO: connect selected hunks to an SCM partial patch execution provider.',
     };
   }
 }

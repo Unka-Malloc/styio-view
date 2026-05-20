@@ -27,6 +27,7 @@ class SourceControlSurface extends StatelessWidget {
     this.onSwitchBranch,
     this.onOpenCommit,
     this.onConfirmDiffAction,
+    this.onSelectHunkAction,
   });
 
   final ViewportProfile viewportProfile;
@@ -51,6 +52,8 @@ class SourceControlSurface extends StatelessWidget {
   final Future<void> Function()? onOpenCommit;
   final Future<void> Function(SourceControlDiffConfirmationPlan plan)?
   onConfirmDiffAction;
+  final Future<void> Function(SourceControlDiffHunkActionPlan plan)?
+  onSelectHunkAction;
 
   @override
   Widget build(BuildContext context) {
@@ -328,6 +331,11 @@ class SourceControlSurface extends StatelessWidget {
                   snapshot: diffPreview!,
                   onConfirmDiffAction: onConfirmDiffAction,
                 ),
+                const SizedBox(height: 8),
+                _DiffHunkActionSelection(
+                  snapshot: diffPreview!,
+                  onSelectHunkAction: onSelectHunkAction,
+                ),
                 const SizedBox(height: 12),
               ],
               Text('Changes', style: theme.textTheme.titleSmall),
@@ -452,6 +460,118 @@ class _DiffConfirmationControls extends StatelessWidget {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiffHunkActionSelection extends StatelessWidget {
+  const _DiffHunkActionSelection({
+    required this.snapshot,
+    this.onSelectHunkAction,
+  });
+
+  final SourceControlDiffSnapshot snapshot;
+  final Future<void> Function(SourceControlDiffHunkActionPlan plan)?
+  onSelectHunkAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hunks = snapshot.hunks;
+    return Container(
+      key: const ValueKey('source-control-hunk-action-selection'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Hunk action selection', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            'Select hunk-level stage/discard plans without executing partial patches yet. TODO: bind to SCM partial patch provider.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          if (hunks.isEmpty)
+            Text(
+              'No parsed diff hunks are available.',
+              style: theme.textTheme.bodySmall,
+            )
+          else
+            for (final hunk in hunks.take(6))
+              Card(
+                key: ValueKey('source-control-hunk-${hunk.hunkIndex}'),
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(hunk.summary, style: theme.textTheme.labelLarge),
+                      const SizedBox(height: 2),
+                      Text(hunk.header, style: theme.textTheme.bodySmall),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          OutlinedButton.icon(
+                            key: ValueKey(
+                              'source-control-hunk-stage-${hunk.hunkIndex}',
+                            ),
+                            onPressed: onSelectHunkAction == null
+                                ? null
+                                : () {
+                                    onSelectHunkAction!(
+                                      SourceControlDiffHunkActionPlan.fromDiff(
+                                        snapshot: snapshot,
+                                        kind: SourceControlActionKind.stage,
+                                        selectedHunkIndexes: <int>[
+                                          hunk.hunkIndex,
+                                        ],
+                                      ),
+                                    );
+                                  },
+                            icon: const Icon(Icons.add_task_rounded),
+                            label: const Text('Stage Hunk'),
+                          ),
+                          OutlinedButton.icon(
+                            key: ValueKey(
+                              'source-control-hunk-discard-${hunk.hunkIndex}',
+                            ),
+                            onPressed: onSelectHunkAction == null
+                                ? null
+                                : () {
+                                    onSelectHunkAction!(
+                                      SourceControlDiffHunkActionPlan.fromDiff(
+                                        snapshot: snapshot,
+                                        kind: SourceControlActionKind.discard,
+                                        selectedHunkIndexes: <int>[
+                                          hunk.hunkIndex,
+                                        ],
+                                      ),
+                                    );
+                                  },
+                            icon: const Icon(Icons.delete_sweep_outlined),
+                            label: const Text('Discard Hunk'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          if (hunks.length > 6)
+            Text(
+              'TODO: virtualize older diff hunk rows.',
+              style: theme.textTheme.bodySmall,
+            ),
         ],
       ),
     );

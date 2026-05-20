@@ -490,9 +490,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/execution',
           summary:
-              'ExecutionSession, runtime events, native tool results, runtime task lifecycle snapshots, persisted runtime task history, and extension task contribution definitions expose stable serializable execution contracts for UI and Agent consumers.',
+              'ExecutionSession, runtime events, native tool results, runtime execution plans, dependency readiness checks, runtime task lifecycle snapshots, persisted runtime task history, and extension task contribution definitions expose stable serializable execution contracts for UI and Agent consumers.',
           todo:
-              'TODO: normalize hosted/toolchain-specific metadata fields and attach task output streams.',
+              'TODO: hand ready plans to shell/toolchain execution managers, normalize hosted/toolchain-specific metadata fields, and attach task output streams.',
           references: <String>['VS Code tasks', 'Theia task service'],
         ),
         IdeCapabilityDescriptor(

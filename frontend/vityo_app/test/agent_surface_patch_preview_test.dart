@@ -79,15 +79,13 @@ void main() {
     );
 
     expect(find.text('Active Coding Skills'), findsOneWidget);
-    expect(find.text('6 active / 11 available skills'), findsOneWidget);
-    expect(find.text('C++ Clang Toolchain Defaults'), findsOneWidget);
-    expect(find.text('C++ Clang Version Handoff'), findsOneWidget);
-    expect(find.text('C++ Project Orientation'), findsOneWidget);
-    expect(find.text('C++ Safe Editing'), findsOneWidget);
+    expect(find.text('4 active / 14 available skills'), findsOneWidget);
+    expect(find.text('Styio Language Service Truth'), findsOneWidget);
+    expect(find.text('Styio IDE Feature Loop'), findsOneWidget);
+    expect(find.text('Styio Fixture Confidence Matrix'), findsOneWidget);
     expect(find.text('Reference-Grounded IDE Development'), findsOneWidget);
-    expect(find.text('Styio C++ Compiler Project'), findsOneWidget);
     expect(
-      find.textContaining('The workspace has Styio, C/C++, CMake, Clang'),
+      find.textContaining('Styio source files require StyioService-backed'),
       findsOneWidget,
     );
   });
@@ -226,6 +224,12 @@ void main() {
     expect(find.textContaining('replace main.styio:8-9'), findsOneWidget);
     expect(find.textContaining('create helper.txt:0-0'), findsOneWidget);
     expect(find.textContaining('delete obsolete.txt:0-0'), findsOneWidget);
+    expect(
+      find.text(
+        'Workspace edit plan: 3 file(s), 1 text edit(s), 2 file operation(s)',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('2 workspace file(s)'), findsOneWidget);
     expect(
       find.text('resolved value/variable · ref read · 1 semantic'),
@@ -348,10 +352,7 @@ void main() {
 
     expect(appliedCommand?.commandId, 'selectClangCppVersion');
     expect(appliedCommand?.input, 'fake-clang-18 c++23');
-    expect(
-      find.text('Command selectClangCppVersion applied.'),
-      findsOneWidget,
-    );
+    expect(find.text('Command selectClangCppVersion applied.'), findsOneWidget);
   });
 
   testWidgets('agent surface blocks registered commands missing input', (
@@ -397,7 +398,10 @@ void main() {
     );
 
     expect(find.textContaining('renameSymbol'), findsOneWidget);
-    expect(find.text('Missing required input: New symbol name'), findsOneWidget);
+    expect(
+      find.text('Missing required input: New symbol name'),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(OutlinedButton, 'Apply Command'), findsNothing);
     expect(applied, isFalse);
   });
@@ -796,7 +800,9 @@ void main() {
     expect(appliedCommands.single.commandId, 'openSettings');
     expect(appliedCommands.single.prerequisiteForCommandId, 'runBuild');
     expect(
-      find.text('Command openSettings applied. Review Settings before retrying runBuild.'),
+      find.text(
+        'Command openSettings applied. Review Settings before retrying runBuild.',
+      ),
       findsOneWidget,
     );
     expect(
@@ -1024,12 +1030,8 @@ void main() {
           applied: true,
           message: 'Agent coding checkpoint collected.',
           metadata: const <String, Object?>{
-            'workspaceDiagnostics': <String, Object?>{
-              'totalCount': 2,
-            },
-            'sourceControl': <String, Object?>{
-              'changeCount': 1,
-            },
+            'workspaceDiagnostics': <String, Object?>{'totalCount': 2},
+            'sourceControl': <String, Object?>{'changeCount': 1},
             'sourceControlDiff': <String, Object?>{
               'path': 'src/main.styio',
               'lineCount': 7,
@@ -1112,13 +1114,12 @@ void main() {
     );
     expect(find.text('Static analysis failed.'), findsOneWidget);
     expect(
-      find.text('static analysis failed · diagnostics 2 · route local-cli via cli'),
+      find.text(
+        'static analysis failed · diagnostics 2 · route local-cli via cli',
+      ),
       findsOneWidget,
     );
-    expect(
-      find.text('collectAgentCodingCheckpoint · applied'),
-      findsOneWidget,
-    );
+    expect(find.text('collectAgentCodingCheckpoint · applied'), findsOneWidget);
     expect(find.text('Agent coding checkpoint collected.'), findsOneWidget);
     expect(
       find.text(
@@ -1355,7 +1356,9 @@ void main() {
     await _tapVisible(
       tester,
       find.byKey(
-        const ValueKey('agent-retry-recent-required-command-runTests-runBuild-0'),
+        const ValueKey(
+          'agent-retry-recent-required-command-runTests-runBuild-0',
+        ),
       ),
     );
     await tester.pump();
@@ -1456,9 +1459,7 @@ void main() {
     await _tapVisible(
       tester,
       find.byKey(
-        const ValueKey(
-          'agent-recover-recent-command-runBuild-openSettings-0',
-        ),
+        const ValueKey('agent-recover-recent-command-runBuild-openSettings-0'),
       ),
     );
     await tester.pump();
@@ -1466,7 +1467,9 @@ void main() {
     expect(appliedCommands.single.commandId, 'openSettings');
     expect(appliedCommands.single.prerequisiteForCommandId, 'runBuild');
     expect(
-      find.text('Command openSettings applied. Review Settings before retrying runBuild.'),
+      find.text(
+        'Command openSettings applied. Review Settings before retrying runBuild.',
+      ),
       findsOneWidget,
     );
     expect(
@@ -1538,7 +1541,10 @@ void main() {
       );
 
       expect(find.text('selectClangCppVersion · not applied'), findsOneWidget);
-      expect(find.widgetWithText(OutlinedButton, 'Retry Command'), findsNothing);
+      expect(
+        find.widgetWithText(OutlinedButton, 'Retry Command'),
+        findsNothing,
+      );
       expect(
         find.widgetWithText(OutlinedButton, 'Open Settings'),
         findsOneWidget,

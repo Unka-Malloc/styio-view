@@ -8,6 +8,7 @@ import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_route_executor.dart';
 import 'agent_session_context.dart';
+import 'agent_workspace_edit_adapter.dart';
 
 typedef AgentSessionContextProvider = AgentSessionContext Function();
 
@@ -92,6 +93,10 @@ class AgentCodingSessionController extends ChangeNotifier {
   bool get applyingIdeCommand => _applyingIdeCommand;
   AgentProviderResponseEnvelope? get lastResponse => _lastResponse;
   AgentCodePatch? get pendingPatch => _pendingPatch;
+  AgentWorkspaceEditPlanConversion? get pendingWorkspaceEditPlanConversion =>
+      _pendingPatch == null
+      ? null
+      : const AgentWorkspaceEditPlanAdapter().convert(_pendingPatch!);
   AgentCodePatchApplicationResult? get lastPatchApplicationResult =>
       _lastPatchApplicationResult;
   AgentPatchApplicationContext? get lastPatchApplicationContext =>

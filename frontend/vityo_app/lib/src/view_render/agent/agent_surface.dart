@@ -1272,6 +1272,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final recentCommandResults =
             widget.sessionContext.commands.recentResults;
         final patch = controller.pendingPatch;
+        final patchWorkspaceEditConversion =
+            controller.pendingWorkspaceEditPlanConversion;
+        final patchWorkspaceEditPlan = patchWorkspaceEditConversion?.plan;
         final patchResult = controller.lastPatchApplicationResult;
         final inactiveDirtyPatchTargets = patch == null
             ? const <String>[]
@@ -1690,6 +1693,15 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   'Patch ${patch.patchId}${patch.baseRevision == null ? '' : ' · base rev ${patch.baseRevision}'}',
                   style: theme.textTheme.bodySmall,
                 ),
+                if (patchWorkspaceEditConversion != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    patchWorkspaceEditPlan == null
+                        ? 'Workspace edit plan unavailable: ${patchWorkspaceEditConversion.message}'
+                        : 'Workspace edit plan: ${patchWorkspaceEditPlan.documentIds.length} file(s), ${patchWorkspaceEditPlan.editCount} text edit(s), ${patchWorkspaceEditPlan.fileOperations.length} file operation(s)',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
                 const SizedBox(height: 6),
                 for (final edit in patch.edits.take(5))
                   Padding(

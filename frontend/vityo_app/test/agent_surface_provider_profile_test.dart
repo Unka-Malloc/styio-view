@@ -371,6 +371,9 @@ void main() {
       route: AgentProviderRoute.webHosted,
       protocol: 'openai-compatible',
       requiresCredential: true,
+      credentialReadiness: AgentProviderCredentialReadiness.available,
+      executionStatus: AgentProviderExecutionResolutionStatus.ready,
+      selectedEndpointIndex: 0,
       selectedProvider: AgentProviderRegistrationManifest(
         providerId: 'cloud',
         displayName: 'Cloud Provider',
@@ -438,6 +441,9 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Candidate providers: 1'), findsOneWidget);
+    expect(find.text('Executable: true'), findsOneWidget);
+    expect(find.text('Credential readiness: available'), findsOneWidget);
+    expect(find.text('Execution status: ready'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-provider-selection-credential')),
       findsOneWidget,

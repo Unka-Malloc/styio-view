@@ -778,6 +778,37 @@ class _AgentProviderSelectionStatusCard extends StatelessWidget {
               color: theme.colorScheme.onSecondaryContainer,
             ),
           ),
+          const SizedBox(height: 6),
+          Text(
+            'Executable: ${plan.executable}',
+            key: const ValueKey('agent-provider-selection-executable'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (plan.credentialReadiness != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Credential readiness: ${plan.credentialReadiness!.wireValue}',
+              key: const ValueKey(
+                'agent-provider-selection-credential-readiness',
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ],
+          if (plan.executionStatus != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Execution status: ${plan.executionStatus!.wireValue}',
+              key: const ValueKey('agent-provider-selection-execution-status'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ],
           if (plan.requiresCredential) ...[
             const SizedBox(height: 6),
             Text(

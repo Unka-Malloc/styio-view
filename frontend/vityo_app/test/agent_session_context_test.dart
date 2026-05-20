@@ -1784,6 +1784,9 @@ void main() {
         route: AgentProviderRoute.webHosted,
         protocol: 'openai-compatible',
         requiresCredential: true,
+        credentialReadiness: AgentProviderCredentialReadiness.available,
+        executionStatus: AgentProviderExecutionResolutionStatus.fallbackReady,
+        selectedEndpointIndex: 1,
         selectedProvider: AgentProviderRegistrationManifest(
           providerId: 'cloud',
           displayName: 'Cloud Provider',
@@ -1865,6 +1868,10 @@ void main() {
     expect(providerExecution['status'], 'fallback_ready');
     expect(providerSelection['status'], 'ready');
     expect(providerSelection['requiresCredential'], isTrue);
+    expect(providerSelection['executable'], isTrue);
+    expect(providerSelection['credentialReadiness'], 'available');
+    expect(providerSelection['executionStatus'], 'fallback_ready');
+    expect(providerSelection['selectedEndpointIndex'], 1);
     expect(providerSelection['candidateCount'], 1);
     expect(
       (providerSelection['selectedProvider']!

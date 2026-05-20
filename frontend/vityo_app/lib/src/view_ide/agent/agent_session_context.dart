@@ -731,6 +731,10 @@ class AgentProviderSelectionContext {
     required this.protocol,
     required this.requiresCredential,
     required this.ready,
+    this.executable = false,
+    this.credentialReadiness = '',
+    this.executionStatus = '',
+    this.selectedEndpointIndex,
     this.selectedProvider,
     this.candidates = const <AgentProviderRegistrationManifest>[],
     this.message = '',
@@ -746,6 +750,10 @@ class AgentProviderSelectionContext {
       protocol: plan.protocol,
       requiresCredential: plan.requiresCredential,
       ready: plan.ready,
+      executable: plan.executable,
+      credentialReadiness: plan.credentialReadiness?.wireValue ?? '',
+      executionStatus: plan.executionStatus?.wireValue ?? '',
+      selectedEndpointIndex: plan.selectedEndpointIndex,
       selectedProvider: plan.selectedProvider,
       candidates: plan.candidates,
       message: plan.message,
@@ -758,6 +766,10 @@ class AgentProviderSelectionContext {
   final String protocol;
   final bool requiresCredential;
   final bool ready;
+  final bool executable;
+  final String credentialReadiness;
+  final String executionStatus;
+  final int? selectedEndpointIndex;
   final AgentProviderRegistrationManifest? selectedProvider;
   final List<AgentProviderRegistrationManifest> candidates;
   final String message;
@@ -770,6 +782,12 @@ class AgentProviderSelectionContext {
       'protocol': protocol,
       'requiresCredential': requiresCredential,
       'ready': ready,
+      'executable': executable,
+      if (credentialReadiness.isNotEmpty)
+        'credentialReadiness': credentialReadiness,
+      if (executionStatus.isNotEmpty) 'executionStatus': executionStatus,
+      if (selectedEndpointIndex != null)
+        'selectedEndpointIndex': selectedEndpointIndex,
       if (selectedProvider != null)
         'selectedProvider': selectedProvider!.toJson(),
       'candidateCount': candidates.length,

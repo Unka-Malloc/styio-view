@@ -233,6 +233,45 @@ class RuntimeOutputProducerRegistry {
           todo:
               'TODO: bind this producer to hosted backend event streams and retry telemetry.',
         ),
+        RuntimeOutputProducerDescriptor(
+          producerId: 'language-service',
+          label: 'Language Service',
+          kind: RuntimeOutputProducerKind.languageService,
+          managerId: 'language-service',
+          routeKind: 'language-service-task',
+          channelIds: <String>['runtime.language-service'],
+          outputKinds: <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.languageService,
+          ],
+          todo:
+              'TODO: bind this producer to StyioService diagnostics, semantic snapshot, and provider health streams.',
+        ),
+        RuntimeOutputProducerDescriptor(
+          producerId: 'debug-adapter',
+          label: 'Debug Adapter',
+          kind: RuntimeOutputProducerKind.debugAdapter,
+          managerId: 'debug-adapter',
+          routeKind: 'debug-task',
+          channelIds: <String>['runtime.debug'],
+          outputKinds: <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.debug,
+          ],
+          todo:
+              'TODO: bind this producer to concrete DAP adapter lifecycle and debug console streams.',
+        ),
+        RuntimeOutputProducerDescriptor(
+          producerId: 'agent',
+          label: 'Agent Runtime',
+          kind: RuntimeOutputProducerKind.agent,
+          managerId: 'agent-runtime',
+          routeKind: 'agent-task',
+          channelIds: <String>['runtime.agent'],
+          outputKinds: <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.agent,
+          ],
+          todo:
+              'TODO: bind this producer to coding-agent provider streams, recovery events, and patch application telemetry.',
+        ),
       ],
     );
   }

@@ -236,11 +236,14 @@ void main() {
         outputChannelId: 'shell.styio-run',
       );
 
-      expect(registry.producers, hasLength(4));
+      expect(registry.producers, hasLength(7));
       expect(
         registry.activeProducers.map((producer) => producer.producerId),
         <String>[
+          'agent',
+          'debug-adapter',
           'hosted-executor',
+          'language-service',
           'shell-manager',
           'terminal-runtime',
           'toolchain-manager',
@@ -251,10 +254,13 @@ void main() {
         RuntimeOutputChannelKind.stdout,
         RuntimeOutputChannelKind.stderr,
       ]);
-      expect(subscriptions, hasLength(4));
+      expect(subscriptions, hasLength(7));
       expect(
         subscriptions.map((subscription) => subscription.managerId),
         containsAll(<String>[
+          'agent-runtime',
+          'debug-adapter',
+          'language-service',
           'shell-manager',
           'terminal-runtime',
           'toolchain-manager',
@@ -264,7 +270,7 @@ void main() {
       expect(directSubscription.active, isTrue);
       expect(directSubscription.channelIds, <String>['shell.styio-run']);
       expect(directSubscription.metadata['producerKind'], 'shell-manager');
-      expect(registry.toJson()['producerCount'], 4);
+      expect(registry.toJson()['producerCount'], 7);
     },
   );
 
@@ -272,6 +278,7 @@ void main() {
     'runtime output producer adapters publish emissions into live buffer',
     () async {
       final adapters = RuntimeOutputProducerAdapterRegistry.defaultAdapters();
+      final agent = adapters.lookup('agent')!;
       final shell = adapters.lookup('shell-manager')!;
       final toolchain = adapters.lookup('toolchain-manager')!;
       final buffer = RuntimeOutputLiveBuffer();
@@ -295,8 +302,14 @@ void main() {
           timestamp: DateTime.utc(2026, 5, 20, 11, 1),
         ),
       );
+      final agentEvent = agent.event(
+        RuntimeOutputProducerEmission(
+          message: 'agent patch ready',
+          timestamp: DateTime.utc(2026, 5, 20, 11, 2),
+        ),
+      );
 
-      expect(adapters.adapters, hasLength(4));
+      expect(adapters.adapters, hasLength(7));
       expect(buffer.snapshot.visibleEvents.single.channelId, 'runtime.shell');
       expect(
         buffer.snapshot.visibleEvents.single.kind,
@@ -309,7 +322,10 @@ void main() {
       expect(toolchainEvent.channelId, 'runtime.toolchain');
       expect(toolchainEvent.kind, RuntimeOutputChannelKind.nativeTools);
       expect(toolchainEvent.metadata['producerKind'], 'toolchain-manager');
-      expect(adapters.toJson()['adapterCount'], 4);
+      expect(agentEvent.channelId, 'runtime.agent');
+      expect(agentEvent.kind, RuntimeOutputChannelKind.agent);
+      expect(agentEvent.metadata['producerKind'], 'agent');
+      expect(adapters.toJson()['adapterCount'], 7);
     },
   );
 

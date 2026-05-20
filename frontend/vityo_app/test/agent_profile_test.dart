@@ -104,6 +104,8 @@ void main() {
       ),
     );
     expect(decoded.systemPrompt, contains('metadata.workspaceEditPreview'));
+    expect(decoded.systemPrompt, contains('confirmationPlan.riskLevel'));
+    expect(decoded.systemPrompt, contains('confirmationPlan.blockingReasons'));
     expect(decoded.systemPrompt, contains('collectAgentCodingCheckpoint'));
     expect(decoded.systemPrompt, contains('metadata.sourceControlContext'));
     expect(decoded.systemPrompt, contains('metadata.languageServiceStatus'));

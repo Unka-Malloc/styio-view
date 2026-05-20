@@ -731,6 +731,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('workspaceEditPreview.confirmationPlan.riskLevel'),
+      );
+      expect(
+        systemMessage['content'],
         contains('commands.languageServiceCommands'),
       );
       expect(

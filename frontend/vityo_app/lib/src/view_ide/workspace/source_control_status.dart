@@ -16,6 +16,8 @@ enum SourceControlFileStatus {
 
 enum SourceControlActionKind { stage, unstage, discard, commit }
 
+enum SourceControlActionRisk { safe, indexWrite, destructive, createsRevision }
+
 extension SourceControlProviderKindX on SourceControlProviderKind {
   String get wireValue {
     return switch (this) {
@@ -32,6 +34,17 @@ extension SourceControlActionKindX on SourceControlActionKind {
       SourceControlActionKind.unstage => 'unstage',
       SourceControlActionKind.discard => 'discard',
       SourceControlActionKind.commit => 'commit',
+    };
+  }
+}
+
+extension SourceControlActionRiskX on SourceControlActionRisk {
+  String get wireValue {
+    return switch (this) {
+      SourceControlActionRisk.safe => 'safe',
+      SourceControlActionRisk.indexWrite => 'index-write',
+      SourceControlActionRisk.destructive => 'destructive',
+      SourceControlActionRisk.createsRevision => 'creates-revision',
     };
   }
 }
@@ -72,6 +85,69 @@ class SourceControlActionRequest {
   }
 }
 
+class SourceControlActionPlan {
+  const SourceControlActionPlan({
+    required this.request,
+    required this.normalizedPaths,
+    required this.risk,
+    required this.requiresConfirmation,
+    required this.canRun,
+    required this.summary,
+    this.blockedReason = '',
+  });
+
+  factory SourceControlActionPlan.fromRequest(
+    SourceControlActionRequest request,
+  ) {
+    final normalizedPaths = request.paths
+        .map((path) => path.trim())
+        .where((path) => path.isNotEmpty)
+        .toList(growable: false);
+    final blockedReason = _blockedActionReason(request, normalizedPaths);
+    final risk = switch (request.kind) {
+      SourceControlActionKind.stage => SourceControlActionRisk.indexWrite,
+      SourceControlActionKind.unstage => SourceControlActionRisk.indexWrite,
+      SourceControlActionKind.discard => SourceControlActionRisk.destructive,
+      SourceControlActionKind.commit => SourceControlActionRisk.createsRevision,
+    };
+    return SourceControlActionPlan(
+      request: SourceControlActionRequest(
+        kind: request.kind,
+        paths: normalizedPaths,
+        message: request.message.trim(),
+      ),
+      normalizedPaths: normalizedPaths,
+      risk: risk,
+      requiresConfirmation:
+          risk == SourceControlActionRisk.destructive ||
+          risk == SourceControlActionRisk.createsRevision,
+      canRun: blockedReason.isEmpty,
+      blockedReason: blockedReason,
+      summary: _actionPlanSummary(request, normalizedPaths, risk),
+    );
+  }
+
+  final SourceControlActionRequest request;
+  final List<String> normalizedPaths;
+  final SourceControlActionRisk risk;
+  final bool requiresConfirmation;
+  final bool canRun;
+  final String summary;
+  final String blockedReason;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'request': request.toJson(),
+      'normalizedPaths': normalizedPaths,
+      'risk': risk.wireValue,
+      'requiresConfirmation': requiresConfirmation,
+      'canRun': canRun,
+      'summary': summary,
+      if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
+    };
+  }
+}
+
 class SourceControlActionResult {
   const SourceControlActionResult({
     required this.kind,
@@ -93,6 +169,35 @@ class SourceControlActionResult {
       if (message.isNotEmpty) 'message': message,
     };
   }
+}
+
+String _blockedActionReason(
+  SourceControlActionRequest request,
+  List<String> normalizedPaths,
+) {
+  return switch (request.kind) {
+    SourceControlActionKind.stage ||
+    SourceControlActionKind.unstage ||
+    SourceControlActionKind.discard =>
+      normalizedPaths.isEmpty
+          ? 'Source control ${request.kind.wireValue} requires at least one path.'
+          : '',
+    SourceControlActionKind.commit =>
+      request.message.trim().isEmpty
+          ? 'Source control commit requires a commit message.'
+          : '',
+  };
+}
+
+String _actionPlanSummary(
+  SourceControlActionRequest request,
+  List<String> normalizedPaths,
+  SourceControlActionRisk risk,
+) {
+  final target = request.kind == SourceControlActionKind.commit
+      ? request.message.trim()
+      : '${normalizedPaths.length} path(s)';
+  return '${request.kind.wireValue} $target · risk ${risk.wireValue}';
 }
 
 class SourceControlBranchSnapshot {

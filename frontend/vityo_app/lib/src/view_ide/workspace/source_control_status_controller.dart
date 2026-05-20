@@ -18,6 +18,7 @@ class SourceControlStatusController extends ChangeNotifier {
   SourceControlStatusSnapshot? _snapshot;
   SourceControlDiffSnapshot? _diffPreview;
   SourceControlActionResult? _lastActionResult;
+  SourceControlActionPlan? _pendingActionPlan;
   int _generation = 0;
   int _diffGeneration = 0;
   int _actionGeneration = 0;
@@ -25,8 +26,52 @@ class SourceControlStatusController extends ChangeNotifier {
   SourceControlStatusSnapshot? get snapshot => _snapshot;
   SourceControlDiffSnapshot? get diffPreview => _diffPreview;
   SourceControlActionResult? get lastActionResult => _lastActionResult;
+  SourceControlActionPlan? get pendingActionPlan => _pendingActionPlan;
   bool get hasSnapshot => _snapshot != null;
   bool get hasDiffPreview => _diffPreview != null;
+
+  SourceControlActionPlan planAction(SourceControlActionRequest request) {
+    final plan = SourceControlActionPlan.fromRequest(request);
+    _pendingActionPlan = plan;
+    notifyListeners();
+    return plan;
+  }
+
+  void clearActionPlan() {
+    if (_pendingActionPlan == null) {
+      return;
+    }
+    _pendingActionPlan = null;
+    notifyListeners();
+  }
+
+  Future<SourceControlActionResult> confirmPendingAction() async {
+    final plan = _pendingActionPlan;
+    if (plan == null) {
+      return const SourceControlActionResult(
+        kind: SourceControlActionKind.stage,
+        applied: false,
+        message: 'Source control action skipped: no pending action plan.',
+      );
+    }
+    if (!plan.canRun) {
+      final result = SourceControlActionResult(
+        kind: plan.request.kind,
+        applied: false,
+        paths: plan.normalizedPaths,
+        message: plan.blockedReason,
+      );
+      _lastActionResult = result;
+      notifyListeners();
+      return result;
+    }
+    final result = await runAction(plan.request);
+    if (identical(plan, _pendingActionPlan)) {
+      _pendingActionPlan = null;
+      notifyListeners();
+    }
+    return result;
+  }
 
   Future<SourceControlStatusSnapshot> refresh() async {
     final generation = ++_generation;
@@ -101,6 +146,7 @@ class SourceControlStatusController extends ChangeNotifier {
     _snapshot = null;
     _diffPreview = null;
     _lastActionResult = null;
+    _pendingActionPlan = null;
     notifyListeners();
   }
 }

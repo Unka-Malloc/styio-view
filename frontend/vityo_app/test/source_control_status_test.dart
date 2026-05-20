@@ -169,6 +169,26 @@ diff --git a/lib/main.styio b/lib/main.styio
     expect(invoked, isFalse);
   });
 
+  test('source control action plan classifies risky actions', () {
+    final discard = SourceControlActionPlan.fromRequest(
+      const SourceControlActionRequest(
+        kind: SourceControlActionKind.discard,
+        paths: <String>[' src/main.styio '],
+      ),
+    );
+    final commit = SourceControlActionPlan.fromRequest(
+      const SourceControlActionRequest(kind: SourceControlActionKind.commit),
+    );
+
+    expect(discard.normalizedPaths, <String>['src/main.styio']);
+    expect(discard.risk, SourceControlActionRisk.destructive);
+    expect(discard.requiresConfirmation, isTrue);
+    expect(discard.canRun, isTrue);
+    expect(discard.toJson()['risk'], 'destructive');
+    expect(commit.canRun, isFalse);
+    expect(commit.blockedReason, contains('commit message'));
+  });
+
   test('git branch provider loads current branch and branch list', () async {
     final requests = <SourceControlCommandRequest>[];
     final provider = GitSourceControlBranchProvider(
@@ -411,6 +431,34 @@ diff --git a/lib/main.styio b/lib/main.styio
     expect(result.paths, <String>['src/main.styio']);
     expect(controller.lastActionResult, same(result));
     expect(result.toJson()['kind'], 'stage');
+  });
+
+  test('source control status controller confirms planned action', () async {
+    final controller = SourceControlStatusController(
+      provider: const StaticSourceControlStatusProvider(
+        SourceControlStatusSnapshot(
+          providerKind: SourceControlProviderKind.git,
+          changes: <SourceControlFileChange>[],
+        ),
+      ),
+      actionProvider: _FakeSourceControlActionProvider(),
+      workspaceRoot: '/workspace/vityo',
+    );
+    addTearDown(controller.dispose);
+
+    final plan = controller.planAction(
+      const SourceControlActionRequest(
+        kind: SourceControlActionKind.discard,
+        paths: <String>['src/main.styio'],
+      ),
+    );
+    final result = await controller.confirmPendingAction();
+
+    expect(plan.requiresConfirmation, isTrue);
+    expect(result.applied, isTrue);
+    expect(result.kind, SourceControlActionKind.discard);
+    expect(controller.pendingActionPlan, isNull);
+    expect(controller.lastActionResult, same(result));
   });
 
   test(

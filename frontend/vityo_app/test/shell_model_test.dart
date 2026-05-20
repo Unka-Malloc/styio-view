@@ -780,6 +780,42 @@ void main() {
               as Map<String, Object?>;
       expect(shell.semanticProblemsPanelViewModel?.codeActionCount, 1);
       expect(semanticLanguageJson['semanticPanelViewModelCount'], 1);
+
+      shell.editorController.selectCollapsed(
+        shell.editorController.document.length,
+      );
+      shell.editorController.insertText('\n#agent_save := 1');
+      expect(shell.dirtyDocumentPaths, contains(documentPath));
+
+      final agentSaveApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'save'),
+      );
+      final agentSaveResult = shell.agentSessionContext.commands.lastResult;
+      expect(agentSaveApplied, isTrue);
+      expect(agentSaveResult?.commandId, 'save');
+      expect(agentSaveResult?.metadata['bindingState'], 'boundClean');
+      expect(shell.dirtyDocumentPaths, isNot(contains(documentPath)));
+
+      shell.editorController.insertText('\n#agent_save_all := 1');
+      expect(shell.dirtyDocumentPaths, contains(documentPath));
+      final agentSaveAllApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'saveAll',
+          prerequisiteForCommandId: 'runTests',
+        ),
+      );
+      final agentSaveAllResult = shell.agentSessionContext.commands.lastResult;
+      expect(agentSaveAllApplied, isTrue);
+      expect(agentSaveAllResult?.commandId, 'saveAll');
+      expect(
+        agentSaveAllResult?.metadata['savedDocumentIds'],
+        contains(documentPath),
+      );
+      expect(
+        agentSaveAllResult?.metadata['completedRequiredCommandFor'],
+        'runTests',
+      );
+      expect(shell.dirtyDocumentPaths, isNot(contains(documentPath)));
     },
   );
 

@@ -350,7 +350,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
-              'Workspace text search service, symbol search service, file quick open service, replace preview contract, agent search command, user search surface, and match-level navigation callback are wired.',
+              'Workspace text search service, symbol search service, file quick open service, replace preview contract, search history persistence, agent search command, user search surface, and match-level navigation callback are wired.',
           todo:
               'TODO: add indexed workspace search, replace apply confirmation, and richer diff UI.',
           references: <String>[

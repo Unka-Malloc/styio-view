@@ -29,11 +29,11 @@ class WorkspaceSearchSurface extends StatefulWidget {
   final Future<void> Function(String query)? onSearch;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function(String query, String replacement)?
-      onPreviewReplace;
+  onPreviewReplace;
   final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
-      onOpenMatch;
+  onOpenMatch;
   final Future<void> Function(AgentWorkspaceSymbolMatchContext match)?
-      onOpenSymbolMatch;
+  onOpenSymbolMatch;
 
   @override
   State<WorkspaceSearchSurface> createState() => _WorkspaceSearchSurfaceState();
@@ -253,13 +253,12 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
                   itemBuilder: (context, index) {
                     final match = quickOpenResult.matches[index];
                     return ListTile(
-                      key: ValueKey(
-                        'workspace-quick-open-${match.documentId}',
-                      ),
+                      key: ValueKey('workspace-quick-open-${match.documentId}'),
                       dense: true,
                       title: Text(match.label),
                       subtitle: Text(match.documentId),
-                      trailing: quickOpenResult.truncated &&
+                      trailing:
+                          quickOpenResult.truncated &&
                               index == quickOpenResult.matches.length - 1
                           ? const Chip(label: Text('more'))
                           : const Icon(Icons.open_in_new_rounded),
@@ -305,7 +304,7 @@ class _WorkspaceSymbolSearchResultView extends StatelessWidget {
 
   final AgentWorkspaceSymbolSearchResultContext result;
   final Future<void> Function(AgentWorkspaceSymbolMatchContext match)?
-      onOpenMatch;
+  onOpenMatch;
 
   @override
   Widget build(BuildContext context) {
@@ -386,7 +385,10 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         if (preview.documents.isEmpty)
-          Text('No replacement changes found.', style: theme.textTheme.bodySmall)
+          Text(
+            'No replacement changes found.',
+            style: theme.textTheme.bodySmall,
+          )
         else
           SizedBox(
             height: 96,
@@ -419,7 +421,7 @@ class _WorkspaceSearchResultView extends StatelessWidget {
 
   final AgentWorkspaceSearchResultContext result;
   final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
-      onOpenMatch;
+  onOpenMatch;
 
   @override
   Widget build(BuildContext context) {

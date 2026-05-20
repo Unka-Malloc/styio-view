@@ -57,13 +57,18 @@ class ConfiguredAgentProviderAdapterFactory {
           supportedRoutes: AgentProviderRoute.values
               .map((route) => route.wireValue)
               .toList(growable: false),
-          supportedProtocols: const <String>['openai-compatible'],
+          supportedProtocols: const <String>[
+            'openai-compatible',
+            'openai-responses',
+          ],
           capabilities: const <String>[
             'plan',
             'diagnostic_summary',
             'code_patch',
             'ide_command',
             'route_execution',
+            'responses_api',
+            'codex_agentic_coding',
           ],
           createAdapter: create,
         ),
@@ -82,8 +87,18 @@ class ConfiguredAgentProviderAdapterFactory {
     final token = await AgentProviderCredentialResolver(
       configurationStore: configurationStore,
     ).bearerTokenForEndpoint(endpoint);
+    final transport = _transportFor(executionPlan);
+    if (endpoint.protocol.trim().toLowerCase() == 'openai-responses') {
+      return OpenAIResponsesAgentProviderAdapter(
+        transport: transport,
+        endpoint: endpoint,
+        authorizationToken: token,
+        adapterId: executionPlan.adapterId,
+        providerKind: executionPlan.providerKind,
+      );
+    }
     return OpenAICompatibleAgentProviderAdapter(
-      transport: _transportFor(executionPlan),
+      transport: transport,
       endpoint: endpoint,
       authorizationToken: token,
       adapterId: executionPlan.adapterId,

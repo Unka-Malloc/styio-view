@@ -64,6 +64,7 @@ class AgentProviderEndpoint {
     required this.model,
     this.apiKeyEnvironmentName = 'OPENAI_API_KEY',
     this.protocol = 'openai-compatible',
+    this.reasoningEffort,
     this.credentialReference,
     this.requiresCredential = false,
   });
@@ -73,6 +74,7 @@ class AgentProviderEndpoint {
   final String model;
   final String apiKeyEnvironmentName;
   final String protocol;
+  final String? reasoningEffort;
   final CredentialReference? credentialReference;
   final bool requiresCredential;
 
@@ -83,6 +85,7 @@ class AgentProviderEndpoint {
       'model': model,
       'apiKeyEnvironmentName': apiKeyEnvironmentName,
       'protocol': protocol,
+      if (reasoningEffort != null) 'reasoningEffort': reasoningEffort,
       'requiresCredential': requiresCredential,
       if (credentialReference != null)
         'credentialReference': credentialReference!.toJson(),
@@ -98,6 +101,7 @@ class AgentProviderEndpoint {
       apiKeyEnvironmentName:
           json['apiKeyEnvironmentName'] as String? ?? 'OPENAI_API_KEY',
       protocol: json['protocol'] as String? ?? 'openai-compatible',
+      reasoningEffort: json['reasoningEffort'] as String?,
       requiresCredential: json['requiresCredential'] as bool? ?? false,
       credentialReference: credentialReference is Map<String, Object?>
           ? CredentialReference.fromJson(credentialReference)
@@ -186,17 +190,38 @@ class AgentPromptProfile {
   }
 
   AgentPromptProfile copyWith({
+    String? profileId,
+    String? displayName,
+    String? systemPrompt,
     AgentProviderEndpoint? endpoint,
     List<AgentProviderEndpoint>? fallbackEndpoints,
     List<String>? contextChannels,
   }) {
     return AgentPromptProfile(
-      profileId: profileId,
-      displayName: displayName,
-      systemPrompt: systemPrompt,
+      profileId: profileId ?? this.profileId,
+      displayName: displayName ?? this.displayName,
+      systemPrompt: systemPrompt ?? this.systemPrompt,
       endpoint: endpoint ?? this.endpoint,
       fallbackEndpoints: fallbackEndpoints ?? this.fallbackEndpoints,
       contextChannels: contextChannels ?? this.contextChannels,
+    );
+  }
+
+  factory AgentPromptProfile.openAICodexForPlatform(
+    PlatformTarget platformTarget,
+  ) {
+    final base = AgentPromptProfile.defaultForPlatform(platformTarget);
+    return base.copyWith(
+      profileId: 'openai-codex-${platformTarget.wireValue}',
+      displayName: '${platformTarget.label} OpenAI Codex',
+      endpoint: AgentProviderEndpoint(
+        route: agentProviderRouteForPlatform(platformTarget),
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.3-codex',
+        protocol: 'openai-responses',
+        reasoningEffort: 'high',
+        requiresCredential: true,
+      ),
     );
   }
 

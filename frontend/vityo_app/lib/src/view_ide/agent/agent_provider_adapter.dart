@@ -745,6 +745,74 @@ class OpenAICompatibleAgentProviderAdapter
   }
 }
 
+class OpenAIResponsesAgentProviderAdapter
+    implements AgentProviderAdapter, CancellableAgentProviderAdapter {
+  const OpenAIResponsesAgentProviderAdapter({
+    required this.transport,
+    required this.endpoint,
+    this.authorizationToken,
+    this.adapterId = 'openai-responses',
+    this.providerKind = AgentProviderKind.cloudOpenAICompatible,
+  });
+
+  final AgentProviderTransport transport;
+  final AgentProviderEndpoint endpoint;
+  final String? authorizationToken;
+  final AgentProviderKind providerKind;
+
+  @override
+  final String adapterId;
+
+  @override
+  AgentProviderKind get kind => providerKind;
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(
+    AgentProviderRequest request,
+  ) async {
+    final token = authorizationToken?.trim();
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+    final body = _openAIResponsesRequestBody(
+      request,
+      endpointOverride: endpoint,
+    );
+    final endpointUri = _responsesEndpoint(endpoint.baseUrl);
+    final cancellableTransport = transport is CancellableAgentProviderTransport
+        ? transport as CancellableAgentProviderTransport
+        : null;
+    final response = cancellableTransport == null
+        ? await transport.postJson(
+            endpoint: endpointUri,
+            headers: headers,
+            body: body,
+          )
+        : await cancellableTransport.postJsonCancellable(
+            requestId: request.requestId,
+            endpoint: endpointUri,
+            headers: headers,
+            body: body,
+          );
+    return _responseEnvelopeFromOpenAICompatibleResponse(
+      requestId: request.requestId,
+      response: response,
+    );
+  }
+
+  @override
+  void cancelRequest(String requestId) {
+    final cancellableTransport = transport is CancellableAgentProviderTransport
+        ? transport as CancellableAgentProviderTransport
+        : null;
+    cancellableTransport?.cancelRequest(requestId);
+  }
+}
+
 class LocalOnlyAgentProviderAdapter implements AgentProviderAdapter {
   const LocalOnlyAgentProviderAdapter();
 
@@ -1076,6 +1144,68 @@ Map<String, Object?> _openAICompatibleRequestBody(
       'conversationTurnCount': request.conversationTurns.length,
     },
   };
+}
+
+Map<String, Object?> _openAIResponsesRequestBody(
+  AgentProviderRequest request, {
+  AgentProviderEndpoint? endpointOverride,
+}) {
+  final compatibleBody = _openAICompatibleRequestBody(
+    request,
+    endpointOverride: endpointOverride,
+  );
+  final messages = (compatibleBody['messages'] as List<Object?>)
+      .whereType<Map<String, Object?>>()
+      .toList(growable: false);
+  final systemMessage = messages.isEmpty
+      ? const <String, Object?>{}
+      : messages.first;
+  final inputMessages = messages
+      .skip(1)
+      .map(_responsesInputMessage)
+      .toList(growable: false);
+  final reasoningEffort = endpointOverride?.reasoningEffort?.trim();
+  return <String, Object?>{
+    'model': compatibleBody['model'],
+    'instructions': systemMessage['content']?.toString() ?? '',
+    'input': inputMessages,
+    if (reasoningEffort != null && reasoningEffort.isNotEmpty)
+      'reasoning': <String, Object?>{'effort': reasoningEffort},
+    'metadata': _openAIStringMetadata(
+      compatibleBody['metadata'] as Map<String, Object?>,
+    ),
+  };
+}
+
+Map<String, Object?> _responsesInputMessage(Map<String, Object?> message) {
+  final name = message['name']?.toString().trim();
+  final content = message['content']?.toString() ?? '';
+  return <String, Object?>{
+    'role': message['role']?.toString() ?? 'user',
+    'content': name == null || name.isEmpty ? content : '$name:\n$content',
+  };
+}
+
+Map<String, String> _openAIStringMetadata(Map<String, Object?> metadata) {
+  final result = <String, String>{};
+  for (final entry in metadata.entries) {
+    if (result.length >= 16) {
+      break;
+    }
+    final key = entry.key.trim();
+    if (key.isEmpty) {
+      continue;
+    }
+    final value = entry.value;
+    if (value == null) {
+      continue;
+    }
+    final serialized = value is String ? value : jsonEncode(value);
+    result[key] = serialized.length > 512
+        ? serialized.substring(0, 512)
+        : serialized;
+  }
+  return Map<String, String>.unmodifiable(result);
 }
 
 List<String> _attachmentKinds(List<AgentRequestAttachment> attachments) {
@@ -1716,4 +1846,14 @@ Uri _chatCompletionsEndpoint(String baseUrl) {
     return Uri.parse(normalized);
   }
   return Uri.parse('$normalized/chat/completions');
+}
+
+Uri _responsesEndpoint(String baseUrl) {
+  final normalized = baseUrl.endsWith('/')
+      ? baseUrl.substring(0, baseUrl.length - 1)
+      : baseUrl;
+  if (normalized.endsWith('/responses')) {
+    return Uri.parse(normalized);
+  }
+  return Uri.parse('$normalized/responses');
 }

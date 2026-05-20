@@ -427,11 +427,11 @@ class AgentProviderRouteExecutor {
     final endpoint = profile.endpoint;
     final protocol = endpoint.protocol.trim().toLowerCase();
     final baseUrl = endpoint.baseUrl.trim();
-    if (protocol != 'openai-compatible') {
+    if (protocol != 'openai-compatible' && protocol != 'openai-responses') {
       return _blocked(
         endpoint,
         AgentProviderExecutionBlockReason.unsupportedProtocol,
-        'Configure an OpenAI-compatible provider protocol before sending agent requests.',
+        'Configure an OpenAI-compatible or OpenAI Responses provider protocol before sending agent requests.',
       );
     }
     if (baseUrl.isEmpty) {

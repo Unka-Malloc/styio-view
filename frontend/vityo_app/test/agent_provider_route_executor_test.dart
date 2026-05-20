@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
+import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 
@@ -471,6 +472,103 @@ void main() {
       expect(cloudTransport.lastBody['model'], 'gpt-cloud-fallback');
     },
   );
+
+  test(
+    'agent provider factory sends OpenAI Responses requests for Codex profile',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_openai_responses_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      const credentialKey = CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'openai-codex',
+        scope: CredentialScope.user,
+      );
+      const credentialReference = CredentialReference(
+        key: credentialKey,
+        kind: CredentialKind.token,
+      );
+      final credentials = InMemoryCredentialDataStore();
+      final configurationStore = _configurationStore(
+        tempRoot,
+        credentialDataStore: credentials,
+      );
+      await credentials.write(
+        CredentialSecretRecord(
+          key: credentialKey,
+          kind: CredentialKind.token,
+          secretValue: 'codex-test-token',
+        ),
+      );
+      final baseProfile = AgentPromptProfile.openAICodexForPlatform(
+        PlatformTarget.linux,
+      );
+      final profile = baseProfile.copyWith(
+        endpoint: AgentProviderEndpoint(
+          route: baseProfile.endpoint.route,
+          baseUrl: baseProfile.endpoint.baseUrl,
+          model: baseProfile.endpoint.model,
+          protocol: baseProfile.endpoint.protocol,
+          reasoningEffort: baseProfile.endpoint.reasoningEffort,
+          credentialReference: credentialReference,
+          requiresCredential: baseProfile.endpoint.requiresCredential,
+        ),
+      );
+      final transport = _RecordingTransport(
+        response: <String, Object?>{
+          'id': 'resp-codex-test',
+          'status': 'completed',
+          'output_text': 'codex ok',
+        },
+      );
+      final factory = ConfiguredAgentProviderAdapterFactory(
+        configurationStore: configurationStore,
+        transport: transport,
+      );
+
+      final resolution = await factory.resolveExecution(profile);
+      final adapter = await factory.create(profile);
+      final response = await adapter.send(
+        AgentProviderRequest(
+          requestId: 'codex-responses-request',
+          profile: profile,
+          context: _emptyContext(),
+          userPrompt: 'Review this Styio file.',
+        ),
+      );
+
+      expect(baseProfile.endpoint.protocol, 'openai-responses');
+      expect(baseProfile.endpoint.model, 'gpt-5.3-codex');
+      expect(baseProfile.endpoint.reasoningEffort, 'high');
+      expect(resolution.status, AgentProviderExecutionResolutionStatus.ready);
+      expect(adapter, isA<OpenAIResponsesAgentProviderAdapter>());
+      expect(adapter.kind, AgentProviderKind.cloudOpenAICompatible);
+      expect(
+        transport.lastEndpoint.toString(),
+        'https://api.openai.com/v1/responses',
+      );
+      expect(transport.lastHeaders['Authorization'], 'Bearer codex-test-token');
+      expect(transport.lastBody['model'], 'gpt-5.3-codex');
+      expect(
+        (transport.lastBody['reasoning']! as Map<String, Object?>)['effort'],
+        'high',
+      );
+      expect(transport.lastBody['instructions'], contains('contentParts'));
+      expect(transport.lastBody['input'], isA<List<Object?>>());
+      expect(
+        ((transport.lastBody['metadata']!
+            as Map<String, Object?>)['requestId']),
+        'codex-responses-request',
+      );
+      expect(response.providerMessageId, 'resp-codex-test');
+      expect(response.contentParts.single.text, 'codex ok');
+    },
+  );
 }
 
 AgentPromptProfile _profile({
@@ -497,7 +595,10 @@ AgentPromptProfile _profile({
   );
 }
 
-ConfigurationStore _configurationStore(Directory tempRoot) {
+ConfigurationStore _configurationStore(
+  Directory tempRoot, {
+  CredentialDataStore? credentialDataStore,
+}) {
   final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
@@ -513,7 +614,7 @@ ConfigurationStore _configurationStore(Directory tempRoot) {
       ),
       fileSystemManager: fileSystemManager,
     ),
-    credentialDataStore: InMemoryCredentialDataStore(),
+    credentialDataStore: credentialDataStore ?? InMemoryCredentialDataStore(),
   );
 }
 
@@ -530,8 +631,26 @@ AgentSessionContext _emptyContext() {
 }
 
 class _RecordingTransport implements AgentProviderTransport {
+  _RecordingTransport({Map<String, Object?>? response})
+    : response =
+          response ??
+          <String, Object?>{
+            'id': 'chatcmpl-route-test',
+            'choices': <Object?>[
+              <String, Object?>{
+                'finish_reason': 'stop',
+                'message': <String, Object?>{
+                  'role': 'assistant',
+                  'content': 'route ok',
+                },
+              },
+            ],
+          };
+
+  final Map<String, Object?> response;
   int callCount = 0;
   Uri? lastEndpoint;
+  Map<String, String> lastHeaders = const <String, String>{};
   Map<String, Object?> lastBody = const <String, Object?>{};
 
   @override
@@ -542,18 +661,8 @@ class _RecordingTransport implements AgentProviderTransport {
   }) async {
     callCount += 1;
     lastEndpoint = endpoint;
+    lastHeaders = headers;
     lastBody = body;
-    return <String, Object?>{
-      'id': 'chatcmpl-route-test',
-      'choices': <Object?>[
-        <String, Object?>{
-          'finish_reason': 'stop',
-          'message': <String, Object?>{
-            'role': 'assistant',
-            'content': 'route ok',
-          },
-        },
-      ],
-    };
+    return response;
   }
 }

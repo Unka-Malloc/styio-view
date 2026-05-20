@@ -249,6 +249,7 @@ class AgentProviderConfigurator {
         model: profile.endpoint.model,
         apiKeyEnvironmentName: profile.endpoint.apiKeyEnvironmentName,
         protocol: profile.endpoint.protocol,
+        reasoningEffort: profile.endpoint.reasoningEffort,
         credentialReference: reference,
         requiresCredential: profile.endpoint.requiresCredential,
       ),

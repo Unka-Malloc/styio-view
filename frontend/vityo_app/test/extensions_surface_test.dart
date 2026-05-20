@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
-import 'package:vityo_app/src/view_ide/module_host/module_capability_matrix.dart';
-import 'package:vityo_app/src/view_ide/module_host/module_definition.dart';
-import 'package:vityo_app/src/view_ide/module_host/module_lifecycle.dart';
-import 'package:vityo_app/src/view_ide/module_host/module_manifest.dart';
+import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
 import 'package:vityo_app/src/view_render/extensions/extensions.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 
@@ -16,6 +13,7 @@ void main() {
       String? enabledModuleId;
       String? disabledModuleId;
       String? trustedModuleId;
+      ExtensionInstallPlan? installPlan;
       final runtime = _module(
         moduleId: 'runtime.panel',
         displayName: 'Runtime Panel',
@@ -38,6 +36,27 @@ void main() {
               ),
               visibleModules: <ModuleDefinition>[runtime, agent],
               mountedModules: <ModuleDefinition>[runtime],
+              marketplaceIndex: const ExtensionMarketplaceIndex(
+                workspaceId: 'demo',
+                listings: <ExtensionMarketplaceListing>[
+                  ExtensionMarketplaceListing(
+                    manifest: ExtensionManifest(
+                      extensionId: 'styio.language',
+                      displayName: 'Styio Language',
+                      version: '1.0.0',
+                      publisher: 'vityo',
+                      entrypoint: 'styio_language.dart',
+                      description: 'Styio language support.',
+                    ),
+                    sourceUri:
+                        'https://marketplace.vityo.invalid/styio.language.zip',
+                    summary: 'Language support for Styio projects.',
+                    categories: <String>['language', 'styio'],
+                    verified: true,
+                  ),
+                ],
+              ),
+              marketplaceQuery: 'styio',
               moduleStates: const <ModuleLifecycleState>[
                 ModuleLifecycleState(
                   moduleId: 'runtime.panel',
@@ -62,6 +81,9 @@ void main() {
               onTrustModule: (moduleId) async {
                 trustedModuleId = moduleId;
               },
+              onInstallExtension: (plan) async {
+                installPlan = plan;
+              },
             ),
           ),
         ),
@@ -73,25 +95,43 @@ void main() {
       expect(find.text('mounted 1'), findsOneWidget);
       expect(find.text('disabled 1'), findsOneWidget);
       expect(find.text('untrusted 1'), findsOneWidget);
-      expect(find.text('marketplace scaffolded'), findsOneWidget);
+      expect(find.text('marketplace 1'), findsOneWidget);
+      expect(find.text('query styio'), findsOneWidget);
+      expect(find.text('Marketplace'), findsOneWidget);
+      expect(find.text('Styio Language'), findsOneWidget);
+      expect(find.text('ready'), findsOneWidget);
       expect(find.text('Runtime Panel'), findsOneWidget);
       expect(find.text('update'), findsOneWidget);
 
       await tester.tap(
         find.byKey(const ValueKey('extensions-refresh-modules')),
       );
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('extensions-disable-runtime.panel')),
+      );
+      await tester.pump();
       await tester.tap(
         find.byKey(const ValueKey('extensions-disable-runtime.panel')),
       );
-      await tester.drag(
-        find.byKey(const ValueKey('extensions-module-list')),
-        const Offset(0, -240),
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('extensions-install-styio.language')),
+      );
+      await tester.pump();
+      await tester.tap(
+        find.byKey(const ValueKey('extensions-install-styio.language')),
+      );
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('extensions-enable-agent.panel')),
       );
       await tester.pump();
       expect(find.text('Agent Panel'), findsOneWidget);
       await tester.tap(
         find.byKey(const ValueKey('extensions-enable-agent.panel')),
       );
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('extensions-trust-agent.panel')),
+      );
+      await tester.pump();
       await tester.tap(
         find.byKey(const ValueKey('extensions-trust-agent.panel')),
       );
@@ -99,6 +139,8 @@ void main() {
 
       expect(refreshCount, 1);
       expect(disabledModuleId, 'runtime.panel');
+      expect(installPlan?.extensionId, 'styio.language');
+      expect(installPlan?.ready, isTrue);
       expect(enabledModuleId, 'agent.panel');
       expect(trustedModuleId, 'agent.panel');
     },

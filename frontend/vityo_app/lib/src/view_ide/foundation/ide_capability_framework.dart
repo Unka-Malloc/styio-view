@@ -587,7 +587,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/module_host',
           summary:
-              'Extensions surface is wired to visible and mounted module manifests, lifecycle state, enable/disable/trust actions, update flags, refreshModules handoff, marketplace index search, install planning, and Foundation DataStore-backed marketplace cache.',
+              'Extensions surface is wired to visible and mounted module manifests, lifecycle state, enable/disable/trust actions, update flags, refreshModules handoff, rendered marketplace index search results, install-plan controls, and Foundation DataStore-backed marketplace cache.',
           todo:
               'TODO: add install execution, update download, signature verification, extension host isolation, and persisted lifecycle policy.',
           references: <String>[

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../view_ide/module_host/module_definition.dart';
-import '../../view_ide/module_host/module_lifecycle.dart';
+import '../../view_ide/module_host/module_host.dart';
 import '../platform/viewport_profile.dart';
 
 class ExtensionsSurface extends StatelessWidget {
@@ -11,20 +10,26 @@ class ExtensionsSurface extends StatelessWidget {
     required this.visibleModules,
     required this.mountedModules,
     this.moduleStates = const <ModuleLifecycleState>[],
+    this.marketplaceIndex,
+    this.marketplaceQuery = '',
     this.onRefreshModules,
     this.onEnableModule,
     this.onDisableModule,
     this.onTrustModule,
+    this.onInstallExtension,
   });
 
   final ViewportProfile viewportProfile;
   final List<ModuleDefinition> visibleModules;
   final List<ModuleDefinition> mountedModules;
   final List<ModuleLifecycleState> moduleStates;
+  final ExtensionMarketplaceIndex? marketplaceIndex;
+  final String marketplaceQuery;
   final Future<void> Function()? onRefreshModules;
   final Future<void> Function(String moduleId)? onEnableModule;
   final Future<void> Function(String moduleId)? onDisableModule;
   final Future<void> Function(String moduleId)? onTrustModule;
+  final Future<void> Function(ExtensionInstallPlan plan)? onInstallExtension;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +41,10 @@ class ExtensionsSurface extends StatelessWidget {
     final statesById = <String, ModuleLifecycleState>{
       for (final state in moduleStates) state.moduleId: state,
     };
+    final installedRegistry = _installedExtensionRegistry(visibleModules);
+    final marketplaceListings =
+        marketplaceIndex?.search(marketplaceQuery) ??
+        const <ExtensionMarketplaceListing>[];
     final disabledCount = visibleModules.where((module) {
       final state =
           statesById[module.manifest.moduleId] ??
@@ -57,59 +66,186 @@ class ExtensionsSurface extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            Text('Extensions', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 6),
-            Text(
-              'Module/extension inventory backed by Vityo module manifests. TODO: add marketplace index, install, enable, disable, trust, update, and extension host isolation.',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                Chip(label: Text('visible ${visibleModules.length}')),
-                Chip(label: Text('mounted ${mountedModules.length}')),
-                Chip(label: Text('disabled $disabledCount')),
-                Chip(label: Text('untrusted $untrustedCount')),
-                const Chip(label: Text('marketplace scaffolded')),
-              ],
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              key: const ValueKey('extensions-refresh-modules'),
-              onPressed: onRefreshModules,
-              icon: const Icon(Icons.extension_rounded),
-              label: const Text('Refresh Modules'),
-            ),
-            const SizedBox(height: 12),
-            Text('Installed Modules', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            if (visibleModules.isEmpty)
+              Text('Extensions', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 6),
               Text(
-                'No visible modules are registered for this platform.',
+                'Module/extension inventory backed by Vityo module manifests, marketplace search, and install planning. TODO: add install execution, update downloads, signature verification, and extension host isolation.',
                 style: theme.textTheme.bodySmall,
-              )
-            else
-              Column(
-                key: const ValueKey('extensions-module-list'),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
                 children: [
-                  for (final module in visibleModules)
-                    _ExtensionModuleCard(
-                      module: module,
-                      mounted: mountedIds.contains(module.manifest.moduleId),
-                      state:
-                          statesById[module.manifest.moduleId] ??
-                          defaultModuleLifecycleState(module),
-                      onEnableModule: onEnableModule,
-                      onDisableModule: onDisableModule,
-                      onTrustModule: onTrustModule,
+                  Chip(label: Text('visible ${visibleModules.length}')),
+                  Chip(label: Text('mounted ${mountedModules.length}')),
+                  Chip(label: Text('disabled $disabledCount')),
+                  Chip(label: Text('untrusted $untrustedCount')),
+                  if (marketplaceIndex != null)
+                    Chip(
+                      label: Text('marketplace ${marketplaceListings.length}'),
                     ),
+                  if (marketplaceQuery.trim().isNotEmpty)
+                    Chip(label: Text('query ${marketplaceQuery.trim()}')),
                 ],
               ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                key: const ValueKey('extensions-refresh-modules'),
+                onPressed: onRefreshModules,
+                icon: const Icon(Icons.extension_rounded),
+                label: const Text('Refresh Modules'),
+              ),
+              const SizedBox(height: 12),
+              if (marketplaceIndex != null) ...[
+                Text('Marketplace', style: theme.textTheme.titleSmall),
+                const SizedBox(height: 8),
+                if (marketplaceListings.isEmpty)
+                  Text(
+                    'No marketplace extensions match this query.',
+                    style: theme.textTheme.bodySmall,
+                  )
+                else
+                  Column(
+                    key: const ValueKey('extensions-marketplace-list'),
+                    children: [
+                      for (final listing in marketplaceListings.take(6))
+                        _ExtensionMarketplaceCard(
+                          listing: listing,
+                          installPlan: marketplaceIndex!.installPlan(
+                            installedRegistry: installedRegistry,
+                            extensionId: listing.extensionId,
+                          ),
+                          onInstallExtension: onInstallExtension,
+                        ),
+                    ],
+                  ),
+                const SizedBox(height: 12),
+              ],
+              Text('Installed Modules', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              if (visibleModules.isEmpty)
+                Text(
+                  'No visible modules are registered for this platform.',
+                  style: theme.textTheme.bodySmall,
+                )
+              else
+                Column(
+                  key: const ValueKey('extensions-module-list'),
+                  children: [
+                    for (final module in visibleModules)
+                      _ExtensionModuleCard(
+                        module: module,
+                        mounted: mountedIds.contains(module.manifest.moduleId),
+                        state:
+                            statesById[module.manifest.moduleId] ??
+                            defaultModuleLifecycleState(module),
+                        onEnableModule: onEnableModule,
+                        onDisableModule: onDisableModule,
+                        onTrustModule: onTrustModule,
+                      ),
+                  ],
+                ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+ExtensionManifestRegistry _installedExtensionRegistry(
+  List<ModuleDefinition> modules,
+) {
+  final manifests = <ExtensionManifest>[];
+  for (final module in modules) {
+    final manifest = ExtensionManifest.fromModuleManifest(
+      module: module.manifest,
+      publisher: 'vityo',
+    );
+    if (manifest.valid) {
+      manifests.add(manifest);
+    }
+  }
+  return ExtensionManifestRegistry(manifests);
+}
+
+class _ExtensionMarketplaceCard extends StatelessWidget {
+  const _ExtensionMarketplaceCard({
+    required this.listing,
+    required this.installPlan,
+    required this.onInstallExtension,
+  });
+
+  final ExtensionMarketplaceListing listing;
+  final ExtensionInstallPlan installPlan;
+  final Future<void> Function(ExtensionInstallPlan plan)? onInstallExtension;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final manifest = listing.manifest;
+    return Container(
+      key: ValueKey('extensions-marketplace-${listing.extensionId}'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.cloud_download_outlined),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  manifest.displayName,
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${manifest.extensionId} · ${manifest.version} · ${manifest.publisher}',
+            style: theme.textTheme.bodySmall,
+          ),
+          if (listing.summary.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(listing.summary, style: theme.textTheme.bodySmall),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text(listing.verified ? 'verified' : 'unverified')),
+              Chip(label: Text(installPlan.status.wireValue)),
+              for (final category in listing.categories.take(3))
+                Chip(label: Text(category)),
+              FilledButton.tonal(
+                key: ValueKey('extensions-install-${listing.extensionId}'),
+                onPressed: installPlan.ready && onInstallExtension != null
+                    ? () {
+                        onInstallExtension!(installPlan);
+                      }
+                    : null,
+                child: Text(
+                  installPlan.ready
+                      ? 'Install'
+                      : installPlan.status ==
+                            ExtensionInstallPlanStatus.alreadyInstalled
+                      ? 'Installed'
+                      : 'Blocked',
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -152,9 +288,7 @@ class _ExtensionModuleCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                mounted
-                    ? Icons.extension_rounded
-                    : Icons.extension_off_rounded,
+                mounted ? Icons.extension_rounded : Icons.extension_off_rounded,
               ),
               const SizedBox(width: 8),
               Expanded(

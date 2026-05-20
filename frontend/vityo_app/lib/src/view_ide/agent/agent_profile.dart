@@ -9,6 +9,29 @@ enum AgentProviderRoute {
   unresolved,
 }
 
+enum AgentProviderCredentialPolicy {
+  explicitUserCredential,
+  hostedSessionCredential,
+  noClientCredential,
+}
+
+extension AgentProviderCredentialPolicyX on AgentProviderCredentialPolicy {
+  String get wireValue {
+    return switch (this) {
+      AgentProviderCredentialPolicy.explicitUserCredential =>
+        'explicit-user-credential',
+      AgentProviderCredentialPolicy.hostedSessionCredential =>
+        'hosted-session-credential',
+      AgentProviderCredentialPolicy.noClientCredential =>
+        'no-client-credential',
+    };
+  }
+
+  bool get allowsClientCredentialLookup {
+    return this == AgentProviderCredentialPolicy.explicitUserCredential;
+  }
+}
+
 extension AgentProviderRouteX on AgentProviderRoute {
   String get wireValue {
     switch (this) {
@@ -66,6 +89,8 @@ class AgentProviderEndpoint {
     this.protocol = 'openai-compatible',
     this.reasoningEffort,
     this.credentialReference,
+    this.credentialPolicy =
+        AgentProviderCredentialPolicy.explicitUserCredential,
     this.requiresCredential = false,
   });
 
@@ -76,6 +101,7 @@ class AgentProviderEndpoint {
   final String protocol;
   final String? reasoningEffort;
   final CredentialReference? credentialReference;
+  final AgentProviderCredentialPolicy credentialPolicy;
   final bool requiresCredential;
 
   Map<String, Object?> toJson() {
@@ -86,6 +112,7 @@ class AgentProviderEndpoint {
       'apiKeyEnvironmentName': apiKeyEnvironmentName,
       'protocol': protocol,
       if (reasoningEffort != null) 'reasoningEffort': reasoningEffort,
+      'credentialPolicy': credentialPolicy.wireValue,
       'requiresCredential': requiresCredential,
       if (credentialReference != null)
         'credentialReference': credentialReference!.toJson(),
@@ -102,6 +129,9 @@ class AgentProviderEndpoint {
           json['apiKeyEnvironmentName'] as String? ?? 'OPENAI_API_KEY',
       protocol: json['protocol'] as String? ?? 'openai-compatible',
       reasoningEffort: json['reasoningEffort'] as String?,
+      credentialPolicy: _agentProviderCredentialPolicyFromWireValue(
+        json['credentialPolicy'] as String?,
+      ),
       requiresCredential: json['requiresCredential'] as bool? ?? false,
       credentialReference: credentialReference is Map<String, Object?>
           ? CredentialReference.fromJson(credentialReference)
@@ -232,6 +262,7 @@ class AgentPromptProfile {
         protocol: 'openai-responses',
         reasoningEffort: 'high',
         credentialReference: openAIApiCredentialReference,
+        credentialPolicy: AgentProviderCredentialPolicy.explicitUserCredential,
         requiresCredential: true,
       ),
     );
@@ -251,6 +282,7 @@ class AgentPromptProfile {
         protocol: 'openai-responses',
         reasoningEffort: 'high',
         credentialReference: openAIApiCredentialReference,
+        credentialPolicy: AgentProviderCredentialPolicy.explicitUserCredential,
         requiresCredential: true,
       ),
     );
@@ -269,6 +301,9 @@ class AgentPromptProfile {
             ? '/api/styio-agent/v1'
             : 'https://api.openai.com/v1',
         model: 'gpt-5.4',
+        credentialPolicy: route == AgentProviderRoute.webHosted
+            ? AgentProviderCredentialPolicy.hostedSessionCredential
+            : AgentProviderCredentialPolicy.explicitUserCredential,
         requiresCredential: route != AgentProviderRoute.webHosted,
       ),
     );
@@ -287,6 +322,17 @@ AgentProviderEndpoint? _agentProviderEndpointFromJson(Object? value) {
     );
   }
   return null;
+}
+
+AgentProviderCredentialPolicy _agentProviderCredentialPolicyFromWireValue(
+  String? value,
+) {
+  for (final policy in AgentProviderCredentialPolicy.values) {
+    if (policy.wireValue == value) {
+      return policy;
+    }
+  }
+  return AgentProviderCredentialPolicy.explicitUserCredential;
 }
 
 AgentProviderRoute _agentProviderRouteFromWireValue(String? value) {

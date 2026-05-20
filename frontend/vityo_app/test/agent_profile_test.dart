@@ -235,7 +235,15 @@ void main() {
     expect(web.endpoint.route, AgentProviderRoute.webHosted);
     expect(web.endpoint.baseUrl, '/api/styio-agent/v1');
     expect(web.endpoint.requiresCredential, isFalse);
+    expect(
+      web.endpoint.credentialPolicy,
+      AgentProviderCredentialPolicy.hostedSessionCredential,
+    );
     expect(ios.endpoint.requiresCredential, isTrue);
+    expect(
+      ios.endpoint.credentialPolicy,
+      AgentProviderCredentialPolicy.explicitUserCredential,
+    );
     expect(android.endpoint.route.allowsLocalBridge, isTrue);
     expect(android.endpoint.requiresCredential, isTrue);
   });
@@ -253,8 +261,21 @@ void main() {
     expect(decoded.endpoint.protocol, 'openai-responses');
     expect(decoded.endpoint.reasoningEffort, 'high');
     expect(decoded.endpoint.requiresCredential, isTrue);
+    expect(
+      decoded.endpoint.credentialPolicy,
+      AgentProviderCredentialPolicy.explicitUserCredential,
+    );
+    expect(
+      decoded.endpoint.credentialReference?.key.stableId,
+      AgentPromptProfile.openAIApiCredentialReference.key.stableId,
+    );
+    expect(
+      decoded.endpoint.credentialReference?.kind,
+      AgentPromptProfile.openAIApiCredentialReference.kind,
+    );
     expect(decoded.endpoint.route, AgentProviderRoute.desktopLocalBridge);
     expect(decoded.contextChannels, AgentPromptProfile.defaultContextChannels);
+    expect(profile.toJson().toString().toLowerCase(), isNot(contains('oauth')));
   });
 
   test(
@@ -274,6 +295,10 @@ void main() {
       expect(
         profile.contextChannels,
         AgentPromptProfile.defaultContextChannels,
+      );
+      expect(
+        profile.endpoint.credentialPolicy,
+        AgentProviderCredentialPolicy.explicitUserCredential,
       );
     },
   );

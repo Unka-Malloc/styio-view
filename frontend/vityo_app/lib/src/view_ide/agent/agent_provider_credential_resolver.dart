@@ -11,6 +11,9 @@ class AgentProviderCredentialResolver {
   final ConfigurationStore configurationStore;
 
   Future<String?> bearerTokenForEndpoint(AgentProviderEndpoint endpoint) async {
+    if (!endpoint.credentialPolicy.allowsClientCredentialLookup) {
+      return null;
+    }
     final reference = endpoint.credentialReference;
     if (reference == null) {
       return null;

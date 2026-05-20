@@ -111,6 +111,86 @@ void main() {
   );
 
   test(
+    'hosted credential policy does not resolve local bearer tokens',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_hosted_credential_policy_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final credentials = InMemoryCredentialDataStore();
+      const credentialKey = CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'codex-oauth',
+        scope: CredentialScope.user,
+      );
+      const credentialReference = CredentialReference(
+        key: credentialKey,
+        kind: CredentialKind.remoteServiceCredential,
+        displayName: 'Codex OAuth token',
+      );
+      await credentials.write(
+        CredentialSecretRecord(
+          key: credentialKey,
+          kind: CredentialKind.remoteServiceCredential,
+          secretValue: 'should-not-be-read',
+        ),
+      );
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final configurationStore = ConfigurationStore(
+        dataStore: FoundationDataStore(
+          resourceCoordinator: FoundationResourceCoordinator(
+            resourceManager: resourceManager,
+            fileSystemManager: fileSystemManager,
+          ),
+          fileSystemManager: fileSystemManager,
+        ),
+        credentialDataStore: credentials,
+      );
+      const profile = AgentPromptProfile(
+        profileId: 'hosted-session',
+        displayName: 'Hosted Agent',
+        systemPrompt: 'Use IDE context.',
+        endpoint: AgentProviderEndpoint(
+          route: AgentProviderRoute.webHosted,
+          baseUrl: '/api/styio-agent/v1',
+          model: 'gpt-hosted-test',
+          credentialReference: credentialReference,
+          credentialPolicy:
+              AgentProviderCredentialPolicy.hostedSessionCredential,
+          requiresCredential: true,
+        ),
+      );
+      final factory = ConfiguredAgentProviderAdapterFactory(
+        configurationStore: configurationStore,
+        transport: _RecordingTransport(),
+      );
+      final token = await AgentProviderCredentialResolver(
+        configurationStore: configurationStore,
+      ).bearerTokenForEndpoint(profile.endpoint);
+      final selectionPlan = await factory.resolveSelectionPlan(profile);
+      final selectionPlanJson = selectionPlan.toJson();
+
+      expect(token, isNull);
+      expect(selectionPlan.ready, isTrue);
+      expect(selectionPlanJson['credentialReadiness'], 'not_referenced');
+      expect(
+        jsonEncode(profile.toJson()),
+        allOf(isNot(contains('should-not-be-read')), contains('codex-oauth')),
+      );
+    },
+  );
+
+  test(
     'configured provider sends controller prompt through network transport',
     () async {
       final tempRoot = await Directory.systemTemp.createTemp(

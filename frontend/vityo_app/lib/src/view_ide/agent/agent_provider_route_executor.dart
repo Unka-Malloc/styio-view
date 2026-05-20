@@ -484,6 +484,9 @@ class AgentProviderRouteExecutor {
     AgentProviderEndpoint endpoint,
     AgentProviderCredentialAvailability? credentialAvailable,
   ) async {
+    if (!endpoint.credentialPolicy.allowsClientCredentialLookup) {
+      return AgentProviderCredentialReadiness.notReferenced;
+    }
     if (endpoint.credentialReference == null) {
       if (endpoint.requiresCredential) {
         return AgentProviderCredentialReadiness.unavailable;

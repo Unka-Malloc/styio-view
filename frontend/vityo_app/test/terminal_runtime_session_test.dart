@@ -220,6 +220,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       await controller.sendInput('echo ok\n');
       final resize = await controller.resize(rows: 40, cols: 120);
+      final signal = await controller.sendSignal(PtySignal.interrupt);
       final exitCode = await controller.close();
 
       expect(started.sessionId, 'fake-pty');
@@ -231,6 +232,9 @@ void main() {
       expect(session.writes, <String>['echo ok\n']);
       expect(resize?.applied, isTrue);
       expect(controller.snapshot?.lastResize?.cols, 120);
+      expect(signal?.sent, isTrue);
+      expect(signal?.signal, PtySignal.interrupt);
+      expect(session.lastSignal, PtySignal.interrupt);
       expect(exitCode, 0);
       expect(
         controller.snapshot?.taskSnapshot?.status,
@@ -243,6 +247,7 @@ void main() {
           TerminalInteractionEventKind.output,
           TerminalInteractionEventKind.input,
           TerminalInteractionEventKind.resized,
+          TerminalInteractionEventKind.signal,
           TerminalInteractionEventKind.closed,
         ],
       );
@@ -279,15 +284,17 @@ void main() {
             channelId: 'terminal.fake-pty',
             label: 'Fake Terminal',
           );
-      expect(runtimeEvents, hasLength(5));
+      expect(runtimeEvents, hasLength(6));
       expect(runtimeEvents[1].kind, RuntimeOutputChannelKind.stdout);
+      expect(runtimeEvents[4].metadata['terminalEventKind'], 'signal');
+      expect(runtimeEvents[4].metadata['signal'], 'interrupt');
       expect(runtimeEvents.last.metadata['terminalEventKind'], 'closed');
-      expect(producerEmissions, hasLength(5));
+      expect(producerEmissions, hasLength(6));
       expect(producerEmissions[1].kind, RuntimeOutputChannelKind.stdout);
-      expect(outputPanelSnapshot.visibleEvents, hasLength(5));
-      expect(liveBuffer.snapshot.visibleEvents, hasLength(5));
+      expect(outputPanelSnapshot.visibleEvents, hasLength(6));
+      expect(liveBuffer.snapshot.visibleEvents, hasLength(6));
       expect(liveBuffer.snapshot.visibleEvents[1].message, 'hello\n');
-      expect(producerBuffer.snapshot.visibleEvents, hasLength(5));
+      expect(producerBuffer.snapshot.visibleEvents, hasLength(6));
       expect(
         producerBuffer.snapshot.visibleEvents.first.metadata['producerId'],
         'terminal-runtime',
@@ -694,6 +701,7 @@ class _FakePtyManager implements PtyManager {
 class _FakePtySession implements PtySession {
   final StreamController<String> _output = StreamController<String>.broadcast();
   final List<String> writes = <String>[];
+  PtySignal? lastSignal;
 
   void emit(String value) {
     _output.add(value);
@@ -722,6 +730,16 @@ class _FakePtySession implements PtySession {
       status: PtyResizeStatus.applied,
       rows: rows,
       cols: cols,
+    );
+  }
+
+  @override
+  Future<PtySignalResult> sendSignal(PtySignal signal) async {
+    lastSignal = signal;
+    return PtySignalResult(
+      signal: signal,
+      status: PtySignalStatus.sent,
+      message: 'sent ${signal.name}',
     );
   }
 

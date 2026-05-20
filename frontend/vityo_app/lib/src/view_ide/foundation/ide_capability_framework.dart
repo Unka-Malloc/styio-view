@@ -521,9 +521,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/toolchain/terminal_runtime.dart',
           summary:
-              'Terminal surface is wired to shell/runtime output, RuntimeOutputLiveBuffer panel snapshots, TerminalRuntimeStartPlan readiness, PtyExecutionPlan backend details, TerminalRuntimeOutputBinding start-plan/session output snapshots, TerminalInteractionController live RuntimeOutputEvent streams, RuntimeOutputProducerEmission adapter binding, ShellManager runtime output adapter bindings, line-chunked ShellCommandResult stdout/stderr events, run handoff, PTY session snapshots, script-PTY stdout/stderr merged output streams, explicit start/resize/close UI controls, TerminalInteractionController input/resize/close contracts, serializable interaction events, terminal-to-runtime-output event conversion, ShellCommandResult output binding, shared runtime task lifecycle snapshots on start/close, and persisted terminal task history.',
+              'Terminal surface is wired to shell/runtime output, RuntimeOutputLiveBuffer panel snapshots, TerminalRuntimeStartPlan readiness, PtyExecutionPlan backend details, TerminalRuntimeOutputBinding start-plan/session output snapshots, TerminalInteractionController live RuntimeOutputEvent streams, RuntimeOutputProducerEmission adapter binding, ShellManager runtime output adapter bindings, line-chunked ShellCommandResult stdout/stderr events, run handoff, PTY session snapshots, script-PTY stdout/stderr merged output streams, explicit start/resize/signal/close UI controls, TerminalInteractionController input/resize/signal/close contracts, serializable interaction events, terminal-to-runtime-output event conversion, ShellCommandResult output binding, shared runtime task lifecycle snapshots on start/close, and persisted terminal task history.',
           todo:
-              'TODO: connect native OS PTY resize/signals to lower-level PTY manager implementations.',
+              'TODO: bind PTY signal contracts to native OS process signal delivery and replace script-PTY resize placeholders.',
           references: <String>[
             'VS Code integrated terminal',
             'IntelliJ terminal and run tool windows',
@@ -645,7 +645,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell/toolchain/hosted/terminal producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, ToolchainManagerRuntimeExecutionAdapter, ToolchainInstallRuntimeExecutionAdapter streams, HostedRuntimeExecutionAdapter streams, WorkspaceDiagnosticsRuntimeOutputBinding streams, DebugLaunchRuntimeOutputBinding streams, StyioServiceRuntimeOutputBinding streams, TerminalRuntimeOutputBinding streams, and persisted output history.',
           todo:
-              'TODO: wire native OS PTY resize/signals and production stream cancellation telemetry.',
+              'TODO: wire native OS PTY signal delivery telemetry and production stream cancellation telemetry.',
           references: <String>[
             'VS Code Output panel',
             'IntelliJ Run and Event Log tool windows',

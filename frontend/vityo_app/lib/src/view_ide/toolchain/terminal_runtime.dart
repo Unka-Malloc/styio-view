@@ -85,7 +85,14 @@ class TerminalSessionSnapshot {
   }
 }
 
-enum TerminalInteractionEventKind { started, output, input, resized, closed }
+enum TerminalInteractionEventKind {
+  started,
+  output,
+  input,
+  resized,
+  signal,
+  closed,
+}
 
 extension TerminalInteractionEventKindX on TerminalInteractionEventKind {
   String get wireValue => switch (this) {
@@ -93,6 +100,7 @@ extension TerminalInteractionEventKindX on TerminalInteractionEventKind {
     TerminalInteractionEventKind.output => 'output',
     TerminalInteractionEventKind.input => 'input',
     TerminalInteractionEventKind.resized => 'resized',
+    TerminalInteractionEventKind.signal => 'signal',
     TerminalInteractionEventKind.closed => 'closed',
   };
 }
@@ -106,6 +114,7 @@ class TerminalInteractionEvent {
     this.message = '',
     this.rows,
     this.cols,
+    this.signal,
     this.exitCode,
   });
 
@@ -116,6 +125,7 @@ class TerminalInteractionEvent {
   final String message;
   final int? rows;
   final int? cols;
+  final String? signal;
   final int? exitCode;
 
   Map<String, Object?> toJson() {
@@ -127,6 +137,7 @@ class TerminalInteractionEvent {
       if (message.isNotEmpty) 'message': message,
       if (rows != null) 'rows': rows,
       if (cols != null) 'cols': cols,
+      if (signal != null) 'signal': signal,
       if (exitCode != null) 'exitCode': exitCode,
     };
   }
@@ -149,6 +160,7 @@ class TerminalInteractionEvent {
         'sequence': sequence,
         if (rows != null) 'rows': rows,
         if (cols != null) 'cols': cols,
+        if (signal != null) 'signal': signal,
         if (exitCode != null) 'exitCode': exitCode,
       },
     );
@@ -164,6 +176,7 @@ class TerminalInteractionEvent {
       'sequence': sequence,
       if (rows != null) 'rows': rows,
       if (cols != null) 'cols': cols,
+      if (signal != null) 'signal': signal,
       if (exitCode != null) 'exitCode': exitCode,
     };
     if (kind == TerminalInteractionEventKind.output) {
@@ -745,6 +758,22 @@ class TerminalInteractionController extends ChangeNotifier {
     return _lastResize;
   }
 
+  Future<PtySignalResult?> sendSignal(PtySignal signal) async {
+    final session = _session;
+    if (session == null) {
+      return null;
+    }
+    final result = await session.sendSignal(signal);
+    _recordEvent(
+      kind: TerminalInteractionEventKind.signal,
+      sessionId: session.id,
+      signal: signal.name,
+      message: result.message ?? result.status.name,
+    );
+    notifyListeners();
+    return result;
+  }
+
   Future<int?> close({bool force = false}) async {
     final session = _session;
     if (session == null) {
@@ -772,6 +801,7 @@ class TerminalInteractionController extends ChangeNotifier {
     String message = '',
     int? rows,
     int? cols,
+    String? signal,
     int? exitCode,
   }) {
     _eventSequence += 1;
@@ -783,6 +813,7 @@ class TerminalInteractionController extends ChangeNotifier {
       message: message,
       rows: rows,
       cols: cols,
+      signal: signal,
       exitCode: exitCode,
     );
     _events = List<TerminalInteractionEvent>.unmodifiable(

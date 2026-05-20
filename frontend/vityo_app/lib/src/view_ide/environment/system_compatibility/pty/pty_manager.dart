@@ -1,20 +1,13 @@
 import 'pty_adapter.dart';
 import 'pty_facts.dart';
 
-enum PtySessionState {
-  starting,
-  running,
-  exited,
-  closed,
-  failed,
-  unsupported,
-}
+enum PtySessionState { starting, running, exited, closed, failed, unsupported }
 
-enum PtyResizeStatus {
-  applied,
-  unsupported,
-  failed,
-}
+enum PtyResizeStatus { applied, unsupported, failed }
+
+enum PtySignal { interrupt, terminate, kill, eof }
+
+enum PtySignalStatus { sent, unsupported, failed }
 
 enum PtyFailureKind {
   unsupported,
@@ -88,6 +81,20 @@ class PtyResizeResult {
   bool get applied => status == PtyResizeStatus.applied;
 }
 
+class PtySignalResult {
+  const PtySignalResult({
+    required this.signal,
+    required this.status,
+    this.message,
+  });
+
+  final PtySignal signal;
+  final PtySignalStatus status;
+  final String? message;
+
+  bool get sent => status == PtySignalStatus.sent;
+}
+
 class PtyFailureClassifier {
   const PtyFailureClassifier({required this.sourceManager});
 
@@ -151,6 +158,8 @@ abstract class PtySession {
   Future<void> write(String input);
 
   Future<PtyResizeResult> resize({required int rows, required int cols});
+
+  Future<PtySignalResult> sendSignal(PtySignal signal);
 
   Future<int?> close({bool force = false});
 
@@ -257,6 +266,15 @@ class UnsupportedPtySession implements PtySession {
       rows: rows,
       cols: cols,
       message: 'PTY resize is not available.',
+    );
+  }
+
+  @override
+  Future<PtySignalResult> sendSignal(PtySignal signal) async {
+    return PtySignalResult(
+      signal: signal,
+      status: PtySignalStatus.unsupported,
+      message: 'PTY signals are not available.',
     );
   }
 

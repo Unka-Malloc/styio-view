@@ -182,6 +182,15 @@ class ScriptUtilityPtySession implements PtySession {
   }
 
   @override
+  Future<PtySignalResult> sendSignal(PtySignal signal) async {
+    return PtySignalResult(
+      signal: signal,
+      status: PtySignalStatus.unsupported,
+      message: 'The script utility PTY backend does not expose native signals.',
+    );
+  }
+
+  @override
   Future<int?> close({bool force = false}) async {
     if (_state == PtySessionState.closed || _state == PtySessionState.exited) {
       return _exitCode;
@@ -224,6 +233,15 @@ class FailedPtySession implements PtySession {
       status: PtyResizeStatus.failed,
       rows: rows,
       cols: cols,
+      message: error.toString(),
+    );
+  }
+
+  @override
+  Future<PtySignalResult> sendSignal(PtySignal signal) async {
+    return PtySignalResult(
+      signal: signal,
+      status: PtySignalStatus.failed,
       message: error.toString(),
     );
   }

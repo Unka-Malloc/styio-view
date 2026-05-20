@@ -63,7 +63,37 @@ void main() {
       restored.toJson()['virtualizedRowWindow'],
       isA<Map<String, Object?>>(),
     );
-    expect(restored.toJson()['todo'], contains('code action widgets'));
+    expect(restored.toJson()['hasCodeActionWidget'], isFalse);
+    expect(restored.toJson()['todo'], contains('concrete scroll controller'));
+  });
+
+  test('editor render snapshot exposes code action widget availability', () {
+    const snapshot = EditorRenderSnapshot(
+      documentId: 'main.styio',
+      revision: 1,
+      lineCount: 1,
+      characterCount: 10,
+      selectionStart: 0,
+      selectionEnd: 0,
+      renderPlan: EditorRenderPlan(
+        activeLayers: <EditorRenderLayer>{EditorRenderLayer.text},
+      ),
+      tokenCount: 1,
+      semanticCount: 1,
+      diagnosticCount: 1,
+      virtualizedRowWindow: EditorVirtualizedRowWindow(
+        totalLineCount: 1,
+        startLine: 0,
+        endLineExclusive: 1,
+        viewportFirstLine: 0,
+        viewportLineCapacity: 1,
+        overscanLineCount: 0,
+      ),
+      contextActionCount: 2,
+    );
+
+    expect(snapshot.hasCodeActionWidget, isTrue);
+    expect(snapshot.toJson()['hasCodeActionWidget'], isTrue);
   });
 
   test('editor virtualized row window includes overscan around viewport', () {

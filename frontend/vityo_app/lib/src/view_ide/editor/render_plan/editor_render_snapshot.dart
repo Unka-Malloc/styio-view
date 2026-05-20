@@ -52,7 +52,7 @@ class EditorRenderSnapshot {
       activeTokenText: activeToken?.lexeme ?? '',
       activeSemanticKind: activeSemanticKind?.name ?? '',
       todo:
-          'TODO: bind this snapshot to virtualized row rendering, hover widgets, completion widgets, and code action widgets.',
+          'TODO: bind this snapshot to the concrete scroll controller and theme-driven TextStyle pipeline.',
     );
   }
 
@@ -109,6 +109,7 @@ class EditorRenderSnapshot {
   final String todo;
 
   bool get hasSelection => selectionStart != selectionEnd;
+  bool get hasCodeActionWidget => contextActionCount > 0;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -127,6 +128,7 @@ class EditorRenderSnapshot {
       'hoverAvailable': hoverAvailable,
       'completionCount': completionCount,
       'contextActionCount': contextActionCount,
+      'hasCodeActionWidget': hasCodeActionWidget,
       if (activeTokenText.isNotEmpty) 'activeTokenText': activeTokenText,
       if (activeSemanticKind.isNotEmpty)
         'activeSemanticKind': activeSemanticKind,

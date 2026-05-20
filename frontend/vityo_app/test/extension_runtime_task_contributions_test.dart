@@ -91,13 +91,28 @@ void main() {
         catalog.contributions.single,
       );
       final buffer = RuntimeOutputLiveBuffer();
+      final telemetry = ExtensionRuntimeTaskInMemoryTelemetrySink();
+      final bridge = ExtensionRuntimeTaskExecutionBridge(
+        telemetrySink: telemetry,
+      );
 
-      final dispatch = ExtensionRuntimeTaskExecutionBridge()
-          .dispatchToLiveBuffer(
-            plan: plan,
-            buffer: buffer,
-            timestamp: DateTime.utc(2026, 5, 20, 19),
-          );
+      final dispatch = bridge.dispatchToLiveBuffer(
+        plan: plan,
+        buffer: buffer,
+        timestamp: DateTime.utc(2026, 5, 20, 19),
+      );
+      final retry = bridge.recordRetry(
+        plan: plan,
+        timestamp: DateTime.utc(2026, 5, 20, 19, 1),
+        reason: 'Retry after transient extension task failure.',
+        metadata: const <String, Object?>{'attempt': 2},
+      );
+      final cancellation = bridge.recordCancellation(
+        plan: plan,
+        timestamp: DateTime.utc(2026, 5, 20, 19, 2),
+        reason: 'User cancelled extension task.',
+        metadata: const <String, Object?>{'processHandleId': 'task-1'},
+      );
 
       expect(plan.ready, isTrue);
       expect(plan.binding.managerId, 'toolchain-manager');
@@ -110,6 +125,13 @@ void main() {
         buffer.snapshot.visibleEvents.single.metadata['extensionId'],
         'styio.tasks',
       );
+      expect(telemetry.records.map((record) => record.kind), <Object>[
+        ExtensionRuntimeTaskTelemetryKind.dispatch,
+        ExtensionRuntimeTaskTelemetryKind.retry,
+        ExtensionRuntimeTaskTelemetryKind.cancellation,
+      ]);
+      expect(retry.toJson()['message'], contains('Retry'));
+      expect(cancellation.toJson()['message'], contains('cancelled'));
       expect(plan.toJson()['ready'], isTrue);
     },
   );

@@ -223,13 +223,126 @@ class ExtensionRuntimeTaskExecutionPlan {
   }
 }
 
+enum ExtensionRuntimeTaskTelemetryKind { dispatch, retry, cancellation }
+
+class ExtensionRuntimeTaskTelemetryRecord {
+  const ExtensionRuntimeTaskTelemetryRecord({
+    required this.kind,
+    required this.extensionId,
+    required this.contributionId,
+    required this.taskId,
+    required this.timestamp,
+    this.dispatchStatus = '',
+    this.message = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory ExtensionRuntimeTaskTelemetryRecord.dispatch({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required RuntimeExecutionDispatchResult result,
+    required DateTime timestamp,
+  }) {
+    return ExtensionRuntimeTaskTelemetryRecord(
+      kind: ExtensionRuntimeTaskTelemetryKind.dispatch,
+      extensionId: plan.contribution.extensionId,
+      contributionId: plan.contribution.contributionId,
+      taskId: plan.executionPlan.definition.id,
+      timestamp: timestamp,
+      dispatchStatus: result.status.name,
+      message: result.message,
+      metadata: <String, Object?>{'dispatch': result.toJson()},
+    );
+  }
+
+  factory ExtensionRuntimeTaskTelemetryRecord.retry({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required DateTime timestamp,
+    String reason = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionRuntimeTaskTelemetryRecord(
+      kind: ExtensionRuntimeTaskTelemetryKind.retry,
+      extensionId: plan.contribution.extensionId,
+      contributionId: plan.contribution.contributionId,
+      taskId: plan.executionPlan.definition.id,
+      timestamp: timestamp,
+      message: reason,
+      metadata: metadata,
+    );
+  }
+
+  factory ExtensionRuntimeTaskTelemetryRecord.cancellation({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required DateTime timestamp,
+    String reason = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionRuntimeTaskTelemetryRecord(
+      kind: ExtensionRuntimeTaskTelemetryKind.cancellation,
+      extensionId: plan.contribution.extensionId,
+      contributionId: plan.contribution.contributionId,
+      taskId: plan.executionPlan.definition.id,
+      timestamp: timestamp,
+      message: reason,
+      metadata: metadata,
+    );
+  }
+
+  final ExtensionRuntimeTaskTelemetryKind kind;
+  final String extensionId;
+  final String contributionId;
+  final String taskId;
+  final DateTime timestamp;
+  final String dispatchStatus;
+  final String message;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.name,
+      'extensionId': extensionId,
+      'contributionId': contributionId,
+      'taskId': taskId,
+      'timestamp': timestamp.toIso8601String(),
+      if (dispatchStatus.isNotEmpty) 'dispatchStatus': dispatchStatus,
+      if (message.isNotEmpty) 'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+abstract class ExtensionRuntimeTaskTelemetrySink {
+  const ExtensionRuntimeTaskTelemetrySink();
+
+  void record(ExtensionRuntimeTaskTelemetryRecord record);
+}
+
+class ExtensionRuntimeTaskInMemoryTelemetrySink
+    extends ExtensionRuntimeTaskTelemetrySink {
+  ExtensionRuntimeTaskInMemoryTelemetrySink();
+
+  final List<ExtensionRuntimeTaskTelemetryRecord> _records =
+      <ExtensionRuntimeTaskTelemetryRecord>[];
+
+  List<ExtensionRuntimeTaskTelemetryRecord> get records =>
+      List<ExtensionRuntimeTaskTelemetryRecord>.unmodifiable(_records);
+
+  @override
+  void record(ExtensionRuntimeTaskTelemetryRecord record) {
+    _records.add(record);
+  }
+}
+
 class ExtensionRuntimeTaskExecutionBridge {
   ExtensionRuntimeTaskExecutionBridge({
     RuntimeExecutionManagerRegistry? registry,
+    ExtensionRuntimeTaskTelemetrySink? telemetrySink,
   }) : _registry =
-           registry ?? RuntimeExecutionManagerRegistry.defaultManagers();
+           registry ?? RuntimeExecutionManagerRegistry.defaultManagers(),
+       _telemetrySink = telemetrySink;
 
   final RuntimeExecutionManagerRegistry _registry;
+  final ExtensionRuntimeTaskTelemetrySink? _telemetrySink;
 
   RuntimeExecutionDispatchResult dispatchToLiveBuffer({
     required ExtensionRuntimeTaskExecutionPlan plan,
@@ -237,7 +350,7 @@ class ExtensionRuntimeTaskExecutionBridge {
     required DateTime timestamp,
     Map<String, Object?> metadata = const <String, Object?>{},
   }) {
-    return _registry.dispatchToLiveBuffer(
+    final result = _registry.dispatchToLiveBuffer(
       plan.binding,
       buffer: buffer,
       timestamp: timestamp,
@@ -248,6 +361,46 @@ class ExtensionRuntimeTaskExecutionBridge {
         ...metadata,
       },
     );
+    _telemetrySink?.record(
+      ExtensionRuntimeTaskTelemetryRecord.dispatch(
+        plan: plan,
+        result: result,
+        timestamp: timestamp,
+      ),
+    );
+    return result;
+  }
+
+  ExtensionRuntimeTaskTelemetryRecord recordRetry({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required DateTime timestamp,
+    String reason = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final record = ExtensionRuntimeTaskTelemetryRecord.retry(
+      plan: plan,
+      timestamp: timestamp,
+      reason: reason,
+      metadata: metadata,
+    );
+    _telemetrySink?.record(record);
+    return record;
+  }
+
+  ExtensionRuntimeTaskTelemetryRecord recordCancellation({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required DateTime timestamp,
+    String reason = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final record = ExtensionRuntimeTaskTelemetryRecord.cancellation(
+      plan: plan,
+      timestamp: timestamp,
+      reason: reason,
+      metadata: metadata,
+    );
+    _telemetrySink?.record(record);
+    return record;
   }
 }
 

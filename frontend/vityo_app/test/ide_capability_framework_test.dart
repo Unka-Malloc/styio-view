@@ -195,6 +195,10 @@ void main() {
       entriesById['agent.coding-loop']?.summary,
       contains('StyioService readiness checkpoints'),
     );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('checkpoint result prompt replay'),
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

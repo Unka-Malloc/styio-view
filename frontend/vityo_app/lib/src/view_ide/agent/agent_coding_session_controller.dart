@@ -869,6 +869,8 @@ String _ideCommandResultConversationText(AgentCommandResultContext result) {
 }
 
 const List<String> _ideCommandConversationMetadataKeys = <String>[
+  'agentContextSchemaVersion',
+  'workspaceRoot',
   'requiredCommand',
   'completedRequiredCommandFor',
   'recoveryForCommandId',
@@ -917,7 +919,70 @@ List<String> _ideCommandMetadataConversationLines(
       lines.add('backendRouteSelection: ${fields.join(', ')}');
     }
   }
+  final sourceControlContext = metadata['sourceControlContext'];
+  if (sourceControlContext is Map<String, Object?>) {
+    final provider = _conversationMetadataScalarText(
+      sourceControlContext['providerKind'],
+    );
+    final branch = _conversationMetadataScalarText(
+      sourceControlContext['branchName'],
+    );
+    final changeCount = _conversationMetadataScalarText(
+      sourceControlContext['changeCount'],
+    );
+    final stagedCount = _conversationMetadataListLength(
+      sourceControlContext['stagedPaths'],
+    );
+    final unstagedCount = _conversationMetadataListLength(
+      sourceControlContext['unstagedPaths'],
+    );
+    final conflictCount = _conversationMetadataListLength(
+      sourceControlContext['conflictedPaths'],
+    );
+    lines.add(
+      'sourceControlContext: provider=${provider ?? 'unknown'}, '
+      'branch=${branch ?? 'unknown'}, changes=${changeCount ?? '0'}, '
+      'staged=$stagedCount, unstaged=$unstagedCount, conflicts=$conflictCount',
+    );
+  }
+  final languageServiceStatus = metadata['languageServiceStatus'];
+  if (languageServiceStatus is Map<String, Object?>) {
+    final severity = _conversationMetadataScalarText(
+      languageServiceStatus['severity'],
+    );
+    final syntaxReady = _conversationMetadataScalarText(
+      languageServiceStatus['syntaxValidationReady'],
+    );
+    final semanticReady = _conversationMetadataScalarText(
+      languageServiceStatus['semanticFactsReady'],
+    );
+    lines.add(
+      'languageServiceStatus: severity=${severity ?? 'unknown'}, '
+      'syntaxReady=${syntaxReady ?? 'unknown'}, '
+      'semanticReady=${semanticReady ?? 'unknown'}',
+    );
+  }
+  final testing = metadata['testing'];
+  if (testing is Map<String, Object?>) {
+    final hasLastRun = _conversationMetadataScalarText(testing['hasLastRun']);
+    final hasFailingTests = _conversationMetadataScalarText(
+      testing['hasFailingTests'],
+    );
+    final rerunFailed = testing['rerunFailed'];
+    final rerunFilter = rerunFailed is Map<String, Object?>
+        ? _conversationMetadataScalarText(rerunFailed['filter'])
+        : null;
+    lines.add(
+      'testing: hasLastRun=${hasLastRun ?? 'false'}, '
+      'hasFailingTests=${hasFailingTests ?? 'false'}'
+      '${rerunFilter == null ? '' : ', rerunFilter=$rerunFilter'}',
+    );
+  }
   return lines;
+}
+
+int _conversationMetadataListLength(Object? value) {
+  return value is List ? value.length : 0;
 }
 
 String? _conversationMetadataScalarText(Object? value) {

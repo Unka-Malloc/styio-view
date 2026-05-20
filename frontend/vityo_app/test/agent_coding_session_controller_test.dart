@@ -285,6 +285,8 @@ void main() {
           applied: true,
           message: 'Build completed.',
           metadata: const <String, Object?>{
+            'agentContextSchemaVersion': 45,
+            'workspaceRoot': '/workspace/demo',
             'buildResult': <String, Object?>{'success': true},
             'requiredCommand': 'selectClangCppVersion',
             'recoveryForCommandId': 'runBuild',
@@ -299,6 +301,24 @@ void main() {
               'routeKind': 'hosted',
               'allowed': false,
               'blockedReason': 'native route disabled',
+            },
+            'sourceControlContext': <String, Object?>{
+              'providerKind': 'git',
+              'branchName': 'ai-dev',
+              'changeCount': 1,
+              'stagedPaths': <String>[],
+              'unstagedPaths': <String>['src/main.styio'],
+              'conflictedPaths': <String>[],
+            },
+            'languageServiceStatus': <String, Object?>{
+              'severity': 'ready',
+              'syntaxValidationReady': true,
+              'semanticFactsReady': false,
+            },
+            'testing': <String, Object?>{
+              'hasLastRun': true,
+              'hasFailingTests': true,
+              'rerunFailed': <String, Object?>{'filter': 'syntax'},
             },
             'largeIgnored': <String, Object?>{'token': 'secret'},
           },
@@ -326,6 +346,11 @@ void main() {
       final commandResultTurn = controller.conversationTurns.firstWhere(
         (turn) => turn.text.contains('IDE command result:'),
       );
+      expect(commandResultTurn.text, contains('agentContextSchemaVersion: 45'));
+      expect(
+        commandResultTurn.text,
+        contains('workspaceRoot: /workspace/demo'),
+      );
       expect(
         commandResultTurn.text,
         contains('requiredCommand: selectClangCppVersion'),
@@ -352,6 +377,26 @@ void main() {
         contains(
           'backendRouteSelection: routeKind=hosted, allowed=false, '
           'blockedReason=native route disabled',
+        ),
+      );
+      expect(
+        commandResultTurn.text,
+        contains(
+          'sourceControlContext: provider=git, branch=ai-dev, changes=1, '
+          'staged=0, unstaged=1, conflicts=0',
+        ),
+      );
+      expect(
+        commandResultTurn.text,
+        contains(
+          'languageServiceStatus: severity=ready, syntaxReady=true, '
+          'semanticReady=false',
+        ),
+      );
+      expect(
+        commandResultTurn.text,
+        contains(
+          'testing: hasLastRun=true, hasFailingTests=true, rerunFilter=syntax',
         ),
       );
       expect(commandResultTurn.text, isNot(contains('token: secret')));

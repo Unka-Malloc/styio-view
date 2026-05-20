@@ -18,6 +18,18 @@ enum StyioServiceCapabilityState {
   stale,
 }
 
+enum StyioServiceCapabilityHealth { ready, degraded, unavailable }
+
+extension StyioServiceCapabilityHealthX on StyioServiceCapabilityHealth {
+  String get wireValue {
+    return switch (this) {
+      StyioServiceCapabilityHealth.ready => 'ready',
+      StyioServiceCapabilityHealth.degraded => 'degraded',
+      StyioServiceCapabilityHealth.unavailable => 'unavailable',
+    };
+  }
+}
+
 class StyioServiceCapabilityStatus {
   const StyioServiceCapabilityStatus({
     required this.capability,
@@ -40,6 +52,46 @@ class StyioServiceCapabilityStatus {
       'capability': capability.wireValue,
       'state': state.name,
       if (message != null) 'message': message,
+    };
+  }
+}
+
+class StyioServiceCapabilityHealthSummary {
+  const StyioServiceCapabilityHealthSummary({
+    required this.health,
+    required this.totalCount,
+    required this.freshCount,
+    required this.usableCount,
+    required this.missingCapabilities,
+    required this.blockedCapabilities,
+  });
+
+  final StyioServiceCapabilityHealth health;
+  final int totalCount;
+  final int freshCount;
+  final int usableCount;
+  final List<StyioServiceCapability> missingCapabilities;
+  final List<StyioServiceCapability> blockedCapabilities;
+
+  bool get fullyReady =>
+      health == StyioServiceCapabilityHealth.ready &&
+      missingCapabilities.isEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'health': health.wireValue,
+      'totalCount': totalCount,
+      'freshCount': freshCount,
+      'usableCount': usableCount,
+      'missingCount': missingCapabilities.length,
+      'blockedCount': blockedCapabilities.length,
+      'fullyReady': fullyReady,
+      'missingCapabilities': missingCapabilities
+          .map((capability) => capability.wireValue)
+          .toList(growable: false),
+      'blockedCapabilities': blockedCapabilities
+          .map((capability) => capability.wireValue)
+          .toList(growable: false),
     };
   }
 }
@@ -79,6 +131,40 @@ class StyioServiceCapabilitySnapshot {
         .where((entry) => entry.value.isUsable)
         .map((entry) => entry.key)
         .toSet();
+  }
+
+  StyioServiceCapabilityHealthSummary get healthSummary {
+    final missing = <StyioServiceCapability>[];
+    final blocked = <StyioServiceCapability>[];
+    var freshCount = 0;
+    var usableCount = 0;
+    for (final entry in statuses.entries) {
+      final status = entry.value;
+      if (status.hasFreshPayload) {
+        freshCount += 1;
+      }
+      if (status.isUsable) {
+        usableCount += 1;
+      } else {
+        missing.add(entry.key);
+      }
+      if (_isBlockedCapabilityState(status.state)) {
+        blocked.add(entry.key);
+      }
+    }
+    final health = statuses.isEmpty || usableCount == 0
+        ? StyioServiceCapabilityHealth.unavailable
+        : missing.isEmpty
+        ? StyioServiceCapabilityHealth.ready
+        : StyioServiceCapabilityHealth.degraded;
+    return StyioServiceCapabilityHealthSummary(
+      health: health,
+      totalCount: statuses.length,
+      freshCount: freshCount,
+      usableCount: usableCount,
+      missingCapabilities: List<StyioServiceCapability>.unmodifiable(missing),
+      blockedCapabilities: List<StyioServiceCapability>.unmodifiable(blocked),
+    );
   }
 
   Set<String> providerCapabilityWireValues({bool includeDerived = true}) {
@@ -137,8 +223,22 @@ class StyioServiceCapabilitySnapshot {
       'statuses': statuses.values
           .map((status) => status.toJson())
           .toList(growable: false),
+      'healthSummary': healthSummary.toJson(),
     };
   }
+}
+
+bool _isBlockedCapabilityState(StyioServiceCapabilityState state) {
+  return switch (state) {
+    StyioServiceCapabilityState.unsupported ||
+    StyioServiceCapabilityState.unavailable ||
+    StyioServiceCapabilityState.failed ||
+    StyioServiceCapabilityState.protocolError ||
+    StyioServiceCapabilityState.stale => true,
+    StyioServiceCapabilityState.available ||
+    StyioServiceCapabilityState.derived ||
+    StyioServiceCapabilityState.empty => false,
+  };
 }
 
 class StyioServiceCapabilityDetector {

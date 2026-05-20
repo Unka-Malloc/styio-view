@@ -328,7 +328,11 @@ class VityoShellScaffold extends StatelessWidget {
           entries: shell.debugLog,
           runtimeEvents: shell.lastRuntimeEvents,
           debugSession: shell.debugSession,
+          debugRuntimeExecution: shell.lastDebugRuntimeExecutionResult,
           onStartDebugging: () {
+            return shell.executeCommand(AppCommandId.startDebugging);
+          },
+          onRetryDebugLaunch: () {
             return shell.executeCommand(AppCommandId.startDebugging);
           },
           onStopDebugging: () {

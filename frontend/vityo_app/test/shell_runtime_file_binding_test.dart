@@ -2612,6 +2612,11 @@ printf 'int main() { return 0; }\\n'
       expect(shell.debugSession.status, DebugSessionStatus.launching);
       expect(shell.debugSession.adapterSessionStatus, 'launching');
       expect(shell.debugSession.adapterPendingRequestCount, 3);
+      expect(shell.lastDebugRuntimeExecutionResult?.launched, isTrue);
+      expect(
+        shell.lastDebugRuntimeExecutionResult?.dispatchResult.status,
+        RuntimeExecutionDispatchStatus.dispatched,
+      );
       expect(fakeTransport.sentBytes, hasLength(3));
       expect(debugJson['status'], 'launching');
       expect(debugJson['adapterSessionStatus'], 'launching');

@@ -4,6 +4,7 @@ import '../../view_ide/backend_toolchain/execution_adapter.dart';
 import '../../view_ide/debugger/debug_adapter_launcher.dart';
 import '../../view_ide/debugger/debug_launch_contract.dart';
 import '../../view_ide/debugger/debug_launch_telemetry_store.dart';
+import '../../view_ide/runtime/runtime_execution_plan.dart';
 import '../platform/viewport_profile.dart';
 import '../../view_ide/runtime/runtime_replay_summary.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
@@ -20,7 +21,9 @@ class DebugConsoleSurface extends StatelessWidget {
     ),
     this.debugLaunchPlan,
     this.debugTelemetry,
+    this.debugRuntimeExecution,
     this.onStartDebugging,
+    this.onRetryDebugLaunch,
     this.onStopDebugging,
     this.onContinueDebugging,
     this.onStepOver,
@@ -34,7 +37,9 @@ class DebugConsoleSurface extends StatelessWidget {
   final DebugSessionSnapshot debugSession;
   final DapDebugAdapterExecutionPlan? debugLaunchPlan;
   final DebugLaunchTelemetrySnapshot? debugTelemetry;
+  final DebugRuntimeExecutionResult? debugRuntimeExecution;
   final Future<void> Function()? onStartDebugging;
+  final Future<void> Function()? onRetryDebugLaunch;
   final Future<void> Function()? onStopDebugging;
   final Future<void> Function()? onContinueDebugging;
   final Future<void> Function()? onStepOver;
@@ -258,10 +263,16 @@ class DebugConsoleSurface extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  if (debugLaunchPlan != null || debugTelemetry != null) ...[
+                  if (debugLaunchPlan != null ||
+                      debugTelemetry != null ||
+                      debugRuntimeExecution != null) ...[
                     _DebugLaunchPlanSection(
-                      plan: debugLaunchPlan,
-                      telemetry: debugTelemetry,
+                      plan: debugLaunchPlan ?? debugRuntimeExecution?.plan,
+                      telemetry:
+                          debugTelemetry ?? debugRuntimeExecution?.telemetry,
+                      execution: debugRuntimeExecution,
+                      onRetryDebugLaunch:
+                          onRetryDebugLaunch ?? onStartDebugging,
                     ),
                     const SizedBox(height: 14),
                   ],
@@ -319,10 +330,17 @@ class DebugConsoleSurface extends StatelessWidget {
 }
 
 class _DebugLaunchPlanSection extends StatelessWidget {
-  const _DebugLaunchPlanSection({this.plan, this.telemetry});
+  const _DebugLaunchPlanSection({
+    this.plan,
+    this.telemetry,
+    this.execution,
+    this.onRetryDebugLaunch,
+  });
 
   final DapDebugAdapterExecutionPlan? plan;
   final DebugLaunchTelemetrySnapshot? telemetry;
+  final DebugRuntimeExecutionResult? execution;
+  final Future<void> Function()? onRetryDebugLaunch;
 
   @override
   Widget build(BuildContext context) {
@@ -330,6 +348,11 @@ class _DebugLaunchPlanSection extends StatelessWidget {
     final latestRecord = telemetry?.records.isEmpty == false
         ? telemetry!.records.first
         : null;
+    final executionResult = execution;
+    final canRetryExecution =
+        executionResult != null &&
+        (executionResult.blocked || executionResult.failed) &&
+        onRetryDebugLaunch != null;
     return Container(
       key: const ValueKey('debug-launch-plan-section'),
       width: double.infinity,
@@ -357,6 +380,23 @@ class _DebugLaunchPlanSection extends StatelessWidget {
                 Chip(label: Text('telemetry ${telemetry!.records.length}')),
                 Chip(label: Text('blocked ${telemetry!.blockedCount}')),
                 Chip(label: Text('successful ${telemetry!.successfulCount}')),
+              ],
+              if (executionResult != null) ...[
+                Chip(
+                  label: Text(
+                    'execution ${executionResult.status.wireValue}',
+                  ),
+                ),
+                Chip(
+                  label: Text(
+                    'dispatch ${executionResult.dispatchResult.status.wireValue}',
+                  ),
+                ),
+                Chip(
+                  label: Text(
+                    'output ${executionResult.outputEvents.length}',
+                  ),
+                ),
               ],
             ],
           ),
@@ -387,6 +427,30 @@ class _DebugLaunchPlanSection extends StatelessWidget {
               key: const ValueKey('debug-launch-telemetry-latest'),
               style: theme.textTheme.bodySmall,
             ),
+          ],
+          if (executionResult != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'execution ${executionResult.status.wireValue} · ${executionResult.dispatchResult.message}',
+              key: const ValueKey('debug-runtime-execution-message'),
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'runtime output ${executionResult.outputEvents.length} event(s)',
+              key: const ValueKey('debug-runtime-execution-output'),
+              style: theme.textTheme.bodySmall,
+            ),
+            if (canRetryExecution) ...[
+              const SizedBox(height: 8),
+              OutlinedButton(
+                key: const ValueKey('debug-runtime-retry-launch'),
+                onPressed: () async {
+                  await onRetryDebugLaunch!();
+                },
+                child: const Text('Retry Launch'),
+              ),
+            ],
           ],
         ],
       ),

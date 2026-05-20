@@ -9,6 +9,7 @@ import '../debugger/debug_adapter_launcher.dart';
 import '../debugger/debug_adapter_protocol.dart';
 import '../debugger/debug_adapter_session.dart';
 import '../debugger/debug_launch_contract.dart';
+import '../debugger/debug_launch_telemetry_store.dart';
 import '../debugger/debug_runtime_task_history.dart';
 import '../editor/editor.dart';
 import '../environment/configuration/configuration.dart';
@@ -565,6 +566,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     status: DebugSessionStatus.idle,
     message: 'No debug session has been started.',
   );
+  DebugRuntimeExecutionResult? _lastDebugRuntimeExecutionResult;
   ExecutionAdapter executionAdapter;
   List<AdapterCapabilitySnapshot> _adapterCapabilities;
   WorkspaceFileCloseRequestResult? _lastCloseRequestResult;
@@ -591,6 +593,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   NativeToolResultRecord? get lastNativeToolResult =>
       _nativeToolResults.isEmpty ? null : _nativeToolResults.first;
   DebugSessionSnapshot get debugSession => _debugSession;
+  DebugRuntimeExecutionResult? get lastDebugRuntimeExecutionResult =>
+      _lastDebugRuntimeExecutionResult;
   List<DebugBreakpoint> get debugBreakpoints =>
       List<DebugBreakpoint>.unmodifiable(_debugBreakpoints);
   List<String> get cachedDocumentPaths =>
@@ -2994,7 +2998,33 @@ class ShellRuntimeModel extends ChangeNotifier {
     final launcher = debugAdapterLauncher;
     if (launcher != null) {
       try {
-        final sessionHandle = await launcher.launch(launchConfiguration);
+        final executionPlan = DapDebugAdapterExecutionPlan.fromConfiguration(
+          profileId: activeDebugger.id,
+          launchConfiguration: launchConfiguration,
+        );
+        final executionResult = await DebugRuntimeExecutionAdapter(
+          launcher: launcher,
+          workspaceId: workspaceController.activeProject.workspaceRoot,
+        ).executePlan(plan: executionPlan, buffer: runtimeOutputBuffer);
+        _lastDebugRuntimeExecutionResult = executionResult;
+        if (!executionResult.launched || executionResult.handle == null) {
+          final record = executionResult.telemetry.records.isEmpty
+              ? null
+              : executionResult.telemetry.records.first;
+          return _setDebugSession(
+            DebugSessionSnapshot(
+              status: DebugSessionStatus.blocked,
+              message:
+                  record?.message ??
+                  executionResult.dispatchResult.message,
+              debuggerId: activeDebugger.id,
+              debuggerLabel: activeDebugger.displayName,
+              breakpoints: debugBreakpoints,
+              launchConfiguration: launchConfiguration,
+            ),
+          );
+        }
+        final sessionHandle = executionResult.handle!;
         final previousSession = _dapDebugSession;
         await _dapDebugSessionSubscription?.cancel();
         _dapDebugSessionSubscription = null;

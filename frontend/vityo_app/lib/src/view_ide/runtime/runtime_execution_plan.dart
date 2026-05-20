@@ -6,12 +6,37 @@ enum RuntimeExecutionPlanStatus {
   blockedMissingDependency,
 }
 
+enum RuntimeExecutionHandoffStatus { ready, blocked }
+
+enum RuntimeExecutionHandoffTarget {
+  shellManager,
+  terminalRuntime,
+  toolchainManager,
+  hostedExecutor,
+}
+
 extension RuntimeExecutionPlanStatusX on RuntimeExecutionPlanStatus {
   String get wireValue => switch (this) {
     RuntimeExecutionPlanStatus.ready => 'ready',
     RuntimeExecutionPlanStatus.blockedUnrunnable => 'blocked-unrunnable',
     RuntimeExecutionPlanStatus.blockedMissingDependency =>
       'blocked-missing-dependency',
+  };
+}
+
+extension RuntimeExecutionHandoffStatusX on RuntimeExecutionHandoffStatus {
+  String get wireValue => switch (this) {
+    RuntimeExecutionHandoffStatus.ready => 'ready',
+    RuntimeExecutionHandoffStatus.blocked => 'blocked',
+  };
+}
+
+extension RuntimeExecutionHandoffTargetX on RuntimeExecutionHandoffTarget {
+  String get wireValue => switch (this) {
+    RuntimeExecutionHandoffTarget.shellManager => 'shell-manager',
+    RuntimeExecutionHandoffTarget.terminalRuntime => 'terminal-runtime',
+    RuntimeExecutionHandoffTarget.toolchainManager => 'toolchain-manager',
+    RuntimeExecutionHandoffTarget.hostedExecutor => 'hosted-executor',
   };
 }
 
@@ -63,6 +88,20 @@ class RuntimeExecutionPlan {
 
   bool get ready => status == RuntimeExecutionPlanStatus.ready;
 
+  RuntimeExecutionHandoff createHandoff({
+    RuntimeExecutionHandoffTarget target =
+        RuntimeExecutionHandoffTarget.terminalRuntime,
+    String? outputChannelId,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeExecutionHandoff.fromPlan(
+      plan: this,
+      target: target,
+      outputChannelId: outputChannelId,
+      metadata: metadata,
+    );
+  }
+
   RuntimeTaskSnapshot applyTo(RuntimeTaskLifecycleController controller) {
     controller.register(definition);
     if (ready) {
@@ -89,6 +128,113 @@ class RuntimeExecutionPlan {
       'missingDependencies': missingDependencies,
       if (metadata.isNotEmpty) 'metadata': metadata,
       if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class RuntimeExecutionHandoff {
+  const RuntimeExecutionHandoff({
+    required this.plan,
+    required this.status,
+    required this.target,
+    required this.taskId,
+    required this.command,
+    this.arguments = const <String>[],
+    this.workingDirectory,
+    this.environment = const <String, String>{},
+    this.outputChannelId,
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory RuntimeExecutionHandoff.fromPlan({
+    required RuntimeExecutionPlan plan,
+    RuntimeExecutionHandoffTarget target =
+        RuntimeExecutionHandoffTarget.terminalRuntime,
+    String? outputChannelId,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeExecutionHandoff(
+      plan: plan,
+      status: plan.ready
+          ? RuntimeExecutionHandoffStatus.ready
+          : RuntimeExecutionHandoffStatus.blocked,
+      target: target,
+      taskId: plan.definition.id,
+      command: plan.definition.command,
+      arguments: plan.definition.arguments,
+      workingDirectory: plan.definition.workingDirectory,
+      environment: plan.definition.environment,
+      outputChannelId: outputChannelId ?? 'runtime.${plan.definition.id}',
+      metadata: <String, Object?>{
+        'planStatus': plan.status.wireValue,
+        'executionOrder': plan.executionOrder,
+        if (plan.missingDependencies.isNotEmpty)
+          'missingDependencies': plan.missingDependencies,
+        ...metadata,
+      },
+    );
+  }
+
+  factory RuntimeExecutionHandoff.fromJson(Map<String, Object?> json) {
+    final plan = json['plan'];
+    return RuntimeExecutionHandoff(
+      plan: plan is Map<String, Object?>
+          ? RuntimeExecutionPlan.fromJson(plan)
+          : plan is Map
+          ? RuntimeExecutionPlan.fromJson(
+              plan.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : RuntimeExecutionPlan(
+              definition: RuntimeTaskDefinition(
+                id: json['taskId'] as String? ?? '',
+                label: json['taskId'] as String? ?? '',
+                kind: RuntimeTaskKind.shell,
+                command: json['command'] as String? ?? '',
+              ),
+              status: RuntimeExecutionPlanStatus.blockedUnrunnable,
+              message: 'Restored handoff has no execution plan.',
+            ),
+      status: _handoffStatusFromWire(json['status']),
+      target: _handoffTargetFromWire(json['target']),
+      taskId: json['taskId'] as String? ?? '',
+      command: json['command'] as String? ?? '',
+      arguments: _jsonStringList(json['arguments']),
+      workingDirectory: json['workingDirectory'] as String?,
+      environment: _jsonStringMap(json['environment']),
+      outputChannelId: json['outputChannelId'] as String?,
+      metadata: _jsonObjectMap(json['metadata']),
+    );
+  }
+
+  final RuntimeExecutionPlan plan;
+  final RuntimeExecutionHandoffStatus status;
+  final RuntimeExecutionHandoffTarget target;
+  final String taskId;
+  final String command;
+  final List<String> arguments;
+  final String? workingDirectory;
+  final Map<String, String> environment;
+  final String? outputChannelId;
+  final Map<String, Object?> metadata;
+
+  bool get ready => status == RuntimeExecutionHandoffStatus.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'plan': plan.toJson(),
+      'status': status.wireValue,
+      'ready': ready,
+      'target': target.wireValue,
+      'taskId': taskId,
+      'command': command,
+      'arguments': arguments,
+      if (workingDirectory != null) 'workingDirectory': workingDirectory,
+      'environment': environment,
+      if (outputChannelId != null) 'outputChannelId': outputChannelId,
+      if (metadata.isNotEmpty) 'metadata': metadata,
     };
   }
 }
@@ -129,8 +275,7 @@ class RuntimeExecutionPlanner {
       status: RuntimeExecutionPlanStatus.ready,
       message: 'Task ${definition.id} is ready to run.',
       executionOrder: <String>[...definition.dependsOn, definition.id],
-      todo:
-          'TODO: hand ready plans to the shell/toolchain execution manager and attach output streams.',
+      metadata: const <String, Object?>{'handoff': 'runtime-execution-handoff'},
     );
   }
 }
@@ -145,6 +290,24 @@ RuntimeExecutionPlanStatus _planStatusFromWire(Object? value) {
   };
 }
 
+RuntimeExecutionHandoffStatus _handoffStatusFromWire(Object? value) {
+  return switch (value) {
+    'ready' => RuntimeExecutionHandoffStatus.ready,
+    'blocked' => RuntimeExecutionHandoffStatus.blocked,
+    _ => RuntimeExecutionHandoffStatus.blocked,
+  };
+}
+
+RuntimeExecutionHandoffTarget _handoffTargetFromWire(Object? value) {
+  return switch (value) {
+    'shell-manager' => RuntimeExecutionHandoffTarget.shellManager,
+    'terminal-runtime' => RuntimeExecutionHandoffTarget.terminalRuntime,
+    'toolchain-manager' => RuntimeExecutionHandoffTarget.toolchainManager,
+    'hosted-executor' => RuntimeExecutionHandoffTarget.hostedExecutor,
+    _ => RuntimeExecutionHandoffTarget.terminalRuntime,
+  };
+}
+
 List<String> _jsonStringList(Object? value) {
   if (value is! List) {
     return const <String>[];
@@ -153,6 +316,20 @@ List<String> _jsonStringList(Object? value) {
       .map((item) => '$item'.trim())
       .where((item) => item.isNotEmpty)
       .toList(growable: false);
+}
+
+Map<String, String> _jsonStringMap(Object? value) {
+  if (value is! Map) {
+    return const <String, String>{};
+  }
+  final result = <String, String>{};
+  for (final entry in value.entries) {
+    final key = entry.key.toString().trim();
+    if (key.isNotEmpty) {
+      result[key] = entry.value.toString();
+    }
+  }
+  return Map<String, String>.unmodifiable(result);
 }
 
 Map<String, Object?> _jsonObjectMap(Object? value) {

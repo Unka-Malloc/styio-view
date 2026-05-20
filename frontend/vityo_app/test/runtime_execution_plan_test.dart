@@ -29,6 +29,56 @@ void main() {
     expect(restored.executionOrder, <String>['configure', 'build']);
   });
 
+  test('runtime execution plan creates serializable ready handoff', () {
+    const definition = RuntimeTaskDefinition(
+      id: 'styio-test',
+      label: 'Styio tests',
+      kind: RuntimeTaskKind.test,
+      command: 'styio',
+      arguments: <String>['test'],
+      workingDirectory: '/workspace',
+      environment: <String, String>{'STYIO_PROFILE': 'nightly'},
+    );
+
+    final plan = const RuntimeExecutionPlanner().plan(definition: definition);
+    final handoff = plan.createHandoff(
+      target: RuntimeExecutionHandoffTarget.toolchainManager,
+      outputChannelId: 'test-output',
+      metadata: const <String, Object?>{'requester': 'agent'},
+    );
+    final restored = RuntimeExecutionHandoff.fromJson(handoff.toJson());
+
+    expect(handoff.ready, isTrue);
+    expect(handoff.status, RuntimeExecutionHandoffStatus.ready);
+    expect(handoff.target, RuntimeExecutionHandoffTarget.toolchainManager);
+    expect(handoff.command, 'styio');
+    expect(handoff.arguments, <String>['test']);
+    expect(handoff.outputChannelId, 'test-output');
+    expect(handoff.metadata['planStatus'], 'ready');
+    expect(handoff.metadata['requester'], 'agent');
+    expect(restored.target, RuntimeExecutionHandoffTarget.toolchainManager);
+    expect(restored.environment['STYIO_PROFILE'], 'nightly');
+  });
+
+  test('runtime execution handoff preserves blocked plan reason', () {
+    const definition = RuntimeTaskDefinition(
+      id: 'build',
+      label: 'Build',
+      kind: RuntimeTaskKind.build,
+      command: 'cmake',
+      dependsOn: <String>['configure'],
+    );
+
+    final plan = const RuntimeExecutionPlanner().plan(definition: definition);
+    final handoff = plan.createHandoff();
+
+    expect(handoff.ready, isFalse);
+    expect(handoff.status, RuntimeExecutionHandoffStatus.blocked);
+    expect(handoff.target, RuntimeExecutionHandoffTarget.terminalRuntime);
+    expect(handoff.metadata['planStatus'], 'blocked-missing-dependency');
+    expect(handoff.metadata['missingDependencies'], <String>['configure']);
+  });
+
   test(
     'runtime execution plan applies blocked state to lifecycle controller',
     () {

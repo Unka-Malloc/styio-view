@@ -149,7 +149,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 44,
+      schemaVersion: 45,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -234,9 +234,10 @@ class AgentSessionContext {
                 languageServiceStatus.toolchainId.isNotEmpty ||
                 languageServiceStatus.primaryCapabilityStates.isNotEmpty),
       ),
-      testing: AgentTestingContext(
+      testing: AgentTestingContext.fromState(
         discovery: testDiscovery,
         lastRun: lastTestRun,
+        workspaceRoot: workspaceRoot,
       ),
       toolchains: toolchainContext,
       ideCapabilities: capabilitySnapshot,
@@ -3886,17 +3887,53 @@ class AgentWorkspaceContext {
 }
 
 class AgentTestingContext {
-  const AgentTestingContext({this.discovery, this.lastRun});
+  const AgentTestingContext({
+    this.discovery,
+    this.lastRun,
+    this.rerunFailed,
+    this.debugFailed,
+  });
+
+  factory AgentTestingContext.fromState({
+    TestDiscoveryResult? discovery,
+    TestRunResult? lastRun,
+    String workspaceRoot = '',
+    FailedTestRerunPlanner rerunPlanner = const FailedTestRerunPlanner(),
+  }) {
+    return AgentTestingContext(
+      discovery: discovery,
+      lastRun: lastRun,
+      rerunFailed: rerunPlanner.plan(
+        lastRun: lastRun,
+        workspaceRoot: workspaceRoot,
+      ),
+      debugFailed: rerunPlanner.plan(
+        lastRun: lastRun,
+        workspaceRoot: workspaceRoot,
+        debug: true,
+      ),
+    );
+  }
 
   final TestDiscoveryResult? discovery;
   final TestRunResult? lastRun;
+  final TestRunConfiguration? rerunFailed;
+  final TestRunConfiguration? debugFailed;
+
+  bool get hasFailingTests {
+    return lastRun != null &&
+        (lastRun!.failedCount > 0 || lastRun!.failedTests.isNotEmpty);
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'hasDiscovery': discovery != null,
       'hasLastRun': lastRun != null,
+      'hasFailingTests': hasFailingTests,
       if (discovery != null) 'discovered': discovery!.toJson(),
       if (lastRun != null) 'lastRun': lastRun!.toJson(),
+      if (rerunFailed != null) 'rerunFailed': rerunFailed!.toJson(),
+      if (debugFailed != null) 'debugFailed': debugFailed!.toJson(),
     };
   }
 }

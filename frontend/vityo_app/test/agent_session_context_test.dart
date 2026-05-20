@@ -445,8 +445,12 @@ void main() {
         workspaceJson['sourceControlContext']! as Map<String, Object?>;
     final testingDiscovery = testingJson['discovered']! as Map<String, Object?>;
     final testingLastRun = testingJson['lastRun']! as Map<String, Object?>;
+    final testingRerunFailed =
+        testingJson['rerunFailed']! as Map<String, Object?>;
+    final testingDebugFailed =
+        testingJson['debugFailed']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 44);
+    expect(json['schemaVersion'], 45);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -465,9 +469,14 @@ void main() {
     );
     expect(testingJson['hasDiscovery'], isTrue);
     expect(testingJson['hasLastRun'], isTrue);
+    expect(testingJson['hasFailingTests'], isTrue);
     expect(testingDiscovery['testCount'], 1);
     expect(testingLastRun['status'], 'failed');
     expect(testingLastRun['failedCount'], 1);
+    expect(testingRerunFailed['id'], 'rerun-failed');
+    expect(testingRerunFailed['workspaceRoot'], '/workspace/demo');
+    expect(testingRerunFailed['filter'], contains('syntax contract'));
+    expect(testingDebugFailed['debug'], isTrue);
     expect(ideCapabilitiesJson['version'], 'vityo-ide-capability-framework-v1');
     expect(ideCapabilitiesJson['followUpCount'], greaterThan(0));
     expect(ideCapabilityClosureJson['isFrameworkClosed'], isTrue);
@@ -1466,7 +1475,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 44);
+    expect(json['schemaVersion'], 45);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);

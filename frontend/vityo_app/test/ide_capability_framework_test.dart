@@ -183,6 +183,10 @@ void main() {
       entriesById['agent.coding-loop']?.summary,
       contains('Source Control Agent context bridge'),
     );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('failed-test rerun context'),
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

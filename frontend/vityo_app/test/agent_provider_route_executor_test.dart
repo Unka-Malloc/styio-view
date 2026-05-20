@@ -582,6 +582,48 @@ void main() {
       expect(response.contentParts.single.text, 'codex ok');
     },
   );
+
+  test(
+    'OpenAI Codex Spark profile requires user-managed API credential',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_codex_spark_credential_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      );
+      final factory = ConfiguredAgentProviderAdapterFactory(
+        configurationStore: _configurationStore(tempRoot),
+        transport: _RecordingTransport(),
+      );
+
+      final resolution = await factory.resolveExecution(profile);
+      final endpointJson = profile.endpoint.toJson();
+      final credentialJson =
+          endpointJson['credentialReference']! as Map<String, Object?>;
+      final credentialKeyJson = credentialJson['key']! as Map<String, Object?>;
+
+      expect(profile.endpoint.protocol, 'openai-responses');
+      expect(profile.endpoint.model, 'gpt-5.3-codex-spark');
+      expect(profile.endpoint.requiresCredential, isTrue);
+      expect(credentialJson['kind'], 'remote-service-credential');
+      expect(credentialJson['displayName'], 'OpenAI API key');
+      expect(credentialKeyJson['namespace'], 'agent.provider');
+      expect(credentialKeyJson['name'], 'openai-api-key');
+      expect(credentialKeyJson['scope'], 'user');
+      expect(endpointJson.toString(), isNot(contains('secretValue')));
+      expect(resolution.status, AgentProviderExecutionResolutionStatus.blocked);
+      expect(
+        resolution.endpoints.single.credentialReadiness,
+        AgentProviderCredentialReadiness.unavailable,
+      );
+    },
+  );
 }
 
 AgentPromptProfile _profile({

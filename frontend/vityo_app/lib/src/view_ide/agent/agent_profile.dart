@@ -153,6 +153,17 @@ class AgentPromptProfile {
 
   bool get allowsLocalBridge => endpoint.route.allowsLocalBridge;
 
+  static const CredentialReference openAIApiCredentialReference =
+      CredentialReference(
+        key: CredentialDataStoreKey(
+          namespace: 'agent.provider',
+          name: 'openai-api-key',
+          scope: CredentialScope.user,
+        ),
+        kind: CredentialKind.remoteServiceCredential,
+        displayName: 'OpenAI API key',
+      );
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'profileId': profileId,
@@ -220,6 +231,7 @@ class AgentPromptProfile {
         model: 'gpt-5.3-codex',
         protocol: 'openai-responses',
         reasoningEffort: 'high',
+        credentialReference: openAIApiCredentialReference,
         requiresCredential: true,
       ),
     );
@@ -238,6 +250,7 @@ class AgentPromptProfile {
         model: 'gpt-5.3-codex-spark',
         protocol: 'openai-responses',
         reasoningEffort: 'high',
+        credentialReference: openAIApiCredentialReference,
         requiresCredential: true,
       ),
     );

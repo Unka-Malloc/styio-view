@@ -96,6 +96,71 @@ void main() {
     },
   );
 
+  test('agent coding session publishes history restore failures', () async {
+    final buffer = RuntimeOutputLiveBuffer();
+    addTearDown(buffer.dispose);
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+      sessionHistoryStore: const _ThrowingAgentCodingSessionHistoryStore(
+        readMessage: 'history backend unavailable',
+      ),
+      sessionHistoryWorkspaceId: 'demo',
+      runtimeOutputBuffer: buffer,
+    );
+
+    await controller.loadSessionHistory();
+
+    final event = buffer.snapshot.events.single;
+    expect(controller.sessionHistorySnapshot.workspaceId, 'demo');
+    expect(event.channelId, 'agent.activity');
+    expect(event.kind, RuntimeOutputChannelKind.agent);
+    expect(event.message, contains('Agent history restore failed'));
+    expect(event.message, contains('history backend unavailable'));
+    expect(event.metadata['operation'], 'agent.history.restore');
+    expect(event.metadata['outcome'], 'failed');
+  });
+
+  test('agent coding session publishes history persistence failures', () async {
+    final buffer = RuntimeOutputLiveBuffer();
+    addTearDown(buffer.dispose);
+    final adapter = _FakeAgentProviderAdapter(
+      response: const AgentProviderResponseEnvelope(
+        requestId: 'agent-request-persist-failure',
+        role: 'assistant',
+        finishReason: 'stop',
+        contentParts: <AgentContentPart>[
+          AgentContentPart(
+            kind: AgentContentPartKind.text,
+            text: 'History persistence is non-blocking.',
+          ),
+        ],
+      ),
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: adapter,
+      contextProvider: _context,
+      sessionHistoryStore: const _ThrowingAgentCodingSessionHistoryStore(
+        appendMessage: 'disk write denied',
+      ),
+      sessionHistoryWorkspaceId: 'demo',
+      runtimeOutputBuffer: buffer,
+    );
+
+    controller.updatePrompt('Persist this request.');
+    final response = await controller.sendPrompt();
+
+    expect(response, isNotNull);
+    expect(buffer.snapshot.events, hasLength(2));
+    final event = buffer.snapshot.events.last;
+    expect(event.message, contains('Agent history persistence failed'));
+    expect(event.message, contains('disk write denied'));
+    expect(event.metadata['operation'], 'agent.history.persist');
+    expect(event.metadata['outcome'], 'failed');
+  });
+
   test('agent coding session persists successful prompt history', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_agent_controller_history_test_',
@@ -1664,6 +1729,38 @@ class _StructuredFailureAgentProviderAdapter implements AgentProviderAdapter {
       target: 'https://agent.example.test',
       recoveryHint: 'Check the provider endpoint.',
     );
+  }
+}
+
+class _ThrowingAgentCodingSessionHistoryStore
+    implements AgentCodingSessionHistoryStore {
+  const _ThrowingAgentCodingSessionHistoryStore({
+    this.readMessage = 'read failed',
+    this.appendMessage = 'append failed',
+  });
+
+  final String readMessage;
+  final String appendMessage;
+
+  @override
+  Future<AgentCodingSessionHistory> readHistory({
+    required String workspaceId,
+  }) async {
+    throw StateError(readMessage);
+  }
+
+  @override
+  Future<AgentCodingSessionHistory> appendRecord({
+    required String workspaceId,
+    required AgentCodingSessionHistoryRecord record,
+    int maxEntries = 50,
+  }) async {
+    throw StateError(appendMessage);
+  }
+
+  @override
+  Future<void> saveHistory(AgentCodingSessionHistory history) async {
+    throw StateError('save failed');
   }
 }
 

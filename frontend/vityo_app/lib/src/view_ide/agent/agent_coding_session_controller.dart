@@ -193,8 +193,16 @@ class AgentCodingSessionController extends ChangeNotifier {
         workspaceId: sessionHistoryWorkspaceId,
       );
       notifyListeners();
-    } on Object {
-      // TODO: surface agent history restore failures in the output panel.
+    } on Object catch (error) {
+      _sessionHistorySnapshot = AgentCodingSessionHistory(
+        workspaceId: sessionHistoryWorkspaceId,
+      );
+      _publishAgentRuntimeDiagnostic(
+        operation: 'agent.history.restore',
+        message:
+            'Agent history restore failed: ${sanitizeAgentError(error.toString())}',
+      );
+      notifyListeners();
     }
   }
 
@@ -395,9 +403,32 @@ class AgentCodingSessionController extends ChangeNotifier {
         record: record,
         maxEntries: sessionHistoryMaxEntries,
       );
-    } on Object {
-      // TODO: surface agent history persistence failures in the output panel.
+    } on Object catch (error) {
+      _publishAgentRuntimeDiagnostic(
+        operation: 'agent.history.persist',
+        message:
+            'Agent history persistence failed: ${sanitizeAgentError(error.toString())}',
+      );
     }
+  }
+
+  void _publishAgentRuntimeDiagnostic({
+    required String operation,
+    required String message,
+  }) {
+    _runtimeOutputBuffer?.addEvent(
+      RuntimeOutputEvent(
+        channelId: 'agent.activity',
+        label: 'Agent Activity',
+        kind: RuntimeOutputChannelKind.agent,
+        message: message,
+        timestamp: DateTime.now().toUtc(),
+        metadata: <String, Object?>{
+          'operation': operation,
+          'outcome': 'failed',
+        },
+      ),
+    );
   }
 
   RuntimeOutputEvent _agentRuntimeOutputEvent(

@@ -443,6 +443,30 @@ class SourceControlDiffSnapshot {
     return unifiedDiff.split('\n').length;
   }
 
+  SourceControlDiffReviewSummary get reviewSummary {
+    var hunkCount = 0;
+    var additionCount = 0;
+    var deletionCount = 0;
+    for (final line in unifiedDiff.split('\n')) {
+      if (line.startsWith('@@')) {
+        hunkCount += 1;
+      } else if (line.startsWith('+') && !line.startsWith('+++')) {
+        additionCount += 1;
+      } else if (line.startsWith('-') && !line.startsWith('---')) {
+        deletionCount += 1;
+      }
+    }
+    return SourceControlDiffReviewSummary(
+      path: path,
+      available: available,
+      lineCount: lineCount,
+      hunkCount: hunkCount,
+      additionCount: additionCount,
+      deletionCount: deletionCount,
+      truncated: unifiedDiff.length > maxSerializedDiffChars,
+    );
+  }
+
   Map<String, Object?> toJson() {
     final truncated = unifiedDiff.length > maxSerializedDiffChars;
     final visibleDiff = truncated
@@ -456,7 +480,43 @@ class SourceControlDiffSnapshot {
       'lineCount': lineCount,
       if (message.isNotEmpty) 'message': message,
       'diffTruncated': truncated,
+      'reviewSummary': reviewSummary.toJson(),
       'unifiedDiff': visibleDiff,
+    };
+  }
+}
+
+class SourceControlDiffReviewSummary {
+  const SourceControlDiffReviewSummary({
+    required this.path,
+    required this.available,
+    required this.lineCount,
+    required this.hunkCount,
+    required this.additionCount,
+    required this.deletionCount,
+    required this.truncated,
+  });
+
+  final String path;
+  final bool available;
+  final int lineCount;
+  final int hunkCount;
+  final int additionCount;
+  final int deletionCount;
+  final bool truncated;
+
+  bool get hasChanges => additionCount > 0 || deletionCount > 0;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'path': path,
+      'available': available,
+      'lineCount': lineCount,
+      'hunkCount': hunkCount,
+      'additionCount': additionCount,
+      'deletionCount': deletionCount,
+      'hasChanges': hasChanges,
+      'truncated': truncated,
     };
   }
 }

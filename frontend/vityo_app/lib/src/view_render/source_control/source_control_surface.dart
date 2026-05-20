@@ -248,6 +248,29 @@ class SourceControlSurface extends StatelessWidget {
               if (diffPreview != null) ...[
                 Text('Diff Preview', style: theme.textTheme.titleSmall),
                 const SizedBox(height: 8),
+                Wrap(
+                  key: const ValueKey('source-control-diff-review-summary'),
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Chip(
+                      label: Text(
+                        'hunks ${diffPreview!.reviewSummary.hunkCount}',
+                      ),
+                    ),
+                    Chip(
+                      label: Text(
+                        '+${diffPreview!.reviewSummary.additionCount} -${diffPreview!.reviewSummary.deletionCount}',
+                      ),
+                    ),
+                    Chip(
+                      label: Text(
+                        'diff-lines ${diffPreview!.reviewSummary.lineCount}',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Container(
                   key: const ValueKey('source-control-diff-preview'),
                   width: double.infinity,

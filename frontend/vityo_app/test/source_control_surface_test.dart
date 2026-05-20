@@ -135,7 +135,13 @@ R  src/old.styio -> src/new.styio
       find.byKey(const ValueKey('source-control-diff-preview')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('source-control-diff-review-summary')),
+      findsOneWidget,
+    );
     expect(find.text('Diff Preview'), findsOneWidget);
+    expect(find.text('hunks 0'), findsOneWidget);
+    expect(find.text('+1 -0'), findsOneWidget);
     expect(find.textContaining('+value'), findsOneWidget);
 
     Future<void> tapVisible(String key) async {

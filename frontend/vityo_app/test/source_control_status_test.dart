@@ -101,7 +101,11 @@ diff --git a/lib/main.styio b/lib/main.styio
       expect(snapshot.available, isTrue);
       expect(snapshot.path, 'lib/main.styio');
       expect(snapshot.unifiedDiff, contains('+new'));
+      expect(snapshot.reviewSummary.hunkCount, 1);
+      expect(snapshot.reviewSummary.additionCount, 1);
+      expect(snapshot.reviewSummary.deletionCount, 1);
       expect(snapshot.toJson()['diffTruncated'], isFalse);
+      expect(snapshot.toJson()['reviewSummary'], isA<Map<String, Object?>>());
     },
   );
 

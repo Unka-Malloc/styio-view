@@ -399,7 +399,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/testing',
           summary:
-              'Testing surface is wired to runTests, native tool testResult records, TestRunProvider registry, TestDiscoveryProvider registry, TestingProviderCatalog controller fallback, test run configurations, persisted run configuration sets, run/debug selected configuration controls, test tree model, persisted test run history, persisted failed-test retry history, runtime task lifecycle snapshots, persisted runtime task history, output stream subscription plans, RuntimeOutputLiveBuffer test-result publishing, failed-test rerun planning, failed-test interaction, per-failed-test debug cancellation routing, rerun-failed handoff, failed-test DebugLaunchRoutePlan bridge, debug launch route plans, failure navigation actions, DebugRuntimeExecutionAdapter result visibility, debug retry handoff, and CTest result parsing.',
+              'Testing surface is wired to runTests, native tool testResult records, TestRunProvider registry, TestDiscoveryProvider registry, TestingProviderCatalog controller fallback, test run configurations, persisted run configuration sets, run/debug selected configuration controls, test tree model, persisted test run history, persisted failed-test retry history, runtime task lifecycle snapshots, persisted runtime task history, output stream subscription plans, RuntimeOutputLiveBuffer test-result publishing, failed-test rerun planning, failed-test interaction, per-failed-test debug cancellation routing, rerun-failed handoff, failed-test DebugLaunchRoutePlan bridge, debug launch route plans, failure navigation actions, DebugRuntimeExecutionAdapter result visibility, cancellation telemetry, debug retry handoff, and CTest result parsing.',
           todo:
               'TODO: bind FailedTestDebugCancellationAdapter process-handle contract to concrete debug adapter and test runner process termination.',
           dependencies: <String>['foundation.registry', 'runtime.execution'],
@@ -538,7 +538,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'DAP launch contracts, breakpoint serialization, persisted workspace breakpoint sets, launch profiles, workspace launch configuration sets, Foundation DataStore persistence, runtime task projection, runtime execution handoff, debug route plans, failure navigation actions, DapDebugAdapterExecutionPlan, DebugRuntimeExecutionAdapter, DebugLaunchTelemetryStore, DebugLaunchRuntimeOutputBinding output events, DebugConsoleSurface launch plan, telemetry summaries, runtime execution result controls, retry handoff, launcher execution-plan handoff, DAP snapshot task-history binding, live ShellRuntime DAP history appends, and extension debugger route consumption are wired.',
           todo:
-              'TODO: wire breakpoint UI editing, non-C++ debug adapters, launch UI editing, and DebugRuntimeExecutionAdapter cancellation telemetry.',
+              'TODO: wire breakpoint UI editing, non-C++ debug adapters, launch UI editing, and concrete debug process termination policies.',
           references: <String>['Debug Adapter Protocol'],
         ),
         IdeCapabilityDescriptor(

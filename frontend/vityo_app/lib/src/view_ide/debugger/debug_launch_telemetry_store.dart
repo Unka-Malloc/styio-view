@@ -4,7 +4,14 @@ import 'debug_adapter_launcher.dart';
 import 'debug_adapter_session.dart';
 import 'debug_launch_contract.dart';
 
-enum DebugLaunchTelemetryStatus { planned, launched, blocked, failed, closed }
+enum DebugLaunchTelemetryStatus {
+  planned,
+  launched,
+  blocked,
+  failed,
+  closed,
+  cancelled,
+}
 
 extension DebugLaunchTelemetryStatusX on DebugLaunchTelemetryStatus {
   String get wireValue => switch (this) {
@@ -13,6 +20,7 @@ extension DebugLaunchTelemetryStatusX on DebugLaunchTelemetryStatus {
     DebugLaunchTelemetryStatus.blocked => 'blocked',
     DebugLaunchTelemetryStatus.failed => 'failed',
     DebugLaunchTelemetryStatus.closed => 'closed',
+    DebugLaunchTelemetryStatus.cancelled => 'cancelled',
   };
 }
 
@@ -319,7 +327,13 @@ class DebugLaunchRuntimeOutputBinding {
   }
 }
 
-enum DebugRuntimeExecutionStatus { launched, blocked, failed, wrongRoute }
+enum DebugRuntimeExecutionStatus {
+  launched,
+  blocked,
+  failed,
+  wrongRoute,
+  cancelled,
+}
 
 extension DebugRuntimeExecutionStatusX on DebugRuntimeExecutionStatus {
   String get wireValue => switch (this) {
@@ -327,6 +341,7 @@ extension DebugRuntimeExecutionStatusX on DebugRuntimeExecutionStatus {
     DebugRuntimeExecutionStatus.blocked => 'blocked',
     DebugRuntimeExecutionStatus.failed => 'failed',
     DebugRuntimeExecutionStatus.wrongRoute => 'wrong-route',
+    DebugRuntimeExecutionStatus.cancelled => 'cancelled',
   };
 }
 
@@ -460,6 +475,56 @@ class DebugRuntimeExecutionAdapter {
         message: 'Debug execution failed: $error',
       );
     }
+  }
+
+  Future<DebugRuntimeExecutionResult> cancelExecution({
+    required DebugRuntimeExecutionResult execution,
+    required RuntimeOutputLiveBuffer buffer,
+    String reason = 'Debug execution cancelled.',
+  }) async {
+    final handle = execution.handle;
+    if (handle == null) {
+      return _controlResult(
+        plan: execution.plan,
+        buffer: buffer,
+        dispatchResult: execution.dispatchResult,
+        status: DebugRuntimeExecutionStatus.blocked,
+        telemetryStatus: DebugLaunchTelemetryStatus.blocked,
+        message: 'Debug execution cancellation skipped: no active session.',
+      );
+    }
+    await handle.close();
+    final record = DebugLaunchTelemetryRecord.fromSessionSnapshot(
+      workspaceId: workspaceId,
+      plan: execution.plan,
+      snapshot: handle.snapshot,
+      status: DebugLaunchTelemetryStatus.cancelled,
+      message: reason,
+      timestamp: _clock(),
+      metadata: <String, Object?>{
+        'debugRuntimeExecutionStatus':
+            DebugRuntimeExecutionStatus.cancelled.wireValue,
+        'cancelledBy': 'DebugRuntimeExecutionAdapter',
+      },
+    );
+    final telemetry = DebugLaunchTelemetrySnapshot(
+      workspaceId: workspaceId,
+      records: <DebugLaunchTelemetryRecord>[record],
+      updatedAt: record.timestamp,
+    );
+    final outputEvents = _emitTelemetry(
+      plan: execution.plan,
+      telemetry: telemetry,
+      buffer: buffer,
+    );
+    return DebugRuntimeExecutionResult(
+      plan: execution.plan,
+      status: DebugRuntimeExecutionStatus.cancelled,
+      telemetry: telemetry,
+      outputEvents: outputEvents,
+      dispatchResult: execution.dispatchResult,
+      handle: handle,
+    );
   }
 
   DebugRuntimeExecutionResult _controlResult({
@@ -611,6 +676,7 @@ DebugLaunchTelemetryStatus? _debugLaunchTelemetryStatusFromWire(Object? value) {
     'blocked' => DebugLaunchTelemetryStatus.blocked,
     'failed' => DebugLaunchTelemetryStatus.failed,
     'closed' => DebugLaunchTelemetryStatus.closed,
+    'cancelled' => DebugLaunchTelemetryStatus.cancelled,
     _ => null,
   };
 }

@@ -184,7 +184,21 @@ void main() {
           'launched debug-styio: Debug adapter launched through runtime execution route.',
         ),
       );
-      await result.handle!.close();
+      final cancelled = await adapter.cancelExecution(
+        execution: result,
+        buffer: buffer,
+        reason: 'User cancelled debug session.',
+      );
+
+      expect(cancelled.status, DebugRuntimeExecutionStatus.cancelled);
+      expect(
+        cancelled.telemetry.records.single.status,
+        DebugLaunchTelemetryStatus.cancelled,
+      );
+      expect(
+        cancelled.outputEvents.map((event) => event.message),
+        contains('cancelled debug-styio: User cancelled debug session.'),
+      );
     },
   );
 

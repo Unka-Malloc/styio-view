@@ -283,6 +283,52 @@ String commandShortcutSignature(AppCommandShortcutSpec shortcut) {
   return parts.where((part) => part.isNotEmpty).join('+');
 }
 
+String commandShortcutDisplayLabel(AppCommandShortcutSpec shortcut) {
+  final parts = <String>[
+    if (shortcut.control) 'Ctrl',
+    if (shortcut.meta) 'Cmd',
+    if (shortcut.shift) 'Shift',
+    shortcut.key.trim(),
+  ];
+  return parts.where((part) => part.isNotEmpty).join('+');
+}
+
+AppCommandShortcutSpec? parseCommandShortcutExpression(String expression) {
+  final tokens = expression
+      .split('+')
+      .map((token) => token.trim())
+      .where((token) => token.isNotEmpty)
+      .toList(growable: false);
+  var control = false;
+  var meta = false;
+  var shift = false;
+  var key = '';
+  for (final token in tokens) {
+    switch (token.toLowerCase()) {
+      case 'ctrl':
+      case 'control':
+        control = true;
+      case 'cmd':
+      case 'command':
+      case 'meta':
+        meta = true;
+      case 'shift':
+        shift = true;
+      default:
+        key = token;
+    }
+  }
+  if (key.isEmpty) {
+    return null;
+  }
+  return AppCommandShortcutSpec(
+    key,
+    control: control,
+    meta: meta,
+    shift: shift,
+  );
+}
+
 List<AppCommandShortcutSpec> _shortcutsFromJson(Object? value) {
   if (value is! List) {
     return const <AppCommandShortcutSpec>[];

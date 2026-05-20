@@ -365,4 +365,114 @@ void main() {
 
     expect(executedCommandId, AppCommandId.save);
   });
+
+  testWidgets('command palette edits keybinding overrides and conflicts', (
+    tester,
+  ) async {
+    CommandKeybindingOverride? savedOverride;
+    AppCommandId? clearedCommandId;
+    final profile = CommandKeybindingProfile(
+      workspaceId: 'demo',
+      overrides: <AppCommandId, CommandKeybindingOverride>{
+        AppCommandId.save: const CommandKeybindingOverride(
+          commandId: AppCommandId.save,
+          shortcuts: <AppCommandShortcutSpec>[
+            AppCommandShortcutSpec('keyR', control: true),
+          ],
+        ),
+        AppCommandId.renameSymbol: const CommandKeybindingOverride(
+          commandId: AppCommandId.renameSymbol,
+          shortcuts: <AppCommandShortcutSpec>[
+            AppCommandShortcutSpec('keyR', control: true),
+          ],
+        ),
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPaletteSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 900,
+            ),
+            keybindingProfile: profile,
+            commands: const <AppCommandDescriptor>[
+              AppCommandDescriptor(
+                id: AppCommandId.save,
+                label: 'Save',
+                shortcutHint: 'Cmd/Ctrl+S',
+                description: 'Save current file.',
+              ),
+              AppCommandDescriptor(
+                id: AppCommandId.renameSymbol,
+                label: 'Rename Symbol',
+                shortcutHint: 'Route',
+                description: 'Rename selected symbol.',
+              ),
+            ],
+            onSaveKeybindingOverride: (override) async {
+              savedOverride = override;
+            },
+            onClearKeybindingOverride: (commandId) async {
+              clearedCommandId = commandId;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('command-palette-keybinding-editor')),
+      findsOneWidget,
+    );
+    expect(find.text('conflicts 1'), findsOneWidget);
+    expect(find.text('Ctrl+keyR'), findsWidgets);
+    expect(
+      find.byKey(
+        const ValueKey('command-palette-keybinding-selected-override'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('command-palette-keybinding-shortcut-input')),
+      'ctrl+shift+keyK',
+    );
+    tester
+        .widget<FilledButton>(
+          find.byKey(const ValueKey('command-palette-keybinding-save')),
+        )
+        .onPressed!();
+    await tester.pump();
+
+    expect(savedOverride?.commandId, AppCommandId.save);
+    expect(savedOverride?.shortcuts.single.key, 'keyK');
+    expect(savedOverride?.shortcuts.single.control, isTrue);
+    expect(savedOverride?.shortcuts.single.shift, isTrue);
+
+    tester
+        .widget<OutlinedButton>(
+          find.byKey(const ValueKey('command-palette-keybinding-clear')),
+        )
+        .onPressed!();
+    await tester.pump();
+
+    expect(clearedCommandId, AppCommandId.save);
+
+    tester
+        .widget<TextButton>(
+          find.byKey(
+            const ValueKey(
+              'command-palette-keybinding-edit-conflict-renameSymbol',
+            ),
+          ),
+        )
+        .onPressed!();
+    await tester.pump();
+
+    expect(find.text('ctrl+keyR'), findsWidgets);
+  });
 }

@@ -118,6 +118,58 @@ void main() {
     expect(await store.clearProfile(workspaceId: 'demo'), isTrue);
     expect((await store.readProfile(workspaceId: 'demo')).overrides, isEmpty);
   });
+
+  test('command keybinding parser and conflict review classify overrides', () {
+    final shortcut = parseCommandShortcutExpression('ctrl+shift+keyK');
+    expect(shortcut, isNotNull);
+    expect(shortcut!.control, isTrue);
+    expect(shortcut.shift, isTrue);
+    expect(shortcut.key, 'keyK');
+    expect(commandShortcutSignature(shortcut), 'ctrl+shift+keyK');
+    expect(commandShortcutDisplayLabel(shortcut), 'Ctrl+Shift+keyK');
+
+    final profile = CommandKeybindingProfile(
+      workspaceId: 'demo',
+      overrides: <AppCommandId, CommandKeybindingOverride>{
+        AppCommandId.save: const CommandKeybindingOverride(
+          commandId: AppCommandId.save,
+          shortcuts: <AppCommandShortcutSpec>[
+            AppCommandShortcutSpec('keyK', control: true),
+          ],
+        ),
+        AppCommandId.renameSymbol: const CommandKeybindingOverride(
+          commandId: AppCommandId.renameSymbol,
+          shortcuts: <AppCommandShortcutSpec>[
+            AppCommandShortcutSpec('keyK', control: true),
+          ],
+        ),
+      },
+    );
+    final review = CommandKeybindingResolver.reviewConflicts(
+      profile: profile,
+      descriptors: const <AppCommandDescriptor>[
+        AppCommandDescriptor(
+          id: AppCommandId.save,
+          label: 'Save',
+          shortcutHint: 'Cmd/Ctrl+S',
+          description: 'Save file.',
+        ),
+        AppCommandDescriptor(
+          id: AppCommandId.renameSymbol,
+          label: 'Rename Symbol',
+          shortcutHint: 'Route',
+          description: 'Rename symbol.',
+        ),
+      ],
+    );
+
+    expect(review.hasConflicts, isTrue);
+    expect(review.conflicts.single.signature, 'ctrl+keyK');
+    expect(review.conflicts.single.commandIds, <AppCommandId>[
+      AppCommandId.save,
+      AppCommandId.renameSymbol,
+    ]);
+  });
 }
 
 Future<FoundationDataStore> _createDataStore() async {

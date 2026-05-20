@@ -18,6 +18,10 @@ class CommandPaletteSurface extends StatefulWidget {
     this.onExecuteCommand,
     this.onRecordRecentCommand,
     this.blockedReasonForCommand,
+    this.keybindingProfile,
+    this.keybindingConflictReview,
+    this.onSaveKeybindingOverride,
+    this.onClearKeybindingOverride,
   });
 
   final ViewportProfile viewportProfile;
@@ -29,6 +33,12 @@ class CommandPaletteSurface extends StatefulWidget {
   final Future<void> Function(AppCommandId commandId)? onExecuteCommand;
   final Future<void> Function(AppCommandId commandId)? onRecordRecentCommand;
   final String? Function(AppCommandId commandId)? blockedReasonForCommand;
+  final CommandKeybindingProfile? keybindingProfile;
+  final CommandKeybindingConflictReview? keybindingConflictReview;
+  final Future<void> Function(CommandKeybindingOverride override)?
+  onSaveKeybindingOverride;
+  final Future<void> Function(AppCommandId commandId)?
+  onClearKeybindingOverride;
 
   @override
   State<CommandPaletteSurface> createState() => _CommandPaletteSurfaceState();
@@ -36,20 +46,27 @@ class CommandPaletteSurface extends StatefulWidget {
 
 class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   late final TextEditingController _queryController;
+  late final TextEditingController _keybindingController;
   StreamSubscription<CommandPaletteLivePreferenceState>?
   _livePreferenceSubscription;
   CommandPaletteDisplayPreferences? _liveDisplayPreferences;
   var _query = '';
   AppCommandCategory? _category;
   var _selectedIndex = 0;
+  AppCommandId? _keybindingCommand;
 
   @override
   void initState() {
     super.initState();
     _queryController = TextEditingController();
+    _keybindingController = TextEditingController();
     _attachLivePreferenceController(widget.livePreferenceController);
     _category =
         widget.initialCategory ?? _effectivePreferences?.defaultCategory;
+    _keybindingCommand = widget.commands.isEmpty
+        ? null
+        : widget.commands.first.id;
+    _syncKeybindingDraft();
   }
 
   @override
@@ -62,11 +79,23 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
           widget.initialCategory ?? _effectivePreferences?.defaultCategory;
       _selectedIndex = 0;
     }
+    final commandStillRegistered = widget.commands.any(
+      (command) => command.id == _keybindingCommand,
+    );
+    if (!commandStillRegistered) {
+      _keybindingCommand = widget.commands.isEmpty
+          ? null
+          : widget.commands.first.id;
+      _syncKeybindingDraft();
+    } else if (oldWidget.keybindingProfile != widget.keybindingProfile) {
+      _syncKeybindingDraft();
+    }
   }
 
   @override
   void dispose() {
     _livePreferenceSubscription?.cancel();
+    _keybindingController.dispose();
     _queryController.dispose();
     super.dispose();
   }
@@ -227,6 +256,13 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                 ),
                 const SizedBox(height: 12),
               ],
+              if (_showsKeybindingEditor) ...[
+                SizedBox(
+                  height: compact ? 190 : 220,
+                  child: _buildKeybindingEditor(theme),
+                ),
+                const SizedBox(height: 12),
+              ],
               Expanded(
                 child: visibleEntries.isEmpty
                     ? Center(
@@ -265,7 +301,12 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                               spacing: 8,
                               children: [
                                 Chip(label: Text(command.category.wireValue)),
-                                Chip(label: Text(command.shortcutHint)),
+                                Chip(label: Text(_shortcutHintFor(command))),
+                                if (widget.keybindingProfile?.hasOverrideFor(
+                                      command.id,
+                                    ) ??
+                                    false)
+                                  const Chip(label: Text('override')),
                                 if (entry.recent)
                                   Chip(
                                     label: Text('recent ${entry.recentRank}'),
@@ -299,6 +340,175 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     );
   }
 
+  bool get _showsKeybindingEditor {
+    return widget.keybindingProfile != null ||
+        widget.keybindingConflictReview != null ||
+        widget.onSaveKeybindingOverride != null ||
+        widget.onClearKeybindingOverride != null;
+  }
+
+  Widget _buildKeybindingEditor(ThemeData theme) {
+    final selectedDescriptor = _descriptorFor(_keybindingCommand);
+    final profile = widget.keybindingProfile;
+    final conflictReview =
+        widget.keybindingConflictReview ??
+        (profile == null
+            ? const CommandKeybindingConflictReview()
+            : CommandKeybindingResolver.reviewConflicts(
+                profile: profile,
+                descriptors: widget.commands,
+              ));
+    final hasSelectedOverride =
+        selectedDescriptor != null &&
+        (profile?.hasOverrideFor(selectedDescriptor.id) ?? false);
+    return Container(
+      key: const ValueKey('command-palette-keybinding-editor'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Keybinding overrides', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Text(
+              'Workspace-level shortcut remap draft. TODO: replace text entry with physical key capture and richer conflict preview.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<AppCommandId>(
+              key: const ValueKey('command-palette-keybinding-command'),
+              initialValue: _keybindingCommand,
+              decoration: const InputDecoration(
+                labelText: 'Command',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final command in widget.commands)
+                  DropdownMenuItem<AppCommandId>(
+                    value: command.id,
+                    child: Text(command.label),
+                  ),
+              ],
+              onChanged: (commandId) {
+                setState(() {
+                  _keybindingCommand = commandId;
+                  _syncKeybindingDraft();
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('command-palette-keybinding-shortcut-input'),
+              controller: _keybindingController,
+              decoration: const InputDecoration(
+                labelText: 'Shortcut expression',
+                helperText: 'Example: ctrl+shift+keyK',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton(
+                  key: const ValueKey('command-palette-keybinding-save'),
+                  onPressed:
+                      selectedDescriptor == null ||
+                          widget.onSaveKeybindingOverride == null
+                      ? null
+                      : _saveKeybindingOverride,
+                  child: const Text('Save override'),
+                ),
+                OutlinedButton(
+                  key: const ValueKey('command-palette-keybinding-clear'),
+                  onPressed:
+                      selectedDescriptor == null ||
+                          widget.onClearKeybindingOverride == null ||
+                          !hasSelectedOverride
+                      ? null
+                      : _clearKeybindingOverride,
+                  child: const Text('Clear override'),
+                ),
+                if (conflictReview.hasConflicts)
+                  Chip(
+                    key: const ValueKey(
+                      'command-palette-keybinding-conflict-chip',
+                    ),
+                    label: Text('conflicts ${conflictReview.conflicts.length}'),
+                  )
+                else
+                  const Chip(label: Text('conflicts 0')),
+                if (hasSelectedOverride)
+                  const Chip(
+                    key: ValueKey(
+                      'command-palette-keybinding-selected-override',
+                    ),
+                    label: Text('selected override'),
+                  ),
+              ],
+            ),
+            if (conflictReview.hasConflicts) ...[
+              const SizedBox(height: 8),
+              for (final conflict in conflictReview.conflicts)
+                _buildConflictRow(conflict),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConflictRow(CommandKeybindingConflict conflict) {
+    final profile = widget.keybindingProfile;
+    return Padding(
+      key: ValueKey(
+        'command-palette-keybinding-conflict-${conflict.signature}',
+      ),
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Chip(label: Text(conflict.signature)),
+          Text(
+            conflict.commandIds.map((commandId) => commandId.name).join(', '),
+          ),
+          for (final commandId in conflict.commandIds)
+            TextButton(
+              key: ValueKey(
+                'command-palette-keybinding-edit-conflict-${commandId.name}',
+              ),
+              onPressed: () {
+                setState(() {
+                  _keybindingCommand = commandId;
+                  _keybindingController.text = conflict.signature;
+                });
+              },
+              child: Text('Edit ${commandId.name}'),
+            ),
+          for (final commandId in conflict.commandIds)
+            if ((profile?.hasOverrideFor(commandId) ?? false) &&
+                widget.onClearKeybindingOverride != null)
+              TextButton(
+                key: ValueKey(
+                  'command-palette-keybinding-clear-conflict-${commandId.name}',
+                ),
+                onPressed: () {
+                  unawaited(widget.onClearKeybindingOverride!(commandId));
+                },
+                child: Text('Clear ${commandId.name}'),
+              ),
+        ],
+      ),
+    );
+  }
+
   void _moveSelection(CommandPaletteOverlayState overlayState, int delta) {
     if (overlayState.entries.isEmpty) {
       return;
@@ -328,5 +538,68 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
       unawaited(widget.onRecordRecentCommand!(commandId));
     }
     unawaited(widget.onExecuteCommand!(commandId));
+  }
+
+  void _saveKeybindingOverride() {
+    final commandId = _keybindingCommand;
+    if (commandId == null || widget.onSaveKeybindingOverride == null) {
+      return;
+    }
+    final shortcut = parseCommandShortcutExpression(_keybindingController.text);
+    if (shortcut == null) {
+      return;
+    }
+    unawaited(
+      widget.onSaveKeybindingOverride!(
+        CommandKeybindingOverride(
+          commandId: commandId,
+          shortcuts: <AppCommandShortcutSpec>[shortcut],
+        ),
+      ),
+    );
+  }
+
+  void _clearKeybindingOverride() {
+    final commandId = _keybindingCommand;
+    if (commandId == null || widget.onClearKeybindingOverride == null) {
+      return;
+    }
+    unawaited(widget.onClearKeybindingOverride!(commandId));
+  }
+
+  void _syncKeybindingDraft() {
+    final descriptor = _descriptorFor(_keybindingCommand);
+    if (descriptor == null) {
+      _keybindingController.text = '';
+      return;
+    }
+    final shortcuts =
+        widget.keybindingProfile?.effectiveShortcutsFor(descriptor) ??
+        descriptor.shortcuts;
+    _keybindingController.text = shortcuts.isEmpty
+        ? ''
+        : commandShortcutDisplayLabel(shortcuts.first);
+  }
+
+  String _shortcutHintFor(AppCommandDescriptor descriptor) {
+    final shortcuts =
+        widget.keybindingProfile?.effectiveShortcutsFor(descriptor) ??
+        descriptor.shortcuts;
+    if (shortcuts.isEmpty) {
+      return descriptor.shortcutHint;
+    }
+    return shortcuts.map(commandShortcutDisplayLabel).join(' / ');
+  }
+
+  AppCommandDescriptor? _descriptorFor(AppCommandId? commandId) {
+    if (commandId == null) {
+      return null;
+    }
+    for (final command in widget.commands) {
+      if (command.id == commandId) {
+        return command;
+      }
+    }
+    return null;
   }
 }

@@ -78,7 +78,7 @@ class DapDebugAdapterExecutionPlan {
       status: DapDebugAdapterExecutionPlanStatus.ready,
       message: 'DAP debug adapter execution plan is ready.',
       todo:
-          'TODO: bind this execution plan to Debug panel launch controls and lifecycle telemetry.',
+          'TODO: connect this launch plan to a live adapter process and lifecycle telemetry stream.',
     );
   }
 

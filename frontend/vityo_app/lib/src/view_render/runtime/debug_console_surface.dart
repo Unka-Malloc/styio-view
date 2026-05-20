@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../view_ide/backend_toolchain/execution_adapter.dart';
+import '../../view_ide/debugger/debug_adapter_launcher.dart';
+import '../../view_ide/debugger/debug_launch_contract.dart';
+import '../../view_ide/debugger/debug_launch_telemetry_store.dart';
 import '../platform/viewport_profile.dart';
 import '../../view_ide/runtime/runtime_replay_summary.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
@@ -15,6 +18,8 @@ class DebugConsoleSurface extends StatelessWidget {
       status: DebugSessionStatus.idle,
       message: 'No debug session has been started.',
     ),
+    this.debugLaunchPlan,
+    this.debugTelemetry,
     this.onStartDebugging,
     this.onStopDebugging,
     this.onContinueDebugging,
@@ -27,6 +32,8 @@ class DebugConsoleSurface extends StatelessWidget {
   final List<String> entries;
   final List<RuntimeEventEnvelope> runtimeEvents;
   final DebugSessionSnapshot debugSession;
+  final DapDebugAdapterExecutionPlan? debugLaunchPlan;
+  final DebugLaunchTelemetrySnapshot? debugTelemetry;
   final Future<void> Function()? onStartDebugging;
   final Future<void> Function()? onStopDebugging;
   final Future<void> Function()? onContinueDebugging;
@@ -251,6 +258,13 @@ class DebugConsoleSurface extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
+                  if (debugLaunchPlan != null || debugTelemetry != null) ...[
+                    _DebugLaunchPlanSection(
+                      plan: debugLaunchPlan,
+                      telemetry: debugTelemetry,
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                   ConstrainedBox(
                     constraints: BoxConstraints(
                       maxHeight: viewportProfile.isMobile ? 220 : 190,
@@ -299,6 +313,82 @@ class DebugConsoleSurface extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DebugLaunchPlanSection extends StatelessWidget {
+  const _DebugLaunchPlanSection({this.plan, this.telemetry});
+
+  final DapDebugAdapterExecutionPlan? plan;
+  final DebugLaunchTelemetrySnapshot? telemetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final latestRecord = telemetry?.records.isEmpty == false
+        ? telemetry!.records.first
+        : null;
+    return Container(
+      key: const ValueKey('debug-launch-plan-section'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDE7F6),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Debug Launch Plan', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (plan != null) ...[
+                Chip(label: Text('profile ${plan!.profileId}')),
+                Chip(label: Text('plan ${plan!.status.wireValue}')),
+                Chip(label: Text('ready ${plan!.ready}')),
+                Chip(label: Text('route ${plan!.routePlan.status.wireValue}')),
+              ],
+              if (telemetry != null) ...[
+                Chip(label: Text('telemetry ${telemetry!.records.length}')),
+                Chip(label: Text('blocked ${telemetry!.blockedCount}')),
+                Chip(label: Text('successful ${telemetry!.successfulCount}')),
+              ],
+            ],
+          ),
+          if (plan != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              plan!.message,
+              key: const ValueKey('debug-launch-plan-message'),
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'adapter ${plan!.launchConfiguration.debuggerLabel} · program ${plan!.launchConfiguration.programPath ?? 'not selected'}',
+              key: const ValueKey('debug-launch-plan-adapter'),
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'output ${plan!.outputBinding.outputChannel.id}',
+              key: const ValueKey('debug-launch-plan-output'),
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+          if (latestRecord != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'latest ${latestRecord.status.wireValue} · ${latestRecord.message}',
+              key: const ValueKey('debug-launch-telemetry-latest'),
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -131,6 +131,35 @@ class RuntimeOutputChannelFilterState {
   }
 }
 
+class RuntimeOutputEvent {
+  const RuntimeOutputEvent({
+    required this.channelId,
+    required this.label,
+    required this.kind,
+    required this.message,
+    required this.timestamp,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String channelId;
+  final String label;
+  final RuntimeOutputChannelKind kind;
+  final String message;
+  final DateTime timestamp;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'channelId': channelId,
+      'label': label,
+      'kind': kind.wireValue,
+      'message': message,
+      'timestamp': timestamp.toIso8601String(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
 class RuntimeOutputChannelSnapshot {
   const RuntimeOutputChannelSnapshot({
     required this.channels,
@@ -187,6 +216,67 @@ class RuntimeOutputChannelSnapshot {
       'totalEventCount': totalEventCount,
       'channels': visibleChannels
           .map((channel) => channel.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+class RuntimeOutputPanelSnapshot {
+  const RuntimeOutputPanelSnapshot({
+    required this.events,
+    this.filter = const RuntimeOutputChannelFilterState(),
+  });
+
+  final List<RuntimeOutputEvent> events;
+  final RuntimeOutputChannelFilterState filter;
+
+  RuntimeOutputChannelSnapshot get channelSnapshot {
+    final grouped = <String, List<RuntimeOutputEvent>>{};
+    for (final event in events) {
+      grouped.putIfAbsent(event.channelId, () => <RuntimeOutputEvent>[]);
+      grouped[event.channelId]!.add(event);
+    }
+    final channels = grouped.entries
+        .map((entry) {
+          final channelEvents = entry.value;
+          final latest = channelEvents.last;
+          return RuntimeOutputChannelSummary(
+            id: latest.channelId,
+            label: latest.label,
+            kind: latest.kind,
+            eventCount: channelEvents.length,
+            latestMessage: latest.message,
+          );
+        })
+        .toList(growable: false);
+    channels.sort((left, right) => left.id.compareTo(right.id));
+    return RuntimeOutputChannelSnapshot(channels: channels, filter: filter);
+  }
+
+  List<RuntimeOutputEvent> get visibleEvents {
+    final visibleChannelIds = channelSnapshot.visibleChannels
+        .map((channel) => channel.id)
+        .toSet();
+    return events
+        .where((event) => visibleChannelIds.contains(event.channelId))
+        .toList(growable: false);
+  }
+
+  Map<String, int> get eventCountsByKind {
+    return <String, int>{
+      for (final kind in RuntimeOutputChannelKind.values)
+        kind.wireValue: events.where((event) => event.kind == kind).length,
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'channelSnapshot': channelSnapshot.toJson(),
+      'eventCount': events.length,
+      'visibleEventCount': visibleEvents.length,
+      'eventCountsByKind': eventCountsByKind,
+      'events': visibleEvents
+          .map((event) => event.toJson())
           .toList(growable: false),
     };
   }

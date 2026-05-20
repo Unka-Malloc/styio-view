@@ -93,6 +93,59 @@ void main() {
   });
 
   test(
+    'runtime output panel snapshot aggregates agent language and debug events',
+    () {
+      final snapshot = RuntimeOutputPanelSnapshot(
+        filter: const RuntimeOutputChannelFilterState(
+          kinds: <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.agent,
+            RuntimeOutputChannelKind.debug,
+          ],
+        ),
+        events: <RuntimeOutputEvent>[
+          RuntimeOutputEvent(
+            channelId: 'agent.activity',
+            label: 'Agent Activity',
+            kind: RuntimeOutputChannelKind.agent,
+            message: 'patch proposed',
+            timestamp: DateTime.utc(2026, 5, 20, 8),
+          ),
+          RuntimeOutputEvent(
+            channelId: 'language.styio',
+            label: 'Styio Language Service',
+            kind: RuntimeOutputChannelKind.languageService,
+            message: 'diagnostics refreshed',
+            timestamp: DateTime.utc(2026, 5, 20, 8, 1),
+          ),
+          RuntimeOutputEvent(
+            channelId: 'debug.dap',
+            label: 'Debug Adapter',
+            kind: RuntimeOutputChannelKind.debug,
+            message: 'stopped breakpoint',
+            timestamp: DateTime.utc(2026, 5, 20, 8, 2),
+          ),
+        ],
+      );
+      final json = snapshot.toJson();
+
+      expect(snapshot.channelSnapshot.channels, hasLength(3));
+      expect(snapshot.visibleEvents.map((event) => event.channelId), <String>[
+        'agent.activity',
+        'debug.dap',
+      ]);
+      expect(snapshot.eventCountsByKind['agent'], 1);
+      expect(snapshot.eventCountsByKind['language-service'], 1);
+      expect(snapshot.eventCountsByKind['debug'], 1);
+      expect(json['visibleEventCount'], 2);
+      expect(
+        ((json['channelSnapshot']!
+            as Map<String, Object?>)['visibleChannelCount']),
+        2,
+      );
+    },
+  );
+
+  test(
     'runtime output channel history persists snapshots through DataStore',
     () async {
       final store = RuntimeOutputChannelHistoryStore.fromDataStore(

@@ -173,6 +173,8 @@ void main() {
       find.text('Preview blocked until missing documents are loaded.'),
       findsOneWidget,
     );
+    expect(find.text('Before: @import a / @import a'), findsOneWidget);
+    expect(find.text('After: @import a'), findsOneWidget);
     expect(find.textContaining('src/missing.styio'), findsOneWidget);
 
     await tester.ensureVisible(

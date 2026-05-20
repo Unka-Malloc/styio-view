@@ -372,10 +372,26 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           for (final document in sampleDocuments)
-            Text(
-              '${document.documentId} · rev ${document.revision} · '
-              '${document.edits.length} edit(s)',
-              style: theme.textTheme.bodySmall,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${document.documentId} · rev ${document.revision} · '
+                    '${document.edits.length} edit(s)',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  Text(
+                    'Before: ${_workspaceEditPreviewSnippet(document.beforeText)}',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  Text(
+                    'After: ${_workspaceEditPreviewSnippet(document.afterText)}',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
           if (hiddenDocumentCount > 0)
             Text(
@@ -393,6 +409,19 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _workspaceEditPreviewSnippet(String text, {int maxLength = 96}) {
+  final normalized = text
+      .split('\n')
+      .where((line) => line.trim().isNotEmpty)
+      .take(2)
+      .join(' / ')
+      .trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return '${normalized.substring(0, maxLength - 3)}...';
 }
 
 IconData _diagnosticIcon(DiagnosticSeverity severity) {

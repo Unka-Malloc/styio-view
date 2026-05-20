@@ -630,9 +630,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/runtime',
           summary:
-              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, and persisted output history.',
+              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, and persisted output history.',
           todo:
-              'TODO: bind output panel snapshots to concrete panel UI, log retention controls, and stream subscriptions.',
+              'TODO: bind RuntimeOutputStreamSubscriptionPlan to concrete panel widgets and live shell/toolchain/hosted output streams.',
           references: <String>[
             'VS Code Output panel',
             'IntelliJ Run and Event Log tool windows',

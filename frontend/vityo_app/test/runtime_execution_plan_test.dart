@@ -83,6 +83,12 @@ void main() {
         message: 'ctest finished',
         timestamp: DateTime.utc(2026, 5, 20),
       );
+      final subscriptionPlan = binding.outputSubscriptionPlan(
+        retentionPolicy: const RuntimeOutputRetentionPolicy.ephemeral(
+          maxEventsPerChannel: 10,
+        ),
+        metadata: const <String, Object?>{'consumer': 'output-panel'},
+      );
 
       expect(binding.ready, isTrue);
       expect(binding.managerId, 'toolchain-manager');
@@ -93,6 +99,14 @@ void main() {
       expect(binding.metadata['requester'], 'agent');
       expect(event.channelId, 'native.test.output');
       expect(event.metadata['managerId'], 'toolchain-manager');
+      expect(subscriptionPlan.status, RuntimeOutputSubscriptionStatus.pending);
+      expect(subscriptionPlan.managerId, 'toolchain-manager');
+      expect(subscriptionPlan.routeKind, 'toolchain-task');
+      expect(subscriptionPlan.channelIds, <String>['native.test.output']);
+      expect(subscriptionPlan.kinds, <RuntimeOutputChannelKind>[
+        RuntimeOutputChannelKind.nativeTools,
+      ]);
+      expect(subscriptionPlan.metadata['consumer'], 'output-panel');
       expect(binding.toJson()['outputChannel'], isA<Map<String, Object?>>());
     },
   );

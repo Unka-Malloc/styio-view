@@ -647,6 +647,16 @@ class _OutputChannelSection extends StatelessWidget {
       channels: channels,
       filter: filter,
     );
+    final subscriptionPlan = RuntimeOutputStreamSubscriptionPlan.forManager(
+      taskId: executionSession?.sessionId ?? 'runtime-surface-preview',
+      managerId: 'runtime-surface',
+      routeKind: 'output-panel',
+      channelIds: channels.map((channel) => channel.id),
+      kinds: channels.map((channel) => channel.kind),
+      status: RuntimeOutputSubscriptionStatus.active,
+      retentionPolicy: const RuntimeOutputRetentionPolicy.workspaceHistory(),
+      metadata: const <String, Object?>{'source': 'runtime-surface'},
+    );
     final visibleChannels = snapshot.visibleChannels;
     return Container(
       key: const ValueKey('runtime-output-channels'),
@@ -663,6 +673,11 @@ class _OutputChannelSection extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Filtered output channel summary for runtime events, process streams, and native tool activity. TODO: add language-service, debug, and agent event streams.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Subscription ${subscriptionPlan.summary}',
             style: theme.textTheme.bodySmall,
           ),
           if (filter.active) ...[

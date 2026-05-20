@@ -342,6 +342,30 @@ class RuntimeExecutionHandoffBinding {
     );
   }
 
+  RuntimeOutputStreamSubscriptionPlan outputSubscriptionPlan({
+    RuntimeOutputRetentionPolicy retentionPolicy =
+        const RuntimeOutputRetentionPolicy.workspaceHistory(),
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeOutputStreamSubscriptionPlan.forManager(
+      taskId: handoff.taskId,
+      managerId: managerId,
+      routeKind: routeKind,
+      channelIds: <String>[outputChannel.id],
+      kinds: <RuntimeOutputChannelKind>[outputChannel.kind],
+      status: ready
+          ? RuntimeOutputSubscriptionStatus.pending
+          : RuntimeOutputSubscriptionStatus.blocked,
+      retentionPolicy: retentionPolicy,
+      metadata: <String, Object?>{
+        'handoffTarget': handoff.target.wireValue,
+        'handoffStatus': handoff.status.wireValue,
+        'bindingStatus': status.wireValue,
+        ...metadata,
+      },
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'status': status.wireValue,

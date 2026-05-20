@@ -183,6 +183,10 @@ void main() {
 
     expect(find.text('Runtime Event Replay'), findsOneWidget);
     expect(find.text('Output Channels'), findsOneWidget);
+    expect(
+      find.textContaining('runtime-surface -> output-panel'),
+      findsOneWidget,
+    );
     expect(find.text('filter kinds runtime-events'), findsOneWidget);
     expect(find.text('runtime-events 10'), findsOneWidget);
     expect(

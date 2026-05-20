@@ -146,6 +146,80 @@ void main() {
   );
 
   test(
+    'runtime output subscription plan filters and retains stream events',
+    () {
+      final plan = RuntimeOutputStreamSubscriptionPlan.forManager(
+        taskId: 'native-test',
+        managerId: 'toolchain-manager',
+        routeKind: 'toolchain-task',
+        channelIds: const <String>['native.test.output'],
+        kinds: const <RuntimeOutputChannelKind>[
+          RuntimeOutputChannelKind.nativeTools,
+        ],
+        status: RuntimeOutputSubscriptionStatus.active,
+        retentionPolicy: const RuntimeOutputRetentionPolicy(
+          maxEventsPerChannel: 1,
+          maxEventAge: Duration(hours: 1),
+          persistHistory: true,
+          trimEmptyChannels: false,
+        ),
+      );
+      final now = DateTime.utc(2026, 5, 20, 10);
+      final events = <RuntimeOutputEvent>[
+        RuntimeOutputEvent(
+          channelId: 'native.test.output',
+          label: 'Native tests',
+          kind: RuntimeOutputChannelKind.nativeTools,
+          message: 'old event',
+          timestamp: DateTime.utc(2026, 5, 20, 8),
+        ),
+        RuntimeOutputEvent(
+          channelId: 'native.test.output',
+          label: 'Native tests',
+          kind: RuntimeOutputChannelKind.nativeTools,
+          message: 'first retained event',
+          timestamp: DateTime.utc(2026, 5, 20, 9, 30),
+        ),
+        RuntimeOutputEvent(
+          channelId: 'native.test.output',
+          label: 'Native tests',
+          kind: RuntimeOutputChannelKind.nativeTools,
+          message: 'latest retained event',
+          timestamp: DateTime.utc(2026, 5, 20, 9, 45),
+        ),
+        RuntimeOutputEvent(
+          channelId: 'stderr',
+          label: 'Stderr',
+          kind: RuntimeOutputChannelKind.stderr,
+          message: 'filtered out',
+          timestamp: DateTime.utc(2026, 5, 20, 9, 50),
+        ),
+      ];
+
+      final retained = plan.retain(events, now: now);
+      final snapshot = RuntimeOutputPanelSnapshot(
+        events: events,
+        subscriptionPlan: plan,
+      );
+      final restored = RuntimeOutputStreamSubscriptionPlan.fromJson(
+        plan.toJson(),
+      );
+
+      expect(plan.active, isTrue);
+      expect(plan.accepts(events[1]), isTrue);
+      expect(plan.accepts(events.last), isFalse);
+      expect(retained.map((event) => event.message), <String>[
+        'latest retained event',
+      ]);
+      expect(snapshot.visibleEvents.single.message, 'latest retained event');
+      expect(snapshot.toJson()['sourceEventCount'], 4);
+      expect(snapshot.toJson()['eventCount'], 1);
+      expect(restored.retentionPolicy.persistHistory, isTrue);
+      expect(restored.summary, contains('toolchain-manager -> toolchain-task'));
+    },
+  );
+
+  test(
     'runtime output channel history persists snapshots through DataStore',
     () async {
       final store = RuntimeOutputChannelHistoryStore.fromDataStore(

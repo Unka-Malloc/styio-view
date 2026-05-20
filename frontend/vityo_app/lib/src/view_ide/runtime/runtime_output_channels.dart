@@ -22,6 +22,18 @@ extension RuntimeOutputChannelKindX on RuntimeOutputChannelKind {
   }
 }
 
+enum RuntimeOutputSubscriptionStatus { pending, active, blocked }
+
+extension RuntimeOutputSubscriptionStatusX on RuntimeOutputSubscriptionStatus {
+  String get wireValue {
+    return switch (this) {
+      RuntimeOutputSubscriptionStatus.pending => 'pending',
+      RuntimeOutputSubscriptionStatus.active => 'active',
+      RuntimeOutputSubscriptionStatus.blocked => 'blocked',
+    };
+  }
+}
+
 class RuntimeOutputChannelSummary {
   const RuntimeOutputChannelSummary({
     required this.id,
@@ -131,6 +143,252 @@ class RuntimeOutputChannelFilterState {
   }
 }
 
+class RuntimeOutputRetentionPolicy {
+  const RuntimeOutputRetentionPolicy({
+    required this.maxEventsPerChannel,
+    required this.persistHistory,
+    required this.trimEmptyChannels,
+    this.maxEventAge,
+  });
+
+  const RuntimeOutputRetentionPolicy.ephemeral({this.maxEventsPerChannel = 500})
+    : persistHistory = false,
+      trimEmptyChannels = true,
+      maxEventAge = null;
+
+  const RuntimeOutputRetentionPolicy.workspaceHistory({
+    this.maxEventsPerChannel = 2000,
+    this.maxEventAge = const Duration(days: 7),
+  }) : persistHistory = true,
+       trimEmptyChannels = false;
+
+  final int maxEventsPerChannel;
+  final Duration? maxEventAge;
+  final bool persistHistory;
+  final bool trimEmptyChannels;
+
+  bool get bounded => maxEventsPerChannel > 0 || maxEventAge != null;
+
+  String get summary {
+    final parts = <String>[
+      if (maxEventsPerChannel > 0)
+        'retain last $maxEventsPerChannel event(s) per channel'
+      else
+        'retain all events',
+      if (maxEventAge != null) 'max age ${maxEventAge!.inHours}h',
+      persistHistory ? 'persisted history' : 'memory only',
+      trimEmptyChannels ? 'trim empty channels' : 'keep empty channels',
+    ];
+    return parts.join(' · ');
+  }
+
+  factory RuntimeOutputRetentionPolicy.fromJson(Map<String, Object?> json) {
+    final maxEventAgeMs = json['maxEventAgeMs'];
+    return RuntimeOutputRetentionPolicy(
+      maxEventsPerChannel: json['maxEventsPerChannel'] as int? ?? 0,
+      maxEventAge: maxEventAgeMs is int
+          ? Duration(milliseconds: maxEventAgeMs)
+          : null,
+      persistHistory: json['persistHistory'] as bool? ?? false,
+      trimEmptyChannels: json['trimEmptyChannels'] as bool? ?? true,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'maxEventsPerChannel': maxEventsPerChannel,
+      if (maxEventAge != null) 'maxEventAgeMs': maxEventAge!.inMilliseconds,
+      'persistHistory': persistHistory,
+      'trimEmptyChannels': trimEmptyChannels,
+      'bounded': bounded,
+      'summary': summary,
+    };
+  }
+}
+
+class RuntimeOutputStreamSubscriptionPlan {
+  const RuntimeOutputStreamSubscriptionPlan({
+    required this.taskId,
+    required this.managerId,
+    required this.routeKind,
+    required this.channelIds,
+    required this.kinds,
+    this.status = RuntimeOutputSubscriptionStatus.pending,
+    this.retentionPolicy =
+        const RuntimeOutputRetentionPolicy.workspaceHistory(),
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory RuntimeOutputStreamSubscriptionPlan.forManager({
+    required String taskId,
+    required String managerId,
+    required String routeKind,
+    Iterable<String> channelIds = const <String>[],
+    Iterable<RuntimeOutputChannelKind> kinds =
+        const <RuntimeOutputChannelKind>[],
+    RuntimeOutputSubscriptionStatus status =
+        RuntimeOutputSubscriptionStatus.pending,
+    RuntimeOutputRetentionPolicy retentionPolicy =
+        const RuntimeOutputRetentionPolicy.workspaceHistory(),
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeOutputStreamSubscriptionPlan(
+      taskId: taskId,
+      managerId: managerId,
+      routeKind: routeKind,
+      channelIds: _uniqueStrings(channelIds),
+      kinds: _uniqueKinds(kinds),
+      status: status,
+      retentionPolicy: retentionPolicy,
+      metadata: Map<String, Object?>.unmodifiable(metadata),
+    );
+  }
+
+  final String taskId;
+  final String managerId;
+  final String routeKind;
+  final List<String> channelIds;
+  final List<RuntimeOutputChannelKind> kinds;
+  final RuntimeOutputSubscriptionStatus status;
+  final RuntimeOutputRetentionPolicy retentionPolicy;
+  final Map<String, Object?> metadata;
+
+  bool get active => status == RuntimeOutputSubscriptionStatus.active;
+
+  String get summary {
+    final channelSummary = channelIds.isEmpty
+        ? 'all channels'
+        : channelIds.join('/');
+    final kindSummary = kinds.isEmpty
+        ? 'all kinds'
+        : kinds.map((kind) => kind.wireValue).join('/');
+    return '$managerId -> $routeKind · $channelSummary · $kindSummary · ${retentionPolicy.summary}';
+  }
+
+  bool accepts(RuntimeOutputEvent event) {
+    if (channelIds.isNotEmpty && !channelIds.contains(event.channelId)) {
+      return false;
+    }
+    if (kinds.isNotEmpty && !kinds.contains(event.kind)) {
+      return false;
+    }
+    return true;
+  }
+
+  List<RuntimeOutputEvent> retain(
+    Iterable<RuntimeOutputEvent> events, {
+    DateTime? now,
+  }) {
+    final cutoff = retentionPolicy.maxEventAge == null || now == null
+        ? null
+        : now.subtract(retentionPolicy.maxEventAge!);
+    final grouped = <String, List<RuntimeOutputEvent>>{};
+    for (final event in events) {
+      if (!accepts(event)) {
+        continue;
+      }
+      if (cutoff != null && event.timestamp.isBefore(cutoff)) {
+        continue;
+      }
+      grouped.putIfAbsent(event.channelId, () => <RuntimeOutputEvent>[]);
+      grouped[event.channelId]!.add(event);
+    }
+    final retained = <RuntimeOutputEvent>[];
+    for (final channelEvents in grouped.values) {
+      channelEvents.sort(
+        (left, right) => left.timestamp.compareTo(right.timestamp),
+      );
+      if (retentionPolicy.maxEventsPerChannel > 0 &&
+          channelEvents.length > retentionPolicy.maxEventsPerChannel) {
+        retained.addAll(
+          channelEvents.sublist(
+            channelEvents.length - retentionPolicy.maxEventsPerChannel,
+          ),
+        );
+      } else {
+        retained.addAll(channelEvents);
+      }
+    }
+    retained.sort((left, right) => left.timestamp.compareTo(right.timestamp));
+    return retained;
+  }
+
+  RuntimeOutputStreamSubscriptionPlan activate() {
+    return copyWith(status: RuntimeOutputSubscriptionStatus.active);
+  }
+
+  RuntimeOutputStreamSubscriptionPlan copyWith({
+    RuntimeOutputSubscriptionStatus? status,
+    RuntimeOutputRetentionPolicy? retentionPolicy,
+    Map<String, Object?>? metadata,
+  }) {
+    return RuntimeOutputStreamSubscriptionPlan(
+      taskId: taskId,
+      managerId: managerId,
+      routeKind: routeKind,
+      channelIds: channelIds,
+      kinds: kinds,
+      status: status ?? this.status,
+      retentionPolicy: retentionPolicy ?? this.retentionPolicy,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
+  factory RuntimeOutputStreamSubscriptionPlan.fromJson(
+    Map<String, Object?> json,
+  ) {
+    final channelIds = json['channelIds'];
+    final kinds = json['kinds'];
+    final retentionPolicy = json['retentionPolicy'];
+    return RuntimeOutputStreamSubscriptionPlan.forManager(
+      taskId: json['taskId'] as String? ?? '',
+      managerId: json['managerId'] as String? ?? '',
+      routeKind: json['routeKind'] as String? ?? '',
+      channelIds: channelIds is List
+          ? channelIds.map((channelId) => '$channelId')
+          : const <String>[],
+      kinds: kinds is List
+          ? kinds
+                .map((kind) => _runtimeOutputChannelKindFromWireValue('$kind'))
+                .whereType<RuntimeOutputChannelKind>()
+          : const <RuntimeOutputChannelKind>[],
+      status:
+          _runtimeOutputSubscriptionStatusFromWireValue(
+            json['status'] as String? ?? '',
+          ) ??
+          RuntimeOutputSubscriptionStatus.pending,
+      retentionPolicy: retentionPolicy is Map
+          ? RuntimeOutputRetentionPolicy.fromJson(
+              retentionPolicy.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : const RuntimeOutputRetentionPolicy.workspaceHistory(),
+      metadata: json['metadata'] is Map
+          ? (json['metadata']! as Map).map(
+              (key, value) => MapEntry<String, Object?>(key.toString(), value),
+            )
+          : const <String, Object?>{},
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'taskId': taskId,
+      'managerId': managerId,
+      'routeKind': routeKind,
+      'status': status.wireValue,
+      'active': active,
+      'channelIds': channelIds,
+      'kinds': kinds.map((kind) => kind.wireValue).toList(growable: false),
+      'retentionPolicy': retentionPolicy.toJson(),
+      'summary': summary,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
 class RuntimeOutputEvent {
   const RuntimeOutputEvent({
     required this.channelId,
@@ -225,14 +483,20 @@ class RuntimeOutputPanelSnapshot {
   const RuntimeOutputPanelSnapshot({
     required this.events,
     this.filter = const RuntimeOutputChannelFilterState(),
+    this.subscriptionPlan,
   });
 
   final List<RuntimeOutputEvent> events;
   final RuntimeOutputChannelFilterState filter;
+  final RuntimeOutputStreamSubscriptionPlan? subscriptionPlan;
+
+  List<RuntimeOutputEvent> get retainedEvents {
+    return subscriptionPlan?.retain(events) ?? events;
+  }
 
   RuntimeOutputChannelSnapshot get channelSnapshot {
     final grouped = <String, List<RuntimeOutputEvent>>{};
-    for (final event in events) {
+    for (final event in retainedEvents) {
       grouped.putIfAbsent(event.channelId, () => <RuntimeOutputEvent>[]);
       grouped[event.channelId]!.add(event);
     }
@@ -257,7 +521,7 @@ class RuntimeOutputPanelSnapshot {
     final visibleChannelIds = channelSnapshot.visibleChannels
         .map((channel) => channel.id)
         .toSet();
-    return events
+    return retainedEvents
         .where((event) => visibleChannelIds.contains(event.channelId))
         .toList(growable: false);
   }
@@ -272,9 +536,12 @@ class RuntimeOutputPanelSnapshot {
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'channelSnapshot': channelSnapshot.toJson(),
-      'eventCount': events.length,
+      'sourceEventCount': events.length,
+      'eventCount': retainedEvents.length,
       'visibleEventCount': visibleEvents.length,
       'eventCountsByKind': eventCountsByKind,
+      if (subscriptionPlan != null)
+        'subscriptionPlan': subscriptionPlan!.toJson(),
       'events': visibleEvents
           .map((event) => event.toJson())
           .toList(growable: false),
@@ -289,4 +556,39 @@ RuntimeOutputChannelKind? _runtimeOutputChannelKindFromWireValue(String value) {
     }
   }
   return null;
+}
+
+RuntimeOutputSubscriptionStatus? _runtimeOutputSubscriptionStatusFromWireValue(
+  String value,
+) {
+  for (final status in RuntimeOutputSubscriptionStatus.values) {
+    if (status.wireValue == value) {
+      return status;
+    }
+  }
+  return null;
+}
+
+List<String> _uniqueStrings(Iterable<String> values) {
+  final result = <String>[];
+  for (final value in values) {
+    if (value.isEmpty || result.contains(value)) {
+      continue;
+    }
+    result.add(value);
+  }
+  return List<String>.unmodifiable(result);
+}
+
+List<RuntimeOutputChannelKind> _uniqueKinds(
+  Iterable<RuntimeOutputChannelKind> values,
+) {
+  final result = <RuntimeOutputChannelKind>[];
+  for (final value in values) {
+    if (result.contains(value)) {
+      continue;
+    }
+    result.add(value);
+  }
+  return List<RuntimeOutputChannelKind>.unmodifiable(result);
 }

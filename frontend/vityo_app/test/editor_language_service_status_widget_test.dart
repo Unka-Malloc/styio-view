@@ -68,6 +68,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('StyioService ready'), findsOneWidget);
+    expect(find.text('health degraded'), findsOneWidget);
+    expect(find.textContaining('missing '), findsWidgets);
     expect(find.textContaining('completion available'), findsOneWidget);
   });
 
@@ -132,5 +134,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('hover unsupported'), findsOneWidget);
+    expect(find.text('health degraded'), findsOneWidget);
+    expect(find.text('blocked 1'), findsOneWidget);
   });
 }

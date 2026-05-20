@@ -5479,8 +5479,11 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
           children: [
             _CapabilityPill(label: 'runtime ${status.runtimeState}'),
             _CapabilityPill(label: 'severity ${status.severity.name}'),
+            _CapabilityPill(label: 'health ${status.capabilityHealth}'),
             _CapabilityPill(label: 'usable ${status.usableCapabilityCount}'),
             _CapabilityPill(label: 'fresh ${status.freshCapabilityCount}'),
+            _CapabilityPill(label: 'missing ${status.missingCapabilityCount}'),
+            _CapabilityPill(label: 'blocked ${status.blockedCapabilityCount}'),
             for (final entry in primaryStates)
               _CapabilityPill(label: '${entry.key} ${entry.value}'),
           ],

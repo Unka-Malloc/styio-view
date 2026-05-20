@@ -105,6 +105,9 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
     final selectedIndex = visibleProblemEntries.isEmpty
         ? -1
         : _clampedProblemIndex(_selectedIndex, visibleProblemEntries.length);
+    final selectedEntry = selectedIndex < 0
+        ? null
+        : visibleProblemEntries[selectedIndex];
     final documentGroups = view.documentGroups;
     final severityCounts = view.severityCounts;
 
@@ -181,6 +184,13 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                           'selected ${visibleProblemEntries[selectedIndex].diagnostic.code}',
                         ),
                       ),
+                    if (selectedEntry?.hasQuickFixes ?? false)
+                      Chip(
+                        key: const ValueKey('problems-selected-quick-fixes'),
+                        label: Text(
+                          'selected-fixes ${selectedEntry!.quickFixes.length}',
+                        ),
+                      ),
                     if (diagnosticsFilter.active)
                       Chip(label: Text('filter ${diagnosticsFilter.summary}')),
                     for (final entry in severityCounts.entries)
@@ -211,6 +221,10 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _ProblemsDocumentGroupSummary(groups: documentGroups),
+                      if (selectedEntry?.hasQuickFixes ?? false) ...[
+                        const SizedBox(height: 10),
+                        _ProblemQuickFixSelection(entry: selectedEntry!),
+                      ],
                       const SizedBox(height: 10),
                       SizedBox(
                         height: compact ? 180 : 220,
@@ -238,7 +252,21 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                               subtitle: Text(
                                 '${entry.documentId} · ${diagnostic.severity.name} · ${diagnostic.code} · offsets ${diagnostic.range.start}-${diagnostic.range.end}',
                               ),
-                              trailing: const Icon(Icons.arrow_forward_rounded),
+                              trailing: entry.hasQuickFixes
+                                  ? Wrap(
+                                      spacing: 8,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        Chip(
+                                          label: Text(
+                                            'fixes ${entry.quickFixes.length}',
+                                          ),
+                                        ),
+                                        const Icon(Icons.arrow_forward_rounded),
+                                      ],
+                                    )
+                                  : const Icon(Icons.arrow_forward_rounded),
                               onTap:
                                   widget.onSelectDiagnostic == null &&
                                       widget.onSelectWorkspaceDiagnostic == null
@@ -318,6 +346,44 @@ class _ProblemsDocumentGroupSummary extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _ProblemQuickFixSelection extends StatelessWidget {
+  const _ProblemQuickFixSelection({required this.entry});
+
+  final WorkspaceDiagnostic entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('problems-quick-fix-selection'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Quick Fixes: ${entry.diagnostic.code}',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 6),
+          for (final fix in entry.quickFixes)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '${fix.label} · edits ${fix.edits.length}',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+        ],
       ),
     );
   }

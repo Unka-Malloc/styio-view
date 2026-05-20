@@ -614,9 +614,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render',
           summary:
-              'Active document diagnostics panel is wired into the IDE shell and has workspace diagnostics grouping, source grouping, severity filter, provider contract, quick-fix confirmation planning, preview, and navigation available.',
+              'Active document diagnostics panel is wired into the IDE shell and has workspace diagnostics grouping, source grouping, severity filter, provider contract, per-diagnostic quick-fix selection, quick-fix confirmation planning, preview, and navigation available.',
           todo:
-              'TODO: add per-diagnostic quick-fix selection and virtualized multi-file diff expansion.',
+              'TODO: add virtualized multi-file diff expansion and concrete per-fix apply routing.',
           dependencies: <String>['workspace.diagnostics'],
           references: <String>[
             'VS Code Problems panel',

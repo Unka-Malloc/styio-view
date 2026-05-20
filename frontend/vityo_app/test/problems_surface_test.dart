@@ -113,6 +113,17 @@ void main() {
                     message: 'Prefer explicit name.',
                     range: SourceRange(start: 1, end: 4),
                   ),
+                  quickFixes: <DiagnosticQuickFix>[
+                    DiagnosticQuickFix(
+                      label: 'Use explicit name',
+                      edits: <FormattingEdit>[
+                        FormattingEdit(
+                          range: SourceRange(start: 1, end: 4),
+                          newText: 'value',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -161,6 +172,7 @@ void main() {
     expect(find.text('hint 1'), findsOneWidget);
     expect(find.text('Prefer explicit name.'), findsOneWidget);
     expect(find.textContaining('src/lib.styio · hint · style'), findsOneWidget);
+    expect(find.text('fixes 1'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('problems-workspace-edit-preview')),
       findsOneWidget,
@@ -185,6 +197,9 @@ void main() {
     await tester.pump();
 
     expect(selectedWorkspaceDiagnostic?.documentId, 'src/lib.styio');
+    expect(find.text('selected-fixes 1'), findsOneWidget);
+    expect(find.text('Quick Fixes: style'), findsOneWidget);
+    expect(find.text('Use explicit name · edits 1'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('problems-refresh-workspace')),

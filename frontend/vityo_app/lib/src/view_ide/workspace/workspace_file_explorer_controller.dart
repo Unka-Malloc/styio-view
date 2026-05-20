@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
+import '../environment/system_compatibility/file_system/file_system_manager.dart';
 import 'workspace_controller.dart';
 import 'workspace_file_operations.dart';
 import 'workspace_file_explorer_state_store.dart';
@@ -331,6 +334,113 @@ class WorkspaceFileExplorerWatchSnapshot {
       'events': events.map((event) => event.toJson()).toList(growable: false),
     };
   }
+}
+
+class WorkspaceFileExplorerFileSystemWatcherBinding {
+  WorkspaceFileExplorerFileSystemWatcherBinding({
+    required this.fileSystemManager,
+    required this.plan,
+    this.baseFilePaths = const <String>[],
+    DateTime Function()? clock,
+  }) : clock = clock ?? _defaultWorkspaceFileExplorerWatchClock;
+
+  final FileSystemManager fileSystemManager;
+  final WorkspaceFileExplorerWatchPlan plan;
+  final List<String> baseFilePaths;
+  final DateTime Function() clock;
+
+  Stream<WorkspaceFileExplorerWatchSnapshot> watch() async* {
+    final activePlan = plan.activate(
+      message: 'File System Manager watch attached.',
+    );
+    final events = <WorkspaceFileExplorerWatchEvent>[];
+    yield WorkspaceFileExplorerWatchSnapshot(
+      plan: activePlan,
+      baseFilePaths: baseFilePaths,
+    );
+    try {
+      await for (final event in fileSystemManager.watch(
+        plan.rootPath,
+        recursive: plan.recursive,
+      )) {
+        final explorerEvent = _workspaceFileExplorerEventFromFileSystem(
+          event,
+          rootPath: plan.rootPath,
+          fileSystemManager: fileSystemManager,
+          timestamp: clock(),
+        );
+        if (explorerEvent == null) {
+          continue;
+        }
+        events.add(explorerEvent);
+        yield WorkspaceFileExplorerWatchSnapshot(
+          plan: activePlan,
+          baseFilePaths: baseFilePaths,
+          events: List<WorkspaceFileExplorerWatchEvent>.unmodifiable(events),
+        );
+      }
+    } on Object catch (error) {
+      yield WorkspaceFileExplorerWatchSnapshot(
+        plan: plan.block('File System Manager watch failed: $error'),
+        baseFilePaths: baseFilePaths,
+        events: List<WorkspaceFileExplorerWatchEvent>.unmodifiable(events),
+      );
+    }
+  }
+}
+
+DateTime _defaultWorkspaceFileExplorerWatchClock() => DateTime.now().toUtc();
+
+WorkspaceFileExplorerWatchEvent? _workspaceFileExplorerEventFromFileSystem(
+  FileSystemManagerEvent event, {
+  required String rootPath,
+  required FileSystemManager fileSystemManager,
+  required DateTime timestamp,
+}) {
+  final kind = switch (event.kind) {
+    FileSystemManagerEventKind.created =>
+      WorkspaceFileExplorerWatchEventKind.created,
+    FileSystemManagerEventKind.modified ||
+    FileSystemManagerEventKind.metadataChanged ||
+    FileSystemManagerEventKind.moved =>
+      WorkspaceFileExplorerWatchEventKind.modified,
+    FileSystemManagerEventKind.deleted =>
+      WorkspaceFileExplorerWatchEventKind.deleted,
+    FileSystemManagerEventKind.unknown => null,
+  };
+  if (kind == null || event.isDirectory) {
+    return null;
+  }
+  return WorkspaceFileExplorerWatchEvent(
+    kind: kind,
+    path: _workspaceFileExplorerRelativePath(
+      rootPath: rootPath,
+      path: event.normalizedPath.isEmpty ? event.path : event.normalizedPath,
+      fileSystemManager: fileSystemManager,
+    ),
+    source: 'file-system-manager.watch',
+    timestamp: timestamp,
+  );
+}
+
+String _workspaceFileExplorerRelativePath({
+  required String rootPath,
+  required String path,
+  required FileSystemManager fileSystemManager,
+}) {
+  final normalizedRoot = _normalizeWorkspaceFileExplorerPath(
+    fileSystemManager.normalizePath(rootPath),
+  );
+  final normalizedPath = _normalizeWorkspaceFileExplorerPath(
+    fileSystemManager.normalizePath(path),
+  );
+  final prefix = normalizedRoot.endsWith('/')
+      ? normalizedRoot
+      : '$normalizedRoot/';
+  if (normalizedPath.startsWith(prefix)) {
+    return normalizedPath.substring(prefix.length);
+  }
+  return normalizedPath;
 }
 
 String _normalizeWorkspaceFileExplorerPath(String path) {

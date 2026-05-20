@@ -476,9 +476,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
-              'WorkspaceFileOperationService provides create, rename, delete, and reveal contracts backed by WorkspaceDocumentStore and WorkspaceController synchronization. WorkspaceFileExplorerController exposes a file tree snapshot, unified explorer actions, command palette file operation contributions, confirmation plans, restored expanded/selected/revealed state, sort preferences, Foundation DataStore-backed explorer state persistence, normalized File System Manager discovery results, and watch event snapshots. WorkspaceFileCommandRouter and WorkspaceFileCommandPaletteAdapter route typed command palette input into file operation requests, confirmation plans, or immediate reveal actions. ShellRuntimeModel exposes pending workspace file command confirmation controls for destructive command routes.',
+              'WorkspaceFileOperationService provides create, rename, delete, and reveal contracts backed by WorkspaceDocumentStore and WorkspaceController synchronization. WorkspaceFileExplorerController exposes a file tree snapshot, unified explorer actions, command palette file operation contributions, confirmation plans, restored expanded/selected/revealed state, sort preferences, Foundation DataStore-backed explorer state persistence, normalized File System Manager discovery results, watch event snapshots, and WorkspaceFileExplorerFileSystemWatcherBinding concrete File System Manager watch execution. WorkspaceFileCommandRouter and WorkspaceFileCommandPaletteAdapter route typed command palette input into file operation requests, confirmation plans, or immediate reveal actions. ShellRuntimeModel exposes pending workspace file command confirmation controls for destructive command routes.',
           todo:
-              'TODO: bind staged workspace file confirmation plans to concrete dialogs, richer file tree UI, and concrete File System Manager watcher execution.',
+              'TODO: bind staged workspace file confirmation plans to concrete dialogs, richer file tree UI, watcher debounce, and ignore-rule filtering.',
           references: <String>[
             'VS Code Explorer view',
             'IntelliJ Project tool window',

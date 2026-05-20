@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/editor/document_state.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -128,6 +131,62 @@ void main() {
     expect(snapshot.fileCount, 3);
     expect(snapshot.toJson()['watch'], isA<Map<String, Object?>>());
   });
+
+  test(
+    'workspace file explorer watcher binding consumes file system manager events',
+    () async {
+      final events = StreamController<FileSystemManagerEvent>();
+      final fileSystemManager = _FakeWorkspaceFileExplorerFileSystemManager(
+        events.stream,
+      );
+      final binding = WorkspaceFileExplorerFileSystemWatcherBinding(
+        fileSystemManager: fileSystemManager,
+        plan: const WorkspaceFileExplorerWatchPlan(
+          rootPath: '/workspace/fixture',
+        ),
+        baseFilePaths: const <String>['README.md'],
+        clock: () => DateTime.utc(2026, 5, 20, 13),
+      );
+      final snapshots = <WorkspaceFileExplorerWatchSnapshot>[];
+      final completed = Completer<void>();
+      final subscription = binding.watch().listen(
+        snapshots.add,
+        onDone: completed.complete,
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(events.close);
+
+      await Future<void>.delayed(Duration.zero);
+      events.add(
+        const FileSystemManagerEvent(
+          kind: FileSystemManagerEventKind.created,
+          path: '/workspace/fixture/src/new.styio',
+          normalizedPath: '/workspace/fixture/src/new.styio',
+        ),
+      );
+      events.add(
+        const FileSystemManagerEvent(
+          kind: FileSystemManagerEventKind.deleted,
+          path: '/workspace/fixture/README.md',
+          normalizedPath: '/workspace/fixture/README.md',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await events.close();
+      await completed.future;
+
+      expect(fileSystemManager.watchedPath, '/workspace/fixture');
+      expect(fileSystemManager.watchedRecursive, isTrue);
+      expect(snapshots.first.plan.active, isTrue);
+      expect(snapshots.last.filePaths, <String>['src/new.styio']);
+      expect(snapshots.last.events.map((event) => event.source).toSet(), {
+        'file-system-manager.watch',
+      });
+      expect(snapshots.last.toDiscoveryResult().filePaths, <String>[
+        'src/new.styio',
+      ]);
+    },
+  );
 
   test('workspace file explorer builds confirmation plans for actions', () {
     const deleteRequest = WorkspaceFileExplorerActionRequest(
@@ -289,4 +348,21 @@ ProjectGraphSnapshot _projectGraph({required List<String> editorFiles}) {
     vendorState: ProjectVendorState.unknown,
     notes: const <String>[],
   );
+}
+
+class _FakeWorkspaceFileExplorerFileSystemManager
+    extends UnsupportedFileSystemManager {
+  _FakeWorkspaceFileExplorerFileSystemManager(this.events)
+    : super(facts: FileSystemFacts.linuxDebianArm());
+
+  final Stream<FileSystemManagerEvent> events;
+  String watchedPath = '';
+  bool watchedRecursive = false;
+
+  @override
+  Stream<FileSystemManagerEvent> watch(String path, {bool recursive = false}) {
+    watchedPath = path;
+    watchedRecursive = recursive;
+    return events;
+  }
 }

@@ -265,6 +265,13 @@ void main() {
           ),
         ),
         actionProvider: const _ShellSourceControlActionProvider(),
+        branchProvider: const StaticSourceControlBranchProvider(
+          SourceControlBranchSnapshot(
+            providerKind: SourceControlProviderKind.git,
+            currentBranch: 'ai-dev',
+            branches: <String>['main', 'ai-dev', 'feature/scm'],
+          ),
+        ),
         workspaceRoot: '/workspace/demo',
       );
       addTearDown(sourceControlController.dispose);
@@ -422,6 +429,49 @@ void main() {
         'unstage',
       );
 
+      final missingBranchPlanApplied = await shell
+          .applyAgentIdeCommandSuggestion(
+            const AgentIdeCommandSuggestion(
+              commandId: 'planSourceControlBranchSwitch',
+            ),
+          );
+      final missingBranchPlanResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(missingBranchPlanApplied, isFalse);
+      expect(
+        missingBranchPlanResult?.metadata['requiredInput'],
+        'Target branch',
+      );
+
+      final agentBranchPlanApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'planSourceControlBranchSwitch',
+          input: 'feature/scm',
+        ),
+      );
+      final agentBranchPlanResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(agentBranchPlanApplied, isTrue);
+      expect(agentBranchPlanResult?.commandId, 'planSourceControlBranchSwitch');
+      final branchPlan =
+          agentBranchPlanResult?.metadata['sourceControlBranchSwitchPlan']!
+              as Map<String, Object?>;
+      expect(branchPlan['targetBranch'], 'feature/scm');
+      expect(branchPlan['canRun'], isTrue);
+      final agentBranchContext =
+          agentBranchPlanResult?.metadata['sourceControlContext']!
+              as Map<String, Object?>;
+      expect(
+        (agentBranchContext['branches']!
+            as Map<String, Object?>)['branchCount'],
+        3,
+      );
+      expect(
+        (agentBranchContext['pendingBranchSwitchPlan']!
+            as Map<String, Object?>)['targetBranch'],
+        'feature/scm',
+      );
+
       await shell.executeCommand(AppCommandId.collectAgentCodingCheckpoint);
       final checkpointCommandResult =
           shell.agentSessionContext.commands.lastResult;
@@ -448,7 +498,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        52,
+        53,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],

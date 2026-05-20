@@ -57,6 +57,7 @@ void main() {
     expect(decoded.systemPrompt, contains('commands.sourceControlCommands'));
     expect(decoded.systemPrompt, contains('stageSourceControl'));
     expect(decoded.systemPrompt, contains('unstageSourceControl'));
+    expect(decoded.systemPrompt, contains('planSourceControlBranchSwitch'));
     expect(
       decoded.systemPrompt,
       contains('workspace.sourceControlContext.requiresHumanConfirmation'),

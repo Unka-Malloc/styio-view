@@ -203,7 +203,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      52,
+      53,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -877,6 +877,10 @@ void main() {
       );
       expect(systemMessage['content'], contains('stageSourceControl'));
       expect(systemMessage['content'], contains('unstageSourceControl'));
+      expect(
+        systemMessage['content'],
+        contains('planSourceControlBranchSwitch'),
+      );
       expect(systemMessage['content'], contains('testing.rerunFailed'));
       expect(systemMessage['content'], contains('testing.debugFailed'));
       expect(
@@ -901,7 +905,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 52);
+      expect(metadata['contextSchemaVersion'], 53);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

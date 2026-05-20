@@ -129,6 +129,9 @@ void main() {
       final unstageSourceControl = StyioCommandRegistry.descriptorFor(
         AppCommandId.unstageSourceControl,
       );
+      final planSourceControlBranchSwitch = StyioCommandRegistry.descriptorFor(
+        AppCommandId.planSourceControlBranchSwitch,
+      );
       final collectAgentCodingCheckpoint = StyioCommandRegistry.descriptorFor(
         AppCommandId.collectAgentCodingCheckpoint,
       );
@@ -293,6 +296,16 @@ void main() {
       expect(unstageSourceControl.category, AppCommandCategory.sourceControl);
       expect(unstageSourceControl.requiresInput, isTrue);
       expect(unstageSourceControl.inputLabel, 'Changed file path(s)');
+      expect(
+        planSourceControlBranchSwitch.label,
+        'Plan Source Control Branch Switch',
+      );
+      expect(
+        planSourceControlBranchSwitch.category,
+        AppCommandCategory.sourceControl,
+      );
+      expect(planSourceControlBranchSwitch.requiresInput, isTrue);
+      expect(planSourceControlBranchSwitch.inputLabel, 'Target branch');
 
       expect(collectAgentCodingCheckpoint.label, 'Collect Coding Checkpoint');
       expect(collectAgentCodingCheckpoint.shortcutHint, 'Route');
@@ -406,6 +419,7 @@ void main() {
         AppCommandId.previewSourceControlDiff,
         AppCommandId.stageSourceControl,
         AppCommandId.unstageSourceControl,
+        AppCommandId.planSourceControlBranchSwitch,
       ],
     );
     expect(

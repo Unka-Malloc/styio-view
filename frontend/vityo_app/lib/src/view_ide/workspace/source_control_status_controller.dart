@@ -9,29 +9,48 @@ class SourceControlStatusController extends ChangeNotifier {
     this.diffProvider,
     this.actionProvider,
     this.partialPatchProvider,
+    this.branchProvider,
+    this.branchActionProvider,
+    this.historyProvider,
   });
 
   final SourceControlStatusProvider provider;
   final SourceControlDiffProvider? diffProvider;
   final SourceControlActionProvider? actionProvider;
   final SourceControlPartialPatchProvider? partialPatchProvider;
+  final SourceControlBranchProvider? branchProvider;
+  final SourceControlBranchActionProvider? branchActionProvider;
+  final SourceControlHistoryProvider? historyProvider;
   final String workspaceRoot;
 
   SourceControlStatusSnapshot? _snapshot;
   SourceControlDiffSnapshot? _diffPreview;
   SourceControlActionResult? _lastActionResult;
   SourceControlPartialPatchResult? _lastPartialPatchResult;
+  SourceControlBranchSnapshot? _branchSnapshot;
+  SourceControlBranchSwitchPlan? _pendingBranchSwitchPlan;
+  SourceControlBranchSwitchResult? _lastBranchSwitchResult;
+  SourceControlHistorySnapshot? _historySnapshot;
   SourceControlActionPlan? _pendingActionPlan;
   int _generation = 0;
   int _diffGeneration = 0;
   int _actionGeneration = 0;
   int _partialPatchGeneration = 0;
+  int _branchGeneration = 0;
+  int _branchSwitchGeneration = 0;
+  int _historyGeneration = 0;
 
   SourceControlStatusSnapshot? get snapshot => _snapshot;
   SourceControlDiffSnapshot? get diffPreview => _diffPreview;
   SourceControlActionResult? get lastActionResult => _lastActionResult;
   SourceControlPartialPatchResult? get lastPartialPatchResult =>
       _lastPartialPatchResult;
+  SourceControlBranchSnapshot? get branchSnapshot => _branchSnapshot;
+  SourceControlBranchSwitchPlan? get pendingBranchSwitchPlan =>
+      _pendingBranchSwitchPlan;
+  SourceControlBranchSwitchResult? get lastBranchSwitchResult =>
+      _lastBranchSwitchResult;
+  SourceControlHistorySnapshot? get historySnapshot => _historySnapshot;
   SourceControlActionPlan? get pendingActionPlan => _pendingActionPlan;
   bool get hasSnapshot => _snapshot != null;
   bool get hasDiffPreview => _diffPreview != null;
@@ -42,6 +61,10 @@ class SourceControlStatusController extends ChangeNotifier {
       diffPreview: _diffPreview,
       pendingActionPlan: _pendingActionPlan,
       lastActionResult: _lastActionResult,
+      branchSnapshot: _branchSnapshot,
+      pendingBranchSwitchPlan: _pendingBranchSwitchPlan,
+      lastBranchSwitchResult: _lastBranchSwitchResult,
+      historySnapshot: _historySnapshot,
     );
   }
 
@@ -147,6 +170,105 @@ class SourceControlStatusController extends ChangeNotifier {
     return result;
   }
 
+  Future<SourceControlBranchSnapshot> refreshBranches() async {
+    final provider = branchProvider;
+    final generation = ++_branchGeneration;
+    final nextSnapshot = provider == null
+        ? SourceControlBranchSnapshot(
+            providerKind: this.provider.providerKind,
+            available: false,
+            message:
+                'Source control branches skipped: no branch provider is configured.',
+          )
+        : await provider.branches(workspaceRoot: workspaceRoot);
+    if (generation == _branchGeneration) {
+      _branchSnapshot = nextSnapshot;
+      notifyListeners();
+    }
+    return nextSnapshot;
+  }
+
+  SourceControlBranchSwitchPlan planBranchSwitch(String targetBranch) {
+    final snapshot =
+        _branchSnapshot ??
+        SourceControlBranchSnapshot(
+          providerKind: provider.providerKind,
+          available: false,
+          message:
+              'Source control branch switch skipped: branch facts have not been loaded.',
+        );
+    final plan = SourceControlBranchSwitchPlan.fromSnapshot(
+      snapshot: snapshot,
+      targetBranch: targetBranch,
+    );
+    _pendingBranchSwitchPlan = plan;
+    notifyListeners();
+    return plan;
+  }
+
+  Future<SourceControlBranchSwitchResult> confirmPendingBranchSwitch() async {
+    final plan = _pendingBranchSwitchPlan;
+    if (plan == null) {
+      return SourceControlBranchSwitchResult(
+        providerKind: provider.providerKind,
+        targetBranch: '',
+        applied: false,
+        message: 'Source control branch switch skipped: no pending plan.',
+      );
+    }
+    if (!plan.canRun) {
+      final result = SourceControlBranchSwitchResult(
+        providerKind: plan.providerKind,
+        targetBranch: plan.targetBranch,
+        applied: false,
+        message: plan.blockedReason,
+      );
+      _lastBranchSwitchResult = result;
+      notifyListeners();
+      return result;
+    }
+    final actionProvider = branchActionProvider;
+    final generation = ++_branchSwitchGeneration;
+    final result = actionProvider == null
+        ? SourceControlBranchSwitchResult(
+            providerKind: plan.providerKind,
+            targetBranch: plan.targetBranch,
+            applied: false,
+            message:
+                'Source control branch switch skipped: no branch action provider is configured.',
+          )
+        : await actionProvider.switchBranch(
+            workspaceRoot: workspaceRoot,
+            plan: plan,
+          );
+    if (generation == _branchSwitchGeneration) {
+      _lastBranchSwitchResult = result;
+      if (result.applied) {
+        _pendingBranchSwitchPlan = null;
+      }
+      notifyListeners();
+    }
+    return result;
+  }
+
+  Future<SourceControlHistorySnapshot> refreshHistory({int limit = 25}) async {
+    final provider = historyProvider;
+    final generation = ++_historyGeneration;
+    final nextSnapshot = provider == null
+        ? SourceControlHistorySnapshot(
+            providerKind: this.provider.providerKind,
+            available: false,
+            message:
+                'Source control history skipped: no history provider is configured.',
+          )
+        : await provider.history(workspaceRoot: workspaceRoot, limit: limit);
+    if (generation == _historyGeneration) {
+      _historySnapshot = nextSnapshot;
+      notifyListeners();
+    }
+    return nextSnapshot;
+  }
+
   void recordStatus(SourceControlStatusSnapshot snapshot) {
     _generation++;
     _snapshot = snapshot;
@@ -183,9 +305,16 @@ class SourceControlStatusController extends ChangeNotifier {
     _generation++;
     _diffGeneration++;
     _actionGeneration++;
+    _branchGeneration++;
+    _branchSwitchGeneration++;
+    _historyGeneration++;
     _snapshot = null;
     _diffPreview = null;
     _lastActionResult = null;
+    _branchSnapshot = null;
+    _pendingBranchSwitchPlan = null;
+    _lastBranchSwitchResult = null;
+    _historySnapshot = null;
     _pendingActionPlan = null;
     notifyListeners();
   }

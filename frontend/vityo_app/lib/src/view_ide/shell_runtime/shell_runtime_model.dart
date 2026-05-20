@@ -699,6 +699,10 @@ class ShellRuntimeModel extends ChangeNotifier {
       _localDirtySourceControlStatusSnapshot();
   SourceControlDiffSnapshot? get sourceControlDiffPreview =>
       sourceControlStatusController?.diffPreview;
+  SourceControlBranchSnapshot? get sourceControlBranchSnapshot =>
+      sourceControlStatusController?.branchSnapshot;
+  SourceControlHistorySnapshot? get sourceControlHistorySnapshot =>
+      sourceControlStatusController?.historySnapshot;
   SourceControlPartialPatchResult? get sourceControlHunkActionResult =>
       sourceControlStatusController?.lastPartialPatchResult;
 
@@ -1194,6 +1198,70 @@ class ShellRuntimeModel extends ChangeNotifier {
         paths: paths,
       ),
     );
+  }
+
+  Future<SourceControlBranchSnapshot> refreshSourceControlBranches() async {
+    final controller = sourceControlStatusController;
+    final snapshot = controller == null
+        ? const SourceControlBranchSnapshot(
+            providerKind: SourceControlProviderKind.localDirtyDocuments,
+            available: false,
+            message:
+                'Source control branches skipped: no source control controller is configured.',
+          )
+        : await controller.refreshBranches();
+    appendLog(_sourceControlBranchSnapshotMessage(snapshot));
+    notifyListeners();
+    return snapshot;
+  }
+
+  Future<SourceControlBranchSwitchPlan> planSourceControlBranchSwitch(
+    String targetBranch,
+  ) async {
+    final controller = sourceControlStatusController;
+    if (controller == null) {
+      final plan = SourceControlBranchSwitchPlan.fromSnapshot(
+        snapshot: const SourceControlBranchSnapshot(
+          providerKind: SourceControlProviderKind.localDirtyDocuments,
+          available: false,
+          message:
+              'Source control branch switch skipped: no source control controller is configured.',
+        ),
+        targetBranch: targetBranch,
+      );
+      appendLog(_sourceControlBranchSwitchPlanMessage(plan));
+      notifyListeners();
+      return plan;
+    }
+    if (controller.branchSnapshot == null) {
+      await controller.refreshBranches();
+    }
+    final plan = controller.planBranchSwitch(targetBranch);
+    appendLog(_sourceControlBranchSwitchPlanMessage(plan));
+    notifyListeners();
+    return plan;
+  }
+
+  String _sourceControlBranchSnapshotMessage(
+    SourceControlBranchSnapshot snapshot,
+  ) {
+    if (!snapshot.available) {
+      return snapshot.message.isEmpty
+          ? 'Source control branches unavailable.'
+          : 'Source control branches unavailable: ${snapshot.message}';
+    }
+    return 'Source control branches loaded: ${snapshot.branches.length} branch(es).';
+  }
+
+  String _sourceControlBranchSwitchPlanMessage(
+    SourceControlBranchSwitchPlan plan,
+  ) {
+    if (!plan.canRun) {
+      return plan.blockedReason.isEmpty
+          ? 'Source control branch switch plan blocked.'
+          : 'Source control branch switch plan blocked: ${plan.blockedReason}';
+    }
+    return 'Source control branch switch planned: ${plan.summary}.';
   }
 
   Future<SourceControlActionResult> confirmSourceControlDiffAction(
@@ -2649,6 +2717,35 @@ class ShellRuntimeModel extends ChangeNotifier {
           },
         );
         return result.applied;
+      case 'planSourceControlBranchSwitch':
+        final targetBranch = suggestion.input?.trim();
+        if (targetBranch == null || targetBranch.isEmpty) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message:
+                'Agent command planSourceControlBranchSwitch skipped: target branch input is required.',
+            metadata: const <String, Object?>{'requiredInput': 'Target branch'},
+          );
+          return false;
+        }
+        final plan = await planSourceControlBranchSwitch(targetBranch);
+        final sourceControlContext = sourceControlStatusController
+            ?.agentContextSnapshot
+            .toJson();
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: plan.canRun,
+          message: plan.canRun
+              ? 'Agent command planSourceControlBranchSwitch prepared ${plan.targetBranch}.'
+              : 'Agent command planSourceControlBranchSwitch blocked: ${plan.blockedReason}',
+          metadata: <String, Object?>{
+            'sourceControlBranchSwitchPlan': plan.toJson(),
+            if (sourceControlContext != null)
+              'sourceControlContext': sourceControlContext,
+          },
+        );
+        return plan.canRun;
       case 'collectAgentCodingCheckpoint':
         final metadata = await collectAgentCodingCheckpoint();
         _recordAgentIdeCommandResult(
@@ -3611,6 +3708,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
+      case AppCommandId.planSourceControlBranchSwitch:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:
@@ -3689,6 +3787,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
+      case AppCommandId.planSourceControlBranchSwitch:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:
@@ -6114,6 +6213,15 @@ class ShellRuntimeModel extends ChangeNotifier {
           },
         );
         return;
+      case AppCommandId.planSourceControlBranchSwitch:
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: false,
+          message:
+              '${StyioCommandRegistry.descriptorFor(commandId).label} requires target branch input.',
+          metadata: const <String, Object?>{'requiredInput': 'Target branch'},
+        );
+        return;
       case AppCommandId.collectAgentCodingCheckpoint:
         final metadata = await collectAgentCodingCheckpoint();
         _recordAgentIdeCommandResult(
@@ -6483,6 +6591,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
+      case AppCommandId.planSourceControlBranchSwitch:
       case AppCommandId.selectClangCppVersion:
         await applyAgentIdeCommandSuggestion(
           AgentIdeCommandSuggestion(
@@ -6776,6 +6885,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
+      case AppCommandId.planSourceControlBranchSwitch:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:

@@ -1348,6 +1348,10 @@ class SourceControlAgentContextSnapshot {
     this.diffWindow,
     this.pendingActionPlan,
     this.lastActionResult,
+    this.branchSnapshot,
+    this.pendingBranchSwitchPlan,
+    this.lastBranchSwitchResult,
+    this.historySnapshot,
   });
 
   factory SourceControlAgentContextSnapshot.fromState({
@@ -1356,6 +1360,10 @@ class SourceControlAgentContextSnapshot {
     SourceControlDiffSnapshot? diffPreview,
     SourceControlActionPlan? pendingActionPlan,
     SourceControlActionResult? lastActionResult,
+    SourceControlBranchSnapshot? branchSnapshot,
+    SourceControlBranchSwitchPlan? pendingBranchSwitchPlan,
+    SourceControlBranchSwitchResult? lastBranchSwitchResult,
+    SourceControlHistorySnapshot? historySnapshot,
     int diffLineLimit = 80,
   }) {
     return SourceControlAgentContextSnapshot(
@@ -1365,6 +1373,10 @@ class SourceControlAgentContextSnapshot {
       diffWindow: diffPreview?.window(lineLimit: diffLineLimit),
       pendingActionPlan: pendingActionPlan,
       lastActionResult: lastActionResult,
+      branchSnapshot: branchSnapshot,
+      pendingBranchSwitchPlan: pendingBranchSwitchPlan,
+      lastBranchSwitchResult: lastBranchSwitchResult,
+      historySnapshot: historySnapshot,
     );
   }
 
@@ -1374,6 +1386,10 @@ class SourceControlAgentContextSnapshot {
   final SourceControlDiffWindow? diffWindow;
   final SourceControlActionPlan? pendingActionPlan;
   final SourceControlActionResult? lastActionResult;
+  final SourceControlBranchSnapshot? branchSnapshot;
+  final SourceControlBranchSwitchPlan? pendingBranchSwitchPlan;
+  final SourceControlBranchSwitchResult? lastBranchSwitchResult;
+  final SourceControlHistorySnapshot? historySnapshot;
 
   bool get loaded => status != null;
   bool get available => status?.available ?? false;
@@ -1432,6 +1448,12 @@ class SourceControlAgentContextSnapshot {
         'pendingActionPlan': pendingActionPlan!.toJson(),
       if (lastActionResult != null)
         'lastActionResult': lastActionResult!.toJson(),
+      if (branchSnapshot != null) 'branches': branchSnapshot!.toJson(),
+      if (pendingBranchSwitchPlan != null)
+        'pendingBranchSwitchPlan': pendingBranchSwitchPlan!.toJson(),
+      if (lastBranchSwitchResult != null)
+        'lastBranchSwitchResult': lastBranchSwitchResult!.toJson(),
+      if (historySnapshot != null) 'history': historySnapshot!.toJson(),
     };
   }
 
@@ -1600,6 +1622,39 @@ class StaticSourceControlDiffProvider extends SourceControlDiffProvider {
   Future<SourceControlDiffSnapshot> diff({
     required String workspaceRoot,
     required String path,
+  }) async {
+    return snapshot;
+  }
+}
+
+class StaticSourceControlBranchProvider extends SourceControlBranchProvider {
+  const StaticSourceControlBranchProvider(this.snapshot);
+
+  final SourceControlBranchSnapshot snapshot;
+
+  @override
+  SourceControlProviderKind get providerKind => snapshot.providerKind;
+
+  @override
+  Future<SourceControlBranchSnapshot> branches({
+    required String workspaceRoot,
+  }) async {
+    return snapshot;
+  }
+}
+
+class StaticSourceControlHistoryProvider extends SourceControlHistoryProvider {
+  const StaticSourceControlHistoryProvider(this.snapshot);
+
+  final SourceControlHistorySnapshot snapshot;
+
+  @override
+  SourceControlProviderKind get providerKind => snapshot.providerKind;
+
+  @override
+  Future<SourceControlHistorySnapshot> history({
+    required String workspaceRoot,
+    int limit = 25,
   }) async {
     return snapshot;
   }

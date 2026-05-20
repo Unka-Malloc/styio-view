@@ -487,7 +487,7 @@ void main() {
     final testingDebugRoute =
         testingJson['debugFailedRoutePlan']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 52);
+    expect(json['schemaVersion'], 53);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1574,7 +1574,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 52);
+    expect(json['schemaVersion'], 53);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1849,7 +1849,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 52);
+    expect(context.schemaVersion, 53);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

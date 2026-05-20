@@ -29,6 +29,7 @@ enum AppCommandId {
   previewSourceControlDiff,
   stageSourceControl,
   unstageSourceControl,
+  planSourceControlBranchSwitch,
   collectAgentCodingCheckpoint,
   collectProjectLanguageContext,
   retryAgentProvider,
@@ -126,7 +127,9 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.refreshSourceControl ||
       AppCommandId.previewSourceControlDiff ||
       AppCommandId.stageSourceControl ||
-      AppCommandId.unstageSourceControl => AppCommandCategory.sourceControl,
+      AppCommandId.unstageSourceControl ||
+      AppCommandId.planSourceControlBranchSwitch =>
+        AppCommandCategory.sourceControl,
       AppCommandId.collectAgentCodingCheckpoint ||
       AppCommandId.collectProjectLanguageContext ||
       AppCommandId.retryAgentProvider ||
@@ -481,6 +484,15 @@ class StyioCommandRegistry {
           'Unstage one or more changed workspace paths through the source-control action contract.',
       requiresInput: true,
       inputLabel: 'Changed file path(s)',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.planSourceControlBranchSwitch,
+      label: 'Plan Source Control Branch Switch',
+      shortcutHint: 'Route',
+      description:
+          'Load branch facts and prepare a source-control branch switch plan without switching branches.',
+      requiresInput: true,
+      inputLabel: 'Target branch',
     ),
     AppCommandDescriptor(
       id: AppCommandId.collectAgentCodingCheckpoint,

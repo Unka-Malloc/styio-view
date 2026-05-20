@@ -2120,6 +2120,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.add_task_rounded;
     case AppCommandId.unstageSourceControl:
       return Icons.remove_done_outlined;
+    case AppCommandId.planSourceControlBranchSwitch:
+      return Icons.alt_route_rounded;
     case AppCommandId.collectAgentCodingCheckpoint:
       return Icons.assignment_turned_in_outlined;
     case AppCommandId.collectProjectLanguageContext:

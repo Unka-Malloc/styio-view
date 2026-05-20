@@ -729,6 +729,67 @@ diff --git a/src/main.styio b/src/main.styio
   });
 
   test(
+    'source control controller caches branch and history planning facts',
+    () async {
+      final controller = SourceControlStatusController(
+        provider: const StaticSourceControlStatusProvider(
+          SourceControlStatusSnapshot(
+            providerKind: SourceControlProviderKind.git,
+            branchName: 'ai-dev',
+            changes: <SourceControlFileChange>[],
+          ),
+        ),
+        branchProvider: const StaticSourceControlBranchProvider(
+          SourceControlBranchSnapshot(
+            providerKind: SourceControlProviderKind.git,
+            currentBranch: 'ai-dev',
+            branches: <String>['main', 'ai-dev', 'feature/scm'],
+          ),
+        ),
+        historyProvider: const StaticSourceControlHistoryProvider(
+          SourceControlHistorySnapshot(
+            providerKind: SourceControlProviderKind.git,
+            entries: <SourceControlHistoryEntry>[
+              SourceControlHistoryEntry(
+                revision: 'abcdef123',
+                shortRevision: 'abcdef1',
+                summary: 'Add branch facts',
+              ),
+            ],
+          ),
+        ),
+        workspaceRoot: '/workspace/vityo',
+      );
+      addTearDown(controller.dispose);
+
+      await controller.refresh();
+      final branches = await controller.refreshBranches();
+      final plan = controller.planBranchSwitch('feature/scm');
+      final history = await controller.refreshHistory(limit: 5);
+      final contextJson = controller.agentContextSnapshot.toJson();
+
+      expect(branches.currentBranch, 'ai-dev');
+      expect(branches.branches, contains('feature/scm'));
+      expect(plan.canRun, isTrue);
+      expect(controller.pendingBranchSwitchPlan, same(plan));
+      expect(history.entries.single.shortRevision, 'abcdef1');
+      expect(
+        (contextJson['branches']! as Map<String, Object?>)['branchCount'],
+        3,
+      );
+      expect(
+        (contextJson['pendingBranchSwitchPlan']!
+            as Map<String, Object?>)['targetBranch'],
+        'feature/scm',
+      );
+      expect(
+        (contextJson['history']! as Map<String, Object?>)['entryCount'],
+        1,
+      );
+    },
+  );
+
+  test(
     'source control status controller reports missing action provider',
     () async {
       final controller = SourceControlStatusController(

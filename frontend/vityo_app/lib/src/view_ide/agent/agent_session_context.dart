@@ -161,7 +161,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 52,
+      schemaVersion: 53,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,

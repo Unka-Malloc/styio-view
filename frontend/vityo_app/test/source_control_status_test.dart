@@ -163,6 +163,32 @@ diff --git a/lib/main.styio b/lib/main.styio
     },
   );
 
+  test('source control diff window binding paginates visible diff content', () {
+    final snapshot = SourceControlDiffSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      path: 'src/main.styio',
+      unifiedDiff: List<String>.generate(5, (index) => 'line-$index').join(
+        '\n',
+      ),
+    );
+    final binding = SourceControlDiffWindowBinding(
+      snapshot: snapshot,
+      lineLimit: 2,
+    );
+    final next = binding.nextWindow();
+    final previous = next.previousWindow();
+    final json = binding.toJson();
+
+    expect(binding.window.lines, <String>['line-0', 'line-1']);
+    expect(binding.window.hasNext, isTrue);
+    expect(binding.visibleText, 'line-0\nline-1');
+    expect(next.window.startLine, 2);
+    expect(next.window.lines, <String>['line-2', 'line-3']);
+    expect(previous.window.startLine, 0);
+    expect(json['providerKind'], 'git');
+    expect((json['window']! as Map<String, Object?>)['lineCount'], 2);
+  });
+
   test(
     'git action provider stages and commits through injected runner',
     () async {

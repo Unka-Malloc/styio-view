@@ -679,6 +679,79 @@ class SourceControlDiffWindow {
   }
 }
 
+class SourceControlDiffWindowBinding {
+  const SourceControlDiffWindowBinding({
+    required this.snapshot,
+    this.startLine = 0,
+    this.lineLimit = 200,
+  });
+
+  final SourceControlDiffSnapshot snapshot;
+  final int startLine;
+  final int lineLimit;
+
+  SourceControlDiffReviewSummary get reviewSummary => snapshot.reviewSummary;
+
+  SourceControlDiffWindow get window {
+    return snapshot.window(startLine: startLine, lineLimit: lineLimit);
+  }
+
+  String get visibleText {
+    if (!snapshot.available) {
+      return snapshot.message;
+    }
+    final currentWindow = window;
+    if (currentWindow.lines.isEmpty) {
+      return snapshot.message.isEmpty
+          ? 'No diff content in the selected window.'
+          : snapshot.message;
+    }
+    return currentWindow.lines.join('\n');
+  }
+
+  SourceControlDiffWindowBinding previousWindow() {
+    final currentWindow = window;
+    final normalizedLimit = lineLimit <= 0 ? 200 : lineLimit;
+    final previousStart = (currentWindow.startLine - normalizedLimit).clamp(
+      0,
+      currentWindow.totalLineCount,
+    ).toInt();
+    return copyWith(startLine: previousStart);
+  }
+
+  SourceControlDiffWindowBinding nextWindow() {
+    final currentWindow = window;
+    if (!currentWindow.hasNext) {
+      return this;
+    }
+    return copyWith(startLine: currentWindow.endLine);
+  }
+
+  SourceControlDiffWindowBinding copyWith({
+    SourceControlDiffSnapshot? snapshot,
+    int? startLine,
+    int? lineLimit,
+  }) {
+    return SourceControlDiffWindowBinding(
+      snapshot: snapshot ?? this.snapshot,
+      startLine: startLine ?? this.startLine,
+      lineLimit: lineLimit ?? this.lineLimit,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerKind': snapshot.providerKind.wireValue,
+      'path': snapshot.path,
+      'available': snapshot.available,
+      'requestedStartLine': startLine,
+      'requestedLineLimit': lineLimit,
+      'reviewSummary': reviewSummary.toJson(),
+      'window': window.toJson(),
+    };
+  }
+}
+
 class SourceControlDiffReviewSummary {
   const SourceControlDiffReviewSummary({
     required this.path,

@@ -12,10 +12,12 @@ class SourceControlSurface extends StatelessWidget {
     required this.changedDocumentIds,
     this.status,
     this.diffPreview,
+    this.diffWindowBinding,
     this.commitDraft,
     this.commitDialogState,
     this.branchSnapshot,
     this.historySnapshot,
+    this.adapterRegistry,
     this.onOpenFile,
     this.onSaveAll,
     this.onRefresh,
@@ -30,10 +32,12 @@ class SourceControlSurface extends StatelessWidget {
   final List<String> changedDocumentIds;
   final SourceControlStatusSnapshot? status;
   final SourceControlDiffSnapshot? diffPreview;
+  final SourceControlDiffWindowBinding? diffWindowBinding;
   final SourceControlCommitDraft? commitDraft;
   final SourceControlCommitDialogState? commitDialogState;
   final SourceControlBranchSnapshot? branchSnapshot;
   final SourceControlHistorySnapshot? historySnapshot;
+  final SourceControlProviderAdapterRegistry? adapterRegistry;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function()? onSaveAll;
   final Future<void> Function()? onRefresh;
@@ -58,6 +62,15 @@ class SourceControlSurface extends StatelessWidget {
         .where((change) => change.unstaged)
         .map((change) => change.path)
         .toList(growable: false);
+    final providerAdapters =
+        adapterRegistry?.adapters ??
+        const <SourceControlProviderAdapterDescriptor>[];
+    final activeDiffWindowBinding =
+        diffWindowBinding ??
+        (diffPreview == null
+            ? null
+            : SourceControlDiffWindowBinding(snapshot: diffPreview!));
+    final activeDiffWindow = activeDiffWindowBinding?.window;
 
     return Card(
       key: const ValueKey('source-control-surface'),
@@ -95,6 +108,8 @@ class SourceControlSurface extends StatelessWidget {
                     Chip(
                       label: Text('history ${historySnapshot!.entries.length}'),
                     ),
+                  if (providerAdapters.isNotEmpty)
+                    Chip(label: Text('providers ${providerAdapters.length}')),
                   if (commitDraft != null)
                     Chip(
                       label: Text(
@@ -119,7 +134,8 @@ class SourceControlSurface extends StatelessWidget {
               ),
               if (commitDraft != null ||
                   branchSnapshot != null ||
-                  historySnapshot != null) ...[
+                  historySnapshot != null ||
+                  providerAdapters.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 12,
@@ -134,6 +150,8 @@ class SourceControlSurface extends StatelessWidget {
                       _BranchPickerSummary(snapshot: branchSnapshot!),
                     if (historySnapshot != null)
                       _HistorySummary(snapshot: historySnapshot!),
+                    if (providerAdapters.isNotEmpty)
+                      _ProviderAdapterSummary(adapters: providerAdapters),
                   ],
                 ),
               ],
@@ -270,9 +288,13 @@ class SourceControlSurface extends StatelessWidget {
                     ),
                     Chip(
                       label: Text(
-                        'window ${diffPreview!.window().startLine}-${diffPreview!.window().endLine}/${diffPreview!.window().totalLineCount}',
+                        'virtual-window ${activeDiffWindow!.startLine}-${activeDiffWindow.endLine}/${activeDiffWindow.totalLineCount}',
                       ),
                     ),
+                    if (activeDiffWindow.hasPrevious)
+                      const Chip(label: Text('has previous window')),
+                    if (activeDiffWindow.hasNext)
+                      const Chip(label: Text('has next window')),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -287,11 +309,7 @@ class SourceControlSurface extends StatelessWidget {
                   ),
                   child: SingleChildScrollView(
                     child: SelectableText(
-                      diffPreview!.available
-                          ? (diffPreview!.unifiedDiff.trim().isEmpty
-                                ? diffPreview!.message
-                                : diffPreview!.unifiedDiff)
-                          : diffPreview!.message,
+                      activeDiffWindowBinding!.visibleText,
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -334,6 +352,29 @@ class SourceControlSurface extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ProviderAdapterSummary extends StatelessWidget {
+  const _ProviderAdapterSummary({required this.adapters});
+
+  final List<SourceControlProviderAdapterDescriptor> adapters;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _SourceControlSummaryCard(
+      key: const ValueKey('source-control-provider-adapter-summary'),
+      title: 'SCM Providers',
+      lines: adapters
+          .map(
+            (adapter) =>
+                '${adapter.label}: ${adapter.capabilities.take(4).map((capability) => capability.wireValue).join(', ')}',
+          )
+          .toList(growable: false),
+      icon: Icons.extension_rounded,
+      color: theme.colorScheme.primaryContainer,
     );
   }
 }

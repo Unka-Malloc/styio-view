@@ -16,6 +16,11 @@ void main() {
     var saveAllCount = 0;
     var refreshCount = 0;
     var openCommitCount = 0;
+    const diffSnapshot = SourceControlDiffSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      path: 'src/main.styio',
+      unifiedDiff: 'diff --git a/src/main.styio b/src/main.styio\n+value\n',
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -36,11 +41,10 @@ void main() {
  M src/main.styio
 R  src/old.styio -> src/new.styio
 '''),
-            diffPreview: const SourceControlDiffSnapshot(
-              providerKind: SourceControlProviderKind.git,
-              path: 'src/main.styio',
-              unifiedDiff:
-                  'diff --git a/src/main.styio b/src/main.styio\n+value\n',
+            diffPreview: diffSnapshot,
+            diffWindowBinding: const SourceControlDiffWindowBinding(
+              snapshot: diffSnapshot,
+              lineLimit: 2,
             ),
             commitDraft: const SourceControlCommitDraft(
               workspaceId: 'demo',
@@ -67,6 +71,20 @@ R  src/old.styio -> src/new.styio
                   revision: 'abcdef123',
                   shortRevision: 'abcdef1',
                   summary: 'Add source control UI',
+                ),
+              ],
+            ),
+            adapterRegistry: SourceControlProviderAdapterRegistry(
+              adapters: <SourceControlProviderAdapterDescriptor>[
+                SourceControlProviderAdapterDescriptor.git(),
+                const SourceControlProviderAdapterDescriptor(
+                  id: 'acme-scm',
+                  label: 'Acme SCM',
+                  providerKind: SourceControlProviderKind.custom,
+                  capabilities: <SourceControlProviderCapability>[
+                    SourceControlProviderCapability.status,
+                    SourceControlProviderCapability.diff,
+                  ],
                 ),
               ],
             ),
@@ -107,6 +125,7 @@ R  src/old.styio -> src/new.styio
     expect(find.text('branch ai-dev'), findsOneWidget);
     expect(find.text('branches 3'), findsOneWidget);
     expect(find.text('history 1'), findsOneWidget);
+    expect(find.text('providers 2'), findsOneWidget);
     expect(find.text('draft ready'), findsOneWidget);
     expect(find.text('commit-dialog ready'), findsOneWidget);
     expect(
@@ -121,10 +140,16 @@ R  src/old.styio -> src/new.styio
       find.byKey(const ValueKey('source-control-history-summary')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('source-control-provider-adapter-summary')),
+      findsOneWidget,
+    );
     expect(find.text('Add source control UI'), findsWidgets);
     expect(find.text('dialog ready'), findsOneWidget);
     expect(find.text('current ai-dev'), findsOneWidget);
     expect(find.text('abcdef1 · Add source control UI'), findsOneWidget);
+    expect(find.text('Git: status, diff, actions, branches'), findsOneWidget);
+    expect(find.text('Acme SCM: status, diff'), findsOneWidget);
     expect(find.text('git 2'), findsOneWidget);
     expect(find.text('staged 1'), findsOneWidget);
     expect(find.text('unstaged 1'), findsOneWidget);
@@ -142,7 +167,8 @@ R  src/old.styio -> src/new.styio
     expect(find.text('Diff Preview'), findsOneWidget);
     expect(find.text('hunks 0'), findsOneWidget);
     expect(find.text('+1 -0'), findsOneWidget);
-    expect(find.text('window 0-3/3'), findsOneWidget);
+    expect(find.text('virtual-window 0-2/3'), findsOneWidget);
+    expect(find.text('has next window'), findsOneWidget);
     expect(find.textContaining('+value'), findsOneWidget);
 
     Future<void> tapVisible(String key) async {

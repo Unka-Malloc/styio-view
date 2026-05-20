@@ -16,6 +16,7 @@ class WorkspaceSearchSurface extends StatefulWidget {
     this.onSearch,
     this.onOpenFile,
     this.onPreviewReplace,
+    this.onApplyReplacePreview,
     this.onOpenMatch,
     this.onOpenSymbolMatch,
   });
@@ -30,6 +31,8 @@ class WorkspaceSearchSurface extends StatefulWidget {
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function(String query, String replacement)?
   onPreviewReplace;
+  final Future<void> Function(WorkspaceReplacePreview preview)?
+  onApplyReplacePreview;
   final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
   onOpenMatch;
   final Future<void> Function(AgentWorkspaceSymbolMatchContext match)?
@@ -46,6 +49,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
   static const _quickOpenService = WorkspaceQuickOpenService();
   var _submitting = false;
   var _previewingReplace = false;
+  var _applyingReplace = false;
   var _quickOpenQuery = '';
 
   @override
@@ -112,6 +116,28 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
       if (mounted) {
         setState(() {
           _previewingReplace = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _applyReplacePreview() async {
+    final preview = widget.lastReplacePreview;
+    if (preview == null ||
+        preview.documents.isEmpty ||
+        widget.onApplyReplacePreview == null ||
+        _applyingReplace) {
+      return;
+    }
+    setState(() {
+      _applyingReplace = true;
+    });
+    try {
+      await widget.onApplyReplacePreview!(preview);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _applyingReplace = false;
         });
       }
     }
@@ -214,7 +240,13 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
             ),
             if (widget.lastReplacePreview != null) ...[
               const SizedBox(height: 10),
-              _WorkspaceReplacePreviewView(preview: widget.lastReplacePreview!),
+              _WorkspaceReplacePreviewView(
+                preview: widget.lastReplacePreview!,
+                applying: _applyingReplace,
+                onApply: widget.onApplyReplacePreview == null
+                    ? null
+                    : _applyReplacePreview,
+              ),
             ],
             const SizedBox(height: 12),
             Text('Quick Open', style: theme.textTheme.titleSmall),
@@ -362,9 +394,15 @@ class _WorkspaceSymbolSearchResultView extends StatelessWidget {
 }
 
 class _WorkspaceReplacePreviewView extends StatelessWidget {
-  const _WorkspaceReplacePreviewView({required this.preview});
+  const _WorkspaceReplacePreviewView({
+    required this.preview,
+    required this.applying,
+    required this.onApply,
+  });
 
   final WorkspaceReplacePreview preview;
+  final bool applying;
+  final Future<void> Function()? onApply;
 
   @override
   Widget build(BuildContext context) {
@@ -381,6 +419,32 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
             Chip(label: Text('documents ${preview.documents.length}')),
             Chip(label: Text('failures ${preview.failures.length}')),
             Chip(label: Text('truncated ${preview.truncated}')),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Apply uses this preview only if document revisions still match.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            const SizedBox(width: 10),
+            FilledButton.icon(
+              key: const ValueKey('workspace-replace-apply-submit'),
+              onPressed:
+                  preview.documents.isEmpty || onApply == null || applying
+                  ? null
+                  : onApply,
+              icon: applying
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.done_all_rounded),
+              label: Text(applying ? 'Applying' : 'Apply Preview'),
+            ),
           ],
         ),
         const SizedBox(height: 8),

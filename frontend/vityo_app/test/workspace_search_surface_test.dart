@@ -176,6 +176,7 @@ void main() {
   ) async {
     String? previewQuery;
     String? previewReplacement;
+    WorkspaceReplacePreview? appliedPreview;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -201,6 +202,9 @@ void main() {
             onPreviewReplace: (query, replacement) async {
               previewQuery = query;
               previewReplacement = replacement;
+            },
+            onApplyReplacePreview: (preview) async {
+              appliedPreview = preview;
             },
           ),
         ),
@@ -228,5 +232,13 @@ void main() {
     );
     expect(find.text('replacements 1'), findsOneWidget);
     expect(find.text('src/main.styio'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('workspace-replace-apply-submit')),
+    );
+    await tester.pump();
+
+    expect(appliedPreview?.replacementCount, 1);
+    expect(appliedPreview?.documents.single.documentId, 'src/main.styio');
   });
 }

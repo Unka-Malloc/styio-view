@@ -232,6 +232,7 @@ class VityoShellScaffold extends StatelessWidget {
               replacement: replacement,
             );
           },
+          onApplyReplacePreview: shell.applyWorkspaceReplacePreview,
           onOpenMatch: (match) =>
               shell.openWorkspaceFileForAgent(match.documentId),
           onOpenSymbolMatch: (match) =>

@@ -4114,6 +4114,32 @@ class ShellRuntimeModel extends ChangeNotifier {
     return preview;
   }
 
+  Future<WorkspaceReplaceResult?> applyWorkspaceReplacePreview(
+    WorkspaceReplacePreview preview,
+  ) async {
+    if (preview.documents.isEmpty) {
+      appendLog('Workspace replace apply skipped: no preview changes.');
+      return null;
+    }
+    final result = await WorkspaceSearchService(
+      documentStore: workspaceDocumentStore,
+    ).applyReplacePreview(preview);
+    for (final document in result.documents) {
+      _documentCache.remove(document.documentId);
+      _dirtyDocumentPaths.add(document.documentId);
+    }
+    if (result.failures.isEmpty) {
+      _lastWorkspaceReplacePreview = null;
+    }
+    appendLog(
+      'Workspace replace apply changed ${result.replacementCount} '
+      'replacement(s) across ${result.documents.length} document(s), '
+      '${result.failures.length} failure(s).',
+    );
+    notifyListeners();
+    return result;
+  }
+
   void _syncAgentPatchDocumentCache(AgentCodePatchApplicationResult? result) {
     if (result == null || !result.applied) {
       return;

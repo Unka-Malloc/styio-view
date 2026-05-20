@@ -6,6 +6,7 @@ export 'workspace_document_store_types.dart';
 export 'workspace_search_service.dart';
 export 'workspace_search_history_store.dart';
 export 'workspace_file_operations.dart';
+export 'workspace_file_command_router.dart';
 export 'workspace_file_explorer_controller.dart';
 export 'workspace_file_explorer_state_store.dart';
 export 'source_control_status.dart';

@@ -16,6 +16,7 @@ class CommandPaletteSurface extends StatefulWidget {
     this.livePreferenceController,
     this.initialCategory,
     this.onExecuteCommand,
+    this.onExecuteCommandWithInput,
     this.onRecordRecentCommand,
     this.blockedReasonForCommand,
     this.keybindingProfile,
@@ -31,6 +32,8 @@ class CommandPaletteSurface extends StatefulWidget {
   final CommandPaletteLivePreferenceController? livePreferenceController;
   final AppCommandCategory? initialCategory;
   final Future<void> Function(AppCommandId commandId)? onExecuteCommand;
+  final Future<void> Function(AppCommandId commandId, String input)?
+  onExecuteCommandWithInput;
   final Future<void> Function(AppCommandId commandId)? onRecordRecentCommand;
   final String? Function(AppCommandId commandId)? blockedReasonForCommand;
   final CommandKeybindingProfile? keybindingProfile;
@@ -46,6 +49,7 @@ class CommandPaletteSurface extends StatefulWidget {
 
 class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   late final TextEditingController _queryController;
+  late final TextEditingController _commandInputController;
   late final TextEditingController _keybindingController;
   StreamSubscription<CommandPaletteLivePreferenceState>?
   _livePreferenceSubscription;
@@ -59,6 +63,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   void initState() {
     super.initState();
     _queryController = TextEditingController();
+    _commandInputController = TextEditingController();
     _keybindingController = TextEditingController();
     _attachLivePreferenceController(widget.livePreferenceController);
     _category =
@@ -79,6 +84,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
           widget.initialCategory ?? _effectivePreferences?.defaultCategory;
       _selectedIndex = 0;
     }
+    _syncCommandInputDraft();
     final commandStillRegistered = widget.commands.any(
       (command) => command.id == _keybindingCommand,
     );
@@ -96,6 +102,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   void dispose() {
     _livePreferenceSubscription?.cancel();
     _keybindingController.dispose();
+    _commandInputController.dispose();
     _queryController.dispose();
     super.dispose();
   }
@@ -176,7 +183,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
               Text('Command Palette', style: theme.textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                'Searchable command registry surface backed by reusable query scoring, overlay selection state, persisted recent command ranking, display preferences, category filters, keyboard navigation, and typed input draft contracts. TODO: bind preference editing controls to settings UI.',
+                'Searchable command registry surface backed by reusable query scoring, overlay selection state, persisted recent command ranking, display preferences, category filters, keyboard navigation, and typed input dispatch contracts.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),
@@ -256,6 +263,23 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                 ),
                 const SizedBox(height: 12),
               ],
+              if (overlayState.selectedEntry?.command.requiresInput ??
+                  false) ...[
+                TextField(
+                  key: const ValueKey('command-palette-command-input'),
+                  controller: _commandInputController,
+                  decoration: InputDecoration(
+                    labelText:
+                        overlayState.selectedEntry!.command.inputLabel.isEmpty
+                        ? 'Command input'
+                        : overlayState.selectedEntry!.command.inputLabel,
+                    helperText:
+                        'Input is passed to the command router, for example a workspace file path.',
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               if (_showsKeybindingEditor) ...[
                 SizedBox(
                   height: compact ? 190 : 220,
@@ -320,10 +344,10 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                               ],
                             ),
                             enabled:
-                                widget.onExecuteCommand != null &&
+                                _canExecuteCommand(command.id) &&
                                 blockedReason == null,
                             onTap:
-                                widget.onExecuteCommand == null ||
+                                !_canExecuteCommand(command.id) ||
                                     blockedReason != null
                                 ? null
                                 : () {
@@ -526,12 +550,13 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     }
     setState(() {
       _selectedIndex = overlayState.moveSelection(delta).selectedIndex;
+      _syncCommandInputDraft();
     });
   }
 
   void _executeSelected(CommandPaletteOverlayState overlayState) {
     final entry = overlayState.selectedEntry;
-    if (entry == null || widget.onExecuteCommand == null) {
+    if (entry == null || !_canExecuteCommand(entry.command.id)) {
       return;
     }
     final commandId = entry.command.id;
@@ -542,6 +567,17 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   }
 
   void _executeCommand(AppCommandId commandId) {
+    final descriptor = _descriptorFor(commandId);
+    if (descriptor?.requiresInput ?? false) {
+      final input = _commandInputController.text.trim();
+      if (widget.onRecordRecentCommand != null) {
+        unawaited(widget.onRecordRecentCommand!(commandId));
+      }
+      if (widget.onExecuteCommandWithInput != null) {
+        unawaited(widget.onExecuteCommandWithInput!(commandId, input));
+        return;
+      }
+    }
     if (widget.onExecuteCommand == null) {
       return;
     }
@@ -549,6 +585,15 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
       unawaited(widget.onRecordRecentCommand!(commandId));
     }
     unawaited(widget.onExecuteCommand!(commandId));
+  }
+
+  bool _canExecuteCommand(AppCommandId commandId) {
+    final descriptor = _descriptorFor(commandId);
+    if (descriptor?.requiresInput ?? false) {
+      return widget.onExecuteCommandWithInput != null ||
+          widget.onExecuteCommand != null;
+    }
+    return widget.onExecuteCommand != null;
   }
 
   void _saveKeybindingOverride() {
@@ -590,6 +635,10 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     _keybindingController.text = shortcuts.isEmpty
         ? ''
         : commandShortcutDisplayLabel(shortcuts.first);
+  }
+
+  void _syncCommandInputDraft() {
+    _commandInputController.text = '';
   }
 
   String _shortcutHintFor(AppCommandDescriptor descriptor) {

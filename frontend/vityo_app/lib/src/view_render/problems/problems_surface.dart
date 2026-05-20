@@ -29,6 +29,7 @@ class ProblemsSurface extends StatefulWidget {
     this.workspaceEditReviewControls,
     this.workspaceEditApplyResult,
     this.quickFixReviewPlan,
+    this.quickFixTelemetry,
     this.semanticSnapshotPanelViewModel,
     this.diagnosticsPanelState,
     this.onDiagnosticsPanelStateChanged,
@@ -62,6 +63,7 @@ class ProblemsSurface extends StatefulWidget {
   final WorkspaceEditReviewControls? workspaceEditReviewControls;
   final WorkspaceEditApplyResultViewModel? workspaceEditApplyResult;
   final WorkspaceQuickFixReviewPlan? quickFixReviewPlan;
+  final WorkspaceQuickFixTelemetrySnapshot? quickFixTelemetry;
   final SemanticSnapshotPanelViewModel? semanticSnapshotPanelViewModel;
   final DiagnosticsPanelState? diagnosticsPanelState;
   final ValueChanged<DiagnosticsPanelState>? onDiagnosticsPanelStateChanged;
@@ -286,6 +288,12 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                   const SizedBox(height: 12),
                   _WorkspaceEditApplyResultCard(
                     result: widget.workspaceEditApplyResult!,
+                  ),
+                ],
+                if (widget.quickFixTelemetry != null) ...[
+                  const SizedBox(height: 12),
+                  _WorkspaceQuickFixTelemetryCard(
+                    telemetry: widget.quickFixTelemetry!,
                   ),
                 ],
                 if (widget.diagnosticsProducerLifecycles.isNotEmpty) ...[
@@ -808,6 +816,77 @@ class _WorkspaceEditApplyResultCard extends StatelessWidget {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkspaceQuickFixTelemetryCard extends StatelessWidget {
+  const _WorkspaceQuickFixTelemetryCard({required this.telemetry});
+
+  final WorkspaceQuickFixTelemetrySnapshot telemetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('problems-quick-fix-telemetry'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Quick-fix outcomes', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              Chip(label: Text('outcomes ${telemetry.outcomes.length}')),
+              Chip(label: Text('applied ${telemetry.appliedCount}')),
+              Chip(label: Text('blocked ${telemetry.blockedCount}')),
+              if (telemetry.updatedAt != null)
+                Chip(label: Text('updated ${telemetry.updatedAt!.toUtc()}')),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (telemetry.outcomes.isEmpty)
+            Text(
+              'No quick-fix outcomes have been recorded.',
+              style: theme.textTheme.bodySmall,
+            )
+          else
+            for (final outcome in telemetry.outcomes.take(6))
+              ListTile(
+                key: ValueKey(
+                  'problems-quick-fix-outcome-${outcome.planId}-${outcome.outcomeKind.wireValue}',
+                ),
+                dense: true,
+                leading: Icon(
+                  outcome.applied
+                      ? Icons.check_circle_outline
+                      : outcome.blocked
+                      ? Icons.block_rounded
+                      : Icons.pending_actions_rounded,
+                ),
+                title: Text(
+                  '${outcome.outcomeKind.wireValue} ${outcome.diagnosticCode} #${outcome.quickFixIndex}',
+                ),
+                subtitle: Text(
+                  '${outcome.documentId} · ${outcome.confirmationStatus.wireValue} · ${outcome.message}',
+                ),
+              ),
+          if (telemetry.outcomes.length > 6)
+            Text(
+              'TODO: virtualize older quick-fix outcome rows.',
+              style: theme.textTheme.bodySmall,
+            ),
         ],
       ),
     );

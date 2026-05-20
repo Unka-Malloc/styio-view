@@ -586,6 +586,25 @@ void main() {
       ),
       diffWindow: preview.diffWindow(),
     );
+    final telemetry = WorkspaceQuickFixTelemetrySnapshot(
+      workspaceId: 'demo',
+      outcomes: <WorkspaceQuickFixReviewOutcome>[
+        WorkspaceQuickFixReviewOutcome(
+          workspaceId: 'demo',
+          producerId: 'styio-service',
+          documentId: 'src/main.styio',
+          diagnosticCode: 'missing-assignment',
+          quickFixIndex: 0,
+          planId: 'quick-fix.src/main.styio.missing-assignment.0',
+          outcomeKind: WorkspaceQuickFixReviewOutcomeKind.applied,
+          confirmationStatus: WorkspaceQuickFixConfirmationStatus.ready,
+          ready: true,
+          message: 'Applied assignment fix.',
+          affectedDocumentIds: <String>['src/main.styio'],
+          timestamp: DateTime.utc(2026, 5, 20),
+        ),
+      ],
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -599,6 +618,7 @@ void main() {
             documentId: 'src/main.styio',
             diagnostics: const <Diagnostic>[],
             workspaceEditApplyResult: result,
+            quickFixTelemetry: telemetry,
           ),
         ),
       ),
@@ -613,6 +633,13 @@ void main() {
     expect(find.textContaining('1 affected document'), findsOneWidget);
     expect(find.text('Applied project fix.'), findsOneWidget);
     expect(find.text('applied src/main.styio'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('problems-quick-fix-telemetry')),
+      findsOneWidget,
+    );
+    expect(find.text('Quick-fix outcomes'), findsOneWidget);
+    expect(find.text('applied missing-assignment #0'), findsOneWidget);
+    expect(find.textContaining('Applied assignment fix.'), findsOneWidget);
   });
 
   testWidgets('problems surface binds quick-fix review diff apply controls', (

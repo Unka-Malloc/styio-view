@@ -423,7 +423,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'Editor surface renders document, tabs, selection, token/semantic/diagnostic layers, folding, hover, completion, code-action facts, and serializable EditorRenderSnapshot contracts for UI and Agent consumers.',
           todo:
-              'TODO: finish virtualized editor row rendering, semantic highlighting theme mapping, hover widgets, completion widgets, and code action widgets.',
+              'TODO: bind virtualized row windows to the concrete scroll controller, finish semantic highlighting theme mapping, and complete code action widgets.',
           references: <String>['Monaco editor', 'VS Code workbench editor'],
         ),
         IdeCapabilityDescriptor(

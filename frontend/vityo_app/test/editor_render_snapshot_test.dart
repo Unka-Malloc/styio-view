@@ -42,8 +42,32 @@ void main() {
     expect(snapshot.hasSelection, isTrue);
     expect(snapshot.renderPlan.activeLayers, contains(EditorRenderLayer.text));
     expect(snapshot.tokenCount, greaterThanOrEqualTo(1));
+    expect(snapshot.virtualizedRowWindow.containsLine(0), isTrue);
+    expect(restored.virtualizedRowWindow.totalLineCount, 2);
     expect(restored.selectionStart, 0);
     expect(restored.selectionEnd, 5);
-    expect(restored.toJson()['todo'], contains('virtualized row rendering'));
+    expect(
+      restored.toJson()['virtualizedRowWindow'],
+      isA<Map<String, Object?>>(),
+    );
+    expect(restored.toJson()['todo'], contains('code action widgets'));
+  });
+
+  test('editor virtualized row window includes overscan around viewport', () {
+    final window = EditorVirtualizedRowWindow.fromViewport(
+      totalLineCount: 200,
+      firstVisibleLine: 50,
+      viewportLineCapacity: 20,
+      overscanLineCount: 5,
+    );
+    final restored = EditorVirtualizedRowWindow.fromJson(window.toJson());
+
+    expect(window.startLine, 45);
+    expect(window.endLineExclusive, 75);
+    expect(window.renderLineCount, 30);
+    expect(window.containsLine(44), isFalse);
+    expect(window.containsLine(74), isTrue);
+    expect(window.coversFullDocument, isFalse);
+    expect(restored.viewportFirstLine, 50);
   });
 }

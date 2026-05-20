@@ -48,8 +48,11 @@ void main() {
     expect(snapshot.documentGroups.first.documentId, 'main.styio');
     expect(snapshot.documentGroups.first.hasErrors, isTrue);
     expect(snapshot.documentGroups.first.severityCounts['error'], 1);
+    expect(snapshot.sourceGroups.single.source, 'language');
+    expect(snapshot.sourceGroups.single.totalCount, 2);
     expect(json['diagnostics'], isNotEmpty);
     expect(json['documentGroups'], isNotEmpty);
+    expect(json['sourceGroups'], isNotEmpty);
   });
 
   test('workspace diagnostics view applies serializable filters', () {
@@ -99,7 +102,57 @@ void main() {
     expect(view.visibleCount, 1);
     expect(view.visibleDiagnostics.single.documentId, 'test/parser.styio');
     expect(view.documentGroups.single.documentId, 'test/parser.styio');
+    expect(view.sourceGroups.single.source, 'fixture');
     expect(json['visibleCount'], 1);
+    expect(json['sourceGroups'], isNotEmpty);
+  });
+
+  test('workspace quick fix confirmation plan reports readiness', () {
+    const readyPreview = WorkspaceEditPreview(
+      planId: 'fix-ready',
+      summary: 'Apply workspace fix',
+      source: WorkspaceEditSource.codeAction,
+      documents: <WorkspaceEditDocumentPreview>[
+        WorkspaceEditDocumentPreview(
+          documentId: 'src/main.styio',
+          revision: 1,
+          beforeText: 'before',
+          afterText: 'after',
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 0, end: 6),
+              newText: 'after',
+            ),
+          ],
+        ),
+      ],
+    );
+    const blockedPreview = WorkspaceEditPreview(
+      planId: 'fix-blocked',
+      summary: 'Apply blocked workspace fix',
+      source: WorkspaceEditSource.codeAction,
+      documents: <WorkspaceEditDocumentPreview>[],
+      missingDocumentIds: <String>['src/missing.styio'],
+    );
+
+    final ready = WorkspaceQuickFixConfirmationPlan.fromPreview(readyPreview);
+    final blocked = WorkspaceQuickFixConfirmationPlan.fromPreview(
+      blockedPreview,
+    );
+    final missing = WorkspaceQuickFixConfirmationPlan.fromPreview(null);
+
+    expect(ready.ready, isTrue);
+    expect(ready.affectedDocumentIds, <String>['src/main.styio']);
+    expect(ready.toJson()['todo'], contains('diff preview'));
+    expect(
+      blocked.status,
+      WorkspaceQuickFixConfirmationStatus.blockedMissingDocuments,
+    );
+    expect(blocked.missingDocumentIds, <String>['src/missing.styio']);
+    expect(
+      missing.status,
+      WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+    );
   });
 
   test('workspace diagnostics provider registry resolves active provider', () {

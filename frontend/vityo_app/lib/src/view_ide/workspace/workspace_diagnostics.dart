@@ -1,6 +1,7 @@
 import '../foundation/foundation.dart';
 import '../editor/document_state.dart';
 import '../language/language_contract.dart';
+import 'workspace_edit.dart';
 
 class WorkspaceDiagnosticsRequest {
   const WorkspaceDiagnosticsRequest({
@@ -79,6 +80,42 @@ class WorkspaceDiagnosticsDocumentGroup {
   }
 }
 
+class WorkspaceDiagnosticsSourceGroup {
+  const WorkspaceDiagnosticsSourceGroup({
+    required this.source,
+    required this.diagnostics,
+  });
+
+  final String source;
+  final List<WorkspaceDiagnostic> diagnostics;
+
+  bool get hasErrors {
+    return diagnostics.any(
+      (entry) => entry.diagnostic.severity == DiagnosticSeverity.error,
+    );
+  }
+
+  int get totalCount => diagnostics.length;
+
+  Map<String, int> get severityCounts {
+    return <String, int>{
+      for (final severity in DiagnosticSeverity.values)
+        severity.name: diagnostics
+            .where((entry) => entry.diagnostic.severity == severity)
+            .length,
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'source': source,
+      'totalCount': totalCount,
+      'severityCounts': severityCounts,
+      'hasErrors': hasErrors,
+    };
+  }
+}
+
 class WorkspaceDiagnosticsSnapshot {
   const WorkspaceDiagnosticsSnapshot({
     required this.providerId,
@@ -139,6 +176,10 @@ class WorkspaceDiagnosticsSnapshot {
     return List<WorkspaceDiagnosticsDocumentGroup>.unmodifiable(result);
   }
 
+  List<WorkspaceDiagnosticsSourceGroup> get sourceGroups {
+    return groupWorkspaceDiagnosticsBySource(diagnostics);
+  }
+
   List<WorkspaceDiagnostic> diagnosticsFor(String documentId) {
     return diagnostics
         .where((entry) => entry.documentId == documentId)
@@ -159,6 +200,9 @@ class WorkspaceDiagnosticsSnapshot {
       'totalCount': totalCount,
       'documentIds': documentIds,
       'documentGroups': documentGroups
+          .map((group) => group.toJson())
+          .toList(growable: false),
+      'sourceGroups': sourceGroups
           .map((group) => group.toJson())
           .toList(growable: false),
       'severityCounts': severityCounts,
@@ -302,6 +346,10 @@ class WorkspaceDiagnosticsView {
     return groupWorkspaceDiagnostics(visibleDiagnostics);
   }
 
+  List<WorkspaceDiagnosticsSourceGroup> get sourceGroups {
+    return groupWorkspaceDiagnosticsBySource(visibleDiagnostics);
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'providerId': providerId,
@@ -312,9 +360,100 @@ class WorkspaceDiagnosticsView {
       'documentGroups': documentGroups
           .map((group) => group.toJson())
           .toList(growable: false),
+      'sourceGroups': sourceGroups
+          .map((group) => group.toJson())
+          .toList(growable: false),
       'diagnostics': visibleDiagnostics
           .map((diagnostic) => diagnostic.toJson())
           .toList(growable: false),
+    };
+  }
+}
+
+enum WorkspaceQuickFixConfirmationStatus {
+  ready,
+  blockedMissingDocuments,
+  blockedNoPreview,
+}
+
+extension WorkspaceQuickFixConfirmationStatusX
+    on WorkspaceQuickFixConfirmationStatus {
+  String get wireValue => switch (this) {
+    WorkspaceQuickFixConfirmationStatus.ready => 'ready',
+    WorkspaceQuickFixConfirmationStatus.blockedMissingDocuments =>
+      'blocked-missing-documents',
+    WorkspaceQuickFixConfirmationStatus.blockedNoPreview =>
+      'blocked-no-preview',
+  };
+}
+
+class WorkspaceQuickFixConfirmationPlan {
+  const WorkspaceQuickFixConfirmationPlan({
+    required this.planId,
+    required this.status,
+    required this.message,
+    this.summary = '',
+    this.affectedDocumentIds = const <String>[],
+    this.missingDocumentIds = const <String>[],
+    this.todo = '',
+  });
+
+  factory WorkspaceQuickFixConfirmationPlan.fromPreview(
+    WorkspaceEditPreview? preview,
+  ) {
+    if (preview == null) {
+      return const WorkspaceQuickFixConfirmationPlan(
+        planId: '',
+        status: WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+        message: 'Workspace quick fix has no preview to confirm.',
+      );
+    }
+    if (preview.missingDocumentIds.isNotEmpty) {
+      return WorkspaceQuickFixConfirmationPlan(
+        planId: preview.planId,
+        status: WorkspaceQuickFixConfirmationStatus.blockedMissingDocuments,
+        summary: preview.summary,
+        affectedDocumentIds: _sortedStrings(
+          preview.documents.map((document) => document.documentId),
+        ),
+        missingDocumentIds: _sortedStrings(preview.missingDocumentIds),
+        message:
+            'Workspace quick fix is blocked until missing documents are loaded.',
+      );
+    }
+    return WorkspaceQuickFixConfirmationPlan(
+      planId: preview.planId,
+      status: WorkspaceQuickFixConfirmationStatus.ready,
+      summary: preview.summary,
+      affectedDocumentIds: _sortedStrings(
+        preview.documents.map((document) => document.documentId),
+      ),
+      message: 'Workspace quick fix is ready for user confirmation.',
+      todo:
+          'TODO: bind this confirmation plan to a diff preview and explicit apply confirmation UI.',
+    );
+  }
+
+  final String planId;
+  final WorkspaceQuickFixConfirmationStatus status;
+  final String message;
+  final String summary;
+  final List<String> affectedDocumentIds;
+  final List<String> missingDocumentIds;
+  final String todo;
+
+  bool get ready => status == WorkspaceQuickFixConfirmationStatus.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'status': status.wireValue,
+      'ready': ready,
+      'message': message,
+      if (summary.isNotEmpty) 'summary': summary,
+      'affectedDocumentIds': affectedDocumentIds,
+      'missingDocumentIds': missingDocumentIds,
+      if (todo.isNotEmpty) 'todo': todo,
     };
   }
 }
@@ -342,6 +481,42 @@ List<WorkspaceDiagnosticsDocumentGroup> groupWorkspaceDiagnostics(
     return left.documentId.compareTo(right.documentId);
   });
   return List<WorkspaceDiagnosticsDocumentGroup>.unmodifiable(result);
+}
+
+List<WorkspaceDiagnosticsSourceGroup> groupWorkspaceDiagnosticsBySource(
+  List<WorkspaceDiagnostic> diagnostics,
+) {
+  final groups = <String, List<WorkspaceDiagnostic>>{};
+  for (final diagnostic in diagnostics) {
+    groups.putIfAbsent(diagnostic.source, () => <WorkspaceDiagnostic>[]);
+    groups[diagnostic.source]!.add(diagnostic);
+  }
+  final result = groups.entries
+      .map(
+        (entry) => WorkspaceDiagnosticsSourceGroup(
+          source: entry.key,
+          diagnostics: List<WorkspaceDiagnostic>.unmodifiable(entry.value),
+        ),
+      )
+      .toList(growable: false);
+  result.sort((left, right) {
+    if (left.hasErrors != right.hasErrors) {
+      return left.hasErrors ? -1 : 1;
+    }
+    return left.source.compareTo(right.source);
+  });
+  return List<WorkspaceDiagnosticsSourceGroup>.unmodifiable(result);
+}
+
+List<String> _sortedStrings(Iterable<String> values) {
+  final result =
+      values
+          .map((value) => value.trim())
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(growable: false)
+        ..sort();
+  return result;
 }
 
 DiagnosticSeverity? _diagnosticSeverityFromName(String value) {

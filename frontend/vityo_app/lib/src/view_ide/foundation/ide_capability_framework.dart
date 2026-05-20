@@ -439,9 +439,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/workspace/workspace_diagnostics.dart',
           summary:
-              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions.',
+              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, and workspace quick-fix confirmation plans.',
           todo:
-              'TODO: bind project Styio diagnostics, native tool diagnostics, and quick-fix previews into one workspace diagnostics stream.',
+              'TODO: bind project Styio diagnostics, native tool diagnostics, and quick-fix confirmation UI into one workspace diagnostics stream.',
           dependencies: <String>[
             'foundation.registry',
             'service.styio-language',
@@ -611,8 +611,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render',
           summary:
-              'Active document diagnostics panel is wired into the IDE shell and has workspace diagnostics grouping, severity filter, provider contract, quick-fix preview, and navigation available.',
-          todo: 'TODO: add richer source grouping and fix confirmation flows.',
+              'Active document diagnostics panel is wired into the IDE shell and has workspace diagnostics grouping, source grouping, severity filter, provider contract, quick-fix confirmation planning, preview, and navigation available.',
+          todo:
+              'TODO: bind quick-fix confirmation plans into an explicit diff/apply UI flow.',
           dependencies: <String>['workspace.diagnostics'],
           references: <String>[
             'VS Code Problems panel',

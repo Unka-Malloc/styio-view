@@ -192,6 +192,47 @@ void main() {
     expect(panelSnapshot.eventCountsByKind['stderr'], 1);
     expect(binding.toJson()['eventCount'], 3);
   });
+
+  test(
+    'shell manager runtime output adapter binds command result to buffer',
+    () async {
+      final buffer = RuntimeOutputLiveBuffer(
+        subscriptionPlan: RuntimeOutputStreamSubscriptionPlan.forManager(
+          taskId: 'shell.echo',
+          managerId: 'shell-manager',
+          routeKind: 'shell-task',
+          channelIds: const <String>['shell.echo', 'shell.echo.stdout'],
+          kinds: const <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.runtimeEvents,
+            RuntimeOutputChannelKind.stdout,
+          ],
+          status: RuntimeOutputSubscriptionStatus.active,
+        ),
+      );
+      addTearDown(buffer.dispose);
+      final adapter = ShellManagerRuntimeOutputAdapter(
+        shellManager: LocalShellManager.linuxDebianArmForTest(
+          shellPath: '/bin/sh',
+        ),
+        clock: () => DateTime.utc(2026, 5, 20, 10),
+      );
+
+      final execution = await adapter.runAndBind(
+        request: const ShellCommandRequest(command: 'printf adapter-ok'),
+        buffer: buffer,
+        channelId: 'shell.echo',
+        label: 'Shell Echo',
+      );
+
+      expect(execution.succeeded, isTrue);
+      expect(execution.eventCount, 2);
+      expect(
+        buffer.snapshot.visibleEvents.map((event) => event.message),
+        <String>['Shell command printf adapter-ok completed.', 'adapter-ok'],
+      );
+      expect(execution.toJson()['eventCount'], 2);
+    },
+  );
 }
 
 class _FakePtyManager implements PtyManager {

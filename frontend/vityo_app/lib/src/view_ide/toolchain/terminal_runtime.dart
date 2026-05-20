@@ -215,6 +215,61 @@ class TerminalShellCommandOutputBinding {
   }
 }
 
+class ShellManagerRuntimeOutputExecution {
+  const ShellManagerRuntimeOutputExecution({
+    required this.result,
+    required this.binding,
+  });
+
+  final ShellCommandResult result;
+  final TerminalShellCommandOutputBinding binding;
+
+  bool get succeeded => result.succeeded;
+  int get eventCount => binding.events.length;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'succeeded': succeeded,
+      'eventCount': eventCount,
+      'binding': binding.toJson(),
+    };
+  }
+}
+
+class ShellManagerRuntimeOutputAdapter {
+  ShellManagerRuntimeOutputAdapter({
+    required this.shellManager,
+    this.configuration,
+    RuntimeTaskClock? clock,
+  }) : _clock = clock ?? DateTime.now().toUtc;
+
+  final ShellManager shellManager;
+  final ShellConfiguration? configuration;
+  final RuntimeTaskClock _clock;
+
+  Future<ShellManagerRuntimeOutputExecution> runAndBind({
+    required ShellCommandRequest request,
+    required RuntimeOutputLiveBuffer buffer,
+    required String channelId,
+    required String label,
+  }) async {
+    final result = await shellManager.run(
+      request,
+      configuration: configuration,
+    );
+    final binding = TerminalShellCommandOutputBinding(
+      result: result,
+      channelId: channelId,
+      label: label,
+      timestamp: _clock(),
+    );
+    for (final event in binding.events) {
+      buffer.addEvent(event);
+    }
+    return ShellManagerRuntimeOutputExecution(result: result, binding: binding);
+  }
+}
+
 class TerminalRuntimeStartResult {
   const TerminalRuntimeStartResult({required this.session, this.taskSnapshot});
 

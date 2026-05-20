@@ -455,7 +455,7 @@ void main() {
     final testingDebugRoute =
         testingJson['debugFailedRoutePlan']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 49);
+    expect(json['schemaVersion'], 50);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1495,7 +1495,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 49);
+    expect(json['schemaVersion'], 50);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1770,7 +1770,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 49);
+    expect(context.schemaVersion, 50);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');
@@ -2733,6 +2733,70 @@ void main() {
       (recentResults.last! as Map<String, Object?>)['commandId'],
       'command11',
     );
+  });
+
+  test('agent context serializes stable workspace edit preview and result', () {
+    const document = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value := 1\n',
+      revision: 1,
+    );
+    final preview = WorkspaceEditPlan.singleDocument(
+      id: 'workspace-fix',
+      summary: 'Replace value initializer.',
+      source: WorkspaceEditSource.codeAction,
+      documentId: document.documentId,
+      edits: const <FormattingEdit>[
+        FormattingEdit(range: SourceRange(start: 9, end: 10), newText: '2'),
+      ],
+    ).preview(const <DocumentState>[document]);
+    final confirmationPlan = WorkspaceEditConfirmationPlan.fromPreview(preview);
+    final applyResult = WorkspaceEditApplyResultViewModel.fromTelemetry(
+      confirmationPlan: confirmationPlan,
+      telemetry: WorkspaceEditReviewResultTelemetry.fromApplicationResult(
+        confirmationPlan: confirmationPlan,
+        result: const WorkspaceEditApplicationResult(
+          applied: true,
+          message: 'Applied workspace fix.',
+          appliedEditCount: 1,
+          appliedDocumentIds: <String>['src/main.styio'],
+        ),
+        recordedAt: DateTime.utc(2026, 5, 21, 1, 2, 3),
+      ),
+      diffWindow: preview.diffWindow(documentLimit: 3, fileOperationLimit: 3),
+    );
+    final context = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      lastWorkspaceEditPreview: preview,
+      lastWorkspaceEditApplyResult: applyResult,
+    );
+
+    final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final workspaceEdit = agentJson['workspaceEdit']! as Map<String, Object?>;
+    final previewJson = workspaceEdit['preview']! as Map<String, Object?>;
+    final confirmationJson =
+        previewJson['confirmationPlan']! as Map<String, Object?>;
+    final diffWindow = previewJson['diffWindow']! as Map<String, Object?>;
+    final lastApplyResult =
+        workspaceEdit['lastApplyResult']! as Map<String, Object?>;
+
+    expect(workspaceEdit['hasPreview'], isTrue);
+    expect(workspaceEdit['hasApplyResult'], isTrue);
+    expect(previewJson['planId'], 'workspace-fix');
+    expect(previewJson['summary'], 'Replace value initializer.');
+    expect(previewJson['canApply'], isTrue);
+    expect(previewJson['editCount'], 1);
+    expect(confirmationJson['status'], 'ready');
+    expect(confirmationJson['riskLevel'], 'low');
+    expect(confirmationJson['blockingReasons'], isEmpty);
+    expect(diffWindow['documentLimit'], 3);
+    expect(diffWindow['totalDocumentCount'], 1);
+    expect(lastApplyResult['planId'], 'workspace-fix');
+    expect(lastApplyResult['successful'], isTrue);
+    expect(lastApplyResult['appliedEditCount'], 1);
+    expect(lastApplyResult['appliedDocumentIds'], <String>['src/main.styio']);
   });
 }
 

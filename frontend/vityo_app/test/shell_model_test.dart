@@ -390,7 +390,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        48,
+        50,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],
@@ -1124,6 +1124,19 @@ void main() {
         checkpoint['workspaceEditPreview']! as Map<String, Object?>;
     expect(workspaceEditPreview['summary'], 'Clean up project imports');
     expect(workspaceEditPreview['editCount'], greaterThan(0));
+    final agentWorkspaceEditJson =
+        commandShell.agentSessionContext.toJson()['agent']!
+            as Map<String, Object?>;
+    final stableWorkspaceEdit =
+        agentWorkspaceEditJson['workspaceEdit']! as Map<String, Object?>;
+    final stablePreview =
+        stableWorkspaceEdit['preview']! as Map<String, Object?>;
+    final stableConfirmation =
+        stablePreview['confirmationPlan']! as Map<String, Object?>;
+    expect(stableWorkspaceEdit['hasPreview'], isTrue);
+    expect(stablePreview['summary'], 'Clean up project imports');
+    expect(stableConfirmation['riskLevel'], 'low');
+    expect(stableConfirmation['blockingReasons'], isEmpty);
 
     await commandShell.executeCommand(AppCommandId.applyQuickFix);
 
@@ -1137,6 +1150,15 @@ void main() {
       commandShell.lastWorkspaceEditApplyResult?.appliedDocumentIds,
       contains(mainPath),
     );
+    final stableAppliedWorkspaceEdit =
+        commandShell.agentSessionContext.toJson()['agent']!
+            as Map<String, Object?>;
+    final stableAppliedResult =
+        (stableAppliedWorkspaceEdit['workspaceEdit']!
+                as Map<String, Object?>)['lastApplyResult']!
+            as Map<String, Object?>;
+    expect(stableAppliedResult['successful'], isTrue);
+    expect(stableAppliedResult['appliedDocumentIds'], contains(mainPath));
     expect(commandShell.editorController.document.text, contains('@import'));
     expect(
       '@import'.allMatches(commandShell.editorController.document.text),

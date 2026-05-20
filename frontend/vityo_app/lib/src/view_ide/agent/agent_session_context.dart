@@ -123,6 +123,8 @@ class AgentSessionContext {
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
+    WorkspaceEditPreview? lastWorkspaceEditPreview,
+    WorkspaceEditApplyResultViewModel? lastWorkspaceEditApplyResult,
     Iterable<AgentCodingPlanContext> recentCodingPlans =
         const <AgentCodingPlanContext>[],
     Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
@@ -157,7 +159,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 49,
+      schemaVersion: 50,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -199,6 +201,10 @@ class AgentSessionContext {
               ),
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
+        workspaceEdit: AgentWorkspaceEditContext.fromWorkspaceEditState(
+          lastPreview: lastWorkspaceEditPreview,
+          lastApplyResult: lastWorkspaceEditApplyResult,
+        ),
         recentCodingPlans: recentCodingPlans,
         recentDiagnosticSummaries: recentDiagnosticSummaries,
       ),
@@ -347,6 +353,7 @@ class AgentSessionContext {
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
+    AgentWorkspaceEditContext? workspaceEdit,
     Iterable<AgentCodingPlanContext> recentCodingPlans =
         const <AgentCodingPlanContext>[],
     Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
@@ -377,7 +384,8 @@ class AgentSessionContext {
         lastProviderFailure == null &&
         providerSelectionPlan == null &&
         providerExecutionResolution == null &&
-        lastPatchApplication == null) {
+        lastPatchApplication == null &&
+        workspaceEdit == null) {
       final recentPatchApplicationList = recentPatchApplications.toList(
         growable: false,
       );
@@ -418,6 +426,7 @@ class AgentSessionContext {
               ),
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
+        workspaceEdit: workspaceEdit ?? agent.workspaceEdit,
         recentCodingPlans: recentCodingPlanList,
         recentDiagnosticSummaries: recentDiagnosticSummaryList,
       ),
@@ -459,6 +468,7 @@ class AgentCodingLoopContext {
     this.providerExecution,
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
+    this.workspaceEdit,
     this.recentCodingPlans = const <AgentCodingPlanContext>[],
     this.recentDiagnosticSummaries = const <AgentDiagnosticSummaryContext>[],
   });
@@ -477,6 +487,7 @@ class AgentCodingLoopContext {
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
+    AgentWorkspaceEditContext? workspaceEdit,
     Iterable<AgentCodingPlanContext> recentCodingPlans =
         const <AgentCodingPlanContext>[],
     Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
@@ -498,6 +509,7 @@ class AgentCodingLoopContext {
       providerExecution: providerExecution,
       lastPatchApplication: history.isEmpty ? null : history.first,
       recentPatchApplications: history,
+      workspaceEdit: workspaceEdit,
       recentCodingPlans: recentCodingPlans.toList(growable: false),
       recentDiagnosticSummaries: recentDiagnosticSummaries.toList(
         growable: false,
@@ -514,6 +526,7 @@ class AgentCodingLoopContext {
   final AgentProviderExecutionContext? providerExecution;
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
+  final AgentWorkspaceEditContext? workspaceEdit;
   final List<AgentCodingPlanContext> recentCodingPlans;
   final List<AgentDiagnosticSummaryContext> recentDiagnosticSummaries;
 
@@ -544,6 +557,7 @@ class AgentCodingLoopContext {
         'recentPatchApplications': recentPatchApplications
             .map((application) => application.toJson())
             .toList(growable: false),
+      if (workspaceEdit != null) 'workspaceEdit': workspaceEdit!.toJson(),
       if (recentCodingPlans.isNotEmpty)
         'recentCodingPlans': recentCodingPlans
             .map((plan) => plan.toJson())
@@ -552,6 +566,191 @@ class AgentCodingLoopContext {
         'recentDiagnosticSummaries': recentDiagnosticSummaries
             .map((summary) => summary.toJson())
             .toList(growable: false),
+    };
+  }
+}
+
+class AgentWorkspaceEditContext {
+  const AgentWorkspaceEditContext({this.preview, this.lastApplyResult});
+
+  static AgentWorkspaceEditContext? fromWorkspaceEditState({
+    WorkspaceEditPreview? lastPreview,
+    WorkspaceEditApplyResultViewModel? lastApplyResult,
+  }) {
+    if (lastPreview == null && lastApplyResult == null) {
+      return null;
+    }
+    return AgentWorkspaceEditContext(
+      preview: lastPreview == null
+          ? null
+          : AgentWorkspaceEditPreviewContext.fromPreview(lastPreview),
+      lastApplyResult: lastApplyResult == null
+          ? null
+          : AgentWorkspaceEditApplyResultContext.fromResult(lastApplyResult),
+    );
+  }
+
+  final AgentWorkspaceEditPreviewContext? preview;
+  final AgentWorkspaceEditApplyResultContext? lastApplyResult;
+
+  bool get hasPreview => preview != null;
+  bool get hasApplyResult => lastApplyResult != null;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'hasPreview': hasPreview,
+      'hasApplyResult': hasApplyResult,
+      if (preview != null) 'preview': preview!.toJson(),
+      if (lastApplyResult != null) 'lastApplyResult': lastApplyResult!.toJson(),
+    };
+  }
+}
+
+class AgentWorkspaceEditPreviewContext {
+  AgentWorkspaceEditPreviewContext._({
+    required this.planId,
+    required this.summary,
+    required this.source,
+    required this.documentCount,
+    required this.missingDocumentCount,
+    required this.editCount,
+    required this.fileOperationCount,
+    required this.changeCount,
+    required this.hasChanges,
+    required this.hasMissingDocuments,
+    required this.hasBlockedFileOperations,
+    required this.canApply,
+    required this.missingDocumentIds,
+    required this.confirmationPlan,
+    required this.diffWindow,
+  });
+
+  factory AgentWorkspaceEditPreviewContext.fromPreview(
+    WorkspaceEditPreview preview,
+  ) {
+    return AgentWorkspaceEditPreviewContext._(
+      planId: preview.planId,
+      summary: preview.summary,
+      source: preview.source.wireValue,
+      documentCount: preview.documents.length,
+      missingDocumentCount: preview.missingDocumentIds.length,
+      editCount: preview.editCount,
+      fileOperationCount: preview.fileOperations.length,
+      changeCount: preview.changeCount,
+      hasChanges: preview.hasChanges,
+      hasMissingDocuments: preview.hasMissingDocuments,
+      hasBlockedFileOperations: preview.hasBlockedFileOperations,
+      canApply: preview.canApply,
+      missingDocumentIds: preview.missingDocumentIds,
+      confirmationPlan: WorkspaceEditConfirmationPlan.fromPreview(preview),
+      diffWindow: preview.diffWindow(documentLimit: 3, fileOperationLimit: 3),
+    );
+  }
+
+  final String planId;
+  final String summary;
+  final String source;
+  final int documentCount;
+  final int missingDocumentCount;
+  final int editCount;
+  final int fileOperationCount;
+  final int changeCount;
+  final bool hasChanges;
+  final bool hasMissingDocuments;
+  final bool hasBlockedFileOperations;
+  final bool canApply;
+  final List<String> missingDocumentIds;
+  final WorkspaceEditConfirmationPlan confirmationPlan;
+  final WorkspaceEditDiffWindow diffWindow;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'summary': summary,
+      'source': source,
+      'documentCount': documentCount,
+      'missingDocumentCount': missingDocumentCount,
+      if (missingDocumentIds.isNotEmpty)
+        'missingDocumentIds': missingDocumentIds,
+      'editCount': editCount,
+      'fileOperationCount': fileOperationCount,
+      'changeCount': changeCount,
+      'hasChanges': hasChanges,
+      'hasMissingDocuments': hasMissingDocuments,
+      'hasBlockedFileOperations': hasBlockedFileOperations,
+      'canApply': canApply,
+      'confirmationPlan': confirmationPlan.toJson(),
+      'diffWindow': diffWindow.toJson(),
+    };
+  }
+}
+
+class AgentWorkspaceEditApplyResultContext {
+  const AgentWorkspaceEditApplyResultContext({
+    required this.planId,
+    required this.source,
+    required this.status,
+    required this.severity,
+    required this.title,
+    required this.message,
+    required this.successful,
+    required this.appliedEditCount,
+    required this.affectedDocumentCount,
+    required this.appliedDocumentIds,
+    required this.createdDocumentIds,
+    required this.deletedDocumentIds,
+    required this.rollbackApplied,
+  });
+
+  factory AgentWorkspaceEditApplyResultContext.fromResult(
+    WorkspaceEditApplyResultViewModel result,
+  ) {
+    return AgentWorkspaceEditApplyResultContext(
+      planId: result.planId,
+      source: result.source.wireValue,
+      status: result.status.wireValue,
+      severity: result.severity,
+      title: result.title,
+      message: result.message,
+      successful: result.successful,
+      appliedEditCount: result.appliedEditCount,
+      affectedDocumentCount: result.affectedDocumentCount,
+      appliedDocumentIds: result.appliedDocumentIds,
+      createdDocumentIds: result.createdDocumentIds,
+      deletedDocumentIds: result.deletedDocumentIds,
+      rollbackApplied: result.rollbackApplied,
+    );
+  }
+
+  final String planId;
+  final String source;
+  final String status;
+  final String severity;
+  final String title;
+  final String message;
+  final bool successful;
+  final int appliedEditCount;
+  final int affectedDocumentCount;
+  final List<String> appliedDocumentIds;
+  final List<String> createdDocumentIds;
+  final List<String> deletedDocumentIds;
+  final bool rollbackApplied;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'source': source,
+      'status': status,
+      'severity': severity,
+      'title': title,
+      'message': message,
+      'successful': successful,
+      'appliedEditCount': appliedEditCount,
+      'affectedDocumentCount': affectedDocumentCount,
+      'appliedDocumentIds': appliedDocumentIds,
+      'createdDocumentIds': createdDocumentIds,
+      'deletedDocumentIds': deletedDocumentIds,
+      'rollbackApplied': rollbackApplied,
     };
   }
 }

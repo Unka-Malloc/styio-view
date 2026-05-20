@@ -103,6 +103,11 @@ void main() {
         'nested buildResult/staticAnalysisResult/testResult.requiredCommand',
       ),
     );
+    expect(decoded.systemPrompt, contains('agent.workspaceEdit.preview'));
+    expect(
+      decoded.systemPrompt,
+      contains('agent.workspaceEdit.lastApplyResult'),
+    );
     expect(decoded.systemPrompt, contains('metadata.workspaceEditPreview'));
     expect(decoded.systemPrompt, contains('confirmationPlan.riskLevel'));
     expect(decoded.systemPrompt, contains('confirmationPlan.blockingReasons'));

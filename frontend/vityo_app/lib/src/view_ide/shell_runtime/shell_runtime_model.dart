@@ -798,6 +798,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       languageServiceStatus: languageServiceStatus.value,
       lastCommandResult: _lastAgentIdeCommandResult,
       recentCommandResults: _agentIdeCommandResults,
+      lastWorkspaceEditPreview: _lastWorkspaceEditPreview,
+      lastWorkspaceEditApplyResult: _lastWorkspaceEditApplyResult,
       debug: AgentDebugContext(
         status: _debugSession.status.name,
         message: _debugSession.message,

@@ -337,6 +337,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('stable workspace edit preview/apply-result context'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('workspace-edit risk prompt guidance'),
     );
     expect(

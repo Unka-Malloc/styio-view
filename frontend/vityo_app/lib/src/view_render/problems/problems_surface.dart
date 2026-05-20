@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../view_ide/language/language_contract.dart';
+import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/workspace/workspace.dart';
 import '../platform/viewport_profile.dart';
 
@@ -21,6 +22,8 @@ class ProblemsSurface extends StatefulWidget {
     this.onPreviewWorkspaceQuickFix,
     this.onApplyWorkspaceQuickFix,
     this.workspaceEditReviewControls,
+    this.diagnosticsPanelState,
+    this.onDiagnosticsPanelStateChanged,
     this.onApplyWorkspaceEdit,
     this.onCancelWorkspaceEdit,
   });
@@ -38,6 +41,8 @@ class ProblemsSurface extends StatefulWidget {
   final Future<void> Function()? onPreviewWorkspaceQuickFix;
   final Future<void> Function()? onApplyWorkspaceQuickFix;
   final WorkspaceEditReviewControls? workspaceEditReviewControls;
+  final DiagnosticsPanelState? diagnosticsPanelState;
+  final ValueChanged<DiagnosticsPanelState>? onDiagnosticsPanelStateChanged;
   final Future<void> Function(WorkspaceEditReviewControls controls)?
   onApplyWorkspaceEdit;
   final Future<void> Function(WorkspaceEditReviewControls controls)?
@@ -53,6 +58,18 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
   void _activateEntry(WorkspaceDiagnostic entry) {
     widget.onSelectWorkspaceDiagnostic?.call(entry);
     widget.onSelectDiagnostic?.call(entry.diagnostic);
+    widget.onDiagnosticsPanelStateChanged?.call(
+      DiagnosticsPanelState.fromDiagnostic(
+        workspaceId:
+            widget.diagnosticsPanelState?.workspaceId ??
+            widget.workspaceDiagnostics?.providerId ??
+            'active-document',
+        diagnostic: entry,
+        filterState:
+            widget.filterState ??
+            WorkspaceDiagnosticsFilterState(severities: widget.severityFilter),
+      ),
+    );
   }
 
   void _selectIndex(int index, List<WorkspaceDiagnostic> entries) {
@@ -110,9 +127,16 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
       filter: diagnosticsFilter,
     );
     final visibleProblemEntries = view.visibleDiagnostics;
+    final restoredIndex = _restoredProblemIndex(
+      widget.diagnosticsPanelState,
+      visibleProblemEntries,
+    );
     final selectedIndex = visibleProblemEntries.isEmpty
         ? -1
-        : _clampedProblemIndex(_selectedIndex, visibleProblemEntries.length);
+        : _clampedProblemIndex(
+            restoredIndex ?? _selectedIndex,
+            visibleProblemEntries.length,
+          );
     final selectedEntry = selectedIndex < 0
         ? null
         : visibleProblemEntries[selectedIndex];
@@ -207,6 +231,13 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                       ),
                     if (diagnosticsFilter.active)
                       Chip(label: Text('filter ${diagnosticsFilter.summary}')),
+                    if (widget.diagnosticsPanelState?.hasSelection ?? false)
+                      Chip(
+                        key: const ValueKey('problems-restored-panel-state'),
+                        label: Text(
+                          'restored ${widget.diagnosticsPanelState!.selectedDiagnosticCode}',
+                        ),
+                      ),
                     for (final entry in severityCounts.entries)
                       Chip(label: Text('${entry.key} ${entry.value}')),
                   ],
@@ -315,6 +346,23 @@ int _clampedProblemIndex(int index, int length) {
     return -1;
   }
   return index.clamp(0, length - 1);
+}
+
+int? _restoredProblemIndex(
+  DiagnosticsPanelState? state,
+  List<WorkspaceDiagnostic> entries,
+) {
+  if (state == null || !state.hasSelection) {
+    return null;
+  }
+  final index = entries.indexWhere((entry) {
+    final diagnostic = entry.diagnostic;
+    return entry.documentId == state.selectedDocumentId &&
+        diagnostic.code == state.selectedDiagnosticCode &&
+        diagnostic.range.start == state.selectedRangeStart &&
+        diagnostic.range.end == state.selectedRangeEnd;
+  });
+  return index < 0 ? null : index;
 }
 
 class _ProblemsDocumentGroupSummary extends StatelessWidget {

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/problems/problems.dart';
@@ -78,6 +79,7 @@ void main() {
     tester,
   ) async {
     WorkspaceDiagnostic? selectedWorkspaceDiagnostic;
+    DiagnosticsPanelState? changedPanelState;
     var refreshCount = 0;
     var previewCount = 0;
     var applyCount = 0;
@@ -152,6 +154,16 @@ void main() {
             onSelectWorkspaceDiagnostic: (diagnostic) {
               selectedWorkspaceDiagnostic = diagnostic;
             },
+            diagnosticsPanelState: const DiagnosticsPanelState(
+              workspaceId: 'demo',
+              selectedDocumentId: 'src/lib.styio',
+              selectedDiagnosticCode: 'style',
+              selectedRangeStart: 1,
+              selectedRangeEnd: 4,
+            ),
+            onDiagnosticsPanelStateChanged: (state) {
+              changedPanelState = state;
+            },
             onRefreshWorkspaceDiagnostics: () async {
               refreshCount += 1;
             },
@@ -176,6 +188,7 @@ void main() {
     expect(find.text('total 2'), findsOneWidget);
     expect(find.text('visible 2'), findsOneWidget);
     expect(find.text('groups 2'), findsOneWidget);
+    expect(find.text('restored style'), findsOneWidget);
     expect(find.text('error 1'), findsOneWidget);
     expect(find.text('hint 1'), findsOneWidget);
     expect(find.text('Prefer explicit name.'), findsOneWidget);
@@ -218,6 +231,8 @@ void main() {
     await tester.pump();
 
     expect(selectedWorkspaceDiagnostic?.documentId, 'src/lib.styio');
+    expect(changedPanelState?.selectedDiagnosticCode, 'style');
+    expect(changedPanelState?.workspaceId, 'demo');
     expect(find.text('selected-fixes 1'), findsOneWidget);
     expect(find.text('Quick Fixes: style'), findsOneWidget);
     expect(find.text('Use explicit name · edits 1'), findsOneWidget);

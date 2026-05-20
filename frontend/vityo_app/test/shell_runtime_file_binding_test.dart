@@ -29,6 +29,7 @@ import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_service_subscription.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/language/service/simple_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_registry.dart';
@@ -1942,6 +1943,89 @@ void main() {
     await shell.executeCommand(AppCommandId.refreshLanguageService);
 
     expect(refreshCount, 2);
+  });
+
+  test('shell controls StyioService document subscription', () async {
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/demo',
+      activeFilePath: 'src/main.styio',
+      title: 'Demo',
+      notes: const <String>[],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value := 1\n',
+      revision: 1,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+      },
+    );
+    final subscriptionController = StyioServiceSubscriptionController(
+      driver: StyioServiceAnalysisDriver(
+        connector: _FactoryStyioServiceConnector(
+          (request) => StyioServiceResponse(
+            status: StyioServiceStatus.succeeded,
+            documentId: request.documentId,
+            revision: request.revision,
+            diagnostics: const <StyioServiceDiagnosticDto>[
+              StyioServiceDiagnosticDto(
+                severity: DiagnosticSeverity.warning,
+                code: 'styio.shell.subscription',
+                message: 'subscription warning',
+                range: SourceRange(start: 0, end: 5),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    addTearDown(subscriptionController.dispose);
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      styioServiceSubscriptionController: subscriptionController,
+    );
+    addTearDown(shell.dispose);
+
+    await shell.startStyioServiceDocumentSubscription();
+    final analyzed = await subscriptionController.events.firstWhere(
+      (event) => event.kind == StyioServiceSubscriptionEventKind.analyzed,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(shell.styioServiceSubscriptionAvailable, isTrue);
+    expect(shell.styioServiceSubscriptionListening, isTrue);
+    expect(analyzed.documentId, 'src/main.styio');
+    expect(shell.runtimeOutputBuffer.snapshot.events, isNotEmpty);
+    expect(shell.semanticProblemsPanelViewModel, isNotNull);
+
+    final cancelled = await shell.cancelStyioServiceDocumentSubscription();
+
+    expect(cancelled?.kind, StyioServiceSubscriptionEventKind.cancelled);
+    expect(shell.styioServiceSubscriptionListening, isFalse);
   });
 
   test(
@@ -6031,6 +6115,22 @@ class _RecordingHostedControlPlaneClient implements HostedControlPlaneClient {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+typedef _StyioServiceResponseFactory =
+    StyioServiceResponse Function(StyioServiceDocument request);
+
+class _FactoryStyioServiceConnector implements StyioServiceConnector {
+  const _FactoryStyioServiceConnector(this.factory);
+
+  final _StyioServiceResponseFactory factory;
+
+  @override
+  Future<StyioServiceResponse> analyzeDocument(
+    StyioServiceDocument document,
+  ) async {
+    return factory(document);
+  }
 }
 
 ProjectGraphSnapshot _hostedProjectGraph() {

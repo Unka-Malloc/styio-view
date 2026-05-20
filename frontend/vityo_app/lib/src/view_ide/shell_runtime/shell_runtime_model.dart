@@ -409,6 +409,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     AgentCodingSessionController? agentCodingController,
     this.agentProviderConfigurator,
     this.refreshActiveLanguageService,
+    this.styioServiceSubscriptionController,
     ValueListenable<LanguageServiceStatusSurface>? languageServiceStatus,
     this.toolchainStatusReport,
     this.workspaceDiagnosticsController,
@@ -494,6 +495,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     workspaceController.addListener(_handleWorkspaceChanged);
     editorController.addListener(_handleDocumentChanged);
     this.languageServiceStatus.addListener(_handleLanguageServiceStatusChanged);
+    _styioServiceSubscriptionEventSubscription =
+        styioServiceSubscriptionController?.events.listen(
+          _handleStyioServiceSubscriptionEvent,
+        );
     toolchainStatusReport?.addListener(_handleToolchainStatusReportChanged);
     _editorFileBindingSubscription = _editorFileBinding.snapshotEvents.listen(
       _handleEditorFileBindingSnapshot,
@@ -531,6 +536,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   late final AgentCodingSessionController agentCodingController;
   final AgentProviderConfigurator? agentProviderConfigurator;
   final Future<void> Function()? refreshActiveLanguageService;
+  final StyioServiceSubscriptionController? styioServiceSubscriptionController;
   final EditorDocumentResourceBinding _editorFileBinding;
   final RuntimeEventAdapter runtimeEventAdapter;
   final ValueListenable<LanguageServiceStatusSurface> languageServiceStatus;
@@ -557,6 +563,9 @@ class ShellRuntimeModel extends ChangeNotifier {
   final bool _ownsRuntimeOutputBuffer;
   StreamSubscription<DocumentResourceBindingSnapshot>?
   _editorFileBindingSubscription;
+  StreamController<DocumentState>? _styioServiceSubscriptionDocuments;
+  StreamSubscription<StyioServiceSubscriptionEvent>?
+  _styioServiceSubscriptionEventSubscription;
   late final StreamSubscription<CommandPaletteLivePreferenceState>
   _commandPalettePreferenceSubscription;
 
@@ -627,6 +636,10 @@ class ShellRuntimeModel extends ChangeNotifier {
       List<String>.unmodifiable(_documentCache.keys);
   List<String> get dirtyDocumentPaths =>
       List<String>.unmodifiable(_dirtyDocumentPaths);
+  bool get styioServiceSubscriptionAvailable =>
+      styioServiceSubscriptionController != null;
+  bool get styioServiceSubscriptionListening =>
+      styioServiceSubscriptionController?.listening ?? false;
   ExecutionSession? get lastExecutionSession => _lastExecutionSession;
   List<RuntimeEventEnvelope> get lastRuntimeEvents =>
       List<RuntimeEventEnvelope>.unmodifiable(_lastRuntimeEvents);
@@ -949,6 +962,70 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
     await recordSemanticPanelEvent(panelEvent);
     return panelEvent;
+  }
+
+  Future<void> startStyioServiceDocumentSubscription() async {
+    final controller = styioServiceSubscriptionController;
+    if (controller == null) {
+      appendLog(
+        'StyioService document subscription unavailable: no controller is wired.',
+      );
+      return;
+    }
+    await _styioServiceSubscriptionDocuments?.close();
+    final documents = StreamController<DocumentState>.broadcast(sync: true);
+    _styioServiceSubscriptionDocuments = documents;
+    controller.bindDocumentStream(
+      documents.stream,
+      filePathForDocument: _styioServiceDocumentPath,
+      workingDirectoryForDocument: (_) =>
+          workspaceController.activeProject.workspaceRoot,
+    );
+    documents.add(editorController.document);
+    appendLog('StyioService document subscription started from shell.');
+    notifyListeners();
+  }
+
+  Future<StyioServiceSubscriptionEvent?> refreshStyioServiceSubscriptionNow() {
+    final controller = styioServiceSubscriptionController;
+    if (controller == null) {
+      appendLog(
+        'StyioService document subscription refresh unavailable: no controller is wired.',
+      );
+      return Future<StyioServiceSubscriptionEvent?>.value();
+    }
+    return controller.refresh(
+      editorController.document,
+      filePath: _styioServiceDocumentPath(editorController.document),
+      workingDirectory: workspaceController.activeProject.workspaceRoot,
+    );
+  }
+
+  Future<StyioServiceSubscriptionEvent?>
+  cancelStyioServiceDocumentSubscription() async {
+    final controller = styioServiceSubscriptionController;
+    if (controller == null) {
+      appendLog(
+        'StyioService document subscription cancel unavailable: no controller is wired.',
+      );
+      return null;
+    }
+    await _styioServiceSubscriptionDocuments?.close();
+    _styioServiceSubscriptionDocuments = null;
+    final event = await controller.cancel(
+      message: 'StyioService document subscription cancelled from shell.',
+    );
+    notifyListeners();
+    return event;
+  }
+
+  String? _styioServiceDocumentPath(DocumentState document) {
+    final documentId = document.documentId.trim();
+    if (documentId.isNotEmpty) {
+      return documentId;
+    }
+    final activePath = _activeDocumentPath.trim();
+    return activePath.isEmpty ? null : activePath;
   }
 
   Future<WorkspaceQuickFixTelemetrySnapshot> restoreWorkspaceQuickFixTelemetry({
@@ -6351,10 +6428,24 @@ class ShellRuntimeModel extends ChangeNotifier {
   void _handleDocumentChanged() {
     _cacheDocument(_activeDocumentPath, editorController.document);
     _rememberSelectionForPath(_activeDocumentPath);
+    final subscriptionDocuments = _styioServiceSubscriptionDocuments;
+    if (subscriptionDocuments != null && !subscriptionDocuments.isClosed) {
+      subscriptionDocuments.add(editorController.document);
+    }
     final snapshot = _editorFileBinding.markDocumentChanged(
       editorController.document,
     );
     _syncDirtyStateForPath(_activeDocumentPath, snapshot);
+  }
+
+  void _handleStyioServiceSubscriptionEvent(
+    StyioServiceSubscriptionEvent event,
+  ) {
+    appendLog(event.message);
+    for (final runtimeEvent in event.semanticPanelEvents()) {
+      unawaited(recordSemanticRuntimeOutputEvent(runtimeEvent));
+    }
+    notifyListeners();
   }
 
   void _handleLanguageServiceStatusChanged() {
@@ -6844,6 +6935,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     editorController.removeListener(_handleDocumentChanged);
     languageServiceStatus.removeListener(_handleLanguageServiceStatusChanged);
     toolchainStatusReport?.removeListener(_handleToolchainStatusReportChanged);
+    unawaited(_styioServiceSubscriptionEventSubscription?.cancel());
+    _styioServiceSubscriptionEventSubscription = null;
+    unawaited(_styioServiceSubscriptionDocuments?.close());
+    _styioServiceSubscriptionDocuments = null;
     final sessionHandle = _dapDebugSession;
     _dapDebugSession = null;
     unawaited(_dapDebugSessionSubscription?.cancel());

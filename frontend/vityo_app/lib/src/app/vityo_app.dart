@@ -44,6 +44,8 @@ class _VityoAppState extends State<VityoApp> {
       agentProviderConfigurator: widget.bootstrap.agentProviderConfigurator,
       refreshActiveLanguageService:
           widget.bootstrap.refreshActiveLanguageService,
+      styioServiceSubscriptionController:
+          widget.bootstrap.styioServiceSubscriptionController,
       toolchainManager: widget.bootstrap.toolchainManager,
       languageServiceStatus: widget.bootstrap.languageServiceStatus,
       toolchainStatusReport: widget.bootstrap.toolchainStatusReport,

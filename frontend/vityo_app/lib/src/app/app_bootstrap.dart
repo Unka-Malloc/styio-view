@@ -23,6 +23,7 @@ import '../view_ide/language/service/project_styio_language_service.dart';
 import '../view_ide/language/service/styio_service_capability_detector.dart';
 import '../view_ide/language/service/styio_service_connector.dart';
 import '../view_ide/language/service/styio_service_runtime.dart';
+import '../view_ide/language/service/styio_service_subscription.dart';
 import '../view_ide/language/service/styio_workspace_diagnostics_provider.dart';
 import '../view_ide/toolchain/clang_cpp_version_configuration.dart';
 import '../view_ide/toolchain/toolchain_catalog.dart';
@@ -77,6 +78,7 @@ class AppBootstrap {
     this.commandPalettePreferencesStore,
     this.themeOverrideStore,
     this.refreshActiveLanguageService,
+    this.styioServiceSubscriptionController,
     this.languageServiceStatusController,
     ValueNotifier<LanguageServiceStatusSurface>? languageServiceStatus,
     this.toolchainManager,
@@ -115,6 +117,7 @@ class AppBootstrap {
   final ToolchainManager? toolchainManager;
   final ClangCppVersionPreference? clangCppVersionPreference;
   final Future<void> Function()? refreshActiveLanguageService;
+  final StyioServiceSubscriptionController? styioServiceSubscriptionController;
   final LanguageServiceStatusController? languageServiceStatusController;
   final ValueNotifier<LanguageServiceStatusSurface> languageServiceStatus;
   final ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport;
@@ -129,6 +132,7 @@ class AppBootstrap {
   void dispose() {
     unawaited(toolchainCatalogSubscription?.cancel());
     unawaited(languageResultCacheBinding?.dispose());
+    unawaited(styioServiceSubscriptionController?.dispose());
     unawaited(languageServiceStatusController?.dispose());
     workspaceDiagnosticsController?.dispose();
     testingSessionController?.dispose();
@@ -282,6 +286,8 @@ class AppBootstrap {
           resultCache: languageResultCache,
           toolchainManager: toolchainManager,
         );
+    final styioServiceSubscriptionController =
+        StyioServiceSubscriptionController(driver: languageServiceDriver);
     final languageProjectContext = resolveLanguageServiceProjectContext(
       workspaceRoot: projectSnapshot.workspaceRoot,
       styioConfigPath: projectSnapshot.styioConfigPath,
@@ -417,6 +423,7 @@ class AppBootstrap {
       commandPalettePreferencesStore: commandPalettePreferencesStore,
       themeOverrideStore: themeOverrideStore,
       refreshActiveLanguageService: refreshActiveLanguageService,
+      styioServiceSubscriptionController: styioServiceSubscriptionController,
       languageServiceStatusController: languageServiceStatusController,
       toolchainManager: toolchainManager,
       languageServiceStatus: languageServiceStatus,

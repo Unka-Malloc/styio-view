@@ -108,10 +108,11 @@ class AgentSurface extends StatelessWidget {
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
                   onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
-                if (activityHistory != null) ...[
-                  const SizedBox(height: 12),
-                  AgentActivityHistorySurface(history: activityHistory!),
-                ],
+                _AgentActivityHistoryBinding(
+                  controller: codingController,
+                  activityHistory: activityHistory,
+                  topGap: 12,
+                ),
                 const SizedBox(height: 12),
                 _AdapterSection(adapterCapabilities: adapterCapabilities),
                 const SizedBox(height: 12),
@@ -152,10 +153,11 @@ class AgentSurface extends StatelessWidget {
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
                   onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
-                if (activityHistory != null) ...[
-                  const SizedBox(height: 14),
-                  AgentActivityHistorySurface(history: activityHistory!),
-                ],
+                _AgentActivityHistoryBinding(
+                  controller: codingController,
+                  activityHistory: activityHistory,
+                  topGap: 14,
+                ),
                 const SizedBox(height: 14),
                 _AdapterSection(adapterCapabilities: adapterCapabilities),
                 const SizedBox(height: 14),
@@ -165,6 +167,38 @@ class AgentSurface extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AgentActivityHistoryBinding extends StatelessWidget {
+  const _AgentActivityHistoryBinding({
+    required this.controller,
+    required this.topGap,
+    this.activityHistory,
+  });
+
+  final AgentCodingSessionController controller;
+  final AgentCodingSessionHistory? activityHistory;
+  final double topGap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final history = activityHistory ?? controller.sessionHistorySnapshot;
+        if (activityHistory == null && history.records.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(height: topGap),
+            AgentActivityHistorySurface(history: history),
+          ],
+        );
+      },
     );
   }
 }

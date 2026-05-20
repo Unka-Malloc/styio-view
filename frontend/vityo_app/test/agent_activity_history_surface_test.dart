@@ -153,6 +153,109 @@ void main() {
     );
     expect(find.text('Review the workspace.'), findsOneWidget);
   });
+
+  testWidgets('agent surface binds activity history from controller snapshot', (
+    tester,
+  ) async {
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord(
+          requestId: 'agent-controller-history',
+          profileId: 'default-agent',
+          providerKind: 'local_only_fallback',
+          prompt: 'Use controller history.',
+          outcome: AgentCodingSessionOutcome.succeeded,
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+          responseTextSample: 'Controller history loaded.',
+          contentPartCount: 1,
+        ),
+      ],
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+      sessionHistoryStore: _MemoryAgentCodingSessionHistoryStore(history),
+      sessionHistoryWorkspaceId: 'demo',
+    );
+    addTearDown(controller.dispose);
+    await controller.loadSessionHistory();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AgentSurface(
+            platformTarget: PlatformTarget.web,
+            viewportProfile: const ViewportProfile(
+              family: ViewportFamily.desktop,
+              width: 1200,
+              height: 900,
+            ),
+            visibleModules: const [],
+            adapterCapabilities: const [],
+            sessionContext: _context(),
+            codingController: controller,
+            onApplyPendingPatch: () async {},
+            onSaveProviderProfile: (profile, {bearerToken}) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-activity-history-surface')),
+      findsOneWidget,
+    );
+    expect(find.text('Use controller history.'), findsOneWidget);
+  });
+}
+
+class _MemoryAgentCodingSessionHistoryStore
+    implements AgentCodingSessionHistoryStore {
+  _MemoryAgentCodingSessionHistoryStore(this.history);
+
+  AgentCodingSessionHistory history;
+
+  @override
+  Future<AgentCodingSessionHistory> readHistory({
+    required String workspaceId,
+  }) async {
+    return history.workspaceId == workspaceId
+        ? history
+        : AgentCodingSessionHistory(workspaceId: workspaceId);
+  }
+
+  @override
+  Future<AgentCodingSessionHistory> appendRecord({
+    required String workspaceId,
+    required AgentCodingSessionHistoryRecord record,
+    int maxEntries = 50,
+  }) async {
+    final current = await readHistory(workspaceId: workspaceId);
+    history = current.append(record, maxEntries: maxEntries);
+    return history;
+  }
+
+  @override
+  Future<AgentCodingSessionCheckpoint> readCheckpoint({
+    required String workspaceId,
+  }) async {
+    return (await readHistory(workspaceId: workspaceId)).toCheckpoint();
+  }
+
+  @override
+  Future<AgentCodingSessionRecoveryPlan> readRecoveryPlan({
+    required String workspaceId,
+  }) async {
+    return (await readHistory(workspaceId: workspaceId)).toRecoveryPlan();
+  }
+
+  @override
+  Future<void> saveHistory(AgentCodingSessionHistory history) async {
+    this.history = history;
+  }
 }
 
 AgentSessionContext _context() {

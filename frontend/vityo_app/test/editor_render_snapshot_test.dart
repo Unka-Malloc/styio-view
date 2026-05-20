@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/editor.dart';
-import 'package:vityo_app/src/view_ide/language/service/local_styio_language_service.dart';
+import 'package:vityo_app/src/view_ide/language/language.dart';
 
 void main() {
   test('editor render plan round trips active layers', () {
@@ -19,6 +19,19 @@ void main() {
     });
     expect(restored.glyphSubstitutionEnabled, isFalse);
     expect(restored.toJson()['activeLayers'], <String>['text', 'overlay']);
+  });
+
+  test('editor semantic theme maps semantic and diagnostic colors', () {
+    final theme = EditorSemanticTheme.foundation();
+    final restored = EditorSemanticTheme.fromJson(theme.toJson());
+
+    expect(restored.themeId, 'vityo.foundation.semantic');
+    expect(restored.colorForSemanticKind(SemanticKind.function), 0xFFAA4D7D);
+    expect(restored.colorForSemanticKind(SemanticKind.typeName), 0xFF4D6D2A);
+    expect(
+      restored.underlineColorForSeverity(DiagnosticSeverity.error),
+      0xFFCB4D45,
+    );
   });
 
   test('editor render snapshot captures controller presentation facts', () {

@@ -1,3 +1,5 @@
+import '../../language/language_contract.dart';
+
 enum EditorRenderLayer { text, decoration, overlay }
 
 extension EditorRenderLayerX on EditorRenderLayer {
@@ -71,4 +73,72 @@ EditorRenderLayer _renderLayerFromWire(Object? value) {
     'overlay' => EditorRenderLayer.overlay,
     _ => EditorRenderLayer.text,
   };
+}
+
+class EditorSemanticTheme {
+  const EditorSemanticTheme({
+    required this.themeId,
+    required this.semanticColors,
+    required this.diagnosticUnderlineColors,
+  });
+
+  factory EditorSemanticTheme.foundation() {
+    return const EditorSemanticTheme(
+      themeId: 'vityo.foundation.semantic',
+      semanticColors: <String, int>{
+        'function': 0xFFAA4D7D,
+        'pipeline': 0xFF25637A,
+        'state': 0xFF847A22,
+        'resource': 0xFF8B5E28,
+        'variable': 0xFF6A4C33,
+        'parameter': 0xFF355E97,
+        'typeName': 0xFF4D6D2A,
+      },
+      diagnosticUnderlineColors: <String, int>{
+        'error': 0xFFCB4D45,
+        'warning': 0xFFD5962A,
+        'hint': 0xFF6980B5,
+      },
+    );
+  }
+
+  factory EditorSemanticTheme.fromJson(Map<String, Object?> json) {
+    return EditorSemanticTheme(
+      themeId: json['themeId'] as String? ?? 'vityo.foundation.semantic',
+      semanticColors: _intMapFromJson(json['semanticColors']),
+      diagnosticUnderlineColors: _intMapFromJson(
+        json['diagnosticUnderlineColors'],
+      ),
+    );
+  }
+
+  final String themeId;
+  final Map<String, int> semanticColors;
+  final Map<String, int> diagnosticUnderlineColors;
+
+  int? colorForSemanticKind(SemanticKind kind) {
+    return semanticColors[kind.name];
+  }
+
+  int? underlineColorForSeverity(DiagnosticSeverity severity) {
+    return diagnosticUnderlineColors[severity.name];
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'themeId': themeId,
+      'semanticColors': semanticColors,
+      'diagnosticUnderlineColors': diagnosticUnderlineColors,
+    };
+  }
+}
+
+Map<String, int> _intMapFromJson(Object? value) {
+  if (value is! Map) {
+    return const <String, int>{};
+  }
+  return value.map((key, value) {
+    final parsedValue = value is int ? value : int.tryParse('$value') ?? 0;
+    return MapEntry<String, int>(key.toString(), parsedValue);
+  });
 }

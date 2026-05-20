@@ -52,6 +52,10 @@ void main() {
       contains('persisted result filter state'),
     );
     expect(
+      entriesById['environment.platform']?.summary,
+      contains('PlatformManagerRecoveryActionRouter settings routes'),
+    );
+    expect(
       entriesById['presentation.problems-panel']?.status,
       IdeCapabilityStatus.scaffolded,
     );

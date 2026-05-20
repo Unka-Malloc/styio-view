@@ -212,6 +212,67 @@ class PlatformManagerRecoveryAction {
   }
 }
 
+class PlatformManagerRecoveryActionRoute {
+  const PlatformManagerRecoveryActionRoute({
+    required this.actionId,
+    required this.managerKey,
+    required this.route,
+    required this.label,
+    required this.message,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String actionId;
+  final String managerKey;
+  final String route;
+  final String label;
+  final String message;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'actionId': actionId,
+      'managerKey': managerKey,
+      'route': route,
+      'label': label,
+      'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class PlatformManagerRecoveryActionRouter {
+  const PlatformManagerRecoveryActionRouter({
+    this.settingsRoutePrefix = 'settings://platform',
+  });
+
+  final String settingsRoutePrefix;
+
+  PlatformManagerRecoveryActionRoute routeFor(
+    PlatformManagerRecoveryAction action,
+  ) {
+    return PlatformManagerRecoveryActionRoute(
+      actionId: action.id,
+      managerKey: action.managerKey,
+      route:
+          '$settingsRoutePrefix/${action.managerKey}?action=${Uri.encodeComponent(action.id)}',
+      label: action.label,
+      message: action.message,
+      metadata: <String, Object?>{
+        ...action.metadata,
+        'surface': 'settings',
+        'managerKey': action.managerKey,
+      },
+    );
+  }
+
+  List<PlatformManagerRecoveryActionRoute> routesFor(
+    PlatformManagerHealthSnapshot snapshot,
+  ) {
+    return snapshot.recoveryActions.map(routeFor).toList(growable: false);
+  }
+}
+
 typedef PlatformManagerProbeReady = bool Function(PlatformManagerBundle bundle);
 typedef PlatformManagerProbeMessage =
     String Function(PlatformManagerBundle bundle, bool ready);

@@ -56,7 +56,11 @@ void main() {
           ],
         ),
       );
-      final controller = TerminalInteractionController(runtime: runtime);
+      var tick = 0;
+      final controller = TerminalInteractionController(
+        runtime: runtime,
+        clock: () => DateTime.utc(2026, 5, 20, 8, 0, tick++),
+      );
       addTearDown(controller.dispose);
 
       final started = await controller.start(
@@ -86,6 +90,21 @@ void main() {
         RuntimeTaskStatus.succeeded,
       );
       expect(
+        controller.snapshot?.events.map((event) => event.kind).toList(),
+        <TerminalInteractionEventKind>[
+          TerminalInteractionEventKind.started,
+          TerminalInteractionEventKind.output,
+          TerminalInteractionEventKind.input,
+          TerminalInteractionEventKind.resized,
+          TerminalInteractionEventKind.closed,
+        ],
+      );
+      expect(controller.snapshot?.events.last.exitCode, 0);
+      expect(
+        controller.snapshot?.taskSnapshot?.definition.metadata['taskHistory'],
+        'enabled',
+      );
+      expect(
         taskController.snapshotFor('terminal.sh')?.status,
         RuntimeTaskStatus.succeeded,
       );
@@ -94,6 +113,11 @@ void main() {
         (controller.snapshot?.toJson()['task']!
             as Map<String, Object?>)['status'],
         'succeeded',
+      );
+      expect(
+        ((controller.snapshot?.toJson()['events']! as List<Object?>).last!
+            as Map<String, Object?>)['kind'],
+        'closed',
       );
       final history = await historyStore.readHistory(workspaceId: 'demo');
       expect(history.tasks.single.definition.id, 'terminal.sh');

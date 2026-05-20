@@ -10,6 +10,7 @@ class TerminalSessionSnapshot {
     required this.sessionId,
     required this.state,
     this.outputLines = const <String>[],
+    this.events = const <TerminalInteractionEvent>[],
     this.lastInput = '',
     this.lastResize,
     this.taskSnapshot,
@@ -18,6 +19,7 @@ class TerminalSessionSnapshot {
   final String sessionId;
   final PtySessionState state;
   final List<String> outputLines;
+  final List<TerminalInteractionEvent> events;
   final String lastInput;
   final PtyResizeResult? lastResize;
   final RuntimeTaskSnapshot? taskSnapshot;
@@ -27,6 +29,7 @@ class TerminalSessionSnapshot {
       'sessionId': sessionId,
       'state': state.name,
       'outputLines': outputLines,
+      'events': events.map((event) => event.toJson()).toList(growable: false),
       if (lastInput.isNotEmpty) 'lastInput': lastInput,
       if (lastResize != null)
         'lastResize': <String, Object?>{
@@ -36,6 +39,53 @@ class TerminalSessionSnapshot {
           if (lastResize!.message != null) 'message': lastResize!.message,
         },
       if (taskSnapshot != null) 'task': taskSnapshot!.toJson(),
+    };
+  }
+}
+
+enum TerminalInteractionEventKind { started, output, input, resized, closed }
+
+extension TerminalInteractionEventKindX on TerminalInteractionEventKind {
+  String get wireValue => switch (this) {
+    TerminalInteractionEventKind.started => 'started',
+    TerminalInteractionEventKind.output => 'output',
+    TerminalInteractionEventKind.input => 'input',
+    TerminalInteractionEventKind.resized => 'resized',
+    TerminalInteractionEventKind.closed => 'closed',
+  };
+}
+
+class TerminalInteractionEvent {
+  const TerminalInteractionEvent({
+    required this.sequence,
+    required this.kind,
+    required this.sessionId,
+    required this.timestamp,
+    this.message = '',
+    this.rows,
+    this.cols,
+    this.exitCode,
+  });
+
+  final int sequence;
+  final TerminalInteractionEventKind kind;
+  final String sessionId;
+  final DateTime timestamp;
+  final String message;
+  final int? rows;
+  final int? cols;
+  final int? exitCode;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'sequence': sequence,
+      'kind': kind.wireValue,
+      'sessionId': sessionId,
+      'timestamp': timestamp.toIso8601String(),
+      if (message.isNotEmpty) 'message': message,
+      if (rows != null) 'rows': rows,
+      if (cols != null) 'cols': cols,
+      if (exitCode != null) 'exitCode': exitCode,
     };
   }
 }
@@ -56,16 +106,22 @@ class TerminalRuntimeStartResult {
 }
 
 class TerminalInteractionController extends ChangeNotifier {
-  TerminalInteractionController({required this.runtime});
+  TerminalInteractionController({
+    required this.runtime,
+    RuntimeTaskClock? clock,
+  }) : _clock = clock ?? DateTime.now().toUtc;
 
   final TerminalRuntime runtime;
+  final RuntimeTaskClock _clock;
 
   PtySession? _session;
   StreamSubscription<String>? _outputSubscription;
   List<String> _outputLines = const <String>[];
+  List<TerminalInteractionEvent> _events = const <TerminalInteractionEvent>[];
   String _lastInput = '';
   PtyResizeResult? _lastResize;
   RuntimeTaskSnapshot? _taskSnapshot;
+  int _eventSequence = 0;
 
   TerminalSessionSnapshot? get snapshot {
     final session = _session;
@@ -76,6 +132,7 @@ class TerminalInteractionController extends ChangeNotifier {
       sessionId: session.id,
       state: session.state,
       outputLines: List<String>.unmodifiable(_outputLines),
+      events: List<TerminalInteractionEvent>.unmodifiable(_events),
       lastInput: _lastInput,
       lastResize: _lastResize,
       taskSnapshot: _taskSnapshot,
@@ -92,9 +149,11 @@ class TerminalInteractionController extends ChangeNotifier {
   }) async {
     await _outputSubscription?.cancel();
     _outputLines = const <String>[];
+    _events = const <TerminalInteractionEvent>[];
     _lastInput = '';
     _lastResize = null;
     _taskSnapshot = null;
+    _eventSequence = 0;
     final startResult = await runtime.startWithLifecycle(
       profile: profile,
       workingDirectory: workingDirectory,
@@ -106,11 +165,22 @@ class TerminalInteractionController extends ChangeNotifier {
     final session = startResult.session;
     _taskSnapshot = startResult.taskSnapshot;
     _session = session;
+    _recordEvent(
+      kind: TerminalInteractionEventKind.started,
+      sessionId: session.id,
+      rows: rows,
+      cols: cols,
+    );
     _outputSubscription = session.output.listen((chunk) {
       _outputLines = List<String>.unmodifiable(<String>[
         ..._outputLines,
         chunk,
       ]);
+      _recordEvent(
+        kind: TerminalInteractionEventKind.output,
+        sessionId: session.id,
+        message: chunk,
+      );
       notifyListeners();
     });
     notifyListeners();
@@ -124,6 +194,11 @@ class TerminalInteractionController extends ChangeNotifier {
     }
     _lastInput = input;
     await session.write(input);
+    _recordEvent(
+      kind: TerminalInteractionEventKind.input,
+      sessionId: session.id,
+      message: input,
+    );
     notifyListeners();
   }
 
@@ -136,6 +211,13 @@ class TerminalInteractionController extends ChangeNotifier {
       return null;
     }
     _lastResize = await session.resize(rows: rows, cols: cols);
+    _recordEvent(
+      kind: TerminalInteractionEventKind.resized,
+      sessionId: session.id,
+      rows: rows,
+      cols: cols,
+      message: _lastResize?.status.name ?? '',
+    );
     notifyListeners();
     return _lastResize;
   }
@@ -152,8 +234,38 @@ class TerminalInteractionController extends ChangeNotifier {
     if (taskId != null) {
       _taskSnapshot = await runtime.completeTask(taskId, exitCode: exitCode);
     }
+    _recordEvent(
+      kind: TerminalInteractionEventKind.closed,
+      sessionId: session.id,
+      exitCode: exitCode,
+    );
     notifyListeners();
     return exitCode;
+  }
+
+  void _recordEvent({
+    required TerminalInteractionEventKind kind,
+    required String sessionId,
+    String message = '',
+    int? rows,
+    int? cols,
+    int? exitCode,
+  }) {
+    _eventSequence += 1;
+    _events =
+        List<TerminalInteractionEvent>.unmodifiable(<TerminalInteractionEvent>[
+          ..._events,
+          TerminalInteractionEvent(
+            sequence: _eventSequence,
+            kind: kind,
+            sessionId: sessionId,
+            timestamp: _clock(),
+            message: message,
+            rows: rows,
+            cols: cols,
+            exitCode: exitCode,
+          ),
+        ]);
   }
 
   @override
@@ -389,10 +501,9 @@ class TerminalRuntime {
       environment: environment,
       group: 'terminal',
       terminalProfileId: profile?.id,
-      metadata: const <String, Object?>{
+      metadata: <String, Object?>{
         'source': 'TerminalRuntime',
-        'todo':
-            'TODO: attach terminal task history to persisted runtime store.',
+        'taskHistory': _taskHistoryStore == null ? 'disabled' : 'enabled',
       },
     );
     controller.register(definition);

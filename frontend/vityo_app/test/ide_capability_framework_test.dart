@@ -112,6 +112,10 @@ void main() {
       contains('run history'),
     );
     expect(
+      entriesById['interaction.testing']?.summary,
+      contains('RuntimeOutputLiveBuffer test-result publishing'),
+    );
+    expect(
       entriesById['interaction.testing']?.dependencies,
       contains('runtime.execution'),
     );

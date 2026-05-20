@@ -14,13 +14,17 @@ class TestingSessionController extends ChangeNotifier {
     RuntimeTaskLifecycleController? runtimeTaskLifecycleController,
     RuntimeTaskHistoryStore? runtimeTaskHistoryStore,
     TestRunHistoryStore? testRunHistoryStore,
+    RuntimeOutputLiveBuffer? runtimeOutputBuffer,
+    RuntimeTaskClock? clock,
     this.runtimeTaskHistoryWorkspaceId = 'default',
     this.runtimeTaskHistoryMaxEntries = 50,
     this.testRunHistoryWorkspaceId = 'default',
     this.testRunHistoryMaxEntries = 30,
   }) : _runtimeTaskLifecycleController = runtimeTaskLifecycleController,
        _runtimeTaskHistoryStore = runtimeTaskHistoryStore,
-       _testRunHistoryStore = testRunHistoryStore;
+       _testRunHistoryStore = testRunHistoryStore,
+       _runtimeOutputBuffer = runtimeOutputBuffer,
+       _clock = clock ?? DateTime.now().toUtc;
 
   final TestDiscoveryProvider? discoveryProvider;
   final TestRunProvider? runProvider;
@@ -28,6 +32,8 @@ class TestingSessionController extends ChangeNotifier {
   final RuntimeTaskLifecycleController? _runtimeTaskLifecycleController;
   final RuntimeTaskHistoryStore? _runtimeTaskHistoryStore;
   final TestRunHistoryStore? _testRunHistoryStore;
+  final RuntimeOutputLiveBuffer? _runtimeOutputBuffer;
+  final RuntimeTaskClock _clock;
   final String runtimeTaskHistoryWorkspaceId;
   final int runtimeTaskHistoryMaxEntries;
   final String testRunHistoryWorkspaceId;
@@ -273,6 +279,7 @@ class TestingSessionController extends ChangeNotifier {
     if (_runHistory.length > 20) {
       _runHistory.removeRange(20, _runHistory.length);
     }
+    _runtimeOutputBuffer?.addEvent(result.outputEvent(timestamp: _clock()));
   }
 
   RuntimeTaskSnapshot? _startRuntimeTask({

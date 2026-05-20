@@ -126,8 +126,23 @@ void main() {
     final taskController = RuntimeTaskLifecycleController(
       clock: () => DateTime.utc(2026, 5, 20),
     );
+    final outputBuffer = RuntimeOutputLiveBuffer(
+      subscriptionPlan: RuntimeOutputStreamSubscriptionPlan.forManager(
+        taskId: 'test.static-runner.1',
+        managerId: 'testing-session',
+        routeKind: 'test-run',
+        channelIds: const <String>['test.static-runner'],
+        kinds: const <RuntimeOutputChannelKind>[
+          RuntimeOutputChannelKind.runtimeEvents,
+        ],
+        status: RuntimeOutputSubscriptionStatus.active,
+      ),
+    );
+    addTearDown(outputBuffer.dispose);
     final controller = TestingSessionController(
       runtimeTaskLifecycleController: taskController,
+      runtimeOutputBuffer: outputBuffer,
+      clock: () => DateTime.utc(2026, 5, 20, 9),
       discoveryProvider: const StaticTestDiscoveryProvider(
         providerId: 'static-discovery',
         result: TestDiscoveryResult(
@@ -191,6 +206,15 @@ void main() {
       (run.metadata['outputSubscription']!
           as Map<String, Object?>)['managerId'],
       'testing-session',
+    );
+    expect(outputBuffer.snapshot.visibleEvents, hasLength(1));
+    expect(
+      outputBuffer.snapshot.visibleEvents.single.message,
+      'Fixture tests passed.',
+    );
+    expect(
+      outputBuffer.snapshot.visibleEvents.single.metadata['totalCount'],
+      1,
     );
     expect(notifications, 2);
 

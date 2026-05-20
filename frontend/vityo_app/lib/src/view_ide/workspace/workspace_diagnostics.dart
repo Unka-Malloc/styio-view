@@ -2,6 +2,7 @@ import '../foundation/foundation.dart';
 import '../editor/document_state.dart';
 import '../language/language_contract.dart';
 import '../runtime/runtime.dart';
+import '../toolchain/toolchain.dart';
 import 'workspace_edit.dart';
 
 class WorkspaceDiagnosticsRequest {
@@ -14,6 +15,92 @@ class WorkspaceDiagnosticsRequest {
   final List<String> documentIds;
   final String activeDocumentId;
   final List<DocumentState> documents;
+}
+
+class WorkspaceDiagnosticsProducerExecutionPlan {
+  const WorkspaceDiagnosticsProducerExecutionPlan({
+    required this.providerId,
+    required this.request,
+    required this.definition,
+    required this.executionPlan,
+    required this.handoff,
+    required this.binding,
+  });
+
+  factory WorkspaceDiagnosticsProducerExecutionPlan.nativeTool({
+    required String providerId,
+    required WorkspaceDiagnosticsRequest request,
+    required String command,
+    List<String> arguments = const <String>[],
+    String? workingDirectory,
+    String outputChannelId = '',
+  }) {
+    final definition = RuntimeTaskDefinition(
+      id: 'diagnostics.$providerId',
+      label: 'Diagnostics $providerId',
+      kind: RuntimeTaskKind.toolchain,
+      command: command,
+      arguments: arguments,
+      workingDirectory: workingDirectory,
+      metadata: <String, Object?>{
+        'diagnosticsProducer': true,
+        'diagnosticsProviderId': providerId,
+        'activeDocumentId': request.activeDocumentId,
+        'documentIds': request.documentIds,
+        'toolchainKind': ToolchainKind.staticAnalyzer.wireValue,
+      },
+    );
+    final executionPlan = const RuntimeExecutionPlanner().plan(
+      definition: definition,
+    );
+    final handoff = executionPlan.createHandoff(
+      target: RuntimeExecutionHandoffTarget.toolchainManager,
+      outputChannelId: outputChannelId.trim().isEmpty
+          ? 'diagnostics.$providerId'
+          : outputChannelId.trim(),
+      metadata: <String, Object?>{
+        'diagnosticsProducer': true,
+        'diagnosticsProviderId': providerId,
+      },
+    );
+    final binding = handoff.bind(
+      outputKind: RuntimeOutputChannelKind.nativeTools,
+      metadata: <String, Object?>{
+        'diagnosticsProducer': true,
+        'diagnosticsProviderId': providerId,
+      },
+    );
+    return WorkspaceDiagnosticsProducerExecutionPlan(
+      providerId: providerId,
+      request: request,
+      definition: definition,
+      executionPlan: executionPlan,
+      handoff: handoff,
+      binding: binding,
+    );
+  }
+
+  final String providerId;
+  final WorkspaceDiagnosticsRequest request;
+  final RuntimeTaskDefinition definition;
+  final RuntimeExecutionPlan executionPlan;
+  final RuntimeExecutionHandoff handoff;
+  final RuntimeExecutionHandoffBinding binding;
+
+  bool get ready => executionPlan.ready && handoff.ready && binding.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerId': providerId,
+      'ready': ready,
+      'documentIds': request.documentIds,
+      'activeDocumentId': request.activeDocumentId,
+      'definition': definition.toJson(),
+      'executionPlan': executionPlan.toJson(),
+      'handoff': handoff.toJson(),
+      'binding': binding.toJson(),
+    };
+  }
 }
 
 class WorkspaceDiagnostic {

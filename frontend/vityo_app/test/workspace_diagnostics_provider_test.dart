@@ -5,6 +5,7 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -112,6 +113,47 @@ void main() {
       <String>['Insert matching delimiter'],
     );
   });
+
+  test(
+    'workspace diagnostics producer execution plan targets toolchain route',
+    () {
+      const request = WorkspaceDiagnosticsRequest(
+        documentIds: <String>['src/main.styio'],
+        activeDocumentId: 'src/main.styio',
+        documents: <DocumentState>[
+          DocumentState(
+            documentId: 'src/main.styio',
+            text: '>_("demo")\n',
+            revision: 1,
+          ),
+        ],
+      );
+
+      final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+        providerId: 'native-static-analysis',
+        request: request,
+        command: 'clang-tidy',
+        arguments: const <String>['src/main.cc'],
+        workingDirectory: '/workspace/vityo',
+      );
+
+      expect(plan.ready, isTrue);
+      expect(plan.definition.kind, RuntimeTaskKind.toolchain);
+      expect(plan.definition.metadata['toolchainKind'], 'static-analyzer');
+      expect(
+        plan.handoff.target,
+        RuntimeExecutionHandoffTarget.toolchainManager,
+      );
+      expect(plan.binding.managerId, 'toolchain-manager');
+      expect(plan.binding.routeKind, 'toolchain-task');
+      expect(
+        plan.binding.outputChannel.kind,
+        RuntimeOutputChannelKind.nativeTools,
+      );
+      expect(plan.binding.metadata['diagnosticsProducer'], isTrue);
+      expect(plan.toJson()['ready'], isTrue);
+    },
+  );
 
   test('workspace diagnostics view applies serializable filters', () {
     const snapshot = WorkspaceDiagnosticsSnapshot(

@@ -115,9 +115,12 @@ void main() {
       WorkspaceEditConfirmationStatus.blockedMissingDocuments,
     );
     expect(confirmation.ready, isFalse);
+    expect(confirmation.riskLevel, WorkspaceEditRiskLevel.high);
+    expect(confirmation.blockingReasons.single, contains('Missing document'));
     expect(confirmation.toJson()['missingDocumentIds'], <String>[
       'missing.styio',
     ]);
+    expect(confirmation.toJson()['riskLevel'], 'high');
     final documentJson =
         (previewJson['documents']! as List<Object?>).single!
             as Map<String, Object?>;
@@ -192,6 +195,7 @@ void main() {
       expect(preview.toJson()['fileOperationCount'], 2);
       expect(confirmation.ready, isTrue);
       expect(confirmation.fileOperationCount, 2);
+      expect(confirmation.riskLevel, WorkspaceEditRiskLevel.medium);
       expect(result.applied, isTrue);
       expect(result.createdDocumentIds, <String>['new.styio']);
       expect(result.deletedDocumentIds, <String>['old.styio']);
@@ -431,13 +435,17 @@ void main() {
 
       expect(ready.ready, isTrue);
       expect(ready.requiresUserConfirmation, isTrue);
+      expect(ready.riskLevel, WorkspaceEditRiskLevel.low);
       expect(ready.documentIds, <String>['main.styio']);
       expect(noChange.status, WorkspaceEditConfirmationStatus.blockedNoChanges);
       expect(noChange.requiresUserConfirmation, isFalse);
+      expect(noChange.riskLevel, WorkspaceEditRiskLevel.none);
       expect(
         tooMany.status,
         WorkspaceEditConfirmationStatus.blockedTooManyEdits,
       );
+      expect(tooMany.riskLevel, WorkspaceEditRiskLevel.high);
+      expect(tooMany.blockingReasons.single, contains('exceeds limit'));
 
       final readyControls = WorkspaceEditReviewControls.fromPreview(
         readyPreview,

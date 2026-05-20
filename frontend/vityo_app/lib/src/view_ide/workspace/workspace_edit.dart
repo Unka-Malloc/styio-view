@@ -639,6 +639,17 @@ enum WorkspaceEditConfirmationStatus {
   blockedFileOperations,
 }
 
+enum WorkspaceEditRiskLevel { none, low, medium, high }
+
+extension WorkspaceEditRiskLevelX on WorkspaceEditRiskLevel {
+  String get wireValue => switch (this) {
+    WorkspaceEditRiskLevel.none => 'none',
+    WorkspaceEditRiskLevel.low => 'low',
+    WorkspaceEditRiskLevel.medium => 'medium',
+    WorkspaceEditRiskLevel.high => 'high',
+  };
+}
+
 extension WorkspaceEditConfirmationStatusX on WorkspaceEditConfirmationStatus {
   String get wireValue => switch (this) {
     WorkspaceEditConfirmationStatus.ready => 'ready',
@@ -664,6 +675,8 @@ class WorkspaceEditConfirmationPlan {
     this.editCount = 0,
     this.fileOperationCount = 0,
     this.requiresUserConfirmation = true,
+    this.riskLevel = WorkspaceEditRiskLevel.low,
+    this.blockingReasons = const <String>[],
     this.todo = '',
   });
 
@@ -694,6 +707,10 @@ class WorkspaceEditConfirmationPlan {
         missingDocumentIds: missingDocumentIds,
         editCount: preview.editCount,
         fileOperationCount: preview.fileOperations.length,
+        riskLevel: WorkspaceEditRiskLevel.high,
+        blockingReasons: const <String>[
+          'Blocked file create/delete operation.',
+        ],
         message:
             'Workspace edit preview contains blocked file create/delete operation(s).',
       );
@@ -709,6 +726,8 @@ class WorkspaceEditConfirmationPlan {
         editCount: preview.editCount,
         fileOperationCount: preview.fileOperations.length,
         requiresUserConfirmation: false,
+        riskLevel: WorkspaceEditRiskLevel.none,
+        blockingReasons: const <String>['No text changes to apply.'],
         message: 'Workspace edit preview has no text changes.',
       );
     }
@@ -722,6 +741,10 @@ class WorkspaceEditConfirmationPlan {
         missingDocumentIds: missingDocumentIds,
         editCount: preview.editCount,
         fileOperationCount: preview.fileOperations.length,
+        riskLevel: WorkspaceEditRiskLevel.high,
+        blockingReasons: <String>[
+          'Missing document(s): ${missingDocumentIds.join(', ')}.',
+        ],
         message:
             'Workspace edit preview is blocked until missing documents are loaded.',
       );
@@ -735,6 +758,10 @@ class WorkspaceEditConfirmationPlan {
         documentIds: documentIds,
         editCount: preview.editCount,
         fileOperationCount: preview.fileOperations.length,
+        riskLevel: WorkspaceEditRiskLevel.high,
+        blockingReasons: <String>[
+          'Edit count ${preview.editCount} exceeds limit $maxEditCount.',
+        ],
         message:
             'Workspace edit preview contains too many edits: ${preview.editCount} exceeds $maxEditCount.',
       );
@@ -747,6 +774,9 @@ class WorkspaceEditConfirmationPlan {
       documentIds: documentIds,
       editCount: preview.editCount,
       fileOperationCount: preview.fileOperations.length,
+      riskLevel: preview.fileOperations.isNotEmpty
+          ? WorkspaceEditRiskLevel.medium
+          : WorkspaceEditRiskLevel.low,
       message: 'Workspace edit preview is ready for confirmation.',
       todo:
           'TODO: bind persisted review pagination state to lazy expansion controls.',
@@ -763,6 +793,8 @@ class WorkspaceEditConfirmationPlan {
   final int editCount;
   final int fileOperationCount;
   final bool requiresUserConfirmation;
+  final WorkspaceEditRiskLevel riskLevel;
+  final List<String> blockingReasons;
   final String todo;
 
   bool get ready => status == WorkspaceEditConfirmationStatus.ready;
@@ -780,6 +812,8 @@ class WorkspaceEditConfirmationPlan {
       'fileOperationCount': fileOperationCount,
       'changeCount': editCount + fileOperationCount,
       'requiresUserConfirmation': requiresUserConfirmation,
+      'riskLevel': riskLevel.wireValue,
+      'blockingReasons': blockingReasons,
       'message': message,
       if (todo.isNotEmpty) 'todo': todo,
     };

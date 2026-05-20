@@ -84,10 +84,11 @@ class VityoShellScaffold extends StatelessWidget {
                             width: constraints.maxWidth,
                             height: constraints.maxHeight,
                           );
-                          final layoutBinding = ShellLayoutPlan.forViewport(
-                            activeBottomTab: shell.activeBottomTab,
-                            compact: layoutViewport.isMobile,
-                          ).renderBinding();
+                          final layoutBinding = shell
+                              .shellLayoutPreferenceController
+                              .renderBindingForViewport(
+                                compact: layoutViewport.isMobile,
+                              );
 
                           if (layoutViewport.isMobile) {
                             return _MobileShellBody(
@@ -649,14 +650,16 @@ class _DesktopShellBody extends StatelessWidget {
                   shell: shell,
                   viewportProfile: viewportProfile,
                 ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: bottomSurfaceHeight,
-                  child: KeyedSubtree(
-                    key: ValueKey(layoutBinding.activeBottomPanelId),
-                    child: bottomSurface,
+                if (layoutBinding.bottomPanelExpanded) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: bottomSurfaceHeight,
+                    child: KeyedSubtree(
+                      key: ValueKey(layoutBinding.activeBottomPanelId),
+                      child: bottomSurface,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -735,14 +738,16 @@ class _MobileShellBody extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _BottomSurfaceTabs(shell: shell, viewportProfile: viewportProfile),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: bottomSurfaceHeight,
-            child: KeyedSubtree(
-              key: ValueKey(layoutBinding.activeBottomPanelId),
-              child: bottomSurface,
+          if (layoutBinding.bottomPanelExpanded) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              height: bottomSurfaceHeight,
+              child: KeyedSubtree(
+                key: ValueKey(layoutBinding.activeBottomPanelId),
+                child: bottomSurface,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

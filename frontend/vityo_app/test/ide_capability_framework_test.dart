@@ -60,6 +60,14 @@ void main() {
       IdeCapabilityStatus.scaffolded,
     );
     expect(
+      entriesById['presentation.shell']?.summary,
+      contains('ShellLayoutPreferenceController live scaffold binding'),
+    );
+    expect(
+      entriesById['presentation.shell']?.summary,
+      contains('collapsed bottom-panel state'),
+    );
+    expect(
       entriesById['presentation.problems-panel']?.summary,
       contains('workspace diagnostics grouping'),
     );

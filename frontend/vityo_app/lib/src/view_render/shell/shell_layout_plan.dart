@@ -152,7 +152,7 @@ class ShellLayoutPlan {
       activeBottomTab: activeBottomTab,
       panels: panels,
       todo:
-          'TODO: bind this layout contract directly into shell scaffold rendering and persisted layout preferences.',
+          'TODO: mature diagnostics, search, settings, extensions, debug, and agent panel internals behind this layout contract.',
     );
   }
 
@@ -367,22 +367,108 @@ class ShellLayoutPreferencesStore {
   }
 }
 
+class ShellLayoutPreferenceController {
+  ShellLayoutPreferenceController({
+    required ShellLayoutPreferences initialPreferences,
+  }) : _preferences = initialPreferences;
+
+  ShellLayoutPreferences _preferences;
+  int _revision = 0;
+
+  ShellLayoutPreferences get preferences => _preferences;
+
+  int get revision => _revision;
+
+  Future<void> loadFromStore(
+    ShellLayoutPreferencesStore store, {
+    required String workspaceId,
+  }) async {
+    hydrate(await store.readPreferences(workspaceId: workspaceId));
+  }
+
+  Future<void> saveToStore(ShellLayoutPreferencesStore store) {
+    return store.savePreferences(_preferences);
+  }
+
+  void hydrate(ShellLayoutPreferences preferences) {
+    _setPreferences(preferences);
+  }
+
+  void selectBottomTab(BottomSurfaceTab tab) {
+    if (_preferences.activeBottomTab == tab) {
+      return;
+    }
+    _setPreferences(_preferences.copyWith(activeBottomTab: tab));
+  }
+
+  void setPanelVisible(String panelId, {required bool visible}) {
+    final hiddenPanelIds = <String>{..._preferences.hiddenPanelIds};
+    final changed = visible
+        ? hiddenPanelIds.remove(panelId)
+        : hiddenPanelIds.add(panelId);
+    if (!changed) {
+      return;
+    }
+    _setPreferences(_preferences.copyWith(hiddenPanelIds: hiddenPanelIds));
+  }
+
+  void setPanelPinned(String panelId, {required bool pinned}) {
+    final pinnedPanelIds = <String>{..._preferences.pinnedPanelIds};
+    final changed = pinned
+        ? pinnedPanelIds.add(panelId)
+        : pinnedPanelIds.remove(panelId);
+    if (!changed) {
+      return;
+    }
+    _setPreferences(_preferences.copyWith(pinnedPanelIds: pinnedPanelIds));
+  }
+
+  void setBottomPanelExpanded(bool expanded) {
+    if (_preferences.bottomPanelExpanded == expanded) {
+      return;
+    }
+    _setPreferences(_preferences.copyWith(bottomPanelExpanded: expanded));
+  }
+
+  ShellLayoutPlan planForViewport({required bool compact}) {
+    return _preferences.applyTo(
+      ShellLayoutPlan.forViewport(
+        activeBottomTab: _preferences.activeBottomTab,
+        compact: compact,
+      ),
+    );
+  }
+
+  ShellLayoutRenderBinding renderBindingForViewport({required bool compact}) {
+    return planForViewport(compact: compact).renderBinding();
+  }
+
+  void _setPreferences(ShellLayoutPreferences preferences) {
+    _preferences = preferences.copyWith(updatedAt: DateTime.now().toUtc());
+    _revision += 1;
+  }
+}
+
 class ShellLayoutRenderBinding {
   const ShellLayoutRenderBinding({
     required this.mode,
     required this.viewportKey,
     required this.activeBottomPanelId,
     required this.visiblePanelIds,
+    required this.bottomPanelExpanded,
     required this.compactActivityFallback,
   });
 
   factory ShellLayoutRenderBinding.fromPlan(ShellLayoutPlan plan) {
     final activeBottomPanelId = 'bottom.${plan.activeBottomTab.name}';
+    final activeBottomPanel = plan.panelById(activeBottomPanelId);
     return ShellLayoutRenderBinding(
       mode: plan.mode,
       viewportKey: 'shell-viewport-${plan.mode.wireValue}',
       activeBottomPanelId: activeBottomPanelId,
       visiblePanelIds: plan.visiblePanelIds,
+      bottomPanelExpanded:
+          activeBottomPanel?.metadata['bottomPanelExpanded'] as bool? ?? true,
       compactActivityFallback:
           plan.panelById('activity-rail')?.visible == false &&
           plan.mode == ShellLayoutMode.compact,
@@ -393,7 +479,12 @@ class ShellLayoutRenderBinding {
   final String viewportKey;
   final String activeBottomPanelId;
   final List<String> visiblePanelIds;
+  final bool bottomPanelExpanded;
   final bool compactActivityFallback;
+
+  bool isPanelVisible(String panelId) {
+    return visiblePanelIds.contains(panelId);
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -401,6 +492,7 @@ class ShellLayoutRenderBinding {
       'viewportKey': viewportKey,
       'activeBottomPanelId': activeBottomPanelId,
       'visiblePanelIds': visiblePanelIds,
+      'bottomPanelExpanded': bottomPanelExpanded,
       'compactActivityFallback': compactActivityFallback,
     };
   }

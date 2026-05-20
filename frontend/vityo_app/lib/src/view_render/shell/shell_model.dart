@@ -1,6 +1,7 @@
 import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
+import 'shell_layout_plan.dart';
 
 enum BottomSurfaceTab {
   runtime,
@@ -48,17 +49,25 @@ class ShellModel extends ShellRuntimeModel {
     super.testingSessionController,
     super.sourceControlStatusController,
     super.projectLanguageService,
-  });
+    ShellLayoutPreferenceController? shellLayoutPreferenceController,
+  }) : shellLayoutPreferenceController =
+           shellLayoutPreferenceController ??
+           ShellLayoutPreferenceController(
+             initialPreferences: const ShellLayoutPreferences(
+               workspaceId: 'default',
+             ),
+           );
 
-  BottomSurfaceTab _activeBottomTab = BottomSurfaceTab.runtime;
+  final ShellLayoutPreferenceController shellLayoutPreferenceController;
 
-  BottomSurfaceTab get activeBottomTab => _activeBottomTab;
+  BottomSurfaceTab get activeBottomTab =>
+      shellLayoutPreferenceController.preferences.activeBottomTab;
 
   void selectBottomTab(BottomSurfaceTab tab) {
-    if (_activeBottomTab == tab) {
+    if (activeBottomTab == tab) {
       return;
     }
-    _activeBottomTab = tab;
+    shellLayoutPreferenceController.selectBottomTab(tab);
     appendLog('Bottom surface switched to ${tab.name}.');
   }
 

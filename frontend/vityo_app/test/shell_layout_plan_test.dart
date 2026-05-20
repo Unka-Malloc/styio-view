@@ -33,8 +33,9 @@ void main() {
     expect(plan.panelById('activity-rail')?.visible, isFalse);
     expect(plan.panelById('activity-rail')?.todo, contains('compact activity'));
     expect(plan.panelById('bottom.search')?.active, isTrue);
-    expect(plan.toJson()['todo'], contains('persisted layout preferences'));
+    expect(plan.toJson()['todo'], contains('mature diagnostics'));
     expect(plan.renderBinding().compactActivityFallback, isTrue);
+    expect(plan.renderBinding().bottomPanelExpanded, isTrue);
     expect(
       plan.renderBinding().toJson()['visiblePanelIds'],
       isNot(contains('activity-rail')),
@@ -94,6 +95,17 @@ void main() {
         applied.panelById('bottom.problems')?.metadata['bottomPanelExpanded'],
         isFalse,
       );
+      final controller = ShellLayoutPreferenceController(
+        initialPreferences: const ShellLayoutPreferences(workspaceId: 'demo'),
+      );
+      await controller.loadFromStore(store, workspaceId: 'demo');
+      final binding = controller.renderBindingForViewport(compact: false);
+
+      expect(controller.preferences.activeBottomTab, BottomSurfaceTab.problems);
+      expect(controller.revision, 1);
+      expect(binding.activeBottomPanelId, 'bottom.problems');
+      expect(binding.bottomPanelExpanded, isFalse);
+      expect(binding.isPanelVisible('bottom.runtime'), isFalse);
       expect(await store.deletePreferences(workspaceId: 'demo'), isTrue);
       expect(
         (await store.readPreferences(workspaceId: 'demo')).activeBottomTab,
@@ -101,4 +113,28 @@ void main() {
       );
     },
   );
+
+  test('shell layout preference controller updates live render binding', () {
+    final controller = ShellLayoutPreferenceController(
+      initialPreferences: const ShellLayoutPreferences(workspaceId: 'demo'),
+    );
+
+    controller.selectBottomTab(BottomSurfaceTab.debug);
+    controller.setPanelPinned('bottom.debug', pinned: true);
+    controller.setPanelVisible('bottom.runtime', visible: false);
+    controller.setBottomPanelExpanded(false);
+    final binding = controller.renderBindingForViewport(compact: false);
+
+    expect(controller.revision, 4);
+    expect(binding.activeBottomPanelId, 'bottom.debug');
+    expect(binding.bottomPanelExpanded, isFalse);
+    expect(binding.isPanelVisible('bottom.runtime'), isFalse);
+    expect(
+      controller
+          .planForViewport(compact: false)
+          .panelById('bottom.debug')
+          ?.metadata['pinned'],
+      isTrue,
+    );
+  });
 }

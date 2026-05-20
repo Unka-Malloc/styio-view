@@ -390,6 +390,15 @@ class AgentCodingSessionRecoveryPlan {
   bool get canReplayPrompt =>
       availableActions.contains(AgentCodingSessionRecoveryAction.replayPrompt);
 
+  AgentCodingSessionRecoveryCommandPlan? commandFor(
+    AgentCodingSessionRecoveryAction action,
+  ) {
+    return AgentCodingSessionRecoveryCommandPlan.tryFromRecoveryPlan(
+      recoveryPlan: this,
+      action: action,
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'workspaceId': workspaceId,
@@ -402,6 +411,78 @@ class AgentCodingSessionRecoveryPlan {
       'canFailoverProvider': canFailoverProvider,
       'canReplayPrompt': canReplayPrompt,
       'checkpoint': checkpoint.toJson(),
+      if (todo != null) 'todo': todo,
+    };
+  }
+}
+
+class AgentCodingSessionRecoveryCommandPlan {
+  const AgentCodingSessionRecoveryCommandPlan({
+    required this.commandId,
+    required this.label,
+    required this.action,
+    required this.workspaceId,
+    required this.requestId,
+    required this.requiresProviderSelection,
+    this.promptSample,
+    this.todo,
+  });
+
+  static AgentCodingSessionRecoveryCommandPlan? tryFromRecoveryPlan({
+    required AgentCodingSessionRecoveryPlan recoveryPlan,
+    required AgentCodingSessionRecoveryAction action,
+  }) {
+    if (!recoveryPlan.availableActions.contains(action) ||
+        action == AgentCodingSessionRecoveryAction.none) {
+      return null;
+    }
+    final checkpoint = recoveryPlan.checkpoint;
+    return AgentCodingSessionRecoveryCommandPlan(
+      commandId: switch (action) {
+        AgentCodingSessionRecoveryAction.retrySameProvider =>
+          'agent.retryProvider',
+        AgentCodingSessionRecoveryAction.failoverProvider =>
+          'agent.failoverProvider',
+        AgentCodingSessionRecoveryAction.replayPrompt => 'agent.replayPrompt',
+        AgentCodingSessionRecoveryAction.none => 'agent.noop',
+      },
+      label: switch (action) {
+        AgentCodingSessionRecoveryAction.retrySameProvider =>
+          'Retry same provider',
+        AgentCodingSessionRecoveryAction.failoverProvider =>
+          'Fail over provider',
+        AgentCodingSessionRecoveryAction.replayPrompt => 'Replay prompt',
+        AgentCodingSessionRecoveryAction.none => 'No recovery action',
+      },
+      action: action,
+      workspaceId: recoveryPlan.workspaceId,
+      requestId: checkpoint.latestRequestId ?? '',
+      requiresProviderSelection:
+          action == AgentCodingSessionRecoveryAction.failoverProvider,
+      promptSample: checkpoint.latestPromptSample,
+      todo:
+          'TODO: route this recovery command through the command palette, Agent UI, and provider execution adapter.',
+    );
+  }
+
+  final String commandId;
+  final String label;
+  final AgentCodingSessionRecoveryAction action;
+  final String workspaceId;
+  final String requestId;
+  final bool requiresProviderSelection;
+  final String? promptSample;
+  final String? todo;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'commandId': commandId,
+      'label': label,
+      'action': action.wireValue,
+      'workspaceId': workspaceId,
+      'requestId': requestId,
+      'requiresProviderSelection': requiresProviderSelection,
+      if (promptSample != null) 'promptSample': promptSample,
       if (todo != null) 'todo': todo,
     };
   }

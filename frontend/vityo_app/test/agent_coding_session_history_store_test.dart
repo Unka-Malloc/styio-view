@@ -88,6 +88,12 @@ void main() {
       recoveryPlan.recommendedAction,
       AgentCodingSessionRecoveryAction.none,
     );
+    expect(
+      recoveryPlan.commandFor(
+        AgentCodingSessionRecoveryAction.retrySameProvider,
+      ),
+      isNull,
+    );
   });
 
   test('agent coding session history stores failure checkpoints', () {
@@ -133,5 +139,18 @@ void main() {
       ).canReplayPrompt,
       isTrue,
     );
+    final retryCommand = recoveryPlan.commandFor(
+      AgentCodingSessionRecoveryAction.retrySameProvider,
+    );
+    final failoverCommand = recoveryPlan.commandFor(
+      AgentCodingSessionRecoveryAction.failoverProvider,
+    );
+    expect(retryCommand?.commandId, 'agent.retryProvider');
+    expect(retryCommand?.requestId, 'agent-failed');
+    expect(retryCommand?.promptSample, 'Apply patch');
+    expect(retryCommand?.requiresProviderSelection, isFalse);
+    expect(failoverCommand?.commandId, 'agent.failoverProvider');
+    expect(failoverCommand?.requiresProviderSelection, isTrue);
+    expect(failoverCommand?.toJson()['todo'], contains('TODO:'));
   });
 }

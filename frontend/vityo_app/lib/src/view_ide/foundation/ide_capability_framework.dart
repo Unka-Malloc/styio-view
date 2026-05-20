@@ -417,8 +417,10 @@ class VityoIdeCapabilityFramework {
           title: 'Editor rendering and presentation bridge',
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/editor',
+          summary:
+              'Editor surface renders document, tabs, selection, token/semantic/diagnostic layers, folding, hover, completion, code-action facts, and serializable EditorRenderSnapshot contracts for UI and Agent consumers.',
           todo:
-              'TODO: finish virtualized editor rendering, semantic highlighting, hover, completion, and code action widgets.',
+              'TODO: finish virtualized editor row rendering, semantic highlighting theme mapping, hover widgets, completion widgets, and code action widgets.',
           references: <String>['Monaco editor', 'VS Code workbench editor'],
         ),
         IdeCapabilityDescriptor(

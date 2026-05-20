@@ -211,10 +211,46 @@ typedef WorkspaceDiagnosticsProducerCancellationHandler =
       required String reason,
     });
 
+abstract class WorkspaceDiagnosticsProcessCancellationHandle {
+  const WorkspaceDiagnosticsProcessCancellationHandle();
+
+  String get handleId;
+
+  Future<WorkspaceDiagnosticsProducerCancellationResult>
+  cancelDiagnosticsProducer({
+    required WorkspaceDiagnosticsProducerExecutionPlan plan,
+    required WorkspaceDiagnosticsProducerLifecycleSnapshot current,
+    required String reason,
+  });
+}
+
 class WorkspaceDiagnosticsProducerCancellationAdapter {
   const WorkspaceDiagnosticsProducerCancellationAdapter({
     required WorkspaceDiagnosticsProducerCancellationHandler cancel,
   }) : _cancel = cancel;
+
+  factory WorkspaceDiagnosticsProducerCancellationAdapter.processHandle(
+    WorkspaceDiagnosticsProcessCancellationHandle handle,
+  ) {
+    return WorkspaceDiagnosticsProducerCancellationAdapter(
+      cancel: ({required plan, required current, required reason}) async {
+        final result = await handle.cancelDiagnosticsProducer(
+          plan: plan,
+          current: current,
+          reason: reason,
+        );
+        return WorkspaceDiagnosticsProducerCancellationResult(
+          accepted: result.accepted,
+          processTerminated: result.processTerminated,
+          message: result.message,
+          metadata: <String, Object?>{
+            ...result.metadata,
+            'processHandleId': handle.handleId,
+          },
+        );
+      },
+    );
+  }
 
   final WorkspaceDiagnosticsProducerCancellationHandler _cancel;
 

@@ -459,7 +459,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, WorkspaceDiagnosticsRuntimeOutputBinding output-panel events, WorkspaceDiagnosticsProducerExecutionPlan toolchain execution triggers, WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots, diagnostics producer cancellation adapter contracts, runtime task cancellation metadata, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore persisted review outcomes, preview/apply action routing, and native tool result diagnostic snapshots.',
           todo:
-              'TODO: bind diagnostics producer cancellation adapters to concrete ToolchainManager/native process handles.',
+              'TODO: bind diagnostics producer process-handle adapter contract is wired; bind it to real ToolchainManager/native process handles.',
           dependencies: <String>[
             'foundation.registry',
             'service.styio-language',

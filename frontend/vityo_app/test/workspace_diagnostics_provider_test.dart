@@ -252,6 +252,56 @@ void main() {
   );
 
   test(
+    'workspace diagnostics producer process cancellation adapter binds handle',
+    () async {
+      const request = WorkspaceDiagnosticsRequest(
+        documentIds: <String>['src/main.styio'],
+        activeDocumentId: 'src/main.styio',
+      );
+      final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+        providerId: 'styio-project-diagnostics',
+        request: request,
+        command: 'styio',
+        arguments: const <String>['check', '.'],
+      );
+      final controller = WorkspaceDiagnosticsProducerLifecycleController();
+      controller.start(plan, message: 'Styio diagnostics started.');
+      final handle = _FakeWorkspaceDiagnosticsProcessCancellationHandle(
+        handleId: 'toolchain-process-42',
+        result: const WorkspaceDiagnosticsProducerCancellationResult.accepted(
+          processTerminated: true,
+          message: 'Terminated native diagnostics process.',
+          metadata: <String, Object?>{'pid': 42},
+        ),
+      );
+
+      final cancelled = await controller.requestProcessCancellation(
+        plan,
+        reason: 'User cancelled diagnostics.',
+        adapter: WorkspaceDiagnosticsProducerCancellationAdapter.processHandle(
+          handle,
+        ),
+      );
+      final cancellationEvent = cancelled.taskSnapshot.events.last;
+      final cancellationMetadata =
+          cancellationEvent.metadata['diagnosticsProducerCancellation']!
+              as Map<String, Object?>;
+      final processMetadata =
+          cancellationMetadata['metadata']! as Map<String, Object?>;
+
+      expect(handle.cancelledProviderIds, <String>[
+        'styio-project-diagnostics',
+      ]);
+      expect(handle.lastCurrentStatus, RuntimeTaskStatus.running);
+      expect(handle.lastReason, 'User cancelled diagnostics.');
+      expect(cancelled.status, RuntimeTaskStatus.cancelled);
+      expect(cancelled.message, 'Terminated native diagnostics process.');
+      expect(processMetadata['pid'], 42);
+      expect(processMetadata['processHandleId'], 'toolchain-process-42');
+    },
+  );
+
+  test(
     'workspace diagnostics producer cancellation adapter can reject requests',
     () async {
       const request = WorkspaceDiagnosticsRequest(
@@ -682,6 +732,35 @@ WorkspaceDiagnostic _workspaceDiagnostic(
       range: const SourceRange(start: 0, end: 1),
     ),
   );
+}
+
+class _FakeWorkspaceDiagnosticsProcessCancellationHandle
+    implements WorkspaceDiagnosticsProcessCancellationHandle {
+  _FakeWorkspaceDiagnosticsProcessCancellationHandle({
+    required this.handleId,
+    required this.result,
+  });
+
+  @override
+  final String handleId;
+
+  final WorkspaceDiagnosticsProducerCancellationResult result;
+  final List<String> cancelledProviderIds = <String>[];
+  RuntimeTaskStatus? lastCurrentStatus;
+  String lastReason = '';
+
+  @override
+  Future<WorkspaceDiagnosticsProducerCancellationResult>
+  cancelDiagnosticsProducer({
+    required WorkspaceDiagnosticsProducerExecutionPlan plan,
+    required WorkspaceDiagnosticsProducerLifecycleSnapshot current,
+    required String reason,
+  }) async {
+    cancelledProviderIds.add(plan.providerId);
+    lastCurrentStatus = current.status;
+    lastReason = reason;
+    return result;
+  }
 }
 
 class _FailingWorkspaceDiagnosticsProvider

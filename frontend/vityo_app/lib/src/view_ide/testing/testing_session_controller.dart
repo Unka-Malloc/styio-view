@@ -398,6 +398,9 @@ class TestingSessionController extends ChangeNotifier {
       metadata: <String, Object?>{
         ...result.metadata,
         'runtimeTask': runtimeTask.toJson(),
+        'outputSubscription': result
+            .outputSubscriptionPlan(taskId: runtimeTask.definition.id)
+            .toJson(),
       },
     );
   }

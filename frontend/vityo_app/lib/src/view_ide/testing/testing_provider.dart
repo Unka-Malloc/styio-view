@@ -1,4 +1,5 @@
 import '../foundation/foundation.dart';
+import '../runtime/runtime.dart';
 
 enum TestRunStatus { passed, failed, skipped, error, notRun }
 
@@ -354,6 +355,52 @@ class TestRunResult {
         .map((testCase) => testCase.toJson())
         .toList(growable: false);
   }
+
+  String get outputChannelId => 'test.$providerId';
+
+  RuntimeOutputStreamSubscriptionPlan outputSubscriptionPlan({
+    String taskId = '',
+    RuntimeOutputRetentionPolicy retentionPolicy =
+        const RuntimeOutputRetentionPolicy.workspaceHistory(),
+  }) {
+    return RuntimeOutputStreamSubscriptionPlan.forManager(
+      taskId: taskId.isEmpty ? outputChannelId : taskId,
+      managerId: 'testing-session',
+      routeKind: outputRouteKind,
+      channelIds: <String>[outputChannelId],
+      kinds: const <RuntimeOutputChannelKind>[
+        RuntimeOutputChannelKind.runtimeEvents,
+      ],
+      status: RuntimeOutputSubscriptionStatus.active,
+      retentionPolicy: retentionPolicy,
+      metadata: <String, Object?>{
+        'providerId': providerId,
+        if (runner.isNotEmpty) 'runner': runner,
+        'testStatus': status.wireValue,
+      },
+    );
+  }
+
+  RuntimeOutputEvent outputEvent({required DateTime timestamp}) {
+    return RuntimeOutputEvent(
+      channelId: outputChannelId,
+      label: runner.isEmpty ? 'Test Run' : 'Test Run $runner',
+      kind: RuntimeOutputChannelKind.runtimeEvents,
+      message: message,
+      timestamp: timestamp,
+      metadata: <String, Object?>{
+        'providerId': providerId,
+        if (runner.isNotEmpty) 'runner': runner,
+        'status': status.wireValue,
+        'totalCount': totalCount,
+        'passedCount': passedCount,
+        'failedCount': failedCount,
+        'skippedCount': skippedCount,
+      },
+    );
+  }
+
+  String get outputRouteKind => 'test-run';
 }
 
 class FailedTestRerunPlanner {

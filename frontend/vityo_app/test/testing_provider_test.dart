@@ -74,11 +74,20 @@ void main() {
     final result = await provider.run(
       const TestRunRequest(workspaceRoot: '/workspace/vityo'),
     );
+    final subscription = result.outputSubscriptionPlan(taskId: 'test.static.1');
+    final outputEvent = result.outputEvent(
+      timestamp: DateTime.utc(2026, 5, 20),
+    );
 
     expect(result.providerId, 'static');
     expect(result.toJson()['runner'], 'fixture');
     expect(result.toJson()['status'], 'passed');
     expect(result.toJson()['totalCount'], 2);
+    expect(subscription.managerId, 'testing-session');
+    expect(subscription.routeKind, 'test-run');
+    expect(subscription.channelIds, <String>['test.static']);
+    expect(outputEvent.channelId, 'test.static');
+    expect(outputEvent.metadata['status'], 'passed');
   });
 
   test('test run configuration builds run and discovery requests', () {
@@ -177,6 +186,11 @@ void main() {
     expect(
       (run.metadata['runtimeTask']! as Map<String, Object?>)['status'],
       'succeeded',
+    );
+    expect(
+      (run.metadata['outputSubscription']!
+          as Map<String, Object?>)['managerId'],
+      'testing-session',
     );
     expect(notifications, 2);
 

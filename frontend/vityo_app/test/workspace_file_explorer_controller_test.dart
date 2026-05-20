@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
+import 'package:vityo_app/src/view_ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -216,6 +217,56 @@ void main() {
     expect(await store.documentExists('src/new.styio'), isFalse);
     expect(await store.documentExists('src/renamed.styio'), isTrue);
     expect(notifications, greaterThanOrEqualTo(3));
+  });
+
+  test('workspace file explorer stages pending dialog actions', () async {
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'main.styio': DocumentState(
+          documentId: 'main.styio',
+          text: 'main := 1\n',
+          revision: 1,
+        ),
+      },
+    );
+    final workspaceController = WorkspaceController(
+      projectSnapshot: _projectGraph(editorFiles: const <String>['main.styio']),
+    );
+    final controller = WorkspaceFileExplorerController(
+      workspaceController: workspaceController,
+      operationService: WorkspaceFileOperationService(
+        workspaceController: workspaceController,
+        documentStore: store,
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    final plan = controller.stageAction(
+      const WorkspaceFileExplorerActionRequest(
+        kind: WorkspaceFileOperationKind.delete,
+        path: 'main.styio',
+      ),
+    );
+    final blocked = await controller.runPendingAction(confirmed: false);
+    final applied = await controller.runPendingAction(confirmed: true);
+
+    expect(plan.requiresConfirmation, isTrue);
+    expect(controller.pendingConfirmationPlan, isNull);
+    expect(blocked, isNull);
+    expect(applied?.applied, isTrue);
+    expect(applied?.kind, WorkspaceFileOperationKind.delete);
+    expect(await store.documentExists('main.styio'), isFalse);
+
+    controller.stageAction(
+      const WorkspaceFileExplorerActionRequest(
+        kind: WorkspaceFileOperationKind.reveal,
+        path: 'missing.styio',
+      ),
+    );
+    final reveal = await controller.runPendingAction(confirmed: false);
+
+    expect(reveal?.applied, isFalse);
+    expect(reveal?.message, contains('not part of the project'));
   });
 }
 

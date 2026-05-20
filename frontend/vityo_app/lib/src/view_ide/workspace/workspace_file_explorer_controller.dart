@@ -461,9 +461,12 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
   final WorkspaceFileExplorerStateStore? stateStore;
 
   WorkspaceFileOperationResult? _lastResult;
+  WorkspaceFileExplorerConfirmationPlan? _pendingConfirmationPlan;
   late WorkspaceFileExplorerState _state;
 
   WorkspaceFileOperationResult? get lastResult => _lastResult;
+  WorkspaceFileExplorerConfirmationPlan? get pendingConfirmationPlan =>
+      _pendingConfirmationPlan;
   WorkspaceFileExplorerState get state => _state;
 
   WorkspaceFileExplorerSnapshot get snapshot {
@@ -566,6 +569,37 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
     WorkspaceFileExplorerActionRequest request,
   ) {
     return WorkspaceFileExplorerConfirmationPlan.fromRequest(request);
+  }
+
+  WorkspaceFileExplorerConfirmationPlan stageAction(
+    WorkspaceFileExplorerActionRequest request,
+  ) {
+    final plan = confirmationPlanFor(request);
+    _pendingConfirmationPlan = plan;
+    notifyListeners();
+    return plan;
+  }
+
+  void cancelPendingAction() {
+    if (_pendingConfirmationPlan == null) {
+      return;
+    }
+    _pendingConfirmationPlan = null;
+    notifyListeners();
+  }
+
+  Future<WorkspaceFileOperationResult?> runPendingAction({
+    required bool confirmed,
+  }) async {
+    final plan = _pendingConfirmationPlan;
+    if (plan == null) {
+      return null;
+    }
+    if (plan.requiresConfirmation && !confirmed) {
+      return null;
+    }
+    _pendingConfirmationPlan = null;
+    return run(plan.request);
   }
 
   void _handleWorkspaceChanged() {

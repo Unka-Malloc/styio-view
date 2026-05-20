@@ -13,9 +13,12 @@ class ProblemsSurface extends StatefulWidget {
     required this.documentId,
     required this.diagnostics,
     this.workspaceDiagnostics,
+    this.diagnosticsProducerLifecycles =
+        const <WorkspaceDiagnosticsProducerLifecycleSnapshot>[],
     this.onSelectDiagnostic,
     this.onSelectWorkspaceDiagnostic,
     this.onRefreshWorkspaceDiagnostics,
+    this.onCancelDiagnosticsProducer,
     this.workspaceEditPreview,
     this.workspaceEditDiffWindow,
     this.severityFilter = const <DiagnosticSeverity>[],
@@ -37,9 +40,15 @@ class ProblemsSurface extends StatefulWidget {
   final String documentId;
   final List<Diagnostic> diagnostics;
   final WorkspaceDiagnosticsSnapshot? workspaceDiagnostics;
+  final List<WorkspaceDiagnosticsProducerLifecycleSnapshot>
+  diagnosticsProducerLifecycles;
   final ValueChanged<Diagnostic>? onSelectDiagnostic;
   final ValueChanged<WorkspaceDiagnostic>? onSelectWorkspaceDiagnostic;
   final Future<void> Function()? onRefreshWorkspaceDiagnostics;
+  final Future<void> Function(
+    WorkspaceDiagnosticsProducerLifecycleSnapshot snapshot,
+  )?
+  onCancelDiagnosticsProducer;
   final WorkspaceEditPreview? workspaceEditPreview;
   final WorkspaceEditDiffWindow? workspaceEditDiffWindow;
   final List<DiagnosticSeverity> severityFilter;
@@ -270,6 +279,13 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                     result: widget.workspaceEditApplyResult!,
                   ),
                 ],
+                if (widget.diagnosticsProducerLifecycles.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _DiagnosticsProducerLifecyclePanel(
+                    snapshots: widget.diagnosticsProducerLifecycles,
+                    onCancel: widget.onCancelDiagnosticsProducer,
+                  ),
+                ],
                 if (widget.quickFixReviewPlan != null) ...[
                   const SizedBox(height: 12),
                   _WorkspaceQuickFixReviewCard(
@@ -473,6 +489,92 @@ class _ProblemQuickFixSelection extends StatelessWidget {
               child: Text(
                 '${fix.label} · edits ${fix.edits.length}',
                 style: theme.textTheme.bodySmall,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiagnosticsProducerLifecyclePanel extends StatelessWidget {
+  const _DiagnosticsProducerLifecyclePanel({
+    required this.snapshots,
+    this.onCancel,
+  });
+
+  final List<WorkspaceDiagnosticsProducerLifecycleSnapshot> snapshots;
+  final Future<void> Function(
+    WorkspaceDiagnosticsProducerLifecycleSnapshot snapshot,
+  )?
+  onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('problems-diagnostics-producer-lifecycle-panel'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Diagnostics producers', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 8),
+          for (final snapshot in snapshots)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                key: ValueKey(
+                  'problems-diagnostics-producer-lifecycle-${snapshot.providerId}',
+                ),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        '${snapshot.providerId} · ${snapshot.status.name}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (snapshot.canCancel && onCancel != null)
+                        TextButton.icon(
+                          key: ValueKey(
+                            'problems-diagnostics-producer-cancel-${snapshot.providerId}',
+                          ),
+                          onPressed: () {
+                            onCancel!(snapshot);
+                          },
+                          icon: const Icon(Icons.stop_circle_outlined),
+                          label: const Text('Cancel'),
+                        ),
+                    ],
+                  ),
+                  if (snapshot.message.isNotEmpty)
+                    Text(snapshot.message, style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 4),
+                  LinearProgressIndicator(
+                    key: ValueKey(
+                      'problems-diagnostics-producer-progress-${snapshot.providerId}',
+                    ),
+                    value: snapshot.progress,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    snapshot.hasProgress
+                        ? 'progress ${(snapshot.progress! * 100).round()}%'
+                        : 'progress indeterminate',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
               ),
             ),
         ],

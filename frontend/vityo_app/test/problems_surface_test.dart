@@ -282,6 +282,73 @@ void main() {
     expect(workspaceEditCancelCount, 1);
   });
 
+  testWidgets('problems surface renders diagnostics producer lifecycle', (
+    tester,
+  ) async {
+    final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+      providerId: 'styio-project-diagnostics',
+      request: const WorkspaceDiagnosticsRequest(
+        documentIds: <String>['src/main.styio', 'src/lib.styio'],
+        activeDocumentId: 'src/main.styio',
+      ),
+      command: 'styio',
+      arguments: const <String>['check', '.'],
+      workingDirectory: '/workspace/vityo',
+    );
+    final controller = WorkspaceDiagnosticsProducerLifecycleController();
+    controller.start(plan, message: 'Styio diagnostics started.');
+    final lifecycle = controller.reportProgress(
+      plan,
+      progress: 0.25,
+      message: 'Scanned 1 of 4 documents.',
+    );
+    WorkspaceDiagnosticsProducerLifecycleSnapshot? canceledSnapshot;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProblemsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            documentId: 'src/main.styio',
+            diagnostics: const <Diagnostic>[],
+            diagnosticsProducerLifecycles:
+                <WorkspaceDiagnosticsProducerLifecycleSnapshot>[lifecycle],
+            onCancelDiagnosticsProducer: (snapshot) async {
+              canceledSnapshot = snapshot;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey('problems-diagnostics-producer-lifecycle-panel'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Diagnostics producers'), findsOneWidget);
+    expect(find.text('styio-project-diagnostics · running'), findsOneWidget);
+    expect(find.text('Scanned 1 of 4 documents.'), findsOneWidget);
+    expect(find.text('progress 25%'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey(
+          'problems-diagnostics-producer-cancel-styio-project-diagnostics',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(canceledSnapshot?.providerId, 'styio-project-diagnostics');
+    expect(canceledSnapshot?.canCancel, isTrue);
+  });
+
   testWidgets('problems surface applies ready workspace edit review controls', (
     tester,
   ) async {

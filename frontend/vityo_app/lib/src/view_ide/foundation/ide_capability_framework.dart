@@ -341,8 +341,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/interaction',
           summary:
-              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, reusable diagnostics view models, and focused problem actions.',
-          todo: 'TODO: add richer source grouping and fix confirmation flows.',
+              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, source groups, reusable diagnostics view models, quick-fix confirmation plans, and focused problem actions.',
+          todo:
+              'TODO: bind diagnostics interaction actions into a concrete panel UI with keyboard navigation and diff/apply controls.',
           dependencies: <String>['workspace.diagnostics'],
         ),
         IdeCapabilityDescriptor(

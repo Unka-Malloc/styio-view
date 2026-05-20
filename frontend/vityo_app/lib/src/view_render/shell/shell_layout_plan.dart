@@ -156,6 +156,10 @@ class ShellLayoutPlan {
         .toList(growable: false);
   }
 
+  ShellLayoutRenderBinding renderBinding() {
+    return ShellLayoutRenderBinding.fromPlan(this);
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'mode': mode.wireValue,
@@ -163,6 +167,45 @@ class ShellLayoutPlan {
       'visiblePanelIds': visiblePanelIds,
       'panels': panels.map((panel) => panel.toJson()).toList(growable: false),
       if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class ShellLayoutRenderBinding {
+  const ShellLayoutRenderBinding({
+    required this.mode,
+    required this.viewportKey,
+    required this.activeBottomPanelId,
+    required this.visiblePanelIds,
+    required this.compactActivityFallback,
+  });
+
+  factory ShellLayoutRenderBinding.fromPlan(ShellLayoutPlan plan) {
+    final activeBottomPanelId = 'bottom.${plan.activeBottomTab.name}';
+    return ShellLayoutRenderBinding(
+      mode: plan.mode,
+      viewportKey: 'shell-viewport-${plan.mode.wireValue}',
+      activeBottomPanelId: activeBottomPanelId,
+      visiblePanelIds: plan.visiblePanelIds,
+      compactActivityFallback:
+          plan.panelById('activity-rail')?.visible == false &&
+          plan.mode == ShellLayoutMode.compact,
+    );
+  }
+
+  final ShellLayoutMode mode;
+  final String viewportKey;
+  final String activeBottomPanelId;
+  final List<String> visiblePanelIds;
+  final bool compactActivityFallback;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'mode': mode.wireValue,
+      'viewportKey': viewportKey,
+      'activeBottomPanelId': activeBottomPanelId,
+      'visiblePanelIds': visiblePanelIds,
+      'compactActivityFallback': compactActivityFallback,
     };
   }
 }

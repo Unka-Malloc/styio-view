@@ -27,6 +27,7 @@ import '../../view_ide/workspace/workspace.dart';
 
 import 'hosted_workspace_lifecycle_banner.dart';
 import '../../app/commands/app_commands.dart';
+import 'shell_layout_plan.dart';
 import 'shell_model.dart';
 import 'shell_scope.dart';
 
@@ -83,11 +84,16 @@ class VityoShellScaffold extends StatelessWidget {
                             width: constraints.maxWidth,
                             height: constraints.maxHeight,
                           );
+                          final layoutBinding = ShellLayoutPlan.forViewport(
+                            activeBottomTab: shell.activeBottomTab,
+                            compact: layoutViewport.isMobile,
+                          ).renderBinding();
 
                           if (layoutViewport.isMobile) {
                             return _MobileShellBody(
                               shell: shell,
                               viewportProfile: layoutViewport,
+                              layoutBinding: layoutBinding,
                               bottomSurface: _buildBottomSurface(
                                 shell,
                                 layoutViewport,
@@ -98,6 +104,7 @@ class VityoShellScaffold extends StatelessWidget {
                           return _DesktopShellBody(
                             shell: shell,
                             viewportProfile: layoutViewport,
+                            layoutBinding: layoutBinding,
                             bottomSurface: _buildBottomSurface(
                               shell,
                               layoutViewport,
@@ -552,11 +559,13 @@ class _DesktopShellBody extends StatelessWidget {
   const _DesktopShellBody({
     required this.shell,
     required this.viewportProfile,
+    required this.layoutBinding,
     required this.bottomSurface,
   });
 
   final ShellModel shell;
   final ViewportProfile viewportProfile;
+  final ShellLayoutRenderBinding layoutBinding;
   final Widget bottomSurface;
 
   @override
@@ -571,7 +580,7 @@ class _DesktopShellBody extends StatelessWidget {
         : 160.0;
 
     return KeyedSubtree(
-      key: const ValueKey('shell-viewport-desktop'),
+      key: ValueKey(layoutBinding.viewportKey),
       child: Row(
         children: [
           SizedBox(
@@ -638,7 +647,13 @@ class _DesktopShellBody extends StatelessWidget {
                   viewportProfile: viewportProfile,
                 ),
                 const SizedBox(height: 10),
-                SizedBox(height: bottomSurfaceHeight, child: bottomSurface),
+                SizedBox(
+                  height: bottomSurfaceHeight,
+                  child: KeyedSubtree(
+                    key: ValueKey(layoutBinding.activeBottomPanelId),
+                    child: bottomSurface,
+                  ),
+                ),
               ],
             ),
           ),
@@ -652,11 +667,13 @@ class _MobileShellBody extends StatelessWidget {
   const _MobileShellBody({
     required this.shell,
     required this.viewportProfile,
+    required this.layoutBinding,
     required this.bottomSurface,
   });
 
   final ShellModel shell;
   final ViewportProfile viewportProfile;
+  final ShellLayoutRenderBinding layoutBinding;
   final Widget bottomSurface;
 
   @override
@@ -667,7 +684,7 @@ class _MobileShellBody extends StatelessWidget {
     final bottomSurfaceHeight = viewportProfile.height >= 820 ? 220.0 : 180.0;
 
     return KeyedSubtree(
-      key: const ValueKey('shell-viewport-mobile'),
+      key: ValueKey(layoutBinding.viewportKey),
       child: ListView(
         children: [
           SizedBox(
@@ -716,7 +733,13 @@ class _MobileShellBody extends StatelessWidget {
           const SizedBox(height: 16),
           _BottomSurfaceTabs(shell: shell, viewportProfile: viewportProfile),
           const SizedBox(height: 10),
-          SizedBox(height: bottomSurfaceHeight, child: bottomSurface),
+          SizedBox(
+            height: bottomSurfaceHeight,
+            child: KeyedSubtree(
+              key: ValueKey(layoutBinding.activeBottomPanelId),
+              child: bottomSurface,
+            ),
+          ),
         ],
       ),
     );

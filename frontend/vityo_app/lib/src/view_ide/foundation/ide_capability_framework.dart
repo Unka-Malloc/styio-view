@@ -602,9 +602,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/shell',
           summary:
-              'Shell model, bottom tab routing, and serializable shell layout plans define top bar, activity rail, editor, bottom panel, and status bar contracts for desktop and compact viewports.',
+              'Shell model, bottom tab routing, serializable shell layout plans, and ShellLayoutRenderBinding define top bar, activity rail, editor, bottom panel, active panel keys, and status bar contracts for desktop and compact viewports.',
           todo:
-              'TODO: bind layout plans directly into scaffold rendering, persisted layout preferences, and mature panels for diagnostics, search, settings, extensions, debug, and agent activity.',
+              'TODO: add persisted layout preferences and mature panels for diagnostics, search, settings, extensions, debug, and agent activity.',
           references: <String>['VS Code workbench', 'IntelliJ tool windows'],
         ),
         IdeCapabilityDescriptor(

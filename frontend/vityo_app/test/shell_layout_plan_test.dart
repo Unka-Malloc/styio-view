@@ -15,6 +15,8 @@ void main() {
     expect(plan.panelById('bottom.runtime')?.active, isFalse);
     expect(restored.activeBottomTab, BottomSurfaceTab.agent);
     expect(restored.visiblePanelIds, contains('activity-rail'));
+    expect(plan.renderBinding().viewportKey, 'shell-viewport-desktop');
+    expect(plan.renderBinding().activeBottomPanelId, 'bottom.agent');
   });
 
   test('shell layout plan records compact activity rail fallback', () {
@@ -28,5 +30,10 @@ void main() {
     expect(plan.panelById('activity-rail')?.todo, contains('compact activity'));
     expect(plan.panelById('bottom.search')?.active, isTrue);
     expect(plan.toJson()['todo'], contains('persisted layout preferences'));
+    expect(plan.renderBinding().compactActivityFallback, isTrue);
+    expect(
+      plan.renderBinding().toJson()['visiblePanelIds'],
+      isNot(contains('activity-rail')),
+    );
   });
 }

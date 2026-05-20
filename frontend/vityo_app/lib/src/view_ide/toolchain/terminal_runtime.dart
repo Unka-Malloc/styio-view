@@ -234,10 +234,14 @@ class TerminalInteractionController extends ChangeNotifier {
   TerminalInteractionController({
     required this.runtime,
     RuntimeTaskClock? clock,
+    this.runtimeOutputLabel = 'Terminal',
   }) : _clock = clock ?? DateTime.now().toUtc;
 
   final TerminalRuntime runtime;
   final RuntimeTaskClock _clock;
+  final String runtimeOutputLabel;
+  final StreamController<RuntimeOutputEvent> _runtimeOutputEvents =
+      StreamController<RuntimeOutputEvent>.broadcast(sync: true);
 
   PtySession? _session;
   StreamSubscription<String>? _outputSubscription;
@@ -247,6 +251,9 @@ class TerminalInteractionController extends ChangeNotifier {
   PtyResizeResult? _lastResize;
   RuntimeTaskSnapshot? _taskSnapshot;
   int _eventSequence = 0;
+
+  Stream<RuntimeOutputEvent> get runtimeOutputEvents =>
+      _runtimeOutputEvents.stream;
 
   TerminalSessionSnapshot? get snapshot {
     final session = _session;
@@ -262,6 +269,12 @@ class TerminalInteractionController extends ChangeNotifier {
       lastResize: _lastResize,
       taskSnapshot: _taskSnapshot,
     );
+  }
+
+  StreamSubscription<RuntimeOutputEvent> bindRuntimeOutputBuffer(
+    RuntimeOutputLiveBuffer buffer,
+  ) {
+    return buffer.bind(runtimeOutputEvents);
   }
 
   Future<TerminalSessionSnapshot> start({
@@ -377,25 +390,33 @@ class TerminalInteractionController extends ChangeNotifier {
     int? exitCode,
   }) {
     _eventSequence += 1;
-    _events =
-        List<TerminalInteractionEvent>.unmodifiable(<TerminalInteractionEvent>[
-          ..._events,
-          TerminalInteractionEvent(
-            sequence: _eventSequence,
-            kind: kind,
-            sessionId: sessionId,
-            timestamp: _clock(),
-            message: message,
-            rows: rows,
-            cols: cols,
-            exitCode: exitCode,
-          ),
-        ]);
+    final event = TerminalInteractionEvent(
+      sequence: _eventSequence,
+      kind: kind,
+      sessionId: sessionId,
+      timestamp: _clock(),
+      message: message,
+      rows: rows,
+      cols: cols,
+      exitCode: exitCode,
+    );
+    _events = List<TerminalInteractionEvent>.unmodifiable(
+      <TerminalInteractionEvent>[..._events, event],
+    );
+    if (!_runtimeOutputEvents.isClosed) {
+      _runtimeOutputEvents.add(
+        event.toRuntimeOutputEvent(
+          channelId: 'terminal.$sessionId',
+          label: runtimeOutputLabel,
+        ),
+      );
+    }
   }
 
   @override
   void dispose() {
-    _outputSubscription?.cancel();
+    unawaited(_outputSubscription?.cancel());
+    unawaited(_runtimeOutputEvents.close());
     super.dispose();
   }
 }

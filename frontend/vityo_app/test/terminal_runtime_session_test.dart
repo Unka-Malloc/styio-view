@@ -62,6 +62,22 @@ void main() {
         clock: () => DateTime.utc(2026, 5, 20, 8, 0, tick++),
       );
       addTearDown(controller.dispose);
+      final liveBuffer = RuntimeOutputLiveBuffer(
+        subscriptionPlan: RuntimeOutputStreamSubscriptionPlan.forManager(
+          taskId: 'terminal.sh',
+          managerId: 'terminal-runtime',
+          routeKind: 'terminal-task',
+          channelIds: const <String>['terminal.fake-pty'],
+          kinds: const <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.runtimeEvents,
+            RuntimeOutputChannelKind.stdout,
+          ],
+          status: RuntimeOutputSubscriptionStatus.active,
+        ),
+      );
+      final liveSubscription = controller.bindRuntimeOutputBuffer(liveBuffer);
+      addTearDown(liveSubscription.cancel);
+      addTearDown(liveBuffer.dispose);
 
       final started = await controller.start(
         rows: 30,
@@ -131,6 +147,12 @@ void main() {
       expect(runtimeEvents[1].kind, RuntimeOutputChannelKind.stdout);
       expect(runtimeEvents.last.metadata['terminalEventKind'], 'closed');
       expect(outputPanelSnapshot.visibleEvents, hasLength(5));
+      expect(liveBuffer.snapshot.visibleEvents, hasLength(5));
+      expect(liveBuffer.snapshot.visibleEvents[1].message, 'hello\n');
+      expect(
+        liveBuffer.snapshot.visibleEvents.last.metadata['terminalEventKind'],
+        'closed',
+      );
       final history = await historyStore.readHistory(workspaceId: 'demo');
       expect(history.tasks.single.definition.id, 'terminal.sh');
       expect(history.tasks.single.status, RuntimeTaskStatus.succeeded);

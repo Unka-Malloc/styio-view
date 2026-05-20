@@ -48,6 +48,18 @@ void main() {
       final openWorkspaceFile = StyioCommandRegistry.descriptorFor(
         AppCommandId.openWorkspaceFile,
       );
+      final createWorkspaceFile = StyioCommandRegistry.descriptorFor(
+        AppCommandId.createWorkspaceFile,
+      );
+      final renameWorkspaceFile = StyioCommandRegistry.descriptorFor(
+        AppCommandId.renameWorkspaceFile,
+      );
+      final deleteWorkspaceFile = StyioCommandRegistry.descriptorFor(
+        AppCommandId.deleteWorkspaceFile,
+      );
+      final revealWorkspaceFile = StyioCommandRegistry.descriptorFor(
+        AppCommandId.revealWorkspaceFile,
+      );
       final searchWorkspace = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspace,
       );
@@ -163,6 +175,17 @@ void main() {
       expect(openWorkspaceFile.shortcutHint, 'Route');
       expect(openWorkspaceFile.requiresInput, isTrue);
       expect(openWorkspaceFile.inputLabel, 'Workspace file path');
+      expect(createWorkspaceFile.label, 'Create Workspace File');
+      expect(createWorkspaceFile.category, AppCommandCategory.workspace);
+      expect(createWorkspaceFile.requiresInput, isTrue);
+      expect(createWorkspaceFile.inputLabel, 'New workspace file path');
+      expect(renameWorkspaceFile.label, 'Rename Workspace File');
+      expect(renameWorkspaceFile.category, AppCommandCategory.workspace);
+      expect(renameWorkspaceFile.inputLabel, 'Current path -> next path');
+      expect(deleteWorkspaceFile.label, 'Delete Workspace File');
+      expect(deleteWorkspaceFile.inputLabel, 'Workspace file path');
+      expect(revealWorkspaceFile.label, 'Reveal Workspace File');
+      expect(revealWorkspaceFile.inputLabel, 'Workspace file path');
 
       expect(searchWorkspace.label, 'Search Workspace');
       expect(searchWorkspace.category, AppCommandCategory.navigation);
@@ -235,10 +258,7 @@ void main() {
       expect(previewSourceControlDiff.requiresInput, isTrue);
       expect(previewSourceControlDiff.inputLabel, 'Changed file path');
 
-      expect(
-        collectAgentCodingCheckpoint.label,
-        'Collect Coding Checkpoint',
-      );
+      expect(collectAgentCodingCheckpoint.label, 'Collect Coding Checkpoint');
       expect(collectAgentCodingCheckpoint.shortcutHint, 'Route');
       expect(collectAgentCodingCheckpoint.requiresInput, isFalse);
       expect(
@@ -289,6 +309,15 @@ void main() {
         AppCommandId.searchWorkspace,
         AppCommandId.nextReference,
         AppCommandId.previousReference,
+      ],
+    );
+    expect(
+      StyioCommandRegistry.workspaceFileCommands.map((command) => command.id),
+      <AppCommandId>[
+        AppCommandId.createWorkspaceFile,
+        AppCommandId.renameWorkspaceFile,
+        AppCommandId.deleteWorkspaceFile,
+        AppCommandId.revealWorkspaceFile,
       ],
     );
     expect(
@@ -356,7 +385,10 @@ void main() {
     expect(save['category'], AppCommandCategory.persistence.wireValue);
     expect(save['shortcutHint'], 'Cmd/Ctrl+S');
     expect(save['shortcuts'], hasLength(2));
-    expect(searchWorkspace['category'], AppCommandCategory.navigation.wireValue);
+    expect(
+      searchWorkspace['category'],
+      AppCommandCategory.navigation.wireValue,
+    );
     expect(searchWorkspace['requiresInput'], isTrue);
     expect(searchWorkspace['inputLabel'], 'Search query');
   });

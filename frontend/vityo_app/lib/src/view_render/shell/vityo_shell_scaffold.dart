@@ -2055,6 +2055,14 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.subdirectory_arrow_right_rounded;
     case AppCommandId.openWorkspaceFile:
       return Icons.file_open_outlined;
+    case AppCommandId.createWorkspaceFile:
+      return Icons.note_add_outlined;
+    case AppCommandId.renameWorkspaceFile:
+      return Icons.drive_file_rename_outline_rounded;
+    case AppCommandId.deleteWorkspaceFile:
+      return Icons.delete_outline_rounded;
+    case AppCommandId.revealWorkspaceFile:
+      return Icons.folder_open_outlined;
     case AppCommandId.searchWorkspace:
       return Icons.search_rounded;
     case AppCommandId.runBuild:

@@ -30,6 +30,10 @@ enum AppCommandId {
   collectAgentCodingCheckpoint,
   collectProjectLanguageContext,
   openWorkspaceFile,
+  createWorkspaceFile,
+  renameWorkspaceFile,
+  deleteWorkspaceFile,
+  revealWorkspaceFile,
   searchWorkspace,
   runBuild,
   formatActiveDocument,
@@ -58,6 +62,7 @@ enum AppCommandCategory {
   sourceControl,
   agentCoding,
   navigation,
+  workspace,
   refactor,
   debug,
   module,
@@ -78,6 +83,7 @@ extension AppCommandCategoryX on AppCommandCategory {
       AppCommandCategory.sourceControl => 'source-control',
       AppCommandCategory.agentCoding => 'agent-coding',
       AppCommandCategory.navigation => 'navigation',
+      AppCommandCategory.workspace => 'workspace',
       AppCommandCategory.refactor => 'refactor',
       AppCommandCategory.debug => 'debug',
       AppCommandCategory.module => 'module',
@@ -89,18 +95,19 @@ extension AppCommandCategoryX on AppCommandCategory {
 extension AppCommandIdX on AppCommandId {
   AppCommandCategory get category {
     return switch (this) {
-      AppCommandId.save || AppCommandId.saveAll =>
-        AppCommandCategory.persistence,
+      AppCommandId.save ||
+      AppCommandId.saveAll => AppCommandCategory.persistence,
       AppCommandId.run => AppCommandCategory.execution,
-      AppCommandId.fetchDependencies || AppCommandId.vendorDependencies =>
-        AppCommandCategory.dependency,
+      AppCommandId.fetchDependencies ||
+      AppCommandId.vendorDependencies => AppCommandCategory.dependency,
       AppCommandId.useActiveCompiler ||
       AppCommandId.pinActiveCompiler ||
       AppCommandId.clearPinnedCompiler ||
       AppCommandId.selectClangCppVersion => AppCommandCategory.toolchain,
-      AppCommandId.packProject || AppCommandId.preparePublish =>
-        AppCommandCategory.deployment,
-      AppCommandId.showRuntime || AppCommandId.showAgent ||
+      AppCommandId.packProject ||
+      AppCommandId.preparePublish => AppCommandCategory.deployment,
+      AppCommandId.showRuntime ||
+      AppCommandId.showAgent ||
       AppCommandId.showDebug => AppCommandCategory.surface,
       AppCommandId.nextDiagnostic ||
       AppCommandId.previousDiagnostic ||
@@ -108,8 +115,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.previewQuickFix ||
       AppCommandId.refreshWorkspaceDiagnostics =>
         AppCommandCategory.diagnostics,
-      AppCommandId.refreshLanguageService =>
-        AppCommandCategory.languageService,
+      AppCommandId.refreshLanguageService => AppCommandCategory.languageService,
       AppCommandId.refreshSourceControl ||
       AppCommandId.previewSourceControlDiff => AppCommandCategory.sourceControl,
       AppCommandId.collectAgentCodingCheckpoint ||
@@ -120,6 +126,10 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.goToDefinition ||
       AppCommandId.nextReference ||
       AppCommandId.previousReference => AppCommandCategory.navigation,
+      AppCommandId.createWorkspaceFile ||
+      AppCommandId.renameWorkspaceFile ||
+      AppCommandId.deleteWorkspaceFile ||
+      AppCommandId.revealWorkspaceFile => AppCommandCategory.workspace,
       AppCommandId.renameSymbol ||
       AppCommandId.safeDelete ||
       AppCommandId.inlineVariable => AppCommandCategory.refactor,
@@ -472,6 +482,42 @@ class StyioCommandRegistry {
       inputLabel: 'Workspace file path',
     ),
     AppCommandDescriptor(
+      id: AppCommandId.createWorkspaceFile,
+      label: 'Create Workspace File',
+      shortcutHint: 'Route',
+      description:
+          'Create a workspace file through the File Explorer operation contract.',
+      requiresInput: true,
+      inputLabel: 'New workspace file path',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.renameWorkspaceFile,
+      label: 'Rename Workspace File',
+      shortcutHint: 'Route',
+      description:
+          'Rename a workspace file through the File Explorer operation contract.',
+      requiresInput: true,
+      inputLabel: 'Current path -> next path',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.deleteWorkspaceFile,
+      label: 'Delete Workspace File',
+      shortcutHint: 'Route',
+      description:
+          'Delete a workspace file through the File Explorer operation contract.',
+      requiresInput: true,
+      inputLabel: 'Workspace file path',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.revealWorkspaceFile,
+      label: 'Reveal Workspace File',
+      shortcutHint: 'Route',
+      description:
+          'Reveal a workspace file in the File Explorer operation contract.',
+      requiresInput: true,
+      inputLabel: 'Workspace file path',
+    ),
+    AppCommandDescriptor(
       id: AppCommandId.searchWorkspace,
       label: 'Search Workspace',
       shortcutHint: 'Route',
@@ -592,9 +638,8 @@ class StyioCommandRegistry {
     };
   }
 
-  static Iterable<AppCommandDescriptor> get executionCommands => commands.where(
-    (command) => command.id == AppCommandId.run,
-  );
+  static Iterable<AppCommandDescriptor> get executionCommands =>
+      commands.where((command) => command.id == AppCommandId.run);
 
   static Iterable<AppCommandDescriptor> get persistenceCommands =>
       commandsForCategory(AppCommandCategory.persistence);
@@ -630,6 +675,9 @@ class StyioCommandRegistry {
 
   static Iterable<AppCommandDescriptor> get navigationCommands =>
       commandsForCategory(AppCommandCategory.navigation);
+
+  static Iterable<AppCommandDescriptor> get workspaceFileCommands =>
+      commandsForCategory(AppCommandCategory.workspace);
 
   static Iterable<AppCommandDescriptor> get refactorCommands => commands.where(
     (command) => command.category == AppCommandCategory.refactor,

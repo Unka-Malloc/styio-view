@@ -2472,6 +2472,10 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.openWorkspaceFile:
+      case AppCommandId.createWorkspaceFile:
+      case AppCommandId.renameWorkspaceFile:
+      case AppCommandId.deleteWorkspaceFile:
+      case AppCommandId.revealWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
       case AppCommandId.nextReference:
@@ -2539,6 +2543,10 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.openWorkspaceFile:
+      case AppCommandId.createWorkspaceFile:
+      case AppCommandId.renameWorkspaceFile:
+      case AppCommandId.deleteWorkspaceFile:
+      case AppCommandId.revealWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.goToDefinition:
       case AppCommandId.nextReference:
@@ -5054,6 +5062,14 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.openSettings:
         appendLog('Settings route is reserved for M7 theme/profile system.');
         return;
+      case AppCommandId.createWorkspaceFile:
+      case AppCommandId.renameWorkspaceFile:
+      case AppCommandId.deleteWorkspaceFile:
+      case AppCommandId.revealWorkspaceFile:
+        appendLog(
+          '${StyioCommandRegistry.descriptorFor(commandId).label} requires a File Explorer dialog route.',
+        );
+        return;
     }
   }
 
@@ -5121,6 +5137,10 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
+      case AppCommandId.createWorkspaceFile:
+      case AppCommandId.renameWorkspaceFile:
+      case AppCommandId.deleteWorkspaceFile:
+      case AppCommandId.revealWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.runBuild:
       case AppCommandId.formatActiveDocument:

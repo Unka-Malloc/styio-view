@@ -113,6 +113,10 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
+      case AppCommandId.createWorkspaceFile:
+      case AppCommandId.renameWorkspaceFile:
+      case AppCommandId.deleteWorkspaceFile:
+      case AppCommandId.revealWorkspaceFile:
       case AppCommandId.runBuild:
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:

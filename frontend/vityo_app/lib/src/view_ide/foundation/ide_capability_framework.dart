@@ -461,9 +461,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
-              'WorkspaceFileOperationService provides create, rename, delete, and reveal contracts backed by WorkspaceDocumentStore and WorkspaceController synchronization. WorkspaceFileExplorerController exposes a file tree snapshot, unified explorer actions, restored expanded/selected/revealed state, sort preferences, Foundation DataStore-backed explorer state persistence, and normalized File System Manager discovery results.',
+              'WorkspaceFileOperationService provides create, rename, delete, and reveal contracts backed by WorkspaceDocumentStore and WorkspaceController synchronization. WorkspaceFileExplorerController exposes a file tree snapshot, unified explorer actions, command palette file operation contributions, restored expanded/selected/revealed state, sort preferences, Foundation DataStore-backed explorer state persistence, and normalized File System Manager discovery results.',
           todo:
-              'TODO: connect command palette actions, confirmation dialogs, richer file tree UI, and live File System Manager discovery/watch bindings.',
+              'TODO: bind command palette file actions to concrete dialogs, richer file tree UI, and live File System Manager discovery/watch bindings.',
           references: <String>[
             'VS Code Explorer view',
             'IntelliJ Project tool window',

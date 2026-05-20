@@ -4,6 +4,7 @@ import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_configurator.dart';
+import 'package:vityo_app/src/agent/agent_provider_registry.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -57,6 +58,26 @@ void main() {
               savedProfiles.add(profile);
             },
         createAdapter: (_) async => adapter,
+        selectProvider: (profile) {
+          expect(profile.profileId, 'cloud');
+          return AgentProviderSelectionPlan(
+            status: AgentProviderSelectionStatus.ready,
+            route: profile.endpoint.route,
+            protocol: profile.endpoint.protocol,
+            requiresCredential: profile.endpoint.requiresCredential,
+            selectedProvider: const AgentProviderRegistrationManifest(
+              providerId: 'cloud',
+              displayName: 'Cloud Provider',
+              kind: AgentProviderKind.cloudOpenAICompatible,
+              priority: 10,
+              supportsCodePatch: true,
+              supportedRoutes: <String>['web-hosted'],
+              supportedProtocols: <String>['openai-compatible'],
+              capabilities: <String>['plan', 'code_patch'],
+            ),
+            candidates: const <AgentProviderRegistrationManifest>[],
+          );
+        },
         resolveExecution: (profile) async {
           expect(profile.profileId, 'cloud');
           return executionResolution;
@@ -105,6 +126,8 @@ void main() {
         'Agent provider profile saved and mounted.',
       );
       expect(controller.providerExecutionResolution, same(executionResolution));
+      expect(result.selectionPlan?.ready, isTrue);
+      expect(result.selectionPlan?.selectedProvider?.providerId, 'cloud');
       expect(result.executionResolution, same(executionResolution));
     },
   );

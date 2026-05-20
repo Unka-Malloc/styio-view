@@ -22,6 +22,9 @@ typedef AgentProviderExecutionResolver =
       AgentPromptProfile profile,
     );
 
+typedef AgentProviderSelectionPlanner =
+    AgentProviderSelectionPlan Function(AgentPromptProfile profile);
+
 typedef AgentPromptProfileSync =
     Future<void> Function({
       required String workspaceId,
@@ -45,6 +48,7 @@ class AgentProviderConfigurationResult {
     required this.adapterId,
     required this.message,
     this.synced = false,
+    this.selectionPlan,
     this.executionResolution,
   });
 
@@ -55,6 +59,7 @@ class AgentProviderConfigurationResult {
   final String adapterId;
   final String message;
   final bool synced;
+  final AgentProviderSelectionPlan? selectionPlan;
   final AgentProviderExecutionResolution? executionResolution;
 }
 
@@ -63,11 +68,13 @@ class AgentProviderConfigurator {
     required this.workspaceId,
     required AgentPromptProfileSaver saveProfile,
     required AgentProviderAdapterCreator createAdapter,
+    AgentProviderSelectionPlanner? selectProvider,
     AgentProviderExecutionResolver? resolveExecution,
     AgentPromptProfileSync? syncProfile,
     AgentBearerTokenSaver? saveBearerToken,
   }) : _saveProfile = saveProfile,
        _createAdapter = createAdapter,
+       _selectProvider = selectProvider,
        _resolveExecution = resolveExecution,
        _syncProfile = syncProfile,
        _saveBearerToken = saveBearerToken;
@@ -90,6 +97,7 @@ class AgentProviderConfigurator {
         );
       },
       createAdapter: registry.createAdapter,
+      selectProvider: registry.selectionPlan,
       resolveExecution: providerFactory.resolveExecution,
       saveBearerToken:
           ({
@@ -123,6 +131,7 @@ class AgentProviderConfigurator {
   final String workspaceId;
   final AgentPromptProfileSaver _saveProfile;
   final AgentProviderAdapterCreator _createAdapter;
+  final AgentProviderSelectionPlanner? _selectProvider;
   final AgentProviderExecutionResolver? _resolveExecution;
   final AgentPromptProfileSync? _syncProfile;
   final AgentBearerTokenSaver? _saveBearerToken;
@@ -146,6 +155,7 @@ class AgentProviderConfigurator {
       key: key,
       profile: profileToSave,
     );
+    final selectionPlan = _selectionPlanFor(profileToSave);
     final executionResolution = await _resolveExecutionFor(profileToSave);
     try {
       final adapter = await _createAdapter(profileToSave);
@@ -166,6 +176,7 @@ class AgentProviderConfigurator {
         adapterId: adapter.adapterId,
         message: message,
         synced: synced,
+        selectionPlan: selectionPlan,
         executionResolution: executionResolution,
       );
     } on Object catch (error) {
@@ -187,8 +198,21 @@ class AgentProviderConfigurator {
         adapterId: adapter.adapterId,
         message: message,
         synced: synced,
+        selectionPlan: selectionPlan,
         executionResolution: executionResolution,
       );
+    }
+  }
+
+  AgentProviderSelectionPlan? _selectionPlanFor(AgentPromptProfile profile) {
+    final selectProvider = _selectProvider;
+    if (selectProvider == null) {
+      return null;
+    }
+    try {
+      return selectProvider(profile);
+    } on Object {
+      return null;
     }
   }
 

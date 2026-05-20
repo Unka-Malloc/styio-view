@@ -343,6 +343,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('Styio language provider readiness context'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('checkpoint result prompt replay'),
     );
     expect(

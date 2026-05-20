@@ -32,6 +32,82 @@ class AgentCodingSkillCatalog {
 
   static const List<AgentCodingSkill> defaultSkills = <AgentCodingSkill>[
     AgentCodingSkill(
+      skillId: 'styio-language-service-truth',
+      title: 'Styio Language Service Truth',
+      appliesTo: <String>[
+        'Styio',
+        'StyioService',
+        'syntax diagnostics',
+        'semantic facts',
+        'language service',
+      ],
+      toolchainDefaults: <String>[
+        'Treat StyioService as the source of truth for lexing, parsing, diagnostics, semantic facts, references, completion, hover, and semantic tokens.',
+        'Prefer a versioned Styio syntax contract or embedded Styio parser facade over Vityo-side grammar guesses.',
+      ],
+      instructions: <String>[
+        'Do not invent Styio syntax when adding examples, tests, documentation, or code actions.',
+        'Keep Vityo responsible for IDE workflow, UI rendering, provider orchestration, and workspace edit application.',
+        'Mark unimplemented Styio semantic details as TODO instead of encoding speculative parser rules in Vityo.',
+      ],
+      validationHints: <String>[
+        'Validate Styio fixtures through the configured styio-nightly parser or the embedded StyioService syntax API when available.',
+        'Keep Styio language tests in external fixture files with true/false expectations encoded in filenames.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'styio-ide-feature-loop',
+      title: 'Styio IDE Feature Loop',
+      appliesTo: <String>[
+        'Styio',
+        'completion',
+        'hover',
+        'diagnostics',
+        'semantic tokens',
+        'definition',
+        'references',
+        'rename',
+      ],
+      toolchainDefaults: <String>[
+        'Build completion, hover, diagnostics, and semantic highlighting from SemanticSnapshot and resolved language facts.',
+        'Use ResolvedElement and ResolvedReference for definition, references, rename, code action, and hover ownership.',
+      ],
+      instructions: <String>[
+        'Keep feature providers thin: adapt StyioService facts to Vityo UI contracts without reimplementing language semantics.',
+        'Prefer provider registry wiring for replaceable language implementations and syntax-contract upgrades.',
+        'Separate raw language facts from product presentation such as sorting, filtering, widgets, and theme colors.',
+      ],
+      validationHints: <String>[
+        'Cover every feature adapter with a test that asserts the Vityo contract shape, not only raw Styio text.',
+        'Use fixture-backed diagnostics and semantic snapshots when language rules are involved.',
+      ],
+    ),
+    AgentCodingSkill(
+      skillId: 'styio-fixture-confidence-matrix',
+      title: 'Styio Fixture Confidence Matrix',
+      appliesTo: <String>[
+        'Styio',
+        'fixture',
+        'parser test',
+        'syntax validation',
+        'true positive',
+        'false negative',
+      ],
+      toolchainDefaults: <String>[
+        'Track expected parser outcome and actual parser result separately.',
+        'Use true.styio and false.styio filename markers to make expected outcomes machine-readable.',
+      ],
+      instructions: <String>[
+        'Classify syntax fixture results as true positive, true negative, false positive, or false negative.',
+        'Treat false positives and false negatives as gate failures unless the fixture is explicitly marked TODO.',
+        'Keep the confidence matrix separate from normal editor rendering and product UI code.',
+      ],
+      validationHints: <String>[
+        'Run the batch fixture gate after changing Styio examples, language fixtures, or syntax-validation adapters.',
+        'Report the exact fixture filename, expectation, actual result, and confidence class for every mismatch.',
+      ],
+    ),
+    AgentCodingSkill(
       skillId: 'cpp-clang-toolchain-defaults',
       title: 'C++ Clang Toolchain Defaults',
       appliesTo: <String>['C++', 'C', 'Styio compiler', 'native build tooling'],

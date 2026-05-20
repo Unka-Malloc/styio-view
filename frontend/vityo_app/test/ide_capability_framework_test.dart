@@ -213,7 +213,9 @@ void main() {
     );
     expect(
       entriesById['interaction.language-service-status']?.summary,
-      contains('Styio language provider readiness'),
+      contains(
+        'Styio language provider readiness derived from StyioService capability snapshots',
+      ),
     );
     expect(
       entriesById['interaction.source-control']?.status,

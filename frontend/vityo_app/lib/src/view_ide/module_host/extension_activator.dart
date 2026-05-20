@@ -1,3 +1,4 @@
+import '../foundation/foundation.dart';
 import 'extension_contribution_router.dart';
 import 'extension_manifest_contract.dart';
 
@@ -29,6 +30,15 @@ class ExtensionActivationDecision {
     required this.message,
   });
 
+  factory ExtensionActivationDecision.fromJson(Map<String, Object?> json) {
+    return ExtensionActivationDecision(
+      extensionId: json['extensionId'] as String? ?? '',
+      event: json['event'] as String? ?? '',
+      status: _activationDecisionStatusFromWire(json['status'] as String?),
+      message: json['message'] as String? ?? '',
+    );
+  }
+
   final String extensionId;
   final String event;
   final ExtensionActivationDecisionStatus status;
@@ -53,6 +63,16 @@ class ExtensionActivationSession {
     required this.activatedAt,
     required this.decisions,
   });
+
+  factory ExtensionActivationSession.fromJson(Map<String, Object?> json) {
+    return ExtensionActivationSession(
+      event: json['event'] as String? ?? '',
+      activatedAt:
+          DateTime.tryParse(json['activatedAt'] as String? ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      decisions: _activationDecisionsFromJson(json['decisions']),
+    );
+  }
 
   final String event;
   final DateTime activatedAt;
@@ -83,6 +103,133 @@ class ExtensionActivationSession {
           .map((decision) => decision.toJson())
           .toList(growable: false),
     };
+  }
+}
+
+class ExtensionActivationHistory {
+  ExtensionActivationHistory({
+    required this.workspaceId,
+    this.sessions = const <ExtensionActivationSession>[],
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? DateTime.now().toUtc();
+
+  factory ExtensionActivationHistory.fromJson(Map<String, Object?> json) {
+    return ExtensionActivationHistory(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      updatedAt:
+          DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      sessions: _activationSessionsFromJson(json['sessions']),
+    );
+  }
+
+  final String workspaceId;
+  final List<ExtensionActivationSession> sessions;
+  final DateTime updatedAt;
+
+  ExtensionActivationHistory append(
+    ExtensionActivationSession session, {
+    int maxEntries = 50,
+    DateTime? updatedAt,
+  }) {
+    final nextSessions = <ExtensionActivationSession>[session, ...sessions];
+    return ExtensionActivationHistory(
+      workspaceId: workspaceId,
+      sessions: nextSessions.take(maxEntries).toList(growable: false),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'updatedAt': updatedAt.toIso8601String(),
+      'sessionCount': sessions.length,
+      'sessions': sessions
+          .map((session) => session.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+class ExtensionActivationHistoryStore {
+  ExtensionActivationHistoryStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'extension.activation-history',
+             layer: 'extension',
+             stateFamily: 'extension-activation',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const ExtensionActivationHistoryStore({
+    required FoundationDataStoreOwner owner,
+  }) : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'extension.activation-history';
+  static const String _key = 'sessions';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<void> saveHistory(ExtensionActivationHistory history) {
+    return _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: history.toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: history.workspaceId,
+    );
+  }
+
+  Future<ExtensionActivationHistory> readHistory({
+    required String workspaceId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return ExtensionActivationHistory(workspaceId: workspaceId);
+    }
+    final history = ExtensionActivationHistory.fromJson(value);
+    return history.workspaceId.isEmpty
+        ? ExtensionActivationHistory(
+            workspaceId: workspaceId,
+            sessions: history.sessions,
+            updatedAt: history.updatedAt,
+          )
+        : history;
+  }
+
+  Future<ExtensionActivationHistory> appendSession({
+    required String workspaceId,
+    required ExtensionActivationSession session,
+    int maxEntries = 50,
+  }) async {
+    final current = await readHistory(workspaceId: workspaceId);
+    final next = current.append(session, maxEntries: maxEntries);
+    await saveHistory(next);
+    return next;
+  }
+
+  Future<bool> deleteHistory({required String workspaceId}) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
   }
 }
 
@@ -155,4 +302,41 @@ class ExtensionActivator {
       message: 'Extension ${manifest.extensionId} activated for $event.',
     );
   }
+}
+
+ExtensionActivationDecisionStatus _activationDecisionStatusFromWire(
+  String? value,
+) {
+  return switch (value) {
+    'blocked-untrusted' => ExtensionActivationDecisionStatus.blockedUntrusted,
+    _ => ExtensionActivationDecisionStatus.activated,
+  };
+}
+
+List<ExtensionActivationDecision> _activationDecisionsFromJson(Object? value) {
+  if (value is! List) {
+    return const <ExtensionActivationDecision>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (item) => ExtensionActivationDecision.fromJson(
+          item.map((key, value) => MapEntry(key.toString(), value)),
+        ),
+      )
+      .toList(growable: false);
+}
+
+List<ExtensionActivationSession> _activationSessionsFromJson(Object? value) {
+  if (value is! List) {
+    return const <ExtensionActivationSession>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (item) => ExtensionActivationSession.fromJson(
+          item.map((key, value) => MapEntry(key.toString(), value)),
+        ),
+      )
+      .toList(growable: false);
 }

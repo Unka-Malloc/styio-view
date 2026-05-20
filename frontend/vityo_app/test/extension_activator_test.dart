@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
 
 void main() {
@@ -104,4 +108,60 @@ void main() {
       hasLength(1),
     );
   });
+
+  test(
+    'extension activation history persists through Foundation DataStore',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_extension_activation_history_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final store = ExtensionActivationHistoryStore.fromDataStore(
+        dataStore: FoundationDataStore(
+          resourceCoordinator: FoundationResourceCoordinator(
+            resourceManager: resourceManager,
+            fileSystemManager: fileSystemManager,
+          ),
+          fileSystemManager: fileSystemManager,
+        ),
+      );
+      final session = ExtensionActivationSession(
+        event: 'onStartupFinished',
+        activatedAt: DateTime.utc(2026, 5, 20),
+        decisions: const <ExtensionActivationDecision>[
+          ExtensionActivationDecision(
+            extensionId: 'styio.language',
+            event: 'onStartupFinished',
+            status: ExtensionActivationDecisionStatus.activated,
+            message: 'activated',
+          ),
+        ],
+      );
+
+      final history = await store.appendSession(
+        workspaceId: 'demo',
+        session: session,
+      );
+      final restored = await store.readHistory(workspaceId: 'demo');
+
+      expect(history.sessions.single.event, 'onStartupFinished');
+      expect(restored.sessions.single.activatedExtensionIds, <String>[
+        'styio.language',
+      ]);
+      expect(restored.toJson()['sessionCount'], 1);
+      expect(await store.deleteHistory(workspaceId: 'demo'), isTrue);
+      expect((await store.readHistory(workspaceId: 'demo')).sessions, isEmpty);
+    },
+  );
 }

@@ -299,6 +299,47 @@ enum CredentialInjectionStatus {
   emptySecret,
 }
 
+CredentialInjectionStatus credentialInjectionStatusFromWireValue(
+  String? value,
+) {
+  return switch (value) {
+    'injected' => CredentialInjectionStatus.injected,
+    'missingCredential' => CredentialInjectionStatus.missingCredential,
+    'expiredCredential' => CredentialInjectionStatus.expiredCredential,
+    'kindMismatch' => CredentialInjectionStatus.kindMismatch,
+    'emptySecret' => CredentialInjectionStatus.emptySecret,
+    _ => CredentialInjectionStatus.missingCredential,
+  };
+}
+
+enum CredentialAccessPurpose {
+  injection,
+  providerConnection,
+  toolchainRegistry,
+  remoteService,
+  unknown,
+}
+
+extension CredentialAccessPurposeX on CredentialAccessPurpose {
+  String get wireValue => switch (this) {
+    CredentialAccessPurpose.injection => 'injection',
+    CredentialAccessPurpose.providerConnection => 'provider-connection',
+    CredentialAccessPurpose.toolchainRegistry => 'toolchain-registry',
+    CredentialAccessPurpose.remoteService => 'remote-service',
+    CredentialAccessPurpose.unknown => 'unknown',
+  };
+}
+
+CredentialAccessPurpose credentialAccessPurposeFromWireValue(String? value) {
+  return switch (value) {
+    'injection' => CredentialAccessPurpose.injection,
+    'provider-connection' => CredentialAccessPurpose.providerConnection,
+    'toolchain-registry' => CredentialAccessPurpose.toolchainRegistry,
+    'remote-service' => CredentialAccessPurpose.remoteService,
+    _ => CredentialAccessPurpose.unknown,
+  };
+}
+
 enum CredentialStorageProtection {
   volatileMemory,
   foundationDataStore,
@@ -539,52 +580,298 @@ class CredentialInjectionBatch {
   }
 }
 
+class CredentialAccessAuditEntry {
+  const CredentialAccessAuditEntry({
+    required this.requestedAt,
+    required this.requesterId,
+    required this.purpose,
+    required this.targetName,
+    required this.reference,
+    required this.status,
+    this.redactedValue,
+    this.message,
+  });
+
+  final DateTime requestedAt;
+  final String requesterId;
+  final CredentialAccessPurpose purpose;
+  final String targetName;
+  final CredentialReference reference;
+  final CredentialInjectionStatus status;
+  final String? redactedValue;
+  final String? message;
+
+  factory CredentialAccessAuditEntry.fromJson(Map<String, Object?> json) {
+    final referenceJson = json['reference'];
+    return CredentialAccessAuditEntry(
+      requestedAt:
+          _dateTimeFromJson(json['requestedAt']) ?? DateTime.now().toUtc(),
+      requesterId: json['requesterId'] as String? ?? 'unknown',
+      purpose: credentialAccessPurposeFromWireValue(json['purpose'] as String?),
+      targetName: json['targetName'] as String? ?? 'credential',
+      reference: referenceJson is Map<String, Object?>
+          ? CredentialReference.fromJson(referenceJson)
+          : referenceJson is Map
+          ? CredentialReference.fromJson(
+              referenceJson.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : CredentialReference(
+              key: CredentialDataStoreKey(
+                namespace: json['namespace'] as String? ?? 'default',
+                name: json['name'] as String? ?? 'credential',
+                scope: credentialScopeFromWireValue(json['scope'] as String?),
+                targetId: json['targetId'] as String?,
+              ),
+              kind: credentialKindFromWireValue(json['kind'] as String?),
+            ),
+      status: credentialInjectionStatusFromWireValue(json['status'] as String?),
+      redactedValue: json['redactedValue'] as String?,
+      message: json['message'] as String?,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'requestedAt': requestedAt.toIso8601String(),
+      'requesterId': requesterId,
+      'purpose': purpose.wireValue,
+      'targetName': targetName,
+      'reference': reference.toJson(),
+      'status': status.name,
+      if (redactedValue != null) 'redactedValue': redactedValue,
+      if (message != null) 'message': message,
+    };
+  }
+}
+
+class CredentialAccessAuditSnapshot {
+  const CredentialAccessAuditSnapshot({required this.entries});
+
+  final List<CredentialAccessAuditEntry> entries;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+    };
+  }
+}
+
+abstract class CredentialAccessAuditStore {
+  Future<void> append(CredentialAccessAuditEntry entry);
+
+  Future<List<CredentialAccessAuditEntry>> list({
+    CredentialAccessPurpose? purpose,
+    String? requesterId,
+  });
+
+  Future<void> clear();
+
+  Future<CredentialAccessAuditSnapshot> snapshot() async {
+    return CredentialAccessAuditSnapshot(entries: await list());
+  }
+}
+
+class InMemoryCredentialAccessAuditStore extends CredentialAccessAuditStore {
+  final List<CredentialAccessAuditEntry> _entries =
+      <CredentialAccessAuditEntry>[];
+
+  @override
+  Future<void> append(CredentialAccessAuditEntry entry) async {
+    _entries.add(entry);
+  }
+
+  @override
+  Future<List<CredentialAccessAuditEntry>> list({
+    CredentialAccessPurpose? purpose,
+    String? requesterId,
+  }) async {
+    return _entries
+        .where((entry) {
+          final purposeMatches = purpose == null || entry.purpose == purpose;
+          final requesterMatches =
+              requesterId == null || entry.requesterId == requesterId;
+          return purposeMatches && requesterMatches;
+        })
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> clear() async {
+    _entries.clear();
+  }
+}
+
+class FoundationCredentialAccessAuditStore extends CredentialAccessAuditStore {
+  FoundationCredentialAccessAuditStore({
+    required FoundationDataStore dataStore,
+    this.namespaceName = 'configuration.credential-access-audit',
+  }) : _dataStoreOwner = FoundationDataStoreOwner(
+         descriptor: FoundationDataStoreOwnerDescriptor(
+           ownerId: 'environment.configuration.credential-access-audit',
+           layer: 'environment',
+           stateFamily: 'credential-access-audit',
+           allowedNamespaces: <String>{namespaceName},
+         ),
+         dataStore: dataStore,
+       );
+
+  FoundationCredentialAccessAuditStore.withOwner({
+    required FoundationDataStoreOwner dataStoreOwner,
+    this.namespaceName = 'configuration.credential-access-audit',
+  }) : _dataStoreOwner = dataStoreOwner;
+
+  static const String _recordKey = 'credential-access-audit-records';
+
+  final FoundationDataStoreOwner _dataStoreOwner;
+  final String namespaceName;
+
+  @override
+  Future<void> append(CredentialAccessAuditEntry entry) async {
+    await _dataStoreOwner.editJson(
+      namespaceName: namespaceName,
+      key: _recordKey,
+      schemaVersion: 1,
+      scope: FoundationResourceScope.user,
+      edit: (current) {
+        final entries = _entriesFromValue(current);
+        entries.add(entry);
+        return FoundationDataStoreEditDecision.write(_entriesToValue(entries));
+      },
+    );
+  }
+
+  @override
+  Future<List<CredentialAccessAuditEntry>> list({
+    CredentialAccessPurpose? purpose,
+    String? requesterId,
+  }) async {
+    final entries = _entriesFromValue(
+      await _dataStoreOwner.readJson(
+        namespaceName: namespaceName,
+        key: _recordKey,
+        schemaVersion: 1,
+        scope: FoundationResourceScope.user,
+      ),
+    );
+    return entries
+        .where((entry) {
+          final purposeMatches = purpose == null || entry.purpose == purpose;
+          final requesterMatches =
+              requesterId == null || entry.requesterId == requesterId;
+          return purposeMatches && requesterMatches;
+        })
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> clear() async {
+    await _dataStoreOwner.editJson(
+      namespaceName: namespaceName,
+      key: _recordKey,
+      schemaVersion: 1,
+      scope: FoundationResourceScope.user,
+      edit: (current) => FoundationDataStoreEditDecision.delete,
+    );
+  }
+
+  List<CredentialAccessAuditEntry> _entriesFromValue(
+    Map<String, Object?>? value,
+  ) {
+    final entriesJson = value?['entries'];
+    if (entriesJson is! List) {
+      return <CredentialAccessAuditEntry>[];
+    }
+    final entries = <CredentialAccessAuditEntry>[];
+    for (final entryJson in entriesJson) {
+      final json = _mapFromJson(entryJson);
+      if (json == null) {
+        continue;
+      }
+      entries.add(CredentialAccessAuditEntry.fromJson(json));
+    }
+    return entries;
+  }
+
+  Map<String, Object?> _entriesToValue(
+    List<CredentialAccessAuditEntry> entries,
+  ) {
+    return <String, Object?>{
+      'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+    };
+  }
+
+  Map<String, Object?>? _mapFromJson(Object? value) {
+    if (value is Map<String, Object?>) {
+      return value;
+    }
+    if (value is Map) {
+      return value.map(
+        (key, value) => MapEntry<String, Object?>(key.toString(), value),
+      );
+    }
+    return null;
+  }
+}
+
 class CredentialSecretInjector {
-  const CredentialSecretInjector({required this.credentialDataStore});
+  const CredentialSecretInjector({
+    required this.credentialDataStore,
+    this.accessAuditStore,
+    this.requesterId = 'credential-secret-injector',
+    this.accessPurpose = CredentialAccessPurpose.injection,
+  });
 
   final CredentialDataStore credentialDataStore;
+  final CredentialAccessAuditStore? accessAuditStore;
+  final String requesterId;
+  final CredentialAccessPurpose accessPurpose;
 
   Future<CredentialInjectionResult> inject(
     CredentialInjectionBinding binding,
   ) async {
     final record = await credentialDataStore.read(binding.reference.key);
     final metadata = await _metadataFor(binding.reference.key);
+    late final CredentialInjectionResult result;
     if (record == null) {
-      return CredentialInjectionResult(
+      result = CredentialInjectionResult(
         binding: binding,
         status: metadata?.expired == true
             ? CredentialInjectionStatus.expiredCredential
             : CredentialInjectionStatus.missingCredential,
         metadata: metadata,
       );
-    }
-    if (record.kind != binding.reference.kind) {
-      return CredentialInjectionResult(
+    } else if (record.kind != binding.reference.kind) {
+      result = CredentialInjectionResult(
         binding: binding,
         status: CredentialInjectionStatus.kindMismatch,
         metadata: record.toMetadata(),
       );
-    }
-    final secret = record.secretValue.trim();
-    if (secret.isEmpty) {
-      return CredentialInjectionResult(
+    } else if (record.secretValue.trim().isEmpty) {
+      result = CredentialInjectionResult(
         binding: binding,
         status: CredentialInjectionStatus.emptySecret,
         metadata: record.toMetadata(),
       );
+    } else {
+      final secret = record.secretValue.trim();
+      final redacted = _redactSecret(secret);
+      result = CredentialInjectionResult(
+        binding: binding,
+        status: CredentialInjectionStatus.injected,
+        injectedValue: CredentialInjectedValue(
+          targetName: binding.targetName,
+          reference: binding.reference,
+          value: '${binding.valuePrefix}$secret',
+          redactedValue: '${binding.valuePrefix}$redacted',
+        ),
+        metadata: record.toMetadata(),
+      );
     }
-    final redacted = _redactSecret(secret);
-    return CredentialInjectionResult(
-      binding: binding,
-      status: CredentialInjectionStatus.injected,
-      injectedValue: CredentialInjectedValue(
-        targetName: binding.targetName,
-        reference: binding.reference,
-        value: '${binding.valuePrefix}$secret',
-        redactedValue: '${binding.valuePrefix}$redacted',
-      ),
-      metadata: record.toMetadata(),
-    );
+    await _recordAccess(result);
+    return result;
   }
 
   String _redactSecret(String value) {
@@ -602,6 +889,26 @@ class CredentialSecretInjector {
       results.add(await inject(binding));
     }
     return CredentialInjectionBatch(results: results);
+  }
+
+  Future<void> _recordAccess(CredentialInjectionResult result) async {
+    final store = accessAuditStore;
+    if (store == null) {
+      return;
+    }
+    await store.append(
+      CredentialAccessAuditEntry(
+        requestedAt: DateTime.now().toUtc(),
+        requesterId: requesterId,
+        purpose: accessPurpose,
+        targetName: result.binding.targetName,
+        reference: result.binding.reference,
+        status: result.status,
+        redactedValue:
+            result.injectedValue?.redactedValue ??
+            result.metadata?.redactedValue,
+      ),
+    );
   }
 
   Future<CredentialMetadata?> _metadataFor(CredentialDataStoreKey key) async {

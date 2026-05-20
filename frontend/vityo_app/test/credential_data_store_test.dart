@@ -177,6 +177,7 @@ void main() {
     'credential secret injector resolves values without serializing secrets',
     () async {
       final store = InMemoryCredentialDataStore();
+      final auditStore = InMemoryCredentialAccessAuditStore();
       const key = CredentialDataStoreKey(
         namespace: 'agent.provider',
         name: 'openai',
@@ -195,21 +196,40 @@ void main() {
         ),
       );
 
-      final batch = await CredentialSecretInjector(credentialDataStore: store)
-          .injectAll(const <CredentialInjectionBinding>[
+      final batch =
+          await CredentialSecretInjector(
+            credentialDataStore: store,
+            accessAuditStore: auditStore,
+            requesterId: 'agent.provider.openai',
+            accessPurpose: CredentialAccessPurpose.providerConnection,
+          ).injectAll(const <CredentialInjectionBinding>[
             CredentialInjectionBinding(
               targetName: 'Authorization',
               reference: reference,
               valuePrefix: 'Bearer ',
             ),
           ]);
+      final auditSnapshot = await auditStore.snapshot();
       final jsonText = batch.toJson().toString();
+      final auditJsonText = auditSnapshot.toJson().toString();
 
       expect(batch.ready, isTrue);
       expect(batch.injectedValues['Authorization'], 'Bearer live-token-value');
       expect(batch.redactedValues['Authorization'], 'Bearer li****ue');
+      expect(auditSnapshot.entries.single.requesterId, 'agent.provider.openai');
+      expect(
+        auditSnapshot.entries.single.purpose,
+        CredentialAccessPurpose.providerConnection,
+      );
+      expect(
+        auditSnapshot.entries.single.status,
+        CredentialInjectionStatus.injected,
+      );
+      expect(auditSnapshot.entries.single.redactedValue, 'Bearer li****ue');
       expect(jsonText, contains('redactedValue'));
       expect(jsonText, isNot(contains('live-token-value')));
+      expect(auditJsonText, contains('provider-connection'));
+      expect(auditJsonText, isNot(contains('live-token-value')));
     },
   );
 
@@ -384,6 +404,69 @@ void main() {
         snapshot.toJson().toString(),
         isNot(contains('persisted-token-value')),
       );
+    },
+  );
+
+  test(
+    'foundation credential access audit store persists redacted entries only',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_foundation_credential_audit_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final coordinator = FoundationResourceCoordinator(
+        resourceManager: resourceManager,
+        fileSystemManager: fileSystemManager,
+      );
+      final foundationDataStore = FoundationDataStore(
+        resourceCoordinator: coordinator,
+        fileSystemManager: fileSystemManager,
+      );
+      final store = FoundationCredentialAccessAuditStore(
+        dataStore: foundationDataStore,
+      );
+
+      await store.append(
+        CredentialAccessAuditEntry(
+          requestedAt: DateTime.utc(2026, 5, 20, 8),
+          requesterId: 'agent.provider.openai',
+          purpose: CredentialAccessPurpose.remoteService,
+          targetName: 'Authorization',
+          reference: const CredentialReference(
+            key: CredentialDataStoreKey(
+              namespace: 'agent.provider',
+              name: 'openai',
+              scope: CredentialScope.user,
+            ),
+            kind: CredentialKind.token,
+            displayName: 'OpenAI token',
+          ),
+          status: CredentialInjectionStatus.injected,
+          redactedValue: 'Bearer li****ue',
+        ),
+      );
+      final reloaded = FoundationCredentialAccessAuditStore(
+        dataStore: foundationDataStore,
+      );
+      final entries = await reloaded.list(
+        purpose: CredentialAccessPurpose.remoteService,
+        requesterId: 'agent.provider.openai',
+      );
+      final jsonText = (await reloaded.snapshot()).toJson().toString();
+
+      expect(entries, hasLength(1));
+      expect(entries.single.targetName, 'Authorization');
+      expect(entries.single.redactedValue, 'Bearer li****ue');
+      expect(jsonText, contains('remote-service'));
+      expect(jsonText, isNot(contains('live-token-value')));
+      expect(jsonText, isNot(contains('secretValue')));
     },
   );
 }

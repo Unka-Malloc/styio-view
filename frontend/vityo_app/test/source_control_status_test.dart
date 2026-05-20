@@ -220,6 +220,47 @@ diff --git a/lib/main.styio b/lib/main.styio
     expect(snapshot.toJson()['branchCount'], 3);
   });
 
+  test('git branch action provider switches planned branches', () async {
+    SourceControlCommandRequest? capturedRequest;
+    final provider = GitSourceControlBranchActionProvider(
+      runner: (request) async {
+        capturedRequest = request;
+        return const SourceControlCommandResult(
+          exitCode: 0,
+          stdout: 'Switched to branch feature/scm\n',
+        );
+      },
+    );
+    const snapshot = SourceControlBranchSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      currentBranch: 'ai-dev',
+      branches: <String>['main', 'ai-dev', 'feature/scm'],
+    );
+
+    final plan = SourceControlBranchSwitchPlan.fromSnapshot(
+      snapshot: snapshot,
+      targetBranch: 'feature/scm',
+    );
+    final blocked = SourceControlBranchSwitchPlan.fromSnapshot(
+      snapshot: snapshot,
+      targetBranch: 'missing',
+    );
+    final result = await provider.switchBranch(
+      workspaceRoot: '/workspace/vityo',
+      plan: plan,
+    );
+
+    expect(plan.canRun, isTrue);
+    expect(plan.summary, 'switch ai-dev -> feature/scm');
+    expect(plan.toJson()['targetBranch'], 'feature/scm');
+    expect(blocked.canRun, isFalse);
+    expect(blocked.blockedReason, contains('not in the branch list'));
+    expect(result.applied, isTrue);
+    expect(result.targetBranch, 'feature/scm');
+    expect(capturedRequest?.arguments, <String>['switch', 'feature/scm']);
+    expect(result.toJson()['applied'], isTrue);
+  });
+
   test('git history provider parses log entries', () async {
     SourceControlCommandRequest? capturedRequest;
     final provider = GitSourceControlHistoryProvider(

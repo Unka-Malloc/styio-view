@@ -227,6 +227,79 @@ class SourceControlBranchSnapshot {
   }
 }
 
+class SourceControlBranchSwitchPlan {
+  const SourceControlBranchSwitchPlan({
+    required this.providerKind,
+    required this.targetBranch,
+    required this.canRun,
+    required this.summary,
+    this.currentBranch = '',
+    this.blockedReason = '',
+  });
+
+  factory SourceControlBranchSwitchPlan.fromSnapshot({
+    required SourceControlBranchSnapshot snapshot,
+    required String targetBranch,
+  }) {
+    final normalizedTarget = targetBranch.trim();
+    final blockedReason = _branchSwitchBlockedReason(
+      snapshot: snapshot,
+      targetBranch: normalizedTarget,
+    );
+    return SourceControlBranchSwitchPlan(
+      providerKind: snapshot.providerKind,
+      currentBranch: snapshot.currentBranch,
+      targetBranch: normalizedTarget,
+      canRun: blockedReason.isEmpty,
+      blockedReason: blockedReason,
+      summary: blockedReason.isEmpty
+          ? 'switch ${snapshot.currentBranch} -> $normalizedTarget'
+          : blockedReason,
+    );
+  }
+
+  final SourceControlProviderKind providerKind;
+  final String currentBranch;
+  final String targetBranch;
+  final bool canRun;
+  final String summary;
+  final String blockedReason;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerKind': providerKind.wireValue,
+      'currentBranch': currentBranch,
+      'targetBranch': targetBranch,
+      'canRun': canRun,
+      'summary': summary,
+      if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
+    };
+  }
+}
+
+class SourceControlBranchSwitchResult {
+  const SourceControlBranchSwitchResult({
+    required this.providerKind,
+    required this.targetBranch,
+    required this.applied,
+    this.message = '',
+  });
+
+  final SourceControlProviderKind providerKind;
+  final String targetBranch;
+  final bool applied;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerKind': providerKind.wireValue,
+      'targetBranch': targetBranch,
+      'applied': applied,
+      if (message.isNotEmpty) 'message': message,
+    };
+  }
+}
+
 class SourceControlHistoryEntry {
   const SourceControlHistoryEntry({
     required this.revision,
@@ -490,6 +563,17 @@ abstract class SourceControlBranchProvider {
   SourceControlProviderKind get providerKind;
 
   Future<SourceControlBranchSnapshot> branches({required String workspaceRoot});
+}
+
+abstract class SourceControlBranchActionProvider {
+  const SourceControlBranchActionProvider();
+
+  SourceControlProviderKind get providerKind;
+
+  Future<SourceControlBranchSwitchResult> switchBranch({
+    required String workspaceRoot,
+    required SourceControlBranchSwitchPlan plan,
+  });
 }
 
 abstract class SourceControlHistoryProvider {
@@ -862,6 +946,78 @@ class GitSourceControlBranchProvider extends SourceControlBranchProvider {
   }
 }
 
+class GitSourceControlBranchActionProvider
+    extends SourceControlBranchActionProvider {
+  const GitSourceControlBranchActionProvider({
+    required this.runner,
+    this.executable = 'git',
+  });
+
+  final SourceControlCommandRunner runner;
+  final String executable;
+
+  static List<String> switchArgumentsFor(String branch) {
+    return <String>['switch', branch.trim()];
+  }
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlBranchSwitchResult> switchBranch({
+    required String workspaceRoot,
+    required SourceControlBranchSwitchPlan plan,
+  }) async {
+    if (!plan.canRun) {
+      return SourceControlBranchSwitchResult(
+        providerKind: SourceControlProviderKind.git,
+        targetBranch: plan.targetBranch,
+        applied: false,
+        message: plan.blockedReason,
+      );
+    }
+    try {
+      final result = await runner(
+        SourceControlCommandRequest(
+          executable: executable,
+          arguments: switchArgumentsFor(plan.targetBranch),
+          workingDirectory: workspaceRoot,
+        ),
+      );
+      if (result.exitCode == 0) {
+        return SourceControlBranchSwitchResult(
+          providerKind: SourceControlProviderKind.git,
+          targetBranch: plan.targetBranch,
+          applied: true,
+          message: _commandSuccessMessage(
+            'Git switch',
+            stdout: result.stdout,
+            stderr: result.stderr,
+          ),
+        );
+      }
+      return SourceControlBranchSwitchResult(
+        providerKind: SourceControlProviderKind.git,
+        targetBranch: plan.targetBranch,
+        applied: false,
+        message: _commandFailureMessage(
+          'Git switch',
+          result.exitCode,
+          stderr: result.stderr,
+          stdout: result.stdout,
+        ),
+      );
+    } on Object catch (error) {
+      return SourceControlBranchSwitchResult(
+        providerKind: SourceControlProviderKind.git,
+        targetBranch: plan.targetBranch,
+        applied: false,
+        message: 'Git switch unavailable: $error',
+      );
+    }
+  }
+}
+
 class GitSourceControlHistoryProvider extends SourceControlHistoryProvider {
   const GitSourceControlHistoryProvider({
     required this.runner,
@@ -979,6 +1135,28 @@ String _commandSuccessMessage(
     return '$commandLabel applied.';
   }
   return '$commandLabel applied: $detail';
+}
+
+String _branchSwitchBlockedReason({
+  required SourceControlBranchSnapshot snapshot,
+  required String targetBranch,
+}) {
+  if (!snapshot.available) {
+    return snapshot.message.isEmpty
+        ? 'Source control branches are unavailable.'
+        : snapshot.message;
+  }
+  if (targetBranch.isEmpty) {
+    return 'Source control branch switch requires a target branch.';
+  }
+  if (snapshot.currentBranch == targetBranch) {
+    return 'Source control branch switch skipped: already on $targetBranch.';
+  }
+  if (snapshot.branches.isNotEmpty &&
+      !snapshot.branches.contains(targetBranch)) {
+    return 'Source control branch switch blocked: $targetBranch is not in the branch list.';
+  }
+  return '';
 }
 
 class GitPorcelainStatusParser {

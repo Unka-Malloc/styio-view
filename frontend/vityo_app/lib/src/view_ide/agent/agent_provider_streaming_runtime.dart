@@ -1,5 +1,6 @@
 import '../runtime/runtime.dart';
 import 'agent_provider_adapter.dart';
+import 'agent_provider_retry_policy.dart';
 
 class AgentProviderStreamRuntimeOutputBinding {
   const AgentProviderStreamRuntimeOutputBinding({
@@ -34,6 +35,31 @@ class AgentProviderStreamRuntimeOutputBinding {
     Iterable<AgentProviderStreamEvent> events,
   ) {
     return events.map(eventFor).toList(growable: false);
+  }
+
+  RuntimeOutputEvent retryEventFor(
+    AgentProviderRetryExecution<AgentProviderResponseEnvelope> execution, {
+    required String requestId,
+    DateTime? timestamp,
+  }) {
+    return RuntimeOutputEvent(
+      channelId: channelId,
+      label: label,
+      kind: RuntimeOutputChannelKind.agent,
+      message: execution.succeeded
+          ? 'Agent provider retry succeeded after ${execution.attemptCount} attempt(s).'
+          : 'Agent provider retry failed after ${execution.attemptCount} attempt(s).',
+      timestamp: timestamp ?? DateTime.now().toUtc(),
+      metadata: <String, Object?>{
+        'requestId': requestId,
+        'retrySucceeded': execution.succeeded,
+        'retryAttemptCount': execution.attemptCount,
+        'retryAttempts': execution.attempts
+            .map((attempt) => attempt.toJson())
+            .toList(growable: false),
+        if (execution.error != null) 'retryError': execution.error.toString(),
+      },
+    );
   }
 
   String _messageFor(AgentProviderStreamEvent event) {

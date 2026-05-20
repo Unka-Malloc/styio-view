@@ -1,4 +1,5 @@
 import '../editor/document_state.dart';
+import '../foundation/foundation.dart';
 import '../language/language_contract.dart';
 import 'workspace_document_store_types.dart';
 import 'workspace_file_operations.dart';
@@ -401,9 +402,232 @@ class WorkspaceEditDiffWindow {
       'fileOperations': fileOperations
           .map((operation) => operation.toJson())
           .toList(growable: false),
-      'todo':
-          'TODO: persist diff pagination state and connect lazy expansion controls.',
+      'todo': 'TODO: connect lazy expansion controls to persisted state.',
     };
+  }
+}
+
+class WorkspaceEditDiffPaginationState {
+  const WorkspaceEditDiffPaginationState({
+    required this.workspaceId,
+    required this.planId,
+    this.source = WorkspaceEditSource.manual,
+    this.documentOffset = 0,
+    this.documentLimit = 20,
+    this.fileOperationOffset = 0,
+    this.fileOperationLimit = 20,
+    this.updatedAt,
+  });
+
+  factory WorkspaceEditDiffPaginationState.fromWindow({
+    required String workspaceId,
+    required WorkspaceEditDiffWindow window,
+    DateTime? updatedAt,
+  }) {
+    return WorkspaceEditDiffPaginationState(
+      workspaceId: workspaceId,
+      planId: window.planId,
+      source: window.source,
+      documentOffset: window.documentOffset,
+      documentLimit: window.documentLimit,
+      fileOperationOffset: window.fileOperationOffset,
+      fileOperationLimit: window.fileOperationLimit,
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
+    );
+  }
+
+  factory WorkspaceEditDiffPaginationState.fromJson(Map<String, Object?> json) {
+    return WorkspaceEditDiffPaginationState(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      planId: json['planId'] as String? ?? '',
+      source:
+          _workspaceEditSourceFromWire(json['source']) ??
+          WorkspaceEditSource.manual,
+      documentOffset: json['documentOffset'] as int? ?? 0,
+      documentLimit: json['documentLimit'] as int? ?? 20,
+      fileOperationOffset: json['fileOperationOffset'] as int? ?? 0,
+      fileOperationLimit: json['fileOperationLimit'] as int? ?? 20,
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final String planId;
+  final WorkspaceEditSource source;
+  final int documentOffset;
+  final int documentLimit;
+  final int fileOperationOffset;
+  final int fileOperationLimit;
+  final DateTime? updatedAt;
+
+  WorkspaceEditDiffWindow windowFor(WorkspaceEditPreview preview) {
+    return preview.diffWindow(
+      documentOffset: documentOffset,
+      documentLimit: documentLimit,
+      fileOperationOffset: fileOperationOffset,
+      fileOperationLimit: fileOperationLimit,
+    );
+  }
+
+  WorkspaceEditDiffPaginationState nextDocumentPage(
+    WorkspaceEditPreview preview, {
+    DateTime? updatedAt,
+  }) {
+    return copyWith(
+      documentOffset: (documentOffset + documentLimit).clamp(
+        0,
+        preview.documents.length,
+      ),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
+    );
+  }
+
+  WorkspaceEditDiffPaginationState nextFileOperationPage(
+    WorkspaceEditPreview preview, {
+    DateTime? updatedAt,
+  }) {
+    return copyWith(
+      fileOperationOffset: (fileOperationOffset + fileOperationLimit).clamp(
+        0,
+        preview.fileOperations.length,
+      ),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
+    );
+  }
+
+  WorkspaceEditDiffPaginationState copyWith({
+    int? documentOffset,
+    int? documentLimit,
+    int? fileOperationOffset,
+    int? fileOperationLimit,
+    DateTime? updatedAt,
+  }) {
+    return WorkspaceEditDiffPaginationState(
+      workspaceId: workspaceId,
+      planId: planId,
+      source: source,
+      documentOffset: documentOffset ?? this.documentOffset,
+      documentLimit: documentLimit ?? this.documentLimit,
+      fileOperationOffset: fileOperationOffset ?? this.fileOperationOffset,
+      fileOperationLimit: fileOperationLimit ?? this.fileOperationLimit,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'planId': planId,
+      'source': source.wireValue,
+      'documentOffset': documentOffset,
+      'documentLimit': documentLimit,
+      'fileOperationOffset': fileOperationOffset,
+      'fileOperationLimit': fileOperationLimit,
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class WorkspaceEditDiffPaginationStore {
+  WorkspaceEditDiffPaginationStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'workspace.edit-application.diff-pagination',
+             layer: 'workspace',
+             stateFamily: 'workspace-edit-diff-pagination',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const WorkspaceEditDiffPaginationStore({
+    required FoundationDataStoreOwner owner,
+  }) : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName =
+      'workspace.edit-application.diff-pagination';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<WorkspaceEditDiffPaginationState> readState({
+    required String workspaceId,
+    required String planId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _keyFor(planId),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return WorkspaceEditDiffPaginationState(
+        workspaceId: workspaceId,
+        planId: planId,
+      );
+    }
+    final state = WorkspaceEditDiffPaginationState.fromJson(value);
+    return state.workspaceId.isEmpty
+        ? WorkspaceEditDiffPaginationState(
+            workspaceId: workspaceId,
+            planId: state.planId.isEmpty ? planId : state.planId,
+            source: state.source,
+            documentOffset: state.documentOffset,
+            documentLimit: state.documentLimit,
+            fileOperationOffset: state.fileOperationOffset,
+            fileOperationLimit: state.fileOperationLimit,
+            updatedAt: state.updatedAt,
+          )
+        : state;
+  }
+
+  Future<WorkspaceEditDiffPaginationState> recordWindow({
+    required String workspaceId,
+    required WorkspaceEditDiffWindow window,
+    DateTime? updatedAt,
+  }) {
+    return saveState(
+      state: WorkspaceEditDiffPaginationState.fromWindow(
+        workspaceId: workspaceId,
+        window: window,
+        updatedAt: updatedAt,
+      ),
+    );
+  }
+
+  Future<WorkspaceEditDiffPaginationState> saveState({
+    required WorkspaceEditDiffPaginationState state,
+  }) async {
+    await _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _keyFor(state.planId),
+      value: state.toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: state.workspaceId,
+    );
+    return state;
+  }
+
+  Future<bool> clearState({
+    required String workspaceId,
+    required String planId,
+  }) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _keyFor(planId),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+
+  String _keyFor(String planId) {
+    return 'diff-pagination-${Uri.encodeComponent(planId)}';
   }
 }
 
@@ -525,7 +749,7 @@ class WorkspaceEditConfirmationPlan {
       fileOperationCount: preview.fileOperations.length,
       message: 'Workspace edit preview is ready for confirmation.',
       todo:
-          'TODO: persist review pagination state and connect lazy expansion controls.',
+          'TODO: bind persisted review pagination state to lazy expansion controls.',
     );
   }
 
@@ -744,6 +968,17 @@ Map<String, Object?> _workspaceEditPlanEditToJson(FormattingEdit edit) {
     'start': edit.range.start,
     'end': edit.range.end,
     'newText': edit.newText,
+  };
+}
+
+WorkspaceEditSource? _workspaceEditSourceFromWire(Object? value) {
+  return switch (value) {
+    'agent' => WorkspaceEditSource.agent,
+    'code-action' => WorkspaceEditSource.codeAction,
+    'rename' => WorkspaceEditSource.rename,
+    'formatting' => WorkspaceEditSource.formatting,
+    'manual' => WorkspaceEditSource.manual,
+    _ => null,
   };
 }
 

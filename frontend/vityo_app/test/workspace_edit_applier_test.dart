@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/document_state.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
@@ -515,12 +519,94 @@ void main() {
     expect(window.fileOperations.single.operation.documentId, 'c.styio');
     expect(window.hasMoreDocuments, isFalse);
     expect(window.toJson()['totalDocumentCount'], 2);
-    expect(window.toJson()['todo'], contains('pagination state'));
+    expect(window.toJson()['todo'], contains('persisted state'));
     expect(appliedTelemetry.successful, isTrue);
     expect(appliedTelemetry.toJson()['status'], 'applied');
     expect(appliedTelemetry.toJson()['recordedAt'], '2026-05-20T00:00:00.000Z');
     expect(canceledTelemetry.successful, isFalse);
     expect(canceledTelemetry.toJson()['status'], 'canceled');
+  });
+
+  test('workspace edit diff pagination store persists window state', () async {
+    final store = WorkspaceEditDiffPaginationStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+    const preview = WorkspaceEditPreview(
+      planId: 'agent-plan',
+      summary: 'Agent edits.',
+      source: WorkspaceEditSource.agent,
+      documents: <WorkspaceEditDocumentPreview>[
+        WorkspaceEditDocumentPreview(
+          documentId: 'a.styio',
+          revision: 1,
+          beforeText: 'a = 1\n',
+          afterText: 'a = 2\n',
+          edits: <FormattingEdit>[
+            FormattingEdit(range: SourceRange(start: 4, end: 5), newText: '2'),
+          ],
+        ),
+        WorkspaceEditDocumentPreview(
+          documentId: 'b.styio',
+          revision: 1,
+          beforeText: 'b = 1\n',
+          afterText: 'b = 2\n',
+          edits: <FormattingEdit>[
+            FormattingEdit(range: SourceRange(start: 4, end: 5), newText: '2'),
+          ],
+        ),
+      ],
+      fileOperations: <WorkspaceFileOperationPreview>[
+        WorkspaceFileOperationPreview(
+          operation: WorkspaceFileOperation.create(
+            documentId: 'created.styio',
+            text: 'created = true\n',
+          ),
+          status: WorkspaceFileOperationPreviewStatus.ready,
+          message: 'Create file.',
+          afterText: 'created = true\n',
+        ),
+      ],
+    );
+    final window = preview.diffWindow(
+      documentOffset: 1,
+      documentLimit: 1,
+      fileOperationOffset: 0,
+      fileOperationLimit: 1,
+    );
+
+    await store.recordWindow(
+      workspaceId: 'demo',
+      window: window,
+      updatedAt: DateTime.utc(2026, 5, 20, 14),
+    );
+
+    final restored = await store.readState(
+      workspaceId: 'demo',
+      planId: 'agent-plan',
+    );
+    final restoredWindow = restored.windowFor(preview);
+    final next = restored.nextDocumentPage(preview);
+
+    expect(restored.documentOffset, 1);
+    expect(restored.documentLimit, 1);
+    expect(restoredWindow.documents.single.documentId, 'b.styio');
+    expect(
+      restoredWindow.fileOperations.single.operation.documentId,
+      'created.styio',
+    );
+    expect(next.documentOffset, 2);
+    expect(restored.toJson()['source'], 'agent');
+    expect(
+      await store.clearState(workspaceId: 'demo', planId: 'agent-plan'),
+      isTrue,
+    );
+    expect(
+      (await store.readState(
+        workspaceId: 'demo',
+        planId: 'agent-plan',
+      )).documentOffset,
+      0,
+    );
   });
 
   test('workspace edit plan can be created from rename plan', () {
@@ -549,6 +635,27 @@ void main() {
     expect(plan.source, WorkspaceEditSource.rename);
     expect(plan.editsByDocument['main.styio']!.single.newText, 'count');
   });
+}
+
+Future<FoundationDataStore> _createDataStore() async {
+  final tempRoot = await Directory.systemTemp.createTemp(
+    'vityo_workspace_edit_pagination_test_',
+  );
+  addTearDown(() => tempRoot.delete(recursive: true));
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: tempRoot.path,
+      homePath: tempRoot.path,
+    ),
+  );
+  return FoundationDataStore(
+    resourceCoordinator: FoundationResourceCoordinator(
+      resourceManager: resourceManager,
+      fileSystemManager: fileSystemManager,
+    ),
+    fileSystemManager: fileSystemManager,
+  );
 }
 
 class _AccessFailingWorkspaceDocumentStore implements WorkspaceDocumentStore {

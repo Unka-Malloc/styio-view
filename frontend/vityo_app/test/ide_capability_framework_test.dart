@@ -232,6 +232,10 @@ void main() {
       contains('WorkspaceEditPreview'),
     );
     expect(
+      entriesById['workspace.edit-application']?.summary,
+      contains('WorkspaceEditDiffPaginationStore'),
+    );
+    expect(
       entriesById['workspace.edit-application']?.todo,
       isNot(contains('add preview')),
     );

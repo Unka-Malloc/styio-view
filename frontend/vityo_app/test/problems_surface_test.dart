@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
@@ -51,6 +52,7 @@ void main() {
     expect(find.text('total 2'), findsOneWidget);
     expect(find.text('visible 2'), findsOneWidget);
     expect(find.text('groups 1'), findsOneWidget);
+    expect(find.text('selected syntax-error'), findsOneWidget);
     expect(find.text('error 1'), findsOneWidget);
     expect(find.text('warning 1'), findsOneWidget);
     expect(find.text('Unexpected token.'), findsOneWidget);
@@ -62,6 +64,14 @@ void main() {
     await tester.pump();
 
     expect(selectedDiagnostic?.code, 'syntax-error');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(find.text('selected unused-value'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(selectedDiagnostic?.code, 'unused-value');
   });
 
   testWidgets('problems surface renders workspace diagnostics snapshot', (

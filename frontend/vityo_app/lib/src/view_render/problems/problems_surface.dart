@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../view_ide/language/language_contract.dart';
 import '../../view_ide/workspace/workspace.dart';
 import '../platform/viewport_profile.dart';
 
-class ProblemsSurface extends StatelessWidget {
+class ProblemsSurface extends StatefulWidget {
   const ProblemsSurface({
     super.key,
     required this.viewportProfile,
@@ -35,162 +36,240 @@ class ProblemsSurface extends StatelessWidget {
   final Future<void> Function()? onApplyWorkspaceQuickFix;
 
   @override
+  State<ProblemsSurface> createState() => _ProblemsSurfaceState();
+}
+
+class _ProblemsSurfaceState extends State<ProblemsSurface> {
+  var _selectedIndex = 0;
+
+  void _activateEntry(WorkspaceDiagnostic entry) {
+    widget.onSelectWorkspaceDiagnostic?.call(entry);
+    widget.onSelectDiagnostic?.call(entry.diagnostic);
+  }
+
+  void _selectIndex(int index, List<WorkspaceDiagnostic> entries) {
+    if (entries.isEmpty) {
+      return;
+    }
+    setState(() {
+      _selectedIndex = index.clamp(0, entries.length - 1);
+    });
+  }
+
+  KeyEventResult _handleKeyEvent(
+    KeyEvent event,
+    List<WorkspaceDiagnostic> entries,
+  ) {
+    if (event is! KeyDownEvent || entries.isEmpty) {
+      return KeyEventResult.ignored;
+    }
+    final selectedIndex = _clampedProblemIndex(_selectedIndex, entries.length);
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      _selectIndex(selectedIndex + 1, entries);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      _selectIndex(selectedIndex - 1, entries);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter) {
+      _activateEntry(entries[selectedIndex]);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final compact = viewportProfile.isMobile;
+    final compact = widget.viewportProfile.isMobile;
     final problemEntries =
-        workspaceDiagnostics?.diagnostics ??
-        diagnostics
+        widget.workspaceDiagnostics?.diagnostics ??
+        widget.diagnostics
             .map(
               (diagnostic) => WorkspaceDiagnostic(
-                documentId: documentId,
+                documentId: widget.documentId,
                 diagnostic: diagnostic,
               ),
             )
             .toList(growable: false);
     final diagnosticsFilter =
-        filterState ??
-        WorkspaceDiagnosticsFilterState(severities: severityFilter);
+        widget.filterState ??
+        WorkspaceDiagnosticsFilterState(severities: widget.severityFilter);
     final view = WorkspaceDiagnosticsView.fromDiagnostics(
-      providerId: workspaceDiagnostics?.providerId ?? 'active-document',
+      providerId: widget.workspaceDiagnostics?.providerId ?? 'active-document',
       diagnostics: problemEntries,
       filter: diagnosticsFilter,
     );
     final visibleProblemEntries = view.visibleDiagnostics;
+    final selectedIndex = visibleProblemEntries.isEmpty
+        ? -1
+        : _clampedProblemIndex(_selectedIndex, visibleProblemEntries.length);
     final documentGroups = view.documentGroups;
     final severityCounts = view.severityCounts;
 
-    return Card(
-      key: const ValueKey('problems-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text('Problems', style: theme.textTheme.titleLarge),
-                  if (onRefreshWorkspaceDiagnostics != null)
-                    TextButton.icon(
-                      key: const ValueKey('problems-refresh-workspace'),
-                      onPressed: onRefreshWorkspaceDiagnostics,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Refresh'),
-                    ),
-                  if (onPreviewWorkspaceQuickFix != null)
-                    TextButton.icon(
-                      key: const ValueKey(
-                        'problems-preview-workspace-quick-fix',
-                      ),
-                      onPressed: onPreviewWorkspaceQuickFix,
-                      icon: const Icon(Icons.difference_outlined),
-                      label: const Text('Preview Project Fix'),
-                    ),
-                  if (onApplyWorkspaceQuickFix != null)
-                    TextButton.icon(
-                      key: const ValueKey('problems-apply-workspace-quick-fix'),
-                      onPressed: onApplyWorkspaceQuickFix,
-                      icon: const Icon(Icons.auto_fix_high_rounded),
-                      label: const Text('Apply Project Fix'),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Diagnostics surface backed by active document diagnostics or a workspace diagnostics snapshot. TODO: add grouping, filters, fix confirmation, and persisted problem state.',
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  Chip(label: Text('document $documentId')),
-                  if (workspaceDiagnostics != null)
-                    Chip(
-                      label: Text(
-                        'workspace-documents ${workspaceDiagnostics!.documentIds.length}',
-                      ),
-                    ),
-                  Chip(label: Text('total ${problemEntries.length}')),
-                  Chip(label: Text('visible ${visibleProblemEntries.length}')),
-                  Chip(label: Text('groups ${documentGroups.length}')),
-                  if (diagnosticsFilter.active)
-                    Chip(label: Text('filter ${diagnosticsFilter.summary}')),
-                  for (final entry in severityCounts.entries)
-                    Chip(label: Text('${entry.key} ${entry.value}')),
-                ],
-              ),
-              if (workspaceEditPreview != null) ...[
-                const SizedBox(height: 12),
-                _WorkspaceEditPreviewCard(preview: workspaceEditPreview!),
-              ],
-              const SizedBox(height: 12),
-              if (problemEntries.isEmpty)
-                Text(
-                  workspaceDiagnostics == null
-                      ? 'No diagnostics for the active document.'
-                      : 'No diagnostics for the workspace.',
-                  style: theme.textTheme.bodySmall,
-                )
-              else if (visibleProblemEntries.isEmpty)
-                Text(
-                  'No diagnostics match the active severity filter.',
-                  style: theme.textTheme.bodySmall,
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (_, event) => _handleKeyEvent(event, visibleProblemEntries),
+      child: Card(
+        key: const ValueKey('problems-surface'),
+        child: Padding(
+          padding: EdgeInsets.all(compact ? 14 : 18),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    _ProblemsDocumentGroupSummary(groups: documentGroups),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: compact ? 180 : 220,
-                      child: ListView.separated(
-                        key: const ValueKey('problems-diagnostic-list'),
-                        itemCount: visibleProblemEntries.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final entry = visibleProblemEntries[index];
-                          final diagnostic = entry.diagnostic;
-                          return ListTile(
-                            key: ValueKey(
-                              'problems-diagnostic-${diagnostic.code}',
-                            ),
-                            dense: true,
-                            leading: Icon(
-                              _diagnosticIcon(diagnostic.severity),
-                              color: _diagnosticColor(diagnostic.severity),
-                            ),
-                            title: Text(diagnostic.message),
-                            subtitle: Text(
-                              '${entry.documentId} · ${diagnostic.severity.name} · ${diagnostic.code} · offsets ${diagnostic.range.start}-${diagnostic.range.end}',
-                            ),
-                            trailing: const Icon(Icons.arrow_forward_rounded),
-                            onTap:
-                                onSelectDiagnostic == null &&
-                                    onSelectWorkspaceDiagnostic == null
-                                ? null
-                                : () {
-                                    onSelectWorkspaceDiagnostic?.call(entry);
-                                    onSelectDiagnostic?.call(diagnostic);
-                                  },
-                          );
-                        },
+                    Text('Problems', style: theme.textTheme.titleLarge),
+                    if (widget.onRefreshWorkspaceDiagnostics != null)
+                      TextButton.icon(
+                        key: const ValueKey('problems-refresh-workspace'),
+                        onPressed: widget.onRefreshWorkspaceDiagnostics,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Refresh'),
                       ),
-                    ),
+                    if (widget.onPreviewWorkspaceQuickFix != null)
+                      TextButton.icon(
+                        key: const ValueKey(
+                          'problems-preview-workspace-quick-fix',
+                        ),
+                        onPressed: widget.onPreviewWorkspaceQuickFix,
+                        icon: const Icon(Icons.difference_outlined),
+                        label: const Text('Preview Project Fix'),
+                      ),
+                    if (widget.onApplyWorkspaceQuickFix != null)
+                      TextButton.icon(
+                        key: const ValueKey(
+                          'problems-apply-workspace-quick-fix',
+                        ),
+                        onPressed: widget.onApplyWorkspaceQuickFix,
+                        icon: const Icon(Icons.auto_fix_high_rounded),
+                        label: const Text('Apply Project Fix'),
+                      ),
                   ],
                 ),
-            ],
+                const SizedBox(height: 6),
+                Text(
+                  'Diagnostics surface backed by active document diagnostics or a workspace diagnostics snapshot, with grouping, filters, quick-fix confirmation, and keyboard navigation. TODO: add persisted problem state.',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    Chip(label: Text('document ${widget.documentId}')),
+                    if (widget.workspaceDiagnostics != null)
+                      Chip(
+                        label: Text(
+                          'workspace-documents ${widget.workspaceDiagnostics!.documentIds.length}',
+                        ),
+                      ),
+                    Chip(label: Text('total ${problemEntries.length}')),
+                    Chip(
+                      label: Text('visible ${visibleProblemEntries.length}'),
+                    ),
+                    Chip(label: Text('groups ${documentGroups.length}')),
+                    if (selectedIndex >= 0)
+                      Chip(
+                        key: const ValueKey('problems-selected-diagnostic'),
+                        label: Text(
+                          'selected ${visibleProblemEntries[selectedIndex].diagnostic.code}',
+                        ),
+                      ),
+                    if (diagnosticsFilter.active)
+                      Chip(label: Text('filter ${diagnosticsFilter.summary}')),
+                    for (final entry in severityCounts.entries)
+                      Chip(label: Text('${entry.key} ${entry.value}')),
+                  ],
+                ),
+                if (widget.workspaceEditPreview != null) ...[
+                  const SizedBox(height: 12),
+                  _WorkspaceEditPreviewCard(
+                    preview: widget.workspaceEditPreview!,
+                  ),
+                ],
+                const SizedBox(height: 12),
+                if (problemEntries.isEmpty)
+                  Text(
+                    widget.workspaceDiagnostics == null
+                        ? 'No diagnostics for the active document.'
+                        : 'No diagnostics for the workspace.',
+                    style: theme.textTheme.bodySmall,
+                  )
+                else if (visibleProblemEntries.isEmpty)
+                  Text(
+                    'No diagnostics match the active severity filter.',
+                    style: theme.textTheme.bodySmall,
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _ProblemsDocumentGroupSummary(groups: documentGroups),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: compact ? 180 : 220,
+                        child: ListView.separated(
+                          key: const ValueKey('problems-diagnostic-list'),
+                          itemCount: visibleProblemEntries.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final entry = visibleProblemEntries[index];
+                            final diagnostic = entry.diagnostic;
+                            final selected = index == selectedIndex;
+                            return ListTile(
+                              key: ValueKey(
+                                'problems-diagnostic-${diagnostic.code}',
+                              ),
+                              dense: true,
+                              selected: selected,
+                              selectedTileColor:
+                                  theme.colorScheme.primaryContainer,
+                              leading: Icon(
+                                _diagnosticIcon(diagnostic.severity),
+                                color: _diagnosticColor(diagnostic.severity),
+                              ),
+                              title: Text(diagnostic.message),
+                              subtitle: Text(
+                                '${entry.documentId} · ${diagnostic.severity.name} · ${diagnostic.code} · offsets ${diagnostic.range.start}-${diagnostic.range.end}',
+                              ),
+                              trailing: const Icon(Icons.arrow_forward_rounded),
+                              onTap:
+                                  widget.onSelectDiagnostic == null &&
+                                      widget.onSelectWorkspaceDiagnostic == null
+                                  ? null
+                                  : () {
+                                      _selectIndex(
+                                        index,
+                                        visibleProblemEntries,
+                                      );
+                                      _activateEntry(entry);
+                                    },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+int _clampedProblemIndex(int index, int length) {
+  if (length <= 0) {
+    return -1;
+  }
+  return index.clamp(0, length - 1);
 }
 
 class _ProblemsDocumentGroupSummary extends StatelessWidget {

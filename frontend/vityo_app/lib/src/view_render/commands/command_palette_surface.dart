@@ -399,7 +399,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
             Text('Keybinding overrides', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Text(
-              'Workspace-level shortcut remap draft. TODO: replace text entry with physical key capture.',
+              'Workspace-level shortcut remap draft. Focus the shortcut field and press the physical key combination to capture it.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -425,13 +425,22 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
               },
             ),
             const SizedBox(height: 8),
-            TextField(
-              key: const ValueKey('command-palette-keybinding-shortcut-input'),
-              controller: _keybindingController,
-              decoration: const InputDecoration(
-                labelText: 'Shortcut expression',
-                helperText: 'Example: ctrl+shift+keyK',
-                border: OutlineInputBorder(),
+            Focus(
+              key: const ValueKey(
+                'command-palette-keybinding-shortcut-capture',
+              ),
+              onKeyEvent: _captureKeybindingShortcut,
+              child: TextField(
+                key: const ValueKey(
+                  'command-palette-keybinding-shortcut-input',
+                ),
+                controller: _keybindingController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Captured shortcut',
+                  helperText: 'Focus this field and press a key combination.',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -613,6 +622,67 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
         ),
       ),
     );
+  }
+
+  KeyEventResult _captureKeybindingShortcut(FocusNode node, KeyEvent event) {
+    final shortcut = _shortcutFromPhysicalKeyEvent(event);
+    if (shortcut == null) {
+      return KeyEventResult.ignored;
+    }
+    setState(() {
+      _keybindingController.text = commandShortcutSignature(shortcut);
+    });
+    return KeyEventResult.handled;
+  }
+
+  AppCommandShortcutSpec? _shortcutFromPhysicalKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent || _isShortcutModifierOnly(event.logicalKey)) {
+      return null;
+    }
+    final keyToken = _shortcutKeyTokenFor(event);
+    if (keyToken.isEmpty) {
+      return null;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    return AppCommandShortcutSpec(
+      keyToken,
+      control: keyboard.isControlPressed,
+      meta: keyboard.isMetaPressed,
+      shift: keyboard.isShiftPressed,
+    );
+  }
+
+  bool _isShortcutModifierOnly(LogicalKeyboardKey key) {
+    return key == LogicalKeyboardKey.control ||
+        key == LogicalKeyboardKey.controlLeft ||
+        key == LogicalKeyboardKey.controlRight ||
+        key == LogicalKeyboardKey.meta ||
+        key == LogicalKeyboardKey.metaLeft ||
+        key == LogicalKeyboardKey.metaRight ||
+        key == LogicalKeyboardKey.shift ||
+        key == LogicalKeyboardKey.shiftLeft ||
+        key == LogicalKeyboardKey.shiftRight ||
+        key == LogicalKeyboardKey.alt ||
+        key == LogicalKeyboardKey.altLeft ||
+        key == LogicalKeyboardKey.altRight;
+  }
+
+  String _shortcutKeyTokenFor(KeyEvent event) {
+    final physicalName = event.physicalKey.debugName;
+    if (physicalName != null && physicalName.trim().isNotEmpty) {
+      final compact = physicalName.trim().replaceAll(' ', '');
+      return '${compact[0].toLowerCase()}${compact.substring(1)}';
+    }
+    final label = event.logicalKey.keyLabel.trim();
+    if (label.length == 1) {
+      return 'key${label.toUpperCase()}';
+    }
+    final logicalName = event.logicalKey.debugName ?? '';
+    final compact = logicalName.trim().replaceAll(' ', '');
+    if (compact.isEmpty) {
+      return '';
+    }
+    return '${compact[0].toLowerCase()}${compact.substring(1)}';
   }
 
   void _clearKeybindingOverride() {

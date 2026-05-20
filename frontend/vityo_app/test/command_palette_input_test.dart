@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/commands/commands.dart';
@@ -61,5 +62,60 @@ void main() {
 
     expect(executedCommandId, AppCommandId.createWorkspaceFile);
     expect(executedInput, 'src/new.styio');
+  });
+
+  testWidgets('command palette captures physical keybinding overrides', (
+    tester,
+  ) async {
+    CommandKeybindingOverride? savedOverride;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPaletteSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            commands: const <AppCommandDescriptor>[
+              AppCommandDescriptor(
+                id: AppCommandId.save,
+                label: 'Save',
+                shortcutHint: 'Cmd/Ctrl+S',
+                description: 'Save current file.',
+              ),
+            ],
+            keybindingProfile: CommandKeybindingProfile(workspaceId: 'demo'),
+            onSaveKeybindingOverride: (override) async {
+              savedOverride = override;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('command-palette-keybinding-shortcut-input')),
+    );
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('command-palette-keybinding-save')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('command-palette-keybinding-save')),
+    );
+    await tester.pump();
+
+    final shortcut = savedOverride?.shortcuts.single;
+    expect(savedOverride?.commandId, AppCommandId.save);
+    expect(shortcut?.control, isTrue);
+    expect(shortcut?.key, 'keyK');
+    expect(shortcut?.shift, isFalse);
   });
 }

@@ -117,6 +117,10 @@ void main() {
     );
     expect(
       entriesById['presentation.output-panel']?.summary,
+      contains('language-service, debug-adapter, and agent producers'),
+    );
+    expect(
+      entriesById['presentation.output-panel']?.summary,
       contains(
         'RuntimeOutputProducerBindingController multi-producer live binding',
       ),

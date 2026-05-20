@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
+import 'agent_coding_session_history_store.dart';
 import 'agent_code_patch_applier.dart';
 import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
@@ -26,6 +29,9 @@ class AgentCodingSessionController extends ChangeNotifier {
     this.maxConversationTurns = 20,
     this.maxConversationTurnTextLength = 12000,
     this.maxAttachments = 10,
+    this.sessionHistoryStore,
+    this.sessionHistoryWorkspaceId = 'default',
+    this.sessionHistoryMaxEntries = 50,
     AgentProviderExecutionResolution? providerExecutionResolution,
   }) : _providerExecutionResolution = providerExecutionResolution;
 
@@ -35,6 +41,9 @@ class AgentCodingSessionController extends ChangeNotifier {
   final int maxConversationTurns;
   final int maxConversationTurnTextLength;
   final int maxAttachments;
+  final AgentCodingSessionHistoryStore? sessionHistoryStore;
+  final String sessionHistoryWorkspaceId;
+  final int sessionHistoryMaxEntries;
 
   int _requestSequence = 0;
   int _activeRequestSerial = 0;
@@ -70,6 +79,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   String? _lastError;
   AgentProviderTransportException? _lastProviderFailure;
   String? _activeProviderRequestId;
+  String? _activeProviderPrompt;
+  DateTime? _activeProviderStartedAt;
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
   final List<AgentConversationTurn> _conversationTurns =
       <AgentConversationTurn>[];
@@ -221,9 +232,11 @@ class AgentCodingSessionController extends ChangeNotifier {
     _lastPatchApplicationResult = null;
     notifyListeners();
 
+    final requestId = _nextRequestId();
+    final requestStartedAt = DateTime.now().toUtc();
     try {
       final request = AgentProviderRequest(
-        requestId: _nextRequestId(),
+        requestId: requestId,
         profile: profile,
         context: requestContext,
         userPrompt: prompt,
@@ -231,6 +244,8 @@ class AgentCodingSessionController extends ChangeNotifier {
         conversationTurns: _conversationWindow(),
       );
       _activeProviderRequestId = request.requestId;
+      _activeProviderPrompt = prompt;
+      _activeProviderStartedAt = requestStartedAt;
       final response = await adapter.send(request);
       if (requestSerial != _activeRequestSerial) {
         return null;
@@ -253,6 +268,16 @@ class AgentCodingSessionController extends ChangeNotifier {
       _appendAssistantTurn(response);
       _draftPrompt = '';
       _attachments.clear();
+      await _appendAgentCodingSessionHistory(
+        AgentCodingSessionHistoryRecord.fromResponse(
+          profile: profile,
+          providerKind: adapter.kind,
+          prompt: prompt,
+          response: response,
+          createdAt: requestStartedAt,
+          completedAt: DateTime.now().toUtc(),
+        ),
+      );
       return response;
     } on Object catch (error) {
       if (requestSerial == _activeRequestSerial) {
@@ -261,11 +286,24 @@ class AgentCodingSessionController extends ChangeNotifier {
         _lastProviderFailure = error is AgentProviderTransportException
             ? error
             : null;
+        await _appendAgentCodingSessionHistory(
+          AgentCodingSessionHistoryRecord.failure(
+            requestId: requestId,
+            profile: profile,
+            providerKind: adapter.kind,
+            prompt: prompt,
+            errorMessage: _lastError!,
+            createdAt: requestStartedAt,
+            completedAt: DateTime.now().toUtc(),
+          ),
+        );
       }
       return null;
     } finally {
       if (requestSerial == _activeRequestSerial) {
         _activeProviderRequestId = null;
+        _activeProviderPrompt = null;
+        _activeProviderStartedAt = null;
         _sending = false;
         notifyListeners();
       }
@@ -277,11 +315,49 @@ class AgentCodingSessionController extends ChangeNotifier {
     if (requestId == null) {
       return;
     }
+    final prompt = _activeProviderPrompt;
+    final startedAt = _activeProviderStartedAt;
+    if (prompt != null && startedAt != null) {
+      unawaited(
+        _appendAgentCodingSessionHistory(
+          AgentCodingSessionHistoryRecord.failure(
+            requestId: requestId,
+            profile: profile,
+            providerKind: adapter.kind,
+            prompt: prompt,
+            errorMessage: 'Agent request cancelled.',
+            createdAt: startedAt,
+            completedAt: DateTime.now().toUtc(),
+            outcome: AgentCodingSessionOutcome.cancelled,
+          ),
+        ),
+      );
+    }
     _activeProviderRequestId = null;
+    _activeProviderPrompt = null;
+    _activeProviderStartedAt = null;
     final cancellableAdapter = adapter is CancellableAgentProviderAdapter
         ? adapter as CancellableAgentProviderAdapter
         : null;
     cancellableAdapter?.cancelRequest(requestId);
+  }
+
+  Future<void> _appendAgentCodingSessionHistory(
+    AgentCodingSessionHistoryRecord record,
+  ) async {
+    final store = sessionHistoryStore;
+    if (store == null) {
+      return;
+    }
+    try {
+      await store.appendRecord(
+        workspaceId: sessionHistoryWorkspaceId,
+        record: record,
+        maxEntries: sessionHistoryMaxEntries,
+      );
+    } on Object {
+      // TODO: surface agent history persistence failures in the output panel.
+    }
   }
 
   void clearPendingPatch() {

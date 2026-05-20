@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_code_patch_applier.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_coding_session_history_store.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
@@ -12,6 +14,8 @@ import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -51,6 +55,65 @@ void main() {
       AgentConversationRole.assistant,
     ]);
     expect(controller.lastError, isNull);
+  });
+
+  test('agent coding session persists successful prompt history', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_agent_controller_history_test_',
+    );
+    addTearDown(() async {
+      if (await tempRoot.exists()) {
+        await tempRoot.delete(recursive: true);
+      }
+    });
+    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final resourceManager = LocalResourceManager(
+      facts: ResourceFacts.linuxDebianArm(
+        systemTempPath: tempRoot.path,
+        homePath: tempRoot.path,
+      ),
+    );
+    final historyStore = AgentCodingSessionHistoryStore.fromDataStore(
+      dataStore: FoundationDataStore(
+        resourceCoordinator: FoundationResourceCoordinator(
+          resourceManager: resourceManager,
+          fileSystemManager: fileSystemManager,
+        ),
+        fileSystemManager: fileSystemManager,
+      ),
+    );
+    final adapter = _FakeAgentProviderAdapter(
+      response: const AgentProviderResponseEnvelope(
+        requestId: 'agent-request-1',
+        role: 'assistant',
+        finishReason: 'stop',
+        contentParts: <AgentContentPart>[
+          AgentContentPart(
+            kind: AgentContentPartKind.text,
+            text: 'History recorded.',
+          ),
+        ],
+      ),
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: adapter,
+      contextProvider: _context,
+      sessionHistoryStore: historyStore,
+      sessionHistoryWorkspaceId: 'demo',
+    );
+
+    controller.updatePrompt('Record this request.');
+    await controller.sendPrompt();
+    final history = await historyStore.readHistory(workspaceId: 'demo');
+
+    expect(history.records.single.requestId, 'agent-request-1');
+    expect(history.records.single.prompt, 'Record this request.');
+    expect(history.records.single.succeeded, isTrue);
+    expect(
+      history.records.single.responseTextSample,
+      contains('History recorded'),
+    );
   });
 
   test('agent coding session sends previous turns with next prompt', () async {
@@ -644,63 +707,60 @@ void main() {
     expect(editorController.document.text, 'value = 2\n');
   });
 
-  test(
-    'agent coding session records skipped no-op patch documents',
-    () async {
-      final editorController = EditorSessionController(
-        initialDocument: const DocumentState(
+  test('agent coding session records skipped no-op patch documents', () async {
+    final editorController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 4,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+    const patch = AgentCodePatch(
+      patchId: 'patch-noop',
+      summary: 'No-op value edit.',
+      edits: <AgentCodePatchEdit>[
+        AgentCodePatchEdit(
           documentId: 'main.styio',
-          text: 'value = 1\n',
-          revision: 4,
+          start: 0,
+          end: 5,
+          replacementText: 'value',
         ),
-        languageService: const SimpleStyioLanguageService(),
-      );
-      const patch = AgentCodePatch(
-        patchId: 'patch-noop',
-        summary: 'No-op value edit.',
-        edits: <AgentCodePatchEdit>[
-          AgentCodePatchEdit(
-            documentId: 'main.styio',
-            start: 0,
-            end: 5,
-            replacementText: 'value',
-          ),
-        ],
-      );
-      final controller = AgentCodingSessionController(
-        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
-        adapter: _FakeAgentProviderAdapter(
-          response: const AgentProviderResponseEnvelope(
-            requestId: 'agent-request-noop',
-            role: 'assistant',
-            finishReason: 'stop',
-            contentParts: <AgentContentPart>[
-              AgentContentPart(
-                kind: AgentContentPartKind.codePatch,
-                text: 'Patch ready.',
-                patch: patch,
-              ),
-            ],
-          ),
+      ],
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-noop',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(
+              kind: AgentContentPartKind.codePatch,
+              text: 'Patch ready.',
+              patch: patch,
+            ),
+          ],
         ),
-        contextProvider: _context,
-      );
+      ),
+      contextProvider: _context,
+    );
 
-      controller.updatePrompt('Apply no-op.');
-      await controller.sendPrompt();
-      final result = controller.applyPendingPatch(
-        AgentCodePatchApplier(editorController: editorController),
-      );
+    controller.updatePrompt('Apply no-op.');
+    await controller.sendPrompt();
+    final result = controller.applyPendingPatch(
+      AgentCodePatchApplier(editorController: editorController),
+    );
 
-      expect(result?.applied, isFalse);
-      expect(controller.pendingPatch, isNotNull);
-      expect(controller.lastPatchApplicationContext?.skippedNoOpDocumentIds, [
-        'main.styio',
-      ]);
-      expect(editorController.document.revision, 4);
-      expect(editorController.canUndo, isFalse);
-    },
-  );
+    expect(result?.applied, isFalse);
+    expect(controller.pendingPatch, isNotNull);
+    expect(controller.lastPatchApplicationContext?.skippedNoOpDocumentIds, [
+      'main.styio',
+    ]);
+    expect(editorController.document.revision, 4);
+    expect(editorController.canUndo, isFalse);
+  });
 
   test(
     'agent coding session clears patch result when pending patch is dismissed',

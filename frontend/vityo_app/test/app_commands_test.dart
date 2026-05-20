@@ -447,6 +447,42 @@ void main() {
     );
   });
 
+  test('command keybinding resolver reports remap conflicts', () {
+    final profile = CommandKeybindingProfile(
+      workspaceId: 'demo',
+      overrides: <AppCommandId, CommandKeybindingOverride>{
+        AppCommandId.run: const CommandKeybindingOverride(
+          commandId: AppCommandId.run,
+          shortcuts: <AppCommandShortcutSpec>[
+            AppCommandShortcutSpec('keyS', control: true),
+          ],
+        ),
+      },
+    );
+
+    final review = CommandKeybindingResolver.reviewConflicts(
+      profile: profile,
+      descriptors: <AppCommandDescriptor>[
+        StyioCommandRegistry.descriptorFor(AppCommandId.save),
+        StyioCommandRegistry.descriptorFor(AppCommandId.run),
+      ],
+    );
+
+    expect(review.hasConflicts, isTrue);
+    expect(review.conflicts.single.signature, 'ctrl+keyS');
+    expect(
+      review.conflicts.single.commandIds,
+      containsAll(<AppCommandId>[AppCommandId.save, AppCommandId.run]),
+    );
+    expect(
+      CommandKeybindingResolver.effectiveShortcutsFor(
+        descriptor: StyioCommandRegistry.descriptorFor(AppCommandId.run),
+        profile: profile,
+      ).single.key,
+      'keyS',
+    );
+  });
+
   test('render shortcut adapter exposes command intents', () {
     final intents = AppCommandShortcutRegistry.shortcutIntents.values
         .whereType<AppCommandIntent>()

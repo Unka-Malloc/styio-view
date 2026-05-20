@@ -188,6 +188,14 @@ void main() {
       contains('top-level SettingsSurface preference saves'),
     );
     expect(
+      entriesById['interaction.command-palette']?.summary,
+      contains('keybinding remap persistence'),
+    );
+    expect(
+      entriesById['interaction.command-palette']?.summary,
+      contains('conflict review contracts'),
+    );
+    expect(
       entriesById['workspace.edit-application']?.status,
       IdeCapabilityStatus.wired,
     );

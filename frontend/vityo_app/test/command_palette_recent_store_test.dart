@@ -88,6 +88,36 @@ void main() {
       isTrue,
     );
   });
+
+  test('command keybinding profile store persists overrides', () async {
+    final store = CommandKeybindingProfileStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+    final profile = CommandKeybindingProfile(
+      workspaceId: 'demo',
+      overrides: <AppCommandId, CommandKeybindingOverride>{
+        AppCommandId.run: const CommandKeybindingOverride(
+          commandId: AppCommandId.run,
+          shortcuts: <AppCommandShortcutSpec>[
+            AppCommandShortcutSpec('keyS', meta: true),
+          ],
+        ),
+      },
+      updatedAt: DateTime.utc(2026, 5, 20, 12),
+    );
+
+    await store.saveProfile(profile);
+
+    final restored = await store.readProfile(workspaceId: 'demo');
+    final run = StyioCommandRegistry.descriptorFor(AppCommandId.run);
+
+    expect(restored.hasOverrideFor(AppCommandId.run), isTrue);
+    expect(restored.effectiveShortcutsFor(run).single.key, 'keyS');
+    expect(restored.effectiveShortcutsFor(run).single.meta, isTrue);
+    expect(restored.toJson()['overrides'], hasLength(1));
+    expect(await store.clearProfile(workspaceId: 'demo'), isTrue);
+    expect((await store.readProfile(workspaceId: 'demo')).overrides, isEmpty);
+  });
 }
 
 Future<FoundationDataStore> _createDataStore() async {

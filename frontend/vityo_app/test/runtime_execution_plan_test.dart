@@ -177,6 +177,50 @@ void main() {
     expect(result.toJson()['outputSubscription'], isA<Map<String, Object?>>());
   });
 
+  test('default runtime managers dispatch into live output buffer', () {
+    const definition = RuntimeTaskDefinition(
+      id: 'styio-build',
+      label: 'Styio build',
+      kind: RuntimeTaskKind.build,
+      command: 'styio',
+      arguments: <String>['build'],
+    );
+    final binding = const RuntimeExecutionPlanner()
+        .plan(definition: definition)
+        .createHandoff(
+          target: RuntimeExecutionHandoffTarget.toolchainManager,
+          outputChannelId: 'build.styio',
+        )
+        .bind();
+    final registry = RuntimeExecutionManagerRegistry.defaultManagers();
+    final buffer = RuntimeOutputLiveBuffer();
+    addTearDown(buffer.dispose);
+
+    final result = registry.dispatchToLiveBuffer(
+      binding,
+      buffer: buffer,
+      timestamp: DateTime.utc(2026, 5, 20, 14),
+      metadata: const <String, Object?>{'requester': 'agent'},
+    );
+
+    expect(registry.managers, hasLength(4));
+    expect(result.dispatched, isTrue);
+    expect(result.manager?.metadata['managerKind'], 'toolchain-task');
+    expect(buffer.snapshot.visibleEvents.single.channelId, 'build.styio');
+    expect(
+      buffer.snapshot.visibleEvents.single.metadata['dispatchStatus'],
+      'dispatched',
+    );
+    expect(
+      buffer.snapshot.channelSnapshot.visibleChannels.single.latestMessage,
+      contains('dispatched to Toolchain Manager'),
+    );
+    expect(
+      buffer.snapshot.toJson()['subscriptionPlan'],
+      isA<Map<String, Object?>>(),
+    );
+  });
+
   test(
     'runtime execution manager registry reports blocked and missing routes',
     () {

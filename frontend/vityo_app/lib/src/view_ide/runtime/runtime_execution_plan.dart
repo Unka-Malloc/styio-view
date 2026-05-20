@@ -404,6 +404,61 @@ class RuntimeExecutionManagerRegistration {
   final bool available;
   final Map<String, Object?> metadata;
 
+  factory RuntimeExecutionManagerRegistration.shellManager({
+    bool available = true,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeExecutionManagerRegistration(
+      managerId: 'shell-manager',
+      label: 'Shell Manager',
+      routeKinds: const <String>['local-shell'],
+      available: available,
+      metadata: <String, Object?>{'managerKind': 'platform-shell', ...metadata},
+    );
+  }
+
+  factory RuntimeExecutionManagerRegistration.terminalRuntime({
+    bool available = true,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeExecutionManagerRegistration(
+      managerId: 'terminal-runtime',
+      label: 'Terminal Runtime',
+      routeKinds: const <String>['terminal-session'],
+      available: available,
+      metadata: <String, Object?>{
+        'managerKind': 'toolchain-terminal',
+        ...metadata,
+      },
+    );
+  }
+
+  factory RuntimeExecutionManagerRegistration.toolchainManager({
+    bool available = true,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeExecutionManagerRegistration(
+      managerId: 'toolchain-manager',
+      label: 'Toolchain Manager',
+      routeKinds: const <String>['toolchain-task'],
+      available: available,
+      metadata: <String, Object?>{'managerKind': 'toolchain-task', ...metadata},
+    );
+  }
+
+  factory RuntimeExecutionManagerRegistration.hostedExecutor({
+    bool available = true,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeExecutionManagerRegistration(
+      managerId: 'hosted-executor',
+      label: 'Hosted Executor',
+      routeKinds: const <String>['hosted-task'],
+      available: available,
+      metadata: <String, Object?>{'managerKind': 'hosted-backend', ...metadata},
+    );
+  }
+
   bool accepts(RuntimeExecutionHandoffBinding binding) {
     return managerId == binding.managerId &&
         (routeKinds.isEmpty || routeKinds.contains(binding.routeKind));
@@ -469,6 +524,30 @@ class RuntimeExecutionManagerRegistry {
 
   final List<RuntimeExecutionManagerRegistration> _managers =
       <RuntimeExecutionManagerRegistration>[];
+
+  factory RuntimeExecutionManagerRegistry.defaultManagers({
+    bool shellManagerAvailable = true,
+    bool terminalRuntimeAvailable = true,
+    bool toolchainManagerAvailable = true,
+    bool hostedExecutorAvailable = true,
+  }) {
+    return RuntimeExecutionManagerRegistry(
+      managers: <RuntimeExecutionManagerRegistration>[
+        RuntimeExecutionManagerRegistration.shellManager(
+          available: shellManagerAvailable,
+        ),
+        RuntimeExecutionManagerRegistration.terminalRuntime(
+          available: terminalRuntimeAvailable,
+        ),
+        RuntimeExecutionManagerRegistration.toolchainManager(
+          available: toolchainManagerAvailable,
+        ),
+        RuntimeExecutionManagerRegistration.hostedExecutor(
+          available: hostedExecutorAvailable,
+        ),
+      ],
+    );
+  }
 
   List<RuntimeExecutionManagerRegistration> get managers {
     return List<RuntimeExecutionManagerRegistration>.unmodifiable(_managers);
@@ -557,6 +636,18 @@ class RuntimeExecutionManagerRegistry {
       ),
       metadata: <String, Object?>{...manager.metadata, ...metadata},
     );
+  }
+
+  RuntimeExecutionDispatchResult dispatchToLiveBuffer(
+    RuntimeExecutionHandoffBinding binding, {
+    required RuntimeOutputLiveBuffer buffer,
+    required DateTime timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final result = dispatch(binding, timestamp: timestamp, metadata: metadata);
+    buffer.updateSubscriptionPlan(result.outputSubscription, now: timestamp);
+    buffer.addEvent(result.outputEvent, now: timestamp);
+    return result;
   }
 }
 

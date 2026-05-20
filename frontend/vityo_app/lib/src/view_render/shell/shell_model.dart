@@ -40,6 +40,7 @@ class ShellModel extends ShellRuntimeModel {
     super.editorSessionWorkspaceId,
     super.documentCacheLimit,
     super.themeOverrideStore,
+    super.commandPalettePreferencesStore,
     super.languageServiceStatus,
     super.toolchainStatusReport,
     super.clangCppVersionPreference,

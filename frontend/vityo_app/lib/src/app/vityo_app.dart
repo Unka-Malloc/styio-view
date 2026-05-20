@@ -49,6 +49,8 @@ class _VityoAppState extends State<VityoApp> {
       toolchainStatusReport: widget.bootstrap.toolchainStatusReport,
       clangCppVersionPreference: widget.bootstrap.clangCppVersionPreference,
       themeOverrideStore: widget.bootstrap.themeOverrideStore,
+      commandPalettePreferencesStore:
+          widget.bootstrap.commandPalettePreferencesStore,
       workspaceDiagnosticsController:
           widget.bootstrap.workspaceDiagnosticsController,
       testingSessionController: widget.bootstrap.testingSessionController,
@@ -57,6 +59,11 @@ class _VityoAppState extends State<VityoApp> {
       projectLanguageService: widget.bootstrap.projectLanguageService,
     );
     unawaited(_shellModel.loadThemeOverride());
+    unawaited(
+      _shellModel.loadCommandPalettePreferences(
+        workspaceId: widget.bootstrap.workspaceController.activeProject.id,
+      ),
+    );
   }
 
   @override

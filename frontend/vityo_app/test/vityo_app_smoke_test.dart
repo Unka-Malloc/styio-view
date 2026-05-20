@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +24,9 @@ import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/module_host/module_registry.dart';
 import 'package:vityo_app/src/platform/native_module_loader.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/commands/commands.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
@@ -318,7 +323,10 @@ void main() {
     );
   }
 
-  Future<AppBootstrap> createBootstrap(PlatformTarget target) async {
+  Future<AppBootstrap> createBootstrap(
+    PlatformTarget target, {
+    CommandPaletteDisplayPreferencesStore? commandPalettePreferencesStore,
+  }) async {
     final projectSnapshot = createProjectSnapshot(target);
     final workspaceController = WorkspaceController(
       projectSnapshot: projectSnapshot,
@@ -404,6 +412,7 @@ void main() {
         editorController,
       ),
       agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
+      commandPalettePreferencesStore: commandPalettePreferencesStore,
       toolchainStatusReport: toolchainStatusReport,
     );
   }
@@ -850,6 +859,47 @@ void main() {
     await tapVisibleText(tester, 'Debug');
 
     expect(find.byKey(const ValueKey('debug-surface-desktop')), findsOneWidget);
+  });
+
+  test('app bootstrap carries command palette preferences store', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_app_command_palette_preferences_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final dataStore = FoundationDataStore(
+      resourceCoordinator: FoundationResourceCoordinator(
+        resourceManager: LocalResourceManager(
+          facts: ResourceFacts.linuxDebianArm(
+            systemTempPath: tempRoot.path,
+            homePath: tempRoot.path,
+          ),
+        ),
+        fileSystemManager: fileSystemManager,
+      ),
+      fileSystemManager: fileSystemManager,
+    );
+    final preferencesStore =
+        CommandPaletteDisplayPreferencesStore.fromDataStore(
+          dataStore: dataStore,
+        );
+    await preferencesStore.savePreferences(
+      const CommandPaletteDisplayPreferences(
+        workspaceId: '/workspace/demo/spio.toml',
+        defaultCategory: AppCommandCategory.settings,
+        showRecentCommands: false,
+      ),
+    );
+    final bootstrap = await createBootstrap(
+      PlatformTarget.macos,
+      commandPalettePreferencesStore: preferencesStore,
+    );
+
+    expect(bootstrap.commandPalettePreferencesStore, same(preferencesStore));
+    final restored = await bootstrap.commandPalettePreferencesStore!
+        .readPreferences(workspaceId: '/workspace/demo/spio.toml');
+    expect(restored.defaultCategory, AppCommandCategory.settings);
+    expect(restored.showRecentCommands, isFalse);
   });
 
   testWidgets('builds shared shell scaffold in mobile viewport family', (

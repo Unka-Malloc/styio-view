@@ -17,6 +17,7 @@ import '../view_ide/interaction/interaction.dart';
 import '../view_ide/editor/document_state.dart';
 import '../view_ide/environment/environment.dart';
 import '../view_ide/foundation/foundation.dart';
+import '../view_ide/commands/commands.dart';
 import '../view_ide/language/service/language_service_foundation.dart';
 import '../view_ide/language/service/project_styio_language_service.dart';
 import '../view_ide/language/service/styio_service_capability_detector.dart';
@@ -73,6 +74,7 @@ class AppBootstrap {
     required this.toolchainManagementAdapter,
     required this.agentCodingController,
     required this.agentProviderConfigurator,
+    this.commandPalettePreferencesStore,
     this.themeOverrideStore,
     this.refreshActiveLanguageService,
     this.languageServiceStatusController,
@@ -108,6 +110,7 @@ class AppBootstrap {
   final ToolchainManagementAdapter toolchainManagementAdapter;
   final AgentCodingSessionController agentCodingController;
   final AgentProviderConfigurator agentProviderConfigurator;
+  final CommandPaletteDisplayPreferencesStore? commandPalettePreferencesStore;
   final VityoThemeOverrideStore? themeOverrideStore;
   final ToolchainManager? toolchainManager;
   final ClangCppVersionPreference? clangCppVersionPreference;
@@ -172,6 +175,10 @@ class AppBootstrap {
     final themeOverrideStore = VityoThemeOverrideStore.fromDataStore(
       dataStore: foundationDataStore,
     );
+    final commandPalettePreferencesStore =
+        CommandPaletteDisplayPreferencesStore.fromDataStore(
+          dataStore: foundationDataStore,
+        );
     final toolchainStore = ToolchainConfigurationStore(
       configurationStore: configurationStore,
     );
@@ -407,6 +414,7 @@ class AppBootstrap {
       toolchainManagementAdapter: toolchainManagementAdapter,
       agentCodingController: agentCodingController,
       agentProviderConfigurator: agentProviderConfigurator,
+      commandPalettePreferencesStore: commandPalettePreferencesStore,
       themeOverrideStore: themeOverrideStore,
       refreshActiveLanguageService: refreshActiveLanguageService,
       languageServiceStatusController: languageServiceStatusController,

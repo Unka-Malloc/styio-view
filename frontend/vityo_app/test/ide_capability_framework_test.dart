@@ -181,6 +181,10 @@ void main() {
     );
     expect(
       entriesById['interaction.command-palette']?.summary,
+      contains('app bootstrap preference hydration'),
+    );
+    expect(
+      entriesById['interaction.command-palette']?.summary,
       contains('top-level SettingsSurface preference saves'),
     );
     expect(

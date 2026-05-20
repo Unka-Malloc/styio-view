@@ -5,6 +5,7 @@ import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
+import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_event_bridge.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/problems/problems.dart';
@@ -376,6 +377,58 @@ void main() {
 
     expect(canceledSnapshot?.providerId, 'styio-project-diagnostics');
     expect(canceledSnapshot?.canCancel, isTrue);
+  });
+
+  testWidgets('problems surface renders semantic snapshot panel events', (
+    tester,
+  ) async {
+    final viewModel = SemanticSnapshotPanelViewModel.fromState(
+      SemanticSnapshotPanelEventState.empty(
+        SemanticSnapshotPanelEventTarget.problems,
+      ).record(
+        SemanticSnapshotPanelEvent(
+          target: SemanticSnapshotPanelEventTarget.problems,
+          kind: SemanticSnapshotTelemetryEventKind.codeActionApply,
+          documentId: 'src/main.styio',
+          message: 'Applied quick fix.',
+          payload: const <String, Object?>{
+            'status': 'applied',
+            'label': 'Insert assignment',
+          },
+          timestamp: DateTime.utc(2026, 5, 20, 15),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProblemsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            documentId: 'src/main.styio',
+            diagnostics: const <Diagnostic>[],
+            semanticSnapshotPanelViewModel: viewModel,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('problems-semantic-snapshot-panel')),
+      findsOneWidget,
+    );
+    expect(find.text('Semantic Problems'), findsOneWidget);
+    expect(find.text('items 1'), findsOneWidget);
+    expect(find.text('code-actions 1'), findsOneWidget);
+    expect(find.text('Insert assignment'), findsOneWidget);
+    expect(
+      find.textContaining('src/main.styio · code-action-apply'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('problems surface applies ready workspace edit review controls', (

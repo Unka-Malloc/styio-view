@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../view_ide/language/language_contract.dart';
+import '../../view_ide/language/service/semantic_snapshot_event_bridge.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/workspace/workspace.dart';
 import '../platform/viewport_profile.dart';
@@ -28,6 +29,7 @@ class ProblemsSurface extends StatefulWidget {
     this.workspaceEditReviewControls,
     this.workspaceEditApplyResult,
     this.quickFixReviewPlan,
+    this.semanticSnapshotPanelViewModel,
     this.diagnosticsPanelState,
     this.onDiagnosticsPanelStateChanged,
     this.onApplyWorkspaceEdit,
@@ -60,6 +62,7 @@ class ProblemsSurface extends StatefulWidget {
   final WorkspaceEditReviewControls? workspaceEditReviewControls;
   final WorkspaceEditApplyResultViewModel? workspaceEditApplyResult;
   final WorkspaceQuickFixReviewPlan? quickFixReviewPlan;
+  final SemanticSnapshotPanelViewModel? semanticSnapshotPanelViewModel;
   final DiagnosticsPanelState? diagnosticsPanelState;
   final ValueChanged<DiagnosticsPanelState>? onDiagnosticsPanelStateChanged;
   final Future<void> Function(WorkspaceEditReviewControls controls)?
@@ -300,6 +303,12 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                     onCancel: widget.onCancelQuickFixReviewPlan,
                   ),
                 ],
+                if (widget.semanticSnapshotPanelViewModel != null) ...[
+                  const SizedBox(height: 12),
+                  _SemanticSnapshotProblemsCard(
+                    viewModel: widget.semanticSnapshotPanelViewModel!,
+                  ),
+                ],
                 const SizedBox(height: 12),
                 if (problemEntries.isEmpty)
                   Text(
@@ -416,6 +425,71 @@ int? _restoredProblemIndex(
         diagnostic.range.end == state.selectedRangeEnd;
   });
   return index < 0 ? null : index;
+}
+
+class _SemanticSnapshotProblemsCard extends StatelessWidget {
+  const _SemanticSnapshotProblemsCard({required this.viewModel});
+
+  final SemanticSnapshotPanelViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('problems-semantic-snapshot-panel'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Semantic ${viewModel.title}',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              Chip(label: Text('revision ${viewModel.revision}')),
+              Chip(label: Text('items ${viewModel.itemCount}')),
+              Chip(label: Text('code-actions ${viewModel.codeActionCount}')),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (viewModel.empty)
+            Text(
+              'No semantic panel events recorded.',
+              style: theme.textTheme.bodySmall,
+            )
+          else
+            for (final item in viewModel.items.take(5))
+              ListTile(
+                key: ValueKey('problems-semantic-event-${item.id}'),
+                dense: true,
+                leading: Icon(
+                  item.severity == 'success'
+                      ? Icons.check_circle_outline
+                      : item.severity == 'warning'
+                      ? Icons.warning_amber_rounded
+                      : Icons.info_outline,
+                ),
+                title: Text(
+                  item.actionLabel.isEmpty ? item.title : item.actionLabel,
+                ),
+                subtitle: Text(
+                  '${item.documentId} · ${item.kind.wireValue} · ${item.message}',
+                ),
+              ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ProblemsDocumentGroupSummary extends StatelessWidget {

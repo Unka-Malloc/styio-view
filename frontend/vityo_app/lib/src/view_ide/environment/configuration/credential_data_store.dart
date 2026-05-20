@@ -997,6 +997,157 @@ class InMemoryCredentialDataStore extends CredentialDataStore {
   }
 }
 
+abstract class PlatformSecureCredentialStorageAdapter {
+  const PlatformSecureCredentialStorageAdapter();
+
+  String get adapterId;
+
+  Future<void> write(CredentialSecretRecord record);
+
+  Future<CredentialSecretRecord?> read(CredentialDataStoreKey key);
+
+  Future<bool> delete(CredentialDataStoreKey key);
+
+  Future<List<CredentialSecretRecord>> list({CredentialScope? scope});
+
+  Future<CredentialDataStoreHealth> health();
+}
+
+class InMemoryPlatformSecureCredentialStorageAdapter
+    extends PlatformSecureCredentialStorageAdapter {
+  InMemoryPlatformSecureCredentialStorageAdapter({
+    this.adapterId = 'in-memory-platform-secure-storage',
+  });
+
+  @override
+  final String adapterId;
+
+  final Map<String, CredentialSecretRecord> _records =
+      <String, CredentialSecretRecord>{};
+
+  @override
+  Future<void> write(CredentialSecretRecord record) async {
+    _records[record.key.stableId] = record;
+  }
+
+  @override
+  Future<CredentialSecretRecord?> read(CredentialDataStoreKey key) async {
+    final record = _records[key.stableId];
+    if (record == null || record.isExpired) {
+      return null;
+    }
+    return record;
+  }
+
+  @override
+  Future<bool> delete(CredentialDataStoreKey key) async {
+    return _records.remove(key.stableId) != null;
+  }
+
+  @override
+  Future<List<CredentialSecretRecord>> list({CredentialScope? scope}) async {
+    final records = _records.values
+        .where((record) => scope == null || record.key.scope == scope)
+        .toList(growable: false);
+    records.sort(
+      (left, right) => left.key.stableId.compareTo(right.key.stableId),
+    );
+    return records;
+  }
+
+  @override
+  Future<CredentialDataStoreHealth> health() async {
+    return CredentialDataStoreHealth(
+      protection: CredentialStorageProtection.platformSecureStorage,
+      persistent: true,
+      safeForLongLivedSecrets: true,
+      message: 'Secure credential adapter $adapterId is available.',
+    );
+  }
+}
+
+class PlatformSecureCredentialDataStore extends CredentialDataStore {
+  PlatformSecureCredentialDataStore({required this.adapter});
+
+  final PlatformSecureCredentialStorageAdapter adapter;
+
+  @override
+  Future<void> write(CredentialSecretRecord record) {
+    return adapter.write(record);
+  }
+
+  @override
+  Future<CredentialSecretRecord?> read(CredentialDataStoreKey key) {
+    return adapter.read(key);
+  }
+
+  @override
+  Future<bool> delete(CredentialDataStoreKey key) {
+    return adapter.delete(key);
+  }
+
+  @override
+  Future<List<CredentialMetadata>> list({CredentialScope? scope}) async {
+    final records = await adapter.list(scope: scope);
+    return records.map((record) => record.toMetadata()).toList(growable: false);
+  }
+
+  @override
+  Future<CredentialDataStoreHealth> health() {
+    return adapter.health();
+  }
+}
+
+class CredentialStoragePolicyEnforcingDataStore extends CredentialDataStore {
+  CredentialStoragePolicyEnforcingDataStore({
+    required this.delegate,
+    this.policy = const CredentialStoragePolicy(),
+    this.now,
+  });
+
+  final CredentialDataStore delegate;
+  final CredentialStoragePolicy policy;
+  final DateTime Function()? now;
+
+  @override
+  Future<void> write(CredentialSecretRecord record) async {
+    final decision = policy.evaluateWrite(
+      record: record,
+      health: await delegate.health(),
+      now: now?.call(),
+    );
+    if (!decision.allowed) {
+      throw StateError(decision.reason);
+    }
+    await delegate.write(record);
+  }
+
+  @override
+  Future<CredentialSecretRecord?> read(CredentialDataStoreKey key) {
+    return delegate.read(key);
+  }
+
+  @override
+  Future<bool> delete(CredentialDataStoreKey key) {
+    return delegate.delete(key);
+  }
+
+  @override
+  Future<List<CredentialMetadata>> list({CredentialScope? scope}) {
+    return delegate.list(scope: scope);
+  }
+
+  @override
+  Future<CredentialDataStoreSnapshot> snapshot() {
+    return delegate.snapshot();
+  }
+
+  @override
+  Future<CredentialDataStoreHealth> health() {
+    return delegate.health();
+  }
+}
+
 class FoundationCredentialDataStore extends CredentialDataStore {
   FoundationCredentialDataStore({
     required FoundationDataStore dataStore,

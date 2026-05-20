@@ -153,6 +153,45 @@ void main() {
   });
 
   test(
+    'platform secure credential data store accepts policy-enforced secrets',
+    () async {
+      final store = CredentialStoragePolicyEnforcingDataStore(
+        delegate: PlatformSecureCredentialDataStore(
+          adapter: InMemoryPlatformSecureCredentialStorageAdapter(),
+        ),
+        now: () => DateTime.utc(2026, 5, 20),
+      );
+      const key = CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'openai',
+        scope: CredentialScope.user,
+      );
+
+      await store.write(
+        CredentialSecretRecord(
+          key: key,
+          kind: CredentialKind.token,
+          secretValue: 'secure-live-token',
+          createdAt: DateTime.utc(2026, 5, 20),
+          updatedAt: DateTime.utc(2026, 5, 20),
+        ),
+      );
+      final loaded = await store.read(key);
+      final health = await store.health();
+      final snapshotText = (await store.snapshot()).toJson().toString();
+
+      expect(loaded?.secretValue, 'secure-live-token');
+      expect(
+        health.protection,
+        CredentialStorageProtection.platformSecureStorage,
+      );
+      expect(health.safeForLongLivedSecrets, isTrue);
+      expect(snapshotText, isNot(contains('secure-live-token')));
+      expect(snapshotText, contains('se****en'));
+    },
+  );
+
+  test(
     'credential references can be stored in ordinary configuration safely',
     () {
       const reference = CredentialReference(

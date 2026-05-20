@@ -76,6 +76,19 @@ class ConfiguredAgentProviderAdapterFactory {
     );
   }
 
+  Future<AgentProviderSelectionPlan> resolveSelectionPlan(
+    AgentPromptProfile profile,
+  ) async {
+    final registry = createRegistry();
+    final selectionPlan = registry.selectionPlan(profile);
+    if (!selectionPlan.ready) {
+      return selectionPlan;
+    }
+    return selectionPlan.withExecutionResolution(
+      await resolveExecution(profile),
+    );
+  }
+
   Future<AgentProviderAdapter> create(AgentPromptProfile profile) async {
     final execution = await resolveExecution(profile);
     final selectedEndpoint = execution.selectedEndpoint;

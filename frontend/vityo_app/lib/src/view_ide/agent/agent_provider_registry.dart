@@ -1,5 +1,6 @@
 import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
+import 'agent_provider_route_executor.dart';
 
 typedef RegisteredAgentProviderAdapterCreator =
     Future<AgentProviderAdapter> Function(AgentPromptProfile profile);
@@ -76,6 +77,9 @@ class AgentProviderSelectionPlan {
     required this.requiresCredential,
     required this.candidates,
     this.selectedProvider,
+    this.credentialReadiness,
+    this.executionStatus,
+    this.selectedEndpointIndex,
     this.message = '',
     this.todo = '',
   });
@@ -86,10 +90,44 @@ class AgentProviderSelectionPlan {
   final bool requiresCredential;
   final List<AgentProviderRegistrationManifest> candidates;
   final AgentProviderRegistrationManifest? selectedProvider;
+  final AgentProviderCredentialReadiness? credentialReadiness;
+  final AgentProviderExecutionResolutionStatus? executionStatus;
+  final int? selectedEndpointIndex;
   final String message;
   final String todo;
 
   bool get ready => status == AgentProviderSelectionStatus.ready;
+  bool get executable {
+    return ready &&
+        credentialReadiness != AgentProviderCredentialReadiness.unavailable &&
+        executionStatus != AgentProviderExecutionResolutionStatus.blocked;
+  }
+
+  AgentProviderSelectionPlan withExecutionResolution(
+    AgentProviderExecutionResolution resolution,
+  ) {
+    final selectedEndpoint = resolution.selectedEndpoint;
+    final health = resolution.toHealthReport();
+    return AgentProviderSelectionPlan(
+      status: status,
+      route: route,
+      protocol: protocol,
+      requiresCredential: requiresCredential,
+      candidates: candidates,
+      selectedProvider: selectedProvider,
+      credentialReadiness: selectedEndpoint?.credentialReadiness,
+      executionStatus: resolution.status,
+      selectedEndpointIndex: resolution.selectedEndpointIndex,
+      message: health.message,
+      todo:
+          selectedEndpoint?.credentialReadiness ==
+              AgentProviderCredentialReadiness.unavailable
+          ? 'TODO: configure the referenced agent provider credential in Credential DataStore.'
+          : todo.startsWith('TODO: resolve this profile credential')
+          ? ''
+          : todo,
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -98,6 +136,13 @@ class AgentProviderSelectionPlan {
       'protocol': protocol,
       'requiresCredential': requiresCredential,
       'ready': ready,
+      'executable': executable,
+      if (credentialReadiness != null)
+        'credentialReadiness': credentialReadiness!.wireValue,
+      if (executionStatus != null)
+        'executionStatus': executionStatus!.wireValue,
+      if (selectedEndpointIndex != null)
+        'selectedEndpointIndex': selectedEndpointIndex,
       if (selectedProvider != null)
         'selectedProvider': selectedProvider!.toJson(),
       'candidateCount': candidates.length,

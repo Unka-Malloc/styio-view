@@ -81,12 +81,17 @@ void main() {
         transport: transport,
       );
       final registry = factory.createRegistry();
+      final selectionPlan = await factory.resolveSelectionPlan(profile);
       final manifestJson = registry.manifest().toJson();
       final providerManifest =
           (manifestJson['providers']! as List<Object?>).single!
               as Map<String, Object?>;
 
       expect(registry.resolve(profile)?.providerId, 'openai-compatible');
+      expect(selectionPlan.ready, isTrue);
+      expect(selectionPlan.executable, isTrue);
+      expect(selectionPlan.toJson()['credentialReadiness'], 'available');
+      expect(selectionPlan.toJson().containsKey('todo'), isFalse);
       expect(providerManifest['providerId'], 'openai-compatible');
       expect(providerManifest['capabilities'], contains('diagnostic_summary'));
 

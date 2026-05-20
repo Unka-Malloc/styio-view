@@ -2196,11 +2196,48 @@ void main() {
       expect(activeSkillIds.first, 'styio-language-service-truth');
       expect(activeSkillIds, contains('styio-ide-feature-loop'));
       expect(activeSkillIds, contains('styio-fixture-confidence-matrix'));
-      expect(activeSkillIds, contains('styio-cpp-compiler-project'));
+      expect(activeSkillIds, isNot(contains('styio-cpp-compiler-project')));
+      expect(activeSkillIds, isNot(contains('cpp-clang-toolchain-defaults')));
       expect(
         activationReasons['styio-language-service-truth'],
         contains(
           'Styio source files require StyioService-backed syntax and semantic facts instead of Vityo-side grammar guesses.',
+        ),
+      );
+    },
+  );
+
+  test(
+    'agent workspace context activates Styio compiler skill with native evidence',
+    () {
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: 'src/main.styio',
+          text: 'state value = 1\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        workspaceFiles: const <String>[
+          'src/main.styio',
+          'compiler/CMakeLists.txt',
+          'compiler/src/parser.cpp',
+        ],
+        activeFilePath: 'src/main.styio',
+      );
+
+      final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+      final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
+      final activationReasons =
+          skillsJson['activationReasons']! as Map<String, Object?>;
+
+      expect(activeSkillIds, contains('styio-language-service-truth'));
+      expect(activeSkillIds, contains('cpp-clang-toolchain-defaults'));
+      expect(activeSkillIds, contains('styio-cpp-compiler-project'));
+      expect(
+        activationReasons['styio-cpp-compiler-project'],
+        contains(
+          'Styio source files appear together with native build evidence, so compiler-project workflow may be relevant.',
         ),
       );
     },

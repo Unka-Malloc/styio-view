@@ -390,7 +390,6 @@ class AgentCodingSkillCatalog {
     );
     final hasTestPath = normalizedPaths.any(_isTestPath);
     final hasNativeProjectEvidence =
-        hasStyio ||
         hasNativeSource ||
         hasCompilationDatabase ||
         hasCMake ||
@@ -418,8 +417,11 @@ class AgentCodingSkillCatalog {
       activate('styio-fixture-confidence-matrix', <String>[
         'Styio syntax-sensitive work should use fixture expectations and confidence classification.',
       ]);
+    }
+
+    if (hasStyio && hasNativeProjectEvidence) {
       activate('styio-cpp-compiler-project', <String>[
-        'Styio source files should be handled as part of the Styio C++ compiler project workflow.',
+        'Styio source files appear together with native build evidence, so compiler-project workflow may be relevant.',
       ]);
     }
 

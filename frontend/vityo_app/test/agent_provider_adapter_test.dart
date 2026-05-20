@@ -855,12 +855,15 @@ void main() {
       expect(metadata['activeSkillCount'], greaterThan(0));
       expect(
         metadata['activeSkillIds'],
-        contains('cpp-clang-toolchain-defaults'),
+        contains('styio-language-service-truth'),
       );
-      expect(metadata['activeSkillIds'], contains('cpp-clang-version-handoff'));
       expect(
         metadata['activeSkillIds'],
-        contains('styio-cpp-compiler-project'),
+        isNot(contains('cpp-clang-version-handoff')),
+      );
+      expect(
+        metadata['activeSkillIds'],
+        isNot(contains('styio-cpp-compiler-project')),
       );
       expect(metadata['skillIds'], contains('styio-cpp-compiler-project'));
       expect(metadata['skillIds'], contains('cpp-clang-version-handoff'));

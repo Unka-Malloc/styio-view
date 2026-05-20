@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/editor/editor.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
@@ -135,6 +136,64 @@ void main() {
     expect(restored.filterState.summary, 'warning · source styio');
     expect(await store.deleteState(workspaceId: 'demo'), isTrue);
     expect((await store.readState(workspaceId: 'demo')).hasSelection, isFalse);
+  });
+
+  test('quick fix telemetry store persists review outcomes', () async {
+    final store = WorkspaceQuickFixTelemetryStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+    const diagnostic = WorkspaceDiagnostic(
+      documentId: 'src/main.styio',
+      providerId: 'styio-service',
+      source: 'styio',
+      diagnostic: Diagnostic(
+        severity: DiagnosticSeverity.error,
+        code: 'missing-assignment',
+        message: 'Missing assignment.',
+        range: SourceRange(start: 9, end: 9),
+      ),
+      quickFixes: <DiagnosticQuickFix>[
+        DiagnosticQuickFix(
+          label: 'Insert assignment',
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 9, end: 9),
+              newText: ' = value',
+            ),
+          ],
+        ),
+      ],
+    );
+    final review = WorkspaceQuickFixReviewPlan.fromDiagnostic(
+      diagnostic: diagnostic,
+      documents: const <DocumentState>[
+        DocumentState(
+          documentId: 'src/main.styio',
+          text: 'let count\n',
+          revision: 1,
+        ),
+      ],
+    );
+    final outcome = WorkspaceQuickFixReviewOutcome.fromReviewPlan(
+      workspaceId: 'demo',
+      reviewPlan: review,
+      outcomeKind: WorkspaceQuickFixReviewOutcomeKind.previewed,
+      message: 'User previewed quick fix.',
+      timestamp: DateTime.utc(2026, 5, 20, 13),
+    );
+
+    await store.recordOutcome(outcome: outcome);
+
+    final restored = await store.readSnapshot(workspaceId: 'demo');
+
+    expect(restored.outcomes.single.producerId, 'styio-service');
+    expect(restored.outcomes.single.documentId, 'src/main.styio');
+    expect(restored.outcomes.single.diagnosticCode, 'missing-assignment');
+    expect(restored.outcomes.single.ready, isTrue);
+    expect(restored.toJson()['outcomeCount'], 1);
+    expect(restored.outcomes.single.toJson()['outcomeKind'], 'previewed');
+    expect(await store.clearSnapshot(workspaceId: 'demo'), isTrue);
+    expect((await store.readSnapshot(workspaceId: 'demo')).outcomes, isEmpty);
   });
 }
 

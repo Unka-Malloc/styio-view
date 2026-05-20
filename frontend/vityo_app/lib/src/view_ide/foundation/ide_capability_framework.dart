@@ -342,9 +342,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/interaction',
           summary:
-              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
+              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore review outcomes, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
           todo:
-              'TODO: add native diagnostic producers and persist quick-fix review outcomes into producer execution telemetry stores.',
+              'TODO: add native diagnostic producers and bind persisted quick-fix outcomes into producer execution telemetry views.',
           dependencies: <String>['workspace.diagnostics'],
         ),
         IdeCapabilityDescriptor(
@@ -457,9 +457,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/workspace/workspace_diagnostics.dart',
           summary:
-              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, preview/apply action routing, and native tool result diagnostic snapshots.',
+              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore persisted review outcomes, preview/apply action routing, and native tool result diagnostic snapshots.',
           todo:
-              'TODO: bind native tool workspace diagnostic snapshots and quick-fix preview/apply actions to concrete producer execution telemetry.',
+              'TODO: bind native tool workspace diagnostic snapshots and persisted quick-fix telemetry to concrete producer execution views.',
           dependencies: <String>[
             'foundation.registry',
             'service.styio-language',

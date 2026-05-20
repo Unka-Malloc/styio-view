@@ -667,6 +667,291 @@ class WorkspaceQuickFixReviewPlan {
   }
 }
 
+enum WorkspaceQuickFixReviewOutcomeKind { previewed, applied, blocked, failed }
+
+extension WorkspaceQuickFixReviewOutcomeKindX
+    on WorkspaceQuickFixReviewOutcomeKind {
+  String get wireValue => switch (this) {
+    WorkspaceQuickFixReviewOutcomeKind.previewed => 'previewed',
+    WorkspaceQuickFixReviewOutcomeKind.applied => 'applied',
+    WorkspaceQuickFixReviewOutcomeKind.blocked => 'blocked',
+    WorkspaceQuickFixReviewOutcomeKind.failed => 'failed',
+  };
+}
+
+class WorkspaceQuickFixReviewOutcome {
+  const WorkspaceQuickFixReviewOutcome({
+    required this.workspaceId,
+    required this.producerId,
+    required this.documentId,
+    required this.diagnosticCode,
+    required this.quickFixIndex,
+    required this.planId,
+    required this.outcomeKind,
+    required this.confirmationStatus,
+    required this.ready,
+    required this.message,
+    required this.timestamp,
+    this.affectedDocumentIds = const <String>[],
+    this.missingDocumentIds = const <String>[],
+  });
+
+  factory WorkspaceQuickFixReviewOutcome.fromReviewPlan({
+    required String workspaceId,
+    required WorkspaceQuickFixReviewPlan reviewPlan,
+    required WorkspaceQuickFixReviewOutcomeKind outcomeKind,
+    String message = '',
+    DateTime? timestamp,
+  }) {
+    final diagnostic = reviewPlan.diagnostic;
+    final confirmation = reviewPlan.confirmationPlan;
+    return WorkspaceQuickFixReviewOutcome(
+      workspaceId: workspaceId,
+      producerId: diagnostic.providerId.isNotEmpty
+          ? diagnostic.providerId
+          : diagnostic.source,
+      documentId: diagnostic.documentId,
+      diagnosticCode: diagnostic.diagnostic.code,
+      quickFixIndex: reviewPlan.quickFixIndex,
+      planId: confirmation.planId,
+      outcomeKind: outcomeKind,
+      confirmationStatus: confirmation.status,
+      ready: reviewPlan.ready,
+      message: message.trim().isEmpty ? confirmation.message : message.trim(),
+      affectedDocumentIds: confirmation.affectedDocumentIds,
+      missingDocumentIds: confirmation.missingDocumentIds,
+      timestamp: (timestamp ?? DateTime.now()).toUtc(),
+    );
+  }
+
+  factory WorkspaceQuickFixReviewOutcome.fromJson(Map<String, Object?> json) {
+    return WorkspaceQuickFixReviewOutcome(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      producerId: json['producerId'] as String? ?? '',
+      documentId: json['documentId'] as String? ?? '',
+      diagnosticCode: json['diagnosticCode'] as String? ?? '',
+      quickFixIndex: json['quickFixIndex'] as int? ?? 0,
+      planId: json['planId'] as String? ?? '',
+      outcomeKind:
+          _workspaceQuickFixReviewOutcomeKindFromWire(json['outcomeKind']) ??
+          WorkspaceQuickFixReviewOutcomeKind.previewed,
+      confirmationStatus:
+          _workspaceQuickFixConfirmationStatusFromWire(
+            json['confirmationStatus'],
+          ) ??
+          WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+      ready: json['ready'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+      affectedDocumentIds: _stringListFromJson(json['affectedDocumentIds']),
+      missingDocumentIds: _stringListFromJson(json['missingDocumentIds']),
+      timestamp:
+          DateTime.tryParse(json['timestamp'] as String? ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+  }
+
+  final String workspaceId;
+  final String producerId;
+  final String documentId;
+  final String diagnosticCode;
+  final int quickFixIndex;
+  final String planId;
+  final WorkspaceQuickFixReviewOutcomeKind outcomeKind;
+  final WorkspaceQuickFixConfirmationStatus confirmationStatus;
+  final bool ready;
+  final String message;
+  final List<String> affectedDocumentIds;
+  final List<String> missingDocumentIds;
+  final DateTime timestamp;
+
+  bool get applied => outcomeKind == WorkspaceQuickFixReviewOutcomeKind.applied;
+  bool get blocked =>
+      outcomeKind == WorkspaceQuickFixReviewOutcomeKind.blocked ||
+      !ready ||
+      confirmationStatus != WorkspaceQuickFixConfirmationStatus.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'producerId': producerId,
+      'documentId': documentId,
+      'diagnosticCode': diagnosticCode,
+      'quickFixIndex': quickFixIndex,
+      'planId': planId,
+      'outcomeKind': outcomeKind.wireValue,
+      'confirmationStatus': confirmationStatus.wireValue,
+      'ready': ready,
+      'applied': applied,
+      'blocked': blocked,
+      'message': message,
+      'affectedDocumentIds': affectedDocumentIds,
+      'missingDocumentIds': missingDocumentIds,
+      'timestamp': timestamp.toIso8601String(),
+    };
+  }
+}
+
+class WorkspaceQuickFixTelemetrySnapshot {
+  const WorkspaceQuickFixTelemetrySnapshot({
+    required this.workspaceId,
+    this.outcomes = const <WorkspaceQuickFixReviewOutcome>[],
+    this.updatedAt,
+  });
+
+  factory WorkspaceQuickFixTelemetrySnapshot.fromJson(
+    Map<String, Object?> json,
+  ) {
+    final outcomes = <WorkspaceQuickFixReviewOutcome>[];
+    final rawOutcomes = json['outcomes'];
+    if (rawOutcomes is List) {
+      for (final rawOutcome in rawOutcomes) {
+        if (rawOutcome is Map) {
+          outcomes.add(
+            WorkspaceQuickFixReviewOutcome.fromJson(
+              Map<String, Object?>.from(rawOutcome),
+            ),
+          );
+        }
+      }
+    }
+    return WorkspaceQuickFixTelemetrySnapshot(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      outcomes: List.unmodifiable(outcomes),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final List<WorkspaceQuickFixReviewOutcome> outcomes;
+  final DateTime? updatedAt;
+
+  int get appliedCount {
+    return outcomes.where((outcome) => outcome.applied).length;
+  }
+
+  int get blockedCount {
+    return outcomes.where((outcome) => outcome.blocked).length;
+  }
+
+  WorkspaceQuickFixTelemetrySnapshot record(
+    WorkspaceQuickFixReviewOutcome outcome, {
+    int maxOutcomes = 50,
+  }) {
+    return WorkspaceQuickFixTelemetrySnapshot(
+      workspaceId: workspaceId,
+      outcomes: <WorkspaceQuickFixReviewOutcome>[
+        outcome,
+        ...outcomes.where(
+          (candidate) =>
+              candidate.documentId != outcome.documentId ||
+              candidate.diagnosticCode != outcome.diagnosticCode ||
+              candidate.quickFixIndex != outcome.quickFixIndex ||
+              candidate.timestamp != outcome.timestamp,
+        ),
+      ].take(maxOutcomes).toList(growable: false),
+      updatedAt: outcome.timestamp,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'outcomeCount': outcomes.length,
+      'appliedCount': appliedCount,
+      'blockedCount': blockedCount,
+      'outcomes': outcomes
+          .map((outcome) => outcome.toJson())
+          .toList(growable: false),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class WorkspaceQuickFixTelemetryStore {
+  WorkspaceQuickFixTelemetryStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'workspace.diagnostics.quick-fix-telemetry',
+             layer: 'workspace',
+             stateFamily: 'quick-fix-telemetry',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const WorkspaceQuickFixTelemetryStore({
+    required FoundationDataStoreOwner owner,
+  }) : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName =
+      'workspace.diagnostics.quick-fix-telemetry';
+  static const String _key = 'quick-fix-outcomes';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<WorkspaceQuickFixTelemetrySnapshot> readSnapshot({
+    required String workspaceId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return WorkspaceQuickFixTelemetrySnapshot(workspaceId: workspaceId);
+    }
+    final snapshot = WorkspaceQuickFixTelemetrySnapshot.fromJson(value);
+    return snapshot.workspaceId.isEmpty
+        ? WorkspaceQuickFixTelemetrySnapshot(
+            workspaceId: workspaceId,
+            outcomes: snapshot.outcomes,
+            updatedAt: snapshot.updatedAt,
+          )
+        : snapshot;
+  }
+
+  Future<WorkspaceQuickFixTelemetrySnapshot> recordOutcome({
+    required WorkspaceQuickFixReviewOutcome outcome,
+    int maxOutcomes = 50,
+  }) async {
+    final next = (await readSnapshot(
+      workspaceId: outcome.workspaceId,
+    )).record(outcome, maxOutcomes: maxOutcomes);
+    await saveSnapshot(snapshot: next);
+    return next;
+  }
+
+  Future<WorkspaceQuickFixTelemetrySnapshot> saveSnapshot({
+    required WorkspaceQuickFixTelemetrySnapshot snapshot,
+  }) async {
+    await _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: snapshot.toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: snapshot.workspaceId,
+    );
+    return snapshot;
+  }
+
+  Future<bool> clearSnapshot({required String workspaceId}) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+}
+
 List<WorkspaceDiagnosticsDocumentGroup> groupWorkspaceDiagnostics(
   List<WorkspaceDiagnostic> diagnostics,
 ) {
@@ -726,6 +1011,37 @@ List<String> _sortedStrings(Iterable<String> values) {
           .toList(growable: false)
         ..sort();
   return result;
+}
+
+WorkspaceQuickFixReviewOutcomeKind? _workspaceQuickFixReviewOutcomeKindFromWire(
+  Object? value,
+) {
+  return switch (value) {
+    'previewed' => WorkspaceQuickFixReviewOutcomeKind.previewed,
+    'applied' => WorkspaceQuickFixReviewOutcomeKind.applied,
+    'blocked' => WorkspaceQuickFixReviewOutcomeKind.blocked,
+    'failed' => WorkspaceQuickFixReviewOutcomeKind.failed,
+    _ => null,
+  };
+}
+
+WorkspaceQuickFixConfirmationStatus?
+_workspaceQuickFixConfirmationStatusFromWire(Object? value) {
+  return switch (value) {
+    'ready' => WorkspaceQuickFixConfirmationStatus.ready,
+    'blocked-missing-documents' =>
+      WorkspaceQuickFixConfirmationStatus.blockedMissingDocuments,
+    'blocked-no-preview' =>
+      WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+    _ => null,
+  };
+}
+
+List<String> _stringListFromJson(Object? value) {
+  if (value is! List) {
+    return const <String>[];
+  }
+  return value.map((entry) => '$entry').toList(growable: false);
 }
 
 DiagnosticSeverity? _diagnosticSeverityFromName(String value) {

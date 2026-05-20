@@ -392,6 +392,227 @@ class ExtensionMarketplaceInstaller {
   }
 }
 
+enum ExtensionMarketplaceInstallResultStatus {
+  installed,
+  blockedPlan,
+  blockedVerification,
+  failed,
+}
+
+extension ExtensionMarketplaceInstallResultStatusX
+    on ExtensionMarketplaceInstallResultStatus {
+  String get wireValue => switch (this) {
+    ExtensionMarketplaceInstallResultStatus.installed => 'installed',
+    ExtensionMarketplaceInstallResultStatus.blockedPlan => 'blocked-plan',
+    ExtensionMarketplaceInstallResultStatus.blockedVerification =>
+      'blocked-verification',
+    ExtensionMarketplaceInstallResultStatus.failed => 'failed',
+  };
+}
+
+class ExtensionPackageArtifact {
+  const ExtensionPackageArtifact({
+    required this.extensionId,
+    required this.sourceUri,
+    required this.cacheKey,
+    required this.sizeBytes,
+    this.checksum = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String extensionId;
+  final String sourceUri;
+  final String cacheKey;
+  final int sizeBytes;
+  final String checksum;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'sourceUri': sourceUri,
+      'cacheKey': cacheKey,
+      'sizeBytes': sizeBytes,
+      if (checksum.isNotEmpty) 'checksum': checksum,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionPackageDownloadReceipt {
+  const ExtensionPackageDownloadReceipt({
+    required this.artifact,
+    required this.message,
+  });
+
+  final ExtensionPackageArtifact artifact;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{'artifact': artifact.toJson(), 'message': message};
+  }
+}
+
+class ExtensionPackageVerificationReceipt {
+  const ExtensionPackageVerificationReceipt({
+    required this.verified,
+    required this.message,
+    this.checksum = '',
+    this.signature = '',
+  });
+
+  final bool verified;
+  final String message;
+  final String checksum;
+  final String signature;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'verified': verified,
+      'message': message,
+      if (checksum.isNotEmpty) 'checksum': checksum,
+      if (signature.isNotEmpty) 'signature': signature,
+    };
+  }
+}
+
+abstract class ExtensionPackageDownloader {
+  Future<ExtensionPackageDownloadReceipt> download(
+    ExtensionMarketplaceListing listing,
+  );
+}
+
+abstract class ExtensionPackageVerifier {
+  Future<ExtensionPackageVerificationReceipt> verify({
+    required ExtensionMarketplaceListing listing,
+    required ExtensionPackageArtifact artifact,
+  });
+}
+
+class ListingMetadataPackageVerifier implements ExtensionPackageVerifier {
+  const ListingMetadataPackageVerifier();
+
+  @override
+  Future<ExtensionPackageVerificationReceipt> verify({
+    required ExtensionMarketplaceListing listing,
+    required ExtensionPackageArtifact artifact,
+  }) async {
+    if (!listing.verified) {
+      return ExtensionPackageVerificationReceipt(
+        verified: false,
+        checksum: artifact.checksum,
+        message:
+            'Listing ${listing.extensionId} is not marked as marketplace verified.',
+      );
+    }
+    return ExtensionPackageVerificationReceipt(
+      verified: true,
+      checksum: artifact.checksum,
+      message:
+          'Listing ${listing.extensionId} satisfies marketplace verification metadata.',
+    );
+  }
+}
+
+class ExtensionMarketplaceInstallExecutionResult {
+  const ExtensionMarketplaceInstallExecutionResult({
+    required this.extensionId,
+    required this.status,
+    required this.message,
+    required this.executionPlan,
+    this.downloadReceipt,
+    this.verificationReceipt,
+    this.registeredManifest,
+  });
+
+  final String extensionId;
+  final ExtensionMarketplaceInstallResultStatus status;
+  final String message;
+  final ExtensionInstallExecutionPlan executionPlan;
+  final ExtensionPackageDownloadReceipt? downloadReceipt;
+  final ExtensionPackageVerificationReceipt? verificationReceipt;
+  final ExtensionManifest? registeredManifest;
+
+  bool get installed =>
+      status == ExtensionMarketplaceInstallResultStatus.installed;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'status': status.wireValue,
+      'installed': installed,
+      'message': message,
+      'executionPlan': executionPlan.toJson(),
+      if (downloadReceipt != null) 'download': downloadReceipt!.toJson(),
+      if (verificationReceipt != null)
+        'verification': verificationReceipt!.toJson(),
+      if (registeredManifest != null)
+        'registeredManifest': registeredManifest!.toJson(),
+    };
+  }
+}
+
+class ExtensionMarketplaceInstallExecutor {
+  const ExtensionMarketplaceInstallExecutor({
+    required this.downloader,
+    this.verifier = const ListingMetadataPackageVerifier(),
+  });
+
+  final ExtensionPackageDownloader downloader;
+  final ExtensionPackageVerifier verifier;
+
+  Future<ExtensionMarketplaceInstallExecutionResult> execute({
+    required ExtensionInstallExecutionPlan executionPlan,
+    required ExtensionManifestRegistry installedRegistry,
+  }) async {
+    if (!executionPlan.executable ||
+        executionPlan.installPlan.listing == null) {
+      return ExtensionMarketplaceInstallExecutionResult(
+        extensionId: executionPlan.extensionId,
+        status: ExtensionMarketplaceInstallResultStatus.blockedPlan,
+        message: executionPlan.message,
+        executionPlan: executionPlan,
+      );
+    }
+    final listing = executionPlan.installPlan.listing!;
+    try {
+      final download = await downloader.download(listing);
+      final verification = await verifier.verify(
+        listing: listing,
+        artifact: download.artifact,
+      );
+      if (!verification.verified) {
+        return ExtensionMarketplaceInstallExecutionResult(
+          extensionId: executionPlan.extensionId,
+          status: ExtensionMarketplaceInstallResultStatus.blockedVerification,
+          message: verification.message,
+          executionPlan: executionPlan,
+          downloadReceipt: download,
+          verificationReceipt: verification,
+        );
+      }
+      installedRegistry.register(listing.manifest);
+      return ExtensionMarketplaceInstallExecutionResult(
+        extensionId: executionPlan.extensionId,
+        status: ExtensionMarketplaceInstallResultStatus.installed,
+        message: 'Extension ${listing.extensionId} installed and registered.',
+        executionPlan: executionPlan,
+        downloadReceipt: download,
+        verificationReceipt: verification,
+        registeredManifest: listing.manifest,
+      );
+    } on Object catch (error) {
+      return ExtensionMarketplaceInstallExecutionResult(
+        extensionId: executionPlan.extensionId,
+        status: ExtensionMarketplaceInstallResultStatus.failed,
+        message:
+            'Extension ${executionPlan.extensionId} install failed: $error',
+        executionPlan: executionPlan,
+      );
+    }
+  }
+}
+
 class ExtensionMarketplaceIndex {
   const ExtensionMarketplaceIndex({
     required this.workspaceId,
@@ -465,7 +686,7 @@ class ExtensionMarketplaceIndex {
       message: 'Extension $normalizedId can be installed from marketplace.',
       listing: listing,
       todo:
-          'TODO: hand this plan to the extension download, signature, and host-isolation installer.',
+          'TODO: execute this plan through ExtensionMarketplaceInstallExecutor with a concrete downloader.',
     );
   }
 

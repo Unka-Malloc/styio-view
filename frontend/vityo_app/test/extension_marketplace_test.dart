@@ -162,6 +162,104 @@ void main() {
   });
 
   test(
+    'extension marketplace install executor downloads verifies and registers',
+    () async {
+      const listing = ExtensionMarketplaceListing(
+        manifest: ExtensionManifest(
+          extensionId: 'styio.language',
+          displayName: 'Styio Language',
+          version: '1.0.0',
+          publisher: 'vityo',
+          entrypoint: 'styio_language.dart',
+          trustedByDefault: true,
+        ),
+        sourceUri: 'https://marketplace.vityo.invalid/styio.language-1.0.0.zip',
+        verified: true,
+      );
+      const index = ExtensionMarketplaceIndex(
+        workspaceId: 'demo',
+        listings: <ExtensionMarketplaceListing>[listing],
+      );
+      final registry = ExtensionManifestRegistry();
+      final installPlan = index.installPlan(
+        installedRegistry: registry,
+        extensionId: 'styio.language',
+      );
+      final executionPlan = const ExtensionMarketplaceInstaller().planExecution(
+        installPlan,
+      );
+      const executor = ExtensionMarketplaceInstallExecutor(
+        downloader: _FakePackageDownloader(),
+      );
+
+      final result = await executor.execute(
+        executionPlan: executionPlan,
+        installedRegistry: registry,
+      );
+
+      expect(result.installed, isTrue);
+      expect(result.status, ExtensionMarketplaceInstallResultStatus.installed);
+      expect(
+        result.downloadReceipt?.artifact.cacheKey,
+        'cache/styio.language.zip',
+      );
+      expect(result.verificationReceipt?.verified, isTrue);
+      expect(registry.lookup('styio.language'), isNotNull);
+      expect(
+        result.toJson()['registeredManifest'],
+        isA<Map<String, Object?>>(),
+      );
+    },
+  );
+
+  test(
+    'extension marketplace install executor blocks failed verification',
+    () async {
+      const listing = ExtensionMarketplaceListing(
+        manifest: ExtensionManifest(
+          extensionId: 'external.theme',
+          displayName: 'External Theme',
+          version: '1.0.0',
+          publisher: 'external',
+          entrypoint: 'theme.dart',
+          trustedByDefault: true,
+        ),
+        sourceUri: 'https://marketplace.vityo.invalid/external.theme.zip',
+        verified: true,
+      );
+      const index = ExtensionMarketplaceIndex(
+        workspaceId: 'demo',
+        listings: <ExtensionMarketplaceListing>[listing],
+      );
+      final registry = ExtensionManifestRegistry();
+      final installPlan = index.installPlan(
+        installedRegistry: registry,
+        extensionId: 'external.theme',
+      );
+      final executionPlan = const ExtensionMarketplaceInstaller().planExecution(
+        installPlan,
+      );
+      const executor = ExtensionMarketplaceInstallExecutor(
+        downloader: _FakePackageDownloader(),
+        verifier: _RejectingPackageVerifier(),
+      );
+
+      final result = await executor.execute(
+        executionPlan: executionPlan,
+        installedRegistry: registry,
+      );
+
+      expect(
+        result.status,
+        ExtensionMarketplaceInstallResultStatus.blockedVerification,
+      );
+      expect(result.installed, isFalse);
+      expect(result.verificationReceipt?.verified, isFalse);
+      expect(registry.lookup('external.theme'), isNull);
+    },
+  );
+
+  test(
     'extension marketplace index persists through Foundation DataStore',
     () async {
       final tempRoot = await Directory.systemTemp.createTemp(
@@ -217,4 +315,40 @@ void main() {
       expect((await store.readIndex(workspaceId: 'demo')).listings, isEmpty);
     },
   );
+}
+
+class _FakePackageDownloader implements ExtensionPackageDownloader {
+  const _FakePackageDownloader();
+
+  @override
+  Future<ExtensionPackageDownloadReceipt> download(
+    ExtensionMarketplaceListing listing,
+  ) async {
+    return ExtensionPackageDownloadReceipt(
+      artifact: ExtensionPackageArtifact(
+        extensionId: listing.extensionId,
+        sourceUri: listing.sourceUri,
+        cacheKey: 'cache/${listing.extensionId}.zip',
+        sizeBytes: listing.downloadSizeBytes ?? 42,
+        checksum: 'sha256:test-${listing.extensionId}',
+      ),
+      message: 'Downloaded ${listing.extensionId}.',
+    );
+  }
+}
+
+class _RejectingPackageVerifier implements ExtensionPackageVerifier {
+  const _RejectingPackageVerifier();
+
+  @override
+  Future<ExtensionPackageVerificationReceipt> verify({
+    required ExtensionMarketplaceListing listing,
+    required ExtensionPackageArtifact artifact,
+  }) async {
+    return ExtensionPackageVerificationReceipt(
+      verified: false,
+      checksum: artifact.checksum,
+      message: 'Rejected ${listing.extensionId}.',
+    );
+  }
 }

@@ -1,6 +1,7 @@
 export 'android_runtime_package_budget.dart';
 export 'extension_activator.dart';
 export 'extension_contribution_router.dart';
+export 'extension_host_isolation.dart';
 export 'extension_lifecycle.dart';
 export 'extension_lifecycle_hooks.dart';
 export 'extension_manifest_contract.dart';

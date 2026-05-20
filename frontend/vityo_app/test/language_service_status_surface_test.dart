@@ -7,6 +7,7 @@ import 'package:vityo_app/src/view_ide/language/service/language_service_foundat
 import 'package:vityo_app/src/view_ide/language/service/styio_service_capability_detector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_runtime.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 
 void main() {
   test('language service status surface projects ready runtime status', () {
@@ -91,6 +92,64 @@ void main() {
       surface.toJson()['unavailablePrimaryCapabilities'],
       contains(StyioServiceCapability.definition.wireValue),
     );
+  });
+
+  test('language service runtime status binds to runtime output events', () {
+    const response = StyioServiceResponse(
+      status: StyioServiceStatus.succeeded,
+      documentId: 'fixture://status-output',
+      revision: 1,
+      toolchainId: 'styio-nightly',
+      completions: <CompletionItem>[
+        CompletionItem(
+          label: 'value',
+          kind: CompletionItemKind.variable,
+          insertText: 'value',
+        ),
+      ],
+    );
+    final capabilitySnapshot = const StyioServiceCapabilityDetector().detect(
+      response,
+      expectedCapabilities: const <StyioServiceCapability>[
+        StyioServiceCapability.diagnostics,
+        StyioServiceCapability.completion,
+        StyioServiceCapability.hover,
+      ],
+    );
+    final runtimeSnapshot = StyioServiceRuntimeStatusSnapshot(
+      state: StyioServiceRuntimeSessionState.active,
+      disposed: false,
+      providerManifest: LanguageProviderRegistry<String>().manifest(),
+      capabilitySnapshot: capabilitySnapshot,
+      allowLocalFallback: false,
+      primaryCapabilities: const <StyioServiceCapability>[
+        StyioServiceCapability.diagnostics,
+        StyioServiceCapability.completion,
+        StyioServiceCapability.hover,
+      ],
+    );
+
+    final binding = StyioServiceRuntimeOutputBinding(snapshot: runtimeSnapshot);
+    final outputSnapshot = binding.outputPanelSnapshot(
+      timestamp: DateTime.utc(2026, 5, 20, 17),
+    );
+
+    expect(outputSnapshot.events, hasLength(4));
+    expect(
+      outputSnapshot.events.first.kind,
+      RuntimeOutputChannelKind.languageService,
+    );
+    expect(outputSnapshot.events.first.metadata['usableCapabilityCount'], 2);
+    expect(outputSnapshot.events.first.metadata['allowLocalFallback'], isFalse);
+    expect(
+      outputSnapshot.events.map((event) => event.message),
+      containsAll(<String>[
+        'diagnostics available',
+        'completion available',
+        'hover empty',
+      ]),
+    );
+    expect(binding.toJson()['outputEventCount'], 4);
   });
 
   test('language service status surface treats clean diagnostics as ready', () {

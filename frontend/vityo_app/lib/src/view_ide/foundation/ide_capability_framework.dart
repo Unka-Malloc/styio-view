@@ -280,7 +280,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/language/service',
           summary:
-              'Styio-first parser, diagnostics, semantic facts, grammar-version facts, runtime status snapshots, and extension language route consumption.',
+              'Styio-first parser, diagnostics, semantic facts, grammar-version facts, runtime status snapshots, StyioServiceRuntimeOutputBinding language-service output events, and extension language route consumption.',
           references: <String>['Language Server Protocol'],
         ),
         IdeCapabilityDescriptor(
@@ -645,9 +645,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/runtime',
           summary:
-              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell/toolchain/hosted/terminal producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, ToolchainManagerRuntimeExecutionAdapter streams, HostedRuntimeExecutionAdapter streams, WorkspaceDiagnosticsRuntimeOutputBinding streams, DebugLaunchRuntimeOutputBinding streams, and persisted output history.',
+              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell/toolchain/hosted/terminal producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, ToolchainManagerRuntimeExecutionAdapter streams, HostedRuntimeExecutionAdapter streams, WorkspaceDiagnosticsRuntimeOutputBinding streams, DebugLaunchRuntimeOutputBinding streams, StyioServiceRuntimeOutputBinding streams, and persisted output history.',
           todo:
-              'TODO: supply concrete language-service and PTY stream implementations to the binding controller.',
+              'TODO: supply concrete PTY stream implementation to the binding controller.',
           references: <String>[
             'VS Code Output panel',
             'IntelliJ Run and Event Log tool windows',

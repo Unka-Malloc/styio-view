@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/theme/vityo_theme.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_configuration_store.dart';
@@ -16,6 +17,7 @@ void main() {
     tester,
   ) async {
     VityoThemeOverride? savedOverride;
+    CommandPaletteDisplayPreferences? savedCommandPalettePreferences;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -33,6 +35,13 @@ void main() {
               message: 'Ready.',
               recoveryActions: <ToolchainRecoveryAction>[],
             ),
+            commandPalettePreferences: const CommandPaletteDisplayPreferences(
+              workspaceId: 'demo',
+              defaultCategory: AppCommandCategory.navigation,
+            ),
+            onSaveCommandPalettePreferences: (preferences) async {
+              savedCommandPalettePreferences = preferences;
+            },
             onSaveThemeOverride: (override) async {
               savedOverride = override;
             },
@@ -42,6 +51,31 @@ void main() {
     );
 
     expect(find.byKey(const ValueKey('settings-theme-card')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('settings-command-palette-card')),
+      findsOneWidget,
+    );
+    expect(find.text('default navigation'), findsOneWidget);
+    final showRecentSwitch = find.byKey(
+      const ValueKey('settings-command-palette-show-recent'),
+    );
+    await tester.ensureVisible(showRecentSwitch);
+    await tester.tap(showRecentSwitch);
+    await tester.pump();
+    final saveCommandPaletteButton = find.byKey(
+      const ValueKey('settings-command-palette-save'),
+    );
+    await tester.ensureVisible(saveCommandPaletteButton);
+    await tester.tap(saveCommandPaletteButton);
+    await tester.pump();
+
+    expect(savedCommandPalettePreferences?.workspaceId, 'demo');
+    expect(
+      savedCommandPalettePreferences?.defaultCategory,
+      AppCommandCategory.navigation,
+    );
+    expect(savedCommandPalettePreferences?.showRecentCommands, isFalse);
+
     await tester.enterText(
       find.byKey(const ValueKey('settings-theme-accent-input')),
       '#00A878',

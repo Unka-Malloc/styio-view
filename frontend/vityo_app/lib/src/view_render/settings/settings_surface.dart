@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/foundation/foundation.dart';
 import '../../view_ide/toolchain/toolchain_catalog.dart';
@@ -23,6 +24,10 @@ class SettingsSurface extends StatelessWidget {
     this.onClearToolchain,
     this.onExecuteToolchainInstallPlan,
     this.ideCapabilities,
+    this.commandPalettePreferences = const CommandPaletteDisplayPreferences(
+      workspaceId: 'default',
+    ),
+    this.onSaveCommandPalettePreferences,
     this.themeOverride = const VityoThemeOverride(),
     this.onSaveThemeOverride,
   });
@@ -42,6 +47,9 @@ class SettingsSurface extends StatelessWidget {
   final Future<void> Function(ToolchainKind kind)? onClearToolchain;
   final Future<void> Function()? onExecuteToolchainInstallPlan;
   final IdeCapabilityFrameworkSnapshot? ideCapabilities;
+  final CommandPaletteDisplayPreferences commandPalettePreferences;
+  final Future<void> Function(CommandPaletteDisplayPreferences preferences)?
+  onSaveCommandPalettePreferences;
   final VityoThemeOverride themeOverride;
   final Future<void> Function(VityoThemeOverride override)? onSaveThemeOverride;
 
@@ -85,6 +93,11 @@ class SettingsSurface extends StatelessWidget {
               const SizedBox(height: 14),
               _IdeCapabilityFrameworkCard(snapshot: capabilitySnapshot),
               const SizedBox(height: 14),
+              _CommandPaletteSettingsCard(
+                preferences: commandPalettePreferences,
+                onSavePreferences: onSaveCommandPalettePreferences,
+              ),
+              const SizedBox(height: 14),
               _ThemeSettingsCard(
                 themeOverride: themeOverride,
                 onSaveThemeOverride: onSaveThemeOverride,
@@ -92,6 +105,166 @@ class SettingsSurface extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CommandPaletteSettingsCard extends StatefulWidget {
+  const _CommandPaletteSettingsCard({
+    required this.preferences,
+    required this.onSavePreferences,
+  });
+
+  final CommandPaletteDisplayPreferences preferences;
+  final Future<void> Function(CommandPaletteDisplayPreferences preferences)?
+  onSavePreferences;
+
+  @override
+  State<_CommandPaletteSettingsCard> createState() =>
+      _CommandPaletteSettingsCardState();
+}
+
+class _CommandPaletteSettingsCardState
+    extends State<_CommandPaletteSettingsCard> {
+  AppCommandCategory? _defaultCategory;
+  late bool _showCategoryFilters;
+  late bool _showRecentCommands;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncFromWidget();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CommandPaletteSettingsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.preferences != widget.preferences) {
+      _syncFromWidget();
+    }
+  }
+
+  void _syncFromWidget() {
+    _defaultCategory = widget.preferences.defaultCategory;
+    _showCategoryFilters = widget.preferences.showCategoryFilters;
+    _showRecentCommands = widget.preferences.showRecentCommands;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('settings-command-palette-card'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDE8F1),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Command Palette Settings', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Workspace command palette display preferences. Persistence is delegated to CommandPaletteDisplayPreferencesStore.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<AppCommandCategory?>(
+            key: const ValueKey('settings-command-palette-default-category'),
+            initialValue: _defaultCategory,
+            decoration: const InputDecoration(labelText: 'Default category'),
+            items: <DropdownMenuItem<AppCommandCategory?>>[
+              const DropdownMenuItem<AppCommandCategory?>(
+                value: null,
+                child: Text('No default category'),
+              ),
+              ...AppCommandCategory.values.map(
+                (category) => DropdownMenuItem<AppCommandCategory?>(
+                  value: category,
+                  child: Text(category.wireValue),
+                ),
+              ),
+            ],
+            onChanged: (category) {
+              setState(() {
+                _defaultCategory = category;
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          SwitchListTile(
+            key: const ValueKey('settings-command-palette-show-filters'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Show category filters'),
+            value: _showCategoryFilters,
+            onChanged: (value) {
+              setState(() {
+                _showCategoryFilters = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            key: const ValueKey('settings-command-palette-show-recent'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Show recent commands'),
+            value: _showRecentCommands,
+            onChanged: (value) {
+              setState(() {
+                _showRecentCommands = value;
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('workspace ${widget.preferences.workspaceId}')),
+              Chip(
+                label: Text('default ${_defaultCategory?.wireValue ?? 'none'}'),
+              ),
+              OutlinedButton(
+                key: const ValueKey('settings-command-palette-save'),
+                onPressed: widget.onSavePreferences == null
+                    ? null
+                    : () {
+                        widget.onSavePreferences!(
+                          CommandPaletteDisplayPreferences(
+                            workspaceId: widget.preferences.workspaceId,
+                            defaultCategory: _defaultCategory,
+                            showCategoryFilters: _showCategoryFilters,
+                            showRecentCommands: _showRecentCommands,
+                            updatedAt: DateTime.now().toUtc(),
+                          ),
+                        );
+                      },
+                child: const Text('Save command palette'),
+              ),
+              OutlinedButton(
+                key: const ValueKey('settings-command-palette-reset'),
+                onPressed: widget.onSavePreferences == null
+                    ? null
+                    : () {
+                        setState(() {
+                          _defaultCategory = null;
+                          _showCategoryFilters = true;
+                          _showRecentCommands = true;
+                        });
+                        widget.onSavePreferences!(
+                          CommandPaletteDisplayPreferences(
+                            workspaceId: widget.preferences.workspaceId,
+                            updatedAt: DateTime.now().toUtc(),
+                          ),
+                        );
+                      },
+                child: const Text('Reset command palette'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

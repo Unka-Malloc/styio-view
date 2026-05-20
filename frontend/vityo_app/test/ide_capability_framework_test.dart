@@ -98,6 +98,10 @@ void main() {
       ),
     );
     expect(
+      entriesById['service.semantic-snapshot']?.summary,
+      contains('service-backed/local-fallback/unavailable counts'),
+    );
+    expect(
       entriesById['service.remote-service']?.summary,
       contains('HostedBackendRetryActionExecutor'),
     );

@@ -173,6 +173,83 @@ void main() {
   );
 
   test(
+    'workspace search index searches loaded snapshot without store reads',
+    () async {
+      final store = _CountingWorkspaceSearchStore(
+        documents: const <String, DocumentState>{
+          'main.styio': DocumentState(
+            documentId: 'main.styio',
+            text: 'value = 1\nemit value\n',
+            revision: 1,
+          ),
+          'helper.styio': DocumentState(
+            documentId: 'helper.styio',
+            text: 'helperValue\nvalue\n',
+            revision: 2,
+          ),
+        },
+      );
+      final service = WorkspaceSearchService(documentStore: store);
+
+      final build = await service.buildIndex(
+        documentIds: const <String>['main.styio', 'helper.styio', 'main.styio'],
+      );
+      final indexed = build.index.search(query: 'value', wholeWord: true);
+      final loadCountAfterIndexedSearch = store.loadCount;
+      final direct = await service.search(
+        documentIds: const <String>['main.styio', 'helper.styio'],
+        query: 'value',
+        wholeWord: true,
+      );
+
+      expect(build.failures, isEmpty);
+      expect(build.index.documentIds, <String>['main.styio', 'helper.styio']);
+      expect(build.index.documentCount, 2);
+      expect(build.index.totalLineCount, 4);
+      expect(build.index.totalByteLength, 39);
+      expect(loadCountAfterIndexedSearch, 2);
+      expect(store.loadCount, 4);
+      expect(
+        indexed.matches.map(
+          (match) => '${match.documentId}:${match.lineNumber}:${match.text}',
+        ),
+        direct.matches.map(
+          (match) => '${match.documentId}:${match.lineNumber}:${match.text}',
+        ),
+      );
+      expect(indexed.failures, isEmpty);
+      expect(indexed.truncated, isFalse);
+      expect(build.index.toJson()['documents'], isA<List<Object?>>());
+    },
+  );
+
+  test('workspace search index reports load failures and truncation', () async {
+    final service = WorkspaceSearchService(
+      documentStore: _FailingWorkspaceSearchStore(),
+    );
+
+    final failure = await service.buildIndex(
+      documentIds: const <String>['missing.styio', 'main.styio'],
+    );
+    final truncated = await service.buildIndex(
+      documentIds: const <String>['main.styio', 'helper.styio'],
+      maxDocuments: 1,
+    );
+    final empty = await service.buildIndex(
+      documentIds: const <String>['main.styio'],
+      maxDocuments: 0,
+    );
+
+    expect(failure.index.documentIds, <String>['main.styio']);
+    expect(failure.failures.single.documentId, 'missing.styio');
+    expect(failure.index.truncated, isFalse);
+    expect(truncated.index.documentIds, <String>['main.styio']);
+    expect(truncated.index.truncated, isTrue);
+    expect(empty.index.documents, isEmpty);
+    expect(empty.index.truncated, isTrue);
+  });
+
+  test(
     'workspace search records load failures and truncates matches',
     () async {
       final service = WorkspaceSearchService(
@@ -589,6 +666,40 @@ class _FailingSaveWorkspaceSearchStore implements WorkspaceDocumentStore {
 
   @override
   Future<bool> deleteDocument(String path) async => false;
+
+  @override
+  Future<bool> documentExists(String path) async =>
+      _documents.containsKey(path);
+
+  @override
+  String? filePathForDocumentId(String documentId) => null;
+}
+
+class _CountingWorkspaceSearchStore implements WorkspaceDocumentStore {
+  _CountingWorkspaceSearchStore({required Map<String, DocumentState> documents})
+    : _documents = Map<String, DocumentState>.of(documents);
+
+  final Map<String, DocumentState> _documents;
+  int loadCount = 0;
+
+  @override
+  Future<DocumentState> loadDocument(String path) async {
+    loadCount += 1;
+    final document = _documents[path];
+    if (document == null) {
+      throw StateError('missing $path');
+    }
+    return document;
+  }
+
+  @override
+  Future<void> saveDocument(DocumentState document) async {
+    _documents[document.documentId] = document;
+  }
+
+  @override
+  Future<bool> deleteDocument(String path) async =>
+      _documents.remove(path) != null;
 
   @override
   Future<bool> documentExists(String path) async =>

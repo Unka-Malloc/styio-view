@@ -42,6 +42,146 @@ class WorkspaceSearchResult {
   final bool truncated;
 }
 
+class WorkspaceSearchIndexDocument {
+  WorkspaceSearchIndexDocument._({
+    required this.documentId,
+    required this.text,
+    required this.revision,
+    required this.lineCount,
+    required this.byteLength,
+  });
+
+  factory WorkspaceSearchIndexDocument.fromDocument(DocumentState document) {
+    return WorkspaceSearchIndexDocument._(
+      documentId: document.documentId,
+      text: document.text,
+      revision: document.revision,
+      lineCount: _countWorkspaceSearchLines(document.text),
+      byteLength: document.text.length,
+    );
+  }
+
+  final String documentId;
+  final String text;
+  final int revision;
+  final int lineCount;
+  final int byteLength;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'documentId': documentId,
+      'revision': revision,
+      'lineCount': lineCount,
+      'byteLength': byteLength,
+    };
+  }
+
+  DocumentState toDocumentState() {
+    return DocumentState(
+      documentId: documentId,
+      text: text,
+      revision: revision,
+    );
+  }
+}
+
+class WorkspaceSearchIndex {
+  const WorkspaceSearchIndex({
+    required this.documents,
+    required this.createdAt,
+    this.truncated = false,
+  });
+
+  final List<WorkspaceSearchIndexDocument> documents;
+  final DateTime createdAt;
+  final bool truncated;
+
+  int get documentCount => documents.length;
+
+  int get totalByteLength =>
+      documents.fold<int>(0, (total, document) => total + document.byteLength);
+
+  int get totalLineCount =>
+      documents.fold<int>(0, (total, document) => total + document.lineCount);
+
+  List<String> get documentIds {
+    return documents
+        .map((document) => document.documentId)
+        .toList(growable: false);
+  }
+
+  WorkspaceSearchResult search({
+    required String query,
+    bool caseSensitive = false,
+    bool wholeWord = false,
+    bool useRegex = false,
+    int maxMatches = 1000,
+  }) {
+    if (query.isEmpty || maxMatches <= 0) {
+      return const WorkspaceSearchResult(matches: <WorkspaceSearchMatch>[]);
+    }
+    final matches = <WorkspaceSearchMatch>[];
+    var omitted = false;
+
+    for (
+      var documentIndex = 0;
+      documentIndex < documents.length;
+      documentIndex += 1
+    ) {
+      if (matches.length >= maxMatches) {
+        omitted = true;
+        break;
+      }
+      final document = documents[documentIndex].toDocumentState();
+      final documentResult = _searchDocument(
+        document,
+        query: query,
+        caseSensitive: caseSensitive,
+        wholeWord: wholeWord,
+        useRegex: useRegex,
+        remaining: maxMatches - matches.length,
+      );
+      matches.addAll(documentResult.matches);
+      if (documentResult.truncated ||
+          (matches.length >= maxMatches &&
+              documentIndex < documents.length - 1)) {
+        omitted = true;
+        break;
+      }
+    }
+
+    return WorkspaceSearchResult(
+      matches: List.unmodifiable(matches),
+      truncated: omitted || truncated,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'createdAt': createdAt.toIso8601String(),
+      'documentCount': documentCount,
+      'totalByteLength': totalByteLength,
+      'totalLineCount': totalLineCount,
+      'truncated': truncated,
+      'documents': documents
+          .map((document) => document.toJson())
+          .toList(growable: false),
+      // TODO(search-index): Persist only metadata plus an invalidation key when
+      // the File System Manager exposes stable document mtime/content hashes.
+    };
+  }
+}
+
+class WorkspaceSearchIndexBuildResult {
+  const WorkspaceSearchIndexBuildResult({
+    required this.index,
+    this.failures = const <WorkspaceSearchFailure>[],
+  });
+
+  final WorkspaceSearchIndex index;
+  final List<WorkspaceSearchFailure> failures;
+}
+
 class WorkspaceReplaceDocumentResult {
   const WorkspaceReplaceDocumentResult({
     required this.documentId,
@@ -234,7 +374,10 @@ class WorkspaceSymbolSearchService {
               document.text,
               element.nameRange.start,
             ),
-            lineText: _lineTextForOffset(document.text, element.nameRange.start),
+            lineText: _lineTextForOffset(
+              document.text,
+              element.nameRange.start,
+            ),
             score: score,
             detail: element.detail,
           ),
@@ -298,10 +441,7 @@ class WorkspaceQuickOpenService {
 
     final matches = <WorkspaceQuickOpenMatch>[];
     for (final documentId in orderedDocumentIds) {
-      final score = _scoreWorkspaceQuickOpenMatch(
-        documentId,
-        normalizedQuery,
-      );
+      final score = _scoreWorkspaceQuickOpenMatch(documentId, normalizedQuery);
       if (score == null) {
         continue;
       }
@@ -332,6 +472,60 @@ class WorkspaceSearchService {
 
   final WorkspaceDocumentStore documentStore;
 
+  Future<WorkspaceSearchIndexBuildResult> buildIndex({
+    required Iterable<String> documentIds,
+    int maxDocuments = 5000,
+  }) async {
+    if (maxDocuments <= 0) {
+      return WorkspaceSearchIndexBuildResult(
+        index: WorkspaceSearchIndex(
+          documents: const <WorkspaceSearchIndexDocument>[],
+          createdAt: DateTime.now().toUtc(),
+          truncated: documentIds.isNotEmpty,
+        ),
+      );
+    }
+
+    final documents = <WorkspaceSearchIndexDocument>[];
+    final failures = <WorkspaceSearchFailure>[];
+    final orderedDocumentIds = _uniqueDocumentIds(documentIds);
+    var truncated = false;
+
+    for (
+      var documentIndex = 0;
+      documentIndex < orderedDocumentIds.length;
+      documentIndex += 1
+    ) {
+      if (documents.length >= maxDocuments) {
+        truncated = true;
+        break;
+      }
+      final documentId = orderedDocumentIds[documentIndex];
+      late final DocumentState document;
+      try {
+        document = await documentStore.loadDocument(documentId);
+      } on Object catch (error) {
+        failures.add(
+          WorkspaceSearchFailure(
+            documentId: documentId,
+            message: error.toString(),
+          ),
+        );
+        continue;
+      }
+      documents.add(WorkspaceSearchIndexDocument.fromDocument(document));
+    }
+
+    return WorkspaceSearchIndexBuildResult(
+      index: WorkspaceSearchIndex(
+        documents: List.unmodifiable(documents),
+        createdAt: DateTime.now().toUtc(),
+        truncated: truncated,
+      ),
+      failures: List.unmodifiable(failures),
+    );
+  }
+
   Future<WorkspaceSearchResult> search({
     required Iterable<String> documentIds,
     required String query,
@@ -348,9 +542,11 @@ class WorkspaceSearchService {
     var truncated = false;
 
     final orderedDocumentIds = _uniqueDocumentIds(documentIds);
-    for (var documentIndex = 0;
-        documentIndex < orderedDocumentIds.length;
-        documentIndex += 1) {
+    for (
+      var documentIndex = 0;
+      documentIndex < orderedDocumentIds.length;
+      documentIndex += 1
+    ) {
       final documentId = orderedDocumentIds[documentIndex];
       if (matches.length >= maxMatches) {
         truncated = true;
@@ -702,10 +898,7 @@ _WorkspaceDocumentSearchResult _searchDocument(
     }
     offset = end;
   }
-  return _WorkspaceDocumentSearchResult(
-    matches: matches,
-    truncated: truncated,
-  );
+  return _WorkspaceDocumentSearchResult(matches: matches, truncated: truncated);
 }
 
 _WorkspaceDocumentSearchResult _regexSearchDocument(
@@ -749,10 +942,7 @@ _WorkspaceDocumentSearchResult _regexSearchDocument(
       ),
     );
   }
-  return _WorkspaceDocumentSearchResult(
-    matches: matches,
-    truncated: truncated,
-  );
+  return _WorkspaceDocumentSearchResult(matches: matches, truncated: truncated);
 }
 
 class _WorkspaceDocumentSearchResult {
@@ -799,6 +989,19 @@ bool _isWorkspaceSearchWordCharacter(int? codeUnit) {
       codeUnit == 95;
 }
 
+int _countWorkspaceSearchLines(String source) {
+  if (source.isEmpty) {
+    return 0;
+  }
+  var count = 1;
+  for (var index = 0; index < source.length; index += 1) {
+    if (source.codeUnitAt(index) == 10 && index < source.length - 1) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 String _workspaceFileLabel(String documentId) {
   final normalized = documentId.replaceAll('\\', '/');
   final slash = normalized.lastIndexOf('/');
@@ -828,10 +1031,7 @@ int? _scoreWorkspaceQuickOpenMatch(String documentId, String query) {
   if (pathIndex >= 0) {
     return 650 - pathIndex - normalizedPath.length;
   }
-  final fuzzyPenalty = _workspaceQuickOpenFuzzyPenalty(
-    normalizedPath,
-    query,
-  );
+  final fuzzyPenalty = _workspaceQuickOpenFuzzyPenalty(normalizedPath, query);
   if (fuzzyPenalty == null) {
     return null;
   }
@@ -862,10 +1062,7 @@ int? _scoreWorkspaceSymbolMatch({
   if (pathIndex >= 0) {
     return 500 - pathIndex - normalizedPath.length;
   }
-  final fuzzyPenalty = _workspaceQuickOpenFuzzyPenalty(
-    normalizedName,
-    query,
-  );
+  final fuzzyPenalty = _workspaceQuickOpenFuzzyPenalty(normalizedName, query);
   if (fuzzyPenalty == null) {
     return null;
   }

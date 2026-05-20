@@ -12,6 +12,7 @@ class CommandPaletteSurface extends StatefulWidget {
     required this.viewportProfile,
     this.commands = StyioCommandRegistry.commands,
     this.recentHistory,
+    this.displayPreferences,
     this.initialCategory,
     this.onExecuteCommand,
     this.onRecordRecentCommand,
@@ -21,6 +22,7 @@ class CommandPaletteSurface extends StatefulWidget {
   final ViewportProfile viewportProfile;
   final List<AppCommandDescriptor> commands;
   final CommandPaletteRecentCommandHistory? recentHistory;
+  final CommandPaletteDisplayPreferences? displayPreferences;
   final AppCommandCategory? initialCategory;
   final Future<void> Function(AppCommandId commandId)? onExecuteCommand;
   final Future<void> Function(AppCommandId commandId)? onRecordRecentCommand;
@@ -40,7 +42,8 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   void initState() {
     super.initState();
     _queryController = TextEditingController();
-    _category = widget.initialCategory;
+    _category =
+        widget.initialCategory ?? widget.displayPreferences?.defaultCategory;
   }
 
   @override
@@ -53,13 +56,18 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = widget.viewportProfile.isMobile;
+    final showRecentCommands =
+        widget.displayPreferences?.showRecentCommands ?? true;
+    final showCategoryFilters =
+        widget.displayPreferences?.showCategoryFilters ?? true;
     final overlayState = CommandPaletteModel(commands: widget.commands)
         .overlayStateFor(
           CommandPaletteQueryState(
             query: _query,
             category: _category,
-            recentCommandIds:
-                widget.recentHistory?.commandIds ?? const <AppCommandId>[],
+            recentCommandIds: showRecentCommands
+                ? widget.recentHistory?.commandIds ?? const <AppCommandId>[]
+                : const <AppCommandId>[],
           ),
           selectedIndex: _selectedIndex,
         );
@@ -101,7 +109,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
               Text('Command Palette', style: theme.textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                'Searchable command registry surface backed by reusable query scoring, overlay selection state, persisted recent command ranking, category filters, keyboard navigation, and typed input draft contracts. TODO: persist palette display preferences.',
+                'Searchable command registry surface backed by reusable query scoring, overlay selection state, persisted recent command ranking, display preferences, category filters, keyboard navigation, and typed input draft contracts. TODO: bind preference editing controls to settings UI.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),
@@ -126,12 +134,14 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                 children: [
                   Chip(label: Text('registered ${widget.commands.length}')),
                   Chip(label: Text('visible ${overlayState.visibleCount}')),
-                  if (widget.recentHistory != null)
+                  if (widget.recentHistory != null && showRecentCommands)
                     Chip(
                       label: Text(
                         'recent ${widget.recentHistory!.commandIds.length}',
                       ),
                     ),
+                  if (widget.displayPreferences != null)
+                    const Chip(label: Text('preferences workspace')),
                   if (_category != null)
                     Chip(label: Text('category ${_category!.wireValue}')),
                   if (overlayState.selectedEntry != null)
@@ -144,39 +154,41 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                 ],
               ),
               const SizedBox(height: 10),
-              Wrap(
-                key: const ValueKey('command-palette-category-filters'),
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FilterChip(
-                    key: const ValueKey('command-palette-category-all'),
-                    label: const Text('all'),
-                    selected: _category == null,
-                    onSelected: (_) {
-                      setState(() {
-                        _category = null;
-                        _selectedIndex = 0;
-                      });
-                    },
-                  ),
-                  for (final category in categories)
+              if (showCategoryFilters) ...[
+                Wrap(
+                  key: const ValueKey('command-palette-category-filters'),
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
                     FilterChip(
-                      key: ValueKey(
-                        'command-palette-category-${category.wireValue}',
-                      ),
-                      label: Text(category.wireValue),
-                      selected: _category == category,
+                      key: const ValueKey('command-palette-category-all'),
+                      label: const Text('all'),
+                      selected: _category == null,
                       onSelected: (_) {
                         setState(() {
-                          _category = category;
+                          _category = null;
                           _selectedIndex = 0;
                         });
                       },
                     ),
-                ],
-              ),
-              const SizedBox(height: 12),
+                    for (final category in categories)
+                      FilterChip(
+                        key: ValueKey(
+                          'command-palette-category-${category.wireValue}',
+                        ),
+                        label: Text(category.wireValue),
+                        selected: _category == category,
+                        onSelected: (_) {
+                          setState(() {
+                            _category = category;
+                            _selectedIndex = 0;
+                          });
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
               Expanded(
                 child: visibleEntries.isEmpty
                     ? Center(

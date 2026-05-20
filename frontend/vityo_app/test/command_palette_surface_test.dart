@@ -145,6 +145,56 @@ void main() {
     expect(find.text('visible 1'), findsOneWidget);
   });
 
+  testWidgets('command palette applies display preferences', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPaletteSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            recentHistory: const CommandPaletteRecentCommandHistory(
+              workspaceId: 'demo',
+              commandIds: <AppCommandId>[AppCommandId.save],
+            ),
+            displayPreferences: const CommandPaletteDisplayPreferences(
+              workspaceId: 'demo',
+              defaultCategory: AppCommandCategory.navigation,
+              showCategoryFilters: false,
+              showRecentCommands: false,
+            ),
+            commands: const <AppCommandDescriptor>[
+              AppCommandDescriptor(
+                id: AppCommandId.searchWorkspace,
+                label: 'Search Workspace',
+                shortcutHint: 'Route',
+                description: 'Search workspace files.',
+              ),
+              AppCommandDescriptor(
+                id: AppCommandId.save,
+                label: 'Save',
+                shortcutHint: 'Cmd/Ctrl+S',
+                description: 'Save current file.',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('category navigation'), findsOneWidget);
+    expect(find.text('visible 1'), findsOneWidget);
+    expect(find.text('selected Search Workspace'), findsOneWidget);
+    expect(find.text('preferences workspace'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('command-palette-category-filters')),
+      findsNothing,
+    );
+    expect(find.text('recent 1'), findsNothing);
+  });
+
   testWidgets('command palette uses recent history ranking', (tester) async {
     AppCommandId? executedCommandId;
     AppCommandId? recordedCommandId;

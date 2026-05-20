@@ -55,6 +55,39 @@ void main() {
     expect(await store.clearHistory(workspaceId: 'demo'), isTrue);
     expect((await store.readHistory(workspaceId: 'demo')).commandIds, isEmpty);
   });
+
+  test('command palette preferences store persists display policy', () async {
+    final store = CommandPaletteDisplayPreferencesStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+
+    await store.savePreferences(
+      const CommandPaletteDisplayPreferences(
+        workspaceId: 'demo',
+        defaultCategory: AppCommandCategory.navigation,
+        showCategoryFilters: false,
+        showRecentCommands: false,
+      ).copyWith(updatedAt: DateTime.utc(2026, 5, 20, 11)),
+    );
+
+    final restored = await store.readPreferences(workspaceId: 'demo');
+    final queryState = restored.toQueryState(
+      query: 'search',
+      recentCommandIds: const <AppCommandId>[AppCommandId.save],
+    );
+
+    expect(restored.defaultCategory, AppCommandCategory.navigation);
+    expect(restored.showCategoryFilters, isFalse);
+    expect(restored.showRecentCommands, isFalse);
+    expect(restored.toJson()['defaultCategory'], 'navigation');
+    expect(queryState.category, AppCommandCategory.navigation);
+    expect(queryState.recentCommandIds, isEmpty);
+    expect(await store.clearPreferences(workspaceId: 'demo'), isTrue);
+    expect(
+      (await store.readPreferences(workspaceId: 'demo')).showCategoryFilters,
+      isTrue,
+    );
+  });
 }
 
 Future<FoundationDataStore> _createDataStore() async {

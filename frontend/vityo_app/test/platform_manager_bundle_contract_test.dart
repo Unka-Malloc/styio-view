@@ -9,6 +9,7 @@ void main() {
         targetId: 'platform-manager-contract-test',
       );
       final snapshot = bundle.snapshot();
+      final health = bundle.healthSnapshot();
 
       expect(snapshot.targetId, 'platform-manager-contract-test');
       expect(snapshot.managerKeys, <String>[
@@ -31,6 +32,23 @@ void main() {
       expect(bundle.notification.compatibility, isNotNull);
       expect(bundle.localService.compatibility, isNotNull);
       expect(bundle.pty.compatibility, isNotNull);
+      expect(health.targetId, 'platform-manager-contract-test');
+      expect(
+        health.components.map((component) => component.managerKey),
+        <String>[
+          'fileSystem',
+          'shell',
+          'process',
+          'resource',
+          'network',
+          'clipboard',
+          'notification',
+          'localService',
+          'pty',
+        ],
+      );
+      expect(health.toJson()['componentCount'], 9);
+      expect(health.toJson()['todo'], contains('live manager probes'));
     },
   );
 }

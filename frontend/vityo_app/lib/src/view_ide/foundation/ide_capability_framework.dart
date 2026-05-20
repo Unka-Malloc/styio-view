@@ -225,8 +225,10 @@ class VityoIdeCapabilityFramework {
           title: 'Platform context and system compatibility',
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/system_compatibility',
+          summary:
+              'Platform Detector, Platform Context, Platform Adapter, Platform Manager bundle, and manager-level health snapshots are available for file system, shell, process, resource, network, clipboard, notification, local service, and PTY managers.',
           todo:
-              'TODO: connect every system-specific manager to capability health signals.',
+              'TODO: replace fact-level platform health with live manager probes and UI-facing recovery actions.',
           references: <String>[
             'VS Code platform services',
             'IntelliJ virtual file system',

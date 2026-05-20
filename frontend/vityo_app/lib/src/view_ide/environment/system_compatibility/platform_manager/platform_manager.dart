@@ -57,6 +57,63 @@ class PlatformManagerBundle {
       ],
     );
   }
+
+  PlatformManagerHealthSnapshot healthSnapshot() {
+    final components = <PlatformManagerComponentHealth>[
+      PlatformManagerComponentHealth(
+        managerKey: 'fileSystem',
+        ready: context.fileSystem.supportsLinuxDebianArmTarget,
+        message: 'File system manager compatibility is available.',
+      ),
+      PlatformManagerComponentHealth(
+        managerKey: 'shell',
+        ready: context.shell.supportsLinuxDebianArmTarget,
+        message: 'Shell manager compatibility is available.',
+      ),
+      PlatformManagerComponentHealth(
+        managerKey: 'process',
+        ready: context.process.supportsLinuxDebianArmTarget,
+        message: 'Process manager compatibility is available.',
+      ),
+      PlatformManagerComponentHealth(
+        managerKey: 'resource',
+        ready: context.resource.supportsLinuxDebianArmTarget,
+        message: 'Resource manager compatibility is available.',
+      ),
+      PlatformManagerComponentHealth(
+        managerKey: 'network',
+        ready: context.network.supportsLinuxDebianArmTarget,
+        message: 'Network manager compatibility is available.',
+      ),
+      PlatformManagerComponentHealth(
+        managerKey: 'clipboard',
+        ready: context.clipboard.supportsLinuxDebianArmTarget,
+        message: 'Clipboard manager compatibility is available.',
+      ),
+      PlatformManagerComponentHealth(
+        managerKey: 'notification',
+        ready: context.notification.supportsLinuxDebianArmTarget,
+        message: 'Notification manager compatibility is available.',
+      ),
+      PlatformManagerComponentHealth(
+        managerKey: 'localService',
+        ready: context.localService.supportsLinuxDebianArmTarget,
+        message: 'Local service manager compatibility is available.',
+      ),
+      PlatformManagerComponentHealth(
+        managerKey: 'pty',
+        ready: context.pty.supportsLinuxDebianArmTarget,
+        message: 'PTY manager compatibility is available.',
+      ),
+    ];
+    return PlatformManagerHealthSnapshot(
+      targetId: context.targetId,
+      ready: components.every((component) => component.ready),
+      components: components,
+      todo:
+          'TODO: replace fact-level readiness with live manager probes when system managers expose runtime health.',
+    );
+  }
 }
 
 class PlatformManagerBundleSnapshot {
@@ -81,6 +138,62 @@ class PlatformManagerBundleSnapshot {
       'schemaVersion': schemaVersion,
       'supportsLinuxDebianArmTarget': supportsLinuxDebianArmTarget,
       'managerKeys': managerKeys,
+    };
+  }
+}
+
+class PlatformManagerComponentHealth {
+  const PlatformManagerComponentHealth({
+    required this.managerKey,
+    required this.ready,
+    required this.message,
+  });
+
+  final String managerKey;
+  final bool ready;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'managerKey': managerKey,
+      'ready': ready,
+      'message': message,
+    };
+  }
+}
+
+class PlatformManagerHealthSnapshot {
+  const PlatformManagerHealthSnapshot({
+    required this.targetId,
+    required this.ready,
+    required this.components,
+    this.todo = '',
+  });
+
+  final String targetId;
+  final bool ready;
+  final List<PlatformManagerComponentHealth> components;
+  final String todo;
+
+  int get readyCount {
+    return components.where((component) => component.ready).length;
+  }
+
+  int get blockedCount {
+    return components.length - readyCount;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'targetId': targetId,
+      'ready': ready,
+      'readyCount': readyCount,
+      'blockedCount': blockedCount,
+      'componentCount': components.length,
+      'components': components
+          .map((component) => component.toJson())
+          .toList(growable: false),
+      if (todo.isNotEmpty) 'todo': todo,
     };
   }
 }
@@ -121,7 +234,8 @@ Future<PlatformManagerBundle> createDetectedPlatformManagerBundle({
   String targetId = 'local',
   PlatformDetector? detector,
 }) async {
-  final platformDetector = detector ??
+  final platformDetector =
+      detector ??
       const ProbingPlatformDetector(
         fileSystemProber: LocalFileSystemProber(),
         shellProber: LocalShellProber(),

@@ -401,7 +401,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'Testing surface is wired to runTests, native tool testResult records, TestRunProvider registry, TestDiscoveryProvider registry, TestingProviderCatalog controller fallback, test run configurations, persisted run configuration sets, run/debug selected configuration controls, test tree model, persisted test run history, persisted failed-test retry history, runtime task lifecycle snapshots, persisted runtime task history, output stream subscription plans, RuntimeOutputLiveBuffer test-result publishing, failed-test rerun planning, failed-test interaction, per-failed-test debug cancellation routing, rerun-failed handoff, failed-test DebugLaunchRoutePlan bridge, debug launch route plans, failure navigation actions, DebugRuntimeExecutionAdapter result visibility, debug retry handoff, and CTest result parsing.',
           todo:
-              'TODO: connect failed-test debug cancellation to concrete debug adapter and test runner process termination.',
+              'TODO: bind FailedTestDebugCancellationAdapter process-handle contract to concrete debug adapter and test runner process termination.',
           dependencies: <String>['foundation.registry', 'runtime.execution'],
           references: <String>['VS Code Testing API', 'IntelliJ test runner'],
         ),

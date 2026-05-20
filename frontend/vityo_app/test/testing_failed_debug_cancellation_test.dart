@@ -68,11 +68,98 @@ void main() {
     expect(planned.ready, isTrue);
     expect(cancelled.cancelled, isTrue);
     expect(cancelled.status, 'cancelled');
-    expect(lifecycle.snapshotFor(planned.taskId)?.status,
-        RuntimeTaskStatus.cancelled);
+    expect(
+      lifecycle.snapshotFor(planned.taskId)?.status,
+      RuntimeTaskStatus.cancelled,
+    );
     expect(result.status, TestRunStatus.notRun);
     expect(result.message, contains('cancelled'));
   });
+
+  test(
+    'testing controller forwards failed-test debug cancellation to process handle',
+    () async {
+      final completer = Completer<TestRunResult>();
+      final lifecycle = RuntimeTaskLifecycleController();
+      final handle = _FakeFailedTestDebugProcessCancellationHandle(
+        handleId: 'debug-process-7',
+        result: const FailedTestDebugCancellationResult.accepted(
+          processTerminated: true,
+          message: 'Terminated failed-test debug process.',
+          metadata: <String, Object?>{'pid': 707},
+        ),
+      );
+      final controller = TestingSessionController(
+        runtimeTaskLifecycleController: lifecycle,
+        runProvider: _PendingTestRunProvider(completer.future),
+        failedTestDebugCancellationAdapter:
+            FailedTestDebugCancellationAdapter.processHandle(handle),
+      );
+      addTearDown(controller.dispose);
+      controller.recordRunResult(
+        const TestRunResult(
+          providerId: 'fixture-runner',
+          status: TestRunStatus.failed,
+          message: 'failed',
+          failedCount: 1,
+          cases: <TestCaseResult>[
+            TestCaseResult(
+              id: 'parser.syntax',
+              name: 'parser syntax',
+              status: TestRunStatus.failed,
+            ),
+          ],
+        ),
+      );
+
+      final pending = controller.rerunFailed(
+        workspaceRoot: '/workspace/vityo',
+        debug: true,
+      );
+      await Future<void>.delayed(Duration.zero);
+      final planned = controller.planFailedTestDebugCancellation(
+        failedTest: const <String, Object?>{
+          'id': 'parser.syntax',
+          'name': 'parser syntax',
+        },
+      );
+      final cancelled = await controller.cancelFailedTestDebug(
+        failedTest: const <String, Object?>{
+          'id': 'parser.syntax',
+          'name': 'parser syntax',
+        },
+      );
+      completer.complete(
+        const TestRunResult(
+          providerId: 'fixture-runner',
+          status: TestRunStatus.passed,
+          message: 'late pass ignored after cancellation.',
+        ),
+      );
+      await pending;
+      final cancellationEvent = lifecycle
+          .snapshotFor(planned.taskId)
+          ?.events
+          .last;
+      final cancellationMetadata =
+          cancellationEvent?.metadata['failedTestDebugCancellation']!
+              as Map<String, Object?>;
+      final processMetadata =
+          cancellationMetadata['metadata']! as Map<String, Object?>;
+
+      expect(handle.cancelledTaskIds, <String>[planned.taskId]);
+      expect(handle.lastFailedTestName, 'parser syntax');
+      expect(handle.lastReason, contains(planned.taskId));
+      expect(cancelled.cancelled, isTrue);
+      expect(
+        cancelled.message,
+        'Failed-test debug cancellation routed for parser syntax.',
+      );
+      expect(cancellationMetadata['processTerminated'], isTrue);
+      expect(processMetadata['pid'], 707);
+      expect(processMetadata['processHandleId'], 'debug-process-7');
+    },
+  );
 
   testWidgets('testing surface emits failed-test debug cancellation action', (
     tester,
@@ -104,16 +191,16 @@ void main() {
             ),
             failedDebugCancellationRoute:
                 const FailedTestDebugCancellationRoute(
-              taskId: 'debug.test.rerun-failed',
-              providerId: 'ctest',
-              configurationId: 'rerun-failed',
-              failedTestName: 'parser syntax',
-              failedTestId: 'parser.syntax',
-              status: 'running',
-              ready: true,
-              cancelled: false,
-              message: 'Cancellation is ready.',
-            ),
+                  taskId: 'debug.test.rerun-failed',
+                  providerId: 'ctest',
+                  configurationId: 'rerun-failed',
+                  failedTestName: 'parser syntax',
+                  failedTestId: 'parser.syntax',
+                  status: 'running',
+                  ready: true,
+                  cancelled: false,
+                  message: 'Cancellation is ready.',
+                ),
             onCancelFailedTestDebug: (failedTest) async {
               cancelledFailedTest = failedTest;
             },
@@ -123,16 +210,12 @@ void main() {
     );
 
     await tester.scrollUntilVisible(
-      find.byKey(
-        const ValueKey('testing-cancel-failed-debug-parser syntax'),
-      ),
+      find.byKey(const ValueKey('testing-cancel-failed-debug-parser syntax')),
       120,
       scrollable: find.byType(Scrollable),
     );
     await tester.tap(
-      find.byKey(
-        const ValueKey('testing-cancel-failed-debug-parser syntax'),
-      ),
+      find.byKey(const ValueKey('testing-cancel-failed-debug-parser syntax')),
     );
     await tester.pump();
 
@@ -154,6 +237,36 @@ class _PendingTestRunProvider extends TestRunProvider {
 
   @override
   Future<TestRunResult> run(TestRunRequest request) {
+    return result;
+  }
+}
+
+class _FakeFailedTestDebugProcessCancellationHandle
+    implements FailedTestDebugProcessCancellationHandle {
+  _FakeFailedTestDebugProcessCancellationHandle({
+    required this.handleId,
+    required this.result,
+  });
+
+  @override
+  final String handleId;
+
+  final FailedTestDebugCancellationResult result;
+  final List<String> cancelledTaskIds = <String>[];
+  String lastFailedTestName = '';
+  String lastReason = '';
+
+  @override
+  Future<FailedTestDebugCancellationResult> cancelFailedTestDebug({
+    required FailedTestDebugCancellationRoute route,
+    required RuntimeTaskSnapshot runtimeTask,
+    required TestRunConfiguration? configuration,
+    required Map<String, Object?> failedTest,
+    required String reason,
+  }) async {
+    cancelledTaskIds.add(runtimeTask.definition.id);
+    lastFailedTestName = route.failedTestName;
+    lastReason = reason;
     return result;
   }
 }

@@ -81,8 +81,131 @@ class FailedTestDebugCancellationRoute {
       'cancelled': cancelled,
       'message': message,
       'todo':
-          'TODO: connect route cancellation to the concrete debug adapter or test runner process.',
+          'TODO: bind FailedTestDebugCancellationAdapter to concrete debug adapter and test runner process implementations.',
     };
+  }
+}
+
+class FailedTestDebugCancellationResult {
+  const FailedTestDebugCancellationResult({
+    required this.accepted,
+    required this.processTerminated,
+    required this.message,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const FailedTestDebugCancellationResult.accepted({
+    bool processTerminated = false,
+    String message = 'Failed-test debug cancellation requested.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: true,
+         processTerminated: processTerminated,
+         message: message,
+         metadata: metadata,
+       );
+
+  const FailedTestDebugCancellationResult.rejected({
+    String message = 'Failed-test debug cancellation was rejected.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: false,
+         processTerminated: false,
+         message: message,
+         metadata: metadata,
+       );
+
+  final bool accepted;
+  final bool processTerminated;
+  final String message;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'accepted': accepted,
+      'processTerminated': processTerminated,
+      'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+typedef FailedTestDebugCancellationHandler =
+    Future<FailedTestDebugCancellationResult> Function({
+      required FailedTestDebugCancellationRoute route,
+      required RuntimeTaskSnapshot runtimeTask,
+      required TestRunConfiguration? configuration,
+      required Map<String, Object?> failedTest,
+      required String reason,
+    });
+
+abstract class FailedTestDebugProcessCancellationHandle {
+  const FailedTestDebugProcessCancellationHandle();
+
+  String get handleId;
+
+  Future<FailedTestDebugCancellationResult> cancelFailedTestDebug({
+    required FailedTestDebugCancellationRoute route,
+    required RuntimeTaskSnapshot runtimeTask,
+    required TestRunConfiguration? configuration,
+    required Map<String, Object?> failedTest,
+    required String reason,
+  });
+}
+
+class FailedTestDebugCancellationAdapter {
+  const FailedTestDebugCancellationAdapter({
+    required FailedTestDebugCancellationHandler cancel,
+  }) : _cancel = cancel;
+
+  factory FailedTestDebugCancellationAdapter.processHandle(
+    FailedTestDebugProcessCancellationHandle handle,
+  ) {
+    return FailedTestDebugCancellationAdapter(
+      cancel:
+          ({
+            required route,
+            required runtimeTask,
+            required configuration,
+            required failedTest,
+            required reason,
+          }) async {
+            final result = await handle.cancelFailedTestDebug(
+              route: route,
+              runtimeTask: runtimeTask,
+              configuration: configuration,
+              failedTest: failedTest,
+              reason: reason,
+            );
+            return FailedTestDebugCancellationResult(
+              accepted: result.accepted,
+              processTerminated: result.processTerminated,
+              message: result.message,
+              metadata: <String, Object?>{
+                ...result.metadata,
+                'processHandleId': handle.handleId,
+              },
+            );
+          },
+    );
+  }
+
+  final FailedTestDebugCancellationHandler _cancel;
+
+  Future<FailedTestDebugCancellationResult> cancel({
+    required FailedTestDebugCancellationRoute route,
+    required RuntimeTaskSnapshot runtimeTask,
+    required TestRunConfiguration? configuration,
+    required Map<String, Object?> failedTest,
+    required String reason,
+  }) {
+    return _cancel(
+      route: route,
+      runtimeTask: runtimeTask,
+      configuration: configuration,
+      failedTest: failedTest,
+      reason: reason,
+    );
   }
 }
 
@@ -92,6 +215,7 @@ class TestingSessionController extends ChangeNotifier {
     this.runProvider,
     this.providerCatalog,
     this.rerunPlanner = const FailedTestRerunPlanner(),
+    this.failedTestDebugCancellationAdapter,
     RuntimeTaskLifecycleController? runtimeTaskLifecycleController,
     RuntimeTaskHistoryStore? runtimeTaskHistoryStore,
     TestRunHistoryStore? testRunHistoryStore,
@@ -111,6 +235,7 @@ class TestingSessionController extends ChangeNotifier {
   final TestRunProvider? runProvider;
   final TestingProviderCatalog? providerCatalog;
   final FailedTestRerunPlanner rerunPlanner;
+  final FailedTestDebugCancellationAdapter? failedTestDebugCancellationAdapter;
   final RuntimeTaskLifecycleController? _runtimeTaskLifecycleController;
   final RuntimeTaskHistoryStore? _runtimeTaskHistoryStore;
   final TestRunHistoryStore? _testRunHistoryStore;
@@ -345,13 +470,42 @@ class TestingSessionController extends ChangeNotifier {
   }) async {
     final route = planFailedTestDebugCancellation(failedTest: failedTest);
     final controller = _runtimeTaskLifecycleController;
-    if (!route.ready || controller == null) {
+    final runtimeTask = _lastRuntimeTask;
+    if (!route.ready || controller == null || runtimeTask == null) {
       return route;
+    }
+    final cancellationMessage =
+        'Cancelled failed-test debug task ${route.taskId} for ${route.failedTestName}.';
+    final adapter = failedTestDebugCancellationAdapter;
+    FailedTestDebugCancellationResult? adapterResult;
+    if (adapter != null) {
+      adapterResult = await adapter.cancel(
+        route: route,
+        runtimeTask: runtimeTask,
+        configuration: _lastRunConfiguration,
+        failedTest: failedTest,
+        reason: cancellationMessage,
+      );
+      if (!adapterResult.accepted) {
+        final rejectedRoute = FailedTestDebugCancellationRoute.fromState(
+          runtimeTask: runtimeTask,
+          configuration: _lastRunConfiguration,
+          failedTest: failedTest,
+          message: adapterResult.message,
+        );
+        _lastFailedDebugCancellationRoute = rejectedRoute;
+        notifyListeners();
+        return rejectedRoute;
+      }
     }
     final cancelled = controller.cancel(
       route.taskId,
-      message:
-          'Cancelled failed-test debug task ${route.taskId} for ${route.failedTestName}.',
+      message: adapterResult?.message ?? cancellationMessage,
+      metadata: adapterResult == null
+          ? const <String, Object?>{}
+          : <String, Object?>{
+              'failedTestDebugCancellation': adapterResult.toJson(),
+            },
     );
     _cancelledRuntimeTaskIds.add(route.taskId);
     _lastRuntimeTask = cancelled;

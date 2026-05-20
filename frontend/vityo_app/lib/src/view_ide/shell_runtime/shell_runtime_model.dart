@@ -140,6 +140,40 @@ class NativeToolResultRecord {
 
   String get commandId => command.name;
 
+  WorkspaceDiagnosticsSnapshot toWorkspaceDiagnosticsSnapshot({
+    String fallbackDocumentId = '',
+    String providerId = '',
+    String source = 'native-tool',
+    String Function(Diagnostic diagnostic)? documentIdForDiagnostic,
+  }) {
+    final resolvedProviderId = providerId.isEmpty
+        ? 'native-tool.$commandId'
+        : providerId;
+    final metadataDocumentId =
+        _nativeToolDiagnosticDocumentId(metadata) ?? fallbackDocumentId;
+    final workspaceDiagnostics = <WorkspaceDiagnostic>[];
+    for (final diagnostic in diagnostics) {
+      final explicitDocumentId = documentIdForDiagnostic
+          ?.call(diagnostic)
+          .trim();
+      workspaceDiagnostics.add(
+        WorkspaceDiagnostic(
+          documentId: explicitDocumentId == null || explicitDocumentId.isEmpty
+              ? metadataDocumentId.trim()
+              : explicitDocumentId,
+          providerId: resolvedProviderId,
+          source: source,
+          diagnostic: diagnostic,
+        ),
+      );
+    }
+    return WorkspaceDiagnosticsSnapshot(
+      providerId: resolvedProviderId,
+      message: message,
+      diagnostics: workspaceDiagnostics,
+    );
+  }
+
   ExecutionResultContract toResultContract() {
     return ExecutionResultContract(
       source: 'native-tool',
@@ -168,6 +202,30 @@ class NativeToolResultRecord {
       'executionResult': toResultContract().toJson(),
     };
   }
+}
+
+String? _nativeToolDiagnosticDocumentId(Map<String, Object?> metadata) {
+  for (final key in <String>[
+    'documentId',
+    'activeDocumentId',
+    'filePath',
+    'path',
+  ]) {
+    final value = metadata[key];
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+  }
+  final workspaceDiagnostics = metadata['workspaceDiagnostics'];
+  if (workspaceDiagnostics is Map<String, Object?>) {
+    for (final key in <String>['documentId', 'activeDocumentId']) {
+      final value = workspaceDiagnostics[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+  }
+  return null;
 }
 
 enum DebugSessionStatus {

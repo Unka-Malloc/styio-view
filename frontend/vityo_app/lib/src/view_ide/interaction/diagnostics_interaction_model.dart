@@ -3,6 +3,7 @@ import '../workspace/workspace.dart';
 enum DiagnosticsInteractionActionKind {
   openDocument,
   filterBySource,
+  previewQuickFix,
   applyQuickFix,
 }
 
@@ -12,6 +13,7 @@ extension DiagnosticsInteractionActionKindX
     return switch (this) {
       DiagnosticsInteractionActionKind.openDocument => 'open-document',
       DiagnosticsInteractionActionKind.filterBySource => 'filter-by-source',
+      DiagnosticsInteractionActionKind.previewQuickFix => 'preview-quick-fix',
       DiagnosticsInteractionActionKind.applyQuickFix => 'apply-quick-fix',
     };
   }
@@ -82,6 +84,16 @@ class DiagnosticsInteractionModel {
     return quickFixConfirmationPlans.where((plan) => plan.ready).length;
   }
 
+  int get previewableQuickFixCount {
+    return quickFixConfirmationPlans
+        .where(
+          (plan) =>
+              plan.status !=
+              WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+        )
+        .length;
+  }
+
   List<DiagnosticsInteractionAction> get actions {
     return <DiagnosticsInteractionAction>[
       for (final group in view.documentGroups)
@@ -108,6 +120,25 @@ class DiagnosticsInteractionModel {
         ),
       for (final plan in quickFixConfirmationPlans)
         DiagnosticsInteractionAction(
+          actionId: 'diagnostics.preview-fix.${plan.planId}',
+          kind: DiagnosticsInteractionActionKind.previewQuickFix,
+          label:
+              plan.status ==
+                  WorkspaceQuickFixConfirmationStatus.blockedNoPreview
+              ? plan.message
+              : 'Preview ${plan.summary}',
+          enabled:
+              plan.status !=
+              WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+          targetId: plan.planId,
+          metadata: <String, Object?>{
+            'status': plan.status.wireValue,
+            'affectedDocumentIds': plan.affectedDocumentIds,
+            'missingDocumentIds': plan.missingDocumentIds,
+          },
+        ),
+      for (final plan in quickFixConfirmationPlans)
+        DiagnosticsInteractionAction(
           actionId: 'diagnostics.apply-fix.${plan.planId}',
           kind: DiagnosticsInteractionActionKind.applyQuickFix,
           label: plan.ready ? 'Apply ${plan.summary}' : plan.message,
@@ -129,6 +160,7 @@ class DiagnosticsInteractionModel {
       'visibleCount': visibleCount,
       'hasVisibleErrors': hasVisibleErrors,
       'readyQuickFixCount': readyQuickFixCount,
+      'previewableQuickFixCount': previewableQuickFixCount,
       'sourceGroups': view.sourceGroups
           .map((group) => group.toJson())
           .toList(growable: false),

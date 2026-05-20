@@ -441,9 +441,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/workspace/workspace_diagnostics.dart',
           summary:
-              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, attached quick-fix facts, source-kind classification, and workspace quick-fix confirmation plans.',
+              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, preview/apply action routing, and native tool result diagnostic snapshots.',
           todo:
-              'TODO: bind WorkspaceDiagnosticStreamSnapshot to concrete Problems panel quick-fix controls and native tool diagnostic producers.',
+              'TODO: bind native tool workspace diagnostic snapshots and quick-fix preview/apply actions to concrete producer execution telemetry.',
           dependencies: <String>[
             'foundation.registry',
             'service.styio-language',

@@ -63,6 +63,7 @@ void main() {
     expect(model.visibleCount, 2);
     expect(model.hasVisibleErrors, isTrue);
     expect(model.readyQuickFixCount, 1);
+    expect(model.previewableQuickFixCount, 2);
     expect(model.view.sourceGroups, hasLength(2));
     expect(
       actions.where(
@@ -85,8 +86,16 @@ void main() {
       ),
       hasLength(2),
     );
+    expect(
+      actions.where(
+        (action) =>
+            action.kind == DiagnosticsInteractionActionKind.previewQuickFix,
+      ),
+      hasLength(2),
+    );
     expect(actions.last.enabled, isFalse);
     expect(json['readyQuickFixCount'], 1);
+    expect(json['previewableQuickFixCount'], 2);
     expect(json['actions'], isNotEmpty);
     expect(json['sourceGroups'], isNotEmpty);
   });

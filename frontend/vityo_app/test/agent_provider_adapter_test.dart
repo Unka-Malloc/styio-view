@@ -841,6 +841,10 @@ void main() {
       expect(systemMessage['content'], contains('language.resolvedReference'));
       expect(systemMessage['content'], contains('language.parameterInfo'));
       expect(systemMessage['content'], contains('language.serviceStatus'));
+      expect(
+        systemMessage['content'],
+        contains('language.serviceStatus.syntaxValidationReady'),
+      );
       expect(systemMessage['content'], contains('language.completions'));
       expect(systemMessage['content'], contains('language.codeActions'));
       expect(systemMessage['content'], contains('language.codeActions.edits'));
@@ -851,6 +855,16 @@ void main() {
       expect(systemMessage['content'], contains('language.refactorPreviews'));
       expect(systemMessage['content'], contains('language.surroundTemplates'));
       expect(systemMessage['content'], contains('workspace.lastSymbolSearch'));
+      expect(
+        systemMessage['content'],
+        contains('workspace.sourceControlContext'),
+      );
+      expect(systemMessage['content'], contains('testing.rerunFailed'));
+      expect(systemMessage['content'], contains('testing.debugFailed'));
+      expect(
+        systemMessage['content'],
+        contains('metadata.sourceControlContext'),
+      );
       expect(systemMessage['content'], contains('zero-based coordinates'));
       expect(
         systemMessage['content'],

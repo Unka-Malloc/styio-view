@@ -21,12 +21,14 @@ void main() {
         'runtime',
         'debug',
         'workspace',
+        'agent',
         'language',
         'commands',
         'skills',
         'testing',
         'toolchains',
         'ideCapabilities',
+        'ideCapabilityClosure',
       ]),
     );
     expect(decoded.systemPrompt, contains('ideCapabilities.entries'));

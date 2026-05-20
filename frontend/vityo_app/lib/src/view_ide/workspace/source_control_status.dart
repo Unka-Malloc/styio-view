@@ -960,11 +960,12 @@ class SourceControlDiffHunkActionPlan {
     required List<int> selectedHunkIndexes,
   }) {
     final allHunks = snapshot.hunks;
-    final normalizedIndexes = selectedHunkIndexes
-        .where((index) => index >= 0 && index < allHunks.length)
-        .toSet()
-        .toList(growable: false)
-      ..sort();
+    final normalizedIndexes =
+        selectedHunkIndexes
+            .where((index) => index >= 0 && index < allHunks.length)
+            .toSet()
+            .toList(growable: false)
+          ..sort();
     final selectedHunks = normalizedIndexes
         .map((index) => allHunks[index])
         .toList(growable: false);
@@ -1017,7 +1018,21 @@ class SourceControlDiffHunkActionPlan {
 
   bool get requiresConfirmation => risk == SourceControlActionRisk.destructive;
 
+  String get selectedPatch {
+    if (selectedHunks.isEmpty) {
+      return '';
+    }
+    final lines = <String>[
+      'diff --git a/$path b/$path',
+      '--- a/$path',
+      '+++ b/$path',
+      for (final hunk in selectedHunks) ...hunk.lines,
+    ];
+    return '${lines.join('\n')}\n';
+  }
+
   Map<String, Object?> toJson() {
+    final patch = selectedPatch;
     return <String, Object?>{
       'kind': kind.wireValue,
       'path': path,
@@ -1028,13 +1043,150 @@ class SourceControlDiffHunkActionPlan {
       'canSelect': canSelect,
       'summary': summary,
       if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
+      'selectedPatchLineCount': patch.trim().isEmpty
+          ? 0
+          : patch.split('\n').length,
+      if (patch.isNotEmpty) 'selectedPatch': patch,
       'selectedHunks': selectedHunks
           .map((hunk) => hunk.toJson())
           .toList(growable: false),
-      'todo':
-          'TODO: connect selected hunks to an SCM partial patch execution provider.',
     };
   }
+}
+
+class SourceControlPartialPatchResult {
+  const SourceControlPartialPatchResult({
+    required this.kind,
+    required this.path,
+    required this.selectedHunkIndexes,
+    required this.applied,
+    this.message = '',
+    this.command = '',
+    this.arguments = const <String>[],
+    this.exitCode,
+  });
+
+  final SourceControlActionKind kind;
+  final String path;
+  final List<int> selectedHunkIndexes;
+  final bool applied;
+  final String message;
+  final String command;
+  final List<String> arguments;
+  final int? exitCode;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'path': path,
+      'selectedHunkIndexes': selectedHunkIndexes,
+      'selectedHunkCount': selectedHunkIndexes.length,
+      'applied': applied,
+      if (message.isNotEmpty) 'message': message,
+      if (command.isNotEmpty) 'command': command,
+      if (arguments.isNotEmpty) 'arguments': arguments,
+      if (exitCode != null) 'exitCode': exitCode,
+    };
+  }
+}
+
+abstract class SourceControlPartialPatchProvider {
+  const SourceControlPartialPatchProvider();
+
+  SourceControlProviderKind get providerKind;
+
+  Future<SourceControlPartialPatchResult> runHunkAction({
+    required String workspaceRoot,
+    required SourceControlDiffHunkActionPlan plan,
+  });
+}
+
+class GitSourceControlPartialPatchProvider
+    extends SourceControlPartialPatchProvider {
+  const GitSourceControlPartialPatchProvider({
+    required SourceControlCommandRunner commandRunner,
+    this.executable = 'git',
+  }) : _commandRunner = commandRunner;
+
+  final SourceControlCommandRunner _commandRunner;
+  final String executable;
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlPartialPatchResult> runHunkAction({
+    required String workspaceRoot,
+    required SourceControlDiffHunkActionPlan plan,
+  }) async {
+    if (!plan.canSelect) {
+      return SourceControlPartialPatchResult(
+        kind: plan.kind,
+        path: plan.path,
+        selectedHunkIndexes: plan.selectedHunkIndexes,
+        applied: false,
+        message: plan.blockedReason,
+      );
+    }
+    final arguments = _gitApplyArguments(plan.kind);
+    if (arguments.isEmpty) {
+      return SourceControlPartialPatchResult(
+        kind: plan.kind,
+        path: plan.path,
+        selectedHunkIndexes: plan.selectedHunkIndexes,
+        applied: false,
+        message: 'Git partial patch does not support ${plan.kind.wireValue}.',
+      );
+    }
+    final result = await _commandRunner(
+      SourceControlCommandRequest(
+        executable: executable,
+        arguments: arguments,
+        workingDirectory: workspaceRoot,
+        standardInput: plan.selectedPatch,
+      ),
+    );
+    final applied = result.exitCode == 0;
+    return SourceControlPartialPatchResult(
+      kind: plan.kind,
+      path: plan.path,
+      selectedHunkIndexes: plan.selectedHunkIndexes,
+      applied: applied,
+      command: executable,
+      arguments: arguments,
+      exitCode: result.exitCode,
+      message: applied
+          ? 'Applied ${plan.kind.wireValue} to ${plan.selectedHunkIndexes.length} selected hunk(s).'
+          : (result.stderr.isNotEmpty
+                ? result.stderr
+                : 'Git partial patch failed with exit code ${result.exitCode}.'),
+    );
+  }
+}
+
+List<String> _gitApplyArguments(SourceControlActionKind kind) {
+  return switch (kind) {
+    SourceControlActionKind.stage => const <String>[
+      'apply',
+      '--cached',
+      '--whitespace=nowarn',
+      '-',
+    ],
+    SourceControlActionKind.unstage => const <String>[
+      'apply',
+      '--cached',
+      '--reverse',
+      '--whitespace=nowarn',
+      '-',
+    ],
+    SourceControlActionKind.discard => const <String>[
+      'apply',
+      '--reverse',
+      '--whitespace=nowarn',
+      '-',
+    ],
+    SourceControlActionKind.commit => const <String>[],
+  };
 }
 
 class SourceControlAgentContextSnapshot {
@@ -1145,11 +1297,13 @@ class SourceControlCommandRequest {
     required this.executable,
     required this.arguments,
     required this.workingDirectory,
+    this.standardInput,
   });
 
   final String executable;
   final List<String> arguments;
   final String workingDirectory;
+  final String? standardInput;
 }
 
 class SourceControlCommandResult {
@@ -1187,6 +1341,7 @@ class ProcessSourceControlCommandRunner {
         arguments: request.arguments,
         workingDirectory: request.workingDirectory,
         timeout: timeout,
+        standardInput: request.standardInput,
       ),
     );
     return SourceControlCommandResult(

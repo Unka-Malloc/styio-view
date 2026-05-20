@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -216,6 +217,85 @@ void main() {
       expect(snapshot.toJson()['eventCount'], 1);
       expect(restored.retentionPolicy.persistHistory, isTrue);
       expect(restored.summary, contains('toolchain-manager -> toolchain-task'));
+    },
+  );
+
+  test(
+    'runtime output live buffer binds streams and emits snapshots',
+    () async {
+      final plan = RuntimeOutputStreamSubscriptionPlan.forManager(
+        taskId: 'styio-run',
+        managerId: 'shell-manager',
+        routeKind: 'output-panel',
+        channelIds: const <String>['runtime.events'],
+        kinds: const <RuntimeOutputChannelKind>[
+          RuntimeOutputChannelKind.runtimeEvents,
+        ],
+        status: RuntimeOutputSubscriptionStatus.active,
+        retentionPolicy: const RuntimeOutputRetentionPolicy(
+          maxEventsPerChannel: 1,
+          persistHistory: true,
+          trimEmptyChannels: false,
+        ),
+      );
+      final buffer = RuntimeOutputLiveBuffer(subscriptionPlan: plan);
+      final controller = StreamController<RuntimeOutputEvent>();
+      final emitted = <RuntimeOutputPanelSnapshot>[];
+      final snapshotSubscription = buffer.snapshots.listen(emitted.add);
+      final eventSubscription = buffer.bind(controller.stream);
+      addTearDown(snapshotSubscription.cancel);
+      addTearDown(eventSubscription.cancel);
+      addTearDown(controller.close);
+      addTearDown(buffer.dispose);
+
+      controller.add(
+        RuntimeOutputEvent(
+          channelId: 'runtime.events',
+          label: 'Runtime Events',
+          kind: RuntimeOutputChannelKind.runtimeEvents,
+          message: 'run started',
+          timestamp: DateTime.utc(2026, 5, 20, 10),
+        ),
+      );
+      controller.add(
+        RuntimeOutputEvent(
+          channelId: 'runtime.events',
+          label: 'Runtime Events',
+          kind: RuntimeOutputChannelKind.runtimeEvents,
+          message: 'run finished',
+          timestamp: DateTime.utc(2026, 5, 20, 10, 1),
+        ),
+      );
+      controller.add(
+        RuntimeOutputEvent(
+          channelId: 'stderr',
+          label: 'Stderr',
+          kind: RuntimeOutputChannelKind.stderr,
+          message: 'filtered out',
+          timestamp: DateTime.utc(2026, 5, 20, 10, 2),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(emitted, isNotEmpty);
+      expect(buffer.snapshot.visibleEvents.single.message, 'run finished');
+      expect(
+        buffer.snapshot.channelSnapshot.visibleChannels.single.eventCount,
+        1,
+      );
+      expect(
+        buffer.snapshot.toJson()['subscriptionPlan'],
+        isA<Map<String, Object?>>(),
+      );
+
+      buffer.updateFilter(
+        const RuntimeOutputChannelFilterState(
+          kinds: <RuntimeOutputChannelKind>[RuntimeOutputChannelKind.stderr],
+        ),
+      );
+
+      expect(buffer.snapshot.visibleEvents, isEmpty);
+      expect(emitted.last.visibleEvents, isEmpty);
     },
   );
 

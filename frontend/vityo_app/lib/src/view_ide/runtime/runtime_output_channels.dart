@@ -1,3 +1,5 @@
+import 'dart:async';
+
 enum RuntimeOutputChannelKind {
   runtimeEvents,
   stdout,
@@ -546,6 +548,95 @@ class RuntimeOutputPanelSnapshot {
           .map((event) => event.toJson())
           .toList(growable: false),
     };
+  }
+}
+
+class RuntimeOutputLiveBuffer {
+  RuntimeOutputLiveBuffer({
+    Iterable<RuntimeOutputEvent> seedEvents = const <RuntimeOutputEvent>[],
+    this.filter = const RuntimeOutputChannelFilterState(),
+    this.subscriptionPlan,
+  }) : _events = <RuntimeOutputEvent>[] {
+    _events.addAll(subscriptionPlan?.retain(seedEvents) ?? seedEvents);
+  }
+
+  final List<RuntimeOutputEvent> _events;
+  final StreamController<RuntimeOutputPanelSnapshot> _snapshots =
+      StreamController<RuntimeOutputPanelSnapshot>.broadcast(sync: true);
+
+  RuntimeOutputChannelFilterState filter;
+  RuntimeOutputStreamSubscriptionPlan? subscriptionPlan;
+  var _closed = false;
+
+  Stream<RuntimeOutputPanelSnapshot> get snapshots => _snapshots.stream;
+
+  RuntimeOutputPanelSnapshot get snapshot {
+    return RuntimeOutputPanelSnapshot(
+      events: List<RuntimeOutputEvent>.unmodifiable(_events),
+      filter: filter,
+      subscriptionPlan: subscriptionPlan,
+    );
+  }
+
+  void addEvent(RuntimeOutputEvent event, {DateTime? now}) {
+    if (subscriptionPlan != null && !subscriptionPlan!.accepts(event)) {
+      return;
+    }
+    _events.add(event);
+    _compact(now: now ?? event.timestamp);
+    _publish();
+  }
+
+  StreamSubscription<RuntimeOutputEvent> bind(
+    Stream<RuntimeOutputEvent> events, {
+    DateTime Function(RuntimeOutputEvent event)? now,
+  }) {
+    return events.listen((event) {
+      addEvent(event, now: now?.call(event));
+    });
+  }
+
+  void updateFilter(RuntimeOutputChannelFilterState nextFilter) {
+    filter = nextFilter;
+    _publish();
+  }
+
+  void updateSubscriptionPlan(
+    RuntimeOutputStreamSubscriptionPlan? nextPlan, {
+    DateTime? now,
+  }) {
+    subscriptionPlan = nextPlan;
+    _compact(now: now);
+    _publish();
+  }
+
+  void clear() {
+    _events.clear();
+    _publish();
+  }
+
+  Future<void> dispose() async {
+    _closed = true;
+    await _snapshots.close();
+  }
+
+  void _compact({DateTime? now}) {
+    final plan = subscriptionPlan;
+    if (plan == null) {
+      _events.sort((left, right) => left.timestamp.compareTo(right.timestamp));
+      return;
+    }
+    final retained = plan.retain(_events, now: now);
+    _events
+      ..clear()
+      ..addAll(retained);
+  }
+
+  void _publish() {
+    if (_closed) {
+      return;
+    }
+    _snapshots.add(snapshot);
   }
 }
 

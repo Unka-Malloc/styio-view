@@ -2161,6 +2161,86 @@ void main() {
     );
   });
 
+  test(
+    'shell stages and confirms destructive workspace file command',
+    () async {
+      final projectGraph =
+          ProjectGraphSnapshot.scratch(
+            workspaceRoot: '/workspace/demo',
+            activeFilePath: 'src/main.styio',
+            title: 'Demo',
+            notes: const <String>[],
+          ).copyWith(
+            editorFiles: const <String>['src/main.styio', 'src/old.styio'],
+          );
+      const mainDocument = DocumentState(
+        documentId: 'src/main.styio',
+        text: 'main := 1\n',
+        revision: 1,
+      );
+      final documentStore = InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': mainDocument,
+          'src/old.styio': DocumentState(
+            documentId: 'src/old.styio',
+            text: 'old := 1\n',
+            revision: 1,
+          ),
+        },
+      );
+      final workspaceController = WorkspaceController(
+        projectSnapshot: projectGraph,
+      );
+      final shell = ShellRuntimeModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+        workspaceController: workspaceController,
+        workspaceDocumentStore: documentStore,
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: mainDocument,
+          languageService: const _NoopStyioLanguageService(),
+        ),
+        executionAdapter: const _NoopExecutionAdapter(),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            const _NoopExecutionAdapter(),
+        runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+        dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+        deploymentAdapter: const _NoopDeploymentAdapter(),
+        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      );
+      addTearDown(shell.dispose);
+
+      await shell.executeCommandWithInput(
+        AppCommandId.deleteWorkspaceFile,
+        'src/old.styio',
+      );
+
+      expect(shell.pendingWorkspaceFileCommandConfirmation, isNotNull);
+      expect(shell.lastAgentIdeCommandResult?.applied, isFalse);
+      expect(await documentStore.documentExists('src/old.styio'), isTrue);
+
+      final confirmed = await shell.confirmPendingWorkspaceFileCommand();
+
+      expect(confirmed?.applied, isTrue);
+      expect(shell.pendingWorkspaceFileCommandConfirmation, isNull);
+      expect(await documentStore.documentExists('src/old.styio'), isFalse);
+      expect(workspaceController.files, <String>['src/main.styio']);
+      expect(shell.lastAgentIdeCommandResult?.applied, isTrue);
+      expect(
+        shell.lastAgentIdeCommandResult?.metadata['confirmationAccepted'],
+        isTrue,
+      );
+    },
+  );
+
   test('shell applies agent searchWorkspace command suggestion', () async {
     final projectGraph =
         ProjectGraphSnapshot.scratch(

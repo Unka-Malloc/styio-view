@@ -594,6 +594,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   AgentWorkspaceSearchResultContext? _lastAgentWorkspaceSearch;
   AgentWorkspaceSymbolSearchResultContext? _lastAgentWorkspaceSymbolSearch;
   AgentCommandResultContext? _lastAgentIdeCommandResult;
+  WorkspaceFileCommandRouteResult? _pendingWorkspaceFileCommandConfirmation;
   WorkspaceEditPreview? _lastWorkspaceEditPreview;
   WorkspaceEditApplyResultViewModel? _lastWorkspaceEditApplyResult;
   WorkspaceQuickFixTelemetrySnapshot? _workspaceQuickFixTelemetrySnapshot;
@@ -612,6 +613,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       List<NativeToolResultRecord>.unmodifiable(_nativeToolResults);
   AgentCommandResultContext? get lastAgentIdeCommandResult =>
       _lastAgentIdeCommandResult;
+  WorkspaceFileCommandRouteResult?
+  get pendingWorkspaceFileCommandConfirmation =>
+      _pendingWorkspaceFileCommandConfirmation;
   NativeToolResultRecord? get lastNativeToolResult =>
       _nativeToolResults.isEmpty ? null : _nativeToolResults.first;
   DebugSessionSnapshot get debugSession => _debugSession;
@@ -5962,27 +5966,93 @@ class ShellRuntimeModel extends ChangeNotifier {
       return routed;
     }
     if (routed.confirmationPlan?.destructive ?? false) {
-      return WorkspaceFileCommandRouteResult(
+      final staged = WorkspaceFileCommandRouteResult(
         commandId: commandId,
-        status: WorkspaceFileCommandRouteStatus.blocked,
+        status: WorkspaceFileCommandRouteStatus.routed,
         input: input,
         request: request,
         confirmationPlan: routed.confirmationPlan,
         message:
-            '${routed.confirmationPlan!.title} requires a confirmation dialog before execution.',
+            '${routed.confirmationPlan!.title} staged for confirmation. TODO: bind this pending plan to the workspace file confirmation dialog.',
       );
+      _pendingWorkspaceFileCommandConfirmation = staged;
+      return staged;
     }
+    final operationResult = await _runWorkspaceFileOperationRequest(request);
+    return routed.withOperationResult(operationResult);
+  }
+
+  Future<WorkspaceFileCommandRouteResult?>
+  confirmPendingWorkspaceFileCommand() async {
+    final pending = _pendingWorkspaceFileCommandConfirmation;
+    final request = pending?.request;
+    if (pending == null || request == null) {
+      return null;
+    }
+    _pendingWorkspaceFileCommandConfirmation = null;
+    final operationResult = await _runWorkspaceFileOperationRequest(request);
+    final result = pending.withOperationResult(operationResult);
+    _recordAgentIdeCommandResult(
+      AgentIdeCommandSuggestion(
+        commandId: pending.commandId.name,
+        input: pending.input,
+      ),
+      applied: operationResult.applied,
+      message: result.message,
+      metadata: <String, Object?>{
+        ...result.toJson(),
+        'confirmationAccepted': true,
+      },
+    );
+    appendLog(result.message);
+    notifyListeners();
+    return result;
+  }
+
+  WorkspaceFileCommandRouteResult? cancelPendingWorkspaceFileCommand() {
+    final pending = _pendingWorkspaceFileCommandConfirmation;
+    if (pending == null) {
+      return null;
+    }
+    _pendingWorkspaceFileCommandConfirmation = null;
+    final result = WorkspaceFileCommandRouteResult(
+      commandId: pending.commandId,
+      status: WorkspaceFileCommandRouteStatus.blocked,
+      input: pending.input,
+      request: pending.request,
+      confirmationPlan: pending.confirmationPlan,
+      message:
+          '${pending.confirmationPlan?.title ?? 'Workspace file command'} cancelled.',
+    );
+    _recordAgentIdeCommandResult(
+      AgentIdeCommandSuggestion(
+        commandId: pending.commandId.name,
+        input: pending.input,
+      ),
+      applied: false,
+      message: result.message,
+      metadata: <String, Object?>{
+        ...result.toJson(),
+        'confirmationAccepted': false,
+      },
+    );
+    appendLog(result.message);
+    notifyListeners();
+    return result;
+  }
+
+  Future<WorkspaceFileOperationResult> _runWorkspaceFileOperationRequest(
+    WorkspaceFileExplorerActionRequest request,
+  ) async {
     if (request.kind == WorkspaceFileOperationKind.reveal) {
       final opened = await openWorkspaceFileForAgent(request.path);
-      return routed.withOperationResult(
-        WorkspaceFileOperationResult(
-          kind: WorkspaceFileOperationKind.reveal,
-          applied: opened,
-          path: request.path,
-          message: opened
-              ? 'Workspace file revealed.'
-              : 'Workspace file reveal failed.',
-        ),
+      return WorkspaceFileOperationResult(
+        kind: WorkspaceFileOperationKind.reveal,
+        applied: opened,
+        path: request.path,
+        message: opened
+            ? 'Workspace file revealed.'
+            : 'Workspace file reveal failed.',
       );
     }
     final service = WorkspaceFileOperationService(
@@ -6010,7 +6080,7 @@ class ShellRuntimeModel extends ChangeNotifier {
             workspaceController.activeFilePath == operationResult.path)) {
       await _loadActiveWorkspaceDocument();
     }
-    return routed.withOperationResult(operationResult);
+    return operationResult;
   }
 
   String? blockedReasonForCommand(AppCommandId commandId) {

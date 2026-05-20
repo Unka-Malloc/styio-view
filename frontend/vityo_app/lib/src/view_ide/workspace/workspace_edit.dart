@@ -590,6 +590,8 @@ class WorkspaceEditApplicationResult {
     this.createdDocumentIds = const <String>[],
     this.deletedDocumentIds = const <String>[],
     this.skippedNoOpDocumentIds = const <String>[],
+    this.rollbackApplied = false,
+    this.rollbackMessages = const <String>[],
   });
 
   final bool applied;
@@ -599,6 +601,8 @@ class WorkspaceEditApplicationResult {
   final List<String> createdDocumentIds;
   final List<String> deletedDocumentIds;
   final List<String> skippedNoOpDocumentIds;
+  final bool rollbackApplied;
+  final List<String> rollbackMessages;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -609,6 +613,8 @@ class WorkspaceEditApplicationResult {
       'createdDocumentIds': createdDocumentIds,
       'deletedDocumentIds': deletedDocumentIds,
       'skippedNoOpDocumentIds': skippedNoOpDocumentIds,
+      'rollbackApplied': rollbackApplied,
+      'rollbackMessages': rollbackMessages,
     };
   }
 }
@@ -643,6 +649,8 @@ class WorkspaceEditApplier {
       );
     }
 
+    final rollbackOriginals = <String, DocumentState>{};
+    final rollbackCreatedDocumentIds = <String>{};
     for (final operation in plan.fileOperations) {
       final documentIdFailure = _validateDocumentId(operation.documentId);
       if (documentIdFailure != null) {
@@ -663,19 +671,48 @@ class WorkspaceEditApplier {
 
     final createdDocumentIds = <String>[];
     final deletedDocumentIds = <String>[];
+
+    Future<WorkspaceEditApplicationResult> failWithRollback(
+      String message, {
+      int appliedEditCount = 0,
+      List<String> appliedDocumentIds = const <String>[],
+      List<String> skippedNoOpDocumentIds = const <String>[],
+    }) async {
+      final rollbackMessages = await _rollbackWorkspaceEditApplication(
+        workspaceDocumentStore,
+        originals: rollbackOriginals,
+        createdDocumentIds: rollbackCreatedDocumentIds,
+      );
+      return WorkspaceEditApplicationResult(
+        applied: false,
+        message: message,
+        appliedEditCount: appliedEditCount,
+        appliedDocumentIds: List<String>.unmodifiable(appliedDocumentIds),
+        createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
+        deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
+        skippedNoOpDocumentIds: List<String>.unmodifiable(
+          skippedNoOpDocumentIds,
+        ),
+        rollbackApplied: rollbackMessages.isNotEmpty,
+        rollbackMessages: List<String>.unmodifiable(rollbackMessages),
+      );
+    }
+
     for (final operation in plan.fileOperations) {
       if (operation.kind == WorkspaceFileOperationKind.create) {
         final exists = await workspaceDocumentStore.documentExists(
           operation.documentId,
         );
         if (exists && !operation.overwrite) {
-          return WorkspaceEditApplicationResult(
-            applied: false,
-            message:
-                'Workspace edit plan ${plan.id} cannot create ${operation.documentId} because it already exists.',
-            createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
-            deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
+          return failWithRollback(
+            'Workspace edit plan ${plan.id} cannot create ${operation.documentId} because it already exists.',
           );
+        }
+        if (exists) {
+          rollbackOriginals[operation.documentId] = await workspaceDocumentStore
+              .loadDocument(operation.documentId);
+        } else {
+          rollbackCreatedDocumentIds.add(operation.documentId);
         }
         await workspaceDocumentStore.saveDocument(
           DocumentState(
@@ -686,16 +723,22 @@ class WorkspaceEditApplier {
         );
         createdDocumentIds.add(operation.documentId);
       } else {
+        final exists = await workspaceDocumentStore.documentExists(
+          operation.documentId,
+        );
+        if (!exists) {
+          return failWithRollback(
+            'Workspace edit plan ${plan.id} cannot delete missing document ${operation.documentId}.',
+          );
+        }
+        rollbackOriginals[operation.documentId] = await workspaceDocumentStore
+            .loadDocument(operation.documentId);
         final removed = await workspaceDocumentStore.deleteDocument(
           operation.documentId,
         );
         if (!removed) {
-          return WorkspaceEditApplicationResult(
-            applied: false,
-            message:
-                'Workspace edit plan ${plan.id} cannot delete missing document ${operation.documentId}.',
-            createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
-            deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
+          return failWithRollback(
+            'Workspace edit plan ${plan.id} cannot delete missing document ${operation.documentId}.',
           );
         }
         deletedDocumentIds.add(operation.documentId);
@@ -735,6 +778,7 @@ class WorkspaceEditApplier {
         );
       }
       loadedDocuments[documentId] = document;
+      rollbackOriginals.putIfAbsent(documentId, () => document);
       normalizedEditsByDocument[documentId] = normalizedEdits;
     }
 
@@ -751,17 +795,11 @@ class WorkspaceEditApplier {
       try {
         await workspaceDocumentStore.saveDocument(nextDocument);
       } on Object catch (error) {
-        return WorkspaceEditApplicationResult(
-          applied: false,
-          message:
-              'Workspace edit plan ${plan.id} failed to save ${entry.key}: $error',
+        return failWithRollback(
+          'Workspace edit plan ${plan.id} failed to save ${entry.key}: $error',
           appliedEditCount: appliedEditCount,
-          appliedDocumentIds: List<String>.unmodifiable(appliedDocumentIds),
-          createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
-          deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
-          skippedNoOpDocumentIds: List<String>.unmodifiable(
-            skippedNoOpDocumentIds,
-          ),
+          appliedDocumentIds: appliedDocumentIds,
+          skippedNoOpDocumentIds: skippedNoOpDocumentIds,
         );
       }
       appliedDocumentIds.add(entry.key);
@@ -808,6 +846,34 @@ class WorkspaceEditApplier {
           'Applied $appliedEditCount workspace edit(s) and ${createdDocumentIds.length + deletedDocumentIds.length} file operation(s) from ${plan.source.wireValue} plan ${plan.id}.',
     );
   }
+}
+
+Future<List<String>> _rollbackWorkspaceEditApplication(
+  WorkspaceDocumentStore workspaceDocumentStore, {
+  required Map<String, DocumentState> originals,
+  required Set<String> createdDocumentIds,
+}) async {
+  final messages = <String>[];
+  for (final documentId in createdDocumentIds) {
+    if (originals.containsKey(documentId)) {
+      continue;
+    }
+    try {
+      await workspaceDocumentStore.deleteDocument(documentId);
+      messages.add('Rolled back created document $documentId.');
+    } on Object catch (error) {
+      messages.add('Failed to roll back created document $documentId: $error');
+    }
+  }
+  for (final entry in originals.entries) {
+    try {
+      await workspaceDocumentStore.saveDocument(entry.value);
+      messages.add('Restored document ${entry.key}.');
+    } on Object catch (error) {
+      messages.add('Failed to restore document ${entry.key}: $error');
+    }
+  }
+  return messages;
 }
 
 DocumentState _applyEditsToDocument(

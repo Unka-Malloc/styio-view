@@ -227,6 +227,60 @@ void main() {
   });
 
   test(
+    'workspace edit applier rolls back file operations on save failure',
+    () async {
+      final store = _SaveFailingOnceWorkspaceDocumentStore(
+        failDocumentId: 'main.styio',
+        seededDocuments: const <String, DocumentState>{
+          'main.styio': DocumentState(
+            documentId: 'main.styio',
+            text: 'value = 1\n',
+            revision: 1,
+          ),
+        },
+      );
+      final applier = WorkspaceEditApplier(workspaceDocumentStore: store);
+      const plan = WorkspaceEditPlan(
+        id: 'rollback-file-op',
+        summary: 'Create then edit.',
+        source: WorkspaceEditSource.agent,
+        fileOperations: <WorkspaceFileOperation>[
+          WorkspaceFileOperation.create(
+            documentId: 'generated.styio',
+            text: 'generated\n',
+          ),
+        ],
+        editsByDocument: <String, List<FormattingEdit>>{
+          'main.styio': <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 0, end: 5),
+              newText: 'count',
+            ),
+          ],
+        },
+      );
+
+      final result = await applier.apply(plan);
+      final main = await store.loadDocument('main.styio');
+
+      expect(result.applied, isFalse);
+      expect(result.rollbackApplied, isTrue);
+      expect(
+        result.rollbackMessages,
+        contains('Rolled back created document generated.styio.'),
+      );
+      expect(
+        result.rollbackMessages,
+        contains('Restored document main.styio.'),
+      );
+      expect(await store.documentExists('generated.styio'), isFalse);
+      expect(main.text, 'value = 1\n');
+      expect(main.revision, 1);
+      expect(result.toJson()['rollbackApplied'], isTrue);
+    },
+  );
+
+  test(
     'workspace edit applier rejects overlapping edits without saving',
     () async {
       final store = InMemoryWorkspaceDocumentStore(
@@ -434,5 +488,47 @@ class _AccessFailingWorkspaceDocumentStore implements WorkspaceDocumentStore {
   @override
   Future<void> saveDocument(DocumentState document) {
     throw StateError('store should not be accessed');
+  }
+}
+
+class _SaveFailingOnceWorkspaceDocumentStore implements WorkspaceDocumentStore {
+  _SaveFailingOnceWorkspaceDocumentStore({
+    required this.failDocumentId,
+    required Map<String, DocumentState> seededDocuments,
+  }) : _documents = Map<String, DocumentState>.from(seededDocuments);
+
+  final String failDocumentId;
+  final Map<String, DocumentState> _documents;
+  var _failed = false;
+
+  @override
+  Future<bool> deleteDocument(String path) async {
+    return _documents.remove(path) != null;
+  }
+
+  @override
+  Future<bool> documentExists(String path) async {
+    return _documents.containsKey(path);
+  }
+
+  @override
+  String? filePathForDocumentId(String documentId) => null;
+
+  @override
+  Future<DocumentState> loadDocument(String path) async {
+    final document = _documents[path];
+    if (document == null) {
+      throw StateError('missing document $path');
+    }
+    return document;
+  }
+
+  @override
+  Future<void> saveDocument(DocumentState document) async {
+    if (!_failed && document.documentId == failDocumentId) {
+      _failed = true;
+      throw StateError('simulated save failure');
+    }
+    _documents[document.documentId] = document;
   }
 }

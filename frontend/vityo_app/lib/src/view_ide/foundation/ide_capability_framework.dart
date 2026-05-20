@@ -478,7 +478,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'WorkspaceEditPlan, WorkspaceEditPreview, WorkspaceEditConfirmationPlan, file create/delete operations, serializable application results, and WorkspaceEditApplier provide a shared preview, confirmation, and edit application path for agent patches, code actions, rename, and formatting.',
           todo:
-              'TODO: add rollback, richer diff UI, and bind confirmation plans to apply/cancel controls.',
+              'TODO: add richer diff UI and bind confirmation plans to apply/cancel controls.',
           dependencies: <String>[
             'foundation.registry',
             'workspace.project-model',

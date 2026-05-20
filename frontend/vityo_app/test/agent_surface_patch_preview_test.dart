@@ -169,6 +169,71 @@ void main() {
     );
   });
 
+  testWidgets('agent surface dispatches confirmed recovery action', (
+    tester,
+  ) async {
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    final adapter = _RecoveryDispatchSurfaceAgentProviderAdapter();
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord.failure(
+          requestId: 'agent-failed',
+          profile: profile,
+          providerKind: AgentProviderKind.cloudOpenAICompatible,
+          prompt: 'Retry this failed prompt.',
+          errorMessage: 'provider timed out',
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+        ),
+      ],
+    );
+    final controller = AgentCodingSessionController(
+      profile: profile,
+      adapter: adapter,
+      contextProvider: _context,
+      sessionHistoryStore: _MemoryAgentCodingSessionHistoryStore(history),
+      sessionHistoryWorkspaceId: 'demo',
+    );
+    addTearDown(controller.dispose);
+    await controller.loadSessionHistory();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-recovery-dispatch-confirmed')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(adapter.requests.single.userPrompt, 'Retry this failed prompt.');
+    expect(controller.draftPrompt, isEmpty);
+    expect(find.text('recovery ok'), findsOneWidget);
+  });
+
   testWidgets('agent surface displays structured coding plan', (tester) async {
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
@@ -4995,6 +5060,35 @@ class _MemoryAgentCodingSessionHistoryStore
   @override
   Future<void> saveHistory(AgentCodingSessionHistory history) async {
     this.history = history;
+  }
+}
+
+class _RecoveryDispatchSurfaceAgentProviderAdapter
+    implements AgentProviderAdapter {
+  final List<AgentProviderRequest> requests = <AgentProviderRequest>[];
+
+  @override
+  String get adapterId => 'recovery-dispatch';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.cloudOpenAICompatible;
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(
+    AgentProviderRequest request,
+  ) async {
+    requests.add(request);
+    return AgentProviderResponseEnvelope(
+      requestId: request.requestId,
+      role: 'assistant',
+      finishReason: 'stop',
+      contentParts: const <AgentContentPart>[
+        AgentContentPart(kind: AgentContentPartKind.text, text: 'recovery ok'),
+      ],
+    );
   }
 }
 

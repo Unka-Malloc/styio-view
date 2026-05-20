@@ -151,6 +151,18 @@ void main() {
       entriesById['agent.coding-loop']?.dependencies,
       contains('workspace.edit-application'),
     );
+    expect(
+      entriesById['agent.provider']?.summary,
+      contains('OpenAI Codex Spark preset'),
+    );
+    expect(
+      entriesById['agent.provider']?.summary,
+      contains('structured response tool definitions'),
+    );
+    expect(
+      entriesById['agent.provider']?.summary,
+      contains('Credential DataStore-backed bearer token references'),
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

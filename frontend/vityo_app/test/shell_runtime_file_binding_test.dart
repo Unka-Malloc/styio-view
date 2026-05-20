@@ -2095,6 +2095,72 @@ void main() {
     expect(workspaceContext.documentSamples.last.documentId, 'src/main.styio');
   });
 
+  test('shell executes command palette workspace file input command', () async {
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/demo',
+      activeFilePath: 'src/main.styio',
+      title: 'Demo',
+      notes: const <String>[],
+    ).copyWith(editorFiles: const <String>['src/main.styio']);
+    const mainDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'main := 1\n',
+      revision: 1,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': mainDocument,
+      },
+    );
+    final workspaceController = WorkspaceController(
+      projectSnapshot: projectGraph,
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: workspaceController,
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: mainDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    await shell.executeCommandWithInput(
+      AppCommandId.createWorkspaceFile,
+      'src/new.styio',
+    );
+
+    expect(workspaceController.files, <String>[
+      'src/main.styio',
+      'src/new.styio',
+    ]);
+    expect(workspaceController.activeFilePath, 'src/new.styio');
+    expect(shell.editorController.document.documentId, 'src/new.styio');
+    expect(await documentStore.documentExists('src/new.styio'), isTrue);
+    expect(shell.lastAgentIdeCommandResult?.applied, isTrue);
+    expect(
+      shell.lastAgentIdeCommandResult?.metadata['operationResult'],
+      isA<Map<String, Object?>>(),
+    );
+  });
+
   test('shell applies agent searchWorkspace command suggestion', () async {
     final projectGraph =
         ProjectGraphSnapshot.scratch(
@@ -3657,8 +3723,8 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
     expect(shell.lastTestRun?.status, TestRunStatus.passed);
     expect(shell.lastTestRun?.totalCount, 3);
     expect(shell.agentSessionContext.testing.lastRun?.totalCount, 3);
-    final selectedConfiguration = shell.testRunConfigurationSet
-        .selectedConfiguration!;
+    final selectedConfiguration =
+        shell.testRunConfigurationSet.selectedConfiguration!;
     expect(selectedConfiguration.id, 'all-tests');
     await shell.debugTestConfiguration(selectedConfiguration);
     expect(

@@ -168,6 +168,7 @@ class VityoShellScaffold extends StatelessWidget {
         return CommandPaletteSurface(
           viewportProfile: viewportProfile,
           onExecuteCommand: shell.executeCommand,
+          onExecuteCommandWithInput: shell.executeCommandWithInput,
           blockedReasonForCommand: shell.blockedReasonForCommand,
         );
       case BottomSurfaceTab.agent:

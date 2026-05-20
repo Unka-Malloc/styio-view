@@ -5856,6 +5856,163 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
   }
 
+  Future<void> executeCommandWithInput(
+    AppCommandId commandId,
+    String input,
+  ) async {
+    final normalizedInput = input.trim();
+    final blockedReason = blockedReasonForCommand(commandId);
+    if (blockedReason != null) {
+      appendLog(
+        '${StyioCommandRegistry.descriptorFor(commandId).label} blocked: $blockedReason',
+      );
+      return;
+    }
+    switch (commandId) {
+      case AppCommandId.openWorkspaceFile:
+      case AppCommandId.searchWorkspace:
+      case AppCommandId.renameSymbol:
+      case AppCommandId.previewSourceControlDiff:
+      case AppCommandId.selectClangCppVersion:
+        await applyAgentIdeCommandSuggestion(
+          AgentIdeCommandSuggestion(
+            commandId: commandId.name,
+            input: normalizedInput,
+          ),
+        );
+        return;
+      case AppCommandId.createWorkspaceFile:
+      case AppCommandId.renameWorkspaceFile:
+      case AppCommandId.deleteWorkspaceFile:
+      case AppCommandId.revealWorkspaceFile:
+        final result = await _executeWorkspaceFileCommandWithInput(
+          commandId,
+          normalizedInput,
+        );
+        final operationResult = result.operationResult;
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name, input: input),
+          applied: operationResult?.applied ?? false,
+          message: result.message,
+          metadata: result.toJson(),
+        );
+        appendLog(result.message);
+        notifyListeners();
+        return;
+      case AppCommandId.save:
+      case AppCommandId.saveAll:
+      case AppCommandId.run:
+      case AppCommandId.fetchDependencies:
+      case AppCommandId.vendorDependencies:
+      case AppCommandId.useActiveCompiler:
+      case AppCommandId.pinActiveCompiler:
+      case AppCommandId.clearPinnedCompiler:
+      case AppCommandId.packProject:
+      case AppCommandId.preparePublish:
+      case AppCommandId.showRuntime:
+      case AppCommandId.showAgent:
+      case AppCommandId.showDebug:
+      case AppCommandId.toggleBreakpoint:
+      case AppCommandId.startDebugging:
+      case AppCommandId.stopDebugging:
+      case AppCommandId.continueDebugging:
+      case AppCommandId.stepOver:
+      case AppCommandId.selectDebugThread:
+      case AppCommandId.selectDebugStackFrame:
+      case AppCommandId.nextDiagnostic:
+      case AppCommandId.previousDiagnostic:
+      case AppCommandId.applyQuickFix:
+      case AppCommandId.previewQuickFix:
+      case AppCommandId.refreshLanguageService:
+      case AppCommandId.refreshWorkspaceDiagnostics:
+      case AppCommandId.refreshSourceControl:
+      case AppCommandId.collectAgentCodingCheckpoint:
+      case AppCommandId.collectProjectLanguageContext:
+      case AppCommandId.goToDefinition:
+      case AppCommandId.nextReference:
+      case AppCommandId.previousReference:
+      case AppCommandId.safeDelete:
+      case AppCommandId.inlineVariable:
+      case AppCommandId.refreshModules:
+      case AppCommandId.openSettings:
+      case AppCommandId.runBuild:
+      case AppCommandId.formatActiveDocument:
+      case AppCommandId.runStaticAnalysis:
+      case AppCommandId.runTests:
+        await executeCommand(commandId);
+        return;
+    }
+  }
+
+  Future<WorkspaceFileCommandRouteResult> _executeWorkspaceFileCommandWithInput(
+    AppCommandId commandId,
+    String input,
+  ) async {
+    final routed = const WorkspaceFileCommandRouter().route(
+      commandId: commandId,
+      input: input,
+      context: WorkspaceFileCommandRouteContext(
+        activeFilePath: workspaceController.activeFilePath,
+        selectedFilePath: workspaceController.activeFilePath,
+        openCreatedFiles: true,
+      ),
+    );
+    final request = routed.request;
+    if (request == null) {
+      return routed;
+    }
+    if (routed.confirmationPlan?.destructive ?? false) {
+      return WorkspaceFileCommandRouteResult(
+        commandId: commandId,
+        status: WorkspaceFileCommandRouteStatus.blocked,
+        input: input,
+        request: request,
+        confirmationPlan: routed.confirmationPlan,
+        message:
+            '${routed.confirmationPlan!.title} requires a confirmation dialog before execution.',
+      );
+    }
+    if (request.kind == WorkspaceFileOperationKind.reveal) {
+      final opened = await openWorkspaceFileForAgent(request.path);
+      return routed.withOperationResult(
+        WorkspaceFileOperationResult(
+          kind: WorkspaceFileOperationKind.reveal,
+          applied: opened,
+          path: request.path,
+          message: opened
+              ? 'Workspace file revealed.'
+              : 'Workspace file reveal failed.',
+        ),
+      );
+    }
+    final service = WorkspaceFileOperationService(
+      workspaceController: workspaceController,
+      documentStore: workspaceDocumentStore,
+    );
+    final operationResult = switch (request.kind) {
+      WorkspaceFileOperationKind.create => await service.createFile(
+        path: request.path,
+        text: request.text,
+        open: request.open,
+      ),
+      WorkspaceFileOperationKind.rename => await service.renameFile(
+        path: request.path,
+        nextPath: request.nextPath,
+        open: request.open,
+      ),
+      WorkspaceFileOperationKind.delete => await service.deleteFile(
+        request.path,
+      ),
+      WorkspaceFileOperationKind.reveal => service.revealFile(request.path),
+    };
+    if (operationResult.applied &&
+        (workspaceController.activeFilePath == operationResult.nextPath ||
+            workspaceController.activeFilePath == operationResult.path)) {
+      await _loadActiveWorkspaceDocument();
+    }
+    return routed.withOperationResult(operationResult);
+  }
+
   String? blockedReasonForCommand(AppCommandId commandId) {
     final projectGraph = workspaceController.activeProject;
     switch (commandId) {

@@ -234,6 +234,10 @@ void main() {
       contains('Agent context snapshots'),
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('last action results'),
+    );
+    expect(
       entriesById['extension.marketplace']?.status,
       IdeCapabilityStatus.scaffolded,
     );

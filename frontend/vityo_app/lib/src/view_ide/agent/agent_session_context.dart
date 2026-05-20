@@ -81,6 +81,7 @@ class AgentSessionContext {
     WorkspaceDiagnosticsSnapshot? workspaceDiagnostics,
     SourceControlStatusSnapshot? sourceControlStatus,
     SourceControlDiffSnapshot? sourceControlDiff,
+    SourceControlAgentContextSnapshot? sourceControlContext,
     TestDiscoveryResult? testDiscovery,
     TestRunResult? lastTestRun,
     TokenSpan? focusToken,
@@ -154,12 +155,13 @@ class AgentSessionContext {
       diagnostics: workspaceDiagnostics,
       sourceControlStatus: sourceControlStatus,
       sourceControlDiff: sourceControlDiff,
+      sourceControlContext: sourceControlContext,
     );
     final capabilitySnapshot =
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 50,
+      schemaVersion: 51,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -4297,6 +4299,7 @@ class AgentWorkspaceContext {
     WorkspaceDiagnosticsSnapshot? diagnostics,
     SourceControlStatusSnapshot? sourceControlStatus,
     SourceControlDiffSnapshot? sourceControlDiff,
+    SourceControlAgentContextSnapshot? sourceControlContext,
     int maxFiles = 200,
     int maxDocumentSamples = 10,
   }) {
@@ -4341,14 +4344,15 @@ class AgentWorkspaceContext {
     final openSet = normalizedOpenDocumentIds.toSet();
     final dirtySet = normalizedDirtyDocumentIds.toSet();
     final normalizedWorkspaceRoot = workspaceRoot.trim();
-    final sourceControlContext =
-        sourceControlStatus == null && sourceControlDiff == null
-        ? null
-        : SourceControlAgentContextSnapshot.fromState(
-            workspaceRoot: normalizedWorkspaceRoot,
-            status: sourceControlStatus,
-            diffPreview: sourceControlDiff,
-          );
+    final effectiveSourceControlContext =
+        sourceControlContext ??
+        (sourceControlStatus == null && sourceControlDiff == null
+            ? null
+            : SourceControlAgentContextSnapshot.fromState(
+                workspaceRoot: normalizedWorkspaceRoot,
+                status: sourceControlStatus,
+                diffPreview: sourceControlDiff,
+              ));
     return AgentWorkspaceContext(
       activeFilePath: activeFilePath,
       fileCount: allFiles.length,
@@ -4376,7 +4380,7 @@ class AgentWorkspaceContext {
       diagnostics: diagnostics,
       sourceControlStatus: sourceControlStatus,
       sourceControlDiff: sourceControlDiff,
-      sourceControlContext: sourceControlContext,
+      sourceControlContext: effectiveSourceControlContext,
     );
   }
 

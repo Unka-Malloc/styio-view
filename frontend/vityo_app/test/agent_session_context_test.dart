@@ -316,6 +316,36 @@ void main() {
         path: '/workspace/demo/src/main.styio',
         unifiedDiff: 'diff --git a/src/main.styio b/src/main.styio\n+value\n',
       ),
+      sourceControlContext: SourceControlAgentContextSnapshot.fromState(
+        workspaceRoot: '/workspace/demo',
+        status: const SourceControlStatusSnapshot(
+          providerKind: SourceControlProviderKind.git,
+          branchName: 'ai-dev',
+          changes: <SourceControlFileChange>[
+            SourceControlFileChange(
+              path: '/workspace/demo/src/main.styio',
+              unstagedStatus: SourceControlFileStatus.modified,
+            ),
+          ],
+        ),
+        diffPreview: const SourceControlDiffSnapshot(
+          providerKind: SourceControlProviderKind.git,
+          path: '/workspace/demo/src/main.styio',
+          unifiedDiff: 'diff --git a/src/main.styio b/src/main.styio\n+value\n',
+        ),
+        pendingActionPlan: SourceControlActionPlan.fromRequest(
+          const SourceControlActionRequest(
+            kind: SourceControlActionKind.discard,
+            paths: <String>['/workspace/demo/src/main.styio'],
+          ),
+        ),
+        lastActionResult: const SourceControlActionResult(
+          kind: SourceControlActionKind.stage,
+          applied: true,
+          paths: <String>['/workspace/demo/src/main.styio'],
+          message: 'staged for review',
+        ),
+      ),
       workspaceRoot: '/workspace/demo',
       testDiscovery: const TestDiscoveryResult(
         providerId: 'ctest-discovery',
@@ -455,7 +485,7 @@ void main() {
     final testingDebugRoute =
         testingJson['debugFailedRoutePlan']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 50);
+    expect(json['schemaVersion'], 51);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -472,6 +502,17 @@ void main() {
       sourceControlContext['diffReview'],
       containsPair('additionCount', 1),
     );
+    final sourceControlPendingAction =
+        sourceControlContext['pendingActionPlan']! as Map<String, Object?>;
+    final sourceControlPendingRequest =
+        sourceControlPendingAction['request']! as Map<String, Object?>;
+    final sourceControlLastAction =
+        sourceControlContext['lastActionResult']! as Map<String, Object?>;
+    expect(sourceControlPendingRequest['kind'], 'discard');
+    expect(sourceControlPendingAction['requiresConfirmation'], isTrue);
+    expect(sourceControlLastAction['kind'], 'stage');
+    expect(sourceControlLastAction['applied'], isTrue);
+    expect(sourceControlLastAction['message'], 'staged for review');
     expect(testingJson['hasDiscovery'], isTrue);
     expect(testingJson['hasLastRun'], isTrue);
     expect(testingJson['hasFailingTests'], isTrue);
@@ -1495,7 +1536,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 50);
+    expect(json['schemaVersion'], 51);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1770,7 +1811,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 50);
+    expect(context.schemaVersion, 51);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

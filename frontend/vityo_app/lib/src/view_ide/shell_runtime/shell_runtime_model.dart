@@ -882,6 +882,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       workspaceDiagnostics: workspaceDiagnosticsSnapshot,
       sourceControlStatus: sourceControlStatusSnapshot,
       sourceControlDiff: sourceControlDiffPreview,
+      sourceControlContext: sourceControlStatusController?.agentContextSnapshot,
       testDiscovery: testDiscovery,
       lastTestRun: lastTestRun,
       workspaceRoot: workspaceController.activeProject.workspaceRoot,

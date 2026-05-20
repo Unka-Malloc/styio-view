@@ -390,7 +390,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        50,
+        51,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],
@@ -409,6 +409,15 @@ void main() {
             as Map<String, Object?>)['unstagedPaths'],
         contains(documentPath),
       );
+      final checkpointSourceControlContext =
+          checkpointCommandResult?.metadata['sourceControlContext']!
+              as Map<String, Object?>;
+      final lastSourceControlAction =
+          checkpointSourceControlContext['lastActionResult']!
+              as Map<String, Object?>;
+      expect(lastSourceControlAction['kind'], 'stage');
+      expect(lastSourceControlAction['applied'], isTrue);
+      expect(lastSourceControlAction['message'], contains('/workspace/demo'));
 
       final agentCheckpointApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(

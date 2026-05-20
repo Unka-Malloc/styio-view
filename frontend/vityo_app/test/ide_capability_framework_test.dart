@@ -337,6 +337,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('workspace-edit risk prompt guidance'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('Source Control Agent context bridge'),
     );
     expect(

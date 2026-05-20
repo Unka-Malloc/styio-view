@@ -337,6 +337,21 @@ void main() {
     );
     expect((json['usage']! as Map<String, Object?>)['skillCount'], 14);
     expect(
+      (json['usage']! as Map<String, Object?>)['activeSkillCount'],
+      greaterThan(0),
+    );
+    expect(
+      (json['usage']! as Map<String, Object?>)['activeSkillIds'],
+      contains('styio-language-service-truth'),
+    );
+    final usageActiveSkillReasons =
+        (json['usage']! as Map<String, Object?>)['activeSkillReasons']!
+            as Map<String, Object?>;
+    expect(
+      usageActiveSkillReasons['styio-language-service-truth'],
+      isA<List<Object?>>(),
+    );
+    expect(
       (json['usage']! as Map<String, Object?>)['skillIds'],
       contains('cpp-clang-toolchain-defaults'),
     );
@@ -864,6 +879,12 @@ void main() {
       expect(
         metadata['activeSkillIds'],
         isNot(contains('styio-cpp-compiler-project')),
+      );
+      final activeSkillReasons =
+          metadata['activeSkillReasons']! as Map<String, Object?>;
+      expect(
+        activeSkillReasons['styio-language-service-truth'],
+        isA<List<Object?>>(),
       );
       expect(metadata['skillIds'], contains('styio-cpp-compiler-project'));
       expect(metadata['skillIds'], contains('cpp-clang-version-handoff'));

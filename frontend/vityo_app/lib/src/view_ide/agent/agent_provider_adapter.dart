@@ -955,6 +955,10 @@ class LocalOnlyAgentProviderAdapter implements AgentProviderAdapter {
         ..._lastCommandResultMetadata(request.context.commands.lastResult),
         'skillCount': request.context.skills.skillCount,
         'skillIds': request.context.skills.skillIds,
+        'activeSkillCount': request.context.skills.activeSkillCount,
+        'activeSkillIds': request.context.skills.activeSkillIds,
+        if (request.context.skills.activationReasons.isNotEmpty)
+          'activeSkillReasons': request.context.skills.activationReasons,
         'toolchainCount': request.context.toolchains.entryCount,
         'hasNativeCompiler': request.context.toolchains.hasNativeCompiler,
         ..._nativeToolMetadata(request.context.toolchains.nativeTools),
@@ -1128,6 +1132,8 @@ Map<String, Object?> _openAICompatibleRequestBody(
       'skillIds': request.context.skills.skillIds,
       'activeSkillCount': request.context.skills.activeSkillCount,
       'activeSkillIds': request.context.skills.activeSkillIds,
+      if (request.context.skills.activationReasons.isNotEmpty)
+        'activeSkillReasons': request.context.skills.activationReasons,
       'toolchainCount': request.context.toolchains.entryCount,
       'hasNativeCompiler': request.context.toolchains.hasNativeCompiler,
       ..._nativeToolMetadata(request.context.toolchains.nativeTools),

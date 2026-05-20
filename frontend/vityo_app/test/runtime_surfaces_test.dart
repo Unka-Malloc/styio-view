@@ -9,6 +9,7 @@ import 'package:vityo_app/src/runtime/debug_console_surface.dart';
 import 'package:vityo_app/src/runtime/runtime_surface.dart';
 import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime.dart';
 
 void main() {
@@ -60,6 +61,11 @@ void main() {
             diagnostics: [],
             stdoutEvents: <ExecutionLogEvent>[],
             stderrEvents: <ExecutionLogEvent>[],
+          ),
+          outputChannelFilter: const RuntimeOutputChannelFilterState(
+            kinds: <RuntimeOutputChannelKind>[
+              RuntimeOutputChannelKind.runtimeEvents,
+            ],
           ),
           runtimeEvents: <RuntimeEventEnvelope>[
             RuntimeEventEnvelope(
@@ -177,6 +183,7 @@ void main() {
 
     expect(find.text('Runtime Event Replay'), findsOneWidget);
     expect(find.text('Output Channels'), findsOneWidget);
+    expect(find.text('filter kinds runtime-events'), findsOneWidget);
     expect(find.text('runtime-events 10'), findsOneWidget);
     expect(
       find.text('Runtime events: run.finished from styio.runtime'),

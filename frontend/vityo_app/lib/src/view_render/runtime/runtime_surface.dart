@@ -32,6 +32,7 @@ class RuntimeSurface extends StatelessWidget {
     required this.executionSession,
     required this.runtimeEvents,
     this.nativeToolResults = const <NativeToolResultRecord>[],
+    this.outputChannelFilter = const RuntimeOutputChannelFilterState(),
     this.onOpenNativeToolDiagnostics,
   });
 
@@ -45,6 +46,7 @@ class RuntimeSurface extends StatelessWidget {
   final ExecutionSession? executionSession;
   final List<RuntimeEventEnvelope> runtimeEvents;
   final List<NativeToolResultRecord> nativeToolResults;
+  final RuntimeOutputChannelFilterState outputChannelFilter;
   final ValueChanged<AppCommandId>? onOpenNativeToolDiagnostics;
 
   @override
@@ -120,6 +122,7 @@ class RuntimeSurface extends StatelessWidget {
                   executionSession: executionSession,
                   runtimeEvents: runtimeEvents,
                   nativeToolResults: nativeToolResults,
+                  filter: outputChannelFilter,
                 ),
                 SizedBox(height: cardSpacing),
                 _RuntimeGraphSection(graph: graph),
@@ -189,6 +192,7 @@ class RuntimeSurface extends StatelessWidget {
                   executionSession: executionSession,
                   runtimeEvents: runtimeEvents,
                   nativeToolResults: nativeToolResults,
+                  filter: outputChannelFilter,
                 ),
                 SizedBox(height: cardSpacing),
                 _RuntimeGraphSection(graph: graph),
@@ -623,11 +627,13 @@ class _OutputChannelSection extends StatelessWidget {
     required this.executionSession,
     required this.runtimeEvents,
     required this.nativeToolResults,
+    required this.filter,
   });
 
   final ExecutionSession? executionSession;
   final List<RuntimeEventEnvelope> runtimeEvents;
   final List<NativeToolResultRecord> nativeToolResults;
+  final RuntimeOutputChannelFilterState filter;
 
   @override
   Widget build(BuildContext context) {
@@ -637,7 +643,10 @@ class _OutputChannelSection extends StatelessWidget {
       runtimeEvents: runtimeEvents,
       nativeToolResults: nativeToolResults,
     );
-    final snapshot = RuntimeOutputChannelSnapshot(channels: channels);
+    final snapshot = RuntimeOutputChannelSnapshot(
+      channels: channels,
+      filter: filter,
+    );
     final visibleChannels = snapshot.visibleChannels;
     return Container(
       key: const ValueKey('runtime-output-channels'),
@@ -653,9 +662,13 @@ class _OutputChannelSection extends StatelessWidget {
           Text('Output Channels', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'Filtered output channel summary for runtime events, process streams, and native tool activity. TODO: add user-selectable channel controls and persisted output history.',
+            'Filtered output channel summary for runtime events, process streams, and native tool activity. TODO: add language-service, debug, and agent event streams.',
             style: theme.textTheme.bodySmall,
           ),
+          if (filter.active) ...[
+            const SizedBox(height: 6),
+            Chip(label: Text('filter ${filter.summary}')),
+          ],
           const SizedBox(height: 10),
           if (visibleChannels.isEmpty)
             Text(

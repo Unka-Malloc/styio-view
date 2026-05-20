@@ -39,6 +39,20 @@ class RuntimeOutputChannelSummary {
 
   bool get hasOutput => eventCount > 0;
 
+  factory RuntimeOutputChannelSummary.fromJson(Map<String, Object?> json) {
+    return RuntimeOutputChannelSummary(
+      id: json['id'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      kind:
+          _runtimeOutputChannelKindFromWireValue(
+            json['kind'] as String? ?? '',
+          ) ??
+          RuntimeOutputChannelKind.runtimeEvents,
+      eventCount: json['eventCount'] as int? ?? 0,
+      latestMessage: json['latestMessage'] as String? ?? '',
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'id': id,
@@ -125,6 +139,34 @@ class RuntimeOutputChannelSnapshot {
 
   final List<RuntimeOutputChannelSummary> channels;
   final RuntimeOutputChannelFilterState filter;
+
+  factory RuntimeOutputChannelSnapshot.fromJson(Map<String, Object?> json) {
+    final channels = json['channels'];
+    final filter = json['filter'];
+    return RuntimeOutputChannelSnapshot(
+      channels: channels is List
+          ? channels
+                .whereType<Map>()
+                .map(
+                  (channel) => RuntimeOutputChannelSummary.fromJson(
+                    channel.map(
+                      (key, value) =>
+                          MapEntry<String, Object?>(key.toString(), value),
+                    ),
+                  ),
+                )
+                .toList(growable: false)
+          : const <RuntimeOutputChannelSummary>[],
+      filter: filter is Map
+          ? RuntimeOutputChannelFilterState.fromJson(
+              filter.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : const RuntimeOutputChannelFilterState(),
+    );
+  }
 
   List<RuntimeOutputChannelSummary> get visibleChannels {
     return channels.where(filter.matches).toList(growable: false);

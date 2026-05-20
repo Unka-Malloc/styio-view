@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../language/service/styio_language_provider_registry.dart';
 import '../language/service/styio_service_capability_detector.dart';
 import '../language/service/styio_service_runtime.dart';
 
@@ -53,6 +54,9 @@ class LanguageServiceStatusSurface {
     this.capabilityHealth = 'unavailable',
     this.missingCapabilityCount = 0,
     this.blockedCapabilityCount = 0,
+    this.providerReadiness = 'unknown',
+    this.providerReadinessSummary = '',
+    this.providerMissingCapabilityCount = 0,
   });
 
   factory LanguageServiceStatusSurface.unavailable({
@@ -110,11 +114,13 @@ class LanguageServiceStatusSurface {
   }
 
   factory LanguageServiceStatusSurface.fromRuntimeSnapshot(
-    StyioServiceRuntimeStatusSnapshot snapshot,
-  ) {
+    StyioServiceRuntimeStatusSnapshot snapshot, {
+    StyioLanguageProviderReadinessReport? providerReadiness,
+  }) {
     final capabilitySnapshot = snapshot.capabilitySnapshot;
     final healthSummary = capabilitySnapshot?.healthSummary;
     final severity = _severityFor(snapshot);
+    final providerReady = providerReadiness?.ready;
     return LanguageServiceStatusSurface(
       runtimeState: snapshot.state.name,
       severity: severity,
@@ -132,6 +138,14 @@ class LanguageServiceStatusSurface {
           StyioServiceCapabilityHealth.unavailable.wireValue,
       missingCapabilityCount: healthSummary?.missingCapabilities.length ?? 0,
       blockedCapabilityCount: healthSummary?.blockedCapabilities.length ?? 0,
+      providerReadiness: providerReady == null
+          ? 'unknown'
+          : providerReady
+          ? 'ready'
+          : 'degraded',
+      providerReadinessSummary: providerReadiness?.summary ?? '',
+      providerMissingCapabilityCount:
+          providerReadiness?.missingCapabilities.length ?? 0,
       capabilities: capabilitySnapshot == null
           ? const <LanguageServiceCapabilityStatusItem>[]
           : snapshot.primaryCapabilities
@@ -157,6 +171,9 @@ class LanguageServiceStatusSurface {
   final String capabilityHealth;
   final int missingCapabilityCount;
   final int blockedCapabilityCount;
+  final String providerReadiness;
+  final String providerReadinessSummary;
+  final int providerMissingCapabilityCount;
 
   bool get actionable {
     return severity == LanguageServiceStatusSeverity.unavailable ||
@@ -170,7 +187,9 @@ class LanguageServiceStatusSurface {
     return severity != LanguageServiceStatusSeverity.ready ||
         capabilityHealth != StyioServiceCapabilityHealth.ready.wireValue ||
         missingCapabilityCount > 0 ||
-        blockedCapabilityCount > 0;
+        blockedCapabilityCount > 0 ||
+        providerReadiness == 'degraded' ||
+        providerMissingCapabilityCount > 0;
   }
 
   bool get syntaxValidationReady {
@@ -218,6 +237,10 @@ class LanguageServiceStatusSurface {
       'capabilityHealth': capabilityHealth,
       'missingCapabilityCount': missingCapabilityCount,
       'blockedCapabilityCount': blockedCapabilityCount,
+      'providerReadiness': providerReadiness,
+      if (providerReadinessSummary.isNotEmpty)
+        'providerReadinessSummary': providerReadinessSummary,
+      'providerMissingCapabilityCount': providerMissingCapabilityCount,
       'primaryCapabilityStates': primaryCapabilityStates,
       'capabilities': capabilities
           .map((capability) => capability.toJson())

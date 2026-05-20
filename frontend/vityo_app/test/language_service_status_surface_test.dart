@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_language_provider_registry.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_capability_detector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_runtime.dart';
@@ -46,9 +47,22 @@ void main() {
       capabilitySnapshot: capabilitySnapshot,
       allowLocalFallback: false,
     );
+    const providerReadiness = StyioLanguageProviderReadinessReport(
+      coverage: <StyioLanguageProviderCapabilityCoverage>[
+        StyioLanguageProviderCapabilityCoverage(
+          capability: StyioLanguageProviderCapability.completion,
+          providerIds: <String>['styio-service'],
+        ),
+        StyioLanguageProviderCapabilityCoverage(
+          capability: StyioLanguageProviderCapability.rename,
+          providerIds: <String>[],
+        ),
+      ],
+    );
 
     final surface = LanguageServiceStatusSurface.fromRuntimeSnapshot(
       runtimeSnapshot,
+      providerReadiness: providerReadiness,
     );
 
     expect(surface.severity, LanguageServiceStatusSeverity.ready);
@@ -93,6 +107,9 @@ void main() {
     expect(surface.toJson()['semanticFactsReady'], isFalse);
     expect(surface.toJson()['capabilityHealth'], 'degraded');
     expect(surface.toJson()['missingCapabilityCount'], greaterThan(0));
+    expect(surface.toJson()['providerReadiness'], 'degraded');
+    expect(surface.toJson()['providerReadinessSummary'], contains('1/2'));
+    expect(surface.toJson()['providerMissingCapabilityCount'], 1);
     expect(surface.toJson()['refreshRecommended'], isTrue);
     expect(
       surface.toJson()['unavailablePrimaryCapabilities'],

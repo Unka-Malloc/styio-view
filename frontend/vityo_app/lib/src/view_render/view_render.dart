@@ -7,6 +7,7 @@ export 'editor/editor.dart';
 export 'extensions/extensions.dart';
 export 'platform/platform.dart';
 export 'problems/problems.dart';
+export 'refactor/refactor.dart';
 export 'runtime/runtime.dart';
 export 'search/search.dart';
 export 'shell/shell_layout_plan.dart';

@@ -190,6 +190,76 @@ class WorkspaceFileExplorerActionRequest {
   }
 }
 
+class WorkspaceFileExplorerConfirmationPlan {
+  const WorkspaceFileExplorerConfirmationPlan({
+    required this.planId,
+    required this.request,
+    required this.title,
+    required this.message,
+    this.requiresConfirmation = true,
+    this.destructive = false,
+  });
+
+  factory WorkspaceFileExplorerConfirmationPlan.fromRequest(
+    WorkspaceFileExplorerActionRequest request,
+  ) {
+    final planId = 'workspace-file.${request.kind.wireValue}.${request.path}';
+    return switch (request.kind) {
+      WorkspaceFileOperationKind.create =>
+        WorkspaceFileExplorerConfirmationPlan(
+          planId: planId,
+          request: request,
+          title: 'Create workspace file',
+          message: 'Create ${request.path} in the workspace file tree.',
+        ),
+      WorkspaceFileOperationKind.rename =>
+        WorkspaceFileExplorerConfirmationPlan(
+          planId: planId,
+          request: request,
+          title: 'Rename workspace file',
+          message: 'Rename ${request.path} to ${request.nextPath}.',
+        ),
+      WorkspaceFileOperationKind.delete =>
+        WorkspaceFileExplorerConfirmationPlan(
+          planId: planId,
+          request: request,
+          title: 'Delete workspace file',
+          message: 'Delete ${request.path} from the workspace.',
+          destructive: true,
+        ),
+      WorkspaceFileOperationKind.reveal =>
+        WorkspaceFileExplorerConfirmationPlan(
+          planId: planId,
+          request: request,
+          title: 'Reveal workspace file',
+          message: 'Reveal ${request.path} in the workspace file tree.',
+          requiresConfirmation: false,
+        ),
+    };
+  }
+
+  final String planId;
+  final WorkspaceFileExplorerActionRequest request;
+  final String title;
+  final String message;
+  final bool requiresConfirmation;
+  final bool destructive;
+
+  bool get canRunWithoutDialog => !requiresConfirmation;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'request': request.toJson(),
+      'title': title,
+      'message': message,
+      'requiresConfirmation': requiresConfirmation,
+      'destructive': destructive,
+      'canRunWithoutDialog': canRunWithoutDialog,
+    };
+  }
+}
+
 class WorkspaceFileExplorerController extends ChangeNotifier {
   WorkspaceFileExplorerController({
     required this.workspaceController,
@@ -294,6 +364,12 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
     _lastResult = result;
     notifyListeners();
     return result;
+  }
+
+  WorkspaceFileExplorerConfirmationPlan confirmationPlanFor(
+    WorkspaceFileExplorerActionRequest request,
+  ) {
+    return WorkspaceFileExplorerConfirmationPlan.fromRequest(request);
   }
 
   void _handleWorkspaceChanged() {

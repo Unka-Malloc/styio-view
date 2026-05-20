@@ -65,6 +65,39 @@ void main() {
     expect(snapshot.toJson()['discovery'], isA<Map<String, Object?>>());
   });
 
+  test('workspace file explorer builds confirmation plans for actions', () {
+    const deleteRequest = WorkspaceFileExplorerActionRequest(
+      kind: WorkspaceFileOperationKind.delete,
+      path: 'src/old.styio',
+    );
+    const revealRequest = WorkspaceFileExplorerActionRequest(
+      kind: WorkspaceFileOperationKind.reveal,
+      path: 'src/main.styio',
+    );
+    final workspaceController = WorkspaceController(
+      projectSnapshot: _projectGraph(editorFiles: const <String>['README.md']),
+    );
+    final controller = WorkspaceFileExplorerController(
+      workspaceController: workspaceController,
+      operationService: WorkspaceFileOperationService(
+        workspaceController: workspaceController,
+        documentStore: InMemoryWorkspaceDocumentStore(),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    final deletePlan = controller.confirmationPlanFor(deleteRequest);
+    final revealPlan = controller.confirmationPlanFor(revealRequest);
+
+    expect(deletePlan.title, 'Delete workspace file');
+    expect(deletePlan.destructive, isTrue);
+    expect(deletePlan.requiresConfirmation, isTrue);
+    expect(deletePlan.toJson()['canRunWithoutDialog'], isFalse);
+    expect(revealPlan.requiresConfirmation, isFalse);
+    expect(revealPlan.canRunWithoutDialog, isTrue);
+    expect(revealPlan.toJson()['request'], isA<Map<String, Object?>>());
+  });
+
   test('workspace file explorer controller runs file operations', () async {
     final store = InMemoryWorkspaceDocumentStore();
     final workspaceController = WorkspaceController(

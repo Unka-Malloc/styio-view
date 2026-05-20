@@ -310,6 +310,172 @@ class SemanticSnapshotPanelEventState {
   }
 }
 
+class SemanticSnapshotPanelEventViewItem {
+  const SemanticSnapshotPanelEventViewItem({
+    required this.id,
+    required this.target,
+    required this.kind,
+    required this.documentId,
+    required this.title,
+    required this.message,
+    required this.severity,
+    required this.timestamp,
+    this.actionLabel = '',
+    this.payload = const <String, Object?>{},
+  });
+
+  factory SemanticSnapshotPanelEventViewItem.fromEvent(
+    SemanticSnapshotPanelEvent event,
+  ) {
+    final title = switch (event.kind) {
+      SemanticSnapshotTelemetryEventKind.renameSafety => 'Rename safety',
+      SemanticSnapshotTelemetryEventKind.codeActionDiscovery =>
+        'Code actions available',
+      SemanticSnapshotTelemetryEventKind.codeActionApply =>
+        'Code action result',
+    };
+    return SemanticSnapshotPanelEventViewItem(
+      id: '${event.target.wireValue}:${event.kind.wireValue}:${event.documentId}:${event.timestamp.toIso8601String()}',
+      target: event.target,
+      kind: event.kind,
+      documentId: event.documentId,
+      title: title,
+      message: event.message,
+      severity: _semanticPanelSeverity(event),
+      timestamp: event.timestamp,
+      actionLabel: _semanticPanelActionLabel(event),
+      payload: event.payload,
+    );
+  }
+
+  final String id;
+  final SemanticSnapshotPanelEventTarget target;
+  final SemanticSnapshotTelemetryEventKind kind;
+  final String documentId;
+  final String title;
+  final String message;
+  final String severity;
+  final DateTime timestamp;
+  final String actionLabel;
+  final Map<String, Object?> payload;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'target': target.wireValue,
+      'kind': kind.wireValue,
+      'documentId': documentId,
+      'title': title,
+      'message': message,
+      'severity': severity,
+      'timestamp': timestamp.toIso8601String(),
+      if (actionLabel.isNotEmpty) 'actionLabel': actionLabel,
+      if (payload.isNotEmpty) 'payload': payload,
+    };
+  }
+}
+
+class SemanticSnapshotPanelViewModel {
+  const SemanticSnapshotPanelViewModel({
+    required this.target,
+    required this.title,
+    required this.revision,
+    required this.items,
+    this.updatedAt,
+  });
+
+  factory SemanticSnapshotPanelViewModel.fromState(
+    SemanticSnapshotPanelEventState state,
+  ) {
+    final items = state.events
+        .map(SemanticSnapshotPanelEventViewItem.fromEvent)
+        .toList(growable: false);
+    return SemanticSnapshotPanelViewModel(
+      target: state.target,
+      title: switch (state.target) {
+        SemanticSnapshotPanelEventTarget.problems => 'Problems',
+        SemanticSnapshotPanelEventTarget.refactor => 'Refactor',
+      },
+      revision: state.revision,
+      items: List.unmodifiable(items),
+      updatedAt: state.updatedAt,
+    );
+  }
+
+  final SemanticSnapshotPanelEventTarget target;
+  final String title;
+  final int revision;
+  final List<SemanticSnapshotPanelEventViewItem> items;
+  final DateTime? updatedAt;
+
+  bool get empty => items.isEmpty;
+  int get itemCount => items.length;
+
+  int get codeActionCount {
+    return items
+        .where(
+          (item) =>
+              item.kind == SemanticSnapshotTelemetryEventKind.codeActionApply ||
+              item.kind ==
+                  SemanticSnapshotTelemetryEventKind.codeActionDiscovery,
+        )
+        .length;
+  }
+
+  int get renameSafetyCount {
+    return items
+        .where(
+          (item) =>
+              item.kind == SemanticSnapshotTelemetryEventKind.renameSafety,
+        )
+        .length;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'target': target.wireValue,
+      'title': title,
+      'revision': revision,
+      'empty': empty,
+      'itemCount': itemCount,
+      'codeActionCount': codeActionCount,
+      'renameSafetyCount': renameSafetyCount,
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+      'items': items.map((item) => item.toJson()).toList(growable: false),
+    };
+  }
+}
+
+String _semanticPanelSeverity(SemanticSnapshotPanelEvent event) {
+  return switch (event.kind) {
+    SemanticSnapshotTelemetryEventKind.renameSafety =>
+      event.payload['safe'] == false ? 'warning' : 'success',
+    SemanticSnapshotTelemetryEventKind.codeActionDiscovery => 'info',
+    SemanticSnapshotTelemetryEventKind.codeActionApply =>
+      event.payload['status'] == 'applied' ? 'success' : 'warning',
+  };
+}
+
+String _semanticPanelActionLabel(SemanticSnapshotPanelEvent event) {
+  final label = event.payload['label'];
+  if (label is String && label.trim().isNotEmpty) {
+    return label.trim();
+  }
+  final newName = event.payload['newName'];
+  if (event.kind == SemanticSnapshotTelemetryEventKind.renameSafety &&
+      newName is String &&
+      newName.trim().isNotEmpty) {
+    return 'Rename to ${newName.trim()}';
+  }
+  final actionCount = event.payload['actionCount'];
+  if (event.kind == SemanticSnapshotTelemetryEventKind.codeActionDiscovery &&
+      actionCount is int &&
+      actionCount > 0) {
+    return '$actionCount code action(s)';
+  }
+  return '';
+}
+
 class SemanticSnapshotPanelEventStateController {
   SemanticSnapshotPanelEventStateController({
     Iterable<SemanticSnapshotPanelEventTarget> targets =

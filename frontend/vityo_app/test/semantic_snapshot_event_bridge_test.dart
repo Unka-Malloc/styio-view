@@ -133,6 +133,52 @@ void main() {
     },
   );
 
+  test('semantic snapshot panel state projects UI view models', () {
+    final problemsState =
+        SemanticSnapshotPanelEventState.empty(
+          SemanticSnapshotPanelEventTarget.problems,
+        ).record(
+          SemanticSnapshotPanelEvent(
+            target: SemanticSnapshotPanelEventTarget.problems,
+            kind: SemanticSnapshotTelemetryEventKind.codeActionApply,
+            documentId: 'src/main.styio',
+            message: 'Applied.',
+            payload: <String, Object?>{
+              'status': 'applied',
+              'label': 'Insert assignment',
+            },
+            timestamp: DateTime.utc(2026, 5, 20, 5),
+          ),
+        );
+    final refactorState =
+        SemanticSnapshotPanelEventState.empty(
+          SemanticSnapshotPanelEventTarget.refactor,
+        ).record(
+          SemanticSnapshotPanelEvent(
+            target: SemanticSnapshotPanelEventTarget.refactor,
+            kind: SemanticSnapshotTelemetryEventKind.renameSafety,
+            documentId: 'src/main.styio',
+            message: 'Rename may conflict.',
+            payload: <String, Object?>{'safe': false, 'newName': 'nextName'},
+            timestamp: DateTime.utc(2026, 5, 20, 6),
+          ),
+        );
+
+    final problems = SemanticSnapshotPanelViewModel.fromState(problemsState);
+    final refactor = SemanticSnapshotPanelViewModel.fromState(refactorState);
+
+    expect(problems.title, 'Problems');
+    expect(problems.codeActionCount, 1);
+    expect(problems.items.single.severity, 'success');
+    expect(problems.items.single.actionLabel, 'Insert assignment');
+    expect(refactor.title, 'Refactor');
+    expect(refactor.renameSafetyCount, 1);
+    expect(refactor.items.single.severity, 'warning');
+    expect(refactor.items.single.actionLabel, 'Rename to nextName');
+    expect(problems.toJson()['itemCount'], 1);
+    expect(refactor.toJson()['renameSafetyCount'], 1);
+  });
+
   test('semantic snapshot panel event store persists telemetry', () async {
     final store = SemanticSnapshotPanelEventStore.fromDataStore(
       dataStore: await _createDataStore(),

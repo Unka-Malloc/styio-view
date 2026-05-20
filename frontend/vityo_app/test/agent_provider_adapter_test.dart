@@ -64,6 +64,7 @@ void main() {
     expect(ideCapabilitiesJson['version'], 'vityo-ide-capability-framework-v1');
     expect(ideCapabilitiesJson['missingRequiredCapabilityIds'], isEmpty);
     expect(ideCapabilityClosureJson['isFrameworkClosed'], isTrue);
+    expect(ideCapabilityClosureJson['isRuntimeMature'], isFalse);
     expect(ideCapabilityIds, contains('interaction.search'));
     expect(ideCapabilityIds, contains('agent.coding-loop'));
   });
@@ -874,6 +875,10 @@ void main() {
       expect(systemMessage['content'], contains('toolchains.nativeTools'));
       expect(systemMessage['content'], contains('skills.activeSkillIds'));
       expect(systemMessage['content'], contains('ideCapabilityClosure'));
+      expect(
+        systemMessage['content'],
+        contains('ideCapabilityClosure.isRuntimeMature'),
+      );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
       expect(metadata['contextSchemaVersion'], 45);
       expect(metadata['selectionStartLine'], 0);

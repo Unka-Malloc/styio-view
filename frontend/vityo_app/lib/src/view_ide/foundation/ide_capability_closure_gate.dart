@@ -104,6 +104,7 @@ class IdeCapabilityClosureReport {
   }
 
   bool get isFrameworkClosed => !hasHardFailures;
+  bool get isRuntimeMature => isFrameworkClosed && todoItems.isEmpty;
 
   Map<String, int> get severityCounts {
     return <String, int>{
@@ -118,6 +119,7 @@ class IdeCapabilityClosureReport {
     return <String, Object?>{
       'version': version,
       'isFrameworkClosed': isFrameworkClosed,
+      'isRuntimeMature': isRuntimeMature,
       'severityCounts': severityCounts,
       'missingRequiredCapabilityIds': missingRequiredCapabilityIds,
       'duplicateCapabilityIds': duplicateCapabilityIds,

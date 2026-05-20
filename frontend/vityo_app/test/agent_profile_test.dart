@@ -33,6 +33,10 @@ void main() {
     );
     expect(decoded.systemPrompt, contains('ideCapabilities.entries'));
     expect(decoded.systemPrompt, contains('scaffolded or TODO entries'));
+    expect(
+      decoded.systemPrompt,
+      contains('ideCapabilityClosure.isRuntimeMature'),
+    );
     expect(decoded.systemPrompt, contains('Clang'));
     expect(decoded.systemPrompt, contains('commands.persistenceCommands'));
     expect(decoded.systemPrompt, contains('save/save-all'));

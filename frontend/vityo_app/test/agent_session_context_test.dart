@@ -480,6 +480,7 @@ void main() {
     expect(ideCapabilitiesJson['version'], 'vityo-ide-capability-framework-v1');
     expect(ideCapabilitiesJson['followUpCount'], greaterThan(0));
     expect(ideCapabilityClosureJson['isFrameworkClosed'], isTrue);
+    expect(ideCapabilityClosureJson['isRuntimeMature'], isFalse);
     expect(
       ideCapabilityClosureJson['severityCounts'],
       containsPair('todo', greaterThan(0)),

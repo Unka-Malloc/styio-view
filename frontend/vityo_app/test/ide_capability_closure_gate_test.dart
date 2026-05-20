@@ -8,6 +8,7 @@ void main() {
     final json = report.toJson();
 
     expect(report.isFrameworkClosed, isTrue);
+    expect(report.isRuntimeMature, isFalse);
     expect(report.hasHardFailures, isFalse);
     expect(report.missingRequiredCapabilityIds, isEmpty);
     expect(report.dependencyGaps, isEmpty);
@@ -20,6 +21,7 @@ void main() {
     expect(report.readyItems, isNotEmpty);
     expect(report.failedItems, isEmpty);
     expect(json['isFrameworkClosed'], isTrue);
+    expect(json['isRuntimeMature'], isFalse);
     expect(
       json['severityCounts'],
       containsPair(IdeCapabilityClosureSeverity.todo.wireValue, greaterThan(0)),

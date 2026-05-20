@@ -203,7 +203,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      58,
+      59,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -331,6 +331,14 @@ void main() {
       7,
     );
     expect((json['usage']! as Map<String, Object?>)['refactorCommandCount'], 3);
+    expect(
+      (json['usage']! as Map<String, Object?>)['dependencyCommandCount'],
+      2,
+    );
+    expect(
+      (json['usage']! as Map<String, Object?>)['deploymentCommandCount'],
+      2,
+    );
     expect((json['usage']! as Map<String, Object?>)['testingCommandCount'], 4);
     expect((json['usage']! as Map<String, Object?>)['debugCommandCount'], 7);
     expect(
@@ -747,6 +755,8 @@ void main() {
         contains('commands.persistenceCommands'),
       );
       expect(systemMessage['content'], contains('commands.executionCommands'));
+      expect(systemMessage['content'], contains('commands.dependencyCommands'));
+      expect(systemMessage['content'], contains('commands.deploymentCommands'));
       expect(systemMessage['content'], contains('commands.refactorCommands'));
       expect(systemMessage['content'], contains('commands.toolchainCommands'));
       expect(systemMessage['content'], contains('requiresInput true'));
@@ -920,7 +930,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 58);
+      expect(metadata['contextSchemaVersion'], 59);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);
@@ -1032,6 +1042,8 @@ void main() {
       expect(metadata['languageServiceCommandCount'], 1);
       expect(metadata['navigationCommandCount'], 7);
       expect(metadata['refactorCommandCount'], 3);
+      expect(metadata['dependencyCommandCount'], 2);
+      expect(metadata['deploymentCommandCount'], 2);
       expect(metadata['testingCommandCount'], 4);
       expect(metadata['debugCommandCount'], 7);
       expect(metadata['settingsCommandCount'], 1);

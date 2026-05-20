@@ -469,8 +469,12 @@ void main() {
     final navigationCommands =
         commandsJson['navigationCommands']! as List<Object?>;
     final refactorCommands = commandsJson['refactorCommands']! as List<Object?>;
+    final dependencyCommands =
+        commandsJson['dependencyCommands']! as List<Object?>;
     final toolchainCommands =
         commandsJson['toolchainCommands']! as List<Object?>;
+    final deploymentCommands =
+        commandsJson['deploymentCommands']! as List<Object?>;
     final nativeToolCommands =
         commandsJson['nativeToolCommands']! as List<Object?>;
     final nativeToolCommandReadiness =
@@ -504,7 +508,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 58);
+    expect(json['schemaVersion'], 59);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1105,12 +1109,24 @@ void main() {
       'inlineVariable',
     );
     expect(
+      dependencyCommands.map(
+        (command) => (command! as Map<String, Object?>)['id'],
+      ),
+      <String>['fetchDependencies', 'vendorDependencies'],
+    );
+    expect(
       (toolchainCommands.last! as Map<String, Object?>)['id'],
       'selectClangCppVersion',
     );
     expect(
       (toolchainCommands.last! as Map<String, Object?>)['requiresInput'],
       isTrue,
+    );
+    expect(
+      deploymentCommands.map(
+        (command) => (command! as Map<String, Object?>)['id'],
+      ),
+      <String>['packProject', 'preparePublish'],
     );
     expect(
       (nativeToolCommands.first! as Map<String, Object?>)['id'],
@@ -1605,7 +1621,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 58);
+    expect(json['schemaVersion'], 59);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1880,7 +1896,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 58);
+    expect(context.schemaVersion, 59);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

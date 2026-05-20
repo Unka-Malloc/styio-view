@@ -668,7 +668,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        58,
+        59,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],
@@ -1953,6 +1953,96 @@ void main() {
         ),
         isTrue,
       );
+    },
+  );
+
+  test(
+    'agent project lifecycle commands dispatch through shell adapters',
+    () async {
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final refreshedGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final shell = ShellModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[refreshedGraph, refreshedGraph],
+        ),
+        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: EditorSessionController.seedDocumentForPath(
+            initialGraph.editorFiles.first,
+          ),
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: _RefreshAwareExecutionAdapter(
+          projectGraph: initialGraph,
+        ),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            _RefreshAwareExecutionAdapter(projectGraph: projectGraph),
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        toolchainManagementAdapter:
+            const _SuccessfulToolchainManagementAdapter(),
+      );
+      addTearDown(shell.dispose);
+
+      final fetchApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'fetchDependencies'),
+      );
+      final fetchResult = shell.agentSessionContext.commands.lastResult;
+      final fetchCommand =
+          fetchResult?.metadata['dependencySourceCommand']!
+              as Map<String, Object?>;
+      expect(fetchApplied, isTrue);
+      expect(fetchCommand['command'], 'fetch');
+      expect(fetchCommand['status'], 'succeeded');
+
+      final vendorApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'vendorDependencies'),
+      );
+      final vendorResult = shell.agentSessionContext.commands.lastResult;
+      final vendorCommand =
+          vendorResult?.metadata['dependencySourceCommand']!
+              as Map<String, Object?>;
+      expect(vendorApplied, isTrue);
+      expect(vendorCommand['command'], 'vendor');
+      expect(vendorCommand['payload'], isA<Map<String, Object?>>());
+
+      final packApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'packProject'),
+      );
+      final packResult = shell.agentSessionContext.commands.lastResult;
+      final packCommand =
+          packResult?.metadata['deploymentCommand']! as Map<String, Object?>;
+      expect(packApplied, isTrue);
+      expect(packCommand['command'], 'pack');
+
+      final publishApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'preparePublish'),
+      );
+      final publishResult = shell.agentSessionContext.commands.lastResult;
+      final publishCommand =
+          publishResult?.metadata['deploymentCommand']! as Map<String, Object?>;
+      expect(publishApplied, isTrue);
+      expect(publishCommand['command'], 'publish');
+      expect(publishCommand['payload'], isA<Map<String, Object?>>());
     },
   );
 

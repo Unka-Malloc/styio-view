@@ -3210,6 +3210,32 @@ class ShellRuntimeModel extends ChangeNotifier {
           },
         );
         return applied;
+      case 'fetchDependencies':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        return _applyAgentDependencySourceCommand(
+          suggestion,
+          () => fetchDependencies(),
+        );
+      case 'vendorDependencies':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        return _applyAgentDependencySourceCommand(
+          suggestion,
+          () => vendorDependencies(),
+        );
+      case 'packProject':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        return _applyAgentDeploymentCommand(suggestion, () => packProject());
+      case 'preparePublish':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        return _applyAgentDeploymentCommand(suggestion, () => preparePublish());
       case 'runBuild':
         if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
           return false;
@@ -3565,6 +3591,72 @@ class ShellRuntimeModel extends ChangeNotifier {
       metadata: <String, Object?>{'debugStatus': _debugSession.status.name},
     );
     return result.applied;
+  }
+
+  Future<bool> _applyAgentDependencySourceCommand(
+    AgentIdeCommandSuggestion suggestion,
+    Future<DependencySourceCommandResult> Function() action,
+  ) async {
+    final result = await action();
+    _recordAgentIdeCommandResult(
+      suggestion,
+      applied: result.succeeded,
+      message:
+          'Agent command ${suggestion.commandId} ${result.status.name}: ${result.statusMessage}',
+      metadata: <String, Object?>{
+        'dependencySourceCommand': _dependencySourceCommandResultMetadata(
+          result,
+        ),
+      },
+    );
+    return result.succeeded;
+  }
+
+  Future<bool> _applyAgentDeploymentCommand(
+    AgentIdeCommandSuggestion suggestion,
+    Future<DeploymentCommandResult> Function() action,
+  ) async {
+    final result = await action();
+    _recordAgentIdeCommandResult(
+      suggestion,
+      applied: result.succeeded,
+      message:
+          'Agent command ${suggestion.commandId} ${result.status.name}: ${result.statusMessage}',
+      metadata: <String, Object?>{
+        'deploymentCommand': _deploymentCommandResultMetadata(result),
+      },
+    );
+    return result.succeeded;
+  }
+
+  Map<String, Object?> _dependencySourceCommandResultMetadata(
+    DependencySourceCommandResult result,
+  ) {
+    return <String, Object?>{
+      'command': result.command,
+      'status': result.status.name,
+      'statusMessage': result.statusMessage,
+      'succeeded': result.succeeded,
+      if (result.payload != null) 'payload': result.payload,
+      if (result.errorPayload != null) 'errorPayload': result.errorPayload,
+      // TODO(agent-project-lifecycle): add bounded stdout/stderr summaries
+      // when the command-result contract exposes stable log slicing.
+    };
+  }
+
+  Map<String, Object?> _deploymentCommandResultMetadata(
+    DeploymentCommandResult result,
+  ) {
+    return <String, Object?>{
+      'command': result.command,
+      'status': result.status.name,
+      'statusMessage': result.statusMessage,
+      'succeeded': result.succeeded,
+      if (result.payload != null) 'payload': result.payload,
+      if (result.errorPayload != null) 'errorPayload': result.errorPayload,
+      // TODO(agent-project-lifecycle): add publish recovery hints once
+      // registry/auth failure kinds are normalized.
+    };
   }
 
   Future<_NativeToolCommandResult> _runNativeToolCommand(

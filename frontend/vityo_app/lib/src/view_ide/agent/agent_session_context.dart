@@ -162,7 +162,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 58,
+      schemaVersion: 59,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -444,7 +444,9 @@ class AgentSessionContext {
         codingCommands: commands.codingCommands,
         navigationCommands: commands.navigationCommands,
         refactorCommands: commands.refactorCommands,
+        dependencyCommands: commands.dependencyCommands,
         toolchainCommands: commands.toolchainCommands,
+        deploymentCommands: commands.deploymentCommands,
         nativeToolCommands: commands.nativeToolCommands,
         nativeToolCommandReadiness: commands.nativeToolCommandReadiness,
         testingCommands: commands.testingCommands,
@@ -3513,7 +3515,9 @@ class AgentCommandCatalogContext {
     required this.codingCommands,
     required this.navigationCommands,
     required this.refactorCommands,
+    required this.dependencyCommands,
     required this.toolchainCommands,
+    required this.deploymentCommands,
     required this.nativeToolCommands,
     required this.nativeToolCommandReadiness,
     required this.testingCommands,
@@ -3533,7 +3537,9 @@ class AgentCommandCatalogContext {
   final List<AgentCommandContext> codingCommands;
   final List<AgentCommandContext> navigationCommands;
   final List<AgentCommandContext> refactorCommands;
+  final List<AgentCommandContext> dependencyCommands;
   final List<AgentCommandContext> toolchainCommands;
+  final List<AgentCommandContext> deploymentCommands;
   final List<AgentCommandContext> nativeToolCommands;
   final List<AgentNativeToolCommandReadinessContext> nativeToolCommandReadiness;
   final List<AgentCommandContext> testingCommands;
@@ -3593,7 +3599,13 @@ class AgentCommandCatalogContext {
       refactorCommands: StyioCommandRegistry.refactorCommands
           .map(AgentCommandContext.fromDescriptor)
           .toList(growable: false),
+      dependencyCommands: StyioCommandRegistry.dependencyCommands
+          .map(AgentCommandContext.fromDescriptor)
+          .toList(growable: false),
       toolchainCommands: StyioCommandRegistry.toolchainCommands
+          .map(AgentCommandContext.fromDescriptor)
+          .toList(growable: false),
+      deploymentCommands: StyioCommandRegistry.deploymentCommands
           .map(AgentCommandContext.fromDescriptor)
           .toList(growable: false),
       nativeToolCommands: nativeToolCommands,
@@ -3649,7 +3661,13 @@ class AgentCommandCatalogContext {
       'refactorCommands': refactorCommands
           .map((command) => command.toJson())
           .toList(growable: false),
+      'dependencyCommands': dependencyCommands
+          .map((command) => command.toJson())
+          .toList(growable: false),
       'toolchainCommands': toolchainCommands
+          .map((command) => command.toJson())
+          .toList(growable: false),
+      'deploymentCommands': deploymentCommands
           .map((command) => command.toJson())
           .toList(growable: false),
       'nativeToolCommands': nativeToolCommands

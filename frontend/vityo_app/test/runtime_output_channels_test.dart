@@ -221,6 +221,54 @@ void main() {
   );
 
   test(
+    'runtime output producer registry exposes default producer contracts',
+    () {
+      final registry = RuntimeOutputProducerRegistry.defaultProducers();
+      final shell = registry.lookup('shell-manager');
+      final subscriptions = registry.subscriptionPlansForTask(
+        taskId: 'styio-run',
+        retentionPolicy: const RuntimeOutputRetentionPolicy.ephemeral(
+          maxEventsPerChannel: 10,
+        ),
+      );
+      final directSubscription = shell!.createSubscriptionPlan(
+        taskId: 'styio-run',
+        outputChannelId: 'shell.styio-run',
+      );
+
+      expect(registry.producers, hasLength(4));
+      expect(
+        registry.activeProducers.map((producer) => producer.producerId),
+        <String>[
+          'hosted-executor',
+          'shell-manager',
+          'terminal-runtime',
+          'toolchain-manager',
+        ],
+      );
+      expect(shell.kind, RuntimeOutputProducerKind.shellManager);
+      expect(shell.outputKinds, <RuntimeOutputChannelKind>[
+        RuntimeOutputChannelKind.stdout,
+        RuntimeOutputChannelKind.stderr,
+      ]);
+      expect(subscriptions, hasLength(4));
+      expect(
+        subscriptions.map((subscription) => subscription.managerId),
+        containsAll(<String>[
+          'shell-manager',
+          'terminal-runtime',
+          'toolchain-manager',
+          'hosted-executor',
+        ]),
+      );
+      expect(directSubscription.active, isTrue);
+      expect(directSubscription.channelIds, <String>['shell.styio-run']);
+      expect(directSubscription.metadata['producerKind'], 'shell-manager');
+      expect(registry.toJson()['producerCount'], 4);
+    },
+  );
+
+  test(
     'runtime output live buffer binds streams and emits snapshots',
     () async {
       final plan = RuntimeOutputStreamSubscriptionPlan.forManager(

@@ -36,6 +36,28 @@ extension RuntimeOutputSubscriptionStatusX on RuntimeOutputSubscriptionStatus {
   }
 }
 
+enum RuntimeOutputProducerKind {
+  shellManager,
+  terminalRuntime,
+  toolchainManager,
+  hostedExecutor,
+  languageService,
+  debugAdapter,
+  agent,
+}
+
+extension RuntimeOutputProducerKindX on RuntimeOutputProducerKind {
+  String get wireValue => switch (this) {
+    RuntimeOutputProducerKind.shellManager => 'shell-manager',
+    RuntimeOutputProducerKind.terminalRuntime => 'terminal-runtime',
+    RuntimeOutputProducerKind.toolchainManager => 'toolchain-manager',
+    RuntimeOutputProducerKind.hostedExecutor => 'hosted-executor',
+    RuntimeOutputProducerKind.languageService => 'language-service',
+    RuntimeOutputProducerKind.debugAdapter => 'debug-adapter',
+    RuntimeOutputProducerKind.agent => 'agent',
+  };
+}
+
 class RuntimeOutputChannelSummary {
   const RuntimeOutputChannelSummary({
     required this.id,
@@ -75,6 +97,186 @@ class RuntimeOutputChannelSummary {
       'eventCount': eventCount,
       'hasOutput': hasOutput,
       'latestMessage': latestMessage,
+    };
+  }
+}
+
+class RuntimeOutputProducerDescriptor {
+  const RuntimeOutputProducerDescriptor({
+    required this.producerId,
+    required this.label,
+    required this.kind,
+    required this.managerId,
+    required this.routeKind,
+    this.channelIds = const <String>[],
+    this.outputKinds = const <RuntimeOutputChannelKind>[],
+    this.active = true,
+    this.metadata = const <String, Object?>{},
+    this.todo = '',
+  });
+
+  final String producerId;
+  final String label;
+  final RuntimeOutputProducerKind kind;
+  final String managerId;
+  final String routeKind;
+  final List<String> channelIds;
+  final List<RuntimeOutputChannelKind> outputKinds;
+  final bool active;
+  final Map<String, Object?> metadata;
+  final String todo;
+
+  RuntimeOutputStreamSubscriptionPlan createSubscriptionPlan({
+    required String taskId,
+    String? outputChannelId,
+    RuntimeOutputRetentionPolicy retentionPolicy =
+        const RuntimeOutputRetentionPolicy.workspaceHistory(),
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeOutputStreamSubscriptionPlan.forManager(
+      taskId: taskId,
+      managerId: managerId,
+      routeKind: routeKind,
+      channelIds: outputChannelId == null
+          ? channelIds
+          : <String>[outputChannelId],
+      kinds: outputKinds,
+      status: active
+          ? RuntimeOutputSubscriptionStatus.active
+          : RuntimeOutputSubscriptionStatus.blocked,
+      retentionPolicy: retentionPolicy,
+      metadata: <String, Object?>{
+        'producerId': producerId,
+        'producerKind': kind.wireValue,
+        ...this.metadata,
+        ...metadata,
+      },
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'producerId': producerId,
+      'label': label,
+      'kind': kind.wireValue,
+      'managerId': managerId,
+      'routeKind': routeKind,
+      'channelIds': channelIds,
+      'outputKinds': outputKinds
+          .map((kind) => kind.wireValue)
+          .toList(growable: false),
+      'active': active,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class RuntimeOutputProducerRegistry {
+  RuntimeOutputProducerRegistry({
+    Iterable<RuntimeOutputProducerDescriptor> producers =
+        const <RuntimeOutputProducerDescriptor>[],
+  }) : _producers = <String, RuntimeOutputProducerDescriptor>{
+         for (final producer in producers) producer.producerId: producer,
+       };
+
+  factory RuntimeOutputProducerRegistry.defaultProducers() {
+    return RuntimeOutputProducerRegistry(
+      producers: const <RuntimeOutputProducerDescriptor>[
+        RuntimeOutputProducerDescriptor(
+          producerId: 'shell-manager',
+          label: 'Shell Manager',
+          kind: RuntimeOutputProducerKind.shellManager,
+          managerId: 'shell-manager',
+          routeKind: 'shell-task',
+          channelIds: <String>['runtime.shell'],
+          outputKinds: <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.stdout,
+            RuntimeOutputChannelKind.stderr,
+          ],
+          todo: 'TODO: bind this producer to concrete ShellManager streams.',
+        ),
+        RuntimeOutputProducerDescriptor(
+          producerId: 'terminal-runtime',
+          label: 'Terminal Runtime',
+          kind: RuntimeOutputProducerKind.terminalRuntime,
+          managerId: 'terminal-runtime',
+          routeKind: 'terminal-task',
+          channelIds: <String>['runtime.terminal'],
+          outputKinds: <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.runtimeEvents,
+          ],
+          todo: 'TODO: bind this producer to concrete PTY terminal streams.',
+        ),
+        RuntimeOutputProducerDescriptor(
+          producerId: 'toolchain-manager',
+          label: 'Toolchain Manager',
+          kind: RuntimeOutputProducerKind.toolchainManager,
+          managerId: 'toolchain-manager',
+          routeKind: 'toolchain-task',
+          channelIds: <String>['runtime.toolchain'],
+          outputKinds: <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.nativeTools,
+          ],
+          todo: 'TODO: bind this producer to concrete toolchain process IO.',
+        ),
+        RuntimeOutputProducerDescriptor(
+          producerId: 'hosted-executor',
+          label: 'Hosted Executor',
+          kind: RuntimeOutputProducerKind.hostedExecutor,
+          managerId: 'hosted-executor',
+          routeKind: 'hosted-task',
+          channelIds: <String>['runtime.hosted'],
+          outputKinds: <RuntimeOutputChannelKind>[
+            RuntimeOutputChannelKind.runtimeEvents,
+          ],
+          todo:
+              'TODO: bind this producer to hosted backend event streams and retry telemetry.',
+        ),
+      ],
+    );
+  }
+
+  final Map<String, RuntimeOutputProducerDescriptor> _producers;
+
+  List<RuntimeOutputProducerDescriptor> get producers {
+    final values = _producers.values.toList(growable: false);
+    values.sort((left, right) => left.producerId.compareTo(right.producerId));
+    return values;
+  }
+
+  List<RuntimeOutputProducerDescriptor> get activeProducers {
+    return producers
+        .where((producer) => producer.active)
+        .toList(growable: false);
+  }
+
+  RuntimeOutputProducerDescriptor? lookup(String producerId) {
+    return _producers[producerId];
+  }
+
+  List<RuntimeOutputStreamSubscriptionPlan> subscriptionPlansForTask({
+    required String taskId,
+    RuntimeOutputRetentionPolicy retentionPolicy =
+        const RuntimeOutputRetentionPolicy.workspaceHistory(),
+  }) {
+    return activeProducers
+        .map(
+          (producer) => producer.createSubscriptionPlan(
+            taskId: taskId,
+            retentionPolicy: retentionPolicy,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'producerCount': producers.length,
+      'activeProducerCount': activeProducers.length,
+      'producers': producers
+          .map((producer) => producer.toJson())
+          .toList(growable: false),
     };
   }
 }

@@ -380,6 +380,8 @@ void main() {
       expect(controller.value.severity, LanguageServiceStatusSeverity.ready);
       expect(controller.value.toolchainId, 'styio-nightly');
       expect(controller.value.usableCapabilityCount, greaterThan(0));
+      expect(controller.value.providerReadiness, 'degraded');
+      expect(controller.value.providerMissingCapabilityCount, greaterThan(0));
       expect(severities, <LanguageServiceStatusSeverity>[
         LanguageServiceStatusSeverity.refreshing,
         LanguageServiceStatusSeverity.ready,

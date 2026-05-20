@@ -96,6 +96,29 @@ void main() {
     expect(json.containsKey('todo'), isFalse);
   });
 
+  test('Styio language provider readiness can project a binding plan', () {
+    final readiness =
+        StyioLanguageProviderReadinessReport.fromProviderCapabilities(
+          providerId: 'styio-service',
+          providedCapabilities: const <StyioLanguageProviderCapability>[
+            StyioLanguageProviderCapability.syntaxDiagnostics,
+            StyioLanguageProviderCapability.completion,
+          ],
+          requiredCapabilities: const <StyioLanguageProviderCapability>[
+            StyioLanguageProviderCapability.syntaxDiagnostics,
+            StyioLanguageProviderCapability.completion,
+            StyioLanguageProviderCapability.rename,
+          ],
+        );
+
+    expect(readiness.ready, isFalse);
+    expect(readiness.summary, contains('2/3'));
+    expect(readiness.missingCapabilities, <StyioLanguageProviderCapability>[
+      StyioLanguageProviderCapability.rename,
+    ]);
+    expect(readiness.toJson()['todo'], startsWith('TODO:'));
+  });
+
   test('Styio language provider registry emits manifest-only metadata', () {
     final registry = StyioLanguageProviderRegistry()
       ..register(

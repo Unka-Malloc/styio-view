@@ -369,11 +369,16 @@ class LanguageServiceStatusController {
   }
 
   static LanguageServiceStatusSurface surfaceForRuntimeEvent(
-    StyioServiceRuntimeSessionEvent event,
-  ) {
+    StyioServiceRuntimeSessionEvent event, {
+    StyioLanguageProviderReadinessReport? providerReadiness,
+  }) {
     final snapshot = event.statusSnapshot;
     if (snapshot != null) {
-      return LanguageServiceStatusSurface.fromRuntimeSnapshot(snapshot);
+      return LanguageServiceStatusSurface.fromRuntimeSnapshot(
+        snapshot,
+        providerReadiness:
+            providerReadiness ?? _providerReadinessForSnapshot(snapshot),
+      );
     }
     return switch (event.state) {
       StyioServiceRuntimeSessionState.refreshing =>
@@ -391,6 +396,22 @@ class LanguageServiceStatusController {
           runtimeState: event.state.name,
         ),
     };
+  }
+
+  static StyioLanguageProviderReadinessReport? _providerReadinessForSnapshot(
+    StyioServiceRuntimeStatusSnapshot snapshot,
+  ) {
+    final capabilitySnapshot = snapshot.capabilitySnapshot;
+    if (capabilitySnapshot == null) {
+      return null;
+    }
+    final plan = StyioLanguageProviderBindingPlan.fromStyioServiceSnapshot(
+      snapshot: capabilitySnapshot,
+    );
+    return StyioLanguageProviderReadinessReport.fromProviderCapabilities(
+      providerId: plan.providerId,
+      providedCapabilities: plan.capabilities,
+    );
   }
 
   Future<void> dispose() async {

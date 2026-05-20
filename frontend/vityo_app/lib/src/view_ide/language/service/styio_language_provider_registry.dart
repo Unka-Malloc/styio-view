@@ -259,6 +259,31 @@ class StyioLanguageProviderReadinessReport {
     this.todo = '',
   });
 
+  factory StyioLanguageProviderReadinessReport.fromProviderCapabilities({
+    required String providerId,
+    required Iterable<StyioLanguageProviderCapability> providedCapabilities,
+    Iterable<StyioLanguageProviderCapability> requiredCapabilities =
+        defaultStyioLanguageProviderCapabilities,
+  }) {
+    final provided = providedCapabilities.toSet();
+    final coverage = requiredCapabilities
+        .map((capability) {
+          return StyioLanguageProviderCapabilityCoverage(
+            capability: capability,
+            providerIds: provided.contains(capability)
+                ? <String>[providerId]
+                : const <String>[],
+          );
+        })
+        .toList(growable: false);
+    return StyioLanguageProviderReadinessReport(
+      coverage: coverage,
+      todo: coverage.every((entry) => entry.covered)
+          ? ''
+          : 'TODO: expose missing StyioService capabilities before enabling all IDE language providers.',
+    );
+  }
+
   final List<StyioLanguageProviderCapabilityCoverage> coverage;
   final String todo;
 

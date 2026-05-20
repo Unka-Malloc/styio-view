@@ -80,6 +80,24 @@ class TestRunConfiguration {
     this.metadata = const <String, Object?>{},
   });
 
+  factory TestRunConfiguration.fromJson(Map<String, Object?> json) {
+    final metadata = json['metadata'];
+    return TestRunConfiguration(
+      id: json['id'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      workspaceRoot: json['workspaceRoot'] as String? ?? '',
+      providerId: json['providerId'] as String? ?? '',
+      targetId: json['targetId'] as String? ?? '',
+      filter: json['filter'] as String? ?? '',
+      debug: json['debug'] as bool? ?? false,
+      metadata: metadata is Map
+          ? metadata.map(
+              (key, value) => MapEntry<String, Object?>(key.toString(), value),
+            )
+          : const <String, Object?>{},
+    );
+  }
+
   final String id;
   final String label;
   final String workspaceRoot;

@@ -75,6 +75,7 @@ class AgentSurface extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               _AgentProviderProfileSection(
+                platformTarget: platformTarget,
                 controller: codingController,
                 onSaveProviderProfile: onSaveProviderProfile,
               ),
@@ -169,10 +170,12 @@ class AgentSurface extends StatelessWidget {
 
 class _AgentProviderProfileSection extends StatefulWidget {
   const _AgentProviderProfileSection({
+    required this.platformTarget,
     required this.controller,
     required this.onSaveProviderProfile,
   });
 
+  final PlatformTarget platformTarget;
   final AgentCodingSessionController controller;
   final Future<void> Function(AgentPromptProfile profile, {String? bearerToken})
   onSaveProviderProfile;
@@ -192,6 +195,12 @@ class _AgentProviderProfileSectionState
   late final TextEditingController _systemPromptController;
   late final TextEditingController _bearerTokenController;
   late Set<String> _contextChannels;
+  late String _profileId;
+  late AgentProviderRoute _endpointRoute;
+  late String _endpointApiKeyEnvironmentName;
+  late String _endpointProtocol;
+  String? _endpointReasoningEffort;
+  late bool _endpointRequiresCredential;
   late String _profileSignature;
   late String _lockSignature;
   String? _failureSignature;
@@ -218,6 +227,8 @@ class _AgentProviderProfileSectionState
     _systemPromptController = TextEditingController(text: profile.systemPrompt);
     _bearerTokenController = TextEditingController();
     _contextChannels = profile.contextChannels.toSet();
+    _profileId = profile.profileId;
+    _setEndpointContract(profile.endpoint);
     _profileSignature = _profileSignatureFor(profile);
     _lockSignature = _lockSignatureFor(widget.controller);
     _failureSignature = _failureSignatureFor(
@@ -289,14 +300,20 @@ class _AgentProviderProfileSectionState
     _systemPromptController.text = profile.systemPrompt;
     _bearerTokenController.clear();
     _contextChannels = profile.contextChannels.toSet();
+    _profileId = profile.profileId;
+    _setEndpointContract(profile.endpoint);
   }
 
   String _profileSignatureFor(AgentPromptProfile profile) {
     return [
       profile.profileId,
       profile.displayName,
+      profile.endpoint.route.wireValue,
       profile.endpoint.baseUrl,
       profile.endpoint.model,
+      profile.endpoint.apiKeyEnvironmentName,
+      profile.endpoint.protocol,
+      profile.endpoint.reasoningEffort ?? '',
       profile.endpoint.requiresCredential,
       if (profile.fallbackEndpoints.isNotEmpty)
         profile.fallbackEndpoints.first.baseUrl,
@@ -307,6 +324,24 @@ class _AgentProviderProfileSectionState
       profile.systemPrompt,
       ...profile.contextChannels,
     ].join('\n');
+  }
+
+  void _setEndpointContract(AgentProviderEndpoint endpoint) {
+    _endpointRoute = endpoint.route;
+    _endpointApiKeyEnvironmentName = endpoint.apiKeyEnvironmentName;
+    _endpointProtocol = endpoint.protocol;
+    _endpointReasoningEffort = endpoint.reasoningEffort;
+    _endpointRequiresCredential = endpoint.requiresCredential;
+  }
+
+  void _applyCodexSparkPreset() {
+    final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+      widget.platformTarget,
+    );
+    setState(() {
+      _setProfileFields(profile);
+      _errorMessage = null;
+    });
   }
 
   String? _failureSignatureFor(AgentProviderTransportException? failure) {
@@ -380,6 +415,23 @@ class _AgentProviderProfileSectionState
                   : _promoteSelectedFallback,
             ),
           ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                key: const ValueKey('agent-profile-codex-spark-preset-button'),
+                onPressed: locked ? null : _applyCodexSparkPreset,
+                child: const Text('Use OpenAI Codex Spark preset'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Preset requires an explicit bearer token. Vityo stores the token through Credential DataStore and does not read Codex OAuth from the host.',
+            style: theme.textTheme.bodySmall,
+          ),
           const SizedBox(height: 8),
           FilledButton(
             key: const ValueKey('agent-profile-save-button'),
@@ -556,9 +608,9 @@ class _AgentProviderProfileSectionState
 
     final current = widget.controller.profile;
     final profile = AgentPromptProfile(
-      profileId: current.profileId.startsWith('default-')
+      profileId: _profileId.startsWith('default-')
           ? 'configured-agent'
-          : current.profileId,
+          : _profileId,
       displayName: _displayNameController.text.trim().isEmpty
           ? 'Configured Agent'
           : _displayNameController.text.trim(),
@@ -566,15 +618,16 @@ class _AgentProviderProfileSectionState
           ? current.systemPrompt
           : _systemPromptController.text.trim(),
       endpoint: AgentProviderEndpoint(
-        route: current.endpoint.route,
+        route: _endpointRoute,
         baseUrl: baseUrl,
         model: model,
-        apiKeyEnvironmentName: current.endpoint.apiKeyEnvironmentName,
-        protocol: current.endpoint.protocol,
+        apiKeyEnvironmentName: _endpointApiKeyEnvironmentName,
+        protocol: _endpointProtocol,
+        reasoningEffort: _endpointReasoningEffort,
         credentialReference: current.endpoint.credentialReference,
         requiresCredential: _requiresCredentialForBaseUrl(
           baseUrl,
-          currentValue: current.endpoint.requiresCredential,
+          currentValue: _endpointRequiresCredential,
         ),
       ),
       fallbackEndpoints: hasFallback
@@ -583,8 +636,9 @@ class _AgentProviderProfileSectionState
                 route: AgentProviderRoute.webHosted,
                 baseUrl: fallbackBaseUrl,
                 model: fallbackModel,
-                apiKeyEnvironmentName: current.endpoint.apiKeyEnvironmentName,
-                protocol: current.endpoint.protocol,
+                apiKeyEnvironmentName: _endpointApiKeyEnvironmentName,
+                protocol: _endpointProtocol,
+                reasoningEffort: _endpointReasoningEffort,
                 requiresCredential: _requiresCredentialForBaseUrl(
                   fallbackBaseUrl,
                   currentValue: current.fallbackEndpoints.isNotEmpty
@@ -634,6 +688,7 @@ class _AgentProviderProfileSectionState
       _modelController.text = selected.endpoint.model;
       _fallbackBaseUrlController.clear();
       _fallbackModelController.clear();
+      _setEndpointContract(selected.endpoint);
       _errorMessage = null;
     });
   }

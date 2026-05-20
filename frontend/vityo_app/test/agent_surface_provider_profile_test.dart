@@ -129,6 +129,100 @@ void main() {
     expect(savedBearerToken, 'test-token');
   });
 
+  testWidgets(
+    'agent surface applies OpenAI Codex Spark preset and preserves contract',
+    (tester) async {
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+      AgentPromptProfile? savedProfile;
+      String? savedBearerToken;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1200,
+              height: 900,
+              child: AgentSurface(
+                platformTarget: PlatformTarget.web,
+                viewportProfile: const ViewportProfile(
+                  family: ViewportFamily.desktop,
+                  width: 1200,
+                  height: 900,
+                ),
+                visibleModules: const [],
+                adapterCapabilities: const [],
+                sessionContext: _context(),
+                codingController: controller,
+                onApplyPendingPatch: () async {},
+                onSaveProviderProfile: (profile, {bearerToken}) async {
+                  savedProfile = profile;
+                  savedBearerToken = bearerToken;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await _tapProfileControl(
+        tester,
+        find.byKey(const ValueKey('agent-profile-codex-spark-preset-button')),
+      );
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<TextFormField>(
+              find.byKey(const ValueKey('agent-profile-display-name-input')),
+            )
+            .controller
+            ?.text,
+        'Web OpenAI Codex Spark',
+      );
+      expect(
+        tester
+            .widget<TextFormField>(
+              find.byKey(const ValueKey('agent-profile-base-url-input')),
+            )
+            .controller
+            ?.text,
+        'https://api.openai.com/v1',
+      );
+      expect(
+        tester
+            .widget<TextFormField>(
+              find.byKey(const ValueKey('agent-profile-model-input')),
+            )
+            .controller
+            ?.text,
+        'gpt-5.3-codex-spark',
+      );
+      expect(find.textContaining('does not read Codex OAuth'), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(const ValueKey('agent-profile-bearer-token-input')),
+        'spark-token',
+      );
+      await _tapProfileControl(
+        tester,
+        find.byKey(const ValueKey('agent-profile-save-button')),
+      );
+      await tester.pump();
+
+      expect(savedProfile?.profileId, 'openai-codex-spark-web');
+      expect(savedProfile?.endpoint.model, 'gpt-5.3-codex-spark');
+      expect(savedProfile?.endpoint.protocol, 'openai-responses');
+      expect(savedProfile?.endpoint.reasoningEffort, 'high');
+      expect(savedProfile?.endpoint.requiresCredential, isTrue);
+      expect(savedBearerToken, 'spark-token');
+    },
+  );
+
   testWidgets('agent surface renders provider execution resolution', (
     tester,
   ) async {

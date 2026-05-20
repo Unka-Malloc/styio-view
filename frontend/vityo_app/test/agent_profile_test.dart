@@ -30,7 +30,7 @@ void main() {
       ]),
     );
     expect(decoded.systemPrompt, contains('ideCapabilities.entries'));
-    expect(decoded.systemPrompt, contains('framework placeholders'));
+    expect(decoded.systemPrompt, contains('scaffolded or TODO entries'));
     expect(decoded.systemPrompt, contains('Clang'));
     expect(decoded.systemPrompt, contains('commands.persistenceCommands'));
     expect(decoded.systemPrompt, contains('save/save-all'));
@@ -205,6 +205,23 @@ void main() {
     expect(ios.endpoint.requiresCredential, isTrue);
     expect(android.endpoint.route.allowsLocalBridge, isTrue);
     expect(android.endpoint.requiresCredential, isTrue);
+  });
+
+  test('agent prompt profile exposes OpenAI Codex Spark preset', () {
+    final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+      PlatformTarget.linux,
+    );
+    final decoded = AgentPromptProfile.fromJson(profile.toJson());
+
+    expect(decoded.profileId, 'openai-codex-spark-linux');
+    expect(decoded.displayName, 'Linux OpenAI Codex Spark');
+    expect(decoded.endpoint.baseUrl, 'https://api.openai.com/v1');
+    expect(decoded.endpoint.model, 'gpt-5.3-codex-spark');
+    expect(decoded.endpoint.protocol, 'openai-responses');
+    expect(decoded.endpoint.reasoningEffort, 'high');
+    expect(decoded.endpoint.requiresCredential, isTrue);
+    expect(decoded.endpoint.route, AgentProviderRoute.desktopLocalBridge);
+    expect(decoded.contextChannels, AgentPromptProfile.defaultContextChannels);
   });
 
   test(

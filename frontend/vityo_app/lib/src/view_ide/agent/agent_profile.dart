@@ -225,6 +225,24 @@ class AgentPromptProfile {
     );
   }
 
+  factory AgentPromptProfile.openAICodexSparkForPlatform(
+    PlatformTarget platformTarget,
+  ) {
+    final base = AgentPromptProfile.defaultForPlatform(platformTarget);
+    return base.copyWith(
+      profileId: 'openai-codex-spark-${platformTarget.wireValue}',
+      displayName: '${platformTarget.label} OpenAI Codex Spark',
+      endpoint: AgentProviderEndpoint(
+        route: agentProviderRouteForPlatform(platformTarget),
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.3-codex-spark',
+        protocol: 'openai-responses',
+        reasoningEffort: 'high',
+        requiresCredential: true,
+      ),
+    );
+  }
+
   factory AgentPromptProfile.defaultForPlatform(PlatformTarget platformTarget) {
     final route = agentProviderRouteForPlatform(platformTarget);
     return AgentPromptProfile(

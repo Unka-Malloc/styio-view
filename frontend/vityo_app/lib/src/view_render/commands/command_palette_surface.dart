@@ -375,7 +375,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
             Text('Keybinding overrides', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Text(
-              'Workspace-level shortcut remap draft. TODO: replace text entry with physical key capture and richer conflict preview.',
+              'Workspace-level shortcut remap draft. TODO: replace text entry with physical key capture.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -476,9 +476,20 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Chip(label: Text(conflict.signature)),
+          if (conflict.shortcutLabel.isNotEmpty)
+            Chip(label: Text('shortcut ${conflict.shortcutLabel}')),
           Text(
             conflict.commandIds.map((commandId) => commandId.name).join(', '),
           ),
+          for (final preview in conflict.commandPreviews)
+            Chip(
+              key: ValueKey(
+                'command-palette-keybinding-conflict-detail-${preview.commandId.name}',
+              ),
+              label: Text(
+                '${preview.label} · ${preview.category.wireValue} · ${preview.sourceLabel}',
+              ),
+            ),
           for (final commandId in conflict.commandIds)
             TextButton(
               key: ValueKey(

@@ -127,15 +127,49 @@ class CommandKeybindingConflict {
   const CommandKeybindingConflict({
     required this.signature,
     required this.commandIds,
+    this.shortcutLabel = '',
+    this.commandPreviews = const <CommandKeybindingConflictCommandPreview>[],
   });
 
   final String signature;
   final List<AppCommandId> commandIds;
+  final String shortcutLabel;
+  final List<CommandKeybindingConflictCommandPreview> commandPreviews;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'signature': signature,
+      if (shortcutLabel.isNotEmpty) 'shortcutLabel': shortcutLabel,
       'commandIds': commandIds.map((commandId) => commandId.name).toList(),
+      'commandPreviews': commandPreviews
+          .map((preview) => preview.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+class CommandKeybindingConflictCommandPreview {
+  const CommandKeybindingConflictCommandPreview({
+    required this.commandId,
+    required this.label,
+    required this.category,
+    required this.hasOverride,
+  });
+
+  final AppCommandId commandId;
+  final String label;
+  final AppCommandCategory category;
+  final bool hasOverride;
+
+  String get sourceLabel => hasOverride ? 'override' : 'default';
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'commandId': commandId.name,
+      'label': label,
+      'category': category.wireValue,
+      'source': sourceLabel,
+      'hasOverride': hasOverride,
     };
   }
 }
@@ -174,12 +208,22 @@ class CommandKeybindingResolver {
     Iterable<AppCommandDescriptor>? descriptors,
   }) {
     final commandsBySignature = <String, List<AppCommandId>>{};
-    for (final descriptor in descriptors ?? StyioCommandRegistry.commands) {
+    final descriptorList =
+        (descriptors ?? StyioCommandRegistry.commands).toList(growable: false);
+    final descriptorsById = <AppCommandId, AppCommandDescriptor>{
+      for (final descriptor in descriptorList) descriptor.id: descriptor,
+    };
+    final shortcutLabelsBySignature = <String, String>{};
+    for (final descriptor in descriptorList) {
       for (final shortcut in profile.effectiveShortcutsFor(descriptor)) {
         final signature = commandShortcutSignature(shortcut);
         if (signature.isEmpty) {
           continue;
         }
+        shortcutLabelsBySignature.putIfAbsent(
+          signature,
+          () => commandShortcutDisplayLabel(shortcut),
+        );
         commandsBySignature
             .putIfAbsent(signature, () => <AppCommandId>[])
             .add(descriptor.id);
@@ -192,7 +236,21 @@ class CommandKeybindingResolver {
         continue;
       }
       conflicts.add(
-        CommandKeybindingConflict(signature: entry.key, commandIds: commandIds),
+        CommandKeybindingConflict(
+          signature: entry.key,
+          shortcutLabel: shortcutLabelsBySignature[entry.key] ?? entry.key,
+          commandIds: commandIds,
+          commandPreviews: <CommandKeybindingConflictCommandPreview>[
+            for (final commandId in commandIds)
+              if (descriptorsById[commandId] != null)
+                CommandKeybindingConflictCommandPreview(
+                  commandId: commandId,
+                  label: descriptorsById[commandId]!.label,
+                  category: descriptorsById[commandId]!.category,
+                  hasOverride: profile.hasOverrideFor(commandId),
+                ),
+          ],
+        ),
       );
     }
     conflicts.sort((a, b) => a.signature.compareTo(b.signature));

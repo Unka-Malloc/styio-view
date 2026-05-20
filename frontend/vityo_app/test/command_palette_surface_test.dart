@@ -430,6 +430,9 @@ void main() {
     );
     expect(find.text('conflicts 1'), findsOneWidget);
     expect(find.text('Ctrl+keyR'), findsWidgets);
+    expect(find.text('shortcut Ctrl+keyR'), findsOneWidget);
+    expect(find.text('Save · persistence · override'), findsOneWidget);
+    expect(find.text('Rename Symbol · refactor · override'), findsOneWidget);
     expect(
       find.byKey(
         const ValueKey('command-palette-keybinding-selected-override'),

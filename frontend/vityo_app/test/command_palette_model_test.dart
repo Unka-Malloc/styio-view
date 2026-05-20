@@ -147,4 +147,59 @@ void main() {
       );
     },
   );
+
+  test('command keybinding conflicts include rich command previews', () {
+    final profile = CommandKeybindingProfile(
+      workspaceId: 'demo',
+      overrides: <AppCommandId, CommandKeybindingOverride>{
+        AppCommandId.save: const CommandKeybindingOverride(
+          commandId: AppCommandId.save,
+          shortcuts: <AppCommandShortcutSpec>[
+            AppCommandShortcutSpec('keyR', control: true),
+          ],
+        ),
+        AppCommandId.renameSymbol: const CommandKeybindingOverride(
+          commandId: AppCommandId.renameSymbol,
+          shortcuts: <AppCommandShortcutSpec>[
+            AppCommandShortcutSpec('keyR', control: true),
+          ],
+        ),
+      },
+    );
+    final review = CommandKeybindingResolver.reviewConflicts(
+      profile: profile,
+      descriptors: const <AppCommandDescriptor>[
+        AppCommandDescriptor(
+          id: AppCommandId.save,
+          label: 'Save',
+          shortcutHint: 'Cmd/Ctrl+S',
+          description: 'Persist file.',
+        ),
+        AppCommandDescriptor(
+          id: AppCommandId.renameSymbol,
+          label: 'Rename Symbol',
+          shortcutHint: 'Route',
+          description: 'Rename symbol.',
+        ),
+      ],
+    );
+    final conflict = review.conflicts.single;
+    final json = conflict.toJson();
+
+    expect(conflict.shortcutLabel, 'Ctrl+keyR');
+    expect(conflict.commandPreviews.map((preview) => preview.label), <String>[
+      'Save',
+      'Rename Symbol',
+    ]);
+    expect(conflict.commandPreviews.map((preview) => preview.category), <
+        AppCommandCategory>[
+      AppCommandCategory.persistence,
+      AppCommandCategory.refactor,
+    ]);
+    expect(
+      (json['commandPreviews']! as List<Object?>).first,
+      isA<Map<String, Object?>>()
+          .having((value) => value['source'], 'source', 'override'),
+    );
+  });
 }

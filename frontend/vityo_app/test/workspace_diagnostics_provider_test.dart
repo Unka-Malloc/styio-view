@@ -55,6 +55,63 @@ void main() {
     expect(json['sourceGroups'], isNotEmpty);
   });
 
+  test('workspace diagnostics stream unifies sources and quick fixes', () {
+    const snapshot = WorkspaceDiagnosticsSnapshot(
+      providerId: 'mixed',
+      diagnostics: <WorkspaceDiagnostic>[
+        WorkspaceDiagnostic(
+          documentId: 'main.styio',
+          providerId: 'styio-language',
+          source: 'styio-language',
+          diagnostic: Diagnostic(
+            severity: DiagnosticSeverity.error,
+            code: 'local.unclosed-delimiter',
+            message: 'Missing delimiter.',
+            range: SourceRange(start: 0, end: 1),
+          ),
+          quickFixes: <DiagnosticQuickFix>[
+            DiagnosticQuickFix(
+              label: 'Insert matching delimiter',
+              edits: <FormattingEdit>[
+                FormattingEdit(
+                  range: SourceRange(start: 1, end: 1),
+                  newText: '}',
+                ),
+              ],
+            ),
+          ],
+        ),
+        WorkspaceDiagnostic(
+          documentId: 'native.log',
+          providerId: 'native-tool',
+          source: 'native-tool',
+          diagnostic: Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'tool.warning',
+            message: 'Native tool warning.',
+            range: SourceRange(start: 2, end: 3),
+          ),
+        ),
+      ],
+    );
+
+    final stream = snapshot.streamSnapshot;
+    final json = stream.toJson();
+
+    expect(stream.totalCount, 2);
+    expect(stream.quickFixReadyCount, 1);
+    expect(stream.sourceKindCounts['styio-project'], 1);
+    expect(stream.sourceKindCounts['native-tool'], 1);
+    expect(stream.entries.first.hasQuickFixes, isTrue);
+    expect(json['quickFixReadyCount'], 1);
+    expect(json['entries'], isNotEmpty);
+    expect(
+      ((json['entries']! as List<Object?>).first!
+          as Map<String, Object?>)['quickFixLabels'],
+      <String>['Insert matching delimiter'],
+    );
+  });
+
   test('workspace diagnostics view applies serializable filters', () {
     const snapshot = WorkspaceDiagnosticsSnapshot(
       providerId: 'language',

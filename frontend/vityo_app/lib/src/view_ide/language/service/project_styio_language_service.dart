@@ -777,14 +777,18 @@ class ProjectStyioLanguageService {
         right.range.start < left.range.end;
   }
 
+  List<DiagnosticQuickFix> quickFixesForDiagnostic(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    return _documentService.quickFixesForDiagnostic(document, diagnostic);
+  }
+
   List<DiagnosticQuickFix> _documentQuickFixesForProjectDiagnostic(
     DocumentState document,
     StyioProjectDiagnostic diagnostic,
   ) {
-    return _documentService.quickFixesForDiagnostic(
-      document,
-      diagnostic.diagnostic,
-    );
+    return quickFixesForDiagnostic(document, diagnostic.diagnostic);
   }
 
   List<DiagnosticQuickFix> _dedupeQuickFixes(

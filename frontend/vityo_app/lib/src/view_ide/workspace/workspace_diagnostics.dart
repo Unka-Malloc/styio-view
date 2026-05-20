@@ -21,18 +21,24 @@ class WorkspaceDiagnostic {
     required this.diagnostic,
     this.providerId = '',
     this.source = 'language',
+    this.quickFixes = const <DiagnosticQuickFix>[],
   });
 
   final String documentId;
   final Diagnostic diagnostic;
   final String providerId;
   final String source;
+  final List<DiagnosticQuickFix> quickFixes;
+
+  bool get hasQuickFixes => quickFixes.isNotEmpty;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'documentId': documentId,
       if (providerId.isNotEmpty) 'providerId': providerId,
       'source': source,
+      'hasQuickFixes': hasQuickFixes,
+      'quickFixCount': quickFixes.length,
       'severity': diagnostic.severity.name,
       'code': diagnostic.code,
       'message': diagnostic.message,
@@ -40,6 +46,10 @@ class WorkspaceDiagnostic {
         'start': diagnostic.range.start,
         'end': diagnostic.range.end,
       },
+      if (quickFixes.isNotEmpty)
+        'quickFixes': quickFixes
+            .map(_diagnosticQuickFixToJson)
+            .toList(growable: false),
     };
   }
 }
@@ -180,6 +190,14 @@ class WorkspaceDiagnosticsSnapshot {
     return groupWorkspaceDiagnosticsBySource(diagnostics);
   }
 
+  WorkspaceDiagnosticStreamSnapshot get streamSnapshot {
+    return WorkspaceDiagnosticStreamSnapshot.fromDiagnostics(
+      providerId: providerId,
+      diagnostics: diagnostics,
+      message: message,
+    );
+  }
+
   List<WorkspaceDiagnostic> diagnosticsFor(String documentId) {
     return diagnostics
         .where((entry) => entry.documentId == documentId)
@@ -205,12 +223,121 @@ class WorkspaceDiagnosticsSnapshot {
       'sourceGroups': sourceGroups
           .map((group) => group.toJson())
           .toList(growable: false),
+      'streamSnapshot': streamSnapshot.toJson(),
       'severityCounts': severityCounts,
       'hasErrors': hasErrors,
       if (message.isNotEmpty) 'message': message,
       'diagnostics': diagnostics
           .map((diagnostic) => diagnostic.toJson())
           .toList(growable: false),
+    };
+  }
+}
+
+enum WorkspaceDiagnosticStreamSourceKind {
+  styioProject,
+  nativeTool,
+  quickFix,
+  external,
+}
+
+extension WorkspaceDiagnosticStreamSourceKindX
+    on WorkspaceDiagnosticStreamSourceKind {
+  String get wireValue => switch (this) {
+    WorkspaceDiagnosticStreamSourceKind.styioProject => 'styio-project',
+    WorkspaceDiagnosticStreamSourceKind.nativeTool => 'native-tool',
+    WorkspaceDiagnosticStreamSourceKind.quickFix => 'quick-fix',
+    WorkspaceDiagnosticStreamSourceKind.external => 'external',
+  };
+}
+
+class WorkspaceDiagnosticStreamEntry {
+  const WorkspaceDiagnosticStreamEntry({
+    required this.diagnostic,
+    required this.sourceKind,
+  });
+
+  factory WorkspaceDiagnosticStreamEntry.fromDiagnostic(
+    WorkspaceDiagnostic diagnostic,
+  ) {
+    return WorkspaceDiagnosticStreamEntry(
+      diagnostic: diagnostic,
+      sourceKind: _streamSourceKindForDiagnostic(diagnostic),
+    );
+  }
+
+  final WorkspaceDiagnostic diagnostic;
+  final WorkspaceDiagnosticStreamSourceKind sourceKind;
+
+  bool get hasQuickFixes => diagnostic.hasQuickFixes;
+  String get documentId => diagnostic.documentId;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'sourceKind': sourceKind.wireValue,
+      'documentId': documentId,
+      'source': diagnostic.source,
+      'providerId': diagnostic.providerId,
+      'severity': diagnostic.diagnostic.severity.name,
+      'code': diagnostic.diagnostic.code,
+      'message': diagnostic.diagnostic.message,
+      'hasQuickFixes': hasQuickFixes,
+      'quickFixCount': diagnostic.quickFixes.length,
+      if (diagnostic.quickFixes.isNotEmpty)
+        'quickFixLabels': diagnostic.quickFixes
+            .map((fix) => fix.label)
+            .toList(growable: false),
+    };
+  }
+}
+
+class WorkspaceDiagnosticStreamSnapshot {
+  const WorkspaceDiagnosticStreamSnapshot({
+    required this.providerId,
+    required this.entries,
+    this.message = '',
+  });
+
+  factory WorkspaceDiagnosticStreamSnapshot.fromDiagnostics({
+    required String providerId,
+    required List<WorkspaceDiagnostic> diagnostics,
+    String message = '',
+  }) {
+    return WorkspaceDiagnosticStreamSnapshot(
+      providerId: providerId,
+      entries: diagnostics
+          .map(WorkspaceDiagnosticStreamEntry.fromDiagnostic)
+          .toList(growable: false),
+      message: message,
+    );
+  }
+
+  final String providerId;
+  final List<WorkspaceDiagnosticStreamEntry> entries;
+  final String message;
+
+  int get totalCount => entries.length;
+  int get quickFixReadyCount {
+    return entries.where((entry) => entry.hasQuickFixes).length;
+  }
+
+  Map<String, int> get sourceKindCounts {
+    return <String, int>{
+      for (final kind in WorkspaceDiagnosticStreamSourceKind.values)
+        kind.wireValue: entries
+            .where((entry) => entry.sourceKind == kind)
+            .length,
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerId': providerId,
+      'totalCount': totalCount,
+      'quickFixReadyCount': quickFixReadyCount,
+      'sourceKindCounts': sourceKindCounts,
+      if (message.isNotEmpty) 'message': message,
+      'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
     };
   }
 }
@@ -526,6 +653,45 @@ DiagnosticSeverity? _diagnosticSeverityFromName(String value) {
     }
   }
   return null;
+}
+
+WorkspaceDiagnosticStreamSourceKind _streamSourceKindForDiagnostic(
+  WorkspaceDiagnostic diagnostic,
+) {
+  final source = diagnostic.source.toLowerCase();
+  final providerId = diagnostic.providerId.toLowerCase();
+  if (source.contains('quick') || source.contains('code-action')) {
+    return WorkspaceDiagnosticStreamSourceKind.quickFix;
+  }
+  if (source.contains('native') ||
+      source.contains('tool') ||
+      providerId.contains('native') ||
+      providerId.contains('tool')) {
+    return WorkspaceDiagnosticStreamSourceKind.nativeTool;
+  }
+  if (source.contains('styio') || providerId.contains('styio')) {
+    return WorkspaceDiagnosticStreamSourceKind.styioProject;
+  }
+  return WorkspaceDiagnosticStreamSourceKind.external;
+}
+
+Map<String, Object?> _diagnosticQuickFixToJson(DiagnosticQuickFix fix) {
+  return <String, Object?>{
+    'label': fix.label,
+    if (fix.detail.isNotEmpty) 'detail': fix.detail,
+    'editCount': fix.edits.length,
+    'edits': fix.edits
+        .map(
+          (edit) => <String, Object?>{
+            'range': <String, int>{
+              'start': edit.range.start,
+              'end': edit.range.end,
+            },
+            'newText': edit.newText,
+          },
+        )
+        .toList(growable: false),
+  };
 }
 
 abstract class WorkspaceDiagnosticsProvider {

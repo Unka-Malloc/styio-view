@@ -1,4 +1,5 @@
 import '../../workspace/workspace.dart';
+import '../contract/language_contract.dart';
 import 'project_styio_language_service.dart';
 
 class StyioWorkspaceDiagnosticsProvider
@@ -32,16 +33,27 @@ class StyioWorkspaceDiagnosticsProvider
       );
     }
 
+    final documentsById = {
+      for (final document in documents) document.documentId: document,
+    };
     final analysis = projectService.analyzeProject(documents);
     final diagnostics = analysis.diagnostics
-        .map(
-          (diagnostic) => WorkspaceDiagnostic(
+        .map((diagnostic) {
+          final document = documentsById[diagnostic.documentId];
+          final quickFixes = document == null
+              ? const <DiagnosticQuickFix>[]
+              : projectService.quickFixesForDiagnostic(
+                  document,
+                  diagnostic.diagnostic,
+                );
+          return WorkspaceDiagnostic(
             documentId: diagnostic.documentId,
             diagnostic: diagnostic.diagnostic,
             providerId: providerId,
             source: 'styio-language',
-          ),
-        )
+            quickFixes: quickFixes,
+          );
+        })
         .toList(growable: false);
 
     return WorkspaceDiagnosticsSnapshot(

@@ -10,6 +10,24 @@ void main() {
       );
       final snapshot = bundle.snapshot();
       final health = bundle.healthSnapshot();
+      final probeHealth = bundle.probeHealthSnapshot();
+      final blockedProbeHealth = bundle.probeHealthSnapshot(
+        probes: <PlatformManagerHealthProbe>[
+          PlatformManagerHealthProbe(
+            managerKey: 'shell',
+            ready: (_) => false,
+            message: (_, _) => 'Shell probe failed.',
+            recoveryActions: const <PlatformManagerRecoveryAction>[
+              PlatformManagerRecoveryAction(
+                id: 'platform.shell.select',
+                label: 'Select shell',
+                managerKey: 'shell',
+                message: 'Choose another shell profile.',
+              ),
+            ],
+          ),
+        ],
+      );
 
       expect(snapshot.targetId, 'platform-manager-contract-test');
       expect(snapshot.managerKeys, <String>[
@@ -49,6 +67,15 @@ void main() {
       );
       expect(health.toJson()['componentCount'], 9);
       expect(health.toJson()['todo'], contains('live manager probes'));
+      expect(probeHealth.ready, isTrue);
+      expect(probeHealth.toJson()['probeSource'], 'platform-manager-probes');
+      expect(probeHealth.recoveryActions, isEmpty);
+      expect(blockedProbeHealth.ready, isFalse);
+      expect(blockedProbeHealth.blockedCount, 1);
+      expect(
+        blockedProbeHealth.recoveryActions.single.id,
+        'platform.shell.select',
+      );
     },
   );
 }

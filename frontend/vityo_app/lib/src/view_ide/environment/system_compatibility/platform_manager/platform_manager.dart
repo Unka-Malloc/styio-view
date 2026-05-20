@@ -114,6 +114,24 @@ class PlatformManagerBundle {
           'TODO: replace fact-level readiness with live manager probes when system managers expose runtime health.',
     );
   }
+
+  PlatformManagerHealthSnapshot probeHealthSnapshot({
+    List<PlatformManagerHealthProbe>? probes,
+  }) {
+    final effectiveProbes =
+        probes ?? PlatformManagerHealthProbe.defaultProbes();
+    final components = effectiveProbes
+        .map((probe) => probe.run(this))
+        .toList(growable: false);
+    return PlatformManagerHealthSnapshot(
+      targetId: context.targetId,
+      ready: components.every((component) => component.ready),
+      components: components,
+      probeSource: 'platform-manager-probes',
+      todo:
+          'TODO: replace default lightweight probes with manager-specific live operation probes.',
+    );
+  }
 }
 
 class PlatformManagerBundleSnapshot {
@@ -147,18 +165,121 @@ class PlatformManagerComponentHealth {
     required this.managerKey,
     required this.ready,
     required this.message,
+    this.recoveryActions = const <PlatformManagerRecoveryAction>[],
   });
 
   final String managerKey;
   final bool ready;
   final String message;
+  final List<PlatformManagerRecoveryAction> recoveryActions;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'managerKey': managerKey,
       'ready': ready,
       'message': message,
+      if (recoveryActions.isNotEmpty)
+        'recoveryActions': recoveryActions
+            .map((action) => action.toJson())
+            .toList(growable: false),
     };
+  }
+}
+
+class PlatformManagerRecoveryAction {
+  const PlatformManagerRecoveryAction({
+    required this.id,
+    required this.label,
+    required this.managerKey,
+    required this.message,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String id;
+  final String label;
+  final String managerKey;
+  final String message;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'label': label,
+      'managerKey': managerKey,
+      'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+typedef PlatformManagerProbeReady = bool Function(PlatformManagerBundle bundle);
+typedef PlatformManagerProbeMessage =
+    String Function(PlatformManagerBundle bundle, bool ready);
+
+class PlatformManagerHealthProbe {
+  const PlatformManagerHealthProbe({
+    required this.managerKey,
+    required this.ready,
+    required this.message,
+    this.recoveryActions = const <PlatformManagerRecoveryAction>[],
+  });
+
+  final String managerKey;
+  final PlatformManagerProbeReady ready;
+  final PlatformManagerProbeMessage message;
+  final List<PlatformManagerRecoveryAction> recoveryActions;
+
+  static List<PlatformManagerHealthProbe> defaultProbes() {
+    return <PlatformManagerHealthProbe>[
+      _probe(
+        'fileSystem',
+        (bundle) => bundle.context.fileSystem.supportsLinuxDebianArmTarget,
+      ),
+      _probe(
+        'shell',
+        (bundle) => bundle.context.shell.supportsLinuxDebianArmTarget,
+      ),
+      _probe(
+        'process',
+        (bundle) => bundle.context.process.supportsLinuxDebianArmTarget,
+      ),
+      _probe(
+        'resource',
+        (bundle) => bundle.context.resource.supportsLinuxDebianArmTarget,
+      ),
+      _probe(
+        'network',
+        (bundle) => bundle.context.network.supportsLinuxDebianArmTarget,
+      ),
+      _probe(
+        'clipboard',
+        (bundle) => bundle.context.clipboard.supportsLinuxDebianArmTarget,
+      ),
+      _probe(
+        'notification',
+        (bundle) => bundle.context.notification.supportsLinuxDebianArmTarget,
+      ),
+      _probe(
+        'localService',
+        (bundle) => bundle.context.localService.supportsLinuxDebianArmTarget,
+      ),
+      _probe(
+        'pty',
+        (bundle) => bundle.context.pty.supportsLinuxDebianArmTarget,
+      ),
+    ];
+  }
+
+  PlatformManagerComponentHealth run(PlatformManagerBundle bundle) {
+    final result = ready(bundle);
+    return PlatformManagerComponentHealth(
+      managerKey: managerKey,
+      ready: result,
+      message: message(bundle, result),
+      recoveryActions: result
+          ? const <PlatformManagerRecoveryAction>[]
+          : recoveryActions,
+    );
   }
 }
 
@@ -167,12 +288,14 @@ class PlatformManagerHealthSnapshot {
     required this.targetId,
     required this.ready,
     required this.components,
+    this.probeSource = 'platform-context-facts',
     this.todo = '',
   });
 
   final String targetId;
   final bool ready;
   final List<PlatformManagerComponentHealth> components;
+  final String probeSource;
   final String todo;
 
   int get readyCount {
@@ -183,19 +306,52 @@ class PlatformManagerHealthSnapshot {
     return components.length - readyCount;
   }
 
+  List<PlatformManagerRecoveryAction> get recoveryActions {
+    return components
+        .expand((component) => component.recoveryActions)
+        .toList(growable: false);
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'targetId': targetId,
+      'probeSource': probeSource,
       'ready': ready,
       'readyCount': readyCount,
       'blockedCount': blockedCount,
+      'recoveryActionCount': recoveryActions.length,
       'componentCount': components.length,
       'components': components
           .map((component) => component.toJson())
           .toList(growable: false),
+      if (recoveryActions.isNotEmpty)
+        'recoveryActions': recoveryActions
+            .map((action) => action.toJson())
+            .toList(growable: false),
       if (todo.isNotEmpty) 'todo': todo,
     };
   }
+}
+
+PlatformManagerHealthProbe _probe(
+  String managerKey,
+  PlatformManagerProbeReady ready,
+) {
+  return PlatformManagerHealthProbe(
+    managerKey: managerKey,
+    ready: ready,
+    message: (_, isReady) => isReady
+        ? '$managerKey manager probe is ready.'
+        : '$managerKey manager probe is blocked.',
+    recoveryActions: <PlatformManagerRecoveryAction>[
+      PlatformManagerRecoveryAction(
+        id: 'platform.$managerKey.open-settings',
+        label: 'Open platform settings',
+        managerKey: managerKey,
+        message: 'Review platform configuration for $managerKey.',
+      ),
+    ],
+  );
 }
 
 Future<PlatformManagerBundle> createPlatformManagerBundle({

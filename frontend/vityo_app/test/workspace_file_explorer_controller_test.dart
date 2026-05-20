@@ -21,6 +21,50 @@ void main() {
     expect(tree.first.toJson()['fileCount'], 2);
   });
 
+  test('workspace file explorer discovery normalizes file system paths', () {
+    final discovery = WorkspaceFileExplorerDiscoveryResult.fromPaths(
+      seedPaths: const <String>['README.md'],
+      discoveredPaths: const <String>[
+        'src\\main.styio',
+        'src/main.styio',
+        'src/lib/math.styio',
+        '../secret.styio',
+        '/tmp/outside.styio',
+        '',
+      ],
+      source: 'fixture-fs',
+    );
+    final workspaceController = WorkspaceController(
+      projectSnapshot: _projectGraph(editorFiles: const <String>['README.md']),
+    );
+    final controller = WorkspaceFileExplorerController(
+      workspaceController: workspaceController,
+      operationService: WorkspaceFileOperationService(
+        workspaceController: workspaceController,
+        documentStore: InMemoryWorkspaceDocumentStore(),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    final snapshot = controller.snapshotFromDiscovery(discovery);
+
+    expect(discovery.source, 'fixture-fs');
+    expect(discovery.filePaths, <String>[
+      'README.md',
+      'src/lib/math.styio',
+      'src/main.styio',
+    ]);
+    expect(discovery.ignoredPathCount, 3);
+    expect(discovery.truncated, isFalse);
+    expect(snapshot.fileCount, 3);
+    expect(snapshot.discovery, same(discovery));
+    expect(snapshot.roots.map((node) => node.name), <String>[
+      'src',
+      'README.md',
+    ]);
+    expect(snapshot.toJson()['discovery'], isA<Map<String, Object?>>());
+  });
+
   test('workspace file explorer controller runs file operations', () async {
     final store = InMemoryWorkspaceDocumentStore();
     final workspaceController = WorkspaceController(

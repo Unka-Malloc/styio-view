@@ -55,12 +55,14 @@ class WorkspaceFileExplorerSnapshot {
     required this.activeFilePath,
     required this.openFilePaths,
     this.state,
+    this.discovery,
   });
 
   final List<WorkspaceFileExplorerNode> roots;
   final String activeFilePath;
   final List<String> openFilePaths;
   final WorkspaceFileExplorerState? state;
+  final WorkspaceFileExplorerDiscoveryResult? discovery;
 
   int get fileCount {
     return roots.fold<int>(0, (total, root) => total + root.fileCount);
@@ -72,9 +74,94 @@ class WorkspaceFileExplorerSnapshot {
       'openFilePaths': openFilePaths,
       'fileCount': fileCount,
       if (state != null) 'state': state!.toJson(),
+      if (discovery != null) 'discovery': discovery!.toJson(),
       'roots': roots.map((root) => root.toJson()).toList(growable: false),
     };
   }
+}
+
+class WorkspaceFileExplorerDiscoveryResult {
+  const WorkspaceFileExplorerDiscoveryResult({
+    required this.source,
+    required this.filePaths,
+    this.ignoredPaths = const <String>[],
+    this.truncated = false,
+  });
+
+  factory WorkspaceFileExplorerDiscoveryResult.fromPaths({
+    required Iterable<String> discoveredPaths,
+    Iterable<String> seedPaths = const <String>[],
+    String source = 'file-system-manager',
+    int maxFiles = 5000,
+  }) {
+    final filePaths = <String>[];
+    final ignoredPaths = <String>[];
+    final seen = <String>{};
+    var truncated = false;
+
+    void collectPath(String rawPath) {
+      if (filePaths.length >= maxFiles) {
+        truncated = true;
+        return;
+      }
+      final normalizedPath = _normalizeWorkspaceFileExplorerPath(rawPath);
+      if (_validateWorkspaceFileExplorerPath(normalizedPath) != null) {
+        ignoredPaths.add(rawPath);
+        return;
+      }
+      if (seen.add(normalizedPath)) {
+        filePaths.add(normalizedPath);
+      }
+    }
+
+    for (final seedPath in seedPaths) {
+      collectPath(seedPath);
+    }
+    for (final discoveredPath in discoveredPaths) {
+      collectPath(discoveredPath);
+    }
+    filePaths.sort();
+
+    return WorkspaceFileExplorerDiscoveryResult(
+      source: source,
+      filePaths: List.unmodifiable(filePaths),
+      ignoredPaths: List.unmodifiable(ignoredPaths),
+      truncated: truncated,
+    );
+  }
+
+  final String source;
+  final List<String> filePaths;
+  final List<String> ignoredPaths;
+  final bool truncated;
+
+  int get fileCount => filePaths.length;
+  int get ignoredPathCount => ignoredPaths.length;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'source': source,
+      'fileCount': fileCount,
+      'ignoredPathCount': ignoredPathCount,
+      'truncated': truncated,
+      'filePaths': filePaths,
+      if (ignoredPaths.isNotEmpty) 'ignoredPaths': ignoredPaths,
+    };
+  }
+}
+
+String _normalizeWorkspaceFileExplorerPath(String path) {
+  return path.trim().replaceAll('\\', '/');
+}
+
+String? _validateWorkspaceFileExplorerPath(String path) {
+  if (path.isEmpty) {
+    return 'Workspace file path is empty.';
+  }
+  if (path.startsWith('/') || path.contains('..')) {
+    return 'Workspace file path must stay inside the workspace.';
+  }
+  return null;
 }
 
 class WorkspaceFileExplorerActionRequest {
@@ -132,6 +219,18 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
       activeFilePath: workspaceController.activeFilePath,
       openFilePaths: workspaceController.openFilePaths,
       state: _state,
+    );
+  }
+
+  WorkspaceFileExplorerSnapshot snapshotFromDiscovery(
+    WorkspaceFileExplorerDiscoveryResult discovery,
+  ) {
+    return WorkspaceFileExplorerSnapshot(
+      roots: buildWorkspaceFileExplorerTree(discovery.filePaths),
+      activeFilePath: workspaceController.activeFilePath,
+      openFilePaths: workspaceController.openFilePaths,
+      state: _state,
+      discovery: discovery,
     );
   }
 

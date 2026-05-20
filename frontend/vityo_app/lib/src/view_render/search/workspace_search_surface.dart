@@ -13,6 +13,8 @@ class WorkspaceSearchSurface extends StatefulWidget {
     this.lastSearch,
     this.lastSymbolSearch,
     this.lastReplacePreview,
+    this.searchIndex,
+    this.searchHistory,
     this.onSearch,
     this.onOpenFile,
     this.onPreviewReplace,
@@ -27,6 +29,8 @@ class WorkspaceSearchSurface extends StatefulWidget {
   final AgentWorkspaceSearchResultContext? lastSearch;
   final AgentWorkspaceSymbolSearchResultContext? lastSymbolSearch;
   final WorkspaceReplacePreview? lastReplacePreview;
+  final WorkspaceSearchIndex? searchIndex;
+  final WorkspaceSearchHistory? searchHistory;
   final Future<void> Function(String query)? onSearch;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function(String query, String replacement)?
@@ -149,6 +153,8 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
     final compact = widget.viewportProfile.isMobile;
     final lastSearch = widget.lastSearch;
     final lastSymbolSearch = widget.lastSymbolSearch;
+    final searchIndex = widget.searchIndex;
+    final searchHistory = widget.searchHistory;
     final quickOpenResult = _quickOpenService.searchFiles(
       documentIds: widget.workspaceFiles,
       query: _quickOpenQuery,
@@ -170,8 +176,32 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Text and symbol search entry for workspace-wide edits, quick navigation, and agent-confirmed code changes. TODO: add indexed search and persistent result filters.',
+              'Text and symbol search entry for workspace-wide edits, quick navigation, indexed search summaries, persisted history, and agent-confirmed code changes. TODO: add background incremental index refresh and persistent result filters.',
               style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                Chip(label: Text('files ${widget.workspaceFileCount}')),
+                if (searchIndex != null) ...[
+                  Chip(label: Text('index-docs ${searchIndex.documentCount}')),
+                  Chip(
+                    label: Text('index-lines ${searchIndex.totalLineCount}'),
+                  ),
+                  Chip(
+                    label: Text('index-bytes ${searchIndex.totalByteLength}'),
+                  ),
+                  Chip(
+                    label: Text(
+                      'index-key ${searchIndex.invalidationKey.documentIds.length}',
+                    ),
+                  ),
+                ],
+                if (searchHistory != null)
+                  Chip(label: Text('history ${searchHistory.records.length}')),
+              ],
             ),
             const SizedBox(height: 12),
             Row(
@@ -247,6 +277,10 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
                     ? null
                     : _applyReplacePreview,
               ),
+            ],
+            if (searchHistory != null && searchHistory.records.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _WorkspaceSearchHistoryView(history: searchHistory),
             ],
             const SizedBox(height: 12),
             Text('Quick Open', style: theme.textTheme.titleSmall),
@@ -324,6 +358,40 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WorkspaceSearchHistoryView extends StatelessWidget {
+  const _WorkspaceSearchHistoryView({required this.history});
+
+  final WorkspaceSearchHistory history;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final records = history.records.take(4).toList(growable: false);
+    return Column(
+      key: const ValueKey('workspace-search-history'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Recent Search', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        for (final record in records)
+          ListTile(
+            key: ValueKey(
+              'workspace-search-history-${record.mode.wireValue}-${record.query}',
+            ),
+            dense: true,
+            leading: const Icon(Icons.history_rounded),
+            title: Text(record.query),
+            subtitle: Text(
+              record.replacement.isEmpty
+                  ? record.mode.wireValue
+                  : '${record.mode.wireValue} -> ${record.replacement}',
+            ),
+          ),
+      ],
     );
   }
 }

@@ -85,6 +85,80 @@ class WorkspaceSearchIndexDocument {
   }
 }
 
+class WorkspaceSearchIndexInvalidationKey {
+  const WorkspaceSearchIndexInvalidationKey({required this.documentRevisions});
+
+  factory WorkspaceSearchIndexInvalidationKey.fromDocuments(
+    Iterable<WorkspaceSearchIndexDocument> documents,
+  ) {
+    return WorkspaceSearchIndexInvalidationKey(
+      documentRevisions: _sortedWorkspaceSearchRevisionMap(<String, int>{
+        for (final document in documents)
+          document.documentId: document.revision,
+      }),
+    );
+  }
+
+  factory WorkspaceSearchIndexInvalidationKey.fromDocumentStates(
+    Iterable<DocumentState> documents,
+  ) {
+    return WorkspaceSearchIndexInvalidationKey(
+      documentRevisions: _sortedWorkspaceSearchRevisionMap(<String, int>{
+        for (final document in documents)
+          document.documentId: document.revision,
+      }),
+    );
+  }
+
+  factory WorkspaceSearchIndexInvalidationKey.fromJson(
+    Map<String, Object?> json,
+  ) {
+    final raw = json['documentRevisions'];
+    if (raw is! Map) {
+      return const WorkspaceSearchIndexInvalidationKey(
+        documentRevisions: <String, int>{},
+      );
+    }
+    final revisions = <String, int>{};
+    for (final entry in raw.entries) {
+      final value = entry.value;
+      final revision = value is int ? value : int.tryParse('$value');
+      if (revision != null) {
+        revisions[entry.key.toString()] = revision;
+      }
+    }
+    return WorkspaceSearchIndexInvalidationKey(
+      documentRevisions: _sortedWorkspaceSearchRevisionMap(revisions),
+    );
+  }
+
+  final Map<String, int> documentRevisions;
+
+  List<String> get documentIds =>
+      documentRevisions.keys.toList(growable: false);
+
+  bool matches(WorkspaceSearchIndexInvalidationKey other) {
+    return staleDocumentIds(other).isEmpty;
+  }
+
+  List<String> staleDocumentIds(WorkspaceSearchIndexInvalidationKey current) {
+    final ids = <String>{
+      ...documentRevisions.keys,
+      ...current.documentRevisions.keys,
+    }.toList(growable: false)..sort();
+    return ids
+        .where((id) => documentRevisions[id] != current.documentRevisions[id])
+        .toList(growable: false);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'documentCount': documentRevisions.length,
+      'documentRevisions': documentRevisions,
+    };
+  }
+}
+
 class WorkspaceSearchIndex {
   const WorkspaceSearchIndex({
     required this.documents,
@@ -108,6 +182,10 @@ class WorkspaceSearchIndex {
     return documents
         .map((document) => document.documentId)
         .toList(growable: false);
+  }
+
+  WorkspaceSearchIndexInvalidationKey get invalidationKey {
+    return WorkspaceSearchIndexInvalidationKey.fromDocuments(documents);
   }
 
   WorkspaceSearchResult search({
@@ -163,13 +241,20 @@ class WorkspaceSearchIndex {
       'totalByteLength': totalByteLength,
       'totalLineCount': totalLineCount,
       'truncated': truncated,
+      'invalidationKey': invalidationKey.toJson(),
       'documents': documents
           .map((document) => document.toJson())
           .toList(growable: false),
-      // TODO(search-index): Persist only metadata plus an invalidation key when
-      // the File System Manager exposes stable document mtime/content hashes.
     };
   }
+}
+
+Map<String, int> _sortedWorkspaceSearchRevisionMap(Map<String, int> revisions) {
+  final entries = revisions.entries.toList(growable: false)
+    ..sort((left, right) => left.key.compareTo(right.key));
+  return Map<String, int>.unmodifiable(<String, int>{
+    for (final entry in entries) entry.key: entry.value,
+  });
 }
 
 class WorkspaceSearchIndexBuildResult {

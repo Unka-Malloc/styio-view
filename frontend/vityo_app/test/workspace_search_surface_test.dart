@@ -63,6 +63,35 @@ void main() {
               height: 800,
             ),
             workspaceFileCount: 2,
+            searchIndex: WorkspaceSearchIndex(
+              documents: <WorkspaceSearchIndexDocument>[
+                WorkspaceSearchIndexDocument.fromDocument(
+                  const DocumentState(
+                    documentId: 'src/main.styio',
+                    text: 'needle := 1\n',
+                    revision: 1,
+                  ),
+                ),
+                WorkspaceSearchIndexDocument.fromDocument(
+                  const DocumentState(
+                    documentId: 'src/lib.styio',
+                    text: 'lib := needle\n',
+                    revision: 2,
+                  ),
+                ),
+              ],
+              createdAt: DateTime.utc(2026, 5, 20),
+            ),
+            searchHistory: WorkspaceSearchHistory(
+              workspaceId: 'demo',
+              records: <WorkspaceSearchHistoryRecord>[
+                WorkspaceSearchHistoryRecord(
+                  query: 'needle',
+                  mode: WorkspaceSearchHistoryMode.text,
+                  createdAt: DateTime.utc(2026, 5, 20),
+                ),
+              ],
+            ),
             lastSearch: lastSearch,
             lastSymbolSearch: lastSymbolSearch,
             onSearch: (query) async {
@@ -84,9 +113,14 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Workspace Search'), findsOneWidget);
-    expect(find.text('matches 2'), findsOneWidget);
-    expect(find.text('src/main.styio'), findsOneWidget);
-    expect(find.text('src/lib.styio'), findsOneWidget);
+    expect(find.text('files 2'), findsOneWidget);
+    expect(find.text('index-docs 2'), findsOneWidget);
+    expect(find.text('index-key 2'), findsOneWidget);
+    expect(find.text('history 1'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('workspace-search-history')),
+      findsOneWidget,
+    );
 
     await tester.enterText(
       find.byKey(const ValueKey('workspace-search-query-input')),
@@ -96,6 +130,16 @@ void main() {
     await tester.pump();
 
     expect(submittedQuery, 'lib');
+
+    await tester.drag(
+      find.byKey(const ValueKey('workspace-search-surface')),
+      const Offset(0, -360),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('matches 2'), findsOneWidget);
+    expect(find.text('src/main.styio'), findsOneWidget);
+    expect(find.text('src/lib.styio'), findsOneWidget);
 
     await tester.tap(find.text('src/main.styio'));
     await tester.pump();

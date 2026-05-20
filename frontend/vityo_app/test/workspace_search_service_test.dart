@@ -569,6 +569,54 @@ void main() {
     expect(history.toJson()['recordCount'], 2);
   });
 
+  test('workspace search index exposes invalidation keys', () {
+    final index = WorkspaceSearchIndex(
+      documents: <WorkspaceSearchIndexDocument>[
+        WorkspaceSearchIndexDocument.fromDocument(
+          const DocumentState(
+            documentId: 'main.styio',
+            text: 'value := 1\n',
+            revision: 1,
+          ),
+        ),
+        WorkspaceSearchIndexDocument.fromDocument(
+          const DocumentState(
+            documentId: 'lib.styio',
+            text: 'lib := value\n',
+            revision: 4,
+          ),
+        ),
+      ],
+      createdAt: DateTime.utc(2026, 5, 20),
+    );
+    final current = WorkspaceSearchIndexInvalidationKey.fromDocumentStates(
+      const <DocumentState>[
+        DocumentState(
+          documentId: 'main.styio',
+          text: 'value := 2\n',
+          revision: 2,
+        ),
+        DocumentState(documentId: 'new.styio', text: 'new := 1\n', revision: 1),
+      ],
+    );
+    final restored = WorkspaceSearchIndexInvalidationKey.fromJson(
+      index.invalidationKey.toJson(),
+    );
+
+    expect(restored.matches(index.invalidationKey), isTrue);
+    expect(index.invalidationKey.matches(current), isFalse);
+    expect(index.invalidationKey.staleDocumentIds(current), <String>[
+      'lib.styio',
+      'main.styio',
+      'new.styio',
+    ]);
+    expect(
+      (index.toJson()['invalidationKey']!
+          as Map<String, Object?>)['documentCount'],
+      2,
+    );
+  });
+
   test('workspace search history persists through DataStore', () async {
     final store = WorkspaceSearchHistoryStore.fromDataStore(
       dataStore: await _createDataStore(),

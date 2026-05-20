@@ -57,6 +57,9 @@ void main() {
     expect(surface.parserEngine, 'nightly');
     expect(surface.grammarVersion, '2026.05');
     expect(surface.usableCapabilityCount, 3);
+    expect(surface.capabilityHealth, 'degraded');
+    expect(surface.missingCapabilityCount, greaterThan(0));
+    expect(surface.blockedCapabilityCount, 0);
     expect(
       surface.primaryCapabilityStates[StyioServiceCapability
           .diagnostics
@@ -88,6 +91,8 @@ void main() {
     expect(surface.toJson()['grammarVersion'], '2026.05');
     expect(surface.toJson()['syntaxValidationReady'], isTrue);
     expect(surface.toJson()['semanticFactsReady'], isFalse);
+    expect(surface.toJson()['capabilityHealth'], 'degraded');
+    expect(surface.toJson()['missingCapabilityCount'], greaterThan(0));
     expect(
       surface.toJson()['unavailablePrimaryCapabilities'],
       contains(StyioServiceCapability.definition.wireValue),

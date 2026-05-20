@@ -50,6 +50,9 @@ class LanguageServiceStatusSurface {
     this.parserEngine,
     this.grammarVersion,
     this.localFallbackEnabled = true,
+    this.capabilityHealth = 'unavailable',
+    this.missingCapabilityCount = 0,
+    this.blockedCapabilityCount = 0,
   });
 
   factory LanguageServiceStatusSurface.unavailable({
@@ -110,6 +113,7 @@ class LanguageServiceStatusSurface {
     StyioServiceRuntimeStatusSnapshot snapshot,
   ) {
     final capabilitySnapshot = snapshot.capabilitySnapshot;
+    final healthSummary = capabilitySnapshot?.healthSummary;
     final severity = _severityFor(snapshot);
     return LanguageServiceStatusSurface(
       runtimeState: snapshot.state.name,
@@ -123,6 +127,11 @@ class LanguageServiceStatusSurface {
       freshCapabilityCount: snapshot.freshCapabilityCount,
       primaryCapabilityStates: snapshot.primaryCapabilityStates,
       localFallbackEnabled: snapshot.allowLocalFallback,
+      capabilityHealth:
+          healthSummary?.health.wireValue ??
+          StyioServiceCapabilityHealth.unavailable.wireValue,
+      missingCapabilityCount: healthSummary?.missingCapabilities.length ?? 0,
+      blockedCapabilityCount: healthSummary?.blockedCapabilities.length ?? 0,
       capabilities: capabilitySnapshot == null
           ? const <LanguageServiceCapabilityStatusItem>[]
           : snapshot.primaryCapabilities
@@ -145,6 +154,9 @@ class LanguageServiceStatusSurface {
   final Map<String, String> primaryCapabilityStates;
   final List<LanguageServiceCapabilityStatusItem> capabilities;
   final bool localFallbackEnabled;
+  final String capabilityHealth;
+  final int missingCapabilityCount;
+  final int blockedCapabilityCount;
 
   bool get actionable {
     return severity == LanguageServiceStatusSeverity.unavailable ||
@@ -193,6 +205,9 @@ class LanguageServiceStatusSurface {
       'usableCapabilityCount': usableCapabilityCount,
       'freshCapabilityCount': freshCapabilityCount,
       'localFallbackEnabled': localFallbackEnabled,
+      'capabilityHealth': capabilityHealth,
+      'missingCapabilityCount': missingCapabilityCount,
+      'blockedCapabilityCount': blockedCapabilityCount,
       'primaryCapabilityStates': primaryCapabilityStates,
       'capabilities': capabilities
           .map((capability) => capability.toJson())

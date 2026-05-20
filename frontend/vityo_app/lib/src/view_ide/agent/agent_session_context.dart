@@ -2664,6 +2664,9 @@ class AgentLanguageServiceStatusContext {
     required this.syntaxValidationReady,
     required this.semanticFactsReady,
     required this.unavailablePrimaryCapabilities,
+    required this.capabilityHealth,
+    required this.missingCapabilityCount,
+    required this.blockedCapabilityCount,
     this.toolchainId = '',
     this.parserEngine,
     this.grammarVersion,
@@ -2685,6 +2688,9 @@ class AgentLanguageServiceStatusContext {
   final bool syntaxValidationReady;
   final bool semanticFactsReady;
   final List<String> unavailablePrimaryCapabilities;
+  final String capabilityHealth;
+  final int missingCapabilityCount;
+  final int blockedCapabilityCount;
 
   factory AgentLanguageServiceStatusContext.fromSurface(
     LanguageServiceStatusSurface surface,
@@ -2710,6 +2716,9 @@ class AgentLanguageServiceStatusContext {
       syntaxValidationReady: surface.syntaxValidationReady,
       semanticFactsReady: surface.semanticFactsReady,
       unavailablePrimaryCapabilities: surface.unavailablePrimaryCapabilities,
+      capabilityHealth: surface.capabilityHealth,
+      missingCapabilityCount: surface.missingCapabilityCount,
+      blockedCapabilityCount: surface.blockedCapabilityCount,
     );
   }
 
@@ -2733,6 +2742,9 @@ class AgentLanguageServiceStatusContext {
       'syntaxValidationReady': syntaxValidationReady,
       'semanticFactsReady': semanticFactsReady,
       'unavailablePrimaryCapabilities': unavailablePrimaryCapabilities,
+      'capabilityHealth': capabilityHealth,
+      'missingCapabilityCount': missingCapabilityCount,
+      'blockedCapabilityCount': blockedCapabilityCount,
     };
   }
 }

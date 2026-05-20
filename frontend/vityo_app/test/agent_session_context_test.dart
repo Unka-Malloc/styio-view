@@ -914,6 +914,9 @@ void main() {
     expect(languageServiceStatus['grammarVersion'], '2026.05');
     expect(languageServiceStatus['usableCapabilityCount'], 2);
     expect(languageServiceStatus['freshCapabilityCount'], 1);
+    expect(languageServiceStatus['capabilityHealth'], 'degraded');
+    expect(languageServiceStatus['missingCapabilityCount'], 1);
+    expect(languageServiceStatus['blockedCapabilityCount'], 1);
     expect(languageServiceStatus['localFallbackEnabled'], isTrue);
     expect(languageServiceStatus['syntaxValidationReady'], isTrue);
     expect(languageServiceStatus['semanticFactsReady'], isFalse);
@@ -2693,6 +2696,9 @@ const _agentLanguageServiceStatus = LanguageServiceStatusSurface(
   grammarVersion: '2026.05',
   usableCapabilityCount: 2,
   freshCapabilityCount: 1,
+  capabilityHealth: 'degraded',
+  missingCapabilityCount: 1,
+  blockedCapabilityCount: 1,
   primaryCapabilityStates: <String, String>{
     'diagnostics': 'available',
     'completion': 'derived',

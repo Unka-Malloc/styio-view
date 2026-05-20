@@ -2375,71 +2375,145 @@ void main() {
     expect(workspaceContext.documentSamples.last.documentId, 'src/main.styio');
   });
 
-  test('shell executes command palette workspace file input command', () async {
-    final projectGraph = ProjectGraphSnapshot.scratch(
-      workspaceRoot: '/workspace/demo',
-      activeFilePath: 'src/main.styio',
-      title: 'Demo',
-      notes: const <String>[],
-    ).copyWith(editorFiles: const <String>['src/main.styio']);
-    const mainDocument = DocumentState(
-      documentId: 'src/main.styio',
-      text: 'main := 1\n',
-      revision: 1,
-    );
-    final documentStore = InMemoryWorkspaceDocumentStore(
-      seededDocuments: const <String, DocumentState>{
-        'src/main.styio': mainDocument,
-      },
-    );
-    final workspaceController = WorkspaceController(
-      projectSnapshot: projectGraph,
-    );
-    final shell = ShellRuntimeModel(
-      platformTarget: PlatformTarget.macos,
-      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
-      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
-      workspaceController: workspaceController,
-      workspaceDocumentStore: documentStore,
-      moduleRegistry: ModuleRegistry(
+  test(
+    'shell executes command palette and agent workspace file input commands',
+    () async {
+      final projectGraph = ProjectGraphSnapshot.scratch(
+        workspaceRoot: '/workspace/demo',
+        activeFilePath: 'src/main.styio',
+        title: 'Demo',
+        notes: const <String>[],
+      ).copyWith(editorFiles: const <String>['src/main.styio']);
+      const mainDocument = DocumentState(
+        documentId: 'src/main.styio',
+        text: 'main := 1\n',
+        revision: 1,
+      );
+      final documentStore = InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': mainDocument,
+        },
+      );
+      final workspaceController = WorkspaceController(
+        projectSnapshot: projectGraph,
+      );
+      final shell = ShellRuntimeModel(
         platformTarget: PlatformTarget.macos,
-        definitions: const [],
-      ),
-      nativeModuleLoader: const NoopNativeModuleLoader(
-        platformTarget: PlatformTarget.macos,
-      ),
-      editorController: EditorSessionController(
-        initialDocument: mainDocument,
-        languageService: const _NoopStyioLanguageService(),
-      ),
-      executionAdapter: const _NoopExecutionAdapter(),
-      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
-          const _NoopExecutionAdapter(),
-      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
-      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
-      deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
-    );
-    addTearDown(shell.dispose);
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+        workspaceController: workspaceController,
+        workspaceDocumentStore: documentStore,
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: mainDocument,
+          languageService: const _NoopStyioLanguageService(),
+        ),
+        executionAdapter: const _NoopExecutionAdapter(),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            const _NoopExecutionAdapter(),
+        runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+        dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+        deploymentAdapter: const _NoopDeploymentAdapter(),
+        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      );
+      addTearDown(shell.dispose);
 
-    await shell.executeCommandWithInput(
-      AppCommandId.createWorkspaceFile,
-      'src/new.styio',
-    );
+      await shell.executeCommandWithInput(
+        AppCommandId.createWorkspaceFile,
+        'src/new.styio',
+      );
 
-    expect(workspaceController.files, <String>[
-      'src/main.styio',
-      'src/new.styio',
-    ]);
-    expect(workspaceController.activeFilePath, 'src/new.styio');
-    expect(shell.editorController.document.documentId, 'src/new.styio');
-    expect(await documentStore.documentExists('src/new.styio'), isTrue);
-    expect(shell.lastAgentIdeCommandResult?.applied, isTrue);
-    expect(
-      shell.lastAgentIdeCommandResult?.metadata['operationResult'],
-      isA<Map<String, Object?>>(),
-    );
-  });
+      expect(workspaceController.files, <String>[
+        'src/main.styio',
+        'src/new.styio',
+      ]);
+      expect(workspaceController.activeFilePath, 'src/new.styio');
+      expect(shell.editorController.document.documentId, 'src/new.styio');
+      expect(await documentStore.documentExists('src/new.styio'), isTrue);
+      expect(shell.lastAgentIdeCommandResult?.applied, isTrue);
+      expect(
+        shell.lastAgentIdeCommandResult?.metadata['operationResult'],
+        isA<Map<String, Object?>>(),
+      );
+
+      final agentCreateApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'createWorkspaceFile',
+          input: 'src/agent.styio',
+        ),
+      );
+      final agentCreateResult = shell.lastAgentIdeCommandResult;
+      expect(agentCreateApplied, isTrue);
+      expect(agentCreateResult?.commandId, 'createWorkspaceFile');
+      expect(agentCreateResult?.metadata['applied'], isTrue);
+      expect(await documentStore.documentExists('src/agent.styio'), isTrue);
+
+      final agentRevealApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'revealWorkspaceFile',
+          input: 'src/agent.styio',
+        ),
+      );
+      expect(agentRevealApplied, isTrue);
+      expect(workspaceController.activeFilePath, 'src/agent.styio');
+
+      final agentRenameApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'renameWorkspaceFile',
+          input: 'src/agent.styio -> src/agent_renamed.styio',
+        ),
+      );
+      final agentRenameResult = shell.lastAgentIdeCommandResult;
+      expect(agentRenameApplied, isTrue);
+      expect(agentRenameResult?.commandId, 'renameWorkspaceFile');
+      expect(
+        (agentRenameResult?.metadata['operationResult']!
+            as Map<String, Object?>)['kind'],
+        'rename',
+      );
+      expect(await documentStore.documentExists('src/agent.styio'), isFalse);
+      expect(
+        await documentStore.documentExists('src/agent_renamed.styio'),
+        isTrue,
+      );
+
+      final missingDeleteApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'deleteWorkspaceFile'),
+      );
+      final missingDeleteResult = shell.lastAgentIdeCommandResult;
+      expect(missingDeleteApplied, isFalse);
+      expect(
+        missingDeleteResult?.metadata['requiredInput'],
+        'Workspace file path',
+      );
+
+      final agentDeleteApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'deleteWorkspaceFile',
+          input: 'src/agent_renamed.styio',
+        ),
+      );
+      final agentDeleteResult = shell.lastAgentIdeCommandResult;
+      expect(agentDeleteApplied, isFalse);
+      expect(agentDeleteResult?.commandId, 'deleteWorkspaceFile');
+      expect(shell.pendingWorkspaceFileCommandConfirmation, isNotNull);
+      expect(agentDeleteResult?.metadata['staged'], isTrue);
+      expect(
+        agentDeleteResult?.metadata['confirmationPlan'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(
+        await documentStore.documentExists('src/agent_renamed.styio'),
+        isTrue,
+      );
+    },
+  );
 
   test(
     'shell stages and confirms destructive workspace file command',

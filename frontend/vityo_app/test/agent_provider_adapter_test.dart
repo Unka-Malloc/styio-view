@@ -866,6 +866,11 @@ void main() {
       expect(systemMessage['content'], contains('workspace.lastSymbolSearch'));
       expect(
         systemMessage['content'],
+        contains('commands.workspaceFileCommands'),
+      );
+      expect(systemMessage['content'], contains('deleteWorkspaceFile'));
+      expect(
+        systemMessage['content'],
         contains('workspace.sourceControlContext'),
       );
       expect(systemMessage['content'], contains('stageSourceControl'));

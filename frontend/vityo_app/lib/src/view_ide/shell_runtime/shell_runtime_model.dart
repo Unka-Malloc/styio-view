@@ -2281,6 +2281,26 @@ class ShellRuntimeModel extends ChangeNotifier {
               : 'Agent command openWorkspaceFile failed for $input.',
         );
         return applied;
+      case 'createWorkspaceFile':
+        return _applyAgentWorkspaceFileCommand(
+          suggestion: suggestion,
+          commandId: AppCommandId.createWorkspaceFile,
+        );
+      case 'renameWorkspaceFile':
+        return _applyAgentWorkspaceFileCommand(
+          suggestion: suggestion,
+          commandId: AppCommandId.renameWorkspaceFile,
+        );
+      case 'deleteWorkspaceFile':
+        return _applyAgentWorkspaceFileCommand(
+          suggestion: suggestion,
+          commandId: AppCommandId.deleteWorkspaceFile,
+        );
+      case 'revealWorkspaceFile':
+        return _applyAgentWorkspaceFileCommand(
+          suggestion: suggestion,
+          commandId: AppCommandId.revealWorkspaceFile,
+        );
       case 'searchWorkspace':
         final input = suggestion.input?.trim();
         if (input == null || input.isEmpty) {
@@ -2927,6 +2947,38 @@ class ShellRuntimeModel extends ChangeNotifier {
         appendLog(_lastAgentIdeCommandResult!.message);
         return false;
     }
+  }
+
+  Future<bool> _applyAgentWorkspaceFileCommand({
+    required AgentIdeCommandSuggestion suggestion,
+    required AppCommandId commandId,
+  }) async {
+    final descriptor = StyioCommandRegistry.descriptorFor(commandId);
+    final input = suggestion.input?.trim() ?? '';
+    if (input.isEmpty) {
+      _recordAgentIdeCommandResult(
+        suggestion,
+        applied: false,
+        message:
+            'Agent command ${commandId.name} skipped: ${descriptor.inputLabel} input is required.',
+        metadata: <String, Object?>{'requiredInput': descriptor.inputLabel},
+      );
+      appendLog(_lastAgentIdeCommandResult!.message);
+      return false;
+    }
+    final result = await _executeWorkspaceFileCommandWithInput(
+      commandId,
+      input,
+    );
+    _recordAgentIdeCommandResult(
+      suggestion,
+      applied: result.applied,
+      message: result.message,
+      metadata: result.toJson(),
+    );
+    appendLog(result.message);
+    notifyListeners();
+    return result.applied;
   }
 
   void _recordAgentIdeCommandResult(

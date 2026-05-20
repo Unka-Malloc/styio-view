@@ -114,6 +114,10 @@ void main() {
       contains('create, rename, delete, and reveal contracts'),
     );
     expect(
+      entriesById['workspace.file-explorer']?.summary,
+      contains('Agent workspace file command routing'),
+    );
+    expect(
       entriesById['presentation.problems-panel']?.dependencies,
       contains('workspace.diagnostics'),
     );

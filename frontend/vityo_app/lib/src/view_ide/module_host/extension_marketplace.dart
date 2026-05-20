@@ -1,0 +1,341 @@
+import '../foundation/foundation.dart';
+import 'extension_manifest_contract.dart';
+
+enum ExtensionInstallPlanStatus {
+  ready,
+  alreadyInstalled,
+  blockedInvalidListing,
+}
+
+extension ExtensionInstallPlanStatusX on ExtensionInstallPlanStatus {
+  String get wireValue => switch (this) {
+    ExtensionInstallPlanStatus.ready => 'ready',
+    ExtensionInstallPlanStatus.alreadyInstalled => 'already-installed',
+    ExtensionInstallPlanStatus.blockedInvalidListing =>
+      'blocked-invalid-listing',
+  };
+}
+
+class ExtensionMarketplaceListing {
+  const ExtensionMarketplaceListing({
+    required this.manifest,
+    required this.sourceUri,
+    this.summary = '',
+    this.categories = const <String>[],
+    this.downloadSizeBytes,
+    this.verified = false,
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory ExtensionMarketplaceListing.fromJson(Map<String, Object?> json) {
+    final manifest = json['manifest'];
+    return ExtensionMarketplaceListing(
+      manifest: manifest is Map<String, Object?>
+          ? ExtensionManifest.fromJson(manifest)
+          : manifest is Map
+          ? ExtensionManifest.fromJson(
+              manifest.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : const ExtensionManifest(
+              extensionId: '',
+              displayName: '',
+              version: '',
+              publisher: '',
+              entrypoint: '',
+            ),
+      sourceUri: json['sourceUri'] as String? ?? '',
+      summary: json['summary'] as String? ?? '',
+      categories: _jsonStringList(json['categories']),
+      downloadSizeBytes: json['downloadSizeBytes'] as int?,
+      verified: json['verified'] as bool? ?? false,
+      metadata: _jsonObjectMap(json['metadata']),
+    );
+  }
+
+  final ExtensionManifest manifest;
+  final String sourceUri;
+  final String summary;
+  final List<String> categories;
+  final int? downloadSizeBytes;
+  final bool verified;
+  final Map<String, Object?> metadata;
+
+  String get extensionId => manifest.extensionId;
+
+  bool get valid => manifest.valid && sourceUri.trim().isNotEmpty;
+
+  bool matchesQuery(String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) {
+      return true;
+    }
+    final haystack = <String>[
+      manifest.extensionId,
+      manifest.displayName,
+      manifest.publisher,
+      manifest.description,
+      summary,
+      ...categories,
+    ].join('\n').toLowerCase();
+    return haystack.contains(normalizedQuery);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'manifest': manifest.toJson(),
+      'sourceUri': sourceUri,
+      'summary': summary,
+      'categories': categories,
+      if (downloadSizeBytes != null) 'downloadSizeBytes': downloadSizeBytes,
+      'verified': verified,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+      'valid': valid,
+    };
+  }
+}
+
+class ExtensionInstallPlan {
+  const ExtensionInstallPlan({
+    required this.extensionId,
+    required this.status,
+    required this.message,
+    this.listing,
+    this.todo = '',
+  });
+
+  final String extensionId;
+  final ExtensionInstallPlanStatus status;
+  final String message;
+  final ExtensionMarketplaceListing? listing;
+  final String todo;
+
+  bool get ready => status == ExtensionInstallPlanStatus.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'status': status.wireValue,
+      'message': message,
+      'ready': ready,
+      if (listing != null) 'listing': listing!.toJson(),
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class ExtensionMarketplaceIndex {
+  const ExtensionMarketplaceIndex({
+    required this.workspaceId,
+    this.listings = const <ExtensionMarketplaceListing>[],
+    this.updatedAt,
+  });
+
+  factory ExtensionMarketplaceIndex.fromJson(Map<String, Object?> json) {
+    return ExtensionMarketplaceIndex(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      listings: _jsonMarketplaceListings(json['listings']),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final List<ExtensionMarketplaceListing> listings;
+  final DateTime? updatedAt;
+
+  ExtensionMarketplaceListing? lookup(String extensionId) {
+    final normalizedId = extensionId.trim();
+    if (normalizedId.isEmpty) {
+      return null;
+    }
+    for (final listing in sortedListings) {
+      if (listing.extensionId == normalizedId) {
+        return listing;
+      }
+    }
+    return null;
+  }
+
+  List<ExtensionMarketplaceListing> get sortedListings {
+    final result = listings.toList(growable: false)
+      ..sort((left, right) => left.extensionId.compareTo(right.extensionId));
+    return result;
+  }
+
+  List<ExtensionMarketplaceListing> search(String query) {
+    return sortedListings
+        .where((listing) => listing.matchesQuery(query))
+        .toList(growable: false);
+  }
+
+  ExtensionInstallPlan installPlan({
+    required ExtensionManifestRegistry installedRegistry,
+    required String extensionId,
+  }) {
+    final normalizedId = extensionId.trim();
+    final listing = lookup(normalizedId);
+    if (listing == null || !listing.valid) {
+      return ExtensionInstallPlan(
+        extensionId: normalizedId,
+        status: ExtensionInstallPlanStatus.blockedInvalidListing,
+        message:
+            'Extension $normalizedId is missing a valid marketplace listing.',
+        listing: listing,
+      );
+    }
+    if (installedRegistry.lookup(normalizedId) != null) {
+      return ExtensionInstallPlan(
+        extensionId: normalizedId,
+        status: ExtensionInstallPlanStatus.alreadyInstalled,
+        message: 'Extension $normalizedId is already installed.',
+        listing: listing,
+      );
+    }
+    return ExtensionInstallPlan(
+      extensionId: normalizedId,
+      status: ExtensionInstallPlanStatus.ready,
+      message: 'Extension $normalizedId can be installed from marketplace.',
+      listing: listing,
+      todo:
+          'TODO: hand this plan to the extension download, signature, and host-isolation installer.',
+    );
+  }
+
+  ExtensionMarketplaceIndex copyWith({
+    String? workspaceId,
+    List<ExtensionMarketplaceListing>? listings,
+    DateTime? updatedAt,
+  }) {
+    return ExtensionMarketplaceIndex(
+      workspaceId: workspaceId ?? this.workspaceId,
+      listings: listings ?? this.listings,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    final listings = sortedListings;
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'listingCount': listings.length,
+      'installableCount': listings.where((listing) => listing.valid).length,
+      'listings': listings
+          .map((listing) => listing.toJson())
+          .toList(growable: false),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class ExtensionMarketplaceIndexStore {
+  ExtensionMarketplaceIndexStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'extension.marketplace-index',
+             layer: 'extension',
+             stateFamily: 'extension-marketplace',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const ExtensionMarketplaceIndexStore({
+    required FoundationDataStoreOwner owner,
+  }) : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'extension.marketplace-index';
+  static const String _key = 'listings';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<void> saveIndex(ExtensionMarketplaceIndex index) {
+    return _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: index.copyWith(updatedAt: DateTime.now().toUtc()).toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: index.workspaceId,
+    );
+  }
+
+  Future<ExtensionMarketplaceIndex> readIndex({
+    required String workspaceId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return ExtensionMarketplaceIndex(workspaceId: workspaceId);
+    }
+    final index = ExtensionMarketplaceIndex.fromJson(value);
+    return index.workspaceId.isEmpty
+        ? index.copyWith(workspaceId: workspaceId)
+        : index;
+  }
+
+  Future<bool> deleteIndex({required String workspaceId}) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+
+  Stream<FoundationDataStoreChange> watchIndex({required String workspaceId}) {
+    return _owner.watchJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+}
+
+List<ExtensionMarketplaceListing> _jsonMarketplaceListings(Object? value) {
+  if (value is! List) {
+    return const <ExtensionMarketplaceListing>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (listing) => ExtensionMarketplaceListing.fromJson(
+          listing.map(
+            (key, value) => MapEntry<String, Object?>(key.toString(), value),
+          ),
+        ),
+      )
+      .toList(growable: false);
+}
+
+List<String> _jsonStringList(Object? value) {
+  if (value is! List) {
+    return const <String>[];
+  }
+  return value
+      .whereType<String>()
+      .where((item) => item.trim().isNotEmpty)
+      .toList(growable: false);
+}
+
+Map<String, Object?> _jsonObjectMap(Object? value) {
+  if (value is! Map) {
+    return const <String, Object?>{};
+  }
+  return Map<String, Object?>.unmodifiable(
+    value.map((key, value) => MapEntry<String, Object?>(key.toString(), value)),
+  );
+}

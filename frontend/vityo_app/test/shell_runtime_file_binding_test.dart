@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_coding_session_history_store.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_configurator.dart';
@@ -1944,6 +1945,98 @@ void main() {
     await shell.executeCommand(AppCommandId.refreshLanguageService);
 
     expect(refreshCount, 2);
+  });
+
+  test('shell retryAgentProvider dispatches saved recovery draft', () async {
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/demo',
+      activeFilePath: 'src/main.styio',
+      title: 'Demo',
+      notes: const <String>[],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value := 1\n',
+      revision: 1,
+    );
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.macos);
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord.failure(
+          requestId: 'agent-failed',
+          profile: profile,
+          providerKind: AgentProviderKind.cloudOpenAICompatible,
+          prompt: 'Retry the failed coding task.',
+          errorMessage: 'provider timeout',
+          createdAt: DateTime.utc(2026, 5, 21),
+          completedAt: DateTime.utc(2026, 5, 21, 0, 1),
+        ),
+      ],
+    );
+    final agentController = AgentCodingSessionController(
+      profile: profile,
+      adapter: const _StaticAgentProviderAdapter(
+        response: AgentProviderResponseEnvelope(
+          requestId: 'agent-retry',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(kind: AgentContentPartKind.text, text: 'ok'),
+          ],
+        ),
+      ),
+      contextProvider: () => throw StateError(
+        'ShellRuntimeModel should replace the agent context provider.',
+      ),
+      sessionHistoryStore: _MemoryAgentCodingSessionHistoryStore(history),
+      sessionHistoryWorkspaceId: 'demo',
+    );
+    await agentController.loadSessionHistory();
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': initialDocument,
+        },
+      ),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      agentCodingController: agentController,
+    );
+    addTearDown(() {
+      shell.dispose();
+      agentController.dispose();
+    });
+
+    await shell.executeCommand(AppCommandId.retryAgentProvider);
+
+    final lastResult = shell.agentSessionContext.commands.lastResult;
+    final recoveryDispatch =
+        lastResult?.metadata['recoveryDispatch'] as Map<String, Object?>?;
+    expect(lastResult?.commandId, 'retryAgentProvider');
+    expect(lastResult?.applied, isTrue);
+    expect(recoveryDispatch?['status'], 'dispatched');
+    expect(recoveryDispatch?['responseRequestId'], 'agent-retry');
   });
 
   test('shell failoverAgentProvider mounts saved provider profile', () async {
@@ -5778,6 +5871,49 @@ class _StaticAgentProviderAdapter implements AgentProviderAdapter {
     AgentProviderRequest request,
   ) async {
     return response;
+  }
+}
+
+class _MemoryAgentCodingSessionHistoryStore
+    implements AgentCodingSessionHistoryStore {
+  _MemoryAgentCodingSessionHistoryStore(this.history);
+
+  AgentCodingSessionHistory history;
+
+  @override
+  Future<AgentCodingSessionHistory> readHistory({
+    required String workspaceId,
+  }) async {
+    return history;
+  }
+
+  @override
+  Future<AgentCodingSessionCheckpoint> readCheckpoint({
+    required String workspaceId,
+  }) async {
+    return history.toCheckpoint();
+  }
+
+  @override
+  Future<AgentCodingSessionRecoveryPlan> readRecoveryPlan({
+    required String workspaceId,
+  }) async {
+    return history.toRecoveryPlan();
+  }
+
+  @override
+  Future<void> saveHistory(AgentCodingSessionHistory history) async {
+    this.history = history;
+  }
+
+  @override
+  Future<AgentCodingSessionHistory> appendRecord({
+    required String workspaceId,
+    required AgentCodingSessionHistoryRecord record,
+    int maxEntries = 50,
+  }) async {
+    history = history.append(record, maxEntries: maxEntries);
+    return history;
   }
 }
 

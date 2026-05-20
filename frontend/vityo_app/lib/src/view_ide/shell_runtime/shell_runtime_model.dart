@@ -2427,6 +2427,18 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: <String, Object?>{'projectLanguage': metadata},
         );
         return true;
+      case 'retryAgentProvider':
+        return _dispatchAgentRecoveryCommand(
+          suggestion: suggestion,
+          action: AgentCodingSessionRecoveryAction.retrySameProvider,
+        );
+      case 'replayAgentPrompt':
+        return _dispatchAgentRecoveryCommand(
+          suggestion: suggestion,
+          action: AgentCodingSessionRecoveryAction.replayPrompt,
+        );
+      case 'failoverAgentProvider':
+        return _failoverAgentProviderForSuggestion(suggestion);
       case 'goToDefinition':
         if (editorController.selectDefinitionAtSelection()) {
           appendLog('Agent command goToDefinition selected in editor.');
@@ -4994,6 +5006,64 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result;
   }
 
+  Future<bool> _dispatchAgentRecoveryCommand({
+    required AgentIdeCommandSuggestion suggestion,
+    required AgentCodingSessionRecoveryAction action,
+    String? targetProviderProfileId,
+  }) async {
+    final result = await agentCodingController.dispatchRecoveryRequestDraft(
+      action,
+      targetProviderProfileId: targetProviderProfileId,
+      confirmed: true,
+    );
+    _recordAgentIdeCommandResult(
+      suggestion,
+      applied: result.dispatched,
+      message: result.message,
+      metadata: <String, Object?>{'recoveryDispatch': result.toJson()},
+    );
+    appendLog(result.message);
+    notifyListeners();
+    return result.dispatched;
+  }
+
+  Future<bool> _failoverAgentProviderForSuggestion(
+    AgentIdeCommandSuggestion suggestion,
+  ) async {
+    final profileKey = suggestion.input?.trim() ?? '';
+    if (profileKey.isEmpty) {
+      const message =
+          'Agent provider failover skipped: missing provider profile id.';
+      _recordAgentIdeCommandResult(
+        suggestion,
+        applied: false,
+        message: message,
+        metadata: const <String, Object?>{'reason': 'missing-input'},
+      );
+      appendLog(message);
+      notifyListeners();
+      return false;
+    }
+    final result = await failoverAgentProviderProfile(profileKey);
+    final message =
+        result?.message ??
+        'Agent provider failover unavailable: no configurator is wired.';
+    _recordAgentIdeCommandResult(
+      suggestion,
+      applied: result?.mounted ?? false,
+      message: message,
+      metadata: <String, Object?>{
+        'targetProviderProfileId': result?.profile.profileId,
+        'targetProviderProfileKey': profileKey,
+        'adapterKind': result?.adapterKind.wireValue,
+        'adapterId': result?.adapterId,
+        'retryEnabled': result?.retryEnabled,
+      },
+    );
+    notifyListeners();
+    return result?.mounted ?? false;
+  }
+
   void _publishAgentProviderRetryTelemetry(
     AgentProviderRequest request,
     AgentProviderRetryExecution<AgentProviderResponseEnvelope> execution,
@@ -5666,19 +5736,16 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
         return;
       case AppCommandId.retryAgentProvider:
-      case AppCommandId.replayAgentPrompt:
-        final message =
-            '${StyioCommandRegistry.descriptorFor(commandId).label} prepared; TODO: bind Agent recovery command execution.';
-        _recordAgentIdeCommandResult(
-          AgentIdeCommandSuggestion(commandId: commandId.name),
-          applied: false,
-          message: message,
-          metadata: const <String, Object?>{
-            'TODO':
-                'Bind Agent recovery command execution to provider retry/replay controls.',
-          },
+        await _dispatchAgentRecoveryCommand(
+          suggestion: AgentIdeCommandSuggestion(commandId: commandId.name),
+          action: AgentCodingSessionRecoveryAction.retrySameProvider,
         );
-        appendLog(message);
+        return;
+      case AppCommandId.replayAgentPrompt:
+        await _dispatchAgentRecoveryCommand(
+          suggestion: AgentIdeCommandSuggestion(commandId: commandId.name),
+          action: AgentCodingSessionRecoveryAction.replayPrompt,
+        );
         return;
       case AppCommandId.failoverAgentProvider:
         appendLog('Fail Over Agent Provider requires caller-provided input.');

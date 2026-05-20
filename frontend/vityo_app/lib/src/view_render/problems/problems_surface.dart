@@ -23,6 +23,7 @@ class ProblemsSurface extends StatefulWidget {
     this.onPreviewWorkspaceQuickFix,
     this.onApplyWorkspaceQuickFix,
     this.workspaceEditReviewControls,
+    this.workspaceEditApplyResult,
     this.quickFixReviewPlan,
     this.diagnosticsPanelState,
     this.onDiagnosticsPanelStateChanged,
@@ -46,6 +47,7 @@ class ProblemsSurface extends StatefulWidget {
   final Future<void> Function()? onPreviewWorkspaceQuickFix;
   final Future<void> Function()? onApplyWorkspaceQuickFix;
   final WorkspaceEditReviewControls? workspaceEditReviewControls;
+  final WorkspaceEditApplyResultViewModel? workspaceEditApplyResult;
   final WorkspaceQuickFixReviewPlan? quickFixReviewPlan;
   final DiagnosticsPanelState? diagnosticsPanelState;
   final ValueChanged<DiagnosticsPanelState>? onDiagnosticsPanelStateChanged;
@@ -262,6 +264,12 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                     onCancel: widget.onCancelWorkspaceEdit,
                   ),
                 ],
+                if (widget.workspaceEditApplyResult != null) ...[
+                  const SizedBox(height: 12),
+                  _WorkspaceEditApplyResultCard(
+                    result: widget.workspaceEditApplyResult!,
+                  ),
+                ],
                 if (widget.quickFixReviewPlan != null) ...[
                   const SizedBox(height: 12),
                   _WorkspaceQuickFixReviewCard(
@@ -467,6 +475,82 @@ class _ProblemQuickFixSelection extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkspaceEditApplyResultCard extends StatelessWidget {
+  const _WorkspaceEditApplyResultCard({required this.result});
+
+  final WorkspaceEditApplyResultViewModel result;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = switch (result.status) {
+      WorkspaceEditReviewResultStatus.applied => theme.colorScheme.primary,
+      WorkspaceEditReviewResultStatus.canceled => theme.colorScheme.secondary,
+      WorkspaceEditReviewResultStatus.blocked => theme.colorScheme.tertiary,
+      WorkspaceEditReviewResultStatus.failed => theme.colorScheme.error,
+    };
+    return Container(
+      key: const ValueKey('problems-workspace-edit-apply-result'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.32)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(result.title, style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            '${result.status.wireValue} · ${result.source.wireValue} · '
+            '${result.affectedDocumentCount} affected document(s) · '
+            '${result.appliedEditCount} applied edit(s)',
+            key: const ValueKey('problems-workspace-edit-apply-result-summary'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            result.message,
+            key: const ValueKey('problems-workspace-edit-apply-result-message'),
+            style: theme.textTheme.bodySmall,
+          ),
+          if (result.rollbackApplied) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Rollback was applied.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+          if (result.appliedDocumentIds.isNotEmpty ||
+              result.createdDocumentIds.isNotEmpty ||
+              result.deletedDocumentIds.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final documentId in result.appliedDocumentIds.take(4))
+                  Chip(label: Text('applied $documentId')),
+                for (final documentId in result.createdDocumentIds.take(4))
+                  Chip(label: Text('created $documentId')),
+                for (final documentId in result.deletedDocumentIds.take(4))
+                  Chip(label: Text('deleted $documentId')),
+              ],
+            ),
+          ],
         ],
       ),
     );

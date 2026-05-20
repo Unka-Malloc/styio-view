@@ -400,6 +400,72 @@ void main() {
     expect(canceledControls?.confirmationPlan.planId, 'ready-fix');
   });
 
+  testWidgets('problems surface renders workspace edit apply result', (
+    tester,
+  ) async {
+    const preview = WorkspaceEditPreview(
+      planId: 'applied-fix',
+      summary: 'Apply project fix',
+      source: WorkspaceEditSource.codeAction,
+      documents: <WorkspaceEditDocumentPreview>[
+        WorkspaceEditDocumentPreview(
+          documentId: 'src/main.styio',
+          revision: 1,
+          beforeText: 'old',
+          afterText: 'new',
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 0, end: 3),
+              newText: 'new',
+            ),
+          ],
+        ),
+      ],
+    );
+    final confirmation = WorkspaceEditConfirmationPlan.fromPreview(preview);
+    final result = WorkspaceEditApplyResultViewModel.fromTelemetry(
+      confirmationPlan: confirmation,
+      telemetry: WorkspaceEditReviewResultTelemetry.fromApplicationResult(
+        confirmationPlan: confirmation,
+        result: const WorkspaceEditApplicationResult(
+          applied: true,
+          message: 'Applied project fix.',
+          appliedEditCount: 1,
+          appliedDocumentIds: <String>['src/main.styio'],
+        ),
+        recordedAt: DateTime.utc(2026, 5, 20),
+      ),
+      diffWindow: preview.diffWindow(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProblemsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            documentId: 'src/main.styio',
+            diagnostics: const <Diagnostic>[],
+            workspaceEditApplyResult: result,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('problems-workspace-edit-apply-result')),
+      findsOneWidget,
+    );
+    expect(find.text('Workspace edit applied'), findsOneWidget);
+    expect(find.textContaining('applied · code-action'), findsOneWidget);
+    expect(find.textContaining('1 affected document'), findsOneWidget);
+    expect(find.text('Applied project fix.'), findsOneWidget);
+    expect(find.text('applied src/main.styio'), findsOneWidget);
+  });
+
   testWidgets('problems surface binds quick-fix review diff apply controls', (
     tester,
   ) async {

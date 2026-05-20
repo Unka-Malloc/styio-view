@@ -572,6 +572,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   AgentWorkspaceSymbolSearchResultContext? _lastAgentWorkspaceSymbolSearch;
   AgentCommandResultContext? _lastAgentIdeCommandResult;
   WorkspaceEditPreview? _lastWorkspaceEditPreview;
+  WorkspaceEditApplyResultViewModel? _lastWorkspaceEditApplyResult;
   WorkspaceReplacePreview? _lastWorkspaceReplacePreview;
   final List<AgentCommandResultContext> _agentIdeCommandResults =
       <AgentCommandResultContext>[];
@@ -1098,6 +1099,7 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
     if (fixes.isEmpty) {
       _lastWorkspaceEditPreview = null;
+      _lastWorkspaceEditApplyResult = null;
       appendLog(
         'Project workspace quick fix preview skipped: no deterministic fix.',
       );
@@ -1108,6 +1110,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       fixes.first,
     ).preview(documents);
     _lastWorkspaceEditPreview = preview;
+    _lastWorkspaceEditApplyResult = null;
     appendLog(
       'Project workspace quick fix previewed: ${preview.summary} '
       '(${preview.editCount} edit(s)).',
@@ -1117,9 +1120,11 @@ class ShellRuntimeModel extends ChangeNotifier {
   }
 
   Future<bool> _applyProjectWorkspaceFix(StyioProjectWorkspaceFix fix) async {
-    _lastWorkspaceEditPreview = _workspaceEditPlanForProjectFix(
-      fix,
-    ).preview(_agentWorkspaceDocumentSamples);
+    final plan = _workspaceEditPlanForProjectFix(fix);
+    final preview = plan.preview(_agentWorkspaceDocumentSamples);
+    final confirmationPlan = WorkspaceEditConfirmationPlan.fromPreview(preview);
+    _lastWorkspaceEditPreview = preview;
+    _lastWorkspaceEditApplyResult = null;
     final activeDocumentId = editorController.document.documentId;
     final activeEdits =
         fix.editsByDocument[activeDocumentId] ?? const <FormattingEdit>[];
@@ -1128,6 +1133,15 @@ class ShellRuntimeModel extends ChangeNotifier {
       edits: activeEdits,
     );
     if (normalizedActiveEdits.length != activeEdits.length) {
+      _recordWorkspaceEditApplyResult(
+        confirmationPlan: confirmationPlan,
+        preview: preview,
+        result: const WorkspaceEditApplicationResult(
+          applied: false,
+          message:
+              'Project workspace quick fix skipped: active document edits are invalid or overlapping.',
+        ),
+      );
       appendLog(
         'Project workspace quick fix skipped: active document edits are invalid or overlapping.',
       );
@@ -1143,6 +1157,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
 
     var inactiveEditCount = 0;
+    var appliedInactiveDocumentIds = const <String>[];
     if (inactiveEditsByDocument.isNotEmpty) {
       final result =
           await WorkspaceEditApplier(
@@ -1157,11 +1172,17 @@ class ShellRuntimeModel extends ChangeNotifier {
             ),
           );
       if (!result.applied) {
+        _recordWorkspaceEditApplyResult(
+          confirmationPlan: confirmationPlan,
+          preview: preview,
+          result: result,
+        );
         appendLog('Project workspace quick fix skipped: ${result.message}');
         notifyListeners();
         return false;
       }
       inactiveEditCount = result.appliedEditCount;
+      appliedInactiveDocumentIds = result.appliedDocumentIds;
       for (final documentId in result.appliedDocumentIds) {
         _documentCache.remove(documentId);
         _documentCursorOffsets.remove(documentId);
@@ -1175,11 +1196,44 @@ class ShellRuntimeModel extends ChangeNotifier {
       _dirtyDocumentPaths.add(activeDocumentId);
     }
     final editCount = inactiveEditCount + normalizedActiveEdits.length;
-    appendLog(
-      'Project workspace quick fix applied: ${fix.label} ($editCount edit(s)).',
+    final appliedDocumentIds = <String>{
+      ...appliedInactiveDocumentIds,
+      if (normalizedActiveEdits.isNotEmpty) activeDocumentId,
+    }.toList(growable: false)..sort();
+    final applicationResult = WorkspaceEditApplicationResult(
+      applied: editCount > 0,
+      message:
+          'Project workspace quick fix applied: ${fix.label} ($editCount edit(s)).',
+      appliedEditCount: editCount,
+      appliedDocumentIds: appliedDocumentIds,
     );
+    _recordWorkspaceEditApplyResult(
+      confirmationPlan: confirmationPlan,
+      preview: preview,
+      result: applicationResult,
+    );
+    appendLog(applicationResult.message);
     notifyListeners();
     return editCount > 0;
+  }
+
+  void _recordWorkspaceEditApplyResult({
+    required WorkspaceEditConfirmationPlan confirmationPlan,
+    required WorkspaceEditPreview preview,
+    required WorkspaceEditApplicationResult result,
+  }) {
+    _lastWorkspaceEditApplyResult =
+        WorkspaceEditApplyResultViewModel.fromTelemetry(
+          confirmationPlan: confirmationPlan,
+          telemetry: WorkspaceEditReviewResultTelemetry.fromApplicationResult(
+            confirmationPlan: confirmationPlan,
+            result: result,
+          ),
+          diffWindow: preview.diffWindow(
+            documentLimit: 3,
+            fileOperationLimit: 3,
+          ),
+        );
   }
 
   WorkspaceEditPlan _workspaceEditPlanForProjectFix(
@@ -1288,6 +1342,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastCloseRequestResult;
   WorkspaceEditPreview? get lastWorkspaceEditPreview =>
       _lastWorkspaceEditPreview;
+  WorkspaceEditApplyResultViewModel? get lastWorkspaceEditApplyResult =>
+      _lastWorkspaceEditApplyResult;
   WorkspaceReplacePreview? get lastWorkspaceReplacePreview =>
       _lastWorkspaceReplacePreview;
   EditorCloseRequestSurface? get closeRequestSurface {

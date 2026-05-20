@@ -380,7 +380,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        45,
+        48,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],
@@ -870,6 +870,15 @@ void main() {
 
     await commandShell.executeCommand(AppCommandId.applyQuickFix);
 
+    expect(commandShell.lastWorkspaceEditApplyResult?.successful, isTrue);
+    expect(
+      commandShell.lastWorkspaceEditApplyResult?.appliedEditCount,
+      greaterThan(0),
+    );
+    expect(
+      commandShell.lastWorkspaceEditApplyResult?.appliedDocumentIds,
+      contains(mainPath),
+    );
     expect(commandShell.editorController.document.text, contains('@import'));
     expect(
       '@import'.allMatches(commandShell.editorController.document.text),

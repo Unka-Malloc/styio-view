@@ -14,6 +14,17 @@ extension TestRunStatusWire on TestRunStatus {
   }
 }
 
+TestRunStatus testRunStatusFromWireValue(String? value) {
+  return switch (value) {
+    'passed' => TestRunStatus.passed,
+    'failed' => TestRunStatus.failed,
+    'skipped' => TestRunStatus.skipped,
+    'error' => TestRunStatus.error,
+    'not-run' => TestRunStatus.notRun,
+    _ => TestRunStatus.notRun,
+  };
+}
+
 class TestRunRequest {
   const TestRunRequest({
     required this.workspaceRoot,
@@ -221,6 +232,16 @@ class TestCaseResult {
   final int? durationMs;
   final String message;
 
+  factory TestCaseResult.fromJson(Map<String, Object?> json) {
+    return TestCaseResult(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      status: testRunStatusFromWireValue(json['status'] as String?),
+      durationMs: json['durationMs'] as int?,
+      message: json['message'] as String? ?? '',
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       if (id.isNotEmpty) 'id': id,
@@ -256,6 +277,39 @@ class TestRunResult {
   final int skippedCount;
   final List<TestCaseResult> cases;
   final Map<String, Object?> metadata;
+
+  factory TestRunResult.fromJson(Map<String, Object?> json) {
+    final cases = json['cases'];
+    final metadata = json['metadata'];
+    return TestRunResult(
+      providerId: json['providerId'] as String? ?? '',
+      runner: json['runner'] as String? ?? '',
+      status: testRunStatusFromWireValue(json['status'] as String?),
+      message: json['message'] as String? ?? '',
+      totalCount: json['totalCount'] as int? ?? 0,
+      passedCount: json['passedCount'] as int? ?? 0,
+      failedCount: json['failedCount'] as int? ?? 0,
+      skippedCount: json['skippedCount'] as int? ?? 0,
+      cases: cases is List
+          ? cases
+                .whereType<Map>()
+                .map(
+                  (testCase) => TestCaseResult.fromJson(
+                    testCase.map(
+                      (key, value) =>
+                          MapEntry<String, Object?>(key.toString(), value),
+                    ),
+                  ),
+                )
+                .toList(growable: false)
+          : const <TestCaseResult>[],
+      metadata: metadata is Map
+          ? metadata.map(
+              (key, value) => MapEntry<String, Object?>(key.toString(), value),
+            )
+          : const <String, Object?>{},
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{

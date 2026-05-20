@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/testing/testing.dart';
@@ -290,6 +293,75 @@ void main() {
     expect(notifications, 2);
   });
 
+  test('test run history store persists structured run results', () async {
+    final store = TestRunHistoryStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+    const result = TestRunResult(
+      providerId: 'ctest',
+      runner: 'ctest',
+      status: TestRunStatus.failed,
+      message: 'One failed.',
+      totalCount: 2,
+      passedCount: 1,
+      failedCount: 1,
+      cases: <TestCaseResult>[
+        TestCaseResult(
+          id: 'parser.syntax',
+          name: 'parser syntax',
+          status: TestRunStatus.failed,
+          message: 'Unexpected token.',
+        ),
+      ],
+    );
+
+    await store.appendRun(workspaceId: 'demo', result: result);
+    final restored = await store.readHistory(workspaceId: 'demo');
+
+    expect(restored.workspaceId, 'demo');
+    expect(restored.runs.single.providerId, 'ctest');
+    expect(restored.runs.single.status, TestRunStatus.failed);
+    expect(restored.runs.single.failedTests.single['id'], 'parser.syntax');
+    expect(await store.deleteHistory(workspaceId: 'demo'), isTrue);
+    expect((await store.readHistory(workspaceId: 'demo')).runs, isEmpty);
+  });
+
+  test('testing session controller persists and reloads run history', () async {
+    final store = TestRunHistoryStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+    final controller = TestingSessionController(
+      testRunHistoryStore: store,
+      testRunHistoryWorkspaceId: 'demo',
+      runProvider: const StaticTestRunProvider(
+        providerId: 'static-runner',
+        result: TestRunResult(
+          providerId: 'static-runner',
+          runner: 'fixture',
+          status: TestRunStatus.passed,
+          message: 'Fixture tests passed.',
+          totalCount: 1,
+          passedCount: 1,
+        ),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    final run = await controller.run(
+      const TestRunRequest(workspaceRoot: '/workspace/vityo'),
+    );
+    final restoredController = TestingSessionController(
+      testRunHistoryStore: store,
+      testRunHistoryWorkspaceId: 'demo',
+    );
+    addTearDown(restoredController.dispose);
+    await restoredController.loadRunHistory();
+
+    expect(run.status, TestRunStatus.passed);
+    expect(restoredController.runHistory.single.providerId, 'static-runner');
+    expect(restoredController.lastRun?.message, 'Fixture tests passed.');
+  });
+
   test('test discovery result counts nested test tree', () {
     const result = TestDiscoveryResult(
       providerId: 'static',
@@ -393,6 +465,27 @@ The following tests FAILED:
     expect(json['failedTests'], isNotEmpty);
     expect(json['metadata'], <String, Object?>{'exitCode': 8});
   });
+}
+
+Future<FoundationDataStore> _createDataStore() async {
+  final tempRoot = await Directory.systemTemp.createTemp(
+    'vityo_test_run_history_test_',
+  );
+  addTearDown(() => tempRoot.delete(recursive: true));
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: tempRoot.path,
+      homePath: tempRoot.path,
+    ),
+  );
+  return FoundationDataStore(
+    resourceCoordinator: FoundationResourceCoordinator(
+      resourceManager: resourceManager,
+      fileSystemManager: fileSystemManager,
+    ),
+    fileSystemManager: fileSystemManager,
+  );
 }
 
 class _CapturingTestRunProvider extends TestRunProvider {

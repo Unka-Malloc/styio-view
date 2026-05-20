@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../runtime/runtime.dart';
+import 'test_run_history_store.dart';
 import 'testing_provider.dart';
 
 class TestingSessionController extends ChangeNotifier {
@@ -10,18 +13,25 @@ class TestingSessionController extends ChangeNotifier {
     this.rerunPlanner = const FailedTestRerunPlanner(),
     RuntimeTaskLifecycleController? runtimeTaskLifecycleController,
     RuntimeTaskHistoryStore? runtimeTaskHistoryStore,
+    TestRunHistoryStore? testRunHistoryStore,
     this.runtimeTaskHistoryWorkspaceId = 'default',
     this.runtimeTaskHistoryMaxEntries = 50,
+    this.testRunHistoryWorkspaceId = 'default',
+    this.testRunHistoryMaxEntries = 30,
   }) : _runtimeTaskLifecycleController = runtimeTaskLifecycleController,
-       _runtimeTaskHistoryStore = runtimeTaskHistoryStore;
+       _runtimeTaskHistoryStore = runtimeTaskHistoryStore,
+       _testRunHistoryStore = testRunHistoryStore;
 
   final TestDiscoveryProvider? discoveryProvider;
   final TestRunProvider? runProvider;
   final FailedTestRerunPlanner rerunPlanner;
   final RuntimeTaskLifecycleController? _runtimeTaskLifecycleController;
   final RuntimeTaskHistoryStore? _runtimeTaskHistoryStore;
+  final TestRunHistoryStore? _testRunHistoryStore;
   final String runtimeTaskHistoryWorkspaceId;
   final int runtimeTaskHistoryMaxEntries;
+  final String testRunHistoryWorkspaceId;
+  final int testRunHistoryMaxEntries;
 
   TestDiscoveryResult? _discovery;
   TestRunResult? _lastRun;
@@ -52,6 +62,22 @@ class TestingSessionController extends ChangeNotifier {
     _runGeneration++;
     _lastRuntimeTask = null;
     _storeRunResult(result);
+    unawaited(_persistTestRunResult(result));
+    notifyListeners();
+  }
+
+  Future<void> loadRunHistory() async {
+    final store = _testRunHistoryStore;
+    if (store == null) {
+      return;
+    }
+    final history = await store.readHistory(
+      workspaceId: testRunHistoryWorkspaceId,
+    );
+    _runHistory
+      ..clear()
+      ..addAll(history.runs.take(20));
+    _lastRun = _runHistory.isEmpty ? null : _runHistory.first;
     notifyListeners();
   }
 
@@ -114,7 +140,7 @@ class TestingSessionController extends ChangeNotifier {
         ),
         finishedTask,
       );
-      _storeRun(result, generation);
+      await _storeRun(result, generation);
       return result;
     }
 
@@ -127,7 +153,7 @@ class TestingSessionController extends ChangeNotifier {
       );
       await _persistRuntimeTask(finishedTask);
       final result = _attachRuntimeTask(providerResult, finishedTask);
-      _storeRun(result, generation);
+      await _storeRun(result, generation);
       return result;
     } on Object catch (error) {
       final finishedTask = _finishRuntimeTask(
@@ -146,7 +172,7 @@ class TestingSessionController extends ChangeNotifier {
         ),
         finishedTask,
       );
-      _storeRun(result, generation);
+      await _storeRun(result, generation);
       return result;
     }
   }
@@ -171,6 +197,7 @@ class TestingSessionController extends ChangeNotifier {
         runtimeTask,
       );
       _storeRunResult(result);
+      await _persistTestRunResult(result);
       notifyListeners();
       return result;
     }
@@ -201,6 +228,7 @@ class TestingSessionController extends ChangeNotifier {
             'TODO: preserve provider-specific failed test identifiers.',
       );
       _storeRunResult(result);
+      await _persistTestRunResult(result);
       notifyListeners();
       return result;
     }
@@ -230,11 +258,12 @@ class TestingSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _storeRun(TestRunResult result, int generation) {
+  Future<void> _storeRun(TestRunResult result, int generation) async {
     if (generation != _runGeneration) {
       return;
     }
     _storeRunResult(result);
+    await _persistTestRunResult(result);
     notifyListeners();
   }
 
@@ -382,6 +411,18 @@ class TestingSessionController extends ChangeNotifier {
       workspaceId: runtimeTaskHistoryWorkspaceId,
       task: runtimeTask,
       maxEntries: runtimeTaskHistoryMaxEntries,
+    );
+  }
+
+  Future<void> _persistTestRunResult(TestRunResult result) async {
+    final store = _testRunHistoryStore;
+    if (store == null) {
+      return;
+    }
+    await store.appendRun(
+      workspaceId: testRunHistoryWorkspaceId,
+      result: result,
+      maxEntries: testRunHistoryMaxEntries,
     );
   }
 }

@@ -231,6 +231,24 @@ void main() {
     String? previewQuery;
     String? previewReplacement;
     WorkspaceReplacePreview? appliedPreview;
+    const replacePreview = WorkspaceReplacePreview(
+      documents: <WorkspaceReplacePreviewDocument>[
+        WorkspaceReplacePreviewDocument(
+          documentId: 'src/main.styio',
+          beforeText: 'needle := 1\n',
+          afterText: 'value := 1\n',
+          replacementCount: 1,
+          revision: 1,
+        ),
+        WorkspaceReplacePreviewDocument(
+          documentId: 'src/lib.styio',
+          beforeText: 'needle := 2\n',
+          afterText: 'value := 2\n',
+          replacementCount: 1,
+          revision: 2,
+        ),
+      ],
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -242,17 +260,8 @@ void main() {
               height: 800,
             ),
             workspaceFileCount: 1,
-            lastReplacePreview: const WorkspaceReplacePreview(
-              documents: <WorkspaceReplacePreviewDocument>[
-                WorkspaceReplacePreviewDocument(
-                  documentId: 'src/main.styio',
-                  beforeText: 'needle := 1\n',
-                  afterText: 'value := 1\n',
-                  replacementCount: 1,
-                  revision: 1,
-                ),
-              ],
-            ),
+            lastReplacePreview: replacePreview,
+            lastReplacePreviewWindow: replacePreview.window(documentLimit: 1),
             onPreviewReplace: (query, replacement) async {
               previewQuery = query;
               previewReplacement = replacement;
@@ -284,8 +293,12 @@ void main() {
       find.byKey(const ValueKey('workspace-replace-preview')),
       findsOneWidget,
     );
-    expect(find.text('replacements 1'), findsOneWidget);
+    expect(find.text('replacements 2'), findsOneWidget);
+    expect(find.text('documents 2'), findsOneWidget);
+    expect(find.text('replace-window 0-1/2'), findsOneWidget);
+    expect(find.text('has more documents'), findsOneWidget);
     expect(find.text('src/main.styio'), findsOneWidget);
+    expect(find.text('src/lib.styio'), findsNothing);
     expect(find.text('Before: needle := 1'), findsOneWidget);
     expect(find.text('After: value := 1'), findsOneWidget);
 
@@ -294,7 +307,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(appliedPreview?.replacementCount, 1);
-    expect(appliedPreview?.documents.single.documentId, 'src/main.styio');
+    expect(appliedPreview?.replacementCount, 2);
+    expect(appliedPreview?.documents.first.documentId, 'src/main.styio');
   });
 }

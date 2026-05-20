@@ -62,6 +62,43 @@ void main() {
     expect(result.truncated, isTrue);
   });
 
+  test('workspace replace preview exposes virtualized document windows', () {
+    const preview = WorkspaceReplacePreview(
+      documents: <WorkspaceReplacePreviewDocument>[
+        WorkspaceReplacePreviewDocument(
+          documentId: 'src/a.styio',
+          beforeText: 'needle\n',
+          afterText: 'value\n',
+          replacementCount: 1,
+          revision: 1,
+        ),
+        WorkspaceReplacePreviewDocument(
+          documentId: 'src/b.styio',
+          beforeText: 'needle\n',
+          afterText: 'value\n',
+          replacementCount: 1,
+          revision: 2,
+        ),
+        WorkspaceReplacePreviewDocument(
+          documentId: 'src/c.styio',
+          beforeText: 'needle\n',
+          afterText: 'value\n',
+          replacementCount: 1,
+          revision: 3,
+        ),
+      ],
+    );
+
+    final window = preview.window(documentOffset: 1, documentLimit: 1);
+    final json = window.toJson();
+
+    expect(window.documents.single.documentId, 'src/b.styio');
+    expect(window.hasPreviousDocuments, isTrue);
+    expect(window.hasMoreDocuments, isTrue);
+    expect(json['documentOffset'], 1);
+    expect(json['windowDocumentCount'], 1);
+  });
+
   test(
     'workspace symbol search scans semantic snapshots across documents',
     () async {

@@ -500,6 +500,66 @@ class WorkspaceReplacePreview {
     0,
     (total, document) => total + document.replacementCount,
   );
+
+  WorkspaceReplacePreviewWindow window({
+    int documentOffset = 0,
+    int documentLimit = 20,
+  }) {
+    final normalizedOffset = documentOffset.clamp(0, documents.length).toInt();
+    final normalizedLimit = documentLimit <= 0 ? 20 : documentLimit;
+    final endOffset = (normalizedOffset + normalizedLimit).clamp(
+      normalizedOffset,
+      documents.length,
+    ).toInt();
+    return WorkspaceReplacePreviewWindow(
+      documentOffset: normalizedOffset,
+      documentLimit: normalizedLimit,
+      totalDocumentCount: documents.length,
+      documents: documents
+          .sublist(normalizedOffset, endOffset)
+          .toList(growable: false),
+    );
+  }
+}
+
+class WorkspaceReplacePreviewWindow {
+  const WorkspaceReplacePreviewWindow({
+    required this.documentOffset,
+    required this.documentLimit,
+    required this.totalDocumentCount,
+    required this.documents,
+  });
+
+  final int documentOffset;
+  final int documentLimit;
+  final int totalDocumentCount;
+  final List<WorkspaceReplacePreviewDocument> documents;
+
+  int get endDocumentOffset => documentOffset + documents.length;
+  bool get hasPreviousDocuments => documentOffset > 0;
+  bool get hasMoreDocuments => endDocumentOffset < totalDocumentCount;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'documentOffset': documentOffset,
+      'documentLimit': documentLimit,
+      'endDocumentOffset': endDocumentOffset,
+      'totalDocumentCount': totalDocumentCount,
+      'windowDocumentCount': documents.length,
+      'hasPreviousDocuments': hasPreviousDocuments,
+      'hasMoreDocuments': hasMoreDocuments,
+      'documents': documents
+          .map(
+            (document) => <String, Object?>{
+              'documentId': document.documentId,
+              'replacementCount': document.replacementCount,
+              'revision': document.revision,
+              'changed': document.changed,
+            },
+          )
+          .toList(growable: false),
+    };
+  }
 }
 
 class WorkspaceQuickOpenMatch {

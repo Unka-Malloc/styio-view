@@ -13,6 +13,7 @@ class WorkspaceSearchSurface extends StatefulWidget {
     this.lastSearch,
     this.lastSymbolSearch,
     this.lastReplacePreview,
+    this.lastReplacePreviewWindow,
     this.searchIndex,
     this.searchHistory,
     this.searchFilters,
@@ -30,6 +31,7 @@ class WorkspaceSearchSurface extends StatefulWidget {
   final AgentWorkspaceSearchResultContext? lastSearch;
   final AgentWorkspaceSymbolSearchResultContext? lastSymbolSearch;
   final WorkspaceReplacePreview? lastReplacePreview;
+  final WorkspaceReplacePreviewWindow? lastReplacePreviewWindow;
   final WorkspaceSearchIndex? searchIndex;
   final WorkspaceSearchHistory? searchHistory;
   final WorkspaceSearchFilterState? searchFilters;
@@ -179,7 +181,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Text and symbol search entry for workspace-wide edits, quick navigation, indexed search summaries, persisted history, persisted result filters, and agent-confirmed code changes. TODO: add virtualized multi-file diff expansion.',
+              'Text and symbol search entry for workspace-wide edits, quick navigation, indexed search summaries, persisted history, persisted result filters, virtualized replace-preview windows, and agent-confirmed code changes. TODO: persist multi-file diff expansion state.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -293,6 +295,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
               const SizedBox(height: 10),
               _WorkspaceReplacePreviewView(
                 preview: widget.lastReplacePreview!,
+                window: widget.lastReplacePreviewWindow,
                 applying: _applyingReplace,
                 onApply: widget.onApplyReplacePreview == null
                     ? null
@@ -485,17 +488,20 @@ class _WorkspaceSymbolSearchResultView extends StatelessWidget {
 class _WorkspaceReplacePreviewView extends StatelessWidget {
   const _WorkspaceReplacePreviewView({
     required this.preview,
+    this.window,
     required this.applying,
     required this.onApply,
   });
 
   final WorkspaceReplacePreview preview;
+  final WorkspaceReplacePreviewWindow? window;
   final bool applying;
   final Future<void> Function()? onApply;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final activeWindow = window ?? preview.window();
     return Column(
       key: const ValueKey('workspace-replace-preview'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,6 +512,15 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
           children: [
             Chip(label: Text('replacements ${preview.replacementCount}')),
             Chip(label: Text('documents ${preview.documents.length}')),
+            Chip(
+              label: Text(
+                'replace-window ${activeWindow.documentOffset}-${activeWindow.endDocumentOffset}/${activeWindow.totalDocumentCount}',
+              ),
+            ),
+            if (activeWindow.hasPreviousDocuments)
+              const Chip(label: Text('has previous documents')),
+            if (activeWindow.hasMoreDocuments)
+              const Chip(label: Text('has more documents')),
             Chip(label: Text('failures ${preview.failures.length}')),
             Chip(label: Text('truncated ${preview.truncated}')),
           ],
@@ -547,10 +562,10 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
             height: 96,
             child: ListView.separated(
               key: const ValueKey('workspace-replace-preview-list'),
-              itemCount: preview.documents.length,
+              itemCount: activeWindow.documents.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
-                final document = preview.documents[index];
+                final document = activeWindow.documents[index];
                 return ListTile(
                   dense: true,
                   title: Text(document.documentId),

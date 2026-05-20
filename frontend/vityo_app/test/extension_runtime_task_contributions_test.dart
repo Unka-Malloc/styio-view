@@ -53,6 +53,67 @@ void main() {
     },
   );
 
+  test(
+    'extension runtime task execution bridge dispatches contribution routes',
+    () {
+      final registry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'styio.tasks',
+            displayName: 'Styio Tasks',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'tasks.dart',
+            trustedByDefault: true,
+            contributions: <ExtensionContributionPoint>[
+              ExtensionContributionPoint(
+                kind: ExtensionContributionKind.task,
+                id: 'styio.build',
+                target: 'runtime.tasks',
+                title: 'Build Styio',
+                metadata: <String, Object?>{
+                  'taskId': 'build.styio',
+                  'kind': 'build',
+                  'command': 'ninja',
+                  'arguments': <String>['-C', 'build'],
+                },
+              ),
+            ],
+          ),
+        );
+      final routes = const ExtensionContributionRouter().routeRegistry(
+        registry,
+      );
+      final catalog = ExtensionRuntimeTaskContributionCatalog.fromRoutes(
+        routes,
+      );
+      final plan = ExtensionRuntimeTaskExecutionPlan.fromContribution(
+        catalog.contributions.single,
+      );
+      final buffer = RuntimeOutputLiveBuffer();
+
+      final dispatch = ExtensionRuntimeTaskExecutionBridge()
+          .dispatchToLiveBuffer(
+            plan: plan,
+            buffer: buffer,
+            timestamp: DateTime.utc(2026, 5, 20, 19),
+          );
+
+      expect(plan.ready, isTrue);
+      expect(plan.binding.managerId, 'toolchain-manager');
+      expect(
+        plan.binding.outputChannel.kind,
+        RuntimeOutputChannelKind.nativeTools,
+      );
+      expect(dispatch.status, RuntimeExecutionDispatchStatus.dispatched);
+      expect(
+        buffer.snapshot.visibleEvents.single.metadata['extensionId'],
+        'styio.tasks',
+      );
+      expect(plan.toJson()['ready'], isTrue);
+    },
+  );
+
   test('extension runtime task catalog reports missing command metadata', () {
     final route = const ExtensionContributionRouter().routeContribution(
       extensionId: 'broken.tasks',

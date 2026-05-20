@@ -1,4 +1,6 @@
 import '../module_host/module_host.dart';
+import 'runtime_execution_plan.dart';
+import 'runtime_output_channels.dart';
 import 'runtime_task_lifecycle.dart';
 
 enum ExtensionRuntimeTaskContributionStatus {
@@ -143,6 +145,112 @@ class ExtensionRuntimeTaskContributionCatalog {
   }
 }
 
+class ExtensionRuntimeTaskExecutionPlan {
+  const ExtensionRuntimeTaskExecutionPlan({
+    required this.contribution,
+    required this.executionPlan,
+    required this.handoff,
+    required this.binding,
+  });
+
+  factory ExtensionRuntimeTaskExecutionPlan.fromContribution(
+    ExtensionRuntimeTaskContribution contribution, {
+    String outputChannelId = '',
+  }) {
+    final definition = contribution.definition;
+    final executionPlan = definition == null
+        ? RuntimeExecutionPlan(
+            definition: RuntimeTaskDefinition(
+              id: contribution.contributionId,
+              label: contribution.contributionId,
+              kind: RuntimeTaskKind.run,
+              command: '',
+              metadata: <String, Object?>{
+                'extensionId': contribution.extensionId,
+                'contributionId': contribution.contributionId,
+              },
+            ),
+            status: RuntimeExecutionPlanStatus.blockedUnrunnable,
+            message: contribution.message,
+          )
+        : const RuntimeExecutionPlanner().plan(definition: definition);
+    final target = definition == null
+        ? RuntimeExecutionHandoffTarget.terminalRuntime
+        : _runtimeTaskHandoffTargetFromMetadata(definition);
+    final channelId = outputChannelId.trim().isEmpty
+        ? 'extension.task.${contribution.extensionId}.${contribution.contributionId}'
+        : outputChannelId.trim();
+    final handoff = executionPlan.createHandoff(
+      target: target,
+      outputChannelId: channelId,
+      metadata: <String, Object?>{
+        'extensionId': contribution.extensionId,
+        'contributionId': contribution.contributionId,
+        'extensionRuntimeTask': true,
+      },
+    );
+    final binding = handoff.bind(
+      outputKind: _runtimeOutputKindForTarget(target),
+      metadata: <String, Object?>{
+        'extensionId': contribution.extensionId,
+        'contributionId': contribution.contributionId,
+        'extensionRuntimeTask': true,
+      },
+    );
+    return ExtensionRuntimeTaskExecutionPlan(
+      contribution: contribution,
+      executionPlan: executionPlan,
+      handoff: handoff,
+      binding: binding,
+    );
+  }
+
+  final ExtensionRuntimeTaskContribution contribution;
+  final RuntimeExecutionPlan executionPlan;
+  final RuntimeExecutionHandoff handoff;
+  final RuntimeExecutionHandoffBinding binding;
+
+  bool get ready => contribution.ready && executionPlan.ready && binding.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'contribution': contribution.toJson(),
+      'executionPlan': executionPlan.toJson(),
+      'handoff': handoff.toJson(),
+      'binding': binding.toJson(),
+    };
+  }
+}
+
+class ExtensionRuntimeTaskExecutionBridge {
+  ExtensionRuntimeTaskExecutionBridge({
+    RuntimeExecutionManagerRegistry? registry,
+  }) : _registry =
+           registry ?? RuntimeExecutionManagerRegistry.defaultManagers();
+
+  final RuntimeExecutionManagerRegistry _registry;
+
+  RuntimeExecutionDispatchResult dispatchToLiveBuffer({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required RuntimeOutputLiveBuffer buffer,
+    required DateTime timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return _registry.dispatchToLiveBuffer(
+      plan.binding,
+      buffer: buffer,
+      timestamp: timestamp,
+      metadata: <String, Object?>{
+        'extensionId': plan.contribution.extensionId,
+        'contributionId': plan.contribution.contributionId,
+        'extensionRuntimeTask': true,
+        ...metadata,
+      },
+    );
+  }
+}
+
 RuntimeTaskKind _runtimeTaskKindFromMetadata(Map<String, Object?> metadata) {
   final value = _metadataString(metadata, 'kind');
   return switch (value) {
@@ -153,6 +261,43 @@ RuntimeTaskKind _runtimeTaskKindFromMetadata(Map<String, Object?> metadata) {
     'agent' => RuntimeTaskKind.agent,
     'toolchain' => RuntimeTaskKind.toolchain,
     _ => RuntimeTaskKind.run,
+  };
+}
+
+RuntimeExecutionHandoffTarget _runtimeTaskHandoffTargetFromMetadata(
+  RuntimeTaskDefinition definition,
+) {
+  final explicitTarget = _metadataString(definition.metadata, 'handoffTarget');
+  return switch (explicitTarget) {
+    'shell-manager' => RuntimeExecutionHandoffTarget.shellManager,
+    'terminal-runtime' => RuntimeExecutionHandoffTarget.terminalRuntime,
+    'toolchain-manager' => RuntimeExecutionHandoffTarget.toolchainManager,
+    'hosted-executor' => RuntimeExecutionHandoffTarget.hostedExecutor,
+    _ => switch (definition.kind) {
+      RuntimeTaskKind.shell => RuntimeExecutionHandoffTarget.shellManager,
+      RuntimeTaskKind.build ||
+      RuntimeTaskKind.test ||
+      RuntimeTaskKind.debug ||
+      RuntimeTaskKind.toolchain =>
+        RuntimeExecutionHandoffTarget.toolchainManager,
+      RuntimeTaskKind.run ||
+      RuntimeTaskKind.agent => RuntimeExecutionHandoffTarget.terminalRuntime,
+    },
+  };
+}
+
+RuntimeOutputChannelKind _runtimeOutputKindForTarget(
+  RuntimeExecutionHandoffTarget target,
+) {
+  return switch (target) {
+    RuntimeExecutionHandoffTarget.shellManager =>
+      RuntimeOutputChannelKind.stdout,
+    RuntimeExecutionHandoffTarget.terminalRuntime =>
+      RuntimeOutputChannelKind.runtimeEvents,
+    RuntimeExecutionHandoffTarget.toolchainManager =>
+      RuntimeOutputChannelKind.nativeTools,
+    RuntimeExecutionHandoffTarget.hostedExecutor =>
+      RuntimeOutputChannelKind.runtimeEvents,
   };
 }
 

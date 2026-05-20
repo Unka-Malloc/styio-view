@@ -1,5 +1,6 @@
 import '../backend_toolchain/execution_adapter.dart';
 import '../commands/app_commands.dart';
+import '../debugger/debug_launch_contract.dart';
 import '../editor/document_state.dart';
 import '../editor/selection_state.dart';
 import '../foundation/foundation.dart';
@@ -149,7 +150,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 45,
+      schemaVersion: 46,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -3904,6 +3905,7 @@ class AgentTestingContext {
     this.lastRun,
     this.rerunFailed,
     this.debugFailed,
+    this.debugFailedRoutePlan,
   });
 
   factory AgentTestingContext.fromState({
@@ -3912,6 +3914,11 @@ class AgentTestingContext {
     String workspaceRoot = '',
     FailedTestRerunPlanner rerunPlanner = const FailedTestRerunPlanner(),
   }) {
+    final debugFailed = rerunPlanner.plan(
+      lastRun: lastRun,
+      workspaceRoot: workspaceRoot,
+      debug: true,
+    );
     return AgentTestingContext(
       discovery: discovery,
       lastRun: lastRun,
@@ -3919,11 +3926,10 @@ class AgentTestingContext {
         lastRun: lastRun,
         workspaceRoot: workspaceRoot,
       ),
-      debugFailed: rerunPlanner.plan(
-        lastRun: lastRun,
-        workspaceRoot: workspaceRoot,
-        debug: true,
-      ),
+      debugFailed: debugFailed,
+      debugFailedRoutePlan: debugFailed == null
+          ? null
+          : const TestDebugLaunchRoutePlanner().plan(debugFailed),
     );
   }
 
@@ -3931,6 +3937,7 @@ class AgentTestingContext {
   final TestRunResult? lastRun;
   final TestRunConfiguration? rerunFailed;
   final TestRunConfiguration? debugFailed;
+  final DebugLaunchRoutePlan? debugFailedRoutePlan;
 
   bool get hasFailingTests {
     return lastRun != null &&
@@ -3946,6 +3953,8 @@ class AgentTestingContext {
       if (lastRun != null) 'lastRun': lastRun!.toJson(),
       if (rerunFailed != null) 'rerunFailed': rerunFailed!.toJson(),
       if (debugFailed != null) 'debugFailed': debugFailed!.toJson(),
+      if (debugFailedRoutePlan != null)
+        'debugFailedRoutePlan': debugFailedRoutePlan!.toJson(),
     };
   }
 }

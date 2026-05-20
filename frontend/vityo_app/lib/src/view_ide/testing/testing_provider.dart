@@ -1,4 +1,5 @@
 import '../foundation/foundation.dart';
+import '../debugger/debug_launch_contract.dart';
 import '../runtime/runtime.dart';
 
 enum TestRunStatus { passed, failed, skipped, error, notRun }
@@ -434,9 +435,183 @@ class FailedTestRerunPlanner {
       metadata: <String, Object?>{
         'failedCount': failedCases.length,
         'sourceRunProviderId': lastRun?.providerId,
+        ..._debugLaunchMetadataFrom(
+          lastRun?.metadata ?? const <String, Object?>{},
+        ),
       },
     );
   }
+}
+
+class TestDebugLaunchRoutePlanner {
+  const TestDebugLaunchRoutePlanner();
+
+  DebugLaunchRoutePlan plan(TestRunConfiguration configuration) {
+    final debugConfiguration = configuration.debug
+        ? configuration
+        : configuration.copyWith(debug: true);
+    final debuggerExecutablePath =
+        _metadataString(
+          debugConfiguration.metadata,
+          'debuggerExecutablePath',
+        ) ??
+        _metadataString(
+          debugConfiguration.metadata,
+          'debugAdapterExecutablePath',
+        );
+    final programPath = _resolveMetadataPath(
+      _metadataString(debugConfiguration.metadata, 'programPath') ??
+          _metadataString(debugConfiguration.metadata, 'testProgramPath'),
+      debugConfiguration.workspaceRoot,
+    );
+    final adapterProtocol =
+        _metadataString(debugConfiguration.metadata, 'adapterProtocol') ??
+        'dap';
+    final missingExecutable =
+        debuggerExecutablePath == null || debuggerExecutablePath.trim().isEmpty;
+    final missingProgram = programPath == null || programPath.trim().isEmpty;
+    final launch = DebugLaunchConfiguration(
+      readiness: missingExecutable || missingProgram
+          ? DebugLaunchReadiness.missingProgram
+          : DebugLaunchReadiness.ready,
+      reason: missingExecutable
+          ? 'Test debug launch blocked: debuggerExecutablePath is missing.'
+          : missingProgram
+          ? 'Test debug launch blocked: programPath is missing.'
+          : 'Test debug launch route is ready.',
+      debuggerId:
+          _metadataString(debugConfiguration.metadata, 'debuggerId') ??
+          'test-debug.${debugConfiguration.providerId}',
+      debuggerLabel:
+          _metadataString(debugConfiguration.metadata, 'debuggerLabel') ??
+          'Test Debug Adapter',
+      debuggerExecutablePath: debuggerExecutablePath ?? '',
+      debuggerArguments:
+          _metadataStringList(
+            debugConfiguration.metadata,
+            'debuggerArguments',
+          ) ??
+          _metadataStringList(
+            debugConfiguration.metadata,
+            'debugAdapterArguments',
+          ) ??
+          _metadataStringList(
+            debugConfiguration.metadata,
+            'adapterArguments',
+          ) ??
+          const <String>[],
+      adapterProtocol: adapterProtocol,
+      programPath: programPath,
+      cwd:
+          _resolveMetadataPath(
+            _metadataString(debugConfiguration.metadata, 'cwd'),
+            debugConfiguration.workspaceRoot,
+          ) ??
+          debugConfiguration.workspaceRoot,
+      arguments: <String>[
+        ...?_metadataStringList(debugConfiguration.metadata, 'arguments'),
+        ...?_metadataStringList(debugConfiguration.metadata, 'args'),
+        if (debugConfiguration.filter.trim().isNotEmpty)
+          '--test-filter=${debugConfiguration.filter.trim()}',
+      ],
+      environment: _metadataStringMap(
+        debugConfiguration.metadata,
+        'environment',
+      ),
+    );
+    return launch.toRoutePlan(
+      profileId: debugConfiguration.id.isEmpty
+          ? 'test-debug'
+          : 'test-debug.${debugConfiguration.id}',
+      taskId: debugConfiguration.id.isEmpty
+          ? 'debug.test'
+          : 'debug.test.${debugConfiguration.id}',
+      label: debugConfiguration.label,
+    );
+  }
+}
+
+Map<String, Object?> _debugLaunchMetadataFrom(Map<String, Object?> metadata) {
+  const keys = <String>{
+    'debuggerId',
+    'debuggerLabel',
+    'debuggerExecutablePath',
+    'debugAdapterExecutablePath',
+    'debuggerArguments',
+    'debugAdapterArguments',
+    'adapterArguments',
+    'adapterProtocol',
+    'programPath',
+    'testProgramPath',
+    'cwd',
+    'arguments',
+    'args',
+    'environment',
+  };
+  return <String, Object?>{
+    for (final entry in metadata.entries)
+      if (keys.contains(entry.key)) entry.key: entry.value,
+  };
+}
+
+String? _resolveMetadataPath(String? path, String workspaceRoot) {
+  if (path == null) {
+    return null;
+  }
+  final trimmed = path.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  if (trimmed.startsWith('/') ||
+      RegExp(r'^[A-Za-z]:[\\/]').hasMatch(trimmed) ||
+      workspaceRoot.trim().isEmpty) {
+    return trimmed;
+  }
+  final normalizedRoot = workspaceRoot.endsWith('/')
+      ? workspaceRoot.substring(0, workspaceRoot.length - 1)
+      : workspaceRoot;
+  return '$normalizedRoot/$trimmed';
+}
+
+String? _metadataString(Map<String, Object?> metadata, String key) {
+  final value = metadata[key];
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+List<String>? _metadataStringList(Map<String, Object?> metadata, String key) {
+  final value = metadata[key];
+  if (value is String) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : <String>[trimmed];
+  }
+  if (value is! Iterable<Object?>) {
+    return null;
+  }
+  final entries = value
+      .whereType<String>()
+      .map((entry) => entry.trim())
+      .where((entry) => entry.isNotEmpty)
+      .toList(growable: false);
+  return entries.isEmpty ? null : entries;
+}
+
+Map<String, String> _metadataStringMap(
+  Map<String, Object?> metadata,
+  String key,
+) {
+  final value = metadata[key];
+  if (value is! Map<Object?, Object?>) {
+    return const <String, String>{};
+  }
+  return <String, String>{
+    for (final entry in value.entries)
+      if (entry.key is String && entry.value is String)
+        (entry.key! as String): (entry.value! as String),
+  };
 }
 
 abstract class TestRunProvider {

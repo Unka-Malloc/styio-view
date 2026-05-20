@@ -262,6 +262,10 @@ void main() {
             ),
             TestCaseResult(name: 'agent.patch', status: TestRunStatus.failed),
           ],
+          metadata: <String, Object?>{
+            'debuggerExecutablePath': '/usr/bin/lldb-dap',
+            'programPath': 'build/vityo-tests',
+          },
         ),
       );
 
@@ -274,7 +278,70 @@ void main() {
       expect(capturedRequest?.filter, 'test:parser|agent\\.patch');
       expect(capturedRequest?.debug, isFalse);
       expect(controller.lastRunConfiguration?.id, 'rerun-failed');
+      expect(
+        controller.lastRunConfiguration?.metadata['debuggerExecutablePath'],
+        '/usr/bin/lldb-dap',
+      );
+      expect(
+        controller.lastRunConfiguration?.metadata['programPath'],
+        'build/vityo-tests',
+      );
       expect(controller.runHistory.first, same(result));
+    },
+  );
+
+  test(
+    'test debug launch route planner maps failed-test configuration to DAP route',
+    () {
+      const lastRun = TestRunResult(
+        providerId: 'ctest',
+        status: TestRunStatus.failed,
+        message: 'failed',
+        totalCount: 2,
+        failedCount: 1,
+        cases: <TestCaseResult>[
+          TestCaseResult(
+            id: 'parser.syntax',
+            name: 'parser syntax',
+            status: TestRunStatus.failed,
+          ),
+        ],
+        metadata: <String, Object?>{
+          'debuggerId': 'lldb-dap',
+          'debuggerLabel': 'LLDB DAP',
+          'debuggerExecutablePath': '/usr/bin/lldb-dap',
+          'debuggerArguments': <String>['--stdio'],
+          'programPath': 'build/vityo-tests',
+          'cwd': '/workspace/vityo',
+          'arguments': <String>['--gtest_color=no'],
+          'environment': <String, String>{'VITYO_TEST': '1'},
+        },
+      );
+      final configuration = const FailedTestRerunPlanner().plan(
+        lastRun: lastRun,
+        workspaceRoot: '/workspace/vityo',
+        debug: true,
+      )!;
+
+      final route = const TestDebugLaunchRoutePlanner().plan(configuration);
+      final launch =
+          route.handoff.plan.definition.metadata['launch']!
+              as Map<String, Object?>;
+
+      expect(configuration.debug, isTrue);
+      expect(route.ready, isTrue);
+      expect(route.profileId, 'test-debug.rerun-failed');
+      expect(route.handoff.command, '/usr/bin/lldb-dap');
+      expect(route.handoff.arguments, <String>[
+        '--stdio',
+        '/workspace/vityo/build/vityo-tests',
+      ]);
+      expect(launch['arguments'], <String>[
+        '--gtest_color=no',
+        '--test-filter=parser\\.syntax',
+      ]);
+      expect(launch['environment'], <String, String>{'VITYO_TEST': '1'});
+      expect(route.toJson()['status'], 'ready');
     },
   );
 

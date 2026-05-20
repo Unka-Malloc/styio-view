@@ -44,6 +44,7 @@ void main() {
     expect(decoded.systemPrompt, contains('testing.lastRun.failedTests'));
     expect(decoded.systemPrompt, contains('testing.rerunFailed'));
     expect(decoded.systemPrompt, contains('testing.debugFailed'));
+    expect(decoded.systemPrompt, contains('testing.debugFailedRoutePlan'));
     expect(decoded.systemPrompt, contains('skills.activeSkillIds'));
     expect(decoded.systemPrompt, contains('workspace-activated coding skills'));
     expect(decoded.systemPrompt, contains('workspace.sourceControlContext'));

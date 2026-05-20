@@ -203,7 +203,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      45,
+      46,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -864,6 +864,10 @@ void main() {
       expect(systemMessage['content'], contains('testing.debugFailed'));
       expect(
         systemMessage['content'],
+        contains('testing.debugFailedRoutePlan'),
+      );
+      expect(
+        systemMessage['content'],
         contains('metadata.sourceControlContext'),
       );
       expect(systemMessage['content'], contains('zero-based coordinates'));
@@ -880,7 +884,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 45);
+      expect(metadata['contextSchemaVersion'], 46);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

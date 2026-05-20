@@ -116,6 +116,10 @@ void main() {
       contains('RuntimeOutputLiveBuffer test-result publishing'),
     );
     expect(
+      entriesById['interaction.testing']?.summary,
+      contains('failed-test DebugLaunchRoutePlan bridge'),
+    );
+    expect(
       entriesById['interaction.testing']?.dependencies,
       contains('runtime.execution'),
     );

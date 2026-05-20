@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -367,6 +368,90 @@ void main() {
       expect(refreshed.staleDocumentIds, <String>['main.styio']);
       expect(cachedSearch.matches.single.documentId, 'main.styio');
       expect(refreshed.toJson()['status'], 'ready');
+    },
+  );
+
+  test(
+    'workspace search index watcher refreshes from file system events',
+    () async {
+      final store = _CountingWorkspaceSearchStore(
+        documents: const <String, DocumentState>{
+          'main.styio': DocumentState(
+            documentId: 'main.styio',
+            text: 'value := 1\n',
+            revision: 1,
+          ),
+        },
+      );
+      final controller = WorkspaceSearchIndexController(
+        service: WorkspaceSearchService(documentStore: store),
+      );
+      var documents = const <DocumentState>[
+        DocumentState(
+          documentId: 'main.styio',
+          text: 'value := 1\n',
+          revision: 1,
+        ),
+      ];
+      final events = StreamController<FileSystemManagerEvent>();
+      final fileSystemManager = _FakeWorkspaceSearchFileSystemManager(
+        events.stream,
+      );
+      final binding = WorkspaceSearchIndexFileSystemWatcherBinding(
+        controller: controller,
+        fileSystemManager: fileSystemManager,
+        workspaceRoot: '/workspace/vityo',
+        currentDocuments: () => documents,
+      );
+      final snapshots = <WorkspaceSearchIndexWatcherSnapshot>[];
+      final completed = Completer<void>();
+      final subscription = binding.watchAndRefresh().listen(
+        snapshots.add,
+        onDone: completed.complete,
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(events.close);
+
+      await Future<void>.delayed(Duration.zero);
+      await store.saveDocument(
+        const DocumentState(
+          documentId: 'main.styio',
+          text: 'next := value\n',
+          revision: 2,
+        ),
+      );
+      documents = const <DocumentState>[
+        DocumentState(
+          documentId: 'main.styio',
+          text: 'next := value\n',
+          revision: 2,
+        ),
+      ];
+      events.add(
+        const FileSystemManagerEvent(
+          kind: FileSystemManagerEventKind.modified,
+          path: '/workspace/vityo/main.styio',
+          normalizedPath: '/workspace/vityo/main.styio',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await events.close();
+      await completed.future;
+
+      expect(fileSystemManager.watchedPath, '/workspace/vityo');
+      expect(fileSystemManager.watchedRecursive, isTrue);
+      expect(
+        snapshots.first.status,
+        WorkspaceSearchIndexWatcherStatus.listening,
+      );
+      expect(snapshots.any((snapshot) => snapshot.ready), isTrue);
+      expect(controller.snapshot.generation, 1);
+      expect(
+        controller.searchCached(query: 'next').matches.single.documentId,
+        'main.styio',
+      );
+      expect(snapshots.last.status, WorkspaceSearchIndexWatcherStatus.stopped);
+      expect(snapshots.last.toJson()['status'], 'stopped');
     },
   );
 
@@ -789,43 +874,45 @@ void main() {
     expect((await store.readFilters(workspaceId: 'demo')).active, isFalse);
   });
 
-  test('workspace replace preview expansion state persists through DataStore', (
-  ) async {
-    final store = WorkspaceReplacePreviewExpansionStore.fromDataStore(
-      dataStore: await _createDataStore(),
-    );
+  test(
+    'workspace replace preview expansion state persists through DataStore',
+    () async {
+      final store = WorkspaceReplacePreviewExpansionStore.fromDataStore(
+        dataStore: await _createDataStore(),
+      );
 
-    final expanded = await store.toggleDocument(
-      workspaceId: 'demo',
-      documentId: 'src/main.styio',
-    );
-    final collapsed = await store.toggleDocument(
-      workspaceId: 'demo',
-      documentId: 'src/main.styio',
-    );
-    await store.saveState(
-      state: const WorkspaceReplacePreviewExpansionState(
+      final expanded = await store.toggleDocument(
         workspaceId: 'demo',
-        expandedDocumentIds: <String>['src/lib.styio', 'src/main.styio'],
-      ),
-    );
-    final restored = await store.readState(workspaceId: 'demo');
+        documentId: 'src/main.styio',
+      );
+      final collapsed = await store.toggleDocument(
+        workspaceId: 'demo',
+        documentId: 'src/main.styio',
+      );
+      await store.saveState(
+        state: const WorkspaceReplacePreviewExpansionState(
+          workspaceId: 'demo',
+          expandedDocumentIds: <String>['src/lib.styio', 'src/main.styio'],
+        ),
+      );
+      final restored = await store.readState(workspaceId: 'demo');
 
-    expect(expanded.expandedDocumentIds, <String>['src/main.styio']);
-    expect(collapsed.expandedDocumentIds, isEmpty);
-    expect(restored.workspaceId, 'demo');
-    expect(restored.expandedDocumentIds, <String>[
-      'src/lib.styio',
-      'src/main.styio',
-    ]);
-    expect(restored.isExpanded('src/main.styio'), isTrue);
-    expect(restored.toJson()['expandedCount'], 2);
-    expect(await store.deleteState(workspaceId: 'demo'), isTrue);
-    expect(
-      (await store.readState(workspaceId: 'demo')).expandedDocumentIds,
-      isEmpty,
-    );
-  });
+      expect(expanded.expandedDocumentIds, <String>['src/main.styio']);
+      expect(collapsed.expandedDocumentIds, isEmpty);
+      expect(restored.workspaceId, 'demo');
+      expect(restored.expandedDocumentIds, <String>[
+        'src/lib.styio',
+        'src/main.styio',
+      ]);
+      expect(restored.isExpanded('src/main.styio'), isTrue);
+      expect(restored.toJson()['expandedCount'], 2);
+      expect(await store.deleteState(workspaceId: 'demo'), isTrue);
+      expect(
+        (await store.readState(workspaceId: 'demo')).expandedDocumentIds,
+        isEmpty,
+      );
+    },
+  );
 }
 
 Future<FoundationDataStore> _createDataStore() async {
@@ -909,6 +996,23 @@ class _FailingSaveWorkspaceSearchStore implements WorkspaceDocumentStore {
 
   @override
   String? filePathForDocumentId(String documentId) => null;
+}
+
+class _FakeWorkspaceSearchFileSystemManager
+    extends UnsupportedFileSystemManager {
+  _FakeWorkspaceSearchFileSystemManager(this.events)
+    : super(facts: FileSystemFacts.linuxDebianArm());
+
+  final Stream<FileSystemManagerEvent> events;
+  String watchedPath = '';
+  bool watchedRecursive = false;
+
+  @override
+  Stream<FileSystemManagerEvent> watch(String path, {bool recursive = false}) {
+    watchedPath = path;
+    watchedRecursive = recursive;
+    return events;
+  }
 }
 
 class _CountingWorkspaceSearchStore implements WorkspaceDocumentStore {

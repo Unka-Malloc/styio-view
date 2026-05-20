@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import '../editor/document_state.dart';
+import '../environment/system_compatibility/file_system/file_system_manager.dart';
 import '../language/contract/language_contract.dart';
 import '../language/service/language_service_foundation.dart';
 import '../language/service/semantic_snapshot_provider.dart';
@@ -438,6 +441,152 @@ class WorkspaceSearchIndexController {
   }
 }
 
+typedef WorkspaceSearchDocumentSnapshotProvider =
+    Iterable<DocumentState> Function();
+
+enum WorkspaceSearchIndexWatcherStatus {
+  idle,
+  listening,
+  refreshing,
+  ready,
+  stopped,
+  failed,
+}
+
+class WorkspaceSearchIndexWatcherSnapshot {
+  const WorkspaceSearchIndexWatcherSnapshot({
+    required this.status,
+    required this.workspaceRoot,
+    required this.recursive,
+    this.event,
+    this.refreshSnapshot,
+    this.message = '',
+  });
+
+  final WorkspaceSearchIndexWatcherStatus status;
+  final String workspaceRoot;
+  final bool recursive;
+  final FileSystemManagerEvent? event;
+  final WorkspaceSearchIndexRefreshSnapshot? refreshSnapshot;
+  final String message;
+
+  bool get active =>
+      status == WorkspaceSearchIndexWatcherStatus.listening ||
+      status == WorkspaceSearchIndexWatcherStatus.refreshing;
+
+  bool get ready => status == WorkspaceSearchIndexWatcherStatus.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.name,
+      'workspaceRoot': workspaceRoot,
+      'recursive': recursive,
+      'active': active,
+      'ready': ready,
+      if (message.isNotEmpty) 'message': message,
+      if (event != null) 'event': _workspaceSearchFileSystemEventJson(event!),
+      if (refreshSnapshot != null) 'refresh': refreshSnapshot!.toJson(),
+    };
+  }
+}
+
+class WorkspaceSearchIndexFileSystemWatcherBinding {
+  const WorkspaceSearchIndexFileSystemWatcherBinding({
+    required this.controller,
+    required this.fileSystemManager,
+    required this.workspaceRoot,
+    required this.currentDocuments,
+    this.recursive = true,
+    this.maxDocuments = 5000,
+  });
+
+  final WorkspaceSearchIndexController controller;
+  final FileSystemManager fileSystemManager;
+  final String workspaceRoot;
+  final WorkspaceSearchDocumentSnapshotProvider currentDocuments;
+  final bool recursive;
+  final int maxDocuments;
+
+  Stream<WorkspaceSearchIndexWatcherSnapshot> watchAndRefresh() async* {
+    yield WorkspaceSearchIndexWatcherSnapshot(
+      status: WorkspaceSearchIndexWatcherStatus.listening,
+      workspaceRoot: workspaceRoot,
+      recursive: recursive,
+      message: 'Workspace search index watcher attached.',
+    );
+    try {
+      await for (final event in fileSystemManager.watch(
+        workspaceRoot,
+        recursive: recursive,
+      )) {
+        yield await refreshFromEvent(event);
+      }
+      yield WorkspaceSearchIndexWatcherSnapshot(
+        status: WorkspaceSearchIndexWatcherStatus.stopped,
+        workspaceRoot: workspaceRoot,
+        recursive: recursive,
+        message: 'Workspace search index watcher stopped.',
+      );
+    } on Object catch (error) {
+      yield WorkspaceSearchIndexWatcherSnapshot(
+        status: WorkspaceSearchIndexWatcherStatus.failed,
+        workspaceRoot: workspaceRoot,
+        recursive: recursive,
+        message: 'Workspace search index watcher failed: $error',
+      );
+    }
+  }
+
+  Future<WorkspaceSearchIndexWatcherSnapshot> refreshFromEvent(
+    FileSystemManagerEvent event,
+  ) async {
+    if (!_workspaceSearchRefreshesForEvent(event)) {
+      return WorkspaceSearchIndexWatcherSnapshot(
+        status: WorkspaceSearchIndexWatcherStatus.listening,
+        workspaceRoot: workspaceRoot,
+        recursive: recursive,
+        event: event,
+        message: 'Workspace search index ignored file system event.',
+      );
+    }
+    final refresh = await controller.refreshIfStale(
+      currentDocuments: currentDocuments(),
+      maxDocuments: maxDocuments,
+    );
+    return WorkspaceSearchIndexWatcherSnapshot(
+      status: WorkspaceSearchIndexWatcherStatus.ready,
+      workspaceRoot: workspaceRoot,
+      recursive: recursive,
+      event: event,
+      refreshSnapshot: refresh,
+      message:
+          'Workspace search index refreshed from file system ${event.kind.name} event.',
+    );
+  }
+}
+
+bool _workspaceSearchRefreshesForEvent(FileSystemManagerEvent event) {
+  return switch (event.kind) {
+    FileSystemManagerEventKind.created ||
+    FileSystemManagerEventKind.modified ||
+    FileSystemManagerEventKind.deleted ||
+    FileSystemManagerEventKind.moved ||
+    FileSystemManagerEventKind.metadataChanged => true,
+    FileSystemManagerEventKind.unknown => false,
+  };
+}
+
+Map<String, Object?> _workspaceSearchFileSystemEventJson(
+  FileSystemManagerEvent event,
+) {
+  return <String, Object?>{
+    'kind': event.kind.name,
+    'path': event.path,
+    'normalizedPath': event.normalizedPath,
+    'isDirectory': event.isDirectory,
+  };
+}
+
 class WorkspaceReplaceDocumentResult {
   const WorkspaceReplaceDocumentResult({
     required this.documentId,
@@ -507,10 +656,9 @@ class WorkspaceReplacePreview {
   }) {
     final normalizedOffset = documentOffset.clamp(0, documents.length).toInt();
     final normalizedLimit = documentLimit <= 0 ? 20 : documentLimit;
-    final endOffset = (normalizedOffset + normalizedLimit).clamp(
-      normalizedOffset,
-      documents.length,
-    ).toInt();
+    final endOffset = (normalizedOffset + normalizedLimit)
+        .clamp(normalizedOffset, documents.length)
+        .toInt();
     return WorkspaceReplacePreviewWindow(
       documentOffset: normalizedOffset,
       documentLimit: normalizedLimit,

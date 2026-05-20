@@ -13,6 +13,62 @@ import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime.dart';
 
 void main() {
+  testWidgets('runtime surface renders live output buffer events', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RuntimeSurface(
+          platformTarget: PlatformTarget.macos,
+          viewportProfile: const ViewportProfile(
+            family: ViewportFamily.desktop,
+            width: 1440,
+            height: 900,
+          ),
+          projectGraph: _projectGraph(),
+          toolchainStatus: ToolchainStatusSurface.fromProjectToolchain(
+            _projectGraph().toolchain,
+          ),
+          mountedModules: const [],
+          adapterCapabilities: const <AdapterCapabilitySnapshot>[],
+          executionSession: null,
+          runtimeEvents: const <RuntimeEventEnvelope>[],
+          outputSnapshot: RuntimeOutputPanelSnapshot(
+            events: <RuntimeOutputEvent>[
+              RuntimeOutputEvent(
+                channelId: 'shell.runtime',
+                label: 'Shell run',
+                kind: RuntimeOutputChannelKind.stdout,
+                message: 'handoff-ok',
+                timestamp: DateTime.utc(2026, 5, 20, 12),
+                metadata: const <String, Object?>{'managerId': 'shell-manager'},
+              ),
+              RuntimeOutputEvent(
+                channelId: 'shell.runtime',
+                label: 'Shell run',
+                kind: RuntimeOutputChannelKind.runtimeEvents,
+                message: 'Runtime shell handoff shell-run completed.',
+                timestamp: DateTime.utc(2026, 5, 20, 12),
+                metadata: const <String, Object?>{
+                  'runtimeShellExecutionStatus': 'executed',
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Live Output Events'), findsOneWidget);
+    expect(find.text('shell.runtime stdout handoff-ok'), findsOneWidget);
+    expect(
+      find.text(
+        'shell.runtime runtime-events Runtime shell handoff shell-run completed.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('runtime surface renders published runtime event replay', (
     tester,
   ) async {

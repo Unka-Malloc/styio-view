@@ -667,6 +667,8 @@ class _OutputChannelSection extends StatelessWidget {
       metadata: const <String, Object?>{'source': 'runtime-surface'},
     );
     final visibleChannels = snapshot.visibleChannels;
+    final liveEvents =
+        outputSnapshot?.visibleEvents ?? const <RuntimeOutputEvent>[];
     return Container(
       key: const ValueKey('runtime-output-channels'),
       width: double.infinity,
@@ -681,7 +683,7 @@ class _OutputChannelSection extends StatelessWidget {
           Text('Output Channels', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'Filtered output channel summary for runtime events, process streams, native tool activity, and RuntimeOutputLiveBuffer snapshots including agent activity. TODO: connect language-service and debug producers to live streams.',
+            'Filtered output channel summary for runtime events, process streams, native tool activity, RuntimeOutputLiveBuffer snapshots, and ShellManagerRuntimeExecutionAdapter streams. TODO: connect language-service and debug producers to live streams.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 6),
@@ -714,6 +716,19 @@ class _OutputChannelSection extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   '${channel.label}: ${channel.latestMessage}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+          ],
+          if (liveEvents.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text('Live Output Events', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 6),
+            for (final event in liveEvents.take(6))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '${event.channelId} ${event.kind.wireValue} ${event.message}',
                   style: theme.textTheme.bodySmall,
                 ),
               ),

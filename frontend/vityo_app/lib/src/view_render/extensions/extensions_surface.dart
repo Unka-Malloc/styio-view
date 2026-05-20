@@ -69,7 +69,7 @@ class ExtensionsSurface extends StatelessWidget {
               Text('Extensions', style: theme.textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                'Module/extension inventory backed by Vityo module manifests, marketplace search, and install planning. TODO: add install execution, update downloads, signature verification, and extension host isolation.',
+                'Module/extension inventory backed by Vityo module manifests, marketplace search, install execution planning, lifecycle policy, signature verification readiness, and extension host isolation planning. TODO: add update downloads and concrete marketplace cache IO.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),
@@ -185,6 +185,9 @@ class _ExtensionMarketplaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final manifest = listing.manifest;
+    final executionPlan = const ExtensionMarketplaceInstaller().planExecution(
+      installPlan,
+    );
     return Container(
       key: ValueKey('extensions-marketplace-${listing.extensionId}'),
       width: double.infinity,
@@ -225,6 +228,8 @@ class _ExtensionMarketplaceCard extends StatelessWidget {
             children: [
               Chip(label: Text(listing.verified ? 'verified' : 'unverified')),
               Chip(label: Text(installPlan.status.wireValue)),
+              Chip(label: Text('execution ${executionPlan.status.wireValue}')),
+              Chip(label: Text('steps ${executionPlan.steps.length}')),
               for (final category in listing.categories.take(3))
                 Chip(label: Text(category)),
               FilledButton.tonal(
@@ -245,6 +250,24 @@ class _ExtensionMarketplaceCard extends StatelessWidget {
               ),
             ],
           ),
+          if (executionPlan.steps.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              key: ValueKey(
+                'extensions-install-execution-${listing.extensionId}',
+              ),
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final step in executionPlan.steps.take(5))
+                  Chip(
+                    label: Text(
+                      '${step.kind.wireValue} ${step.ready ? 'ready' : 'blocked'}',
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

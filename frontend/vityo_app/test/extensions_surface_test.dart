@@ -47,6 +47,10 @@ void main() {
                       publisher: 'vityo',
                       entrypoint: 'styio_language.dart',
                       description: 'Styio language support.',
+                      trustedByDefault: true,
+                      metadata: <String, Object?>{
+                        'isolationMode': 'local-process',
+                      },
                     ),
                     sourceUri:
                         'https://marketplace.vityo.invalid/styio.language.zip',
@@ -100,6 +104,16 @@ void main() {
       expect(find.text('Marketplace'), findsOneWidget);
       expect(find.text('Styio Language'), findsOneWidget);
       expect(find.text('ready'), findsOneWidget);
+      expect(find.text('execution ready'), findsOneWidget);
+      expect(find.text('steps 5'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey('extensions-install-execution-styio.language'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('download-package ready'), findsOneWidget);
+      expect(find.text('verify-signature ready'), findsOneWidget);
       expect(find.text('Runtime Panel'), findsOneWidget);
       expect(find.text('update'), findsOneWidget);
 

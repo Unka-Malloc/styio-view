@@ -338,6 +338,10 @@ class AppBootstrap {
     final agentProfileStore = AgentPromptProfileStore.fromDataStore(
       dataStore: foundationDataStore,
     );
+    final agentSessionHistoryStore =
+        AgentCodingSessionHistoryStore.fromDataStore(
+          dataStore: foundationDataStore,
+        );
     final agentProviderFactory = ConfiguredAgentProviderAdapterFactory(
       configurationStore: configurationStore,
       transport: NetworkAgentProviderTransport(
@@ -353,6 +357,8 @@ class AppBootstrap {
       },
       createConfiguredAdapter: agentProviderRegistry.createAdapter,
       resolveConfiguredExecution: agentProviderFactory.resolveExecution,
+      sessionHistoryStore: agentSessionHistoryStore,
+      sessionHistoryWorkspaceId: projectSnapshot.id,
       contextProvider: () => AgentSessionContext.fromEditorState(
         document: editorController.document,
         selection: editorController.selection,
@@ -481,6 +487,8 @@ class AppBootstrap {
       AgentPromptProfile profile,
     )?
     resolveConfiguredExecution,
+    AgentCodingSessionHistoryStore? sessionHistoryStore,
+    String sessionHistoryWorkspaceId = 'default',
     required AgentSessionContextProvider contextProvider,
   }) async {
     final persistedProfile = await loadPersistedProfile();
@@ -499,12 +507,16 @@ class AppBootstrap {
             profile: profile,
             resolveConfiguredExecution: resolveConfiguredExecution,
           );
-    return AgentCodingSessionController(
+    final controller = AgentCodingSessionController(
       profile: profile,
       adapter: adapter,
       providerExecutionResolution: executionResolution,
       contextProvider: contextProvider,
+      sessionHistoryStore: sessionHistoryStore,
+      sessionHistoryWorkspaceId: sessionHistoryWorkspaceId,
     );
+    await controller.loadSessionHistory();
+    return controller;
   }
 
   static Future<AgentProviderAdapter> _createConfiguredAgentAdapter({

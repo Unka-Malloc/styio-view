@@ -169,6 +169,7 @@ class VityoShellScaffold extends StatelessWidget {
           adapterCapabilities: shell.adapterCapabilities,
           sessionContext: shell.agentSessionContext,
           codingController: shell.agentCodingController,
+          activityHistory: shell.agentCodingController.sessionHistorySnapshot,
           onApplyPendingPatch: () async {
             await shell.applyAgentPendingPatch();
           },

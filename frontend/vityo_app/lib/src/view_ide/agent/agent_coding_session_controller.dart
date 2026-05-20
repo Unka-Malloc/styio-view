@@ -81,6 +81,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   String? _activeProviderRequestId;
   String? _activeProviderPrompt;
   DateTime? _activeProviderStartedAt;
+  AgentCodingSessionHistory? _sessionHistorySnapshot;
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
   final List<AgentConversationTurn> _conversationTurns =
       <AgentConversationTurn>[];
@@ -108,6 +109,9 @@ class AgentCodingSessionController extends ChangeNotifier {
   bool get providerSupportsCodePatch => adapter.supportsCodePatch;
   String get providerSummary =>
       '${profile.displayName} / ${adapter.adapterId} / ${adapter.kind.wireValue}';
+  AgentCodingSessionHistory get sessionHistorySnapshot =>
+      _sessionHistorySnapshot ??
+      AgentCodingSessionHistory(workspaceId: sessionHistoryWorkspaceId);
   String? get lastError => _lastError;
   AgentProviderTransportException? get lastProviderFailure =>
       _lastProviderFailure;
@@ -157,6 +161,24 @@ class AgentCodingSessionController extends ChangeNotifier {
     _attachments.clear();
     _conversationTurns.clear();
     notifyListeners();
+  }
+
+  Future<void> loadSessionHistory() async {
+    final store = sessionHistoryStore;
+    if (store == null) {
+      _sessionHistorySnapshot = AgentCodingSessionHistory(
+        workspaceId: sessionHistoryWorkspaceId,
+      );
+      return;
+    }
+    try {
+      _sessionHistorySnapshot = await store.readHistory(
+        workspaceId: sessionHistoryWorkspaceId,
+      );
+      notifyListeners();
+    } on Object {
+      // TODO: surface agent history restore failures in the output panel.
+    }
   }
 
   void updatePrompt(String value) {
@@ -350,7 +372,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       return;
     }
     try {
-      await store.appendRecord(
+      _sessionHistorySnapshot = await store.appendRecord(
         workspaceId: sessionHistoryWorkspaceId,
         record: record,
         maxEntries: sessionHistoryMaxEntries,

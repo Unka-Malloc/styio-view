@@ -108,6 +108,10 @@ void main() {
     final history = await historyStore.readHistory(workspaceId: 'demo');
 
     expect(history.records.single.requestId, 'agent-request-1');
+    expect(
+      controller.sessionHistorySnapshot.records.single.requestId,
+      'agent-request-1',
+    );
     expect(history.records.single.prompt, 'Record this request.');
     expect(history.records.single.succeeded, isTrue);
     expect(

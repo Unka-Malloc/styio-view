@@ -319,6 +319,208 @@ class DebugLaunchRuntimeOutputBinding {
   }
 }
 
+enum DebugRuntimeExecutionStatus { launched, blocked, failed, wrongRoute }
+
+extension DebugRuntimeExecutionStatusX on DebugRuntimeExecutionStatus {
+  String get wireValue => switch (this) {
+    DebugRuntimeExecutionStatus.launched => 'launched',
+    DebugRuntimeExecutionStatus.blocked => 'blocked',
+    DebugRuntimeExecutionStatus.failed => 'failed',
+    DebugRuntimeExecutionStatus.wrongRoute => 'wrong-route',
+  };
+}
+
+class DebugRuntimeExecutionResult {
+  const DebugRuntimeExecutionResult({
+    required this.plan,
+    required this.status,
+    required this.telemetry,
+    required this.outputEvents,
+    required this.dispatchResult,
+    this.handle,
+  });
+
+  final DapDebugAdapterExecutionPlan plan;
+  final DebugRuntimeExecutionStatus status;
+  final DebugLaunchTelemetrySnapshot telemetry;
+  final List<RuntimeOutputEvent> outputEvents;
+  final RuntimeExecutionDispatchResult dispatchResult;
+  final DapDebugSessionHandle? handle;
+
+  bool get launched => status == DebugRuntimeExecutionStatus.launched;
+  bool get failed => status == DebugRuntimeExecutionStatus.failed;
+  bool get blocked =>
+      status == DebugRuntimeExecutionStatus.blocked ||
+      status == DebugRuntimeExecutionStatus.wrongRoute;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'launched': launched,
+      'blocked': blocked,
+      'failed': failed,
+      'plan': plan.toJson(),
+      'telemetry': telemetry.toJson(),
+      'dispatch': dispatchResult.toJson(),
+      'outputEvents': outputEvents
+          .map((event) => event.toJson())
+          .toList(growable: false),
+      if (handle != null) 'session': handle!.snapshot.toJson(),
+    };
+  }
+}
+
+class DebugRuntimeExecutionAdapter {
+  DebugRuntimeExecutionAdapter({
+    required this.launcher,
+    required this.workspaceId,
+    RuntimeExecutionManagerRegistry? registry,
+    RuntimeTaskClock? clock,
+  }) : _registry =
+           registry ?? RuntimeExecutionManagerRegistry.defaultManagers(),
+       _clock = clock ?? DateTime.now().toUtc;
+
+  final DapDebugAdapterLauncher launcher;
+  final String workspaceId;
+  final RuntimeExecutionManagerRegistry _registry;
+  final RuntimeTaskClock _clock;
+
+  Future<DebugRuntimeExecutionResult> executePlan({
+    required DapDebugAdapterExecutionPlan plan,
+    required RuntimeOutputLiveBuffer buffer,
+  }) async {
+    final dispatchResult = _registry.dispatchToLiveBuffer(
+      plan.outputBinding,
+      buffer: buffer,
+      timestamp: _clock(),
+      metadata: <String, Object?>{
+        'debugProfileId': plan.profileId,
+        'debugRuntimeExecution': 'dap-launcher',
+      },
+    );
+    if (plan.outputBinding.managerId != 'terminal-runtime') {
+      return _controlResult(
+        plan: plan,
+        buffer: buffer,
+        dispatchResult: dispatchResult,
+        status: DebugRuntimeExecutionStatus.wrongRoute,
+        telemetryStatus: DebugLaunchTelemetryStatus.blocked,
+        message:
+            'Debug execution ignored non-terminal route ${plan.outputBinding.managerId}.',
+      );
+    }
+    if (!plan.ready ||
+        dispatchResult.status != RuntimeExecutionDispatchStatus.dispatched) {
+      return _controlResult(
+        plan: plan,
+        buffer: buffer,
+        dispatchResult: dispatchResult,
+        status: DebugRuntimeExecutionStatus.blocked,
+        telemetryStatus: DebugLaunchTelemetryStatus.blocked,
+        message: plan.ready
+            ? dispatchResult.message
+            : 'Debug execution blocked: ${plan.message}',
+      );
+    }
+    try {
+      final handle = await launcher.launchExecutionPlan(plan);
+      final record = DebugLaunchTelemetryRecord.fromSessionSnapshot(
+        workspaceId: workspaceId,
+        plan: plan,
+        snapshot: handle.snapshot,
+        status: DebugLaunchTelemetryStatus.launched,
+        message: 'Debug adapter launched through runtime execution route.',
+        timestamp: _clock(),
+      );
+      final telemetry = DebugLaunchTelemetrySnapshot(
+        workspaceId: workspaceId,
+        records: <DebugLaunchTelemetryRecord>[record],
+        updatedAt: record.timestamp,
+      );
+      final outputEvents = _emitTelemetry(
+        plan: plan,
+        telemetry: telemetry,
+        buffer: buffer,
+      );
+      return DebugRuntimeExecutionResult(
+        plan: plan,
+        status: DebugRuntimeExecutionStatus.launched,
+        telemetry: telemetry,
+        outputEvents: outputEvents,
+        dispatchResult: dispatchResult,
+        handle: handle,
+      );
+    } catch (error) {
+      return _controlResult(
+        plan: plan,
+        buffer: buffer,
+        dispatchResult: dispatchResult,
+        status: DebugRuntimeExecutionStatus.failed,
+        telemetryStatus: DebugLaunchTelemetryStatus.failed,
+        message: 'Debug execution failed: $error',
+      );
+    }
+  }
+
+  DebugRuntimeExecutionResult _controlResult({
+    required DapDebugAdapterExecutionPlan plan,
+    required RuntimeOutputLiveBuffer buffer,
+    required RuntimeExecutionDispatchResult dispatchResult,
+    required DebugRuntimeExecutionStatus status,
+    required DebugLaunchTelemetryStatus telemetryStatus,
+    required String message,
+  }) {
+    final record = DebugLaunchTelemetryRecord.fromExecutionPlan(
+      workspaceId: workspaceId,
+      plan: plan,
+      status: telemetryStatus,
+      message: message,
+      timestamp: _clock(),
+      metadata: <String, Object?>{
+        'debugRuntimeExecutionStatus': status.wireValue,
+        'dispatchStatus': dispatchResult.status.wireValue,
+      },
+    );
+    final telemetry = DebugLaunchTelemetrySnapshot(
+      workspaceId: workspaceId,
+      records: <DebugLaunchTelemetryRecord>[record],
+      updatedAt: record.timestamp,
+    );
+    final outputEvents = _emitTelemetry(
+      plan: plan,
+      telemetry: telemetry,
+      buffer: buffer,
+    );
+    return DebugRuntimeExecutionResult(
+      plan: plan,
+      status: status,
+      telemetry: telemetry,
+      outputEvents: outputEvents,
+      dispatchResult: dispatchResult,
+    );
+  }
+
+  List<RuntimeOutputEvent> _emitTelemetry({
+    required DapDebugAdapterExecutionPlan plan,
+    required DebugLaunchTelemetrySnapshot telemetry,
+    required RuntimeOutputLiveBuffer buffer,
+  }) {
+    final outputEvents =
+        DebugLaunchRuntimeOutputBinding(
+          telemetry: telemetry,
+          plan: plan,
+        ).runtimeOutputEvents(
+          timestamp: _clock(),
+          channelId: plan.outputBinding.outputChannel.id,
+          label: 'Debug',
+        );
+    for (final event in outputEvents) {
+      buffer.addEvent(event, now: event.timestamp);
+    }
+    return List<RuntimeOutputEvent>.unmodifiable(outputEvents);
+  }
+}
+
 class DebugLaunchTelemetryStore {
   DebugLaunchTelemetryStore.fromDataStore({
     required FoundationDataStore dataStore,

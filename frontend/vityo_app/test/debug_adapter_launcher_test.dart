@@ -138,6 +138,56 @@ void main() {
     expect(binding.toJson()['outputEventCount'], 3);
   });
 
+  test(
+    'DAP debug runtime execution adapter launches and emits telemetry',
+    () async {
+      late _FakeDapByteTransport fakeTransport;
+      final launcher = DapDebugAdapterLauncher(
+        transportFactory: (launch) async {
+          fakeTransport = _FakeDapByteTransport();
+          return fakeTransport;
+        },
+      );
+      final plan = DapDebugAdapterExecutionPlan.fromConfiguration(
+        profileId: 'debug-styio',
+        launchConfiguration: _readyLaunch(),
+      );
+      final buffer = RuntimeOutputLiveBuffer();
+      final adapter = DebugRuntimeExecutionAdapter(
+        launcher: launcher,
+        workspaceId: 'demo',
+        clock: () => DateTime.utc(2026, 5, 20, 17),
+      );
+
+      final result = await adapter.executePlan(plan: plan, buffer: buffer);
+
+      expect(result.launched, isTrue);
+      expect(
+        result.dispatchResult.status,
+        RuntimeExecutionDispatchStatus.dispatched,
+      );
+      expect(result.handle, isNotNull);
+      expect(
+        result.telemetry.records.single.status,
+        DebugLaunchTelemetryStatus.launched,
+      );
+      expect(fakeTransport.sentBytes, hasLength(4));
+      expect(
+        buffer.snapshot.visibleEvents
+            .map((event) => event.metadata['debugRuntimeExecution'])
+            .whereType<String>(),
+        contains('dap-launcher'),
+      );
+      expect(
+        result.outputEvents.map((event) => event.message),
+        contains(
+          'launched debug-styio: Debug adapter launched through runtime execution route.',
+        ),
+      );
+      await result.handle!.close();
+    },
+  );
+
   test('DAP debug adapter launcher exposes live session event state', () async {
     const codec = DapContentFrameCodec();
     late _FakeDapByteTransport fakeTransport;

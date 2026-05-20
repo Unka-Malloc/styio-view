@@ -92,6 +92,12 @@ void main() {
       contains('SemanticSnapshotPanelEventStore persisted telemetry'),
     );
     expect(
+      entriesById['service.semantic-snapshot']?.summary,
+      contains(
+        'StyioLanguageProviderReadinessReport active capability coverage',
+      ),
+    );
+    expect(
       entriesById['service.remote-service']?.summary,
       contains('HostedBackendRetryActionExecutor'),
     );

@@ -10,6 +10,7 @@ import 'package:vityo_app/src/view_ide/debugger/debug_launch_contract.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_launch_telemetry_store.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 
 void main() {
@@ -92,6 +93,49 @@ void main() {
     expect(restored.toJson()['recordCount'], 1);
     expect(await store.clearSnapshot(workspaceId: 'demo'), isTrue);
     expect((await store.readSnapshot(workspaceId: 'demo')).records, isEmpty);
+  });
+
+  test('DAP debug launch telemetry binds to runtime output events', () {
+    final plan = DapDebugAdapterExecutionPlan.fromConfiguration(
+      profileId: 'debug-styio',
+      launchConfiguration: _readyLaunch(),
+    );
+    final telemetry = DebugLaunchTelemetrySnapshot(
+      workspaceId: 'demo',
+      records: <DebugLaunchTelemetryRecord>[
+        DebugLaunchTelemetryRecord.fromExecutionPlan(
+          workspaceId: 'demo',
+          plan: plan,
+          status: DebugLaunchTelemetryStatus.launched,
+          message: 'Debug launched.',
+          timestamp: DateTime.utc(2026, 5, 20, 16),
+        ),
+      ],
+    );
+
+    final binding = DebugLaunchRuntimeOutputBinding(
+      telemetry: telemetry,
+      plan: plan,
+    );
+    final outputSnapshot = binding.outputPanelSnapshot(
+      timestamp: DateTime.utc(2026, 5, 20, 16),
+      channelId: 'debug.demo',
+    );
+
+    expect(outputSnapshot.events, hasLength(3));
+    expect(outputSnapshot.events.first.kind, RuntimeOutputChannelKind.debug);
+    expect(outputSnapshot.events.first.metadata['planStatus'], 'ready');
+    expect(
+      outputSnapshot.events[1].kind,
+      RuntimeOutputChannelKind.runtimeEvents,
+    );
+    expect(outputSnapshot.events[1].metadata['recordCount'], 1);
+    expect(
+      outputSnapshot.events.last.message,
+      'launched debug-styio: Debug launched.',
+    );
+    expect(outputSnapshot.events.last.metadata['successful'], isTrue);
+    expect(binding.toJson()['outputEventCount'], 3);
   });
 
   test('DAP debug adapter launcher exposes live session event state', () async {

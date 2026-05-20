@@ -537,9 +537,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/debugger',
           summary:
-              'DAP launch contracts, breakpoint serialization, persisted workspace breakpoint sets, launch profiles, workspace launch configuration sets, Foundation DataStore persistence, runtime task projection, runtime execution handoff, debug route plans, failure navigation actions, DapDebugAdapterExecutionPlan, DebugLaunchTelemetryStore, DebugConsoleSurface launch plan and telemetry summaries, launcher execution-plan handoff, DAP snapshot task-history binding, live ShellRuntime DAP history appends, and extension debugger route consumption are wired.',
+              'DAP launch contracts, breakpoint serialization, persisted workspace breakpoint sets, launch profiles, workspace launch configuration sets, Foundation DataStore persistence, runtime task projection, runtime execution handoff, debug route plans, failure navigation actions, DapDebugAdapterExecutionPlan, DebugLaunchTelemetryStore, DebugLaunchRuntimeOutputBinding output events, DebugConsoleSurface launch plan and telemetry summaries, launcher execution-plan handoff, DAP snapshot task-history binding, live ShellRuntime DAP history appends, and extension debugger route consumption are wired.',
           todo:
-              'TODO: wire breakpoint UI editing, non-C++ debug adapters, launch UI editing, and live adapter process telemetry streams.',
+              'TODO: wire breakpoint UI editing, non-C++ debug adapters, launch UI editing, and live adapter process cancellation/retry telemetry.',
           references: <String>['Debug Adapter Protocol'],
         ),
         IdeCapabilityDescriptor(
@@ -645,9 +645,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/runtime',
           summary:
-              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell/toolchain/hosted/terminal producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, ToolchainManagerRuntimeExecutionAdapter streams, HostedRuntimeExecutionAdapter streams, WorkspaceDiagnosticsRuntimeOutputBinding streams, and persisted output history.',
+              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell/toolchain/hosted/terminal producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, ToolchainManagerRuntimeExecutionAdapter streams, HostedRuntimeExecutionAdapter streams, WorkspaceDiagnosticsRuntimeOutputBinding streams, DebugLaunchRuntimeOutputBinding streams, and persisted output history.',
           todo:
-              'TODO: supply concrete debug, language-service, and PTY stream implementations to the binding controller.',
+              'TODO: supply concrete language-service and PTY stream implementations to the binding controller.',
           references: <String>[
             'VS Code Output panel',
             'IntelliJ Run and Event Log tool windows',

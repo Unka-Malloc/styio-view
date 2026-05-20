@@ -1,4 +1,5 @@
 import '../foundation/foundation.dart';
+import '../runtime/runtime.dart';
 import 'debug_adapter_launcher.dart';
 import 'debug_adapter_session.dart';
 import 'debug_launch_contract.dart';
@@ -217,6 +218,103 @@ class DebugLaunchTelemetrySnapshot {
       'blockedCount': blockedCount,
       'records': records.map((record) => record.toJson()).toList(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class DebugLaunchRuntimeOutputBinding {
+  const DebugLaunchRuntimeOutputBinding({required this.telemetry, this.plan});
+
+  final DebugLaunchTelemetrySnapshot telemetry;
+  final DapDebugAdapterExecutionPlan? plan;
+
+  List<RuntimeOutputEvent> runtimeOutputEvents({
+    DateTime? timestamp,
+    String? channelId,
+    String label = 'Debug',
+  }) {
+    final resolvedTimestamp = timestamp ?? DateTime.now().toUtc();
+    final baseChannelId = channelId ?? 'debug.${telemetry.workspaceId}';
+    return <RuntimeOutputEvent>[
+      if (plan != null)
+        RuntimeOutputEvent(
+          channelId: baseChannelId,
+          label: label,
+          kind: RuntimeOutputChannelKind.debug,
+          message: plan!.message,
+          timestamp: resolvedTimestamp,
+          metadata: <String, Object?>{
+            'debugProfileId': plan!.profileId,
+            'debuggerId': plan!.launchConfiguration.debuggerId,
+            'planStatus': plan!.status.wireValue,
+            'ready': plan!.ready,
+            'routeStatus': plan!.routePlan.status.wireValue,
+            'outputChannelId': plan!.outputBinding.outputChannel.id,
+          },
+        ),
+      RuntimeOutputEvent(
+        channelId: baseChannelId,
+        label: label,
+        kind: RuntimeOutputChannelKind.runtimeEvents,
+        message:
+            '${telemetry.records.length} debug telemetry record(s) for ${telemetry.workspaceId}.',
+        timestamp: resolvedTimestamp,
+        metadata: <String, Object?>{
+          'workspaceId': telemetry.workspaceId,
+          'recordCount': telemetry.records.length,
+          'successfulCount': telemetry.successfulCount,
+          'blockedCount': telemetry.blockedCount,
+        },
+      ),
+      for (final record in telemetry.records)
+        RuntimeOutputEvent(
+          channelId: '$baseChannelId.${record.profileId}',
+          label: '$label ${record.profileId}',
+          kind: RuntimeOutputChannelKind.debug,
+          message:
+              '${record.status.wireValue} ${record.profileId}: ${record.message}',
+          timestamp: record.timestamp,
+          metadata: <String, Object?>{
+            'workspaceId': record.workspaceId,
+            'debugProfileId': record.profileId,
+            'debuggerId': record.debuggerId,
+            'status': record.status.wireValue,
+            'successful': record.successful,
+            'planStatus': record.planStatus,
+            'ready': record.ready,
+            if (record.sessionStatus != null)
+              'sessionStatus': record.sessionStatus,
+            ...record.metadata,
+          },
+        ),
+    ];
+  }
+
+  RuntimeOutputPanelSnapshot outputPanelSnapshot({
+    DateTime? timestamp,
+    String? channelId,
+    String label = 'Debug',
+    RuntimeOutputChannelFilterState filter =
+        const RuntimeOutputChannelFilterState(),
+  }) {
+    return RuntimeOutputPanelSnapshot(
+      events: runtimeOutputEvents(
+        timestamp: timestamp,
+        channelId: channelId,
+        label: label,
+      ),
+      filter: filter,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    final snapshot = outputPanelSnapshot();
+    return <String, Object?>{
+      'workspaceId': telemetry.workspaceId,
+      'recordCount': telemetry.records.length,
+      'hasPlan': plan != null,
+      'outputEventCount': snapshot.events.length,
+      'outputSnapshot': snapshot.toJson(),
     };
   }
 }

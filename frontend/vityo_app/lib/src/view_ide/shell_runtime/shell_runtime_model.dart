@@ -334,6 +334,16 @@ class _ClangCppVersionCommandInput {
   final String? cppStandard;
 }
 
+class _SourceControlCommitDraftInput {
+  const _SourceControlCommitDraftInput({
+    required this.message,
+    this.paths = const <String>[],
+  });
+
+  final String message;
+  final List<String> paths;
+}
+
 _ClangCppVersionCommandInput? _parseClangCppVersionCommandInput(String? input) {
   final trimmed = input?.trim();
   if (trimmed == null || trimmed.isEmpty) {
@@ -351,6 +361,30 @@ _ClangCppVersionCommandInput? _parseClangCppVersionCommandInput(String? input) {
         ? null
         : cppStandard,
   );
+}
+
+_SourceControlCommitDraftInput? _parseSourceControlCommitDraftInput(
+  String? input,
+) {
+  final trimmed = input?.trim();
+  if (trimmed == null || trimmed.isEmpty) {
+    return null;
+  }
+  final arrowIndex = trimmed.indexOf('->');
+  if (arrowIndex < 0) {
+    return _SourceControlCommitDraftInput(message: trimmed);
+  }
+  final message = trimmed.substring(0, arrowIndex).trim();
+  if (message.isEmpty) {
+    return null;
+  }
+  final paths = trimmed
+      .substring(arrowIndex + 2)
+      .split(RegExp(r'[\n,]+'))
+      .map((path) => path.trim())
+      .where((path) => path.isNotEmpty)
+      .toList(growable: false);
+  return _SourceControlCommitDraftInput(message: message, paths: paths);
 }
 
 String? _settingsSectionForAgentRecovery(String? prerequisiteForCommandId) {
@@ -608,6 +642,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceEditApplyResultViewModel? _lastWorkspaceEditApplyResult;
   WorkspaceQuickFixTelemetrySnapshot? _workspaceQuickFixTelemetrySnapshot;
   WorkspaceReplacePreview? _lastWorkspaceReplacePreview;
+  SourceControlCommitDraft? _sourceControlCommitDraft;
+  bool _sourceControlCommitDialogOpen = false;
   final List<AgentCommandResultContext> _agentIdeCommandResults =
       <AgentCommandResultContext>[];
   DapDebugSessionHandle? _dapDebugSession;
@@ -705,6 +741,18 @@ class ShellRuntimeModel extends ChangeNotifier {
       sourceControlStatusController?.historySnapshot;
   SourceControlPartialPatchResult? get sourceControlHunkActionResult =>
       sourceControlStatusController?.lastPartialPatchResult;
+  SourceControlCommitDraft? get sourceControlCommitDraft =>
+      _sourceControlCommitDraft;
+  SourceControlCommitDialogState? get sourceControlCommitDialogState {
+    final draft = _sourceControlCommitDraft;
+    if (draft == null) {
+      return null;
+    }
+    return SourceControlCommitDialogState.fromDraft(
+      draft: draft,
+      open: _sourceControlCommitDialogOpen,
+    );
+  }
 
   SemanticSnapshotPanelViewModel? semanticPanelViewModelFor(
     SemanticSnapshotPanelEventTarget target,
@@ -1262,6 +1310,32 @@ class ShellRuntimeModel extends ChangeNotifier {
           : 'Source control branch switch plan blocked: ${plan.blockedReason}';
     }
     return 'Source control branch switch planned: ${plan.summary}.';
+  }
+
+  SourceControlCommitDraft planSourceControlCommitDraft({
+    required String message,
+    List<String>? selectedPaths,
+    bool openDialog = true,
+  }) {
+    final stagedPaths = sourceControlStatusSnapshot.changes
+        .where((change) => change.staged)
+        .map((change) => change.path)
+        .toList(growable: false);
+    final draft = SourceControlCommitDraft(
+      workspaceId: workspaceController.activeProject.workspaceRoot,
+      message: message.trim(),
+      selectedPaths: selectedPaths ?? stagedPaths,
+    );
+    final plan = draft.toCommitActionPlan();
+    _sourceControlCommitDraft = draft;
+    _sourceControlCommitDialogOpen = openDialog;
+    appendLog(
+      plan.canRun
+          ? 'Source control commit draft planned: ${plan.summary}.'
+          : 'Source control commit draft blocked: ${plan.blockedReason}',
+    );
+    notifyListeners();
+    return draft;
   }
 
   Future<SourceControlActionResult> confirmSourceControlDiffAction(
@@ -2746,6 +2820,39 @@ class ShellRuntimeModel extends ChangeNotifier {
           },
         );
         return plan.canRun;
+      case 'planSourceControlCommitDraft':
+        final input = _parseSourceControlCommitDraftInput(suggestion.input);
+        if (input == null) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message:
+                'Agent command planSourceControlCommitDraft skipped: commit message input is required.',
+            metadata: const <String, Object?>{
+              'requiredInput': 'Commit message or message -> path(s)',
+            },
+          );
+          return false;
+        }
+        final draft = planSourceControlCommitDraft(
+          message: input.message,
+          selectedPaths: input.paths.isEmpty ? null : input.paths,
+        );
+        final dialogState = sourceControlCommitDialogState;
+        final plan = draft.toCommitActionPlan();
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: plan.canRun,
+          message: plan.canRun
+              ? 'Agent command planSourceControlCommitDraft prepared a commit draft.'
+              : 'Agent command planSourceControlCommitDraft blocked: ${plan.blockedReason}',
+          metadata: <String, Object?>{
+            'sourceControlCommitDraft': draft.toJson(),
+            if (dialogState != null)
+              'sourceControlCommitDialog': dialogState.toJson(),
+          },
+        );
+        return plan.canRun;
       case 'collectAgentCodingCheckpoint':
         final metadata = await collectAgentCodingCheckpoint();
         _recordAgentIdeCommandResult(
@@ -3709,6 +3816,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
       case AppCommandId.planSourceControlBranchSwitch:
+      case AppCommandId.planSourceControlCommitDraft:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:
@@ -3788,6 +3896,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
       case AppCommandId.planSourceControlBranchSwitch:
+      case AppCommandId.planSourceControlCommitDraft:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:
@@ -6222,6 +6331,17 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: const <String, Object?>{'requiredInput': 'Target branch'},
         );
         return;
+      case AppCommandId.planSourceControlCommitDraft:
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: false,
+          message:
+              '${StyioCommandRegistry.descriptorFor(commandId).label} requires commit message input.',
+          metadata: const <String, Object?>{
+            'requiredInput': 'Commit message or message -> path(s)',
+          },
+        );
+        return;
       case AppCommandId.collectAgentCodingCheckpoint:
         final metadata = await collectAgentCodingCheckpoint();
         _recordAgentIdeCommandResult(
@@ -6592,6 +6712,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
       case AppCommandId.planSourceControlBranchSwitch:
+      case AppCommandId.planSourceControlCommitDraft:
       case AppCommandId.selectClangCppVersion:
         await applyAgentIdeCommandSuggestion(
           AgentIdeCommandSuggestion(
@@ -6886,6 +7007,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
       case AppCommandId.planSourceControlBranchSwitch:
+      case AppCommandId.planSourceControlCommitDraft:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:

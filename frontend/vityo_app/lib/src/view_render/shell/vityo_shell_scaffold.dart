@@ -205,6 +205,10 @@ class VityoShellScaffold extends StatelessWidget {
             changedDocumentIds: shell.dirtyDocumentPaths,
             status: shell.sourceControlStatusSnapshot,
             diffPreview: shell.sourceControlDiffPreview,
+            commitDraft: shell.sourceControlCommitDraft,
+            commitDialogState: shell.sourceControlCommitDialogState,
+            branchSnapshot: shell.sourceControlBranchSnapshot,
+            historySnapshot: shell.sourceControlHistorySnapshot,
             lastHunkActionResult: shell.sourceControlHunkActionResult,
             onOpenFile: shell.openWorkspaceFileForAgent,
             onSaveAll: () {
@@ -216,6 +220,12 @@ class VityoShellScaffold extends StatelessWidget {
             onPreviewDiff: shell.previewSourceControlDiff,
             onStagePaths: shell.stageSourceControlPaths,
             onUnstagePaths: shell.unstageSourceControlPaths,
+            onSwitchBranch: (plan) {
+              return shell.planSourceControlBranchSwitch(plan.targetBranch);
+            },
+            onOpenCommit: () async {
+              shell.planSourceControlCommitDraft(message: '');
+            },
             onConfirmDiffAction: shell.confirmSourceControlDiffAction,
             onSelectHunkAction: shell.confirmSourceControlHunkAction,
           );
@@ -2122,6 +2132,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.remove_done_outlined;
     case AppCommandId.planSourceControlBranchSwitch:
       return Icons.alt_route_rounded;
+    case AppCommandId.planSourceControlCommitDraft:
+      return Icons.commit_rounded;
     case AppCommandId.collectAgentCodingCheckpoint:
       return Icons.assignment_turned_in_outlined;
     case AppCommandId.collectProjectLanguageContext:

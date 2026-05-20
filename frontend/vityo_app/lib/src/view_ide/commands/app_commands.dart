@@ -30,6 +30,7 @@ enum AppCommandId {
   stageSourceControl,
   unstageSourceControl,
   planSourceControlBranchSwitch,
+  planSourceControlCommitDraft,
   collectAgentCodingCheckpoint,
   collectProjectLanguageContext,
   retryAgentProvider,
@@ -128,7 +129,8 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.previewSourceControlDiff ||
       AppCommandId.stageSourceControl ||
       AppCommandId.unstageSourceControl ||
-      AppCommandId.planSourceControlBranchSwitch =>
+      AppCommandId.planSourceControlBranchSwitch ||
+      AppCommandId.planSourceControlCommitDraft =>
         AppCommandCategory.sourceControl,
       AppCommandId.collectAgentCodingCheckpoint ||
       AppCommandId.collectProjectLanguageContext ||
@@ -493,6 +495,15 @@ class StyioCommandRegistry {
           'Load branch facts and prepare a source-control branch switch plan without switching branches.',
       requiresInput: true,
       inputLabel: 'Target branch',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.planSourceControlCommitDraft,
+      label: 'Plan Source Control Commit Draft',
+      shortcutHint: 'Route',
+      description:
+          'Prepare a source-control commit draft without creating a revision.',
+      requiresInput: true,
+      inputLabel: 'Commit message or message -> path(s)',
     ),
     AppCommandDescriptor(
       id: AppCommandId.collectAgentCodingCheckpoint,

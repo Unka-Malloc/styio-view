@@ -132,6 +132,9 @@ void main() {
       final planSourceControlBranchSwitch = StyioCommandRegistry.descriptorFor(
         AppCommandId.planSourceControlBranchSwitch,
       );
+      final planSourceControlCommitDraft = StyioCommandRegistry.descriptorFor(
+        AppCommandId.planSourceControlCommitDraft,
+      );
       final collectAgentCodingCheckpoint = StyioCommandRegistry.descriptorFor(
         AppCommandId.collectAgentCodingCheckpoint,
       );
@@ -306,6 +309,19 @@ void main() {
       );
       expect(planSourceControlBranchSwitch.requiresInput, isTrue);
       expect(planSourceControlBranchSwitch.inputLabel, 'Target branch');
+      expect(
+        planSourceControlCommitDraft.label,
+        'Plan Source Control Commit Draft',
+      );
+      expect(
+        planSourceControlCommitDraft.category,
+        AppCommandCategory.sourceControl,
+      );
+      expect(planSourceControlCommitDraft.requiresInput, isTrue);
+      expect(
+        planSourceControlCommitDraft.inputLabel,
+        'Commit message or message -> path(s)',
+      );
 
       expect(collectAgentCodingCheckpoint.label, 'Collect Coding Checkpoint');
       expect(collectAgentCodingCheckpoint.shortcutHint, 'Route');
@@ -420,6 +436,7 @@ void main() {
         AppCommandId.stageSourceControl,
         AppCommandId.unstageSourceControl,
         AppCommandId.planSourceControlBranchSwitch,
+        AppCommandId.planSourceControlCommitDraft,
       ],
     );
     expect(

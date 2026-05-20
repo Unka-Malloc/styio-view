@@ -472,6 +472,49 @@ void main() {
         'feature/scm',
       );
 
+      final missingCommitDraftApplied = await shell
+          .applyAgentIdeCommandSuggestion(
+            const AgentIdeCommandSuggestion(
+              commandId: 'planSourceControlCommitDraft',
+            ),
+          );
+      final missingCommitDraftResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(missingCommitDraftApplied, isFalse);
+      expect(
+        missingCommitDraftResult?.metadata['requiredInput'],
+        'Commit message or message -> path(s)',
+      );
+
+      final agentCommitDraftApplied = await shell
+          .applyAgentIdeCommandSuggestion(
+            const AgentIdeCommandSuggestion(
+              commandId: 'planSourceControlCommitDraft',
+              input:
+                  'Checkpoint source control -> /workspace/demo/src/main.styio',
+            ),
+          );
+      final agentCommitDraftResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(agentCommitDraftApplied, isTrue);
+      expect(agentCommitDraftResult?.commandId, 'planSourceControlCommitDraft');
+      final commitDraft =
+          agentCommitDraftResult?.metadata['sourceControlCommitDraft']!
+              as Map<String, Object?>;
+      final commitDialog =
+          agentCommitDraftResult?.metadata['sourceControlCommitDialog']!
+              as Map<String, Object?>;
+      expect(commitDraft['message'], 'Checkpoint source control');
+      expect(commitDraft['selectedPaths'], <String>[
+        '/workspace/demo/src/main.styio',
+      ]);
+      expect(
+        (commitDraft['commitPlan']! as Map<String, Object?>)['canRun'],
+        isTrue,
+      );
+      expect(commitDialog['status'], 'ready');
+      expect(shell.sourceControlCommitDialogState?.canSubmit, isTrue);
+
       await shell.executeCommand(AppCommandId.collectAgentCodingCheckpoint);
       final checkpointCommandResult =
           shell.agentSessionContext.commands.lastResult;
@@ -498,7 +541,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        53,
+        54,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],

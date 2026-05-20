@@ -27,28 +27,58 @@ class AgentWorkspaceEditPlanAdapter {
       );
     }
 
-    final fileOperationCount = patch.edits
-        .where((edit) => edit.operation != AgentCodePatchEditOperation.replace)
-        .length;
-    if (fileOperationCount > 0) {
-      return AgentWorkspaceEditPlanConversion(
-        converted: false,
-        skippedFileOperationCount: fileOperationCount,
-        message:
-            'Agent patch ${patch.patchId} contains $fileOperationCount file operation edit(s); use AgentWorkspaceCodePatchApplier for create/delete.',
-      );
+    final editsByDocument = <String, List<FormattingEdit>>{};
+    final fileOperations = <WorkspaceFileOperation>[];
+    final editsByOperationDocument = <String, List<AgentCodePatchEdit>>{};
+    for (final edit in patch.edits) {
+      editsByOperationDocument
+          .putIfAbsent(edit.documentId, () => <AgentCodePatchEdit>[])
+          .add(edit);
     }
 
-    final editsByDocument = <String, List<FormattingEdit>>{};
-    for (final edit in patch.edits) {
-      editsByDocument
-          .putIfAbsent(edit.documentId, () => <FormattingEdit>[])
-          .add(
-            FormattingEdit(
-              range: SourceRange(start: edit.start, end: edit.end),
-              newText: edit.replacementText,
-            ),
-          );
+    for (final entry in editsByOperationDocument.entries) {
+      final edits = entry.value;
+      final fileOperationEdits = edits
+          .where(
+            (edit) => edit.operation != AgentCodePatchEditOperation.replace,
+          )
+          .toList(growable: false);
+      if (fileOperationEdits.isNotEmpty && edits.length > 1) {
+        return AgentWorkspaceEditPlanConversion(
+          converted: false,
+          skippedFileOperationCount: fileOperationEdits.length,
+          message:
+              'Agent patch ${patch.patchId} mixes file operation and text edits for ${entry.key}.',
+        );
+      }
+
+      for (final edit in edits) {
+        switch (edit.operation) {
+          case AgentCodePatchEditOperation.replace:
+            editsByDocument
+                .putIfAbsent(edit.documentId, () => <FormattingEdit>[])
+                .add(
+                  FormattingEdit(
+                    range: SourceRange(start: edit.start, end: edit.end),
+                    newText: edit.replacementText,
+                  ),
+                );
+            break;
+          case AgentCodePatchEditOperation.create:
+            fileOperations.add(
+              WorkspaceFileOperation.create(
+                documentId: edit.documentId,
+                text: edit.replacementText,
+              ),
+            );
+            break;
+          case AgentCodePatchEditOperation.delete:
+            fileOperations.add(
+              WorkspaceFileOperation.delete(documentId: edit.documentId),
+            );
+            break;
+        }
+      }
     }
 
     return AgentWorkspaceEditPlanConversion(
@@ -65,6 +95,9 @@ class AgentWorkspaceEditPlanAdapter {
               List<FormattingEdit>.unmodifiable(edits),
             ),
           ),
+        ),
+        fileOperations: List<WorkspaceFileOperation>.unmodifiable(
+          fileOperations,
         ),
       ),
     );

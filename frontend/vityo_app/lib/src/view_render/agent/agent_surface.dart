@@ -9,6 +9,7 @@ import '../../view_ide/module_host/module_manifest.dart';
 import '../../view_ide/platform/platform_target.dart';
 import '../native_tool_result_summary.dart';
 import '../platform/viewport_profile.dart';
+import 'agent_activity_history_surface.dart';
 
 class AgentSurface extends StatelessWidget {
   const AgentSurface({
@@ -23,6 +24,7 @@ class AgentSurface extends StatelessWidget {
     required this.onSaveProviderProfile,
     this.onApplyIdeCommandSuggestion,
     this.onResolveIdeCommandResult,
+    this.activityHistory,
   });
 
   final PlatformTarget platformTarget;
@@ -40,6 +42,7 @@ class AgentSurface extends StatelessWidget {
   onResolveIdeCommandResult;
   final Future<void> Function(AgentPromptProfile profile, {String? bearerToken})
   onSaveProviderProfile;
+  final AgentCodingSessionHistory? activityHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +106,10 @@ class AgentSurface extends StatelessWidget {
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
                   onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
+                if (activityHistory != null) ...[
+                  const SizedBox(height: 12),
+                  AgentActivityHistorySurface(history: activityHistory!),
+                ],
                 const SizedBox(height: 12),
                 _AdapterSection(adapterCapabilities: adapterCapabilities),
                 const SizedBox(height: 12),
@@ -143,6 +150,10 @@ class AgentSurface extends StatelessWidget {
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
                   onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
+                if (activityHistory != null) ...[
+                  const SizedBox(height: 14),
+                  AgentActivityHistorySurface(history: activityHistory!),
+                ],
                 const SizedBox(height: 14),
                 _AdapterSection(adapterCapabilities: adapterCapabilities),
                 const SizedBox(height: 14),

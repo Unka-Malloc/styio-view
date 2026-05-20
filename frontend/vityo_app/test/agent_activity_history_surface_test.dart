@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/editor/document_state.dart';
+import 'package:vityo_app/src/editor/selection_state.dart';
+import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_render/platform/viewport_profile.dart';
 import 'package:vityo_app/src/view_ide/agent/agent.dart';
 import 'package:vityo_app/src/view_render/agent/agent.dart';
 
@@ -59,4 +63,71 @@ void main() {
     expect(find.text('patches 1'), findsOneWidget);
     expect(find.text('commands 1'), findsOneWidget);
   });
+
+  testWidgets('agent surface embeds activity history when provided', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord(
+          requestId: 'agent-embedded',
+          profileId: 'default-agent',
+          providerKind: 'local_only_fallback',
+          prompt: 'Review the workspace.',
+          outcome: AgentCodingSessionOutcome.succeeded,
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+          responseTextSample: 'Workspace reviewed.',
+          contentPartCount: 1,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AgentSurface(
+            platformTarget: PlatformTarget.web,
+            viewportProfile: const ViewportProfile(
+              family: ViewportFamily.desktop,
+              width: 1200,
+              height: 900,
+            ),
+            visibleModules: const [],
+            adapterCapabilities: const [],
+            sessionContext: _context(),
+            codingController: controller,
+            activityHistory: history,
+            onApplyPendingPatch: () async {},
+            onSaveProviderProfile: (profile, {bearerToken}) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-activity-history-surface')),
+      findsOneWidget,
+    );
+    expect(find.text('Review the workspace.'), findsOneWidget);
+  });
+}
+
+AgentSessionContext _context() {
+  return AgentSessionContext.fromEditorState(
+    document: const DocumentState(
+      documentId: 'main.styio',
+      text: 'value = 1\n',
+      revision: 1,
+    ),
+    selection: const SelectionState.collapsed(0),
+    diagnostics: const [],
+  );
 }

@@ -7,6 +7,7 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_connector.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
 void main() {
@@ -2085,13 +2086,14 @@ REMOVE_ME=from-file
         ),
         pty: PtyFacts.linuxDebianArm(targetId: 'toolchain-manager-install'),
       );
+      final platformManagers = await createPlatformManagerBundle(
+        platformContext: context,
+      );
       final manager = ToolchainManager(
         configurationStore: ToolchainConfigurationStore(
           configurationStore: configurationStore,
         ),
-        platformManagers: await createPlatformManagerBundle(
-          platformContext: context,
-        ),
+        platformManagers: platformManagers,
         workspaceId: 'demo',
         environmentBuilder: const ToolchainEnvironmentBuilder(
           inheritedEnvironment: <String, String>{'PATH': '/usr/bin'},
@@ -2130,6 +2132,37 @@ REMOVE_ME=from-file
         ToolchainInstallMode.externalCommand.name,
       );
       expect(historyReport.installHistory?.entries.single.succeeded, isTrue);
+
+      final runtimePlan = ToolchainInstallRuntimeExecutionPlan.fromInstallPlan(
+        plan,
+      );
+      final runtimeBuffer = RuntimeOutputLiveBuffer();
+      final runtimeResult =
+          await ToolchainInstallRuntimeExecutionAdapter(
+            executor: ToolchainInstallExecutor(
+              platformManagers: platformManagers,
+              environmentBuilder: const ToolchainEnvironmentBuilder(
+                inheritedEnvironment: <String, String>{'PATH': '/usr/bin'},
+              ),
+            ),
+            clock: () => DateTime.utc(2026, 5, 20, 18),
+          ).executePlan(
+            runtimePlan,
+            buffer: runtimeBuffer,
+            environment: const <String, String>{'VITYO_RUNTIME_INSTALL': 'ok'},
+          );
+
+      expect(runtimePlan.ready, isTrue);
+      expect(runtimeResult.executed, isTrue);
+      expect(runtimeResult.succeeded, isTrue);
+      expect(
+        runtimeResult.dispatchResult.status,
+        RuntimeExecutionDispatchStatus.dispatched,
+      );
+      expect(
+        runtimeResult.outputEvents.map((event) => event.message),
+        contains('VITYO_RUNTIME_INSTALL=ok'),
+      );
     },
   );
 

@@ -554,7 +554,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, and patch application loop.',
+              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, patch application loop, and persisted coding session history.',
           dependencies: <String>['workspace.edit-application'],
           references: <String>[
             'VS Code chat participants',

@@ -482,7 +482,8 @@ class _WorkspaceSymbolSearchResultView extends StatelessWidget {
                   dense: true,
                   title: Text('${match.name} · ${match.kind}'),
                   subtitle: Text(
-                    '${match.documentId} · line ${match.lineNumber}: ${match.lineText}',
+                    '${match.documentId} · line ${match.lineNumber}: ${match.lineText}'
+                    ' · semantic ${match.snapshotConfidence}',
                   ),
                   trailing: const Icon(Icons.open_in_new_rounded),
                   onTap: onOpenMatch == null
@@ -639,7 +640,10 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
   }
 }
 
-String _workspaceReplacePreviewExpandedText(String text, {int maxLength = 240}) {
+String _workspaceReplacePreviewExpandedText(
+  String text, {
+  int maxLength = 240,
+}) {
   final normalized = text
       .split('\n')
       .where((line) => line.trim().isNotEmpty)

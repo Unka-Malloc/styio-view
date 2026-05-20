@@ -8,6 +8,7 @@ import '../interaction/language_service_status_surface.dart';
 import '../language/language_contract.dart';
 import '../language/service/language_service_foundation.dart';
 import '../language/service/semantic_snapshot_event_bridge.dart';
+import '../language/service/semantic_snapshot_provider.dart';
 import '../testing/testing.dart';
 import '../toolchain/clang_cpp_version_configuration.dart';
 import '../toolchain/clang_cpp_version_manager.dart';
@@ -4234,6 +4235,8 @@ class AgentWorkspaceSymbolMatchContext {
     required this.start,
     required this.end,
     required this.lineText,
+    this.snapshotSource = 'service-analysis',
+    this.snapshotConfidence = 'service-backed',
     this.detail,
   });
 
@@ -4244,7 +4247,11 @@ class AgentWorkspaceSymbolMatchContext {
   final int start;
   final int end;
   final String lineText;
+  final String snapshotSource;
+  final String snapshotConfidence;
   final String? detail;
+
+  bool get usedFallback => snapshotSource == 'local-builder-fallback';
 
   factory AgentWorkspaceSymbolMatchContext.fromWorkspaceSymbolMatch(
     WorkspaceSymbolMatch match,
@@ -4257,6 +4264,8 @@ class AgentWorkspaceSymbolMatchContext {
       start: match.nameRange.start,
       end: match.nameRange.end,
       lineText: match.lineText,
+      snapshotSource: match.snapshotSource.wireValue,
+      snapshotConfidence: match.snapshotConfidence.wireValue,
       detail: match.detail,
     );
   }
@@ -4270,6 +4279,9 @@ class AgentWorkspaceSymbolMatchContext {
       'start': start,
       'end': end,
       'lineText': lineText,
+      'snapshotSource': snapshotSource,
+      'snapshotConfidence': snapshotConfidence,
+      'usedFallback': usedFallback,
       if (detail != null) 'detail': detail,
     };
   }

@@ -2564,6 +2564,10 @@ void main() {
     expect((symbolMatches.single! as Map<String, Object?>)['kind'], 'variable');
     expect((symbolMatches.single! as Map<String, Object?>)['lineNumber'], 1);
     expect(
+      (symbolMatches.single! as Map<String, Object?>)['snapshotConfidence'],
+      'service-backed',
+    );
+    expect(
       (symbolMatches.single! as Map<String, Object?>)['detail'],
       'Styio binding',
     );

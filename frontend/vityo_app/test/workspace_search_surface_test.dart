@@ -5,6 +5,7 @@ import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
+import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/search/search.dart';
@@ -42,6 +43,8 @@ void main() {
           lineNumber: 1,
           lineText: 'needle := 1',
           score: 1000,
+          snapshotSource: SemanticSnapshotProviderSource.localBuilderFallback,
+          snapshotConfidence: SemanticSnapshotFeatureConfidence.localFallback,
           detail: 'Styio binding',
         ),
       ],
@@ -168,11 +171,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('symbols 1'), findsOneWidget);
     expect(find.text('needle · variable'), findsOneWidget);
+    expect(find.textContaining('semantic local-fallback'), findsOneWidget);
     await tester.tap(find.byKey(symbolKey));
     await tester.pump();
 
     expect(openedSymbolMatch?.documentId, 'src/main.styio');
     expect(openedSymbolMatch?.name, 'needle');
+    expect(openedSymbolMatch?.snapshotConfidence, 'local-fallback');
   });
 
   testWidgets('workspace search surface filters and opens quick-open files', (

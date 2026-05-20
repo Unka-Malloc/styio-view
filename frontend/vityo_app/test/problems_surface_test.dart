@@ -81,6 +81,8 @@ void main() {
     var refreshCount = 0;
     var previewCount = 0;
     var applyCount = 0;
+    var workspaceEditApplyCount = 0;
+    var workspaceEditCancelCount = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -159,6 +161,12 @@ void main() {
             onApplyWorkspaceQuickFix: () async {
               applyCount += 1;
             },
+            onApplyWorkspaceEdit: (controls) async {
+              workspaceEditApplyCount += 1;
+            },
+            onCancelWorkspaceEdit: (controls) async {
+              workspaceEditCancelCount += 1;
+            },
           ),
         ),
       ),
@@ -183,6 +191,19 @@ void main() {
     );
     expect(
       find.text('Preview blocked until missing documents are loaded.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('blocked-missing-documents'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('problems-workspace-edit-apply')),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      find.byKey(const ValueKey('problems-workspace-edit-cancel')),
       findsOneWidget,
     );
     expect(find.text('Before: @import a / @import a'), findsOneWidget);
@@ -231,6 +252,84 @@ void main() {
     await tester.pump();
 
     expect(applyCount, 1);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('problems-workspace-edit-cancel')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('problems-workspace-edit-cancel')),
+    );
+    await tester.pump();
+
+    expect(workspaceEditApplyCount, 0);
+    expect(workspaceEditCancelCount, 1);
+  });
+
+  testWidgets('problems surface applies ready workspace edit review controls', (
+    tester,
+  ) async {
+    WorkspaceEditReviewControls? appliedControls;
+    WorkspaceEditReviewControls? canceledControls;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProblemsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            documentId: 'src/main.styio',
+            diagnostics: const <Diagnostic>[],
+            workspaceEditPreview: const WorkspaceEditPreview(
+              planId: 'ready-fix',
+              summary: 'Rename symbol in workspace',
+              source: WorkspaceEditSource.rename,
+              documents: <WorkspaceEditDocumentPreview>[
+                WorkspaceEditDocumentPreview(
+                  documentId: 'src/main.styio',
+                  revision: 7,
+                  beforeText: 'old',
+                  afterText: 'new',
+                  edits: <FormattingEdit>[
+                    FormattingEdit(
+                      range: SourceRange(start: 0, end: 3),
+                      newText: 'new',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            onApplyWorkspaceEdit: (controls) async {
+              appliedControls = controls;
+            },
+            onCancelWorkspaceEdit: (controls) async {
+              canceledControls = controls;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.textContaining('ready · Workspace edit preview is ready'),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('problems-workspace-edit-apply')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('problems-workspace-edit-cancel')),
+    );
+    await tester.pump();
+
+    expect(appliedControls?.confirmationPlan.planId, 'ready-fix');
+    expect(appliedControls?.canApply, isTrue);
+    expect(canceledControls?.confirmationPlan.planId, 'ready-fix');
   });
 
   testWidgets('problems surface filters workspace diagnostics by severity', (

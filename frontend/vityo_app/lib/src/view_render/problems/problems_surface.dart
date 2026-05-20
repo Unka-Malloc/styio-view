@@ -20,6 +20,9 @@ class ProblemsSurface extends StatefulWidget {
     this.filterState,
     this.onPreviewWorkspaceQuickFix,
     this.onApplyWorkspaceQuickFix,
+    this.workspaceEditReviewControls,
+    this.onApplyWorkspaceEdit,
+    this.onCancelWorkspaceEdit,
   });
 
   final ViewportProfile viewportProfile;
@@ -34,6 +37,11 @@ class ProblemsSurface extends StatefulWidget {
   final WorkspaceDiagnosticsFilterState? filterState;
   final Future<void> Function()? onPreviewWorkspaceQuickFix;
   final Future<void> Function()? onApplyWorkspaceQuickFix;
+  final WorkspaceEditReviewControls? workspaceEditReviewControls;
+  final Future<void> Function(WorkspaceEditReviewControls controls)?
+  onApplyWorkspaceEdit;
+  final Future<void> Function(WorkspaceEditReviewControls controls)?
+  onCancelWorkspaceEdit;
 
   @override
   State<ProblemsSurface> createState() => _ProblemsSurfaceState();
@@ -108,6 +116,12 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
     final selectedEntry = selectedIndex < 0
         ? null
         : visibleProblemEntries[selectedIndex];
+    final workspaceEditReviewControls = widget.workspaceEditPreview == null
+        ? null
+        : widget.workspaceEditReviewControls ??
+              WorkspaceEditReviewControls.fromPreview(
+                widget.workspaceEditPreview!,
+              );
     final documentGroups = view.documentGroups;
     final severityCounts = view.severityCounts;
 
@@ -201,6 +215,9 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                   const SizedBox(height: 12),
                   _WorkspaceEditPreviewCard(
                     preview: widget.workspaceEditPreview!,
+                    reviewControls: workspaceEditReviewControls!,
+                    onApply: widget.onApplyWorkspaceEdit,
+                    onCancel: widget.onCancelWorkspaceEdit,
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -390,13 +407,22 @@ class _ProblemQuickFixSelection extends StatelessWidget {
 }
 
 class _WorkspaceEditPreviewCard extends StatelessWidget {
-  const _WorkspaceEditPreviewCard({required this.preview});
+  const _WorkspaceEditPreviewCard({
+    required this.preview,
+    required this.reviewControls,
+    this.onApply,
+    this.onCancel,
+  });
 
   final WorkspaceEditPreview preview;
+  final WorkspaceEditReviewControls reviewControls;
+  final Future<void> Function(WorkspaceEditReviewControls controls)? onApply;
+  final Future<void> Function(WorkspaceEditReviewControls controls)? onCancel;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final confirmation = reviewControls.confirmationPlan;
     final changedDocuments = preview.documents
         .where((document) => document.changed)
         .toList(growable: false);
@@ -435,6 +461,43 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
                   ? theme.colorScheme.primary
                   : theme.colorScheme.error,
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${confirmation.status.wireValue} · ${confirmation.message}',
+            key: const ValueKey('problems-workspace-edit-confirmation-status'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: confirmation.ready
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.error,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              FilledButton.icon(
+                key: const ValueKey('problems-workspace-edit-apply'),
+                onPressed: reviewControls.apply.enabled && onApply != null
+                    ? () {
+                        onApply!(reviewControls);
+                      }
+                    : null,
+                icon: const Icon(Icons.done_all_rounded),
+                label: Text(reviewControls.apply.label),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('problems-workspace-edit-cancel'),
+                onPressed: reviewControls.cancel.enabled && onCancel != null
+                    ? () {
+                        onCancel!(reviewControls);
+                      }
+                    : null,
+                icon: const Icon(Icons.close_rounded),
+                label: Text(reviewControls.cancel.label),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           for (final document in sampleDocuments)

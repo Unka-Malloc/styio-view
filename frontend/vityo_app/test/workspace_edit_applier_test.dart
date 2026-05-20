@@ -428,13 +428,26 @@ void main() {
       expect(ready.ready, isTrue);
       expect(ready.requiresUserConfirmation, isTrue);
       expect(ready.documentIds, <String>['main.styio']);
-      expect(ready.toJson()['todo'], contains('diff UI'));
       expect(noChange.status, WorkspaceEditConfirmationStatus.blockedNoChanges);
       expect(noChange.requiresUserConfirmation, isFalse);
       expect(
         tooMany.status,
         WorkspaceEditConfirmationStatus.blockedTooManyEdits,
       );
+
+      final readyControls = WorkspaceEditReviewControls.fromPreview(
+        readyPreview,
+      );
+      final blockedControls = WorkspaceEditReviewControls.fromPreview(
+        noChangePreview,
+      );
+
+      expect(readyControls.canApply, isTrue);
+      expect(readyControls.apply.id, 'workspace-edit.apply.ready');
+      expect(readyControls.cancel.enabled, isTrue);
+      expect(blockedControls.canApply, isFalse);
+      expect(blockedControls.apply.reason, contains('no text changes'));
+      expect(readyControls.toJson()['status'], 'ready');
     },
   );
 

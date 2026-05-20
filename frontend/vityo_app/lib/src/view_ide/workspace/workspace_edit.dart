@@ -402,7 +402,7 @@ class WorkspaceEditConfirmationPlan {
       fileOperationCount: preview.fileOperations.length,
       message: 'Workspace edit preview is ready for confirmation.',
       todo:
-          'TODO: bind this confirmation plan to the diff UI, file operation preview, and apply/cancel controls.',
+          'TODO: add richer virtualized diff UI and file operation expansion.',
     );
   }
 
@@ -435,6 +435,88 @@ class WorkspaceEditConfirmationPlan {
       'requiresUserConfirmation': requiresUserConfirmation,
       'message': message,
       if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class WorkspaceEditReviewAction {
+  const WorkspaceEditReviewAction({
+    required this.id,
+    required this.label,
+    required this.enabled,
+    this.reason = '',
+  });
+
+  final String id;
+  final String label;
+  final bool enabled;
+  final String reason;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'label': label,
+      'enabled': enabled,
+      if (reason.isNotEmpty) 'reason': reason,
+    };
+  }
+}
+
+class WorkspaceEditReviewControls {
+  const WorkspaceEditReviewControls({
+    required this.confirmationPlan,
+    required this.apply,
+    required this.cancel,
+  });
+
+  factory WorkspaceEditReviewControls.fromPreview(
+    WorkspaceEditPreview preview, {
+    int maxEditCount = 500,
+  }) {
+    return WorkspaceEditReviewControls.fromConfirmationPlan(
+      WorkspaceEditConfirmationPlan.fromPreview(
+        preview,
+        maxEditCount: maxEditCount,
+      ),
+    );
+  }
+
+  factory WorkspaceEditReviewControls.fromConfirmationPlan(
+    WorkspaceEditConfirmationPlan plan,
+  ) {
+    return WorkspaceEditReviewControls(
+      confirmationPlan: plan,
+      apply: WorkspaceEditReviewAction(
+        id: 'workspace-edit.apply.${plan.planId}',
+        label: 'Apply workspace edit',
+        enabled: plan.ready,
+        reason: plan.ready ? '' : plan.message,
+      ),
+      cancel: WorkspaceEditReviewAction(
+        id: 'workspace-edit.cancel.${plan.planId}',
+        label: 'Cancel workspace edit',
+        enabled: true,
+        reason: plan.requiresUserConfirmation
+            ? ''
+            : 'No user confirmation is required for this plan.',
+      ),
+    );
+  }
+
+  final WorkspaceEditConfirmationPlan confirmationPlan;
+  final WorkspaceEditReviewAction apply;
+  final WorkspaceEditReviewAction cancel;
+
+  bool get canApply => apply.enabled;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': confirmationPlan.planId,
+      'status': confirmationPlan.status.wireValue,
+      'canApply': canApply,
+      'confirmationPlan': confirmationPlan.toJson(),
+      'apply': apply.toJson(),
+      'cancel': cancel.toJson(),
     };
   }
 }

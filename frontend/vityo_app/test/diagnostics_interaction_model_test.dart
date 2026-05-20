@@ -95,11 +95,62 @@ void main() {
       ),
       hasLength(2),
     );
+    expect(
+      actions
+          .firstWhere(
+            (action) =>
+                action.kind == DiagnosticsInteractionActionKind.previewQuickFix,
+          )
+          .commandId,
+      'previewQuickFix',
+    );
+    expect(
+      actions
+          .firstWhere(
+            (action) =>
+                action.kind == DiagnosticsInteractionActionKind.applyQuickFix,
+          )
+          .commandId,
+      'applyQuickFix',
+    );
     expect(actions.last.enabled, isFalse);
     expect(json['readyQuickFixCount'], 1);
     expect(json['previewableQuickFixCount'], 2);
     expect(json['actions'], isNotEmpty);
     expect(json['sourceGroups'], isNotEmpty);
+
+    const routeDiagnostic = WorkspaceDiagnostic(
+      documentId: 'src/main.styio',
+      diagnostic: Diagnostic(
+        severity: DiagnosticSeverity.error,
+        code: 'syntax-error',
+        message: 'Unexpected token.',
+        range: SourceRange(start: 0, end: 1),
+      ),
+      quickFixes: <DiagnosticQuickFix>[
+        DiagnosticQuickFix(
+          label: 'Insert assignment',
+          edits: <FormattingEdit>[
+            FormattingEdit(range: SourceRange(start: 1, end: 1), newText: '='),
+          ],
+        ),
+      ],
+    );
+    final applyRoute = DiagnosticsQuickFixCommandRoute.apply(
+      diagnostic: routeDiagnostic,
+      quickFixIndex: 0,
+    );
+    final missingRoute = DiagnosticsQuickFixCommandRoute.preview(
+      diagnostic: routeDiagnostic,
+      quickFixIndex: 4,
+    );
+
+    expect(applyRoute.commandId, 'applyQuickFix');
+    expect(applyRoute.routeId, 'applyQuickFix:src/main.styio:syntax-error:0');
+    expect(applyRoute.quickFix?.label, 'Insert assignment');
+    expect(applyRoute.toJson()['quickFixIndex'], 0);
+    expect(missingRoute.enabled, isFalse);
+    expect(missingRoute.reason, contains('not available'));
   });
 
   test('diagnostics panel state persists selected problem context', () async {

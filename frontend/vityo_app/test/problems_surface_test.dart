@@ -86,6 +86,8 @@ void main() {
     var applyCount = 0;
     var workspaceEditApplyCount = 0;
     var workspaceEditCancelCount = 0;
+    DiagnosticsQuickFixCommandRoute? previewFixRoute;
+    DiagnosticsQuickFixCommandRoute? applyFixRoute;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -174,6 +176,12 @@ void main() {
             onApplyWorkspaceQuickFix: () async {
               applyCount += 1;
             },
+            onPreviewDiagnosticQuickFix: (route) async {
+              previewFixRoute = route;
+            },
+            onApplyDiagnosticQuickFix: (route) async {
+              applyFixRoute = route;
+            },
             onApplyWorkspaceEdit: (controls) async {
               workspaceEditApplyCount += 1;
             },
@@ -237,6 +245,27 @@ void main() {
     expect(find.text('selected-fixes 1'), findsOneWidget);
     expect(find.text('Quick Fixes: style'), findsOneWidget);
     expect(find.text('Use explicit name · edits 1'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('problems-preview-fix-style-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('problems-apply-fix-style-0')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('problems-preview-fix-style-0')),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('problems-apply-fix-style-0')));
+    await tester.pump();
+
+    expect(previewFixRoute?.commandId, 'previewQuickFix');
+    expect(previewFixRoute?.quickFixIndex, 0);
+    expect(previewFixRoute?.diagnostic.documentId, 'src/lib.styio');
+    expect(applyFixRoute?.commandId, 'applyQuickFix');
+    expect(applyFixRoute?.routeId, 'applyQuickFix:src/lib.styio:style:0');
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('problems-refresh-workspace')),

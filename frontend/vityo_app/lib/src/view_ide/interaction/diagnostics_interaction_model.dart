@@ -1,3 +1,4 @@
+import '../language/language_contract.dart';
 import '../workspace/workspace.dart';
 
 enum DiagnosticsInteractionActionKind {
@@ -26,6 +27,7 @@ class DiagnosticsInteractionAction {
     required this.label,
     this.enabled = true,
     this.targetId = '',
+    this.commandId = '',
     this.metadata = const <String, Object?>{},
   });
 
@@ -34,6 +36,7 @@ class DiagnosticsInteractionAction {
   final String label;
   final bool enabled;
   final String targetId;
+  final String commandId;
   final Map<String, Object?> metadata;
 
   Map<String, Object?> toJson() {
@@ -43,7 +46,87 @@ class DiagnosticsInteractionAction {
       'label': label,
       'enabled': enabled,
       if (targetId.isNotEmpty) 'targetId': targetId,
+      if (commandId.isNotEmpty) 'commandId': commandId,
       if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class DiagnosticsQuickFixCommandRoute {
+  const DiagnosticsQuickFixCommandRoute({
+    required this.commandId,
+    required this.diagnostic,
+    required this.quickFixIndex,
+    required this.label,
+    this.enabled = true,
+    this.reason = '',
+  });
+
+  factory DiagnosticsQuickFixCommandRoute.preview({
+    required WorkspaceDiagnostic diagnostic,
+    required int quickFixIndex,
+  }) {
+    final quickFix = _quickFixAt(diagnostic, quickFixIndex);
+    return DiagnosticsQuickFixCommandRoute(
+      commandId: 'previewQuickFix',
+      diagnostic: diagnostic,
+      quickFixIndex: quickFixIndex,
+      label: 'Preview ${quickFix?.label ?? 'quick fix'}',
+      enabled: quickFix != null,
+      reason: quickFix == null
+          ? 'Quick fix index $quickFixIndex is not available.'
+          : '',
+    );
+  }
+
+  factory DiagnosticsQuickFixCommandRoute.apply({
+    required WorkspaceDiagnostic diagnostic,
+    required int quickFixIndex,
+  }) {
+    final quickFix = _quickFixAt(diagnostic, quickFixIndex);
+    return DiagnosticsQuickFixCommandRoute(
+      commandId: 'applyQuickFix',
+      diagnostic: diagnostic,
+      quickFixIndex: quickFixIndex,
+      label: 'Apply ${quickFix?.label ?? 'quick fix'}',
+      enabled: quickFix != null,
+      reason: quickFix == null
+          ? 'Quick fix index $quickFixIndex is not available.'
+          : '',
+    );
+  }
+
+  final String commandId;
+  final WorkspaceDiagnostic diagnostic;
+  final int quickFixIndex;
+  final String label;
+  final bool enabled;
+  final String reason;
+
+  DiagnosticQuickFix? get quickFix {
+    return _quickFixAt(diagnostic, quickFixIndex);
+  }
+
+  String get routeId {
+    return <String>[
+      commandId,
+      diagnostic.documentId,
+      diagnostic.diagnostic.code,
+      quickFixIndex.toString(),
+    ].join(':');
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'routeId': routeId,
+      'commandId': commandId,
+      'documentId': diagnostic.documentId,
+      'diagnosticCode': diagnostic.diagnostic.code,
+      'quickFixIndex': quickFixIndex,
+      'label': label,
+      'enabled': enabled,
+      if (reason.isNotEmpty) 'reason': reason,
+      if (quickFix != null) 'quickFixLabel': quickFix!.label,
     };
   }
 }
@@ -122,6 +205,7 @@ class DiagnosticsInteractionModel {
         DiagnosticsInteractionAction(
           actionId: 'diagnostics.preview-fix.${plan.planId}',
           kind: DiagnosticsInteractionActionKind.previewQuickFix,
+          commandId: 'previewQuickFix',
           label:
               plan.status ==
                   WorkspaceQuickFixConfirmationStatus.blockedNoPreview
@@ -141,6 +225,7 @@ class DiagnosticsInteractionModel {
         DiagnosticsInteractionAction(
           actionId: 'diagnostics.apply-fix.${plan.planId}',
           kind: DiagnosticsInteractionActionKind.applyQuickFix,
+          commandId: 'applyQuickFix',
           label: plan.ready ? 'Apply ${plan.summary}' : plan.message,
           enabled: plan.ready,
           targetId: plan.planId,
@@ -175,4 +260,14 @@ class DiagnosticsInteractionModel {
           .toList(growable: false),
     };
   }
+}
+
+DiagnosticQuickFix? _quickFixAt(
+  WorkspaceDiagnostic diagnostic,
+  int quickFixIndex,
+) {
+  if (quickFixIndex < 0 || quickFixIndex >= diagnostic.quickFixes.length) {
+    return null;
+  }
+  return diagnostic.quickFixes[quickFixIndex];
 }

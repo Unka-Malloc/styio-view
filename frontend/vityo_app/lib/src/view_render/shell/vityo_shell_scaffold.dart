@@ -273,6 +273,14 @@ class VityoShellScaffold extends StatelessWidget {
             onApplyWorkspaceQuickFix: () {
               return shell.executeCommand(AppCommandId.applyQuickFix);
             },
+            onPreviewDiagnosticQuickFix: (route) async {
+              shell.selectWorkspaceDiagnostic(route.diagnostic);
+              await shell.executeCommand(AppCommandId.previewQuickFix);
+            },
+            onApplyDiagnosticQuickFix: (route) async {
+              shell.selectWorkspaceDiagnostic(route.diagnostic);
+              await shell.executeCommand(AppCommandId.applyQuickFix);
+            },
           );
         }
 

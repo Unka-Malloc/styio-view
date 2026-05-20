@@ -34,6 +34,8 @@ class ProblemsSurface extends StatefulWidget {
     this.onCancelWorkspaceEdit,
     this.onApplyQuickFixReviewPlan,
     this.onCancelQuickFixReviewPlan,
+    this.onPreviewDiagnosticQuickFix,
+    this.onApplyDiagnosticQuickFix,
   });
 
   final ViewportProfile viewportProfile;
@@ -68,6 +70,10 @@ class ProblemsSurface extends StatefulWidget {
   onApplyQuickFixReviewPlan;
   final Future<void> Function(WorkspaceQuickFixReviewPlan plan)?
   onCancelQuickFixReviewPlan;
+  final Future<void> Function(DiagnosticsQuickFixCommandRoute route)?
+  onPreviewDiagnosticQuickFix;
+  final Future<void> Function(DiagnosticsQuickFixCommandRoute route)?
+  onApplyDiagnosticQuickFix;
 
   @override
   State<ProblemsSurface> createState() => _ProblemsSurfaceState();
@@ -314,7 +320,11 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                       _ProblemsDocumentGroupSummary(groups: documentGroups),
                       if (selectedEntry?.hasQuickFixes ?? false) ...[
                         const SizedBox(height: 10),
-                        _ProblemQuickFixSelection(entry: selectedEntry!),
+                        _ProblemQuickFixSelection(
+                          entry: selectedEntry!,
+                          onPreview: widget.onPreviewDiagnosticQuickFix,
+                          onApply: widget.onApplyDiagnosticQuickFix,
+                        ),
                       ],
                       const SizedBox(height: 10),
                       SizedBox(
@@ -460,9 +470,15 @@ class _ProblemsDocumentGroupSummary extends StatelessWidget {
 }
 
 class _ProblemQuickFixSelection extends StatelessWidget {
-  const _ProblemQuickFixSelection({required this.entry});
+  const _ProblemQuickFixSelection({
+    required this.entry,
+    this.onPreview,
+    this.onApply,
+  });
 
   final WorkspaceDiagnostic entry;
+  final Future<void> Function(DiagnosticsQuickFixCommandRoute route)? onPreview;
+  final Future<void> Function(DiagnosticsQuickFixCommandRoute route)? onApply;
 
   @override
   Widget build(BuildContext context) {
@@ -483,14 +499,79 @@ class _ProblemQuickFixSelection extends StatelessWidget {
             style: theme.textTheme.titleSmall,
           ),
           const SizedBox(height: 6),
-          for (final fix in entry.quickFixes)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                '${fix.label} · edits ${fix.edits.length}',
-                style: theme.textTheme.bodySmall,
-              ),
+          for (final indexedFix in entry.quickFixes.indexed)
+            _ProblemQuickFixRouteRow(
+              entry: entry,
+              quickFixIndex: indexedFix.$1,
+              fix: indexedFix.$2,
+              onPreview: onPreview,
+              onApply: onApply,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProblemQuickFixRouteRow extends StatelessWidget {
+  const _ProblemQuickFixRouteRow({
+    required this.entry,
+    required this.quickFixIndex,
+    required this.fix,
+    this.onPreview,
+    this.onApply,
+  });
+
+  final WorkspaceDiagnostic entry;
+  final int quickFixIndex;
+  final DiagnosticQuickFix fix;
+  final Future<void> Function(DiagnosticsQuickFixCommandRoute route)? onPreview;
+  final Future<void> Function(DiagnosticsQuickFixCommandRoute route)? onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final previewRoute = DiagnosticsQuickFixCommandRoute.preview(
+      diagnostic: entry,
+      quickFixIndex: quickFixIndex,
+    );
+    final applyRoute = DiagnosticsQuickFixCommandRoute.apply(
+      diagnostic: entry,
+      quickFixIndex: quickFixIndex,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            '${fix.label} · edits ${fix.edits.length}',
+            style: theme.textTheme.bodySmall,
+          ),
+          OutlinedButton(
+            key: ValueKey(
+              'problems-preview-fix-${entry.diagnostic.code}-$quickFixIndex',
+            ),
+            onPressed: previewRoute.enabled && onPreview != null
+                ? () {
+                    onPreview!(previewRoute);
+                  }
+                : null,
+            child: const Text('Preview Fix'),
+          ),
+          FilledButton.tonal(
+            key: ValueKey(
+              'problems-apply-fix-${entry.diagnostic.code}-$quickFixIndex',
+            ),
+            onPressed: applyRoute.enabled && onApply != null
+                ? () {
+                    onApply!(applyRoute);
+                  }
+                : null,
+            child: const Text('Apply Fix'),
+          ),
         ],
       ),
     );

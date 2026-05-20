@@ -408,6 +408,21 @@ class AgentCodingSkillCatalog {
       'IDE-facing work should remain grounded in mature editor, language service, and agent coding references.',
     ]);
 
+    if (hasStyio) {
+      activate('styio-language-service-truth', <String>[
+        'Styio source files require StyioService-backed syntax and semantic facts instead of Vityo-side grammar guesses.',
+      ]);
+      activate('styio-ide-feature-loop', <String>[
+        'Styio IDE features should adapt completion, hover, diagnostics, semantic tokens, definition, references, and rename from language facts.',
+      ]);
+      activate('styio-fixture-confidence-matrix', <String>[
+        'Styio syntax-sensitive work should use fixture expectations and confidence classification.',
+      ]);
+      activate('styio-cpp-compiler-project', <String>[
+        'Styio source files should be handled as part of the Styio C++ compiler project workflow.',
+      ]);
+    }
+
     if (hasNativeProjectEvidence) {
       activate('cpp-clang-toolchain-defaults', <String>[
         'The workspace has Styio, C/C++, CMake, Clang, or compile database evidence.',
@@ -459,12 +474,6 @@ class AgentCodingSkillCatalog {
     if (hasCTest || hasTestPath) {
       activate('cpp-test-debug-loop', <String>[
         'The workspace has CTest or test path evidence for targeted validation planning.',
-      ]);
-    }
-
-    if (hasStyio) {
-      activate('styio-cpp-compiler-project', <String>[
-        'Styio source files should be handled as part of the Styio C++ compiler project workflow.',
       ]);
     }
 

@@ -332,7 +332,7 @@ void main() {
       (json['usage']! as Map<String, Object?>)['debugBlockedCommandCount'],
       6,
     );
-    expect((json['usage']! as Map<String, Object?>)['skillCount'], 11);
+    expect((json['usage']! as Map<String, Object?>)['skillCount'], 14);
     expect(
       (json['usage']! as Map<String, Object?>)['skillIds'],
       contains('cpp-clang-toolchain-defaults'),
@@ -632,6 +632,7 @@ void main() {
         contains('agent.recentDiagnosticSummaries'),
       );
       expect(systemMessage['content'], contains('commands catalog'));
+      expect(systemMessage['content'], contains('Styio-first skills'));
       expect(systemMessage['content'], contains('C++/Clang skills'));
       expect(systemMessage['content'], contains('reference-grounded IDE'));
       expect(systemMessage['content'], contains('debug.threads'));
@@ -846,7 +847,7 @@ void main() {
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);
       expect(metadata['selectionEndColumn'], 0);
-      expect(metadata['skillCount'], 11);
+      expect(metadata['skillCount'], 14);
       expect(metadata['activeSkillCount'], greaterThan(0));
       expect(
         metadata['activeSkillIds'],

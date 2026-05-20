@@ -311,8 +311,7 @@ void main() {
       sourceControlDiff: const SourceControlDiffSnapshot(
         providerKind: SourceControlProviderKind.git,
         path: '/workspace/demo/src/main.styio',
-        unifiedDiff:
-            'diff --git a/src/main.styio b/src/main.styio\n+value\n',
+        unifiedDiff: 'diff --git a/src/main.styio b/src/main.styio\n+value\n',
       ),
       testDiscovery: const TestDiscoveryResult(
         providerId: 'ctest-discovery',
@@ -1045,6 +1044,9 @@ void main() {
       'openSettings',
     );
     expect(skillsJson['skillIds'], contains('cpp-clang-toolchain-defaults'));
+    expect(skillsJson['skillIds'], contains('styio-language-service-truth'));
+    expect(skillsJson['skillIds'], contains('styio-ide-feature-loop'));
+    expect(skillsJson['skillIds'], contains('styio-fixture-confidence-matrix'));
     expect(skillsJson['skillIds'], contains('cpp-clang-version-handoff'));
     expect(skillsJson['skillIds'], contains('cpp-compilation-database'));
     expect(skillsJson['skillIds'], contains('cpp-clang-format-tidy'));
@@ -1056,7 +1058,7 @@ void main() {
       contains('reference-grounded-ide-development'),
     );
     expect(skillsJson['skillIds'], contains('styio-cpp-compiler-project'));
-    expect(skillsJson['skillCount'], 11);
+    expect(skillsJson['skillCount'], 14);
     final skills = skillsJson['skills']! as List<Object?>;
     final referenceSkill = skills.whereType<Map<String, Object?>>().singleWhere(
       (skill) => skill['skillId'] == 'reference-grounded-ide-development',
@@ -2165,6 +2167,39 @@ void main() {
   });
 
   test(
+    'agent workspace context activates Styio-first skills for Styio documents',
+    () {
+      final context = AgentSessionContext.fromEditorState(
+        document: const DocumentState(
+          documentId: 'src/main.styio',
+          text: 'state value = 1\n',
+          revision: 1,
+        ),
+        selection: const SelectionState.collapsed(0),
+        diagnostics: const <Diagnostic>[],
+        workspaceFiles: const <String>['src/main.styio'],
+        activeFilePath: 'src/main.styio',
+      );
+
+      final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+      final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
+      final activationReasons =
+          skillsJson['activationReasons']! as Map<String, Object?>;
+
+      expect(activeSkillIds.first, 'styio-language-service-truth');
+      expect(activeSkillIds, contains('styio-ide-feature-loop'));
+      expect(activeSkillIds, contains('styio-fixture-confidence-matrix'));
+      expect(activeSkillIds, contains('styio-cpp-compiler-project'));
+      expect(
+        activationReasons['styio-language-service-truth'],
+        contains(
+          'Styio source files require StyioService-backed syntax and semantic facts instead of Vityo-side grammar guesses.',
+        ),
+      );
+    },
+  );
+
+  test(
     'agent workspace context activates native skills for Ninja build files',
     () {
       final context = AgentSessionContext.fromEditorState(
@@ -2326,7 +2361,10 @@ void main() {
     expect((symbolMatches.single! as Map<String, Object?>)['name'], 'needle');
     expect((symbolMatches.single! as Map<String, Object?>)['kind'], 'variable');
     expect((symbolMatches.single! as Map<String, Object?>)['lineNumber'], 1);
-    expect((symbolMatches.single! as Map<String, Object?>)['detail'], 'Styio binding');
+    expect(
+      (symbolMatches.single! as Map<String, Object?>)['detail'],
+      'Styio binding',
+    );
   });
 
   test('agent command context serializes latest IDE command result', () {

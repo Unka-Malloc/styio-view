@@ -134,6 +134,98 @@ void main() {
     expect(binding.outputChannel.kind, RuntimeOutputChannelKind.runtimeEvents);
   });
 
+  test('runtime execution manager registry dispatches ready handoffs', () {
+    const definition = RuntimeTaskDefinition(
+      id: 'styio-test',
+      label: 'Styio tests',
+      kind: RuntimeTaskKind.test,
+      command: 'styio',
+      arguments: <String>['test'],
+    );
+    final binding = const RuntimeExecutionPlanner()
+        .plan(definition: definition)
+        .createHandoff(
+          target: RuntimeExecutionHandoffTarget.toolchainManager,
+          outputChannelId: 'test.styio',
+        )
+        .bind();
+    final registry = RuntimeExecutionManagerRegistry(
+      managers: const <RuntimeExecutionManagerRegistration>[
+        RuntimeExecutionManagerRegistration(
+          managerId: 'toolchain-manager',
+          label: 'Toolchain Manager',
+          routeKinds: <String>['toolchain-task'],
+          metadata: <String, Object?>{'owner': 'Toolchain'},
+        ),
+      ],
+    );
+
+    final result = registry.dispatch(
+      binding,
+      timestamp: DateTime.utc(2026, 5, 20),
+      metadata: const <String, Object?>{'requester': 'agent'},
+    );
+
+    expect(result.dispatched, isTrue);
+    expect(result.status, RuntimeExecutionDispatchStatus.dispatched);
+    expect(result.manager?.managerId, 'toolchain-manager');
+    expect(result.outputSubscription.active, isTrue);
+    expect(result.outputSubscription.channelIds, <String>['test.styio']);
+    expect(result.outputEvent.metadata['dispatchStatus'], 'dispatched');
+    expect(result.outputEvent.metadata['managerLabel'], 'Toolchain Manager');
+    expect(result.metadata['owner'], 'Toolchain');
+    expect(result.toJson()['outputSubscription'], isA<Map<String, Object?>>());
+  });
+
+  test(
+    'runtime execution manager registry reports blocked and missing routes',
+    () {
+      const definition = RuntimeTaskDefinition(
+        id: 'hosted-run',
+        label: 'Hosted run',
+        kind: RuntimeTaskKind.run,
+        command: 'styio',
+        dependsOn: <String>['compile'],
+      );
+      final blockedBinding = const RuntimeExecutionPlanner()
+          .plan(definition: definition)
+          .createHandoff(target: RuntimeExecutionHandoffTarget.hostedExecutor)
+          .bind();
+      const readyDefinition = RuntimeTaskDefinition(
+        id: 'shell-run',
+        label: 'Shell run',
+        kind: RuntimeTaskKind.shell,
+        command: 'echo',
+      );
+      final missingBinding = const RuntimeExecutionPlanner()
+          .plan(definition: readyDefinition)
+          .createHandoff(target: RuntimeExecutionHandoffTarget.shellManager)
+          .bind();
+      final registry = RuntimeExecutionManagerRegistry();
+
+      final blocked = registry.dispatch(
+        blockedBinding,
+        timestamp: DateTime.utc(2026, 5, 20),
+      );
+      final missing = registry.dispatch(
+        missingBinding,
+        timestamp: DateTime.utc(2026, 5, 20),
+      );
+
+      expect(blocked.status, RuntimeExecutionDispatchStatus.blocked);
+      expect(
+        blocked.outputSubscription.status,
+        RuntimeOutputSubscriptionStatus.blocked,
+      );
+      expect(missing.status, RuntimeExecutionDispatchStatus.missingManager);
+      expect(
+        missing.outputSubscription.status,
+        RuntimeOutputSubscriptionStatus.pending,
+      );
+      expect(missing.message, contains('shell-manager'));
+    },
+  );
+
   test('runtime execution handoff preserves blocked plan reason', () {
     const definition = RuntimeTaskDefinition(
       id: 'build',

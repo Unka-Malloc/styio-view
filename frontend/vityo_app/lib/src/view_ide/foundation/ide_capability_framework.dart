@@ -495,9 +495,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/execution',
           summary:
-              'ExecutionSession, runtime events, native tool results, runtime execution plans, dependency readiness checks, runtime execution handoff contracts, manager binding routes, output-channel attachment contracts, runtime task lifecycle snapshots, persisted runtime task history, and extension task contribution definitions expose stable serializable execution contracts for UI and Agent consumers.',
+              'ExecutionSession, runtime events, native tool results, runtime execution plans, dependency readiness checks, runtime execution handoff contracts, manager binding routes, RuntimeExecutionManagerRegistry dispatch results, output-channel attachment contracts, runtime task lifecycle snapshots, persisted runtime task history, and extension task contribution definitions expose stable serializable execution contracts for UI and Agent consumers.',
           todo:
-              'TODO: bind RuntimeExecutionHandoffBinding to concrete shell/toolchain/hosted execution managers and live task output stream subscriptions.',
+              'TODO: connect RuntimeExecutionManagerRegistry registrations to concrete shell/toolchain/hosted manager implementations and live process streams.',
           references: <String>['VS Code tasks', 'Theia task service'],
         ),
         IdeCapabilityDescriptor(

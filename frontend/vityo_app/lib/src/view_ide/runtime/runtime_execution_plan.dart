@@ -11,6 +11,8 @@ enum RuntimeExecutionHandoffStatus { ready, blocked }
 
 enum RuntimeExecutionHandoffBindingStatus { ready, blocked }
 
+enum RuntimeExecutionDispatchStatus { dispatched, blocked, missingManager }
+
 enum RuntimeExecutionHandoffTarget {
   shellManager,
   terminalRuntime,
@@ -48,6 +50,14 @@ extension RuntimeExecutionHandoffBindingStatusX
   String get wireValue => switch (this) {
     RuntimeExecutionHandoffBindingStatus.ready => 'ready',
     RuntimeExecutionHandoffBindingStatus.blocked => 'blocked',
+  };
+}
+
+extension RuntimeExecutionDispatchStatusX on RuntimeExecutionDispatchStatus {
+  String get wireValue => switch (this) {
+    RuntimeExecutionDispatchStatus.dispatched => 'dispatched',
+    RuntimeExecutionDispatchStatus.blocked => 'blocked',
+    RuntimeExecutionDispatchStatus.missingManager => 'missing-manager',
   };
 }
 
@@ -376,6 +386,177 @@ class RuntimeExecutionHandoffBinding {
       'outputChannel': outputChannel.toJson(),
       if (metadata.isNotEmpty) 'metadata': metadata,
     };
+  }
+}
+
+class RuntimeExecutionManagerRegistration {
+  const RuntimeExecutionManagerRegistration({
+    required this.managerId,
+    required this.label,
+    this.routeKinds = const <String>[],
+    this.available = true,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String managerId;
+  final String label;
+  final List<String> routeKinds;
+  final bool available;
+  final Map<String, Object?> metadata;
+
+  bool accepts(RuntimeExecutionHandoffBinding binding) {
+    return managerId == binding.managerId &&
+        (routeKinds.isEmpty || routeKinds.contains(binding.routeKind));
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'managerId': managerId,
+      'label': label,
+      'routeKinds': routeKinds,
+      'available': available,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class RuntimeExecutionDispatchResult {
+  const RuntimeExecutionDispatchResult({
+    required this.binding,
+    required this.status,
+    required this.message,
+    required this.outputSubscription,
+    required this.outputEvent,
+    this.manager,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final RuntimeExecutionHandoffBinding binding;
+  final RuntimeExecutionDispatchStatus status;
+  final String message;
+  final RuntimeExecutionManagerRegistration? manager;
+  final RuntimeOutputStreamSubscriptionPlan outputSubscription;
+  final RuntimeOutputEvent outputEvent;
+  final Map<String, Object?> metadata;
+
+  bool get dispatched => status == RuntimeExecutionDispatchStatus.dispatched;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'dispatched': dispatched,
+      'message': message,
+      'managerId': binding.managerId,
+      'routeKind': binding.routeKind,
+      'binding': binding.toJson(),
+      if (manager != null) 'manager': manager!.toJson(),
+      'outputSubscription': outputSubscription.toJson(),
+      'outputEvent': outputEvent.toJson(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class RuntimeExecutionManagerRegistry {
+  RuntimeExecutionManagerRegistry({
+    Iterable<RuntimeExecutionManagerRegistration> managers =
+        const <RuntimeExecutionManagerRegistration>[],
+  }) {
+    for (final manager in managers) {
+      register(manager);
+    }
+  }
+
+  final List<RuntimeExecutionManagerRegistration> _managers =
+      <RuntimeExecutionManagerRegistration>[];
+
+  List<RuntimeExecutionManagerRegistration> get managers {
+    return List<RuntimeExecutionManagerRegistration>.unmodifiable(_managers);
+  }
+
+  void register(RuntimeExecutionManagerRegistration manager) {
+    _managers.removeWhere(
+      (candidate) => candidate.managerId == manager.managerId,
+    );
+    _managers.add(manager);
+  }
+
+  RuntimeExecutionManagerRegistration? resolve(
+    RuntimeExecutionHandoffBinding binding,
+  ) {
+    for (final manager in _managers) {
+      if (manager.accepts(binding)) {
+        return manager;
+      }
+    }
+    return null;
+  }
+
+  RuntimeExecutionDispatchResult dispatch(
+    RuntimeExecutionHandoffBinding binding, {
+    required DateTime timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final subscription = binding.outputSubscriptionPlan(metadata: metadata);
+    if (!binding.ready) {
+      return RuntimeExecutionDispatchResult(
+        binding: binding,
+        status: RuntimeExecutionDispatchStatus.blocked,
+        message:
+            'Runtime execution dispatch blocked: handoff ${binding.handoff.taskId} is not ready.',
+        outputSubscription: subscription,
+        outputEvent: binding.outputEvent(
+          message: 'Runtime execution dispatch blocked.',
+          timestamp: timestamp,
+          metadata: <String, Object?>{
+            'dispatchStatus': RuntimeExecutionDispatchStatus.blocked.wireValue,
+            ...metadata,
+          },
+        ),
+        metadata: metadata,
+      );
+    }
+    final manager = resolve(binding);
+    if (manager == null || !manager.available) {
+      return RuntimeExecutionDispatchResult(
+        binding: binding,
+        status: RuntimeExecutionDispatchStatus.missingManager,
+        manager: manager,
+        message:
+            'Runtime execution dispatch missing available manager ${binding.managerId} for route ${binding.routeKind}.',
+        outputSubscription: subscription,
+        outputEvent: binding.outputEvent(
+          message: 'Runtime execution manager is unavailable.',
+          timestamp: timestamp,
+          metadata: <String, Object?>{
+            'dispatchStatus':
+                RuntimeExecutionDispatchStatus.missingManager.wireValue,
+            ...metadata,
+          },
+        ),
+        metadata: metadata,
+      );
+    }
+    final activeSubscription = subscription.activate();
+    return RuntimeExecutionDispatchResult(
+      binding: binding,
+      status: RuntimeExecutionDispatchStatus.dispatched,
+      manager: manager,
+      message:
+          'Runtime execution ${binding.handoff.taskId} dispatched to ${manager.managerId}.',
+      outputSubscription: activeSubscription,
+      outputEvent: binding.outputEvent(
+        message:
+            'Runtime execution ${binding.handoff.taskId} dispatched to ${manager.label}.',
+        timestamp: timestamp,
+        metadata: <String, Object?>{
+          'dispatchStatus': RuntimeExecutionDispatchStatus.dispatched.wireValue,
+          'managerLabel': manager.label,
+          ...metadata,
+        },
+      ),
+      metadata: <String, Object?>{...manager.metadata, ...metadata},
+    );
   }
 }
 

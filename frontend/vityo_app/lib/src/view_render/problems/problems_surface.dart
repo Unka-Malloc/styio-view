@@ -22,10 +22,13 @@ class ProblemsSurface extends StatefulWidget {
     this.onPreviewWorkspaceQuickFix,
     this.onApplyWorkspaceQuickFix,
     this.workspaceEditReviewControls,
+    this.quickFixReviewPlan,
     this.diagnosticsPanelState,
     this.onDiagnosticsPanelStateChanged,
     this.onApplyWorkspaceEdit,
     this.onCancelWorkspaceEdit,
+    this.onApplyQuickFixReviewPlan,
+    this.onCancelQuickFixReviewPlan,
   });
 
   final ViewportProfile viewportProfile;
@@ -41,12 +44,17 @@ class ProblemsSurface extends StatefulWidget {
   final Future<void> Function()? onPreviewWorkspaceQuickFix;
   final Future<void> Function()? onApplyWorkspaceQuickFix;
   final WorkspaceEditReviewControls? workspaceEditReviewControls;
+  final WorkspaceQuickFixReviewPlan? quickFixReviewPlan;
   final DiagnosticsPanelState? diagnosticsPanelState;
   final ValueChanged<DiagnosticsPanelState>? onDiagnosticsPanelStateChanged;
   final Future<void> Function(WorkspaceEditReviewControls controls)?
   onApplyWorkspaceEdit;
   final Future<void> Function(WorkspaceEditReviewControls controls)?
   onCancelWorkspaceEdit;
+  final Future<void> Function(WorkspaceQuickFixReviewPlan plan)?
+  onApplyQuickFixReviewPlan;
+  final Future<void> Function(WorkspaceQuickFixReviewPlan plan)?
+  onCancelQuickFixReviewPlan;
 
   @override
   State<ProblemsSurface> createState() => _ProblemsSurfaceState();
@@ -249,6 +257,14 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                     reviewControls: workspaceEditReviewControls!,
                     onApply: widget.onApplyWorkspaceEdit,
                     onCancel: widget.onCancelWorkspaceEdit,
+                  ),
+                ],
+                if (widget.quickFixReviewPlan != null) ...[
+                  const SizedBox(height: 12),
+                  _WorkspaceQuickFixReviewCard(
+                    reviewPlan: widget.quickFixReviewPlan!,
+                    onApply: widget.onApplyQuickFixReviewPlan,
+                    onCancel: widget.onCancelQuickFixReviewPlan,
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -458,12 +474,20 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
   const _WorkspaceEditPreviewCard({
     required this.preview,
     required this.reviewControls,
+    this.cardKey = const ValueKey('problems-workspace-edit-preview'),
+    this.applyKey = const ValueKey('problems-workspace-edit-apply'),
+    this.cancelKey = const ValueKey('problems-workspace-edit-cancel'),
+    this.title = 'Workspace edit preview',
     this.onApply,
     this.onCancel,
   });
 
   final WorkspaceEditPreview preview;
   final WorkspaceEditReviewControls reviewControls;
+  final Key cardKey;
+  final Key applyKey;
+  final Key cancelKey;
+  final String title;
   final Future<void> Function(WorkspaceEditReviewControls controls)? onApply;
   final Future<void> Function(WorkspaceEditReviewControls controls)? onCancel;
 
@@ -479,7 +503,7 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
         changedDocuments.length - sampleDocuments.length;
 
     return Container(
-      key: const ValueKey('problems-workspace-edit-preview'),
+      key: cardKey,
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -490,7 +514,7 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Workspace edit preview', style: theme.textTheme.titleSmall),
+          Text(title, style: theme.textTheme.titleSmall),
           const SizedBox(height: 4),
           Text(
             '${preview.summary} · ${preview.editCount} edit(s) · '
@@ -526,7 +550,7 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
             runSpacing: 6,
             children: [
               FilledButton.icon(
-                key: const ValueKey('problems-workspace-edit-apply'),
+                key: applyKey,
                 onPressed: reviewControls.apply.enabled && onApply != null
                     ? () {
                         onApply!(reviewControls);
@@ -536,7 +560,7 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
                 label: Text(reviewControls.apply.label),
               ),
               OutlinedButton.icon(
-                key: const ValueKey('problems-workspace-edit-cancel'),
+                key: cancelKey,
                 onPressed: reviewControls.cancel.enabled && onCancel != null
                     ? () {
                         onCancel!(reviewControls);
@@ -582,6 +606,73 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
                 color: theme.colorScheme.error,
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkspaceQuickFixReviewCard extends StatelessWidget {
+  const _WorkspaceQuickFixReviewCard({
+    required this.reviewPlan,
+    this.onApply,
+    this.onCancel,
+  });
+
+  final WorkspaceQuickFixReviewPlan reviewPlan;
+  final Future<void> Function(WorkspaceQuickFixReviewPlan plan)? onApply;
+  final Future<void> Function(WorkspaceQuickFixReviewPlan plan)? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final preview = reviewPlan.preview;
+    final controls = reviewPlan.controls;
+    return Container(
+      key: const ValueKey('problems-quick-fix-review'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Quick-fix review', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            '${reviewPlan.diagnostic.documentId} · '
+            '${reviewPlan.diagnostic.diagnostic.code} · '
+            'fix ${reviewPlan.quickFixIndex}',
+            key: const ValueKey('problems-quick-fix-review-summary'),
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${reviewPlan.confirmationPlan.status.wireValue} · '
+            '${reviewPlan.confirmationPlan.message}',
+            key: const ValueKey('problems-quick-fix-review-status'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: reviewPlan.ready
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.error,
+            ),
+          ),
+          if (preview != null && controls != null) ...[
+            const SizedBox(height: 10),
+            _WorkspaceEditPreviewCard(
+              cardKey: const ValueKey('problems-quick-fix-review-preview'),
+              applyKey: const ValueKey('problems-quick-fix-review-apply'),
+              cancelKey: const ValueKey('problems-quick-fix-review-cancel'),
+              title: 'Quick-fix diff preview',
+              preview: preview,
+              reviewControls: controls,
+              onApply: onApply == null ? null : (_) => onApply!(reviewPlan),
+              onCancel: onCancel == null ? null : (_) => onCancel!(reviewPlan),
+            ),
+          ],
         ],
       ),
     );

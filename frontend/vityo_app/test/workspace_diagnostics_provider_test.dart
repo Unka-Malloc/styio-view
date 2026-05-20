@@ -260,7 +260,7 @@ void main() {
     expect(review.preview?.canApply, isTrue);
     expect(review.controls?.canApply, isTrue);
     expect(window?.documents.single.afterText, 'let count = value\n');
-    expect(review.toJson()['todo'], contains('Problems panel'));
+    expect(review.toJson()['todo'], contains('producer telemetry'));
     expect(missing.ready, isFalse);
     expect(
       missing.confirmationPlan.status,

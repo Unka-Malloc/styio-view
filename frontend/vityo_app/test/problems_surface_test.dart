@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
@@ -345,6 +346,91 @@ void main() {
     expect(appliedControls?.confirmationPlan.planId, 'ready-fix');
     expect(appliedControls?.canApply, isTrue);
     expect(canceledControls?.confirmationPlan.planId, 'ready-fix');
+  });
+
+  testWidgets('problems surface binds quick-fix review diff apply controls', (
+    tester,
+  ) async {
+    WorkspaceQuickFixReviewPlan? appliedPlan;
+    WorkspaceQuickFixReviewPlan? canceledPlan;
+    const diagnostic = WorkspaceDiagnostic(
+      documentId: 'src/main.styio',
+      diagnostic: Diagnostic(
+        severity: DiagnosticSeverity.error,
+        code: 'missing-assignment',
+        message: 'Missing assignment.',
+        range: SourceRange(start: 0, end: 9),
+      ),
+      quickFixes: <DiagnosticQuickFix>[
+        DiagnosticQuickFix(
+          label: 'Insert assignment',
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 9, end: 9),
+              newText: ' = value',
+            ),
+          ],
+        ),
+      ],
+    );
+    final reviewPlan = WorkspaceQuickFixReviewPlan.fromDiagnostic(
+      diagnostic: diagnostic,
+      documents: const <DocumentState>[
+        DocumentState(
+          documentId: 'src/main.styio',
+          text: 'let count\n',
+          revision: 3,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProblemsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            documentId: 'src/main.styio',
+            diagnostics: const <Diagnostic>[],
+            quickFixReviewPlan: reviewPlan,
+            onApplyQuickFixReviewPlan: (plan) async {
+              appliedPlan = plan;
+            },
+            onCancelQuickFixReviewPlan: (plan) async {
+              canceledPlan = plan;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('problems-quick-fix-review')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('problems-quick-fix-review-preview')),
+      findsOneWidget,
+    );
+    expect(find.text('Quick-fix diff preview'), findsOneWidget);
+    expect(find.text('Before: let count'), findsOneWidget);
+    expect(find.text('After: let count = value'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('problems-quick-fix-review-apply')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('problems-quick-fix-review-cancel')),
+    );
+    await tester.pump();
+
+    expect(appliedPlan?.diagnostic.diagnostic.code, 'missing-assignment');
+    expect(appliedPlan?.ready, isTrue);
+    expect(canceledPlan?.quickFixIndex, 0);
   });
 
   testWidgets('problems surface filters workspace diagnostics by severity', (

@@ -662,7 +662,7 @@ class WorkspaceQuickFixReviewPlan {
       if (preview != null) 'preview': preview!.toJson(),
       if (controls != null) 'controls': controls!.toJson(),
       'todo':
-          'TODO: bind this review plan to the Problems panel diff/apply controls.',
+          'TODO: attach quick-fix review outcomes to native diagnostic producer telemetry.',
     };
   }
 }

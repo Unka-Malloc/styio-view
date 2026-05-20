@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../view_ide/backend_toolchain/adapter_contracts.dart';
 import '../../view_ide/agent/agent.dart';
+import '../../view_ide/environment/configuration/configuration.dart';
 import '../../view_ide/module_host/module_definition.dart';
 import '../../view_ide/module_host/module_manifest.dart';
 import '../../view_ide/platform/platform_target.dart';
@@ -200,6 +201,7 @@ class _AgentProviderProfileSectionState
   late String _endpointApiKeyEnvironmentName;
   late String _endpointProtocol;
   String? _endpointReasoningEffort;
+  CredentialReference? _endpointCredentialReference;
   late bool _endpointRequiresCredential;
   late String _profileSignature;
   late String _lockSignature;
@@ -314,6 +316,8 @@ class _AgentProviderProfileSectionState
       profile.endpoint.apiKeyEnvironmentName,
       profile.endpoint.protocol,
       profile.endpoint.reasoningEffort ?? '',
+      profile.endpoint.credentialReference?.key.stableId ?? '',
+      profile.endpoint.credentialReference?.kind.wireValue ?? '',
       profile.endpoint.requiresCredential,
       if (profile.fallbackEndpoints.isNotEmpty)
         profile.fallbackEndpoints.first.baseUrl,
@@ -331,6 +335,7 @@ class _AgentProviderProfileSectionState
     _endpointApiKeyEnvironmentName = endpoint.apiKeyEnvironmentName;
     _endpointProtocol = endpoint.protocol;
     _endpointReasoningEffort = endpoint.reasoningEffort;
+    _endpointCredentialReference = endpoint.credentialReference;
     _endpointRequiresCredential = endpoint.requiresCredential;
   }
 
@@ -434,7 +439,7 @@ class _AgentProviderProfileSectionState
           ),
           const SizedBox(height: 6),
           Text(
-            'Preset requires an explicit bearer token. Vityo stores the token through Credential DataStore and does not read Codex OAuth from the host.',
+            'Preset requires an explicit OpenAI API key or bearer token. Vityo stores the credential through Credential DataStore and does not read Codex OAuth from the host.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -561,7 +566,7 @@ class _AgentProviderProfileSectionState
             enabled: !locked,
             obscureText: true,
             decoration: const InputDecoration(
-              labelText: 'Bearer token (optional)',
+              labelText: 'OpenAI API key / bearer token (optional)',
               helperText:
                   'Stored in Credential DataStore, not in profile JSON.',
               border: OutlineInputBorder(),
@@ -629,7 +634,7 @@ class _AgentProviderProfileSectionState
         apiKeyEnvironmentName: _endpointApiKeyEnvironmentName,
         protocol: _endpointProtocol,
         reasoningEffort: _endpointReasoningEffort,
-        credentialReference: current.endpoint.credentialReference,
+        credentialReference: _endpointCredentialReference,
         requiresCredential: _requiresCredentialForBaseUrl(
           baseUrl,
           currentValue: _endpointRequiresCredential,

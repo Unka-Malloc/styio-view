@@ -9,6 +9,7 @@ import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/environment/configuration/configuration.dart';
 import 'package:vityo_app/src/view_render/agent/agent_surface.dart';
 import 'package:vityo_app/src/view_render/platform/viewport_profile.dart';
 
@@ -203,6 +204,10 @@ void main() {
             ?.text,
         'gpt-5.3-codex-spark',
       );
+      expect(
+        find.textContaining('OpenAI API key or bearer token'),
+        findsOneWidget,
+      );
       expect(find.textContaining('does not read Codex OAuth'), findsOneWidget);
 
       await tester.enterText(
@@ -220,6 +225,18 @@ void main() {
       expect(savedProfile?.endpoint.protocol, 'openai-responses');
       expect(savedProfile?.endpoint.reasoningEffort, 'high');
       expect(savedProfile?.endpoint.requiresCredential, isTrue);
+      expect(
+        savedProfile?.endpoint.credentialReference?.key.namespace,
+        'agent.provider',
+      );
+      expect(
+        savedProfile?.endpoint.credentialReference?.key.name,
+        'openai-api-key',
+      );
+      expect(
+        savedProfile?.endpoint.credentialReference?.kind,
+        CredentialKind.remoteServiceCredential,
+      );
       expect(savedBearerToken, 'spark-token');
     },
   );

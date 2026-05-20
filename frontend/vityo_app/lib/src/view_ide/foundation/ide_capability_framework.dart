@@ -340,8 +340,7 @@ class VityoIdeCapabilityFramework {
           ownerPath: 'lib/src/view_ide/interaction',
           summary:
               'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, reusable diagnostics view models, and focused problem actions.',
-          todo:
-              'TODO: add persisted problem filters, richer source grouping, and fix confirmation flows.',
+          todo: 'TODO: add richer source grouping and fix confirmation flows.',
           dependencies: <String>['workspace.diagnostics'],
         ),
         IdeCapabilityDescriptor(
@@ -609,8 +608,7 @@ class VityoIdeCapabilityFramework {
           ownerPath: 'lib/src/view_render',
           summary:
               'Active document diagnostics panel is wired into the IDE shell and has workspace diagnostics grouping, severity filter, provider contract, quick-fix preview, and navigation available.',
-          todo:
-              'TODO: add persisted problem filters, richer source grouping, and fix confirmation flows.',
+          todo: 'TODO: add richer source grouping and fix confirmation flows.',
           dependencies: <String>['workspace.diagnostics'],
           references: <String>[
             'VS Code Problems panel',

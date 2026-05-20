@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
@@ -235,6 +238,111 @@ void main() {
     expect(result.message, contains('Workspace diagnostics unavailable'));
     expect(controller.snapshot, same(result));
   });
+
+  test('workspace diagnostics filter store persists problem filters', () async {
+    final store = WorkspaceDiagnosticsFilterStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+    const filter = WorkspaceDiagnosticsFilterState(
+      severities: <DiagnosticSeverity>[DiagnosticSeverity.warning],
+      documentQuery: 'test/',
+      sources: <String>['fixture'],
+    );
+
+    await store.saveFilter(workspaceId: 'demo', filter: filter);
+    final restored = await store.readFilter(workspaceId: 'demo');
+
+    expect(restored.summary, 'warning · document test/ · source fixture');
+    expect(restored.matches(_workspaceDiagnostic('test/main.styio')), isTrue);
+    expect(restored.matches(_workspaceDiagnostic('src/main.styio')), isFalse);
+    expect(await store.deleteFilter(workspaceId: 'demo'), isTrue);
+    expect((await store.readFilter(workspaceId: 'demo')).active, isFalse);
+  });
+
+  test(
+    'workspace diagnostics controller applies persisted problem filter',
+    () async {
+      final store = WorkspaceDiagnosticsFilterStore.fromDataStore(
+        dataStore: await _createDataStore(),
+      );
+      await store.saveFilter(
+        workspaceId: 'demo',
+        filter: const WorkspaceDiagnosticsFilterState(
+          severities: <DiagnosticSeverity>[DiagnosticSeverity.warning],
+        ),
+      );
+      final controller = WorkspaceDiagnosticsController(
+        provider: StaticWorkspaceDiagnosticsProvider(
+          providerId: 'static',
+          snapshot: WorkspaceDiagnosticsSnapshot(
+            providerId: 'static',
+            diagnostics: <WorkspaceDiagnostic>[
+              _workspaceDiagnostic('src/main.styio'),
+              _workspaceDiagnostic(
+                'test/main.styio',
+                severity: DiagnosticSeverity.error,
+              ),
+            ],
+          ),
+        ),
+        filterStore: store,
+        workspaceId: 'demo',
+      );
+      addTearDown(controller.dispose);
+
+      await controller.loadFilter();
+      await controller.refresh(
+        const WorkspaceDiagnosticsRequest(
+          documentIds: <String>['src/main.styio', 'test/main.styio'],
+        ),
+      );
+
+      expect(controller.filterState.summary, 'warning');
+      expect(controller.view?.visibleCount, 1);
+      expect(
+        controller.view?.visibleDiagnostics.single.documentId,
+        'src/main.styio',
+      );
+    },
+  );
+}
+
+Future<FoundationDataStore> _createDataStore() async {
+  final tempRoot = await Directory.systemTemp.createTemp(
+    'vityo_workspace_diagnostics_filter_test_',
+  );
+  // ignore: discarded_futures
+  addTearDown(() => tempRoot.delete(recursive: true));
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: tempRoot.path,
+      homePath: tempRoot.path,
+    ),
+  );
+  return FoundationDataStore(
+    resourceCoordinator: FoundationResourceCoordinator(
+      resourceManager: resourceManager,
+      fileSystemManager: fileSystemManager,
+    ),
+    fileSystemManager: fileSystemManager,
+  );
+}
+
+WorkspaceDiagnostic _workspaceDiagnostic(
+  String documentId, {
+  DiagnosticSeverity severity = DiagnosticSeverity.warning,
+}) {
+  return WorkspaceDiagnostic(
+    documentId: documentId,
+    source: documentId.startsWith('test/') ? 'fixture' : 'styio',
+    diagnostic: Diagnostic(
+      severity: severity,
+      code: severity.name,
+      message: '${severity.name} diagnostic',
+      range: const SourceRange(start: 0, end: 1),
+    ),
+  );
 }
 
 class _FailingWorkspaceDiagnosticsProvider

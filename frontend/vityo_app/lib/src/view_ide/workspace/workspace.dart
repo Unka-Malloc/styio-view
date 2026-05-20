@@ -10,3 +10,4 @@ export 'source_control_status_controller.dart';
 export 'workspace_edit.dart';
 export 'workspace_diagnostics.dart';
 export 'workspace_diagnostics_controller.dart';
+export 'workspace_diagnostics_filter_store.dart';

@@ -1,19 +1,78 @@
 import 'package:flutter/foundation.dart';
 
 import 'workspace_diagnostics.dart';
+import 'workspace_diagnostics_filter_store.dart';
 
 class WorkspaceDiagnosticsController extends ChangeNotifier {
   WorkspaceDiagnosticsController({
     required WorkspaceDiagnosticsProvider provider,
-  }) : _provider = provider;
+    WorkspaceDiagnosticsFilterStore? filterStore,
+    String workspaceId = 'default',
+  }) : _provider = provider,
+       _filterStore = filterStore,
+       _workspaceId = workspaceId;
 
   final WorkspaceDiagnosticsProvider _provider;
+  final WorkspaceDiagnosticsFilterStore? _filterStore;
+  final String _workspaceId;
   WorkspaceDiagnosticsSnapshot? _snapshot;
+  WorkspaceDiagnosticsFilterState _filterState =
+      const WorkspaceDiagnosticsFilterState();
   int _generation = 0;
 
   WorkspaceDiagnosticsProvider get provider => _provider;
   WorkspaceDiagnosticsSnapshot? get snapshot => _snapshot;
+  WorkspaceDiagnosticsFilterState get filterState => _filterState;
   bool get hasSnapshot => _snapshot != null;
+  WorkspaceDiagnosticsView? get view {
+    final currentSnapshot = _snapshot;
+    if (currentSnapshot == null) {
+      return null;
+    }
+    return WorkspaceDiagnosticsView.fromSnapshot(
+      currentSnapshot,
+      filter: _filterState,
+    );
+  }
+
+  Future<WorkspaceDiagnosticsFilterState> loadFilter({
+    String key = 'default',
+  }) async {
+    final store = _filterStore;
+    if (store == null) {
+      return _filterState;
+    }
+    _filterState = await store.readFilter(workspaceId: _workspaceId, key: key);
+    notifyListeners();
+    return _filterState;
+  }
+
+  Future<void> setFilter(
+    WorkspaceDiagnosticsFilterState filter, {
+    bool persist = true,
+    String key = 'default',
+  }) async {
+    _filterState = filter;
+    notifyListeners();
+    if (persist) {
+      await _filterStore?.saveFilter(
+        workspaceId: _workspaceId,
+        key: key,
+        filter: filter,
+      );
+    }
+  }
+
+  Future<void> clearFilter({
+    bool persist = true,
+    String key = 'default',
+  }) async {
+    _filterState = const WorkspaceDiagnosticsFilterState();
+    notifyListeners();
+    if (persist) {
+      await _filterStore?.deleteFilter(workspaceId: _workspaceId, key: key);
+    }
+  }
 
   Future<WorkspaceDiagnosticsSnapshot> refresh(
     WorkspaceDiagnosticsRequest request,

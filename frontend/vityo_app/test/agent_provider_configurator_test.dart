@@ -9,6 +9,7 @@ import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_provider_retry_policy.dart';
 import 'package:vityo_app/src/view_ide/environment/configuration/configuration.dart';
 
 void main() {
@@ -137,6 +138,37 @@ void main() {
       expect(result.executionResolution, same(executionResolution));
     },
   );
+
+  test('agent provider configurator can mount retrying adapter', () async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    final configurator = AgentProviderConfigurator(
+      workspaceId: 'workspace-1',
+      saveProfile:
+          ({required workspaceId, required key, required profile}) async {},
+      createAdapter: (_) async => const _FakeAgentProviderAdapter(
+        kind: AgentProviderKind.cloudOpenAICompatible,
+      ),
+      retryExecutor: const AgentProviderRetryExecutor(
+        policy: AgentProviderRetryPolicy(maxAttempts: 2),
+      ),
+    );
+
+    final result = await configurator.saveAndMount(
+      profile: _profile('cloud'),
+      controller: controller,
+    );
+
+    expect(result.mounted, isTrue);
+    expect(result.retryEnabled, isTrue);
+    expect(result.adapterId, 'fake:retrying');
+    expect(controller.adapter, isA<RetryingAgentProviderAdapter>());
+    expect(controller.adapter.kind, AgentProviderKind.cloudOpenAICompatible);
+  });
 
   test(
     'agent provider configurator writes token to preferred OpenAI credential',

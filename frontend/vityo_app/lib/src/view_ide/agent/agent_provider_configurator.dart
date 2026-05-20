@@ -4,6 +4,7 @@ import 'agent_prompt_profile_store.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_credential_resolver.dart';
 import 'agent_provider_registry.dart';
+import 'agent_provider_retry_policy.dart';
 import 'agent_provider_route_executor.dart';
 import '../environment/configuration/configuration.dart';
 
@@ -51,6 +52,7 @@ class AgentProviderConfigurationResult {
     this.synced = false,
     this.selectionPlan,
     this.executionResolution,
+    this.retryEnabled = false,
   });
 
   final bool saved;
@@ -62,6 +64,7 @@ class AgentProviderConfigurationResult {
   final bool synced;
   final AgentProviderSelectionPlan? selectionPlan;
   final AgentProviderExecutionResolution? executionResolution;
+  final bool retryEnabled;
 }
 
 class AgentProviderConfigurator {
@@ -73,12 +76,14 @@ class AgentProviderConfigurator {
     AgentProviderExecutionResolver? resolveExecution,
     AgentPromptProfileSync? syncProfile,
     AgentBearerTokenSaver? saveBearerToken,
+    AgentProviderRetryExecutor? retryExecutor,
   }) : _saveProfile = saveProfile,
        _createAdapter = createAdapter,
        _selectProvider = selectProvider,
        _resolveExecution = resolveExecution,
        _syncProfile = syncProfile,
-       _saveBearerToken = saveBearerToken;
+       _saveBearerToken = saveBearerToken,
+       _retryExecutor = retryExecutor;
 
   factory AgentProviderConfigurator.fromStores({
     required String workspaceId,
@@ -86,6 +91,7 @@ class AgentProviderConfigurator {
     required ConfiguredAgentProviderAdapterFactory providerFactory,
     required CredentialDataStore credentialDataStore,
     AgentProviderRegistry? providerRegistry,
+    AgentProviderRetryExecutor? retryExecutor,
   }) {
     final registry = providerRegistry ?? providerFactory.createRegistry();
     return AgentProviderConfigurator(
@@ -100,6 +106,7 @@ class AgentProviderConfigurator {
       createAdapter: registry.createAdapter,
       selectProvider: registry.selectionPlan,
       resolveExecution: providerFactory.resolveExecution,
+      retryExecutor: retryExecutor,
       saveBearerToken:
           ({
             required workspaceId,
@@ -143,6 +150,7 @@ class AgentProviderConfigurator {
   final AgentProviderExecutionResolver? _resolveExecution;
   final AgentPromptProfileSync? _syncProfile;
   final AgentBearerTokenSaver? _saveBearerToken;
+  final AgentProviderRetryExecutor? _retryExecutor;
 
   Future<AgentProviderConfigurationResult> saveAndMount({
     required AgentPromptProfile profile,
@@ -166,7 +174,8 @@ class AgentProviderConfigurator {
     final selectionPlan = _selectionPlanFor(profileToSave);
     final executionResolution = await _resolveExecutionFor(profileToSave);
     try {
-      final adapter = await _createAdapter(profileToSave);
+      final createdAdapter = await _createAdapter(profileToSave);
+      final adapter = _adapterWithRetry(createdAdapter);
       final message = synced
           ? 'Agent provider profile saved, synced, and mounted.'
           : 'Agent provider profile saved and mounted.';
@@ -187,6 +196,7 @@ class AgentProviderConfigurator {
         synced: synced,
         selectionPlan: selectionPlan,
         executionResolution: executionResolution,
+        retryEnabled: _retryExecutor != null,
       );
     } on Object catch (error) {
       const adapter = LocalOnlyAgentProviderAdapter();
@@ -210,8 +220,23 @@ class AgentProviderConfigurator {
         synced: synced,
         selectionPlan: selectionPlan,
         executionResolution: executionResolution,
+        retryEnabled: false,
       );
     }
+  }
+
+  AgentProviderAdapter _adapterWithRetry(AgentProviderAdapter adapter) {
+    final retryExecutor = _retryExecutor;
+    if (retryExecutor == null) {
+      return adapter;
+    }
+    if (adapter is RetryingAgentProviderAdapter) {
+      return adapter;
+    }
+    return RetryingAgentProviderAdapter(
+      inner: adapter,
+      retryExecutor: retryExecutor,
+    );
   }
 
   AgentProviderSelectionPlan? _selectionPlanFor(AgentPromptProfile profile) {

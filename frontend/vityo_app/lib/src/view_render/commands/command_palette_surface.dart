@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../view_ide/commands/commands.dart';
 import '../platform/viewport_profile.dart';
@@ -24,6 +25,7 @@ class CommandPaletteSurface extends StatefulWidget {
 class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   late final TextEditingController _queryController;
   var _query = '';
+  var _selectedIndex = 0;
 
   @override
   void initState() {
@@ -41,119 +43,165 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = widget.viewportProfile.isMobile;
-    final overlayState = CommandPaletteModel(
-      commands: widget.commands,
-    ).overlayStateFor(CommandPaletteQueryState(query: _query));
+    final overlayState = CommandPaletteModel(commands: widget.commands)
+        .overlayStateFor(
+          CommandPaletteQueryState(query: _query),
+          selectedIndex: _selectedIndex,
+        );
     final visibleEntries = overlayState.entries;
 
-    return Card(
-      key: const ValueKey('command-palette-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Command Palette', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 6),
-            Text(
-              'Searchable command registry surface backed by reusable query scoring, overlay selection state, and typed input draft contracts. TODO: persist recent command ranking and bind keyboard navigation to the overlay state.',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              key: const ValueKey('command-palette-query-input'),
-              controller: _queryController,
-              decoration: const InputDecoration(
-                labelText: 'Search commands',
-                border: OutlineInputBorder(),
+    return Focus(
+      key: const ValueKey('command-palette-keyboard-focus'),
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) {
+          return KeyEventResult.ignored;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+          _moveSelection(overlayState, 1);
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+          _moveSelection(overlayState, -1);
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.enter) {
+          _executeSelected(overlayState);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Card(
+        key: const ValueKey('command-palette-surface'),
+        child: Padding(
+          padding: EdgeInsets.all(compact ? 14 : 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Command Palette', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 6),
+              Text(
+                'Searchable command registry surface backed by reusable query scoring, overlay selection state, and typed input draft contracts. TODO: persist recent command ranking and bind keyboard navigation to the overlay state.',
+                style: theme.textTheme.bodySmall,
               ),
-              onChanged: (value) {
-                setState(() {
-                  _query = value;
-                });
-              },
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                Chip(label: Text('registered ${widget.commands.length}')),
-                Chip(label: Text('visible ${overlayState.visibleCount}')),
-                if (overlayState.selectedEntry != null)
-                  Chip(
-                    key: const ValueKey('command-palette-selected-chip'),
-                    label: Text(
-                      'selected ${overlayState.selectedEntry!.command.label}',
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: visibleEntries.isEmpty
-                  ? Center(
-                      key: const ValueKey('command-palette-empty-state'),
-                      child: Text(
-                        _query.trim().isEmpty
-                            ? 'No commands registered.'
-                            : 'No commands match "$_query".',
-                        style: theme.textTheme.bodySmall,
+              const SizedBox(height: 10),
+              TextField(
+                key: const ValueKey('command-palette-query-input'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'Search commands',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _query = value;
+                    _selectedIndex = 0;
+                  });
+                },
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  Chip(label: Text('registered ${widget.commands.length}')),
+                  Chip(label: Text('visible ${overlayState.visibleCount}')),
+                  if (overlayState.selectedEntry != null)
+                    Chip(
+                      key: const ValueKey('command-palette-selected-chip'),
+                      label: Text(
+                        'selected ${overlayState.selectedEntry!.command.label}',
                       ),
-                    )
-                  : ListView.separated(
-                      key: const ValueKey('command-palette-command-list'),
-                      itemCount: visibleEntries.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final entry = visibleEntries[index];
-                        final command = entry.command;
-                        final blockedReason = widget.blockedReasonForCommand
-                            ?.call(command.id);
-                        final selected = index == overlayState.selectedIndex;
-                        return ListTile(
-                          key: ValueKey('command-palette-${command.id.name}'),
-                          selected: selected,
-                          dense: true,
-                          title: Text(command.label),
-                          subtitle: Text(
-                            blockedReason == null
-                                ? command.description
-                                : '${command.description}\nBlocked: $blockedReason',
-                          ),
-                          leading: const Icon(
-                            Icons.keyboard_command_key_rounded,
-                          ),
-                          trailing: Wrap(
-                            spacing: 8,
-                            children: [
-                              Chip(label: Text(command.category.wireValue)),
-                              Chip(label: Text(command.shortcutHint)),
-                              if (command.requiresInput)
-                                Chip(
-                                  label: Text('input ${command.inputLabel}'),
-                                ),
-                              if (blockedReason != null)
-                                const Chip(label: Text('blocked')),
-                            ],
-                          ),
-                          enabled:
-                              widget.onExecuteCommand != null &&
-                              blockedReason == null,
-                          onTap:
-                              widget.onExecuteCommand == null ||
-                                  blockedReason != null
-                              ? null
-                              : () {
-                                  widget.onExecuteCommand!(command.id);
-                                },
-                        );
-                      },
                     ),
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: visibleEntries.isEmpty
+                    ? Center(
+                        key: const ValueKey('command-palette-empty-state'),
+                        child: Text(
+                          _query.trim().isEmpty
+                              ? 'No commands registered.'
+                              : 'No commands match "$_query".',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      )
+                    : ListView.separated(
+                        key: const ValueKey('command-palette-command-list'),
+                        itemCount: visibleEntries.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final entry = visibleEntries[index];
+                          final command = entry.command;
+                          final blockedReason = widget.blockedReasonForCommand
+                              ?.call(command.id);
+                          final selected = index == overlayState.selectedIndex;
+                          return ListTile(
+                            key: ValueKey('command-palette-${command.id.name}'),
+                            selected: selected,
+                            dense: true,
+                            title: Text(command.label),
+                            subtitle: Text(
+                              blockedReason == null
+                                  ? command.description
+                                  : '${command.description}\nBlocked: $blockedReason',
+                            ),
+                            leading: const Icon(
+                              Icons.keyboard_command_key_rounded,
+                            ),
+                            trailing: Wrap(
+                              spacing: 8,
+                              children: [
+                                Chip(label: Text(command.category.wireValue)),
+                                Chip(label: Text(command.shortcutHint)),
+                                if (command.requiresInput)
+                                  Chip(
+                                    label: Text('input ${command.inputLabel}'),
+                                  ),
+                                if (blockedReason != null)
+                                  const Chip(label: Text('blocked')),
+                              ],
+                            ),
+                            enabled:
+                                widget.onExecuteCommand != null &&
+                                blockedReason == null,
+                            onTap:
+                                widget.onExecuteCommand == null ||
+                                    blockedReason != null
+                                ? null
+                                : () {
+                                    widget.onExecuteCommand!(command.id);
+                                  },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  void _moveSelection(CommandPaletteOverlayState overlayState, int delta) {
+    if (overlayState.entries.isEmpty) {
+      return;
+    }
+    setState(() {
+      _selectedIndex = overlayState.moveSelection(delta).selectedIndex;
+    });
+  }
+
+  void _executeSelected(CommandPaletteOverlayState overlayState) {
+    final entry = overlayState.selectedEntry;
+    if (entry == null || widget.onExecuteCommand == null) {
+      return;
+    }
+    final commandId = entry.command.id;
+    if (widget.blockedReasonForCommand?.call(commandId) != null) {
+      return;
+    }
+    widget.onExecuteCommand!(commandId);
   }
 }

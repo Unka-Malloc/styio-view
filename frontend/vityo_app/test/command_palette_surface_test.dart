@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/commands/commands.dart';
@@ -128,5 +129,54 @@ void main() {
     expect(find.text('Search Workspace'), findsOneWidget);
     expect(find.text('Rename Symbol'), findsNothing);
     expect(find.text('visible 1'), findsOneWidget);
+  });
+
+  testWidgets('command palette keyboard navigation executes selection', (
+    tester,
+  ) async {
+    AppCommandId? executedCommandId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPaletteSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            commands: const <AppCommandDescriptor>[
+              AppCommandDescriptor(
+                id: AppCommandId.renameSymbol,
+                label: 'Rename Symbol',
+                shortcutHint: 'Route',
+                description: 'Rename selected symbol.',
+              ),
+              AppCommandDescriptor(
+                id: AppCommandId.save,
+                label: 'Save',
+                shortcutHint: 'Cmd/Ctrl+S',
+                description: 'Save current file.',
+              ),
+            ],
+            onExecuteCommand: (commandId) async {
+              executedCommandId = commandId;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('selected Rename Symbol'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+
+    expect(find.text('selected Save'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(executedCommandId, AppCommandId.save);
   });
 }

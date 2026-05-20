@@ -77,13 +77,15 @@ class AgentProviderConfigurator {
     AgentPromptProfileSync? syncProfile,
     AgentBearerTokenSaver? saveBearerToken,
     AgentProviderRetryExecutor? retryExecutor,
+    AgentProviderResponseRetryTelemetrySink? retryTelemetrySink,
   }) : _saveProfile = saveProfile,
        _createAdapter = createAdapter,
        _selectProvider = selectProvider,
        _resolveExecution = resolveExecution,
        _syncProfile = syncProfile,
        _saveBearerToken = saveBearerToken,
-       _retryExecutor = retryExecutor;
+       _retryExecutor = retryExecutor,
+       _retryTelemetrySink = retryTelemetrySink;
 
   factory AgentProviderConfigurator.fromStores({
     required String workspaceId,
@@ -92,6 +94,7 @@ class AgentProviderConfigurator {
     required CredentialDataStore credentialDataStore,
     AgentProviderRegistry? providerRegistry,
     AgentProviderRetryExecutor? retryExecutor,
+    AgentProviderResponseRetryTelemetrySink? retryTelemetrySink,
   }) {
     final registry = providerRegistry ?? providerFactory.createRegistry();
     return AgentProviderConfigurator(
@@ -107,6 +110,7 @@ class AgentProviderConfigurator {
       selectProvider: registry.selectionPlan,
       resolveExecution: providerFactory.resolveExecution,
       retryExecutor: retryExecutor,
+      retryTelemetrySink: retryTelemetrySink,
       saveBearerToken:
           ({
             required workspaceId,
@@ -151,6 +155,7 @@ class AgentProviderConfigurator {
   final AgentPromptProfileSync? _syncProfile;
   final AgentBearerTokenSaver? _saveBearerToken;
   final AgentProviderRetryExecutor? _retryExecutor;
+  final AgentProviderResponseRetryTelemetrySink? _retryTelemetrySink;
 
   Future<AgentProviderConfigurationResult> saveAndMount({
     required AgentPromptProfile profile,
@@ -236,6 +241,7 @@ class AgentProviderConfigurator {
     return RetryingAgentProviderAdapter(
       inner: adapter,
       retryExecutor: retryExecutor,
+      telemetrySink: _retryTelemetrySink,
     );
   }
 

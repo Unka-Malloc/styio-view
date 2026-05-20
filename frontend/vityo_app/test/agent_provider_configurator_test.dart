@@ -140,6 +140,8 @@ void main() {
   );
 
   test('agent provider configurator can mount retrying adapter', () async {
+    final telemetry =
+        <AgentProviderRetryExecution<AgentProviderResponseEnvelope>>[];
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
       adapter: const LocalOnlyAgentProviderAdapter(),
@@ -152,10 +154,17 @@ void main() {
           ({required workspaceId, required key, required profile}) async {},
       createAdapter: (_) async => const _FakeAgentProviderAdapter(
         kind: AgentProviderKind.cloudOpenAICompatible,
+        response: AgentProviderResponseEnvelope(
+          requestId: 'retry-mounted',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[],
+        ),
       ),
       retryExecutor: const AgentProviderRetryExecutor(
         policy: AgentProviderRetryPolicy(maxAttempts: 2),
       ),
+      retryTelemetrySink: telemetry.add,
     );
 
     final result = await configurator.saveAndMount(
@@ -168,6 +177,16 @@ void main() {
     expect(result.adapterId, 'fake:retrying');
     expect(controller.adapter, isA<RetryingAgentProviderAdapter>());
     expect(controller.adapter.kind, AgentProviderKind.cloudOpenAICompatible);
+    await controller.adapter.send(
+      AgentProviderRequest(
+        requestId: 'retry-mounted',
+        profile: controller.profile,
+        context: _context(),
+        userPrompt: 'Check retry telemetry.',
+      ),
+    );
+    expect(telemetry.single.succeeded, isTrue);
+    expect(telemetry.single.attemptCount, 1);
   });
 
   test(
@@ -529,10 +548,11 @@ AgentSessionContext _context() {
 }
 
 class _FakeAgentProviderAdapter implements AgentProviderAdapter {
-  const _FakeAgentProviderAdapter({required this.kind});
+  const _FakeAgentProviderAdapter({required this.kind, this.response});
 
   @override
   final AgentProviderKind kind;
+  final AgentProviderResponseEnvelope? response;
 
   @override
   String get adapterId => 'fake';
@@ -542,6 +562,10 @@ class _FakeAgentProviderAdapter implements AgentProviderAdapter {
 
   @override
   Future<AgentProviderResponseEnvelope> send(AgentProviderRequest request) {
+    final response = this.response;
+    if (response != null) {
+      return Future<AgentProviderResponseEnvelope>.value(response);
+    }
     throw UnimplementedError();
   }
 }

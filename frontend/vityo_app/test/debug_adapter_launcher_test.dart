@@ -34,6 +34,33 @@ void main() {
     },
   );
 
+  test(
+    'DAP debug adapter execution plan launches through adapter launcher',
+    () async {
+      late _FakeDapByteTransport fakeTransport;
+      final launcher = DapDebugAdapterLauncher(
+        transportFactory: (launch) async {
+          fakeTransport = _FakeDapByteTransport();
+          return fakeTransport;
+        },
+      );
+      final plan = DapDebugAdapterExecutionPlan.fromConfiguration(
+        profileId: 'debug-styio',
+        launchConfiguration: _readyLaunch(),
+      );
+
+      final handle = await launcher.launchExecutionPlan(plan);
+
+      expect(plan.ready, isTrue);
+      expect(plan.outputBinding.outputChannel.toJson()['kind'], 'debug');
+      expect(plan.outputSubscriptionPlan().toJson()['status'], 'pending');
+      expect(plan.toJson()['status'], 'ready');
+      expect(fakeTransport.sentBytes, hasLength(4));
+      expect(handle.launchConfiguration.debuggerId, 'lldb-dap');
+      await handle.close();
+    },
+  );
+
   test('DAP debug adapter launcher exposes live session event state', () async {
     const codec = DapContentFrameCodec();
     late _FakeDapByteTransport fakeTransport;

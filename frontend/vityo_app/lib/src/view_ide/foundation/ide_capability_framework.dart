@@ -311,9 +311,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'Agent provider route selection, credential readiness, endpoint probing, fallback selection, and remote service health reports are wired for OpenAI-compatible providers.',
+              'Agent provider route selection, credential readiness, endpoint probing, fallback selection, remote service health reports, and Foundation DataStore-backed health history are wired for OpenAI-compatible providers.',
           todo:
-              'TODO: add retry policy execution, hosted backend connector parity, and persisted health history.',
+              'TODO: add retry policy execution and hosted backend connector parity.',
           references: <String>[
             'VS Code remote authority and extension host services',
             'Theia backend service connections',

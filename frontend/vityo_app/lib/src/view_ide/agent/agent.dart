@@ -9,6 +9,7 @@ export 'extension_agent_provider_contributions.dart';
 export 'agent_profile.dart';
 export 'agent_provider_credential_resolver.dart';
 export 'agent_provider_configurator.dart';
+export 'agent_provider_health_history_store.dart';
 export 'agent_provider_network_transport.dart';
 export 'agent_provider_route_executor.dart';
 export 'agent_provider_registry.dart';

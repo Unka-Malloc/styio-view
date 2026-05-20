@@ -92,6 +92,10 @@ void main() {
       contains('script-PTY stdout/stderr merged output streams'),
     );
     expect(
+      entriesById['runtime.terminal']?.summary,
+      contains('line-chunked ShellCommandResult stdout/stderr events'),
+    );
+    expect(
       entriesById['interaction.testing']?.status,
       IdeCapabilityStatus.scaffolded,
     );

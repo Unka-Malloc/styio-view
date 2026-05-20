@@ -193,6 +193,38 @@ void main() {
     expect(binding.toJson()['eventCount'], 3);
   });
 
+  test('terminal shell command output binding splits stream chunks', () {
+    const result = ShellCommandResult(
+      status: ShellCommandStatus.failed,
+      command: 'styio',
+      executablePath: '/usr/bin/styio',
+      arguments: <String>['test'],
+      exitCode: 1,
+      stdout: 'one\ntwo\n',
+      stderr: 'err-one\nerr-two\n',
+      duration: Duration(milliseconds: 42),
+      message: 'Shell command failed.',
+    );
+    final binding = TerminalShellCommandOutputBinding(
+      result: result,
+      channelId: 'shell.styio-test',
+      label: 'Styio Test Shell',
+      timestamp: DateTime.utc(2026, 5, 20, 9),
+    );
+
+    expect(binding.events, hasLength(5));
+    expect(binding.events.map((event) => event.message), <String>[
+      'Shell command failed.',
+      'one',
+      'two',
+      'err-one',
+      'err-two',
+    ]);
+    expect(binding.events[1].metadata['chunkIndex'], 0);
+    expect(binding.events[2].metadata['chunkIndex'], 1);
+    expect(binding.events[3].metadata['chunkCount'], 2);
+  });
+
   test(
     'shell manager runtime output adapter binds command result to buffer',
     () async {

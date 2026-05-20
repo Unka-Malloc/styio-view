@@ -163,24 +163,16 @@ class TerminalShellCommandOutputBinding {
         timestamp: timestamp,
         metadata: _metadata('status'),
       ),
-      if (result.stdout.isNotEmpty)
-        RuntimeOutputEvent(
-          channelId: '$channelId.stdout',
-          label: '$label stdout',
-          kind: RuntimeOutputChannelKind.stdout,
-          message: result.stdout,
-          timestamp: timestamp,
-          metadata: _metadata('stdout'),
-        ),
-      if (result.stderr.isNotEmpty)
-        RuntimeOutputEvent(
-          channelId: '$channelId.stderr',
-          label: '$label stderr',
-          kind: RuntimeOutputChannelKind.stderr,
-          message: result.stderr,
-          timestamp: timestamp,
-          metadata: _metadata('stderr'),
-        ),
+      ..._streamEvents(
+        stream: 'stdout',
+        kind: RuntimeOutputChannelKind.stdout,
+        output: result.stdout,
+      ),
+      ..._streamEvents(
+        stream: 'stderr',
+        kind: RuntimeOutputChannelKind.stderr,
+        output: result.stderr,
+      ),
     ];
   }
 
@@ -212,6 +204,41 @@ class TerminalShellCommandOutputBinding {
       if (result.exitCode != null) 'exitCode': result.exitCode,
       'durationMs': result.duration.inMilliseconds,
     };
+  }
+
+  List<RuntimeOutputEvent> _streamEvents({
+    required String stream,
+    required RuntimeOutputChannelKind kind,
+    required String output,
+  }) {
+    final chunks = _outputChunks(output);
+    return <RuntimeOutputEvent>[
+      for (var index = 0; index < chunks.length; index += 1)
+        RuntimeOutputEvent(
+          channelId: '$channelId.$stream',
+          label: '$label $stream',
+          kind: kind,
+          message: chunks[index],
+          timestamp: timestamp,
+          metadata: <String, Object?>{
+            ..._metadata(stream),
+            'chunkIndex': index,
+            'chunkCount': chunks.length,
+          },
+        ),
+    ];
+  }
+
+  List<String> _outputChunks(String output) {
+    if (output.isEmpty) {
+      return const <String>[];
+    }
+    final normalized = output.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final lines = normalized.split('\n');
+    if (lines.isNotEmpty && lines.last.isEmpty) {
+      lines.removeLast();
+    }
+    return lines.isEmpty ? <String>[output] : lines;
   }
 }
 

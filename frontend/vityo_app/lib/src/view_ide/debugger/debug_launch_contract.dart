@@ -4,11 +4,37 @@ import '../toolchain/toolchain_catalog.dart';
 
 enum DebugLaunchReadiness { ready, missingProgram, unsupportedProtocol }
 
+enum DebugLaunchRouteStatus { ready, blocked }
+
+enum DebugLaunchFailureNavigationKind {
+  selectProgram,
+  selectAdapter,
+  changeProtocol,
+  openSettings,
+}
+
 extension DebugLaunchReadinessX on DebugLaunchReadiness {
   String get wireValue => switch (this) {
     DebugLaunchReadiness.ready => 'ready',
     DebugLaunchReadiness.missingProgram => 'missing-program',
     DebugLaunchReadiness.unsupportedProtocol => 'unsupported-protocol',
+  };
+}
+
+extension DebugLaunchRouteStatusX on DebugLaunchRouteStatus {
+  String get wireValue => switch (this) {
+    DebugLaunchRouteStatus.ready => 'ready',
+    DebugLaunchRouteStatus.blocked => 'blocked',
+  };
+}
+
+extension DebugLaunchFailureNavigationKindX
+    on DebugLaunchFailureNavigationKind {
+  String get wireValue => switch (this) {
+    DebugLaunchFailureNavigationKind.selectProgram => 'select-program',
+    DebugLaunchFailureNavigationKind.selectAdapter => 'select-adapter',
+    DebugLaunchFailureNavigationKind.changeProtocol => 'change-protocol',
+    DebugLaunchFailureNavigationKind.openSettings => 'open-settings',
   };
 }
 
@@ -190,6 +216,46 @@ class DebugLaunchConfiguration {
 
   bool get ready => readiness == DebugLaunchReadiness.ready;
 
+  List<DebugLaunchFailureNavigationAction> get failureNavigationActions {
+    if (ready) {
+      return const <DebugLaunchFailureNavigationAction>[];
+    }
+    return switch (readiness) {
+      DebugLaunchReadiness.ready =>
+        const <DebugLaunchFailureNavigationAction>[],
+      DebugLaunchReadiness.missingProgram =>
+        <DebugLaunchFailureNavigationAction>[
+          DebugLaunchFailureNavigationAction(
+            kind: DebugLaunchFailureNavigationKind.selectProgram,
+            label: 'Select debug program',
+            target: debuggerId,
+            message: 'Set metadata.programPath for this launch profile.',
+          ),
+          DebugLaunchFailureNavigationAction(
+            kind: DebugLaunchFailureNavigationKind.openSettings,
+            label: 'Open debug launch settings',
+            target: debuggerId,
+            message: 'Edit the selected debug launch profile.',
+          ),
+        ],
+      DebugLaunchReadiness.unsupportedProtocol =>
+        <DebugLaunchFailureNavigationAction>[
+          DebugLaunchFailureNavigationAction(
+            kind: DebugLaunchFailureNavigationKind.selectAdapter,
+            label: 'Select DAP adapter',
+            target: debuggerId,
+            message: 'Choose a debugger adapter that supports DAP.',
+          ),
+          DebugLaunchFailureNavigationAction(
+            kind: DebugLaunchFailureNavigationKind.changeProtocol,
+            label: 'Change adapter protocol',
+            target: adapterProtocol,
+            message: 'Set adapterProtocol to dap or install a DAP bridge.',
+          ),
+        ],
+    };
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'readiness': readiness.wireValue,
@@ -206,6 +272,9 @@ class DebugLaunchConfiguration {
       'environment': environment,
       'stopOnEntry': stopOnEntry,
       'breakpointCount': breakpoints.length,
+      'failureNavigationActions': failureNavigationActions
+          .map((action) => action.toJson())
+          .toList(growable: false),
       'breakpoints': breakpoints
           .map((breakpoint) => breakpoint.toJson())
           .toList(growable: false),
@@ -279,6 +348,108 @@ class DebugLaunchConfiguration {
         'debugLaunchReadiness': readiness.wireValue,
       },
     );
+  }
+
+  DebugLaunchRoutePlan toRoutePlan({
+    required String profileId,
+    RuntimeExecutionHandoffTarget target =
+        RuntimeExecutionHandoffTarget.terminalRuntime,
+    String? taskId,
+    String? label,
+  }) {
+    return DebugLaunchRoutePlan.fromConfiguration(
+      profileId: profileId,
+      configuration: this,
+      target: target,
+      taskId: taskId,
+      label: label,
+    );
+  }
+}
+
+class DebugLaunchFailureNavigationAction {
+  const DebugLaunchFailureNavigationAction({
+    required this.kind,
+    required this.label,
+    required this.target,
+    required this.message,
+  });
+
+  final DebugLaunchFailureNavigationKind kind;
+  final String label;
+  final String target;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'label': label,
+      'target': target,
+      'message': message,
+    };
+  }
+}
+
+class DebugLaunchRoutePlan {
+  const DebugLaunchRoutePlan({
+    required this.profileId,
+    required this.status,
+    required this.target,
+    required this.handoff,
+    this.failureNavigationActions =
+        const <DebugLaunchFailureNavigationAction>[],
+  });
+
+  factory DebugLaunchRoutePlan.fromConfiguration({
+    required String profileId,
+    required DebugLaunchConfiguration configuration,
+    RuntimeExecutionHandoffTarget target =
+        RuntimeExecutionHandoffTarget.terminalRuntime,
+    String? taskId,
+    String? label,
+  }) {
+    final handoff = configuration.toRuntimeExecutionHandoff(
+      taskId: taskId ?? 'debug.$profileId',
+      label: label,
+      target: target,
+      metadata: <String, Object?>{
+        'debugLaunchProfileId': profileId,
+        'debugRouteTarget': target.wireValue,
+      },
+    );
+    return DebugLaunchRoutePlan(
+      profileId: profileId,
+      status: configuration.ready
+          ? DebugLaunchRouteStatus.ready
+          : DebugLaunchRouteStatus.blocked,
+      target: target,
+      handoff: handoff,
+      failureNavigationActions:
+          List<DebugLaunchFailureNavigationAction>.unmodifiable(
+            configuration.failureNavigationActions,
+          ),
+    );
+  }
+
+  final String profileId;
+  final DebugLaunchRouteStatus status;
+  final RuntimeExecutionHandoffTarget target;
+  final RuntimeExecutionHandoff handoff;
+  final List<DebugLaunchFailureNavigationAction> failureNavigationActions;
+
+  bool get ready => status == DebugLaunchRouteStatus.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'profileId': profileId,
+      'status': status.wireValue,
+      'ready': ready,
+      'target': target.wireValue,
+      'handoff': handoff.toJson(),
+      'failureNavigationActions': failureNavigationActions
+          .map((action) => action.toJson())
+          .toList(growable: false),
+    };
   }
 }
 

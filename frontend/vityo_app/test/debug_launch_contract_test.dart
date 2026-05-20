@@ -85,6 +85,42 @@ void main() {
     expect(launch.reason, contains('unsupported protocol custom'));
   });
 
+  test('debug launch route plan exposes failure navigation actions', () {
+    final launch = DebugLaunchConfiguration.fromToolchainDescriptor(
+      debugger: const ToolchainDescriptor(
+        id: 'custom-debugger',
+        kind: ToolchainKind.debugger,
+        displayName: 'Custom Debugger',
+        executablePath: '/usr/bin/custom-debugger',
+        metadata: <String, Object?>{
+          'adapterProtocol': 'custom',
+          'programPath': '/tmp/app',
+        },
+      ),
+      workspaceRoot: '/workspace/vityo',
+    );
+
+    final routePlan = launch.toRoutePlan(
+      profileId: 'custom-debug',
+      target: RuntimeExecutionHandoffTarget.terminalRuntime,
+    );
+
+    expect(routePlan.ready, isFalse);
+    expect(routePlan.status, DebugLaunchRouteStatus.blocked);
+    expect(routePlan.handoff.ready, isFalse);
+    expect(
+      routePlan.failureNavigationActions.map((action) => action.kind),
+      <DebugLaunchFailureNavigationKind>[
+        DebugLaunchFailureNavigationKind.selectAdapter,
+        DebugLaunchFailureNavigationKind.changeProtocol,
+      ],
+    );
+    expect(
+      routePlan.toJson()['failureNavigationActions'],
+      isA<List<Object?>>(),
+    );
+  });
+
   test(
     'debug launch contract projects launch into runtime task definition',
     () {

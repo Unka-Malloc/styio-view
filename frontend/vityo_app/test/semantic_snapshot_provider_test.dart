@@ -50,7 +50,31 @@ void main() {
     expect(result.snapshot.elements.single.name, 'value');
     expect(result.snapshot.references, hasLength(2));
     expect(result.snapshot.referenceAt(11)?.target.name, 'value');
+    expect(
+      result.featureMatrix.supportsFeature(
+        SemanticSnapshotConsumerFeature.definition,
+      ),
+      isTrue,
+    );
+    expect(
+      result.featureMatrix.supportsFeature(
+        SemanticSnapshotConsumerFeature.renameSafety,
+      ),
+      isTrue,
+    );
+    expect(
+      result.featureMatrix.supportsFeature(
+        SemanticSnapshotConsumerFeature.codeActions,
+      ),
+      isFalse,
+    );
     expect(result.toJson()['source'], 'service-analysis');
+    expect(
+      ((result.toJson()['featureMatrix']!
+              as Map<String, Object?>)['unavailableFeatures']!
+          as List<Object?>),
+      contains('code-actions'),
+    );
   });
 
   test(
@@ -80,6 +104,18 @@ void main() {
         'value',
       ]);
       expect(result.snapshot.references, hasLength(2));
+      expect(
+        result.featureMatrix.supportsFeature(
+          SemanticSnapshotConsumerFeature.references,
+        ),
+        isTrue,
+      );
+      expect(
+        result.featureMatrix.supportsFeature(
+          SemanticSnapshotConsumerFeature.renameSafety,
+        ),
+        isFalse,
+      );
       expect(result.toJson()['usedFallback'], isTrue);
     },
   );

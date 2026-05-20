@@ -142,6 +142,7 @@ R  src/old.styio -> src/new.styio
     expect(find.text('Diff Preview'), findsOneWidget);
     expect(find.text('hunks 0'), findsOneWidget);
     expect(find.text('+1 -0'), findsOneWidget);
+    expect(find.text('window 0-3/3'), findsOneWidget);
     expect(find.textContaining('+value'), findsOneWidget);
 
     Future<void> tapVisible(String key) async {

@@ -596,6 +596,14 @@ class SourceControlDiffSnapshot {
     );
   }
 
+  SourceControlDiffWindow window({int startLine = 0, int lineLimit = 200}) {
+    return SourceControlDiffWindow.fromSnapshot(
+      snapshot: this,
+      startLine: startLine,
+      lineLimit: lineLimit,
+    );
+  }
+
   Map<String, Object?> toJson() {
     final truncated = unifiedDiff.length > maxSerializedDiffChars;
     final visibleDiff = truncated
@@ -610,7 +618,63 @@ class SourceControlDiffSnapshot {
       if (message.isNotEmpty) 'message': message,
       'diffTruncated': truncated,
       'reviewSummary': reviewSummary.toJson(),
+      'defaultWindow': window().toJson(),
       'unifiedDiff': visibleDiff,
+    };
+  }
+}
+
+class SourceControlDiffWindow {
+  const SourceControlDiffWindow({
+    required this.path,
+    required this.startLine,
+    required this.totalLineCount,
+    required this.lines,
+  });
+
+  factory SourceControlDiffWindow.fromSnapshot({
+    required SourceControlDiffSnapshot snapshot,
+    int startLine = 0,
+    int lineLimit = 200,
+  }) {
+    final allLines = snapshot.unifiedDiff.isEmpty
+        ? const <String>[]
+        : snapshot.unifiedDiff.split('\n');
+    final normalizedStart = startLine.clamp(0, allLines.length);
+    final normalizedLimit = lineLimit <= 0 ? 200 : lineLimit;
+    final endLine = (normalizedStart + normalizedLimit).clamp(
+      normalizedStart,
+      allLines.length,
+    );
+    return SourceControlDiffWindow(
+      path: snapshot.path,
+      startLine: normalizedStart,
+      totalLineCount: allLines.length,
+      lines: List<String>.unmodifiable(
+        allLines.sublist(normalizedStart, endLine),
+      ),
+    );
+  }
+
+  final String path;
+  final int startLine;
+  final int totalLineCount;
+  final List<String> lines;
+
+  int get endLine => startLine + lines.length;
+  bool get hasPrevious => startLine > 0;
+  bool get hasNext => endLine < totalLineCount;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'path': path,
+      'startLine': startLine,
+      'endLine': endLine,
+      'lineCount': lines.length,
+      'totalLineCount': totalLineCount,
+      'hasPrevious': hasPrevious,
+      'hasNext': hasNext,
+      'lines': lines,
     };
   }
 }

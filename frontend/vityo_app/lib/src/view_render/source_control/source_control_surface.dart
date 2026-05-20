@@ -268,6 +268,11 @@ class SourceControlSurface extends StatelessWidget {
                         'diff-lines ${diffPreview!.reviewSummary.lineCount}',
                       ),
                     ),
+                    Chip(
+                      label: Text(
+                        'window ${diffPreview!.window().startLine}-${diffPreview!.window().endLine}/${diffPreview!.window().totalLineCount}',
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),

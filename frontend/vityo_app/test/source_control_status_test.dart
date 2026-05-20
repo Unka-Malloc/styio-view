@@ -152,8 +152,14 @@ diff --git a/lib/main.styio b/lib/main.styio
       expect(snapshot.reviewSummary.hunkCount, 1);
       expect(snapshot.reviewSummary.additionCount, 1);
       expect(snapshot.reviewSummary.deletionCount, 1);
+      expect(snapshot.window(startLine: 1, lineLimit: 2).lines, <String>[
+        '@@ -1 +1 @@',
+        '-old',
+      ]);
+      expect(snapshot.window(startLine: 1, lineLimit: 2).hasNext, isTrue);
       expect(snapshot.toJson()['diffTruncated'], isFalse);
       expect(snapshot.toJson()['reviewSummary'], isA<Map<String, Object?>>());
+      expect(snapshot.toJson()['defaultWindow'], isA<Map<String, Object?>>());
     },
   );
 

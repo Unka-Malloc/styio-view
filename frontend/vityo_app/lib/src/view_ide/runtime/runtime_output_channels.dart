@@ -281,6 +281,209 @@ class RuntimeOutputProducerRegistry {
   }
 }
 
+class RuntimeOutputProducerEmission {
+  const RuntimeOutputProducerEmission({
+    required this.message,
+    required this.timestamp,
+    this.channelId,
+    this.label,
+    this.kind,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const RuntimeOutputProducerEmission.stdout({
+    required String message,
+    required DateTime timestamp,
+    String? channelId,
+    String? label,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         message: message,
+         timestamp: timestamp,
+         channelId: channelId,
+         label: label,
+         kind: RuntimeOutputChannelKind.stdout,
+         metadata: metadata,
+       );
+
+  const RuntimeOutputProducerEmission.stderr({
+    required String message,
+    required DateTime timestamp,
+    String? channelId,
+    String? label,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         message: message,
+         timestamp: timestamp,
+         channelId: channelId,
+         label: label,
+         kind: RuntimeOutputChannelKind.stderr,
+         metadata: metadata,
+       );
+
+  const RuntimeOutputProducerEmission.nativeTool({
+    required String message,
+    required DateTime timestamp,
+    String? channelId,
+    String? label,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         message: message,
+         timestamp: timestamp,
+         channelId: channelId,
+         label: label,
+         kind: RuntimeOutputChannelKind.nativeTools,
+         metadata: metadata,
+       );
+
+  const RuntimeOutputProducerEmission.runtimeEvent({
+    required String message,
+    required DateTime timestamp,
+    String? channelId,
+    String? label,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         message: message,
+         timestamp: timestamp,
+         channelId: channelId,
+         label: label,
+         kind: RuntimeOutputChannelKind.runtimeEvents,
+         metadata: metadata,
+       );
+
+  final String message;
+  final DateTime timestamp;
+  final String? channelId;
+  final String? label;
+  final RuntimeOutputChannelKind? kind;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'message': message,
+      'timestamp': timestamp.toIso8601String(),
+      if (channelId != null) 'channelId': channelId,
+      if (label != null) 'label': label,
+      if (kind != null) 'kind': kind!.wireValue,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class RuntimeOutputProducerAdapter {
+  const RuntimeOutputProducerAdapter({
+    required this.descriptor,
+    required this.defaultChannelId,
+    required this.defaultLabel,
+    required this.defaultKind,
+  });
+
+  factory RuntimeOutputProducerAdapter.forDescriptor(
+    RuntimeOutputProducerDescriptor descriptor,
+  ) {
+    final defaultChannelId = descriptor.channelIds.isEmpty
+        ? descriptor.producerId
+        : descriptor.channelIds.first;
+    final defaultKind = descriptor.outputKinds.isEmpty
+        ? RuntimeOutputChannelKind.runtimeEvents
+        : descriptor.outputKinds.first;
+    return RuntimeOutputProducerAdapter(
+      descriptor: descriptor,
+      defaultChannelId: defaultChannelId,
+      defaultLabel: descriptor.label,
+      defaultKind: defaultKind,
+    );
+  }
+
+  final RuntimeOutputProducerDescriptor descriptor;
+  final String defaultChannelId;
+  final String defaultLabel;
+  final RuntimeOutputChannelKind defaultKind;
+
+  RuntimeOutputEvent event(RuntimeOutputProducerEmission emission) {
+    return RuntimeOutputEvent(
+      channelId: emission.channelId ?? defaultChannelId,
+      label: emission.label ?? defaultLabel,
+      kind: emission.kind ?? defaultKind,
+      message: emission.message,
+      timestamp: emission.timestamp.toUtc(),
+      metadata: <String, Object?>{
+        'producerId': descriptor.producerId,
+        'producerKind': descriptor.kind.wireValue,
+        'managerId': descriptor.managerId,
+        'routeKind': descriptor.routeKind,
+        ...descriptor.metadata,
+        ...emission.metadata,
+      },
+    );
+  }
+
+  StreamSubscription<RuntimeOutputProducerEmission> bind(
+    Stream<RuntimeOutputProducerEmission> emissions,
+    RuntimeOutputLiveBuffer buffer,
+  ) {
+    return emissions.listen((emission) {
+      buffer.addEvent(event(emission));
+    });
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'producer': descriptor.toJson(),
+      'defaultChannelId': defaultChannelId,
+      'defaultLabel': defaultLabel,
+      'defaultKind': defaultKind.wireValue,
+    };
+  }
+}
+
+class RuntimeOutputProducerAdapterRegistry {
+  RuntimeOutputProducerAdapterRegistry({
+    Iterable<RuntimeOutputProducerAdapter> adapters =
+        const <RuntimeOutputProducerAdapter>[],
+  }) : _adapters = <String, RuntimeOutputProducerAdapter>{
+         for (final adapter in adapters) adapter.descriptor.producerId: adapter,
+       };
+
+  factory RuntimeOutputProducerAdapterRegistry.fromProducerRegistry(
+    RuntimeOutputProducerRegistry registry,
+  ) {
+    return RuntimeOutputProducerAdapterRegistry(
+      adapters: registry.producers.map(
+        RuntimeOutputProducerAdapter.forDescriptor,
+      ),
+    );
+  }
+
+  factory RuntimeOutputProducerAdapterRegistry.defaultAdapters() {
+    return RuntimeOutputProducerAdapterRegistry.fromProducerRegistry(
+      RuntimeOutputProducerRegistry.defaultProducers(),
+    );
+  }
+
+  final Map<String, RuntimeOutputProducerAdapter> _adapters;
+
+  List<RuntimeOutputProducerAdapter> get adapters {
+    final values = _adapters.values.toList(growable: false);
+    values.sort(
+      (left, right) =>
+          left.descriptor.producerId.compareTo(right.descriptor.producerId),
+    );
+    return values;
+  }
+
+  RuntimeOutputProducerAdapter? lookup(String producerId) {
+    return _adapters[producerId];
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'adapterCount': adapters.length,
+      'adapters': adapters.map((adapter) => adapter.toJson()).toList(),
+    };
+  }
+}
+
 class RuntimeOutputChannelFilterState {
   const RuntimeOutputChannelFilterState({
     this.channelIds = const <String>[],

@@ -269,6 +269,51 @@ void main() {
   );
 
   test(
+    'runtime output producer adapters publish emissions into live buffer',
+    () async {
+      final adapters = RuntimeOutputProducerAdapterRegistry.defaultAdapters();
+      final shell = adapters.lookup('shell-manager')!;
+      final toolchain = adapters.lookup('toolchain-manager')!;
+      final buffer = RuntimeOutputLiveBuffer();
+      final controller = StreamController<RuntimeOutputProducerEmission>();
+      final subscription = shell.bind(controller.stream, buffer);
+      addTearDown(subscription.cancel);
+      addTearDown(controller.close);
+      addTearDown(buffer.dispose);
+
+      controller.add(
+        RuntimeOutputProducerEmission.stdout(
+          message: 'styio run started',
+          timestamp: DateTime.utc(2026, 5, 20, 11),
+          metadata: const <String, Object?>{'taskId': 'styio-run'},
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      final toolchainEvent = toolchain.event(
+        RuntimeOutputProducerEmission.nativeTool(
+          message: 'toolchain health ok',
+          timestamp: DateTime.utc(2026, 5, 20, 11, 1),
+        ),
+      );
+
+      expect(adapters.adapters, hasLength(4));
+      expect(buffer.snapshot.visibleEvents.single.channelId, 'runtime.shell');
+      expect(
+        buffer.snapshot.visibleEvents.single.kind,
+        RuntimeOutputChannelKind.stdout,
+      );
+      expect(
+        buffer.snapshot.visibleEvents.single.metadata['producerId'],
+        'shell-manager',
+      );
+      expect(toolchainEvent.channelId, 'runtime.toolchain');
+      expect(toolchainEvent.kind, RuntimeOutputChannelKind.nativeTools);
+      expect(toolchainEvent.metadata['producerKind'], 'toolchain-manager');
+      expect(adapters.toJson()['adapterCount'], 4);
+    },
+  );
+
+  test(
     'runtime output live buffer binds streams and emits snapshots',
     () async {
       final plan = RuntimeOutputStreamSubscriptionPlan.forManager(

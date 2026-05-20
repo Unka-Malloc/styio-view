@@ -105,6 +105,10 @@ void main() {
     );
     expect(
       entriesById['presentation.output-panel']?.summary,
+      contains('RuntimeOutputProducerAdapterRegistry'),
+    );
+    expect(
+      entriesById['presentation.output-panel']?.summary,
       contains('live RuntimeOutputLiveBuffer agent activity'),
     );
     expect(

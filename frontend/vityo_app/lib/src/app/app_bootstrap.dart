@@ -75,6 +75,7 @@ class AppBootstrap {
     required this.agentProviderConfigurator,
     this.themeOverrideStore,
     this.refreshActiveLanguageService,
+    this.languageServiceStatusController,
     ValueNotifier<LanguageServiceStatusSurface>? languageServiceStatus,
     this.toolchainManager,
     this.toolchainStatusReport,
@@ -111,6 +112,7 @@ class AppBootstrap {
   final ToolchainManager? toolchainManager;
   final ClangCppVersionPreference? clangCppVersionPreference;
   final Future<void> Function()? refreshActiveLanguageService;
+  final LanguageServiceStatusController? languageServiceStatusController;
   final ValueNotifier<LanguageServiceStatusSurface> languageServiceStatus;
   final ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport;
   final StreamSubscription<ToolchainCatalogConfigurationChange>?
@@ -124,6 +126,7 @@ class AppBootstrap {
   void dispose() {
     unawaited(toolchainCatalogSubscription?.cancel());
     unawaited(languageResultCacheBinding?.dispose());
+    unawaited(languageServiceStatusController?.dispose());
     workspaceDiagnosticsController?.dispose();
     testingSessionController?.dispose();
     sourceControlStatusController?.dispose();
@@ -263,9 +266,10 @@ class AppBootstrap {
           resultCache: languageResultCache,
           catalogChanges: toolchainCatalogChanges,
         );
-    final languageServiceStatus = ValueNotifier<LanguageServiceStatusSurface>(
-      LanguageServiceStatusSurface.refreshing(),
+    final languageServiceStatusController = LanguageServiceStatusController(
+      initialStatus: LanguageServiceStatusSurface.refreshing(),
     );
+    final languageServiceStatus = languageServiceStatusController.notifier;
     final languageServiceDriver =
         await createPlatformStyioServiceAnalysisDriver(
           resultCache: languageResultCache,
@@ -308,6 +312,7 @@ class AppBootstrap {
           workspaceDocumentStore: workspaceDocumentStore,
           projectContext: languageProjectContext,
           languageServiceStatus: languageServiceStatus,
+          languageServiceStatusController: languageServiceStatusController,
         );
         await workspaceDiagnosticsController.refresh(
           AppBootstrap.createWorkspaceDiagnosticsRequest(
@@ -404,6 +409,7 @@ class AppBootstrap {
       agentProviderConfigurator: agentProviderConfigurator,
       themeOverrideStore: themeOverrideStore,
       refreshActiveLanguageService: refreshActiveLanguageService,
+      languageServiceStatusController: languageServiceStatusController,
       toolchainManager: toolchainManager,
       languageServiceStatus: languageServiceStatus,
       toolchainStatusReport: toolchainStatusReport,
@@ -701,7 +707,13 @@ class AppBootstrap {
     required WorkspaceDocumentStore workspaceDocumentStore,
     required AppLanguageServiceProjectContext projectContext,
     required ValueNotifier<LanguageServiceStatusSurface> languageServiceStatus,
+    LanguageServiceStatusController? languageServiceStatusController,
   }) async {
+    languageServiceStatusController?.handleRuntimeEvent(
+      StyioServiceRuntimeSessionEvent(
+        state: StyioServiceRuntimeSessionState.refreshing,
+      ),
+    );
     final document = editorController.document;
     final report = await driver.analyzeDocumentWithReport(
       document,
@@ -711,21 +723,29 @@ class AppBootstrap {
       configPath: projectContext.configPath,
       workingDirectory: projectContext.workingDirectory,
     );
-    languageServiceStatus.value = _languageStatusFromReport(report);
+    final event = _languageStatusEventFromReport(report);
+    if (languageServiceStatusController == null) {
+      languageServiceStatus.value =
+          LanguageServiceStatusController.surfaceForRuntimeEvent(event);
+    } else {
+      languageServiceStatusController.handleRuntimeEvent(event);
+    }
     editorController.refreshAnalysis();
     return report;
   }
 
-  static LanguageServiceStatusSurface _languageStatusFromReport(
+  static StyioServiceRuntimeSessionEvent _languageStatusEventFromReport(
     StyioServiceAnalysisReport report,
   ) {
     final capabilitySnapshot = const StyioServiceCapabilityDetector()
         .detectReport(report);
-    return LanguageServiceStatusSurface.fromRuntimeSnapshot(
-      StyioServiceRuntimeStatusSnapshot(
-        state: report.serviceSucceeded
-            ? StyioServiceRuntimeSessionState.active
-            : StyioServiceRuntimeSessionState.failed,
+    final state = report.serviceSucceeded
+        ? StyioServiceRuntimeSessionState.active
+        : StyioServiceRuntimeSessionState.failed;
+    return StyioServiceRuntimeSessionEvent(
+      state: state,
+      statusSnapshot: StyioServiceRuntimeStatusSnapshot(
+        state: state,
         disposed: false,
         providerManifest: LanguageProviderRegistry<Object?>().manifest(),
         capabilitySnapshot: capabilitySnapshot,

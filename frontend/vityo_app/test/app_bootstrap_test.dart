@@ -92,6 +92,9 @@ void main() {
     final status = ValueNotifier<LanguageServiceStatusSurface>(
       LanguageServiceStatusSurface.refreshing(),
     );
+    final statusController = LanguageServiceStatusController(notifier: status);
+    addTearDown(statusController.dispose);
+    addTearDown(status.dispose);
 
     final report = await AppBootstrap.refreshLanguageServiceForEditor(
       driver: driver,
@@ -104,6 +107,7 @@ void main() {
         configPath: '/workspace/styio.toml',
       ),
       languageServiceStatus: status,
+      languageServiceStatusController: statusController,
     );
 
     expect(report.response.configPath, '/workspace/styio.toml');

@@ -342,9 +342,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/interaction',
           summary:
-              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore review outcomes, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
+              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore review outcomes, WorkspaceDiagnosticsRuntimeOutputBinding producer telemetry, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
           todo:
-              'TODO: add native diagnostic producers and bind persisted quick-fix outcomes into producer execution telemetry views.',
+              'TODO: wire native diagnostic producer execution triggers to concrete toolchain tasks and surface long-running producer progress.',
           dependencies: <String>['workspace.diagnostics'],
         ),
         IdeCapabilityDescriptor(
@@ -457,9 +457,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/workspace/workspace_diagnostics.dart',
           summary:
-              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore persisted review outcomes, preview/apply action routing, and native tool result diagnostic snapshots.',
+              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, WorkspaceDiagnosticsRuntimeOutputBinding output-panel events, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore persisted review outcomes, preview/apply action routing, and native tool result diagnostic snapshots.',
           todo:
-              'TODO: bind native tool workspace diagnostic snapshots and persisted quick-fix telemetry to concrete producer execution views.',
+              'TODO: connect native diagnostic producer invocation to project task execution and cancellation.',
           dependencies: <String>[
             'foundation.registry',
             'service.styio-language',
@@ -645,7 +645,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/runtime',
           summary:
-              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell/toolchain/hosted/terminal producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, ToolchainManagerRuntimeExecutionAdapter streams, HostedRuntimeExecutionAdapter streams, and persisted output history.',
+              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell/toolchain/hosted/terminal producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, ToolchainManagerRuntimeExecutionAdapter streams, HostedRuntimeExecutionAdapter streams, WorkspaceDiagnosticsRuntimeOutputBinding streams, and persisted output history.',
           todo:
               'TODO: supply concrete debug, language-service, and PTY stream implementations to the binding controller.',
           references: <String>[

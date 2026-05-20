@@ -1,6 +1,7 @@
 import '../foundation/foundation.dart';
 import '../editor/document_state.dart';
 import '../language/language_contract.dart';
+import '../runtime/runtime.dart';
 import 'workspace_edit.dart';
 
 class WorkspaceDiagnosticsRequest {
@@ -338,6 +339,114 @@ class WorkspaceDiagnosticStreamSnapshot {
       'sourceKindCounts': sourceKindCounts,
       if (message.isNotEmpty) 'message': message,
       'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class WorkspaceDiagnosticsRuntimeOutputBinding {
+  const WorkspaceDiagnosticsRuntimeOutputBinding({
+    required this.snapshot,
+    this.quickFixTelemetry,
+  });
+
+  final WorkspaceDiagnosticsSnapshot snapshot;
+  final WorkspaceQuickFixTelemetrySnapshot? quickFixTelemetry;
+
+  List<RuntimeOutputEvent> runtimeOutputEvents({
+    DateTime? timestamp,
+    String? channelId,
+    String label = 'Workspace Diagnostics',
+  }) {
+    final resolvedTimestamp = timestamp ?? DateTime.now().toUtc();
+    final baseChannelId = channelId ?? 'diagnostics.${snapshot.providerId}';
+    return <RuntimeOutputEvent>[
+      RuntimeOutputEvent(
+        channelId: baseChannelId,
+        label: label,
+        kind: RuntimeOutputChannelKind.runtimeEvents,
+        message: snapshot.message.isEmpty
+            ? '${snapshot.totalCount} workspace diagnostic(s) from ${snapshot.providerId}.'
+            : snapshot.message,
+        timestamp: resolvedTimestamp,
+        metadata: <String, Object?>{
+          'providerId': snapshot.providerId,
+          'diagnosticCount': snapshot.totalCount,
+          'hasErrors': snapshot.hasErrors,
+          'quickFixReadyCount': snapshot.streamSnapshot.quickFixReadyCount,
+        },
+      ),
+      for (final diagnostic in snapshot.diagnostics)
+        RuntimeOutputEvent(
+          channelId: '$baseChannelId.${diagnostic.documentId}',
+          label: '$label ${diagnostic.documentId}',
+          kind: _runtimeOutputKindForDiagnostic(diagnostic),
+          message:
+              '${diagnostic.diagnostic.severity.name} ${diagnostic.documentId}: ${diagnostic.diagnostic.message}',
+          timestamp: resolvedTimestamp,
+          metadata: <String, Object?>{
+            'providerId': diagnostic.providerId,
+            'source': diagnostic.source,
+            'documentId': diagnostic.documentId,
+            'severity': diagnostic.diagnostic.severity.name,
+            'code': diagnostic.diagnostic.code,
+            'rangeStart': diagnostic.diagnostic.range.start,
+            'rangeEnd': diagnostic.diagnostic.range.end,
+            'hasQuickFixes': diagnostic.hasQuickFixes,
+            'quickFixCount': diagnostic.quickFixes.length,
+          },
+        ),
+      for (final outcome
+          in quickFixTelemetry?.outcomes ??
+              const <WorkspaceQuickFixReviewOutcome>[])
+        RuntimeOutputEvent(
+          channelId: '$baseChannelId.quick-fix',
+          label: '$label Quick Fix',
+          kind: RuntimeOutputChannelKind.runtimeEvents,
+          message:
+              '${outcome.outcomeKind.wireValue} ${outcome.documentId}:${outcome.diagnosticCode} ${outcome.message}',
+          timestamp: outcome.timestamp,
+          metadata: <String, Object?>{
+            'workspaceId': outcome.workspaceId,
+            'producerId': outcome.producerId,
+            'documentId': outcome.documentId,
+            'diagnosticCode': outcome.diagnosticCode,
+            'quickFixIndex': outcome.quickFixIndex,
+            'planId': outcome.planId,
+            'outcomeKind': outcome.outcomeKind.wireValue,
+            'confirmationStatus': outcome.confirmationStatus.wireValue,
+            'ready': outcome.ready,
+            'applied': outcome.applied,
+            'blocked': outcome.blocked,
+          },
+        ),
+    ];
+  }
+
+  RuntimeOutputPanelSnapshot outputPanelSnapshot({
+    DateTime? timestamp,
+    String? channelId,
+    String label = 'Workspace Diagnostics',
+    RuntimeOutputChannelFilterState filter =
+        const RuntimeOutputChannelFilterState(),
+  }) {
+    return RuntimeOutputPanelSnapshot(
+      events: runtimeOutputEvents(
+        timestamp: timestamp,
+        channelId: channelId,
+        label: label,
+      ),
+      filter: filter,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    final outputSnapshot = outputPanelSnapshot();
+    return <String, Object?>{
+      'providerId': snapshot.providerId,
+      'diagnosticCount': snapshot.totalCount,
+      'quickFixOutcomeCount': quickFixTelemetry?.outcomes.length ?? 0,
+      'outputEventCount': outputSnapshot.events.length,
+      'outputSnapshot': outputSnapshot.toJson(),
     };
   }
 }
@@ -1071,6 +1180,21 @@ WorkspaceDiagnosticStreamSourceKind _streamSourceKindForDiagnostic(
     return WorkspaceDiagnosticStreamSourceKind.styioProject;
   }
   return WorkspaceDiagnosticStreamSourceKind.external;
+}
+
+RuntimeOutputChannelKind _runtimeOutputKindForDiagnostic(
+  WorkspaceDiagnostic diagnostic,
+) {
+  return switch (_streamSourceKindForDiagnostic(diagnostic)) {
+    WorkspaceDiagnosticStreamSourceKind.nativeTool =>
+      RuntimeOutputChannelKind.nativeTools,
+    WorkspaceDiagnosticStreamSourceKind.quickFix =>
+      RuntimeOutputChannelKind.runtimeEvents,
+    WorkspaceDiagnosticStreamSourceKind.external =>
+      RuntimeOutputChannelKind.runtimeEvents,
+    WorkspaceDiagnosticStreamSourceKind.styioProject =>
+      RuntimeOutputChannelKind.languageService,
+  };
 }
 
 Map<String, Object?> _diagnosticQuickFixToJson(DiagnosticQuickFix fix) {

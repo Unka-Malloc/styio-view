@@ -6,6 +6,7 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -195,6 +196,85 @@ void main() {
     expect(await store.clearSnapshot(workspaceId: 'demo'), isTrue);
     expect((await store.readSnapshot(workspaceId: 'demo')).outcomes, isEmpty);
   });
+
+  test(
+    'diagnostics runtime output binding emits diagnostics and quick fixes',
+    () {
+      const diagnostic = WorkspaceDiagnostic(
+        documentId: 'src/main.styio',
+        providerId: 'styio-service',
+        source: 'styio',
+        diagnostic: Diagnostic(
+          severity: DiagnosticSeverity.error,
+          code: 'missing-assignment',
+          message: 'Missing assignment.',
+          range: SourceRange(start: 9, end: 9),
+        ),
+        quickFixes: <DiagnosticQuickFix>[
+          DiagnosticQuickFix(
+            label: 'Insert assignment',
+            edits: <FormattingEdit>[
+              FormattingEdit(
+                range: SourceRange(start: 9, end: 9),
+                newText: ' = value',
+              ),
+            ],
+          ),
+        ],
+      );
+      final telemetry = WorkspaceQuickFixTelemetrySnapshot(
+        workspaceId: 'demo',
+        outcomes: <WorkspaceQuickFixReviewOutcome>[
+          WorkspaceQuickFixReviewOutcome(
+            workspaceId: 'demo',
+            producerId: 'styio-service',
+            documentId: 'src/main.styio',
+            diagnosticCode: 'missing-assignment',
+            quickFixIndex: 0,
+            planId: 'quick-fix.src/main.styio.missing-assignment.0',
+            outcomeKind: WorkspaceQuickFixReviewOutcomeKind.applied,
+            confirmationStatus: WorkspaceQuickFixConfirmationStatus.ready,
+            ready: true,
+            message: 'Applied quick fix.',
+            timestamp: DateTime.utc(2026, 5, 20, 14),
+          ),
+        ],
+      );
+      const snapshot = WorkspaceDiagnosticsSnapshot(
+        providerId: 'styio-service',
+        diagnostics: <WorkspaceDiagnostic>[diagnostic],
+        message: 'Styio diagnostics updated.',
+      );
+
+      final binding = WorkspaceDiagnosticsRuntimeOutputBinding(
+        snapshot: snapshot,
+        quickFixTelemetry: telemetry,
+      );
+      final outputSnapshot = binding.outputPanelSnapshot(
+        timestamp: DateTime.utc(2026, 5, 20, 14),
+        channelId: 'diagnostics.styio-service',
+      );
+
+      expect(outputSnapshot.events, hasLength(3));
+      expect(outputSnapshot.events[0].message, 'Styio diagnostics updated.');
+      expect(outputSnapshot.events[0].metadata['quickFixReadyCount'], 1);
+      expect(
+        outputSnapshot.events[1].kind,
+        RuntimeOutputChannelKind.languageService,
+      );
+      expect(
+        outputSnapshot.events[1].message,
+        'error src/main.styio: Missing assignment.',
+      );
+      expect(outputSnapshot.events[1].metadata['quickFixCount'], 1);
+      expect(
+        outputSnapshot.events[2].kind,
+        RuntimeOutputChannelKind.runtimeEvents,
+      );
+      expect(outputSnapshot.events[2].metadata['outcomeKind'], 'applied');
+      expect(binding.toJson()['outputEventCount'], 3);
+    },
+  );
 }
 
 Future<FoundationDataStore> _createDataStore() async {

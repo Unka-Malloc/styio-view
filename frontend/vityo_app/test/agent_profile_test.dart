@@ -65,6 +65,8 @@ void main() {
     expect(decoded.systemPrompt, contains('quick-fix edits'));
     expect(decoded.systemPrompt, contains('language.semanticSpans'));
     expect(decoded.systemPrompt, contains('semantic token evidence'));
+    expect(decoded.systemPrompt, contains('language.semanticFeatureMatrix'));
+    expect(decoded.systemPrompt, contains('serviceBackedFeatureCount'));
     expect(decoded.systemPrompt, contains('language.documentSymbols'));
     expect(decoded.systemPrompt, contains('document outline'));
     expect(decoded.systemPrompt, contains('language.inlayHints'));

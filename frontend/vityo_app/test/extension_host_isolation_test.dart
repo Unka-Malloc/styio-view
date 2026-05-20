@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 
 void main() {
   test('extension host isolation blocks untrusted extensions by default', () {
@@ -127,4 +128,55 @@ void main() {
       <String>['none', 'spawn-local-process'],
     );
   });
+
+  test(
+    'extension host supervisor dispatches active hosts to runtime bridge',
+    () {
+      final registry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'styio.language',
+            displayName: 'Styio Language',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'language.dart',
+            activationEvents: <String>['onLanguage:styio'],
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'local-process'},
+          ),
+        );
+      final session = ExtensionActivator(
+        clock: () => DateTime.utc(2026, 5, 20),
+      ).activate(registry: registry, event: 'onLanguage:styio');
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 20, 1),
+      ).applyActivation(registry: registry, session: session);
+      final record = snapshot.lookup('styio.language')!;
+      final plan = ExtensionHostSupervisorExecutionPlan.fromRecord(
+        record,
+        manifest: registry.lookup('styio.language'),
+      );
+      final buffer = RuntimeOutputLiveBuffer();
+
+      final dispatch = ExtensionHostSupervisorExecutionBridge().dispatchPlan(
+        plan: plan,
+        buffer: buffer,
+        timestamp: DateTime.utc(2026, 5, 20, 2),
+      );
+
+      expect(plan.ready, isTrue);
+      expect(plan.binding.managerId, 'shell-manager');
+      expect(plan.definition.command, 'language.dart');
+      expect(dispatch.status, RuntimeExecutionDispatchStatus.dispatched);
+      expect(
+        buffer
+            .snapshot
+            .visibleEvents
+            .single
+            .metadata['extensionHostSupervisor'],
+        isTrue,
+      );
+      expect(plan.toJson()['ready'], isTrue);
+    },
+  );
 }

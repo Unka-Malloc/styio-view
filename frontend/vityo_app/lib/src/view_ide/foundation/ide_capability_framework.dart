@@ -290,9 +290,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/language/service',
           summary:
-              'SemanticSnapshotProvider converts StyioService analysis into resolved elements/references, exposes StyioService-backed code action raw edit facts, code action apply/result telemetry, document rename safety facts, workspace rename safety facts, SemanticSnapshotEventBridge runtime-output events, Problems/Refactor panel event sink dispatching, SemanticSnapshotPanelEventStateController, SemanticSnapshotPanelViewModel Problems/Refactor projections, concrete Problems and Refactor panel projection rendering, SemanticSnapshotPanelEventStore persisted telemetry with retention policy, ShellRuntimeModel lifecycle hydration, Agent context projection, publishes a feature coverage matrix for hover/definition/references/completion/rename/code action consumers, and only falls back to local snapshots when service semantic facts are missing.',
+              'SemanticSnapshotProvider converts StyioService analysis into resolved elements/references, exposes StyioService-backed code action raw edit facts, code action apply/result telemetry, document rename safety facts, workspace rename safety facts, diagnostics snapshot telemetry, semantic-token snapshot telemetry, SemanticSnapshotEventBridge runtime-output events, Problems/Refactor panel event sink dispatching, SemanticSnapshotPanelEventStateController, SemanticSnapshotPanelViewModel Problems/Refactor projections, concrete Problems and Refactor panel projection rendering, SemanticSnapshotPanelEventStore persisted telemetry with retention policy, ShellRuntimeModel lifecycle hydration, Agent context projection, publishes a feature coverage matrix for hover/definition/references/completion/rename/code action consumers, and only falls back to local snapshots when service semantic facts are missing.',
           todo:
-              'TODO: connect remaining production StyioService semantic-token and diagnostics telemetry emitters to panel recording.',
+              'TODO: route remaining StyioService provider-specific telemetry sources through the shared semantic panel event bridge.',
           references: <String>[
             'LSP textDocument/semanticTokens',
             'IntelliJ PSI and symbol resolve',
@@ -409,8 +409,7 @@ class VityoIdeCapabilityFramework {
           ownerPath: 'lib/src/view_ide/commands',
           summary:
               'Command Palette surface is wired to StyioCommandRegistry, category contribution manifests, shell command execution, reusable query scoring, overlay selection state, live display preference updates, top-level SettingsSurface preference saves, shell-level DataStore preference hydration/persistence, app bootstrap preference hydration, category filter chips, display preferences, Settings UI preference controls, Up/Down/Enter keyboard navigation, typed input draft contracts, keyboard shortcuts, keybinding remap persistence, surface-level keybinding editor, rich conflict review contracts and preview actions, persisted recent command ranking, recent command record hooks, and blocked command availability reasons.',
-          todo:
-              'TODO: replace text shortcut entry with physical key capture.',
+          todo: 'TODO: replace text shortcut entry with physical key capture.',
           references: <String>[
             'VS Code command palette',
             'IntelliJ action search',

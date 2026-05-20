@@ -6,6 +6,8 @@ enum SemanticSnapshotTelemetryEventKind {
   renameSafety,
   codeActionDiscovery,
   codeActionApply,
+  diagnosticsSnapshot,
+  semanticTokens,
 }
 
 extension SemanticSnapshotTelemetryEventKindX
@@ -15,6 +17,9 @@ extension SemanticSnapshotTelemetryEventKindX
     SemanticSnapshotTelemetryEventKind.codeActionDiscovery =>
       'code-action-discovery',
     SemanticSnapshotTelemetryEventKind.codeActionApply => 'code-action-apply',
+    SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot =>
+      'diagnostics-snapshot',
+    SemanticSnapshotTelemetryEventKind.semanticTokens => 'semantic-tokens',
   };
 }
 
@@ -26,6 +31,9 @@ SemanticSnapshotTelemetryEventKind? _semanticSnapshotTelemetryEventKindFromWire(
     'code-action-discovery' =>
       SemanticSnapshotTelemetryEventKind.codeActionDiscovery,
     'code-action-apply' => SemanticSnapshotTelemetryEventKind.codeActionApply,
+    'diagnostics-snapshot' =>
+      SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot,
+    'semantic-tokens' => SemanticSnapshotTelemetryEventKind.semanticTokens,
     _ => null,
   };
 }
@@ -116,6 +124,8 @@ class SemanticSnapshotPanelEventSink {
       acceptedKinds: const <SemanticSnapshotTelemetryEventKind>[
         SemanticSnapshotTelemetryEventKind.codeActionDiscovery,
         SemanticSnapshotTelemetryEventKind.codeActionApply,
+        SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot,
+        SemanticSnapshotTelemetryEventKind.semanticTokens,
       ],
       handle: handle,
     );
@@ -214,7 +224,9 @@ class SemanticSnapshotPanelEventDispatcher {
       SemanticSnapshotTelemetryEventKind.renameSafety =>
         SemanticSnapshotPanelEventTarget.refactor,
       SemanticSnapshotTelemetryEventKind.codeActionDiscovery ||
-      SemanticSnapshotTelemetryEventKind.codeActionApply =>
+      SemanticSnapshotTelemetryEventKind.codeActionApply ||
+      SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot ||
+      SemanticSnapshotTelemetryEventKind.semanticTokens =>
         SemanticSnapshotPanelEventTarget.problems,
     };
     final payload = event.metadata['payload'];
@@ -333,6 +345,9 @@ class SemanticSnapshotPanelEventViewItem {
         'Code actions available',
       SemanticSnapshotTelemetryEventKind.codeActionApply =>
         'Code action result',
+      SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot =>
+        'Diagnostics snapshot',
+      SemanticSnapshotTelemetryEventKind.semanticTokens => 'Semantic tokens',
     };
     return SemanticSnapshotPanelEventViewItem(
       id: '${event.target.wireValue}:${event.kind.wireValue}:${event.documentId}:${event.timestamp.toIso8601String()}',
@@ -431,6 +446,25 @@ class SemanticSnapshotPanelViewModel {
         .length;
   }
 
+  int get diagnosticEventCount {
+    return items
+        .where(
+          (item) =>
+              item.kind ==
+              SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot,
+        )
+        .length;
+  }
+
+  int get semanticTokenEventCount {
+    return items
+        .where(
+          (item) =>
+              item.kind == SemanticSnapshotTelemetryEventKind.semanticTokens,
+        )
+        .length;
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'target': target.wireValue,
@@ -440,6 +474,8 @@ class SemanticSnapshotPanelViewModel {
       'itemCount': itemCount,
       'codeActionCount': codeActionCount,
       'renameSafetyCount': renameSafetyCount,
+      'diagnosticEventCount': diagnosticEventCount,
+      'semanticTokenEventCount': semanticTokenEventCount,
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
       'items': items.map((item) => item.toJson()).toList(growable: false),
     };
@@ -453,6 +489,15 @@ String _semanticPanelSeverity(SemanticSnapshotPanelEvent event) {
     SemanticSnapshotTelemetryEventKind.codeActionDiscovery => 'info',
     SemanticSnapshotTelemetryEventKind.codeActionApply =>
       event.payload['status'] == 'applied' ? 'success' : 'warning',
+    SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot =>
+      event.payload['hasErrors'] == true ||
+              ((event.payload['diagnosticCount'] as int? ?? 0) > 0)
+          ? 'warning'
+          : 'success',
+    SemanticSnapshotTelemetryEventKind.semanticTokens =>
+      ((event.payload['semanticSpanCount'] as int? ?? 0) > 0)
+          ? 'success'
+          : 'info',
   };
 }
 
@@ -472,6 +517,20 @@ String _semanticPanelActionLabel(SemanticSnapshotPanelEvent event) {
       actionCount is int &&
       actionCount > 0) {
     return '$actionCount code action(s)';
+  }
+  final diagnosticCount = event.payload['diagnosticCount'];
+  if (event.kind == SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot &&
+      diagnosticCount is int) {
+    return diagnosticCount > 0
+        ? '$diagnosticCount diagnostic(s)'
+        : 'No diagnostics';
+  }
+  final semanticSpanCount = event.payload['semanticSpanCount'];
+  if (event.kind == SemanticSnapshotTelemetryEventKind.semanticTokens &&
+      semanticSpanCount is int) {
+    return semanticSpanCount > 0
+        ? '$semanticSpanCount semantic token(s)'
+        : 'No semantic tokens';
   }
   return '';
 }
@@ -738,6 +797,68 @@ class SemanticSnapshotEventBridge {
           ? 'Applied code action ${result.actionId}.'
           : 'Code action ${result.actionId} finished with ${result.status.wireValue}.',
       payload: result.toJson(),
+    );
+  }
+
+  RuntimeOutputEvent diagnosticsSnapshotEvent({
+    required String documentId,
+    required String providerId,
+    required int diagnosticCount,
+    required bool hasErrors,
+    required Map<String, int> severityCounts,
+    required int documentCount,
+    required int sourceCount,
+    required DateTime timestamp,
+    String message = '',
+    Map<String, Object?> payload = const <String, Object?>{},
+  }) {
+    final normalizedMessage = message.trim().isNotEmpty
+        ? message.trim()
+        : 'Workspace diagnostics snapshot contains $diagnosticCount diagnostic(s).';
+    return _event(
+      kind: SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot,
+      documentId: documentId,
+      timestamp: timestamp,
+      message: normalizedMessage,
+      payload: <String, Object?>{
+        'providerId': providerId,
+        'diagnosticCount': diagnosticCount,
+        'hasErrors': hasErrors,
+        'severityCounts': Map<String, int>.unmodifiable(severityCounts),
+        'documentCount': documentCount,
+        'sourceCount': sourceCount,
+        ...payload,
+      },
+    );
+  }
+
+  RuntimeOutputEvent semanticTokensEvent({
+    required String documentId,
+    required int semanticSpanCount,
+    required int semanticBlockCount,
+    required int documentSymbolCount,
+    required int inlayHintCount,
+    required int diagnosticCount,
+    required DateTime timestamp,
+    String message = '',
+    Map<String, Object?> payload = const <String, Object?>{},
+  }) {
+    final normalizedMessage = message.trim().isNotEmpty
+        ? message.trim()
+        : 'Semantic token snapshot contains $semanticSpanCount span(s).';
+    return _event(
+      kind: SemanticSnapshotTelemetryEventKind.semanticTokens,
+      documentId: documentId,
+      timestamp: timestamp,
+      message: normalizedMessage,
+      payload: <String, Object?>{
+        'semanticSpanCount': semanticSpanCount,
+        'semanticBlockCount': semanticBlockCount,
+        'documentSymbolCount': documentSymbolCount,
+        'inlayHintCount': inlayHintCount,
+        'diagnosticCount': diagnosticCount,
+        ...payload,
+      },
     );
   }
 

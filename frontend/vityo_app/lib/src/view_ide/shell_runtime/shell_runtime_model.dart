@@ -936,8 +936,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     if (publishToRuntimeOutput) {
       runtimeOutputBuffer.addEvent(event);
     }
-    final panelEvent =
-        const SemanticSnapshotPanelEventDispatcher().panelEventFor(event);
+    final panelEvent = const SemanticSnapshotPanelEventDispatcher()
+        .panelEventFor(event);
     if (panelEvent == null) {
       return null;
     }
@@ -1334,6 +1334,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       '${references.length} reference(s), '
       '${completions.length} completion(s).',
     );
+    _recordSemanticTokensTelemetry(documentId: documentId);
     notifyListeners();
     return metadata;
   }
@@ -1383,8 +1384,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       ),
     );
     final semanticKind = switch (action) {
-      'previewQuickFix' => SemanticSnapshotTelemetryEventKind
-          .codeActionDiscovery,
+      'previewQuickFix' =>
+        SemanticSnapshotTelemetryEventKind.codeActionDiscovery,
       'applyQuickFix' => SemanticSnapshotTelemetryEventKind.codeActionApply,
       _ => null,
     };
@@ -1646,6 +1647,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           )
         : await controller.refresh(_createWorkspaceDiagnosticsRequest());
     appendLog(_workspaceDiagnosticsRefreshMessage(snapshot));
+    _recordWorkspaceDiagnosticsSemanticTelemetry(snapshot);
     notifyListeners();
     return snapshot;
   }
@@ -1657,6 +1659,48 @@ class ShellRuntimeModel extends ChangeNotifier {
       return snapshot.message;
     }
     return 'Workspace diagnostics refreshed: ${snapshot.totalCount} problem(s).';
+  }
+
+  void _recordWorkspaceDiagnosticsSemanticTelemetry(
+    WorkspaceDiagnosticsSnapshot snapshot,
+  ) {
+    unawaited(
+      recordSemanticRuntimeOutputEvent(
+        const SemanticSnapshotEventBridge().diagnosticsSnapshotEvent(
+          documentId: editorController.document.documentId,
+          providerId: snapshot.providerId,
+          diagnosticCount: snapshot.totalCount,
+          hasErrors: snapshot.hasErrors,
+          severityCounts: snapshot.severityCounts,
+          documentCount: snapshot.documentIds.length,
+          sourceCount: snapshot.sourceGroups.length,
+          timestamp: DateTime.now().toUtc(),
+          message: _workspaceDiagnosticsRefreshMessage(snapshot),
+          payload: <String, Object?>{
+            'source': 'workspace-diagnostics',
+            'activeDocumentId': editorController.document.documentId,
+          },
+        ),
+      ),
+    );
+  }
+
+  void _recordSemanticTokensTelemetry({required String documentId}) {
+    final analysis = editorController.analysis;
+    unawaited(
+      recordSemanticRuntimeOutputEvent(
+        const SemanticSnapshotEventBridge().semanticTokensEvent(
+          documentId: documentId,
+          semanticSpanCount: analysis.semanticSpans.length,
+          semanticBlockCount: analysis.semanticBlocks.length,
+          documentSymbolCount: analysis.documentSymbols.length,
+          inlayHintCount: analysis.inlayHints.length,
+          diagnosticCount: analysis.diagnostics.length,
+          timestamp: DateTime.now().toUtc(),
+          payload: const <String, Object?>{'source': 'editor-analysis'},
+        ),
+      ),
+    );
   }
 
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>

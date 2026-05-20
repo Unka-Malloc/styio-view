@@ -54,6 +54,69 @@ void main() {
   });
 
   test(
+    'semantic snapshot bridge dispatches diagnostics and semantic tokens',
+    () {
+      final received = <SemanticSnapshotPanelEvent>[];
+      const bridge = SemanticSnapshotEventBridge();
+      final dispatcher = SemanticSnapshotPanelEventDispatcher(
+        sinks: <SemanticSnapshotPanelEventSink>[
+          SemanticSnapshotPanelEventSink.problems(handle: received.add),
+          SemanticSnapshotPanelEventSink.refactor(handle: received.add),
+        ],
+      );
+
+      final diagnosticsReport = dispatcher.dispatch(
+        bridge.diagnosticsSnapshotEvent(
+          documentId: 'src/main.styio',
+          providerId: 'styio-service',
+          diagnosticCount: 2,
+          hasErrors: true,
+          severityCounts: const <String, int>{
+            'error': 1,
+            'warning': 1,
+            'info': 0,
+          },
+          documentCount: 1,
+          sourceCount: 1,
+          timestamp: DateTime.utc(2026, 5, 21, 1),
+        ),
+      );
+      final tokenReport = dispatcher.dispatch(
+        bridge.semanticTokensEvent(
+          documentId: 'src/main.styio',
+          semanticSpanCount: 3,
+          semanticBlockCount: 1,
+          documentSymbolCount: 1,
+          inlayHintCount: 0,
+          diagnosticCount: 2,
+          timestamp: DateTime.utc(2026, 5, 21, 2),
+        ),
+      );
+
+      final state = SemanticSnapshotPanelEventState.empty(
+        SemanticSnapshotPanelEventTarget.problems,
+      ).record(received.first).record(received.last);
+      final viewModel = SemanticSnapshotPanelViewModel.fromState(state);
+
+      expect(diagnosticsReport.deliveredSinkIds, <String>['problems-panel']);
+      expect(tokenReport.deliveredSinkIds, <String>['problems-panel']);
+      expect(
+        received.map((event) => event.kind),
+        <SemanticSnapshotTelemetryEventKind>[
+          SemanticSnapshotTelemetryEventKind.diagnosticsSnapshot,
+          SemanticSnapshotTelemetryEventKind.semanticTokens,
+        ],
+      );
+      expect(viewModel.diagnosticEventCount, 1);
+      expect(viewModel.semanticTokenEventCount, 1);
+      expect(viewModel.items.first.actionLabel, '3 semantic token(s)');
+      expect(viewModel.items.last.actionLabel, '2 diagnostic(s)');
+      expect(viewModel.toJson()['diagnosticEventCount'], 1);
+      expect(viewModel.toJson()['semanticTokenEventCount'], 1);
+    },
+  );
+
+  test(
     'semantic snapshot bridge dispatches rename safety to Refactor sink',
     () {
       final received = <SemanticSnapshotPanelEvent>[];

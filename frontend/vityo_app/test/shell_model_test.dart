@@ -440,6 +440,10 @@ void main() {
         diagnosticsCommandResult?.metadata['workspaceDiagnostics'],
         isA<Map<String, Object?>>(),
       );
+      expect(
+        shell.semanticProblemsPanelViewModel?.diagnosticEventCount,
+        greaterThanOrEqualTo(1),
+      );
 
       final agentDiagnosticsApplied = await shell
           .applyAgentIdeCommandSuggestion(
@@ -565,7 +569,10 @@ void main() {
     final languageJson =
         shell.agentSessionContext.toJson()['language']! as Map<String, Object?>;
 
-    expect(restoredStates.length, SemanticSnapshotPanelEventTarget.values.length);
+    expect(
+      restoredStates.length,
+      SemanticSnapshotPanelEventTarget.values.length,
+    );
     expect(shell.semanticProblemsPanelViewModel?.itemCount, 1);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModels'], isA<List<Object?>>());
@@ -694,7 +701,8 @@ void main() {
         quickFixIndex: 1,
         planId: 'quick-fix.src/main.styio.unused-value.1',
         outcomeKind: WorkspaceQuickFixReviewOutcomeKind.blocked,
-        confirmationStatus: WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+        confirmationStatus:
+            WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
         ready: false,
         message: 'Preview required before apply.',
         timestamp: DateTime.utc(2026, 5, 20, 4),
@@ -908,6 +916,10 @@ void main() {
       final hover = projectLanguage['hover']! as Map<String, Object?>;
       expect(projectLanguage['definitionCount'], 1);
       expect(projectLanguage['referenceCount'], 2);
+      expect(
+        shell.semanticProblemsPanelViewModel?.semanticTokenEventCount,
+        greaterThanOrEqualTo(1),
+      );
       expect(hover['label'], contains('function blend'));
       expect(
         shell.projectHoverAtSelection?.markdown,

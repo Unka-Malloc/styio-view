@@ -50,6 +50,7 @@ void main() {
     expect(decoded.systemPrompt, contains('testing.lastRun.failedTests'));
     expect(decoded.systemPrompt, contains('commands.testingCommands'));
     expect(decoded.systemPrompt, contains('rerunFailedTests'));
+    expect(decoded.systemPrompt, contains('debugFailedTests'));
     expect(decoded.systemPrompt, contains('testing.rerunFailed'));
     expect(decoded.systemPrompt, contains('testing.debugFailed'));
     expect(decoded.systemPrompt, contains('testing.debugFailedRoutePlan'));

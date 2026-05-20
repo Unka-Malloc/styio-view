@@ -551,6 +551,46 @@ void main() {
       expect(failedRetryHistory, hasLength(1));
       expect(shell.failedTestRetryHistory, hasLength(1));
 
+      testingController.recordRunResult(
+        const TestRunResult(
+          providerId: 'static-runner',
+          runner: 'fixture',
+          status: TestRunStatus.failed,
+          message: 'Fixture debug target failed.',
+          totalCount: 1,
+          failedCount: 1,
+          cases: <TestCaseResult>[
+            TestCaseResult(
+              id: 'parser-syntax',
+              name: 'parser syntax',
+              status: TestRunStatus.failed,
+              message: 'Expected parser success.',
+            ),
+          ],
+        ),
+      );
+      final agentDebugFailedApplied = await shell
+          .applyAgentIdeCommandSuggestion(
+            const AgentIdeCommandSuggestion(commandId: 'debugFailedTests'),
+          );
+      final agentDebugFailedResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(agentDebugFailedApplied, isTrue);
+      expect(agentDebugFailedResult?.commandId, 'debugFailedTests');
+      final debugFailedTestResult =
+          agentDebugFailedResult?.metadata['testResult']!
+              as Map<String, Object?>;
+      final debugFailedRetryHistory =
+          agentDebugFailedResult?.metadata['failedRetryHistory']!
+              as List<Object?>;
+      expect(debugFailedTestResult['status'], 'passed');
+      expect(debugFailedRetryHistory, hasLength(2));
+      expect(
+        (debugFailedRetryHistory.first! as Map<String, Object?>)['debug'],
+        isTrue,
+      );
+      expect(shell.failedTestRetryHistory, hasLength(2));
+
       await shell.executeCommand(AppCommandId.collectAgentCodingCheckpoint);
       final checkpointCommandResult =
           shell.agentSessionContext.commands.lastResult;
@@ -577,7 +617,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        55,
+        56,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],

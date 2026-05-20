@@ -1402,6 +1402,20 @@ class ShellRuntimeModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> debugFailedTests() async {
+    final controller = testingSessionController;
+    if (controller == null || controller.runProvider == null) {
+      await rerunFailedTests();
+      return;
+    }
+    final result = await controller.rerunFailed(
+      workspaceRoot: workspaceController.activeProject.workspaceRoot,
+      debug: true,
+    );
+    appendLog(_testRunResultMessage('Debug failed tests', result));
+    notifyListeners();
+  }
+
   void selectTestRunConfiguration(TestRunConfiguration configuration) {
     _selectedTestRunConfigurationId = configuration.id;
     appendLog('Selected test run configuration ${configuration.id}.');
@@ -3207,6 +3221,22 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: _agentTestingCommandMetadata(result),
         );
         return applied;
+      case 'debugFailedTests':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        await debugFailedTests();
+        final result = lastTestRun;
+        final applied = _agentTestingCommandApplied(result);
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: applied,
+          message: result == null
+              ? 'Agent command debugFailedTests skipped: no test result is available.'
+              : _testRunResultMessage('Agent command debugFailedTests', result),
+          metadata: _agentTestingCommandMetadata(result),
+        );
+        return applied;
       default:
         _recordAgentIdeCommandResult(
           suggestion,
@@ -3860,6 +3890,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previewWorkspaceReplace:
       case AppCommandId.applyWorkspaceReplace:
       case AppCommandId.rerunFailedTests:
+      case AppCommandId.debugFailedTests:
       case AppCommandId.goToDefinition:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
@@ -3898,6 +3929,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.saveAll:
       case AppCommandId.run:
       case AppCommandId.rerunFailedTests:
+      case AppCommandId.debugFailedTests:
       case AppCommandId.fetchDependencies:
       case AppCommandId.vendorDependencies:
       case AppCommandId.useActiveCompiler:
@@ -6676,6 +6708,18 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: _agentTestingCommandMetadata(result),
         );
         return;
+      case AppCommandId.debugFailedTests:
+        await debugFailedTests();
+        final result = lastTestRun;
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: _agentTestingCommandApplied(result),
+          message: result == null
+              ? 'Debug Failed Tests skipped: no test result is available.'
+              : _testRunResultMessage('Debug Failed Tests', result),
+          metadata: _agentTestingCommandMetadata(result),
+        );
+        return;
       case AppCommandId.renameSymbol:
         appendLog('Rename Symbol requires caller-provided input.');
         return;
@@ -6848,6 +6892,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.runStaticAnalysis:
       case AppCommandId.runTests:
       case AppCommandId.rerunFailedTests:
+      case AppCommandId.debugFailedTests:
         await executeCommand(commandId);
         return;
     }
@@ -7071,6 +7116,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.runStaticAnalysis:
       case AppCommandId.runTests:
       case AppCommandId.rerunFailedTests:
+      case AppCommandId.debugFailedTests:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
       case AppCommandId.renameSymbol:

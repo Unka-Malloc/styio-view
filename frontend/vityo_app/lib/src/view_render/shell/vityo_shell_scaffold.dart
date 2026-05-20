@@ -2172,6 +2172,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.science_outlined;
     case AppCommandId.rerunFailedTests:
       return Icons.replay_circle_filled_outlined;
+    case AppCommandId.debugFailedTests:
+      return Icons.bug_report_rounded;
     case AppCommandId.nextReference:
       return Icons.keyboard_arrow_down_rounded;
     case AppCommandId.previousReference:

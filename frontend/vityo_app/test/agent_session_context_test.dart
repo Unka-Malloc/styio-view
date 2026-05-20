@@ -488,7 +488,7 @@ void main() {
     final testingDebugRoute =
         testingJson['debugFailedRoutePlan']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 55);
+    expect(json['schemaVersion'], 56);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1123,8 +1123,10 @@ void main() {
       contains('Requires a registered cmake or ninja build-tool toolchain.'),
     );
     expect(
-      (testingCommands.single! as Map<String, Object?>)['id'],
-      'rerunFailedTests',
+      testingCommands.map(
+        (command) => (command! as Map<String, Object?>)['id'],
+      ),
+      <String>['rerunFailedTests', 'debugFailedTests'],
     );
     expect(
       (debugCommands.first! as Map<String, Object?>)['id'],
@@ -1579,7 +1581,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 55);
+    expect(json['schemaVersion'], 56);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1854,7 +1856,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 55);
+    expect(context.schemaVersion, 56);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

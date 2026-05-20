@@ -13,6 +13,7 @@ class CommandPaletteSurface extends StatefulWidget {
     this.commands = StyioCommandRegistry.commands,
     this.recentHistory,
     this.displayPreferences,
+    this.livePreferenceController,
     this.initialCategory,
     this.onExecuteCommand,
     this.onRecordRecentCommand,
@@ -23,6 +24,7 @@ class CommandPaletteSurface extends StatefulWidget {
   final List<AppCommandDescriptor> commands;
   final CommandPaletteRecentCommandHistory? recentHistory;
   final CommandPaletteDisplayPreferences? displayPreferences;
+  final CommandPaletteLivePreferenceController? livePreferenceController;
   final AppCommandCategory? initialCategory;
   final Future<void> Function(AppCommandId commandId)? onExecuteCommand;
   final Future<void> Function(AppCommandId commandId)? onRecordRecentCommand;
@@ -34,6 +36,9 @@ class CommandPaletteSurface extends StatefulWidget {
 
 class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   late final TextEditingController _queryController;
+  StreamSubscription<CommandPaletteLivePreferenceState>?
+  _livePreferenceSubscription;
+  CommandPaletteDisplayPreferences? _liveDisplayPreferences;
   var _query = '';
   AppCommandCategory? _category;
   var _selectedIndex = 0;
@@ -42,24 +47,57 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   void initState() {
     super.initState();
     _queryController = TextEditingController();
+    _attachLivePreferenceController(widget.livePreferenceController);
     _category =
-        widget.initialCategory ?? widget.displayPreferences?.defaultCategory;
+        widget.initialCategory ?? _effectivePreferences?.defaultCategory;
+  }
+
+  @override
+  void didUpdateWidget(CommandPaletteSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.livePreferenceController != widget.livePreferenceController) {
+      _livePreferenceSubscription?.cancel();
+      _attachLivePreferenceController(widget.livePreferenceController);
+      _category =
+          widget.initialCategory ?? _effectivePreferences?.defaultCategory;
+      _selectedIndex = 0;
+    }
   }
 
   @override
   void dispose() {
+    _livePreferenceSubscription?.cancel();
     _queryController.dispose();
     super.dispose();
+  }
+
+  CommandPaletteDisplayPreferences? get _effectivePreferences {
+    return _liveDisplayPreferences ?? widget.displayPreferences;
+  }
+
+  void _attachLivePreferenceController(
+    CommandPaletteLivePreferenceController? controller,
+  ) {
+    _liveDisplayPreferences = controller?.state.preferences;
+    _livePreferenceSubscription = controller?.stream.listen((state) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _liveDisplayPreferences = state.preferences;
+        _category = widget.initialCategory ?? state.preferences.defaultCategory;
+        _selectedIndex = 0;
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = widget.viewportProfile.isMobile;
-    final showRecentCommands =
-        widget.displayPreferences?.showRecentCommands ?? true;
-    final showCategoryFilters =
-        widget.displayPreferences?.showCategoryFilters ?? true;
+    final displayPreferences = _effectivePreferences;
+    final showRecentCommands = displayPreferences?.showRecentCommands ?? true;
+    final showCategoryFilters = displayPreferences?.showCategoryFilters ?? true;
     final overlayState = CommandPaletteModel(commands: widget.commands)
         .overlayStateFor(
           CommandPaletteQueryState(
@@ -140,7 +178,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                         'recent ${widget.recentHistory!.commandIds.length}',
                       ),
                     ),
-                  if (widget.displayPreferences != null)
+                  if (displayPreferences != null)
                     const Chip(label: Text('preferences workspace')),
                   if (_category != null)
                     Chip(label: Text('category ${_category!.wireValue}')),

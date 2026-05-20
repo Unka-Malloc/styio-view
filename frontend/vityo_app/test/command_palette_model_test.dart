@@ -108,4 +108,43 @@ void main() {
       'New symbol name',
     );
   });
+
+  test(
+    'command palette live preference controller streams revisions',
+    () async {
+      final controller = CommandPaletteLivePreferenceController(
+        initialPreferences: const CommandPaletteDisplayPreferences(
+          workspaceId: 'demo',
+        ),
+      );
+      addTearDown(controller.dispose);
+      final updates = <CommandPaletteLivePreferenceState>[];
+      final subscription = controller.stream.listen(updates.add);
+      addTearDown(subscription.cancel);
+
+      controller.updatePreferences(
+        const CommandPaletteDisplayPreferences(
+          workspaceId: 'demo',
+          defaultCategory: AppCommandCategory.navigation,
+          showCategoryFilters: false,
+          showRecentCommands: false,
+        ),
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.state.revision, 1);
+      expect(
+        controller.state.preferences.defaultCategory,
+        AppCommandCategory.navigation,
+      );
+      expect(controller.state.preferences.showCategoryFilters, isFalse);
+      expect(updates.single.revision, 1);
+      expect(
+        (updates.single.toJson()['preferences']!
+            as Map<String, Object?>)['showRecentCommands'],
+        isFalse,
+      );
+    },
+  );
 }

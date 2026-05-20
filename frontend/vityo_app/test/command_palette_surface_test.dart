@@ -195,6 +195,76 @@ void main() {
     expect(find.text('recent 1'), findsNothing);
   });
 
+  testWidgets('command palette reacts to live preference updates', (
+    tester,
+  ) async {
+    final controller = CommandPaletteLivePreferenceController(
+      initialPreferences: const CommandPaletteDisplayPreferences(
+        workspaceId: 'demo',
+        showCategoryFilters: true,
+        showRecentCommands: true,
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPaletteSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            recentHistory: const CommandPaletteRecentCommandHistory(
+              workspaceId: 'demo',
+              commandIds: <AppCommandId>[AppCommandId.save],
+            ),
+            livePreferenceController: controller,
+            commands: const <AppCommandDescriptor>[
+              AppCommandDescriptor(
+                id: AppCommandId.searchWorkspace,
+                label: 'Search Workspace',
+                shortcutHint: 'Route',
+                description: 'Search workspace files.',
+              ),
+              AppCommandDescriptor(
+                id: AppCommandId.save,
+                label: 'Save',
+                shortcutHint: 'Cmd/Ctrl+S',
+                description: 'Save current file.',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('command-palette-category-filters')),
+      findsOneWidget,
+    );
+    expect(find.text('recent 1'), findsOneWidget);
+
+    controller.updatePreferences(
+      const CommandPaletteDisplayPreferences(
+        workspaceId: 'demo',
+        defaultCategory: AppCommandCategory.navigation,
+        showCategoryFilters: false,
+        showRecentCommands: false,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('category navigation'), findsOneWidget);
+    expect(find.text('visible 1'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('command-palette-category-filters')),
+      findsNothing,
+    );
+    expect(find.text('recent 1'), findsNothing);
+  });
+
   testWidgets('command palette uses recent history ranking', (tester) async {
     AppCommandId? executedCommandId;
     AppCommandId? recordedCommandId;

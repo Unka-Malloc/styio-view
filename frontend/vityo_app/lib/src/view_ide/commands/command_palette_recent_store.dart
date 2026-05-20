@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../foundation/foundation.dart';
 import 'app_commands.dart';
 import 'command_palette_model.dart';
@@ -126,6 +128,51 @@ class CommandPaletteDisplayPreferences {
       'showRecentCommands': showRecentCommands,
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
+  }
+}
+
+class CommandPaletteLivePreferenceState {
+  const CommandPaletteLivePreferenceState({
+    required this.preferences,
+    this.revision = 0,
+  });
+
+  final CommandPaletteDisplayPreferences preferences;
+  final int revision;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'revision': revision,
+      'preferences': preferences.toJson(),
+    };
+  }
+}
+
+class CommandPaletteLivePreferenceController {
+  CommandPaletteLivePreferenceController({
+    required CommandPaletteDisplayPreferences initialPreferences,
+  }) : _state = CommandPaletteLivePreferenceState(
+         preferences: initialPreferences,
+       );
+
+  final StreamController<CommandPaletteLivePreferenceState> _updates =
+      StreamController<CommandPaletteLivePreferenceState>.broadcast();
+
+  CommandPaletteLivePreferenceState _state;
+
+  CommandPaletteLivePreferenceState get state => _state;
+  Stream<CommandPaletteLivePreferenceState> get stream => _updates.stream;
+
+  void updatePreferences(CommandPaletteDisplayPreferences preferences) {
+    _state = CommandPaletteLivePreferenceState(
+      preferences: preferences,
+      revision: _state.revision + 1,
+    );
+    _updates.add(_state);
+  }
+
+  Future<void> dispose() {
+    return _updates.close();
   }
 }
 

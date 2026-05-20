@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
@@ -218,6 +220,89 @@ void main() {
             .wireValue],
         StyioServiceCapabilityState.unavailable.name,
       );
+    },
+  );
+
+  test(
+    'language service status controller maps runtime events to surfaces',
+    () async {
+      final events = StreamController<StyioServiceRuntimeSessionEvent>(
+        sync: true,
+      );
+      final controller = LanguageServiceStatusController(
+        runtimeEvents: events.stream,
+      );
+      final severities = <LanguageServiceStatusSeverity>[];
+      controller.listenable.addListener(() {
+        severities.add(controller.value.severity);
+      });
+
+      events.add(
+        StyioServiceRuntimeSessionEvent(
+          state: StyioServiceRuntimeSessionState.refreshing,
+        ),
+      );
+
+      expect(
+        controller.value.severity,
+        LanguageServiceStatusSeverity.refreshing,
+      );
+
+      const response = StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: 'fixture://controller-ready',
+        revision: 1,
+        toolchainId: 'styio-nightly',
+        completions: <CompletionItem>[
+          CompletionItem(
+            label: 'value',
+            kind: CompletionItemKind.variable,
+            insertText: 'value',
+          ),
+        ],
+      );
+      final capabilitySnapshot = const StyioServiceCapabilityDetector().detect(
+        response,
+      );
+      events.add(
+        StyioServiceRuntimeSessionEvent(
+          state: StyioServiceRuntimeSessionState.active,
+          statusSnapshot: StyioServiceRuntimeStatusSnapshot(
+            state: StyioServiceRuntimeSessionState.active,
+            disposed: false,
+            providerManifest: LanguageProviderRegistry<String>().manifest(),
+            capabilitySnapshot: capabilitySnapshot,
+          ),
+        ),
+      );
+
+      expect(controller.value.severity, LanguageServiceStatusSeverity.ready);
+      expect(controller.value.toolchainId, 'styio-nightly');
+      expect(controller.value.usableCapabilityCount, greaterThan(0));
+      expect(severities, <LanguageServiceStatusSeverity>[
+        LanguageServiceStatusSeverity.refreshing,
+        LanguageServiceStatusSeverity.ready,
+      ]);
+
+      await controller.dispose();
+      await events.close();
+    },
+  );
+
+  test(
+    'language service status controller handles snapshotless failures',
+    () async {
+      final controller = LanguageServiceStatusController();
+
+      controller.handleRuntimeEvent(
+        StyioServiceRuntimeSessionEvent(
+          state: StyioServiceRuntimeSessionState.failed,
+        ),
+      );
+
+      expect(controller.value.severity, LanguageServiceStatusSeverity.failed);
+      expect(controller.value.actionable, isTrue);
+      await controller.dispose();
     },
   );
 }

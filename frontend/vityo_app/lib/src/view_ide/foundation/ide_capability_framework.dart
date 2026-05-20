@@ -58,6 +58,7 @@ const List<String> requiredVityoIdeCapabilityIds = <String>[
   'service.remote-service',
   'interaction.commands',
   'interaction.diagnostics',
+  'interaction.language-service-status',
   'interaction.search',
   'interaction.source-control',
   'interaction.testing',
@@ -279,7 +280,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/language/service',
           summary:
-              'Styio-first parser, diagnostics, semantic facts, grammar-version facts, and extension language route consumption.',
+              'Styio-first parser, diagnostics, semantic facts, grammar-version facts, runtime status snapshots, and extension language route consumption.',
           references: <String>['Language Server Protocol'],
         ),
         IdeCapabilityDescriptor(
@@ -345,6 +346,21 @@ class VityoIdeCapabilityFramework {
           todo:
               'TODO: add native diagnostic producers and route quick-fix review outcomes into producer execution telemetry.',
           dependencies: <String>['workspace.diagnostics'],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'interaction.language-service-status',
+          layer: IdeCapabilityLayer.interaction,
+          title: 'StyioService status interaction',
+          status: IdeCapabilityStatus.wired,
+          ownerPath:
+              'lib/src/view_ide/interaction/language_service_status_surface.dart',
+          summary:
+              'LanguageServiceStatusSurface and LanguageServiceStatusController map StyioService runtime events into ValueListenable status snapshots for editor, shell, and Agent consumers.',
+          dependencies: <String>['service.styio-language'],
+          references: <String>[
+            'VS Code language status item',
+            'IntelliJ code insight daemon status',
+          ],
         ),
         IdeCapabilityDescriptor(
           id: 'interaction.search',

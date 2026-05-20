@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
 import '../language/service/styio_service_capability_detector.dart';
 import '../language/service/styio_service_runtime.dart';
 
@@ -239,5 +243,74 @@ class LanguageServiceStatusSurface {
       ])
         capability.wireValue: state.name,
     };
+  }
+}
+
+class LanguageServiceStatusController {
+  LanguageServiceStatusController({
+    LanguageServiceStatusSurface? initialStatus,
+    ValueNotifier<LanguageServiceStatusSurface>? notifier,
+    Stream<StyioServiceRuntimeSessionEvent>? runtimeEvents,
+  }) : notifier =
+           notifier ??
+           ValueNotifier<LanguageServiceStatusSurface>(
+             initialStatus ?? LanguageServiceStatusSurface.unavailable(),
+           ),
+       _ownsNotifier = notifier == null {
+    if (runtimeEvents != null) {
+      bindRuntimeEvents(runtimeEvents);
+    }
+  }
+
+  final ValueNotifier<LanguageServiceStatusSurface> notifier;
+  final bool _ownsNotifier;
+  StreamSubscription<StyioServiceRuntimeSessionEvent>? _runtimeSubscription;
+
+  ValueListenable<LanguageServiceStatusSurface> get listenable => notifier;
+
+  LanguageServiceStatusSurface get value => notifier.value;
+
+  StreamSubscription<StyioServiceRuntimeSessionEvent> bindRuntimeEvents(
+    Stream<StyioServiceRuntimeSessionEvent> events,
+  ) {
+    _runtimeSubscription?.cancel();
+    return _runtimeSubscription = events.listen(handleRuntimeEvent);
+  }
+
+  void handleRuntimeEvent(StyioServiceRuntimeSessionEvent event) {
+    notifier.value = surfaceForRuntimeEvent(event);
+  }
+
+  static LanguageServiceStatusSurface surfaceForRuntimeEvent(
+    StyioServiceRuntimeSessionEvent event,
+  ) {
+    final snapshot = event.statusSnapshot;
+    if (snapshot != null) {
+      return LanguageServiceStatusSurface.fromRuntimeSnapshot(snapshot);
+    }
+    return switch (event.state) {
+      StyioServiceRuntimeSessionState.refreshing =>
+        LanguageServiceStatusSurface.refreshing(),
+      StyioServiceRuntimeSessionState.failed =>
+        LanguageServiceStatusSurface.failed(),
+      StyioServiceRuntimeSessionState.disposed =>
+        LanguageServiceStatusSurface.unavailable(
+          runtimeState: StyioServiceRuntimeSessionState.disposed.name,
+          message: 'StyioService runtime session has been disposed.',
+        ),
+      StyioServiceRuntimeSessionState.initialized ||
+      StyioServiceRuntimeSessionState.active =>
+        LanguageServiceStatusSurface.unavailable(
+          runtimeState: event.state.name,
+        ),
+    };
+  }
+
+  Future<void> dispose() async {
+    await _runtimeSubscription?.cancel();
+    _runtimeSubscription = null;
+    if (_ownsNotifier) {
+      notifier.dispose();
+    }
   }
 }

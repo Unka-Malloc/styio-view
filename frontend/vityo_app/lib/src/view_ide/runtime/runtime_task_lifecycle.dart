@@ -372,12 +372,17 @@ class RuntimeTaskLifecycleController {
     );
   }
 
-  RuntimeTaskSnapshot cancel(String taskId, {String? message}) {
+  RuntimeTaskSnapshot cancel(
+    String taskId, {
+    String? message,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
     return _transition(
       taskId,
       RuntimeTaskStatus.cancelled,
       message: message ?? 'Task $taskId cancelled.',
       finishedAt: _clock(),
+      metadata: metadata,
     );
   }
 

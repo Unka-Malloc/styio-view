@@ -160,6 +160,73 @@ class WorkspaceDiagnosticsProducerLifecycleSnapshot {
   }
 }
 
+class WorkspaceDiagnosticsProducerCancellationResult {
+  const WorkspaceDiagnosticsProducerCancellationResult({
+    required this.accepted,
+    required this.processTerminated,
+    required this.message,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const WorkspaceDiagnosticsProducerCancellationResult.accepted({
+    bool processTerminated = false,
+    String message = 'Diagnostics producer cancellation requested.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: true,
+         processTerminated: processTerminated,
+         message: message,
+         metadata: metadata,
+       );
+
+  const WorkspaceDiagnosticsProducerCancellationResult.rejected({
+    String message = 'Diagnostics producer cancellation was rejected.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: false,
+         processTerminated: false,
+         message: message,
+         metadata: metadata,
+       );
+
+  final bool accepted;
+  final bool processTerminated;
+  final String message;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'accepted': accepted,
+      'processTerminated': processTerminated,
+      'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+typedef WorkspaceDiagnosticsProducerCancellationHandler =
+    Future<WorkspaceDiagnosticsProducerCancellationResult> Function({
+      required WorkspaceDiagnosticsProducerExecutionPlan plan,
+      required WorkspaceDiagnosticsProducerLifecycleSnapshot current,
+      required String reason,
+    });
+
+class WorkspaceDiagnosticsProducerCancellationAdapter {
+  const WorkspaceDiagnosticsProducerCancellationAdapter({
+    required WorkspaceDiagnosticsProducerCancellationHandler cancel,
+  }) : _cancel = cancel;
+
+  final WorkspaceDiagnosticsProducerCancellationHandler _cancel;
+
+  Future<WorkspaceDiagnosticsProducerCancellationResult> cancel({
+    required WorkspaceDiagnosticsProducerExecutionPlan plan,
+    required WorkspaceDiagnosticsProducerLifecycleSnapshot current,
+    required String reason,
+  }) {
+    return _cancel(plan: plan, current: current, reason: reason);
+  }
+}
+
 class WorkspaceDiagnosticsProducerLifecycleController {
   WorkspaceDiagnosticsProducerLifecycleController({
     RuntimeTaskLifecycleController? taskLifecycleController,
@@ -253,6 +320,44 @@ class WorkspaceDiagnosticsProducerLifecycleController {
       progress: current.progress,
       cancellationRequested: true,
       message: reason,
+    );
+  }
+
+  Future<WorkspaceDiagnosticsProducerLifecycleSnapshot>
+  requestProcessCancellation(
+    WorkspaceDiagnosticsProducerExecutionPlan plan, {
+    required WorkspaceDiagnosticsProducerCancellationAdapter adapter,
+    String reason = '',
+  }) async {
+    final current = _ensureRegistered(plan);
+    final result = await adapter.cancel(
+      plan: plan,
+      current: current,
+      reason: reason,
+    );
+    if (!result.accepted) {
+      return _record(
+        plan,
+        current.taskSnapshot,
+        progress: current.progress,
+        cancellationRequested: current.cancellationRequested,
+        message: result.message,
+      );
+    }
+    final message = result.message.trim().isEmpty ? reason : result.message;
+    final task = _taskLifecycleController.cancel(
+      plan.definition.id,
+      message: message.trim().isEmpty ? null : message.trim(),
+      metadata: <String, Object?>{
+        'diagnosticsProducerCancellation': result.toJson(),
+      },
+    );
+    return _record(
+      plan,
+      task,
+      progress: current.progress,
+      cancellationRequested: true,
+      message: message,
     );
   }
 

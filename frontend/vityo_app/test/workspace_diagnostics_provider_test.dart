@@ -203,6 +203,89 @@ void main() {
     },
   );
 
+  test(
+    'workspace diagnostics producer cancellation adapter records termination',
+    () async {
+      const request = WorkspaceDiagnosticsRequest(
+        documentIds: <String>['src/main.styio'],
+        activeDocumentId: 'src/main.styio',
+      );
+      final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+        providerId: 'styio-project-diagnostics',
+        request: request,
+        command: 'styio',
+        arguments: const <String>['check', '.'],
+      );
+      final controller = WorkspaceDiagnosticsProducerLifecycleController();
+      controller.start(plan, message: 'Styio diagnostics started.');
+
+      final cancelled = await controller.requestProcessCancellation(
+        plan,
+        reason: 'User cancelled diagnostics.',
+        adapter: WorkspaceDiagnosticsProducerCancellationAdapter(
+          cancel: ({required plan, required current, required reason}) async {
+            expect(plan.providerId, 'styio-project-diagnostics');
+            expect(current.status, RuntimeTaskStatus.running);
+            expect(reason, 'User cancelled diagnostics.');
+            return const WorkspaceDiagnosticsProducerCancellationResult.accepted(
+              processTerminated: true,
+              message: 'Terminated diagnostics process.',
+              metadata: <String, Object?>{'pid': 42},
+            );
+          },
+        ),
+      );
+      final cancellationEvent = cancelled.taskSnapshot.events.last;
+      final cancellationMetadata =
+          cancellationEvent.metadata['diagnosticsProducerCancellation']!
+              as Map<String, Object?>;
+
+      expect(cancelled.status, RuntimeTaskStatus.cancelled);
+      expect(cancelled.cancellationRequested, isTrue);
+      expect(cancelled.message, 'Terminated diagnostics process.');
+      expect(cancellationMetadata['processTerminated'], isTrue);
+      expect(
+        (cancellationMetadata['metadata']! as Map<String, Object?>)['pid'],
+        42,
+      );
+    },
+  );
+
+  test(
+    'workspace diagnostics producer cancellation adapter can reject requests',
+    () async {
+      const request = WorkspaceDiagnosticsRequest(
+        documentIds: <String>['src/main.styio'],
+        activeDocumentId: 'src/main.styio',
+      );
+      final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+        providerId: 'styio-project-diagnostics',
+        request: request,
+        command: 'styio',
+        arguments: const <String>['check', '.'],
+      );
+      final controller = WorkspaceDiagnosticsProducerLifecycleController();
+      controller.start(plan, message: 'Styio diagnostics started.');
+
+      final rejected = await controller.requestProcessCancellation(
+        plan,
+        reason: 'User cancelled diagnostics.',
+        adapter: WorkspaceDiagnosticsProducerCancellationAdapter(
+          cancel: ({required plan, required current, required reason}) async {
+            return const WorkspaceDiagnosticsProducerCancellationResult.rejected(
+              message: 'No process handle is bound.',
+            );
+          },
+        ),
+      );
+
+      expect(rejected.status, RuntimeTaskStatus.running);
+      expect(rejected.cancellationRequested, isFalse);
+      expect(rejected.canCancel, isTrue);
+      expect(rejected.message, 'No process handle is bound.');
+    },
+  );
+
   test('workspace diagnostics view applies serializable filters', () {
     const snapshot = WorkspaceDiagnosticsSnapshot(
       providerId: 'language',

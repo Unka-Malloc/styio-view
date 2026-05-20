@@ -453,9 +453,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/workspace/workspace_diagnostics.dart',
           summary:
-              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, WorkspaceDiagnosticsRuntimeOutputBinding output-panel events, WorkspaceDiagnosticsProducerExecutionPlan toolchain execution triggers and WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore persisted review outcomes, preview/apply action routing, and native tool result diagnostic snapshots.',
+              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, WorkspaceDiagnosticsRuntimeOutputBinding output-panel events, WorkspaceDiagnosticsProducerExecutionPlan toolchain execution triggers, WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots, diagnostics producer cancellation adapter contracts, runtime task cancellation metadata, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore persisted review outcomes, preview/apply action routing, and native tool result diagnostic snapshots.',
           todo:
-              'TODO: connect WorkspaceDiagnosticsProducerLifecycleController cancellation requests to concrete project task process termination.',
+              'TODO: bind diagnostics producer cancellation adapters to concrete ToolchainManager/native process handles.',
           dependencies: <String>[
             'foundation.registry',
             'service.styio-language',

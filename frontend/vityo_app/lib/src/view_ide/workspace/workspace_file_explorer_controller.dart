@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'workspace_controller.dart';
 import 'workspace_file_operations.dart';
+import 'workspace_file_explorer_state_store.dart';
 
 enum WorkspaceFileExplorerNodeKind { directory, file }
 
@@ -53,11 +54,13 @@ class WorkspaceFileExplorerSnapshot {
     required this.roots,
     required this.activeFilePath,
     required this.openFilePaths,
+    this.state,
   });
 
   final List<WorkspaceFileExplorerNode> roots;
   final String activeFilePath;
   final List<String> openFilePaths;
+  final WorkspaceFileExplorerState? state;
 
   int get fileCount {
     return roots.fold<int>(0, (total, root) => total + root.fileCount);
@@ -68,6 +71,7 @@ class WorkspaceFileExplorerSnapshot {
       'activeFilePath': activeFilePath,
       'openFilePaths': openFilePaths,
       'fileCount': fileCount,
+      if (state != null) 'state': state!.toJson(),
       'roots': roots.map((root) => root.toJson()).toList(growable: false),
     };
   }
@@ -103,23 +107,64 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
   WorkspaceFileExplorerController({
     required this.workspaceController,
     required this.operationService,
+    this.stateStore,
+    String? stateWorkspaceId,
   }) {
+    _state = WorkspaceFileExplorerState(
+      workspaceId: stateWorkspaceId ?? workspaceController.activeProject.id,
+    );
     workspaceController.addListener(_handleWorkspaceChanged);
   }
 
   final WorkspaceController workspaceController;
   final WorkspaceFileOperationService operationService;
+  final WorkspaceFileExplorerStateStore? stateStore;
 
   WorkspaceFileOperationResult? _lastResult;
+  late WorkspaceFileExplorerState _state;
 
   WorkspaceFileOperationResult? get lastResult => _lastResult;
+  WorkspaceFileExplorerState get state => _state;
 
   WorkspaceFileExplorerSnapshot get snapshot {
     return WorkspaceFileExplorerSnapshot(
       roots: buildWorkspaceFileExplorerTree(workspaceController.files),
       activeFilePath: workspaceController.activeFilePath,
       openFilePaths: workspaceController.openFilePaths,
+      state: _state,
     );
+  }
+
+  Future<WorkspaceFileExplorerState> restoreState() async {
+    final store = stateStore;
+    if (store == null) {
+      return _state;
+    }
+    _state = await store.readState(workspaceId: _state.workspaceId);
+    notifyListeners();
+    return _state;
+  }
+
+  Future<void> persistState() async {
+    await stateStore?.saveState(_state);
+  }
+
+  Future<void> toggleDirectory(String path) async {
+    _state = _state.toggleExpanded(path);
+    await persistState();
+    notifyListeners();
+  }
+
+  Future<void> selectPath(String path) async {
+    _state = _state.selectPath(path);
+    await persistState();
+    notifyListeners();
+  }
+
+  Future<void> setSortMode(WorkspaceFileExplorerSortMode sortMode) async {
+    _state = _state.withSortMode(sortMode);
+    await persistState();
+    notifyListeners();
   }
 
   Future<WorkspaceFileOperationResult> run(
@@ -143,6 +188,10 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
         request.path,
       ),
     };
+    if (result.applied && request.kind == WorkspaceFileOperationKind.reveal) {
+      _state = _state.revealPath(result.path);
+      await persistState();
+    }
     _lastResult = result;
     notifyListeners();
     return result;

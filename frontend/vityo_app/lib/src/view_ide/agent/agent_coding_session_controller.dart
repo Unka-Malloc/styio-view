@@ -6,6 +6,7 @@ import 'agent_coding_session_history_store.dart';
 import 'agent_code_patch_applier.dart';
 import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
+import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
 import 'agent_session_context.dart';
 import 'agent_workspace_edit_adapter.dart';
@@ -35,8 +36,10 @@ class AgentCodingSessionController extends ChangeNotifier {
     this.sessionHistoryWorkspaceId = 'default',
     this.sessionHistoryMaxEntries = 50,
     RuntimeOutputLiveBuffer? runtimeOutputBuffer,
+    AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
   }) : _runtimeOutputBuffer = runtimeOutputBuffer,
+       _providerSelectionPlan = providerSelectionPlan,
        _providerExecutionResolution = providerExecutionResolution;
 
   AgentPromptProfile profile;
@@ -80,6 +83,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   final List<AgentDiagnosticSummaryContext> _recentDiagnosticSummaryContexts =
       <AgentDiagnosticSummaryContext>[];
   String? _providerMountMessage;
+  AgentProviderSelectionPlan? _providerSelectionPlan;
   AgentProviderExecutionResolution? _providerExecutionResolution;
   String? _lastError;
   AgentProviderTransportException? _lastProviderFailure;
@@ -112,6 +116,8 @@ class AgentCodingSessionController extends ChangeNotifier {
         _recentPatchApplicationContexts,
       );
   String? get providerMountMessage => _providerMountMessage;
+  AgentProviderSelectionPlan? get providerSelectionPlan =>
+      _providerSelectionPlan;
   AgentProviderExecutionResolution? get providerExecutionResolution =>
       _providerExecutionResolution;
   AgentProviderKind get providerKind => adapter.kind;
@@ -138,10 +144,12 @@ class AgentCodingSessionController extends ChangeNotifier {
     required AgentPromptProfile profile,
     required AgentProviderAdapter adapter,
     String? message,
+    AgentProviderSelectionPlan? selectionPlan,
     AgentProviderExecutionResolution? executionResolution,
   }) {
     this.profile = profile;
     this.adapter = adapter;
+    _providerSelectionPlan = selectionPlan;
     _providerExecutionResolution = executionResolution;
     _activeRequestSerial += 1;
     _patchApplicationSerial += 1;

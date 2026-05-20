@@ -126,6 +126,11 @@ void main() {
         'Agent provider profile saved and mounted.',
       );
       expect(controller.providerExecutionResolution, same(executionResolution));
+      expect(controller.providerSelectionPlan?.ready, isTrue);
+      expect(
+        controller.providerSelectionPlan?.selectedProvider?.providerId,
+        'cloud',
+      );
       expect(result.selectionPlan?.ready, isTrue);
       expect(result.selectionPlan?.selectedProvider?.providerId, 'cloud');
       expect(result.executionResolution, same(executionResolution));

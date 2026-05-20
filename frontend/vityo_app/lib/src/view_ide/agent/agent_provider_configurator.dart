@@ -166,6 +166,7 @@ class AgentProviderConfigurator {
         profile: profileToSave,
         adapter: adapter,
         message: message,
+        selectionPlan: selectionPlan,
         executionResolution: executionResolution,
       );
       return AgentProviderConfigurationResult(
@@ -188,6 +189,7 @@ class AgentProviderConfigurator {
         profile: profileToSave,
         adapter: adapter,
         message: message,
+        selectionPlan: selectionPlan,
         executionResolution: executionResolution,
       );
       return AgentProviderConfigurationResult(

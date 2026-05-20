@@ -48,6 +48,37 @@ void main() {
     expect(plan.toJson()['selectedPatchLineCount'], greaterThan(0));
   });
 
+  test('source control hunk selection state confirms destructive discard', () {
+    const snapshot = SourceControlDiffSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      path: 'src/main.styio',
+      unifiedDiff: _diff,
+    );
+
+    final selection = SourceControlHunkSelectionState.fromDiff(
+      snapshot: snapshot,
+    ).toggle(0).toggle(1);
+    final plan = selection.toActionPlan(kind: SourceControlActionKind.discard);
+    final pendingConfirmation =
+        SourceControlHunkDiscardConfirmationPlan.fromSelection(selection);
+    final confirmed = SourceControlHunkDiscardConfirmationPlan.fromActionPlan(
+      plan,
+      confirmed: true,
+    );
+
+    expect(selection.selectedHunkIndexes, <int>[0, 1]);
+    expect(selection.allSelected, isTrue);
+    expect(selection.toJson()['selectedHunkCount'], 2);
+    expect(plan.requiresConfirmation, isTrue);
+    expect(plan.selectedPatch, contains('@@ -1,3 +1,4 @@'));
+    expect(plan.selectedPatch, contains('@@ -10,2 +11,2 @@'));
+    expect(pendingConfirmation.readyForDialog, isTrue);
+    expect(pendingConfirmation.canRun, isFalse);
+    expect(confirmed.canRun, isTrue);
+    expect(confirmed.confirmLabel, 'Discard 2 hunk(s)');
+    expect(confirmed.toJson()['requiresConfirmation'], isTrue);
+  });
+
   test(
     'git partial patch provider executes selected hunk through stdin',
     () async {

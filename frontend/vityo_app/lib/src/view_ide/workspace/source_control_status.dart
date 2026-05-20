@@ -1054,6 +1054,157 @@ class SourceControlDiffHunkActionPlan {
   }
 }
 
+class SourceControlHunkSelectionState {
+  const SourceControlHunkSelectionState({
+    required this.snapshot,
+    required this.selectedHunkIndexes,
+  });
+
+  factory SourceControlHunkSelectionState.fromDiff({
+    required SourceControlDiffSnapshot snapshot,
+    List<int> selectedHunkIndexes = const <int>[],
+  }) {
+    final hunkCount = snapshot.hunks.length;
+    final normalizedIndexes =
+        selectedHunkIndexes
+            .where((index) => index >= 0 && index < hunkCount)
+            .toSet()
+            .toList(growable: false)
+          ..sort();
+    return SourceControlHunkSelectionState(
+      snapshot: snapshot,
+      selectedHunkIndexes: List<int>.unmodifiable(normalizedIndexes),
+    );
+  }
+
+  factory SourceControlHunkSelectionState.all(
+    SourceControlDiffSnapshot snapshot,
+  ) {
+    return SourceControlHunkSelectionState.fromDiff(
+      snapshot: snapshot,
+      selectedHunkIndexes: List<int>.generate(
+        snapshot.hunks.length,
+        (index) => index,
+      ),
+    );
+  }
+
+  final SourceControlDiffSnapshot snapshot;
+  final List<int> selectedHunkIndexes;
+
+  String get path => snapshot.path;
+  int get availableHunkCount => snapshot.hunks.length;
+  int get selectedHunkCount => selectedHunkIndexes.length;
+  bool get hasSelection => selectedHunkIndexes.isNotEmpty;
+  bool get allSelected =>
+      availableHunkCount > 0 && selectedHunkCount == availableHunkCount;
+
+  SourceControlHunkSelectionState toggle(int hunkIndex) {
+    if (hunkIndex < 0 || hunkIndex >= availableHunkCount) {
+      return this;
+    }
+    final nextIndexes = selectedHunkIndexes.toSet();
+    if (!nextIndexes.add(hunkIndex)) {
+      nextIndexes.remove(hunkIndex);
+    }
+    return SourceControlHunkSelectionState.fromDiff(
+      snapshot: snapshot,
+      selectedHunkIndexes: nextIndexes.toList(growable: false),
+    );
+  }
+
+  SourceControlHunkSelectionState selectAll() {
+    return SourceControlHunkSelectionState.all(snapshot);
+  }
+
+  SourceControlHunkSelectionState clear() {
+    return SourceControlHunkSelectionState.fromDiff(snapshot: snapshot);
+  }
+
+  SourceControlDiffHunkActionPlan toActionPlan({
+    required SourceControlActionKind kind,
+  }) {
+    return SourceControlDiffHunkActionPlan.fromDiff(
+      snapshot: snapshot,
+      kind: kind,
+      selectedHunkIndexes: selectedHunkIndexes,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'path': path,
+      'availableHunkCount': availableHunkCount,
+      'selectedHunkIndexes': selectedHunkIndexes,
+      'selectedHunkCount': selectedHunkCount,
+      'hasSelection': hasSelection,
+      'allSelected': allSelected,
+    };
+  }
+}
+
+class SourceControlHunkDiscardConfirmationPlan {
+  const SourceControlHunkDiscardConfirmationPlan({
+    required this.actionPlan,
+    required this.confirmed,
+    required this.blockedReason,
+  });
+
+  factory SourceControlHunkDiscardConfirmationPlan.fromActionPlan(
+    SourceControlDiffHunkActionPlan actionPlan, {
+    bool confirmed = false,
+  }) {
+    final blockedReason = actionPlan.kind != SourceControlActionKind.discard
+        ? 'Hunk discard confirmation only supports discard actions.'
+        : actionPlan.blockedReason;
+    return SourceControlHunkDiscardConfirmationPlan(
+      actionPlan: actionPlan,
+      confirmed: confirmed,
+      blockedReason: blockedReason,
+    );
+  }
+
+  factory SourceControlHunkDiscardConfirmationPlan.fromSelection(
+    SourceControlHunkSelectionState selection, {
+    bool confirmed = false,
+  }) {
+    return SourceControlHunkDiscardConfirmationPlan.fromActionPlan(
+      selection.toActionPlan(kind: SourceControlActionKind.discard),
+      confirmed: confirmed,
+    );
+  }
+
+  final SourceControlDiffHunkActionPlan actionPlan;
+  final bool confirmed;
+  final String blockedReason;
+
+  String get path => actionPlan.path;
+  List<int> get selectedHunkIndexes => actionPlan.selectedHunkIndexes;
+  bool get requiresConfirmation => true;
+  bool get readyForDialog => blockedReason.isEmpty && actionPlan.canSelect;
+  bool get canRun => readyForDialog && confirmed;
+  String get dialogTitle => 'Discard selected hunks?';
+  String get confirmLabel => 'Discard ${selectedHunkIndexes.length} hunk(s)';
+  String get warning => 'This will drop the selected local changes from $path.';
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': actionPlan.kind.wireValue,
+      'path': path,
+      'selectedHunkIndexes': selectedHunkIndexes,
+      'selectedHunkCount': selectedHunkIndexes.length,
+      'requiresConfirmation': requiresConfirmation,
+      'readyForDialog': readyForDialog,
+      'confirmed': confirmed,
+      'canRun': canRun,
+      'dialogTitle': dialogTitle,
+      'confirmLabel': confirmLabel,
+      'warning': warning,
+      if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
+    };
+  }
+}
+
 class SourceControlPartialPatchResult {
   const SourceControlPartialPatchResult({
     required this.kind,

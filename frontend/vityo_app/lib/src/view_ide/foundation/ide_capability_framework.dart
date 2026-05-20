@@ -386,7 +386,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'Source Control surface is wired to dirty editor documents, Git porcelain status parsing, diff preview, diff review summaries, parsed diff hunks, hunk action selection plans, selected hunk patch generation, Git partial patch execution provider, shell hunk action execution routing, hunk action result rows, virtualized diff window binding, diff confirmation plans and controls, Agent context snapshots, staging action contracts, persisted commit drafts, commit dialog state validation, commit draft summaries, branch picker summaries, branch switch plans, Git branch switch provider, history summaries, expandable history rows, action planning and confirmation, Git stage/unstage/discard/commit action provider, Git branch/history provider contracts, non-Git provider adapter descriptors and surface summaries, file open, and save-all handoff.',
           todo:
-              'TODO: add multi-hunk selection state and destructive hunk discard confirmation dialog.',
+              'TODO: bind multi-hunk selection state and destructive hunk discard confirmation plan to concrete modal UI and persisted diff selection.',
           references: <String>[
             'VS Code SCM provider API',
             'IntelliJ VCS subsystem',

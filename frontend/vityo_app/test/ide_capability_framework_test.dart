@@ -186,6 +186,14 @@ void main() {
       contains('failed-test DebugLaunchRoutePlan bridge'),
     );
     expect(
+      entriesById['interaction.testing']?.summary,
+      contains('TestingProviderCatalog health snapshots'),
+    );
+    expect(
+      entriesById['interaction.testing']?.summary,
+      contains('TestingProviderRetryPlan retry action facts'),
+    );
+    expect(
       entriesById['interaction.testing']?.dependencies,
       contains('runtime.execution'),
     );

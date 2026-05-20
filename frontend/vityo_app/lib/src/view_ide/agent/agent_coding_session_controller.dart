@@ -15,6 +15,44 @@ import '../runtime/runtime.dart';
 
 typedef AgentSessionContextProvider = AgentSessionContext Function();
 
+enum AgentCodingSessionRecoveryDispatchStatus { blocked, dispatched, failed }
+
+extension AgentCodingSessionRecoveryDispatchStatusX
+    on AgentCodingSessionRecoveryDispatchStatus {
+  String get wireValue => switch (this) {
+    AgentCodingSessionRecoveryDispatchStatus.blocked => 'blocked',
+    AgentCodingSessionRecoveryDispatchStatus.dispatched => 'dispatched',
+    AgentCodingSessionRecoveryDispatchStatus.failed => 'failed',
+  };
+}
+
+class AgentCodingSessionRecoveryDispatchResult {
+  const AgentCodingSessionRecoveryDispatchResult({
+    required this.status,
+    required this.message,
+    this.draft,
+    this.responseRequestId,
+  });
+
+  final AgentCodingSessionRecoveryDispatchStatus status;
+  final String message;
+  final AgentCodingSessionRecoveryRequestDraft? draft;
+  final String? responseRequestId;
+
+  bool get dispatched =>
+      status == AgentCodingSessionRecoveryDispatchStatus.dispatched;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'message': message,
+      'dispatched': dispatched,
+      if (draft != null) 'draft': draft!.toJson(),
+      if (responseRequestId != null) 'responseRequestId': responseRequestId,
+    };
+  }
+}
+
 const int _maxAgentPatchApplicationContextHistory = 12;
 const int _maxAgentRecentPatchProposalContexts = 6;
 const int _maxAgentPendingPatchContextEdits = 20;
@@ -242,6 +280,63 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
     updatePrompt(draft.prompt);
     return true;
+  }
+
+  Future<AgentCodingSessionRecoveryDispatchResult> dispatchRecoveryRequestDraft(
+    AgentCodingSessionRecoveryAction action, {
+    String? targetProviderProfileId,
+    bool confirmed = false,
+  }) async {
+    final draft = recoveryRequestDraftFor(
+      action,
+      targetProviderProfileId: targetProviderProfileId,
+    );
+    if (draft == null) {
+      return const AgentCodingSessionRecoveryDispatchResult(
+        status: AgentCodingSessionRecoveryDispatchStatus.blocked,
+        message: 'Agent recovery dispatch blocked: no recovery draft exists.',
+      );
+    }
+    if (!confirmed) {
+      return AgentCodingSessionRecoveryDispatchResult(
+        status: AgentCodingSessionRecoveryDispatchStatus.blocked,
+        message:
+            'Agent recovery dispatch blocked: explicit user confirmation is required.',
+        draft: draft,
+      );
+    }
+    if (!draft.readyToDispatch) {
+      return AgentCodingSessionRecoveryDispatchResult(
+        status: AgentCodingSessionRecoveryDispatchStatus.blocked,
+        message:
+            'Agent recovery dispatch blocked: provider selection or prompt is missing.',
+        draft: draft,
+      );
+    }
+    if (action == AgentCodingSessionRecoveryAction.failoverProvider &&
+        targetProviderProfileId?.trim() != profile.profileId) {
+      return AgentCodingSessionRecoveryDispatchResult(
+        status: AgentCodingSessionRecoveryDispatchStatus.blocked,
+        message:
+            'Agent provider failover requires mounting the target provider profile before dispatch.',
+        draft: draft,
+      );
+    }
+    updatePrompt(draft.prompt);
+    final response = await sendPrompt();
+    if (response == null) {
+      return AgentCodingSessionRecoveryDispatchResult(
+        status: AgentCodingSessionRecoveryDispatchStatus.failed,
+        message: lastError ?? 'Agent recovery dispatch failed.',
+        draft: draft,
+      );
+    }
+    return AgentCodingSessionRecoveryDispatchResult(
+      status: AgentCodingSessionRecoveryDispatchStatus.dispatched,
+      message: 'Agent recovery request dispatched.',
+      draft: draft,
+      responseRequestId: response.requestId,
+    );
   }
 
   void cancelActiveRequest() {

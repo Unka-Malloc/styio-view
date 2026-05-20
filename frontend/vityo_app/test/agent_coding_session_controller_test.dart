@@ -277,16 +277,17 @@ void main() {
       ],
       updatedAt: DateTime.utc(2026, 5, 20, 0, 2),
     );
+    final adapter = _FakeAgentProviderAdapter(
+      response: const AgentProviderResponseEnvelope(
+        requestId: 'agent-retry',
+        role: 'assistant',
+        finishReason: 'stop',
+        contentParts: <AgentContentPart>[],
+      ),
+    );
     final controller = AgentCodingSessionController(
       profile: profile,
-      adapter: _FakeAgentProviderAdapter(
-        response: const AgentProviderResponseEnvelope(
-          requestId: 'unused',
-          role: 'assistant',
-          finishReason: 'unused',
-          contentParts: <AgentContentPart>[],
-        ),
-      ),
+      adapter: adapter,
       contextProvider: _context,
       sessionHistoryStore: _MemoryAgentCodingSessionHistoryStore(history),
       sessionHistoryWorkspaceId: 'demo',
@@ -306,6 +307,22 @@ void main() {
       isTrue,
     );
     expect(controller.draftPrompt, 'Retry the failed coding task.');
+    final blocked = await controller.dispatchRecoveryRequestDraft(
+      AgentCodingSessionRecoveryAction.retrySameProvider,
+    );
+    expect(blocked.status, AgentCodingSessionRecoveryDispatchStatus.blocked);
+    expect(adapter.requests, isEmpty);
+    final dispatched = await controller.dispatchRecoveryRequestDraft(
+      AgentCodingSessionRecoveryAction.retrySameProvider,
+      confirmed: true,
+    );
+    expect(
+      dispatched.status,
+      AgentCodingSessionRecoveryDispatchStatus.dispatched,
+    );
+    expect(dispatched.responseRequestId, 'agent-retry');
+    expect(adapter.requests.single.userPrompt, 'Retry the failed coding task.');
+    expect(controller.draftPrompt, isEmpty);
   });
 
   test('agent coding session sends previous turns with next prompt', () async {

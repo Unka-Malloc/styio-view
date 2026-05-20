@@ -368,8 +368,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
-              'Source Control surface is wired to dirty editor documents, Git porcelain status parsing, diff preview, diff review summaries, staging action contracts, persisted commit drafts, commit dialog state validation, commit draft summaries, branch picker summaries, branch switch plans, Git branch switch provider, history summaries, action planning and confirmation, Git stage/unstage/discard/commit action provider, Git branch/history provider contracts, file open, and save-all handoff.',
-          todo: 'TODO: add virtualized diff UI and non-Git provider adapters.',
+              'Source Control surface is wired to dirty editor documents, Git porcelain status parsing, diff preview, diff review summaries, staging action contracts, persisted commit drafts, commit dialog state validation, commit draft summaries, branch picker summaries, branch switch plans, Git branch switch provider, history summaries, action planning and confirmation, Git stage/unstage/discard/commit action provider, Git branch/history provider contracts, non-Git provider adapter descriptors, file open, and save-all handoff.',
+          todo:
+              'TODO: add virtualized diff UI and bind non-Git adapter descriptors to concrete providers.',
           references: <String>[
             'VS Code SCM provider API',
             'IntelliJ VCS subsystem',

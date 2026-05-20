@@ -1,6 +1,15 @@
 import '../environment/system_compatibility/process/process_manager.dart';
 
-enum SourceControlProviderKind { localDirtyDocuments, git }
+enum SourceControlProviderKind { localDirtyDocuments, git, custom }
+
+enum SourceControlProviderCapability {
+  status,
+  diff,
+  actions,
+  branches,
+  branchActions,
+  history,
+}
 
 enum SourceControlFileStatus {
   added,
@@ -23,6 +32,126 @@ extension SourceControlProviderKindX on SourceControlProviderKind {
     return switch (this) {
       SourceControlProviderKind.localDirtyDocuments => 'local-dirty-documents',
       SourceControlProviderKind.git => 'git',
+      SourceControlProviderKind.custom => 'custom',
+    };
+  }
+}
+
+extension SourceControlProviderCapabilityX on SourceControlProviderCapability {
+  String get wireValue {
+    return switch (this) {
+      SourceControlProviderCapability.status => 'status',
+      SourceControlProviderCapability.diff => 'diff',
+      SourceControlProviderCapability.actions => 'actions',
+      SourceControlProviderCapability.branches => 'branches',
+      SourceControlProviderCapability.branchActions => 'branch-actions',
+      SourceControlProviderCapability.history => 'history',
+    };
+  }
+}
+
+class SourceControlProviderAdapterDescriptor {
+  const SourceControlProviderAdapterDescriptor({
+    required this.id,
+    required this.label,
+    required this.providerKind,
+    this.available = true,
+    this.capabilities = const <SourceControlProviderCapability>[],
+    this.metadata = const <String, Object?>{},
+    this.message = '',
+  });
+
+  factory SourceControlProviderAdapterDescriptor.git({
+    bool available = true,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return SourceControlProviderAdapterDescriptor(
+      id: 'git',
+      label: 'Git',
+      providerKind: SourceControlProviderKind.git,
+      available: available,
+      capabilities: const <SourceControlProviderCapability>[
+        SourceControlProviderCapability.status,
+        SourceControlProviderCapability.diff,
+        SourceControlProviderCapability.actions,
+        SourceControlProviderCapability.branches,
+        SourceControlProviderCapability.branchActions,
+        SourceControlProviderCapability.history,
+      ],
+      metadata: metadata,
+    );
+  }
+
+  final String id;
+  final String label;
+  final SourceControlProviderKind providerKind;
+  final bool available;
+  final List<SourceControlProviderCapability> capabilities;
+  final Map<String, Object?> metadata;
+  final String message;
+
+  bool supports(SourceControlProviderCapability capability) {
+    return available && capabilities.contains(capability);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'label': label,
+      'providerKind': providerKind.wireValue,
+      'available': available,
+      'capabilities': capabilities
+          .map((capability) => capability.wireValue)
+          .toList(growable: false),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+      if (message.isNotEmpty) 'message': message,
+    };
+  }
+}
+
+class SourceControlProviderAdapterRegistry {
+  SourceControlProviderAdapterRegistry({
+    Iterable<SourceControlProviderAdapterDescriptor> adapters =
+        const <SourceControlProviderAdapterDescriptor>[],
+  }) {
+    for (final adapter in adapters) {
+      register(adapter);
+    }
+  }
+
+  final List<SourceControlProviderAdapterDescriptor> _adapters =
+      <SourceControlProviderAdapterDescriptor>[];
+
+  List<SourceControlProviderAdapterDescriptor> get adapters {
+    return List<SourceControlProviderAdapterDescriptor>.unmodifiable(_adapters);
+  }
+
+  void register(SourceControlProviderAdapterDescriptor adapter) {
+    _adapters.removeWhere((candidate) => candidate.id == adapter.id);
+    _adapters.add(adapter);
+  }
+
+  SourceControlProviderAdapterDescriptor? resolve({
+    required SourceControlProviderCapability capability,
+    SourceControlProviderKind? providerKind,
+  }) {
+    for (final adapter in _adapters) {
+      if (providerKind != null && adapter.providerKind != providerKind) {
+        continue;
+      }
+      if (adapter.supports(capability)) {
+        return adapter;
+      }
+    }
+    return null;
+  }
+
+  Map<String, Object?> manifest() {
+    return <String, Object?>{
+      'adapterCount': _adapters.length,
+      'adapters': _adapters
+          .map((adapter) => adapter.toJson())
+          .toList(growable: false),
     };
   }
 }

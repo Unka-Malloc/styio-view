@@ -5,6 +5,54 @@ import 'package:vityo_app/src/view_ide/environment/system_compatibility/process/
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
+  test(
+    'source control provider adapter registry resolves non-git adapters',
+    () {
+      final registry = SourceControlProviderAdapterRegistry(
+        adapters: <SourceControlProviderAdapterDescriptor>[
+          SourceControlProviderAdapterDescriptor.git(),
+          const SourceControlProviderAdapterDescriptor(
+            id: 'perforce',
+            label: 'Perforce',
+            providerKind: SourceControlProviderKind.custom,
+            capabilities: <SourceControlProviderCapability>[
+              SourceControlProviderCapability.status,
+              SourceControlProviderCapability.diff,
+              SourceControlProviderCapability.history,
+            ],
+            metadata: <String, Object?>{'vendor': 'p4'},
+          ),
+        ],
+      );
+
+      final customDiff = registry.resolve(
+        capability: SourceControlProviderCapability.diff,
+        providerKind: SourceControlProviderKind.custom,
+      );
+      final customBranchAction = registry.resolve(
+        capability: SourceControlProviderCapability.branchActions,
+        providerKind: SourceControlProviderKind.custom,
+      );
+      final gitBranchAction = registry.resolve(
+        capability: SourceControlProviderCapability.branchActions,
+        providerKind: SourceControlProviderKind.git,
+      );
+
+      expect(customDiff?.id, 'perforce');
+      expect(
+        customDiff?.supports(SourceControlProviderCapability.history),
+        isTrue,
+      );
+      expect(customBranchAction, isNull);
+      expect(gitBranchAction?.id, 'git');
+      expect(registry.manifest()['adapterCount'], 2);
+      expect(
+        (customDiff!.toJson()['capabilities']! as List<Object?>),
+        contains('diff'),
+      );
+    },
+  );
+
   test('git porcelain status parser records branch and file states', () {
     final snapshot = const GitPorcelainStatusParser().parse('''
 ## feature/scm...origin/feature/scm

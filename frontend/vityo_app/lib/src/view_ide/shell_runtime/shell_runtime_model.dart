@@ -1529,14 +1529,39 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
   }
 
-  Future<bool> applyFirstProjectWorkspaceQuickFix() async {
+  Future<bool> applyFirstProjectWorkspaceQuickFix({
+    String? expectedPreviewPlanId,
+  }) async {
     final fixes = await collectProjectWorkspaceQuickFixes();
     if (fixes.isEmpty) {
+      _lastWorkspaceEditApplyResult = null;
       appendLog('Project workspace quick fix skipped: no deterministic fix.');
       notifyListeners();
       return false;
     }
-    return _applyProjectWorkspaceFix(fixes.first);
+    final fix = fixes.first;
+    final plan = _workspaceEditPlanForProjectFix(fix);
+    if (expectedPreviewPlanId != null && plan.id != expectedPreviewPlanId) {
+      final preview = plan.preview(_agentWorkspaceDocumentSamples);
+      final confirmationPlan = WorkspaceEditConfirmationPlan.fromPreview(
+        preview,
+      );
+      const result = WorkspaceEditApplicationResult(
+        applied: false,
+        message:
+            'Project workspace quick fix skipped: preview is stale. Run previewQuickFix again before applying.',
+      );
+      _lastWorkspaceEditPreview = preview;
+      _recordWorkspaceEditApplyResult(
+        confirmationPlan: confirmationPlan,
+        preview: preview,
+        result: result,
+      );
+      appendLog(result.message);
+      notifyListeners();
+      return false;
+    }
+    return _applyProjectWorkspaceFix(fix, plan: plan);
   }
 
   Future<WorkspaceEditPreview?> previewFirstProjectWorkspaceQuickFix() async {
@@ -1570,9 +1595,12 @@ class ShellRuntimeModel extends ChangeNotifier {
     return preview;
   }
 
-  Future<bool> _applyProjectWorkspaceFix(StyioProjectWorkspaceFix fix) async {
-    final plan = _workspaceEditPlanForProjectFix(fix);
-    final preview = plan.preview(_agentWorkspaceDocumentSamples);
+  Future<bool> _applyProjectWorkspaceFix(
+    StyioProjectWorkspaceFix fix, {
+    WorkspaceEditPlan? plan,
+  }) async {
+    final effectivePlan = plan ?? _workspaceEditPlanForProjectFix(fix);
+    final preview = effectivePlan.preview(_agentWorkspaceDocumentSamples);
     final confirmationPlan = WorkspaceEditConfirmationPlan.fromPreview(preview);
     _lastWorkspaceEditPreview = preview;
     _lastWorkspaceEditApplyResult = null;
@@ -1691,11 +1719,42 @@ class ShellRuntimeModel extends ChangeNotifier {
     StyioProjectWorkspaceFix fix,
   ) {
     return WorkspaceEditPlan(
-      id: 'project-workspace-fix-${DateTime.now().microsecondsSinceEpoch}',
+      id: 'project-workspace-fix-${_projectWorkspaceFixFingerprint(fix)}',
       summary: fix.label,
       source: WorkspaceEditSource.codeAction,
       editsByDocument: fix.editsByDocument,
     );
+  }
+
+  String _projectWorkspaceFixFingerprint(StyioProjectWorkspaceFix fix) {
+    final buffer = StringBuffer(fix.label.trim());
+    final entries = fix.editsByDocument.entries.toList(growable: false)
+      ..sort((left, right) => left.key.compareTo(right.key));
+    for (final entry in entries) {
+      buffer.write('|');
+      buffer.write(entry.key);
+      for (final edit in entry.value) {
+        buffer
+          ..write('@')
+          ..write(edit.range.start)
+          ..write('-')
+          ..write(edit.range.end)
+          ..write(':')
+          ..write(edit.newText.length)
+          ..write(':')
+          ..write(edit.newText);
+      }
+    }
+    return _stableHexFingerprint(buffer.toString());
+  }
+
+  String _stableHexFingerprint(String value) {
+    var hash = 0x811c9dc5;
+    for (final unit in value.codeUnits) {
+      hash ^= unit;
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    return hash.toRadixString(16).padLeft(8, '0');
   }
 
   Map<String, Object?> _projectSymbolDefinitionToJson(
@@ -2334,7 +2393,9 @@ class ShellRuntimeModel extends ChangeNotifier {
           notifyListeners();
           return false;
         }
-        if (await applyFirstProjectWorkspaceQuickFix()) {
+        if (await applyFirstProjectWorkspaceQuickFix(
+          expectedPreviewPlanId: workspacePreview.planId,
+        )) {
           _publishDiagnosticActionTelemetry(
             action: 'agent.applyQuickFix',
             succeeded: true,

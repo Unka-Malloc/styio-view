@@ -345,7 +345,15 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('deterministic workspace fix plan ids'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('agent applyQuickFix preview gate'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('stale preview rejection'),
     );
     expect(
       entriesById['agent.coding-loop']?.summary,

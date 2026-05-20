@@ -1110,6 +1110,7 @@ void main() {
     expect(preview?.summary, 'Clean up project imports');
     expect(preview?.editCount, greaterThan(0));
     expect(commandShell.lastWorkspaceEditPreview, same(preview));
+    final previewPlanId = preview?.planId;
     await commandShell.executeCommand(AppCommandId.previewQuickFix);
     final previewResult = commandShell.agentSessionContext.commands.lastResult;
     expect(previewResult?.commandId, 'previewQuickFix');
@@ -1122,6 +1123,7 @@ void main() {
     final checkpoint = await commandShell.collectAgentCodingCheckpoint();
     final workspaceEditPreview =
         checkpoint['workspaceEditPreview']! as Map<String, Object?>;
+    expect(workspaceEditPreview['planId'], previewPlanId);
     expect(workspaceEditPreview['summary'], 'Clean up project imports');
     expect(workspaceEditPreview['editCount'], greaterThan(0));
     final agentWorkspaceEditJson =
@@ -1150,6 +1152,7 @@ void main() {
       commandShell.lastWorkspaceEditApplyResult?.appliedDocumentIds,
       contains(mainPath),
     );
+    expect(commandShell.lastWorkspaceEditPreview?.planId, previewPlanId);
     final stableAppliedWorkspaceEdit =
         commandShell.agentSessionContext.toJson()['agent']!
             as Map<String, Object?>;
@@ -1189,6 +1192,7 @@ void main() {
       const AgentIdeCommandSuggestion(commandId: 'previewQuickFix'),
     );
     expect(previewApplied, isTrue);
+    final agentPreviewPlanId = agentShell.lastWorkspaceEditPreview?.planId;
     expect(
       agentShell
           .agentSessionContext
@@ -1202,6 +1206,7 @@ void main() {
     );
 
     expect(applied, isTrue);
+    expect(agentShell.lastWorkspaceEditPreview?.planId, agentPreviewPlanId);
     expect(
       agentShell.agentSessionContext.commands.lastResult?.message,
       contains('project workspace fix'),

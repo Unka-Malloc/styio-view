@@ -246,6 +246,14 @@ void main() {
       contains('conflict review contracts'),
     );
     expect(
+      entriesById['editor.rendering']?.summary,
+      contains('EditorSemanticThemeBinding render styles'),
+    );
+    expect(
+      entriesById['editor.rendering']?.todo,
+      contains('TextSpan/TextStyle pipeline'),
+    );
+    expect(
       entriesById['workspace.edit-application']?.status,
       IdeCapabilityStatus.wired,
     );

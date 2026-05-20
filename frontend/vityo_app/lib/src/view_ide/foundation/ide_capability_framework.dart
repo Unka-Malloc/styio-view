@@ -436,9 +436,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/editor',
           summary:
-              'Editor surface renders document, tabs, selection, token/semantic/diagnostic layers, folding, hover, completion, code-action facts, EditorCodeActionWidgetState, and serializable EditorRenderSnapshot contracts for UI and Agent consumers.',
+              'Editor surface renders document, tabs, selection, token/semantic/diagnostic layers, folding, hover, completion, code-action facts, EditorCodeActionWidgetState, EditorSemanticThemeBinding render styles, and serializable EditorRenderSnapshot contracts for UI and Agent consumers.',
           todo:
-              'TODO: bind virtualized row windows and semantic theme contracts to the concrete scroll controller/TextStyle pipeline.',
+              'TODO: bind virtualized row windows and EditorSemanticThemeBinding to the concrete scroll controller/TextSpan/TextStyle pipeline.',
           references: <String>['Monaco editor', 'VS Code workbench editor'],
         ),
         IdeCapabilityDescriptor(

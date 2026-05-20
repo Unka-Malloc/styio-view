@@ -338,6 +338,9 @@ class WorkspaceEditPreview {
       'hasMissingDocuments': hasMissingDocuments,
       'hasBlockedFileOperations': hasBlockedFileOperations,
       'canApply': canApply,
+      'confirmationPlan': WorkspaceEditConfirmationPlan.fromPreview(
+        this,
+      ).toJson(),
       'documents': documents
           .map((document) => document.toJson())
           .toList(growable: false),

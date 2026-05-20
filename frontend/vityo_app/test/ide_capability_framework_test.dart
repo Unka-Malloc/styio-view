@@ -295,6 +295,10 @@ void main() {
     );
     expect(
       entriesById['workspace.edit-application']?.summary,
+      contains('serialized confirmation plans'),
+    );
+    expect(
+      entriesById['workspace.edit-application']?.summary,
       contains('WorkspaceEditDiffPaginationStore'),
     );
     expect(
@@ -338,6 +342,10 @@ void main() {
     expect(
       entriesById['agent.coding-loop']?.summary,
       contains('stable workspace edit preview/apply-result context'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('agent applyQuickFix preview gate'),
     );
     expect(
       entriesById['agent.coding-loop']?.summary,

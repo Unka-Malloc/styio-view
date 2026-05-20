@@ -1166,6 +1166,23 @@ void main() {
     );
     expect(commandShell.dirtyDocumentPaths, contains(mainPath));
 
+    final gatedAgentShell = createShell(
+      'shell-project-workspace-fix-agent-gated',
+    );
+    addTearDown(gatedAgentShell.dispose);
+    final gatedApply = await gatedAgentShell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(commandId: 'applyQuickFix'),
+    );
+    final gatedResult = gatedAgentShell.agentSessionContext.commands.lastResult;
+    final gatedPreview =
+        gatedResult?.metadata['workspaceEditPreview'] as Map<String, Object?>?;
+    final gatedConfirmation =
+        gatedPreview?['confirmationPlan'] as Map<String, Object?>?;
+    expect(gatedApply, isFalse);
+    expect(gatedResult?.metadata['requiredCommand'], 'previewQuickFix');
+    expect(gatedResult?.message, contains('requires previewQuickFix'));
+    expect(gatedConfirmation?['riskLevel'], 'low');
+
     final agentShell = createShell('shell-project-workspace-fix-agent');
     addTearDown(agentShell.dispose);
     final previewApplied = await agentShell.applyAgentIdeCommandSuggestion(

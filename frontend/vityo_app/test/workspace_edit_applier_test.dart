@@ -460,6 +460,12 @@ void main() {
       expect(blockedControls.canApply, isFalse);
       expect(blockedControls.apply.reason, contains('no text changes'));
       expect(readyControls.toJson()['status'], 'ready');
+      final readyPreviewJson = readyPreview.toJson();
+      final readyPreviewConfirmation =
+          readyPreviewJson['confirmationPlan']! as Map<String, Object?>;
+      expect(readyPreviewConfirmation['status'], 'ready');
+      expect(readyPreviewConfirmation['riskLevel'], 'low');
+      expect(readyPreviewConfirmation['blockingReasons'], isEmpty);
     },
   );
 

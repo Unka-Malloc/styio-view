@@ -2280,6 +2280,60 @@ class ShellRuntimeModel extends ChangeNotifier {
           notifyListeners();
           return true;
         }
+        final workspacePreview = _lastWorkspaceEditPreview;
+        if (workspacePreview == null) {
+          final preview = await previewFirstProjectWorkspaceQuickFix();
+          final message = preview == null
+              ? 'Agent command applyQuickFix skipped: no quick fix available.'
+              : 'Agent command applyQuickFix requires previewQuickFix before applying project workspace fix.';
+          final metadata = <String, Object?>{
+            'scope': 'workspace',
+            if (preview != null) 'requiredCommand': 'previewQuickFix',
+            if (preview != null) 'workspaceEditPreview': preview.toJson(),
+          };
+          appendLog(message);
+          _publishDiagnosticActionTelemetry(
+            action: 'agent.applyQuickFix',
+            succeeded: false,
+            message: message,
+            metadata: metadata,
+          );
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message: message,
+            metadata: metadata,
+          );
+          notifyListeners();
+          return false;
+        }
+        final confirmationPlan = WorkspaceEditConfirmationPlan.fromPreview(
+          workspacePreview,
+        );
+        if (!confirmationPlan.ready) {
+          final message =
+              'Agent command applyQuickFix blocked by workspace edit preview: ${confirmationPlan.message}';
+          final metadata = <String, Object?>{
+            'scope': 'workspace',
+            'workspaceEditPreview': workspacePreview.toJson(),
+            'workspaceEditConfirmation': confirmationPlan.toJson(),
+          };
+          appendLog(message);
+          _publishDiagnosticActionTelemetry(
+            action: 'agent.applyQuickFix',
+            succeeded: false,
+            message: message,
+            metadata: metadata,
+          );
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message: message,
+            metadata: metadata,
+          );
+          notifyListeners();
+          return false;
+        }
         if (await applyFirstProjectWorkspaceQuickFix()) {
           _publishDiagnosticActionTelemetry(
             action: 'agent.applyQuickFix',

@@ -3183,6 +3183,33 @@ class ShellRuntimeModel extends ChangeNotifier {
           },
         );
         return applied;
+      case 'run':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        await executeCommand(AppCommandId.run);
+        final session = _lastExecutionSession;
+        final applied =
+            session != null && session.status != ExecutionSessionStatus.blocked;
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: applied,
+          message: session == null
+              ? 'Agent command run skipped: no execution session was produced.'
+              : 'Agent command run ${session.status.name}: ${session.statusMessage}',
+          metadata: <String, Object?>{
+            if (session != null) 'executionSession': session.toJson(),
+            'runtimeEventCount': _lastRuntimeEvents.length,
+            if (_lastRuntimeEvents.isNotEmpty)
+              'runtimeEventKinds': _lastRuntimeEvents
+                  .take(4)
+                  .map((event) => event.eventKind)
+                  .toList(growable: false),
+            // TODO(agent-runtime): surface cancellation/resume handles once
+            // ExecutionSession grows stable process-control identifiers.
+          },
+        );
+        return applied;
       case 'runBuild':
         if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
           return false;

@@ -162,7 +162,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 57,
+      schemaVersion: 58,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -436,6 +436,7 @@ class AgentSessionContext {
       ),
       commands: AgentCommandCatalogContext(
         persistenceCommands: commands.persistenceCommands,
+        executionCommands: commands.executionCommands,
         diagnosticCommands: commands.diagnosticCommands,
         languageServiceCommands: commands.languageServiceCommands,
         sourceControlCommands: commands.sourceControlCommands,
@@ -3504,6 +3505,7 @@ class AgentReferenceContext {
 class AgentCommandCatalogContext {
   const AgentCommandCatalogContext({
     required this.persistenceCommands,
+    required this.executionCommands,
     required this.diagnosticCommands,
     required this.languageServiceCommands,
     required this.sourceControlCommands,
@@ -3523,6 +3525,7 @@ class AgentCommandCatalogContext {
   });
 
   final List<AgentCommandContext> persistenceCommands;
+  final List<AgentCommandContext> executionCommands;
   final List<AgentCommandContext> diagnosticCommands;
   final List<AgentCommandContext> languageServiceCommands;
   final List<AgentCommandContext> sourceControlCommands;
@@ -3564,6 +3567,9 @@ class AgentCommandCatalogContext {
     );
     return AgentCommandCatalogContext(
       persistenceCommands: StyioCommandRegistry.persistenceCommands
+          .map(AgentCommandContext.fromDescriptor)
+          .toList(growable: false),
+      executionCommands: StyioCommandRegistry.executionCommands
           .map(AgentCommandContext.fromDescriptor)
           .toList(growable: false),
       diagnosticCommands: StyioCommandRegistry.diagnosticCommands
@@ -3617,6 +3623,9 @@ class AgentCommandCatalogContext {
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'persistenceCommands': persistenceCommands
+          .map((command) => command.toJson())
+          .toList(growable: false),
+      'executionCommands': executionCommands
           .map((command) => command.toJson())
           .toList(growable: false),
       'diagnosticCommands': diagnosticCommands

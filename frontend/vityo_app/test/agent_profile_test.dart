@@ -40,6 +40,8 @@ void main() {
     expect(decoded.systemPrompt, contains('Clang'));
     expect(decoded.systemPrompt, contains('commands.persistenceCommands'));
     expect(decoded.systemPrompt, contains('save/save-all'));
+    expect(decoded.systemPrompt, contains('commands.executionCommands'));
+    expect(decoded.systemPrompt, contains('metadata.executionSession'));
     expect(decoded.systemPrompt, contains('commands.workspaceFileCommands'));
     expect(decoded.systemPrompt, contains('createWorkspaceFile'));
     expect(decoded.systemPrompt, contains('renameWorkspaceFile'));

@@ -203,7 +203,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      57,
+      58,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -313,6 +313,10 @@ void main() {
     expect(
       (json['usage']! as Map<String, Object?>)['persistenceCommandCount'],
       2,
+    );
+    expect(
+      (json['usage']! as Map<String, Object?>)['executionCommandCount'],
+      1,
     );
     expect(
       (json['usage']! as Map<String, Object?>)['diagnosticCommandCount'],
@@ -742,6 +746,7 @@ void main() {
         systemMessage['content'],
         contains('commands.persistenceCommands'),
       );
+      expect(systemMessage['content'], contains('commands.executionCommands'));
       expect(systemMessage['content'], contains('commands.refactorCommands'));
       expect(systemMessage['content'], contains('commands.toolchainCommands'));
       expect(systemMessage['content'], contains('requiresInput true'));
@@ -915,7 +920,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 57);
+      expect(metadata['contextSchemaVersion'], 58);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);
@@ -1022,6 +1027,7 @@ void main() {
       expect(metadata['debugStackFrameCount'], 0);
       expect(metadata['debugVariableCount'], 0);
       expect(metadata['persistenceCommandCount'], 2);
+      expect(metadata['executionCommandCount'], 1);
       expect(metadata['diagnosticCommandCount'], 5);
       expect(metadata['languageServiceCommandCount'], 1);
       expect(metadata['navigationCommandCount'], 7);

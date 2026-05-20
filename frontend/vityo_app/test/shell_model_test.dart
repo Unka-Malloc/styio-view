@@ -668,7 +668,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        57,
+        58,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],
@@ -2416,6 +2416,88 @@ void main() {
         shell.debugLog.any((entry) => entry.contains('runtime: run.finished')),
         isTrue,
       );
+    },
+  );
+
+  test(
+    'agent run command blocks on dirty files then records execution',
+    () async {
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final shell = ShellModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[initialGraph],
+        ),
+        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: EditorSessionController.seedDocumentForPath(
+            initialGraph.editorFiles.first,
+          ),
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: const _SuccessfulExecutionAdapter(
+          sessionId: 'agent-run-session',
+        ),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            const _SuccessfulExecutionAdapter(sessionId: 'agent-run-session'),
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        toolchainManagementAdapter:
+            const _SuccessfulToolchainManagementAdapter(),
+      );
+      addTearDown(shell.dispose);
+
+      shell.editorController.selectCollapsed(
+        shell.editorController.document.length,
+      );
+      shell.editorController.insertText('\n#agent_run := 1');
+
+      final blocked = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'run'),
+      );
+      final blockedResult = shell.agentSessionContext.commands.lastResult;
+      expect(blocked, isFalse);
+      expect(blockedResult?.commandId, 'run');
+      expect(blockedResult?.metadata['requiredCommand'], 'saveAll');
+
+      final saved = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'saveAll',
+          prerequisiteForCommandId: 'run',
+        ),
+      );
+      final saveResult = shell.agentSessionContext.commands.lastResult;
+      expect(saved, isTrue);
+      expect(saveResult?.metadata['completedRequiredCommandFor'], 'run');
+
+      final applied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'run'),
+      );
+      final runResult = shell.agentSessionContext.commands.lastResult;
+      final executionSession =
+          runResult?.metadata['executionSession']! as Map<String, Object?>;
+
+      expect(applied, isTrue);
+      expect(runResult?.commandId, 'run');
+      expect(executionSession['sessionId'], 'agent-run-session');
+      expect(executionSession['status'], 'succeeded');
+      expect(runResult?.metadata['runtimeEventCount'], 0);
+      expect(shell.lastExecutionSession?.sessionId, 'agent-run-session');
     },
   );
 }

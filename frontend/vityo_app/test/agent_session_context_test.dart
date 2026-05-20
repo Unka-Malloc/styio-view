@@ -457,6 +457,8 @@ void main() {
         languageServiceStatus['capabilities']! as List<Object?>;
     final persistenceCommands =
         commandsJson['persistenceCommands']! as List<Object?>;
+    final executionCommands =
+        commandsJson['executionCommands']! as List<Object?>;
     final diagnosticCommands =
         commandsJson['diagnosticCommands']! as List<Object?>;
     final languageServiceCommands =
@@ -502,7 +504,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 57);
+    expect(json['schemaVersion'], 58);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1004,6 +1006,7 @@ void main() {
       (persistenceCommands.last! as Map<String, Object?>)['id'],
       'saveAll',
     );
+    expect((executionCommands.single! as Map<String, Object?>)['id'], 'run');
     expect(
       (diagnosticCommands.first! as Map<String, Object?>)['id'],
       'nextDiagnostic',
@@ -1602,7 +1605,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 57);
+    expect(json['schemaVersion'], 58);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1877,7 +1880,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 57);
+    expect(context.schemaVersion, 58);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

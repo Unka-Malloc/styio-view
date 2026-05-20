@@ -1202,6 +1202,8 @@ class LocalOnlyAgentProviderAdapter implements AgentProviderAdapter {
         'debugVariableCount': request.context.debug.variableCount,
         'persistenceCommandCount':
             request.context.commands.persistenceCommands.length,
+        'executionCommandCount':
+            request.context.commands.executionCommands.length,
         'diagnosticCommandCount':
             request.context.commands.diagnosticCommands.length,
         'languageServiceCommandCount':
@@ -1382,6 +1384,8 @@ Map<String, Object?> _openAICompatibleRequestBody(
       'debugVariableCount': request.context.debug.variableCount,
       'persistenceCommandCount':
           request.context.commands.persistenceCommands.length,
+      'executionCommandCount':
+          request.context.commands.executionCommands.length,
       'diagnosticCommandCount':
           request.context.commands.diagnosticCommands.length,
       'languageServiceCommandCount':
@@ -1877,7 +1881,7 @@ Vityo structured response contract:
 - If language.serviceStatus includes parserEngine or grammarVersion, treat them as the active Styio syntax contract before making syntax-sensitive edits; do not invent syntax outside that reported contract.
 - If the IDE context includes debug.status, debug.launch.ready, debug.breakpoints, debug.threads, debug.stackFrames, or debug.variables, treat them as the latest IDE debugger facts before proposing debug commands or patches. Do not propose launch, continue, or step actions when debug.launch.ready is false.
 - When proposing selectDebugThread or selectDebugStackFrame, use an id from debug.threads or debug.stackFrames instead of inventing thread or frame ids.
-- If the IDE context includes commands.persistenceCommands, commands.diagnosticCommands, commands.navigationCommands, commands.refactorCommands, commands.toolchainCommands, commands.nativeToolCommands, commands.testingCommands, commands.debugCommands, or commands.settingsCommands, prefer those registered IDE actions for save/save-all, diagnostics, quick fixes, definitions, references, refactors, toolchain selection, native tool actions, testing actions, debug actions, and settings/profile recovery instead of inventing unsupported commands.
+- If the IDE context includes commands.persistenceCommands, commands.executionCommands, commands.diagnosticCommands, commands.navigationCommands, commands.refactorCommands, commands.toolchainCommands, commands.nativeToolCommands, commands.testingCommands, commands.debugCommands, or commands.settingsCommands, prefer those registered IDE actions for save/save-all, run/runtime, diagnostics, quick fixes, definitions, references, refactors, toolchain selection, native tool actions, testing actions, debug actions, and settings/profile recovery instead of inventing unsupported commands.
 - If a registered command has requiresInput true, include ide_command.command.input using that command's inputLabel; do not propose missing-input commands.
 - If commands.toolchainCommands includes selectClangCppVersion and toolchains.clangCpp.candidates contains the desired version, propose selectClangCppVersion with input "versionId" or "versionId c++23" instead of editing toolchain configuration files directly.
 - If commands.nativeToolCommandReadiness is present, inspect each entry's ready flag, requiredKind, requiredToolFamily, requiredToolFamilies, toolFamily, toolchainId, requiredCommandId, dirtyDocumentIds, and reason before proposing runBuild, formatActiveDocument, runStaticAnalysis, or runTests.

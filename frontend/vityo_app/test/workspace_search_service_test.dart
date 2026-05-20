@@ -8,6 +8,7 @@ import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/local_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -136,6 +137,46 @@ void main() {
       expect(result.matches.first.kind, ResolvedElementKind.variable);
       expect(result.matches.first.lineNumber, 2);
       expect(result.matches.first.lineText, '  value := 1');
+    },
+  );
+
+  test(
+    'workspace symbol search exposes fallback semantic confidence',
+    () async {
+      final store = InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': DocumentState(
+            documentId: 'src/main.styio',
+            text: '#main := (): string => {\n  value := 1\n  value\n}\n',
+            revision: 1,
+          ),
+        },
+      );
+      final service = WorkspaceSymbolSearchService(
+        documentStore: store,
+        semanticSnapshotProvider: SemanticSnapshotProvider(
+          languageService: CachedStyioLanguageService(
+            cache: StyioServiceResultCache(),
+            allowLocalFallback: false,
+          ),
+        ),
+      );
+
+      final result = await service.searchSymbols(
+        documentIds: const <String>['src/main.styio'],
+        query: 'value',
+      );
+
+      expect(result.matches.single.name, 'value');
+      expect(result.matches.single.usedFallback, isTrue);
+      expect(
+        result.matches.single.snapshotSource,
+        SemanticSnapshotProviderSource.localBuilderFallback,
+      );
+      expect(
+        result.matches.single.snapshotConfidence,
+        SemanticSnapshotFeatureConfidence.localFallback,
+      );
     },
   );
 

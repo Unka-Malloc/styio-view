@@ -742,6 +742,8 @@ class WorkspaceSymbolMatch {
     required this.lineNumber,
     required this.lineText,
     required this.score,
+    this.snapshotSource = SemanticSnapshotProviderSource.serviceAnalysis,
+    this.snapshotConfidence = SemanticSnapshotFeatureConfidence.serviceBacked,
     this.detail,
   });
 
@@ -753,7 +755,12 @@ class WorkspaceSymbolMatch {
   final int lineNumber;
   final String lineText;
   final int score;
+  final SemanticSnapshotProviderSource snapshotSource;
+  final SemanticSnapshotFeatureConfidence snapshotConfidence;
   final String? detail;
+
+  bool get usedFallback =>
+      snapshotSource == SemanticSnapshotProviderSource.localBuilderFallback;
 }
 
 class WorkspaceSymbolSearchResult {
@@ -810,7 +817,11 @@ class WorkspaceSymbolSearchService {
         );
         continue;
       }
-      final snapshot = semanticSnapshotProvider.snapshotFor(document).snapshot;
+      final snapshotResult = semanticSnapshotProvider.snapshotFor(document);
+      final snapshot = snapshotResult.snapshot;
+      final snapshotConfidence = snapshotResult.featureMatrix
+          .supportFor(SemanticSnapshotConsumerFeature.completion)
+          .confidence;
       for (final element in snapshot.elements) {
         if (matches.length >= maxResults) {
           truncated = true;
@@ -843,6 +854,8 @@ class WorkspaceSymbolSearchService {
               element.nameRange.start,
             ),
             score: score,
+            snapshotSource: snapshotResult.source,
+            snapshotConfidence: snapshotConfidence,
             detail: element.detail,
           ),
         );

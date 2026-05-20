@@ -102,4 +102,59 @@ void main() {
     expect(entry.containsKey('service'), isFalse);
     expect(entry.containsKey('value'), isFalse);
   });
+
+  test('StyioService capability snapshot builds provider binding plan', () {
+    final snapshot = StyioServiceCapabilitySnapshot(
+      documentId: 'file:///workspace/main.styio',
+      revision: 9,
+      protocolVersion: 'styio-cli-jsonl-v1',
+      toolchainId: 'styio-nightly',
+      parserEngine: 'styio-parser',
+      grammarVersion: '2026-05',
+      statuses: <StyioServiceCapability, StyioServiceCapabilityStatus>{
+        for (final capability in StyioServiceCapability.values)
+          capability: StyioServiceCapabilityStatus(
+            capability: capability,
+            state:
+                <StyioServiceCapability>{
+                  StyioServiceCapability.syntax,
+                  StyioServiceCapability.diagnostics,
+                  StyioServiceCapability.analysis,
+                  StyioServiceCapability.completion,
+                  StyioServiceCapability.hover,
+                  StyioServiceCapability.semanticTokens,
+                  StyioServiceCapability.references,
+                  StyioServiceCapability.definition,
+                }.contains(capability)
+                ? StyioServiceCapabilityState.available
+                : StyioServiceCapabilityState.empty,
+          ),
+      },
+    );
+    final plan = StyioLanguageProviderBindingPlan.fromStyioServiceSnapshot(
+      snapshot: snapshot,
+    );
+    final registry = StyioLanguageProviderRegistry()
+      ..register(
+        plan.registration(service: const SimpleStyioLanguageService()),
+      );
+
+    expect(plan.active, isTrue);
+    expect(plan.capabilities, contains(StyioLanguageProviderCapability.hover));
+    expect(
+      plan.capabilities,
+      contains(StyioLanguageProviderCapability.semanticSnapshot),
+    );
+    expect(
+      plan.capabilities,
+      isNot(contains(StyioLanguageProviderCapability.rename)),
+    );
+    expect(plan.missingServiceCapabilities, isNotEmpty);
+    expect(plan.toJson()['todo'], startsWith('TODO:'));
+    expect(
+      registry.resolve(StyioLanguageProviderCapability.completion)?.id,
+      'styio-service',
+    );
+    expect(registry.manifest().toJson()['entries'], isA<List<Object?>>());
+  });
 }

@@ -1,5 +1,6 @@
 import '../../foundation/foundation.dart';
 import 'styio_language_service.dart';
+import 'styio_service_capability_detector.dart';
 
 enum StyioLanguageProviderCapability {
   syntaxDiagnostics,
@@ -69,6 +70,126 @@ class StyioLanguageProviderRegistration {
   final String todo;
 }
 
+class StyioLanguageProviderBindingPlan {
+  const StyioLanguageProviderBindingPlan({
+    required this.providerId,
+    required this.displayName,
+    required this.state,
+    required this.capabilities,
+    this.priority = 0,
+    this.metadata = const <String, Object?>{},
+    this.missingServiceCapabilities = const <String>[],
+    this.todo = '',
+  });
+
+  factory StyioLanguageProviderBindingPlan.fromStyioServiceSnapshot({
+    required StyioServiceCapabilitySnapshot snapshot,
+    String providerId = 'styio-service',
+    String displayName = 'StyioService',
+    int priority = 100,
+    bool includeDerived = true,
+  }) {
+    final mappedCapabilities = <StyioLanguageProviderCapability>[];
+    final missingServiceCapabilities = <String>[];
+    for (final entry in _styioServiceCapabilityBindings.entries) {
+      final providerCapability = entry.key;
+      final serviceCapabilities = entry.value;
+      final usable = serviceCapabilities.any((capability) {
+        final status = snapshot.statuses[capability];
+        return includeDerived
+            ? status?.isUsable ?? false
+            : status?.hasFreshPayload ?? false;
+      });
+      if (usable) {
+        mappedCapabilities.add(providerCapability);
+      } else {
+        missingServiceCapabilities.add(
+          '${providerCapability.wireValue}:'
+          '${serviceCapabilities.map((capability) => capability.wireValue).join('|')}',
+        );
+      }
+    }
+
+    return StyioLanguageProviderBindingPlan(
+      providerId: providerId,
+      displayName: displayName,
+      priority: priority,
+      state: mappedCapabilities.isEmpty
+          ? FoundationRegistryEntryState.disabled
+          : FoundationRegistryEntryState.active,
+      capabilities: List<StyioLanguageProviderCapability>.unmodifiable(
+        mappedCapabilities,
+      ),
+      missingServiceCapabilities: List<String>.unmodifiable(
+        missingServiceCapabilities,
+      ),
+      metadata: <String, Object?>{
+        'language': 'styio',
+        'source': 'StyioServiceCapabilitySnapshot',
+        'documentId': snapshot.documentId,
+        'revision': snapshot.revision,
+        'protocolVersion': snapshot.protocolVersion,
+        if (snapshot.toolchainId.isNotEmpty)
+          'toolchainId': snapshot.toolchainId,
+        if (snapshot.parserEngine != null)
+          'parserEngine': snapshot.parserEngine,
+        if (snapshot.grammarVersion != null)
+          'grammarVersion': snapshot.grammarVersion,
+      },
+      todo: missingServiceCapabilities.isEmpty
+          ? ''
+          : 'TODO: expose missing StyioService capabilities before enabling all IDE providers.',
+    );
+  }
+
+  final String providerId;
+  final String displayName;
+  final int priority;
+  final FoundationRegistryEntryState state;
+  final List<StyioLanguageProviderCapability> capabilities;
+  final Map<String, Object?> metadata;
+  final List<String> missingServiceCapabilities;
+  final String todo;
+
+  bool get active => state == FoundationRegistryEntryState.active;
+
+  StyioLanguageProviderRegistration registration({
+    required StyioLanguageService service,
+  }) {
+    return StyioLanguageProviderRegistration(
+      id: providerId,
+      service: service,
+      priority: priority,
+      state: state,
+      capabilities: capabilities,
+      metadata: <String, Object?>{
+        ...metadata,
+        'displayName': displayName,
+        if (missingServiceCapabilities.isNotEmpty)
+          'missingServiceCapabilities': missingServiceCapabilities,
+      },
+      todo: todo,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerId': providerId,
+      'displayName': displayName,
+      'priority': priority,
+      'state': state.name,
+      'active': active,
+      'capabilities': capabilities
+          .map((capability) => capability.wireValue)
+          .toList(growable: false),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+      if (missingServiceCapabilities.isNotEmpty)
+        'missingServiceCapabilities': missingServiceCapabilities,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
 class StyioLanguageProviderRegistry {
   StyioLanguageProviderRegistry({
     FoundationProviderRegistry<StyioLanguageService>? registry,
@@ -132,6 +253,47 @@ class StyioLanguageProviderRegistry {
     return _registry.manifest(owner: owner, state: state);
   }
 }
+
+const Map<StyioLanguageProviderCapability, List<StyioServiceCapability>>
+_styioServiceCapabilityBindings =
+    <StyioLanguageProviderCapability, List<StyioServiceCapability>>{
+      StyioLanguageProviderCapability.syntaxDiagnostics:
+          <StyioServiceCapability>[
+            StyioServiceCapability.syntax,
+            StyioServiceCapability.diagnostics,
+          ],
+      StyioLanguageProviderCapability.semanticSnapshot:
+          <StyioServiceCapability>[
+            StyioServiceCapability.analysis,
+            StyioServiceCapability.documentSymbols,
+            StyioServiceCapability.references,
+            StyioServiceCapability.semanticTokens,
+          ],
+      StyioLanguageProviderCapability.completion: <StyioServiceCapability>[
+        StyioServiceCapability.completion,
+      ],
+      StyioLanguageProviderCapability.hover: <StyioServiceCapability>[
+        StyioServiceCapability.hover,
+      ],
+      StyioLanguageProviderCapability.definition: <StyioServiceCapability>[
+        StyioServiceCapability.definition,
+      ],
+      StyioLanguageProviderCapability.references: <StyioServiceCapability>[
+        StyioServiceCapability.references,
+      ],
+      StyioLanguageProviderCapability.rename: <StyioServiceCapability>[
+        StyioServiceCapability.rename,
+      ],
+      StyioLanguageProviderCapability.semanticTokens: <StyioServiceCapability>[
+        StyioServiceCapability.semanticTokens,
+      ],
+      StyioLanguageProviderCapability.formatting: <StyioServiceCapability>[
+        StyioServiceCapability.formatting,
+      ],
+      StyioLanguageProviderCapability.codeActions: <StyioServiceCapability>[
+        StyioServiceCapability.codeActions,
+      ],
+    };
 
 List<String> _capabilityWireValues(
   List<StyioLanguageProviderCapability> capabilities,

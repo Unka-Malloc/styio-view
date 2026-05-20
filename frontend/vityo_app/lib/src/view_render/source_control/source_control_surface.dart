@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../view_ide/workspace/source_control_commit_draft_store.dart';
 import '../../view_ide/workspace/source_control_status.dart';
 import '../platform/viewport_profile.dart';
 
@@ -11,6 +12,9 @@ class SourceControlSurface extends StatelessWidget {
     required this.changedDocumentIds,
     this.status,
     this.diffPreview,
+    this.commitDraft,
+    this.branchSnapshot,
+    this.historySnapshot,
     this.onOpenFile,
     this.onSaveAll,
     this.onRefresh,
@@ -25,6 +29,9 @@ class SourceControlSurface extends StatelessWidget {
   final List<String> changedDocumentIds;
   final SourceControlStatusSnapshot? status;
   final SourceControlDiffSnapshot? diffPreview;
+  final SourceControlCommitDraft? commitDraft;
+  final SourceControlBranchSnapshot? branchSnapshot;
+  final SourceControlHistorySnapshot? historySnapshot;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function()? onSaveAll;
   final Future<void> Function()? onRefresh;
@@ -76,6 +83,24 @@ class SourceControlSurface extends StatelessWidget {
                     const Chip(label: Text('provider unavailable')),
                   if (status?.branchName.isNotEmpty == true)
                     Chip(label: Text('branch ${status!.branchName}')),
+                  if (branchSnapshot != null)
+                    Chip(
+                      label: Text(
+                        'branches ${branchSnapshot!.branches.length}',
+                      ),
+                    ),
+                  if (historySnapshot != null)
+                    Chip(
+                      label: Text('history ${historySnapshot!.entries.length}'),
+                    ),
+                  if (commitDraft != null)
+                    Chip(
+                      label: Text(
+                        commitDraft!.hasMessage
+                            ? 'draft ready'
+                            : 'draft pending',
+                      ),
+                    ),
                   if (status != null)
                     Chip(label: Text('git ${gitChanges.length}')),
                   if (status != null)
@@ -84,6 +109,23 @@ class SourceControlSurface extends StatelessWidget {
                     Chip(label: Text('unstaged ${unstagedPaths.length}')),
                 ],
               ),
+              if (commitDraft != null ||
+                  branchSnapshot != null ||
+                  historySnapshot != null) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    if (commitDraft != null)
+                      _CommitDraftCard(draft: commitDraft!),
+                    if (branchSnapshot != null)
+                      _BranchPickerSummary(snapshot: branchSnapshot!),
+                    if (historySnapshot != null)
+                      _HistorySummary(snapshot: historySnapshot!),
+                  ],
+                ),
+              ],
               const SizedBox(height: 12),
               if (!statusAvailable && status?.message.isNotEmpty == true) ...[
                 Text(
@@ -252,6 +294,120 @@ class SourceControlSurface extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CommitDraftCard extends StatelessWidget {
+  const _CommitDraftCard({required this.draft});
+
+  final SourceControlCommitDraft draft;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final plan = draft.toCommitActionPlan();
+    return _SourceControlSummaryCard(
+      key: const ValueKey('source-control-commit-draft-card'),
+      title: 'Commit Draft',
+      lines: <String>[
+        draft.hasMessage ? draft.message.trim() : 'Missing commit message',
+        'selected ${draft.selectedPaths.length} · risk ${plan.risk.wireValue}',
+        plan.canRun ? 'ready to commit' : plan.blockedReason,
+      ],
+      icon: Icons.commit_rounded,
+      color: theme.colorScheme.tertiaryContainer,
+    );
+  }
+}
+
+class _BranchPickerSummary extends StatelessWidget {
+  const _BranchPickerSummary({required this.snapshot});
+
+  final SourceControlBranchSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _SourceControlSummaryCard(
+      key: const ValueKey('source-control-branch-picker-summary'),
+      title: 'Branches',
+      lines: <String>[
+        snapshot.available
+            ? 'current ${snapshot.currentBranch}'
+            : snapshot.message,
+        'available ${snapshot.branches.length}',
+        if (snapshot.branches.isNotEmpty) snapshot.branches.take(4).join(', '),
+      ],
+      icon: Icons.account_tree_rounded,
+      color: theme.colorScheme.secondaryContainer,
+    );
+  }
+}
+
+class _HistorySummary extends StatelessWidget {
+  const _HistorySummary({required this.snapshot});
+
+  final SourceControlHistorySnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final latest = snapshot.entries.isEmpty ? null : snapshot.entries.first;
+    return _SourceControlSummaryCard(
+      key: const ValueKey('source-control-history-summary'),
+      title: 'History',
+      lines: <String>[
+        snapshot.available
+            ? 'entries ${snapshot.entries.length}'
+            : snapshot.message,
+        if (latest != null) '${latest.shortRevision} · ${latest.summary}',
+      ],
+      icon: Icons.history_rounded,
+      color: theme.colorScheme.surfaceContainerHighest,
+    );
+  }
+}
+
+class _SourceControlSummaryCard extends StatelessWidget {
+  const _SourceControlSummaryCard({
+    super.key,
+    required this.title,
+    required this.lines,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final List<String> lines;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: 260,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18),
+              const SizedBox(width: 6),
+              Text(title, style: theme.textTheme.titleSmall),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (final line in lines.where((line) => line.trim().isNotEmpty))
+            Text(line, style: theme.textTheme.bodySmall),
+        ],
       ),
     );
   }

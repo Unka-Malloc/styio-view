@@ -42,6 +42,26 @@ R  src/old.styio -> src/new.styio
               unifiedDiff:
                   'diff --git a/src/main.styio b/src/main.styio\n+value\n',
             ),
+            commitDraft: const SourceControlCommitDraft(
+              workspaceId: 'demo',
+              message: 'Add source control UI',
+              selectedPaths: <String>['src/main.styio'],
+            ),
+            branchSnapshot: const SourceControlBranchSnapshot(
+              providerKind: SourceControlProviderKind.git,
+              currentBranch: 'ai-dev',
+              branches: <String>['main', 'ai-dev', 'feature/scm'],
+            ),
+            historySnapshot: const SourceControlHistorySnapshot(
+              providerKind: SourceControlProviderKind.git,
+              entries: <SourceControlHistoryEntry>[
+                SourceControlHistoryEntry(
+                  revision: 'abcdef123',
+                  shortRevision: 'abcdef1',
+                  summary: 'Add source control UI',
+                ),
+              ],
+            ),
             onOpenFile: (documentId) async {
               openedDocumentId = documentId;
             },
@@ -77,41 +97,56 @@ R  src/old.styio -> src/new.styio
     expect(find.text('changed 2'), findsOneWidget);
     expect(find.text('provider git'), findsOneWidget);
     expect(find.text('branch ai-dev'), findsOneWidget);
+    expect(find.text('branches 3'), findsOneWidget);
+    expect(find.text('history 1'), findsOneWidget);
+    expect(find.text('draft ready'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('source-control-commit-draft-card')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('source-control-branch-picker-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('source-control-history-summary')),
+      findsOneWidget,
+    );
+    expect(find.text('Add source control UI'), findsWidgets);
+    expect(find.text('current ai-dev'), findsOneWidget);
+    expect(find.text('abcdef1 · Add source control UI'), findsOneWidget);
     expect(find.text('git 2'), findsOneWidget);
     expect(find.text('staged 1'), findsOneWidget);
     expect(find.text('unstaged 1'), findsOneWidget);
     expect(find.text('src/new.styio'), findsOneWidget);
     expect(find.text('src/main.styio'), findsWidgets);
     expect(find.text('src/lib.styio'), findsOneWidget);
-    expect(find.byKey(const ValueKey('source-control-diff-preview')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('source-control-diff-preview')),
+      findsOneWidget,
+    );
     expect(find.text('Diff Preview'), findsOneWidget);
     expect(find.textContaining('+value'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey('source-control-git-change-src/new.styio')),
-    );
-    await tester.pump();
+    Future<void> tapVisible(String key) async {
+      final finder = find.byKey(ValueKey(key));
+      await tester.ensureVisible(finder);
+      await tester.pump();
+      await tester.tap(finder);
+      await tester.pump();
+    }
+
+    await tapVisible('source-control-save-all');
+    await tapVisible('source-control-refresh');
+    await tapVisible('source-control-stage-all');
+    await tapVisible('source-control-unstage-all');
+    await tapVisible('source-control-open-commit');
+
+    await tapVisible('source-control-git-change-src/new.styio');
     expect(openedDocumentId, 'src/new.styio');
 
-    await tester.tap(
-      find.byKey(
-        const ValueKey('source-control-preview-diff-src/main.styio'),
-      ),
-    );
-    await tester.tap(find.byKey(const ValueKey('source-control-save-all')));
-    await tester.tap(find.byKey(const ValueKey('source-control-refresh')));
-    await tester.tap(find.byKey(const ValueKey('source-control-stage-all')));
-    await tester.tap(find.byKey(const ValueKey('source-control-unstage-all')));
-    await tester.tap(find.byKey(const ValueKey('source-control-open-commit')));
-    await tester.drag(
-      find.byKey(const ValueKey('source-control-surface')),
-      const Offset(0, -320),
-    );
-    await tester.pump();
-    await tester.tap(
-      find.byKey(const ValueKey('source-control-change-src/main.styio')),
-    );
-    await tester.pump();
+    await tapVisible('source-control-preview-diff-src/main.styio');
+    await tapVisible('source-control-change-src/main.styio');
 
     expect(openedDocumentId, 'src/main.styio');
     expect(previewedDocumentId, 'src/main.styio');

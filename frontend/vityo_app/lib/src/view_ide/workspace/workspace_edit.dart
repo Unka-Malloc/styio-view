@@ -1,6 +1,7 @@
 import '../editor/document_state.dart';
 import '../language/language_contract.dart';
 import 'workspace_document_store_types.dart';
+import 'workspace_file_operations.dart';
 
 enum WorkspaceEditSource { agent, codeAction, rename, formatting, manual }
 
@@ -16,12 +17,50 @@ extension WorkspaceEditSourceWire on WorkspaceEditSource {
   }
 }
 
+class WorkspaceFileOperation {
+  const WorkspaceFileOperation({
+    required this.kind,
+    required this.documentId,
+    this.text = '',
+    this.overwrite = false,
+  });
+
+  const WorkspaceFileOperation.create({
+    required String documentId,
+    required String text,
+    bool overwrite = false,
+  }) : this(
+         kind: WorkspaceFileOperationKind.create,
+         documentId: documentId,
+         text: text,
+         overwrite: overwrite,
+       );
+
+  const WorkspaceFileOperation.delete({required String documentId})
+    : this(kind: WorkspaceFileOperationKind.delete, documentId: documentId);
+
+  final WorkspaceFileOperationKind kind;
+  final String documentId;
+  final String text;
+  final bool overwrite;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'documentId': documentId,
+      if (kind == WorkspaceFileOperationKind.create) 'textLength': text.length,
+      if (overwrite) 'overwrite': overwrite,
+    };
+  }
+}
+
 class WorkspaceEditPlan {
   const WorkspaceEditPlan({
     required this.id,
     required this.summary,
     required this.source,
     required this.editsByDocument,
+    this.fileOperations = const <WorkspaceFileOperation>[],
   });
 
   factory WorkspaceEditPlan.singleDocument({
@@ -73,6 +112,7 @@ class WorkspaceEditPlan {
   final String summary;
   final WorkspaceEditSource source;
   final Map<String, List<FormattingEdit>> editsByDocument;
+  final List<WorkspaceFileOperation> fileOperations;
 
   int get editCount {
     return editsByDocument.values.fold<int>(
@@ -81,8 +121,13 @@ class WorkspaceEditPlan {
     );
   }
 
+  int get changeCount => editCount + fileOperations.length;
+
   List<String> get documentIds {
-    final ids = editsByDocument.keys.toList(growable: false);
+    final ids = <String>{
+      ...editsByDocument.keys,
+      for (final operation in fileOperations) operation.documentId,
+    }.toList(growable: false);
     ids.sort();
     return ids;
   }
@@ -92,7 +137,51 @@ class WorkspaceEditPlan {
       for (final document in documents) document.documentId: document,
     };
     final previews = <WorkspaceEditDocumentPreview>[];
+    final fileOperationPreviews = <WorkspaceFileOperationPreview>[];
     final missingDocumentIds = <String>[];
+    for (final operation in fileOperations) {
+      final documentIdFailure = _validateDocumentId(operation.documentId);
+      if (documentIdFailure != null) {
+        fileOperationPreviews.add(
+          WorkspaceFileOperationPreview(
+            operation: operation,
+            status: WorkspaceFileOperationPreviewStatus.blockedUnsafeDocumentId,
+            message: documentIdFailure,
+          ),
+        );
+        continue;
+      }
+      final existing = documentsById[operation.documentId];
+      if (operation.kind == WorkspaceFileOperationKind.create) {
+        fileOperationPreviews.add(
+          WorkspaceFileOperationPreview(
+            operation: operation,
+            status: existing != null && !operation.overwrite
+                ? WorkspaceFileOperationPreviewStatus.blockedAlreadyExists
+                : WorkspaceFileOperationPreviewStatus.ready,
+            beforeText: existing?.text,
+            afterText: operation.text,
+            message: existing != null && !operation.overwrite
+                ? 'Document ${operation.documentId} already exists.'
+                : 'Document ${operation.documentId} will be created.',
+          ),
+        );
+      } else {
+        fileOperationPreviews.add(
+          WorkspaceFileOperationPreview(
+            operation: operation,
+            status: existing == null
+                ? WorkspaceFileOperationPreviewStatus.blockedMissingDocument
+                : WorkspaceFileOperationPreviewStatus.ready,
+            beforeText: existing?.text,
+            afterText: '',
+            message: existing == null
+                ? 'Document ${operation.documentId} is missing.'
+                : 'Document ${operation.documentId} will be deleted.',
+          ),
+        );
+      }
+    }
     for (final entry in editsByDocument.entries) {
       final document = documentsById[entry.key];
       if (document == null) {
@@ -122,6 +211,9 @@ class WorkspaceEditPlan {
       summary: summary,
       source: source,
       documents: List<WorkspaceEditDocumentPreview>.unmodifiable(previews),
+      fileOperations: List<WorkspaceFileOperationPreview>.unmodifiable(
+        fileOperationPreviews,
+      ),
       missingDocumentIds: List<String>.unmodifiable(missingDocumentIds),
     );
   }
@@ -133,6 +225,7 @@ class WorkspaceEditPreview {
     required this.summary,
     required this.source,
     required this.documents,
+    this.fileOperations = const <WorkspaceFileOperationPreview>[],
     this.missingDocumentIds = const <String>[],
   });
 
@@ -140,13 +233,21 @@ class WorkspaceEditPreview {
   final String summary;
   final WorkspaceEditSource source;
   final List<WorkspaceEditDocumentPreview> documents;
+  final List<WorkspaceFileOperationPreview> fileOperations;
   final List<String> missingDocumentIds;
 
-  bool get hasChanges => documents.any((document) => document.changed);
+  bool get hasChanges =>
+      documents.any((document) => document.changed) ||
+      fileOperations.any((operation) => operation.changed);
 
   bool get hasMissingDocuments => missingDocumentIds.isNotEmpty;
 
-  bool get canApply => hasChanges && !hasMissingDocuments;
+  bool get hasBlockedFileOperations {
+    return fileOperations.any((operation) => operation.blocked);
+  }
+
+  bool get canApply =>
+      hasChanges && !hasMissingDocuments && !hasBlockedFileOperations;
 
   int get editCount {
     return documents.fold<int>(
@@ -154,6 +255,8 @@ class WorkspaceEditPreview {
       (total, document) => total + document.edits.length,
     );
   }
+
+  int get changeCount => editCount + fileOperations.length;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -165,11 +268,17 @@ class WorkspaceEditPreview {
       if (missingDocumentIds.isNotEmpty)
         'missingDocumentIds': missingDocumentIds,
       'editCount': editCount,
+      'fileOperationCount': fileOperations.length,
+      'changeCount': changeCount,
       'hasChanges': hasChanges,
       'hasMissingDocuments': hasMissingDocuments,
+      'hasBlockedFileOperations': hasBlockedFileOperations,
       'canApply': canApply,
       'documents': documents
           .map((document) => document.toJson())
+          .toList(growable: false),
+      'fileOperations': fileOperations
+          .map((operation) => operation.toJson())
           .toList(growable: false),
     };
   }
@@ -180,6 +289,7 @@ enum WorkspaceEditConfirmationStatus {
   blockedNoChanges,
   blockedMissingDocuments,
   blockedTooManyEdits,
+  blockedFileOperations,
 }
 
 extension WorkspaceEditConfirmationStatusX on WorkspaceEditConfirmationStatus {
@@ -190,6 +300,8 @@ extension WorkspaceEditConfirmationStatusX on WorkspaceEditConfirmationStatus {
       'blocked-missing-documents',
     WorkspaceEditConfirmationStatus.blockedTooManyEdits =>
       'blocked-too-many-edits',
+    WorkspaceEditConfirmationStatus.blockedFileOperations =>
+      'blocked-file-operations',
   };
 }
 
@@ -203,6 +315,7 @@ class WorkspaceEditConfirmationPlan {
     this.documentIds = const <String>[],
     this.missingDocumentIds = const <String>[],
     this.editCount = 0,
+    this.fileOperationCount = 0,
     this.requiresUserConfirmation = true,
     this.todo = '',
   });
@@ -211,12 +324,12 @@ class WorkspaceEditConfirmationPlan {
     WorkspaceEditPreview preview, {
     int maxEditCount = 500,
   }) {
-    final documentIds =
-        preview.documents
-            .map((document) => document.documentId)
-            .toSet()
-            .toList(growable: false)
-          ..sort();
+    final documentIds = <String>{
+      ...preview.documents.map((document) => document.documentId),
+      ...preview.fileOperations.map(
+        (operation) => operation.operation.documentId,
+      ),
+    }.toList(growable: false)..sort();
     final missingDocumentIds =
         preview.missingDocumentIds
             .map((documentId) => documentId.trim())
@@ -224,6 +337,20 @@ class WorkspaceEditConfirmationPlan {
             .toSet()
             .toList(growable: false)
           ..sort();
+    if (preview.hasBlockedFileOperations) {
+      return WorkspaceEditConfirmationPlan(
+        planId: preview.planId,
+        status: WorkspaceEditConfirmationStatus.blockedFileOperations,
+        summary: preview.summary,
+        source: preview.source,
+        documentIds: documentIds,
+        missingDocumentIds: missingDocumentIds,
+        editCount: preview.editCount,
+        fileOperationCount: preview.fileOperations.length,
+        message:
+            'Workspace edit preview contains blocked file create/delete operation(s).',
+      );
+    }
     if (!preview.hasChanges) {
       return WorkspaceEditConfirmationPlan(
         planId: preview.planId,
@@ -233,6 +360,7 @@ class WorkspaceEditConfirmationPlan {
         documentIds: documentIds,
         missingDocumentIds: missingDocumentIds,
         editCount: preview.editCount,
+        fileOperationCount: preview.fileOperations.length,
         requiresUserConfirmation: false,
         message: 'Workspace edit preview has no text changes.',
       );
@@ -246,6 +374,7 @@ class WorkspaceEditConfirmationPlan {
         documentIds: documentIds,
         missingDocumentIds: missingDocumentIds,
         editCount: preview.editCount,
+        fileOperationCount: preview.fileOperations.length,
         message:
             'Workspace edit preview is blocked until missing documents are loaded.',
       );
@@ -258,6 +387,7 @@ class WorkspaceEditConfirmationPlan {
         source: preview.source,
         documentIds: documentIds,
         editCount: preview.editCount,
+        fileOperationCount: preview.fileOperations.length,
         message:
             'Workspace edit preview contains too many edits: ${preview.editCount} exceeds $maxEditCount.',
       );
@@ -269,9 +399,10 @@ class WorkspaceEditConfirmationPlan {
       source: preview.source,
       documentIds: documentIds,
       editCount: preview.editCount,
+      fileOperationCount: preview.fileOperations.length,
       message: 'Workspace edit preview is ready for confirmation.',
       todo:
-          'TODO: bind this confirmation plan to the diff UI and apply/cancel controls.',
+          'TODO: bind this confirmation plan to the diff UI, file operation preview, and apply/cancel controls.',
     );
   }
 
@@ -283,6 +414,7 @@ class WorkspaceEditConfirmationPlan {
   final List<String> documentIds;
   final List<String> missingDocumentIds;
   final int editCount;
+  final int fileOperationCount;
   final bool requiresUserConfirmation;
   final String todo;
 
@@ -298,9 +430,62 @@ class WorkspaceEditConfirmationPlan {
       'documentIds': documentIds,
       'missingDocumentIds': missingDocumentIds,
       'editCount': editCount,
+      'fileOperationCount': fileOperationCount,
+      'changeCount': editCount + fileOperationCount,
       'requiresUserConfirmation': requiresUserConfirmation,
       'message': message,
       if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+enum WorkspaceFileOperationPreviewStatus {
+  ready,
+  blockedAlreadyExists,
+  blockedMissingDocument,
+  blockedUnsafeDocumentId,
+}
+
+extension WorkspaceFileOperationPreviewStatusX
+    on WorkspaceFileOperationPreviewStatus {
+  String get wireValue => switch (this) {
+    WorkspaceFileOperationPreviewStatus.ready => 'ready',
+    WorkspaceFileOperationPreviewStatus.blockedAlreadyExists =>
+      'blocked-already-exists',
+    WorkspaceFileOperationPreviewStatus.blockedMissingDocument =>
+      'blocked-missing-document',
+    WorkspaceFileOperationPreviewStatus.blockedUnsafeDocumentId =>
+      'blocked-unsafe-document-id',
+  };
+}
+
+class WorkspaceFileOperationPreview {
+  const WorkspaceFileOperationPreview({
+    required this.operation,
+    required this.status,
+    required this.message,
+    this.beforeText,
+    this.afterText,
+  });
+
+  final WorkspaceFileOperation operation;
+  final WorkspaceFileOperationPreviewStatus status;
+  final String message;
+  final String? beforeText;
+  final String? afterText;
+
+  bool get blocked => status != WorkspaceFileOperationPreviewStatus.ready;
+  bool get changed => !blocked && beforeText != afterText;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'operation': operation.toJson(),
+      'status': status.wireValue,
+      'blocked': blocked,
+      'changed': changed,
+      'message': message,
+      if (beforeText != null) 'beforeTextSample': _sampleText(beforeText!),
+      if (afterText != null) 'afterTextSample': _sampleText(afterText!),
     };
   }
 }
@@ -402,6 +587,8 @@ class WorkspaceEditApplicationResult {
     required this.message,
     this.appliedEditCount = 0,
     this.appliedDocumentIds = const <String>[],
+    this.createdDocumentIds = const <String>[],
+    this.deletedDocumentIds = const <String>[],
     this.skippedNoOpDocumentIds = const <String>[],
   });
 
@@ -409,6 +596,8 @@ class WorkspaceEditApplicationResult {
   final String message;
   final int appliedEditCount;
   final List<String> appliedDocumentIds;
+  final List<String> createdDocumentIds;
+  final List<String> deletedDocumentIds;
   final List<String> skippedNoOpDocumentIds;
 
   Map<String, Object?> toJson() {
@@ -417,6 +606,8 @@ class WorkspaceEditApplicationResult {
       'message': message,
       'appliedEditCount': appliedEditCount,
       'appliedDocumentIds': appliedDocumentIds,
+      'createdDocumentIds': createdDocumentIds,
+      'deletedDocumentIds': deletedDocumentIds,
       'skippedNoOpDocumentIds': skippedNoOpDocumentIds,
     };
   }
@@ -438,10 +629,10 @@ class WorkspaceEditApplier {
         message: 'Workspace edit plan is missing an id.',
       );
     }
-    if (plan.editCount == 0) {
+    if (plan.changeCount == 0) {
       return WorkspaceEditApplicationResult(
         applied: false,
-        message: 'Workspace edit plan ${plan.id} has no edits.',
+        message: 'Workspace edit plan ${plan.id} has no changes.',
       );
     }
     if (plan.editCount > maxEditCount) {
@@ -450,6 +641,65 @@ class WorkspaceEditApplier {
         message:
             'Workspace edit plan ${plan.id} contains too many edits: ${plan.editCount} exceeds $maxEditCount.',
       );
+    }
+
+    for (final operation in plan.fileOperations) {
+      final documentIdFailure = _validateDocumentId(operation.documentId);
+      if (documentIdFailure != null) {
+        return WorkspaceEditApplicationResult(
+          applied: false,
+          message: 'Workspace edit plan ${plan.id} $documentIdFailure',
+        );
+      }
+      if (operation.kind == WorkspaceFileOperationKind.delete &&
+          plan.editsByDocument.containsKey(operation.documentId)) {
+        return WorkspaceEditApplicationResult(
+          applied: false,
+          message:
+              'Workspace edit plan ${plan.id} cannot delete and edit ${operation.documentId} in the same application.',
+        );
+      }
+    }
+
+    final createdDocumentIds = <String>[];
+    final deletedDocumentIds = <String>[];
+    for (final operation in plan.fileOperations) {
+      if (operation.kind == WorkspaceFileOperationKind.create) {
+        final exists = await workspaceDocumentStore.documentExists(
+          operation.documentId,
+        );
+        if (exists && !operation.overwrite) {
+          return WorkspaceEditApplicationResult(
+            applied: false,
+            message:
+                'Workspace edit plan ${plan.id} cannot create ${operation.documentId} because it already exists.',
+            createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
+            deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
+          );
+        }
+        await workspaceDocumentStore.saveDocument(
+          DocumentState(
+            documentId: operation.documentId,
+            text: operation.text,
+            revision: 0,
+          ),
+        );
+        createdDocumentIds.add(operation.documentId);
+      } else {
+        final removed = await workspaceDocumentStore.deleteDocument(
+          operation.documentId,
+        );
+        if (!removed) {
+          return WorkspaceEditApplicationResult(
+            applied: false,
+            message:
+                'Workspace edit plan ${plan.id} cannot delete missing document ${operation.documentId}.',
+            createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
+            deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
+          );
+        }
+        deletedDocumentIds.add(operation.documentId);
+      }
     }
 
     final loadedDocuments = <String, DocumentState>{};
@@ -507,6 +757,8 @@ class WorkspaceEditApplier {
               'Workspace edit plan ${plan.id} failed to save ${entry.key}: $error',
           appliedEditCount: appliedEditCount,
           appliedDocumentIds: List<String>.unmodifiable(appliedDocumentIds),
+          createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
+          deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
           skippedNoOpDocumentIds: List<String>.unmodifiable(
             skippedNoOpDocumentIds,
           ),
@@ -517,6 +769,20 @@ class WorkspaceEditApplier {
     }
 
     if (appliedEditCount == 0) {
+      createdDocumentIds.sort();
+      deletedDocumentIds.sort();
+      if (createdDocumentIds.isNotEmpty || deletedDocumentIds.isNotEmpty) {
+        return WorkspaceEditApplicationResult(
+          applied: true,
+          message:
+              'Applied ${createdDocumentIds.length + deletedDocumentIds.length} file operation(s) from ${plan.source.wireValue} plan ${plan.id}.',
+          createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
+          deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
+          skippedNoOpDocumentIds: List<String>.unmodifiable(
+            skippedNoOpDocumentIds,
+          ),
+        );
+      }
       return WorkspaceEditApplicationResult(
         applied: false,
         message: 'Workspace edit plan ${plan.id} produced no text changes.',
@@ -528,14 +794,18 @@ class WorkspaceEditApplier {
     }
 
     appliedDocumentIds.sort();
+    createdDocumentIds.sort();
+    deletedDocumentIds.sort();
     skippedNoOpDocumentIds.sort();
     return WorkspaceEditApplicationResult(
       applied: true,
       appliedEditCount: appliedEditCount,
       appliedDocumentIds: List<String>.unmodifiable(appliedDocumentIds),
+      createdDocumentIds: List<String>.unmodifiable(createdDocumentIds),
+      deletedDocumentIds: List<String>.unmodifiable(deletedDocumentIds),
       skippedNoOpDocumentIds: List<String>.unmodifiable(skippedNoOpDocumentIds),
       message:
-          'Applied $appliedEditCount workspace edit(s) from ${plan.source.wireValue} plan ${plan.id}.',
+          'Applied $appliedEditCount workspace edit(s) and ${createdDocumentIds.length + deletedDocumentIds.length} file operation(s) from ${plan.source.wireValue} plan ${plan.id}.',
     );
   }
 }

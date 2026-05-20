@@ -153,6 +153,80 @@ void main() {
   );
 
   test(
+    'workspace edit applier applies file create and delete operations',
+    () async {
+      final store = InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'old.styio': DocumentState(
+            documentId: 'old.styio',
+            text: 'old\n',
+            revision: 1,
+          ),
+        },
+      );
+      final applier = WorkspaceEditApplier(workspaceDocumentStore: store);
+      const plan = WorkspaceEditPlan(
+        id: 'file-ops',
+        summary: 'Create and delete files.',
+        source: WorkspaceEditSource.agent,
+        editsByDocument: <String, List<FormattingEdit>>{},
+        fileOperations: <WorkspaceFileOperation>[
+          WorkspaceFileOperation.create(documentId: 'new.styio', text: 'new\n'),
+          WorkspaceFileOperation.delete(documentId: 'old.styio'),
+        ],
+      );
+
+      final preview = plan.preview(const <DocumentState>[
+        DocumentState(documentId: 'old.styio', text: 'old\n', revision: 1),
+      ]);
+      final confirmation = WorkspaceEditConfirmationPlan.fromPreview(preview);
+      final result = await applier.apply(plan);
+
+      expect(preview.hasChanges, isTrue);
+      expect(preview.fileOperations, hasLength(2));
+      expect(preview.canApply, isTrue);
+      expect(preview.toJson()['fileOperationCount'], 2);
+      expect(confirmation.ready, isTrue);
+      expect(confirmation.fileOperationCount, 2);
+      expect(result.applied, isTrue);
+      expect(result.createdDocumentIds, <String>['new.styio']);
+      expect(result.deletedDocumentIds, <String>['old.styio']);
+      expect(await store.documentExists('new.styio'), isTrue);
+      expect(await store.documentExists('old.styio'), isFalse);
+      expect((await store.loadDocument('new.styio')).text, 'new\n');
+    },
+  );
+
+  test('workspace edit confirmation blocks unsafe file operations', () {
+    const plan = WorkspaceEditPlan(
+      id: 'unsafe-file-op',
+      summary: 'Unsafe file op.',
+      source: WorkspaceEditSource.agent,
+      editsByDocument: <String, List<FormattingEdit>>{},
+      fileOperations: <WorkspaceFileOperation>[
+        WorkspaceFileOperation.create(
+          documentId: '../secret.styio',
+          text: 'secret',
+        ),
+      ],
+    );
+
+    final preview = plan.preview(const <DocumentState>[]);
+    final confirmation = WorkspaceEditConfirmationPlan.fromPreview(preview);
+
+    expect(preview.hasBlockedFileOperations, isTrue);
+    expect(
+      preview.fileOperations.single.status,
+      WorkspaceFileOperationPreviewStatus.blockedUnsafeDocumentId,
+    );
+    expect(
+      confirmation.status,
+      WorkspaceEditConfirmationStatus.blockedFileOperations,
+    );
+    expect(confirmation.ready, isFalse);
+  });
+
+  test(
     'workspace edit applier rejects overlapping edits without saving',
     () async {
       final store = InMemoryWorkspaceDocumentStore(

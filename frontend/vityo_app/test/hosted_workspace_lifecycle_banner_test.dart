@@ -26,8 +26,38 @@ void main() {
       ),
     );
 
+    const report = HostedBackendConnectorParityReport(
+      workspaceId: 'hosted-demo',
+      status: HostedBackendConnectorStatus.retryableFailure,
+      message: 'Hosted backend connector is retryable.',
+      checks: <HostedBackendConnectorCheck>[
+        HostedBackendConnectorCheck(
+          id: 'control-plane',
+          label: 'Hosted control plane',
+          available: false,
+          required: true,
+        ),
+      ],
+      actions: <HostedBackendRetryAction>[
+        HostedBackendRetryAction(
+          id: 'retry-connect',
+          label: 'Retry connection',
+          kind: HostedBackendRetryActionKind.retryConnect,
+        ),
+      ],
+    );
+    final tappedActions = <HostedBackendRetryAction>[];
+
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: HostedWorkspaceLifecycleBanner(plan: plan))),
+      MaterialApp(
+        home: Scaffold(
+          body: HostedWorkspaceLifecycleBanner(
+            plan: plan,
+            connectorReport: report,
+            onRetryAction: tappedActions.add,
+          ),
+        ),
+      ),
     );
 
     expect(
@@ -41,11 +71,32 @@ void main() {
       find.byKey(const ValueKey('hosted-workspace-export-entry')),
       findsOneWidget,
     );
-    expect(find.textContaining('https://hosted.example/export/demo.zip'), findsOneWidget);
+    expect(
+      find.textContaining('https://hosted.example/export/demo.zip'),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('hosted-workspace-retention-message')),
       findsOneWidget,
     );
     expect(find.textContaining('2026-05-08T00:00:00'), findsOneWidget);
+    expect(find.text('Hosted backend connector'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('hosted-backend-connector-message')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('hosted-backend-action-retry-connect')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('hosted-backend-action-retry-connect')),
+    );
+
+    expect(
+      tappedActions.single.kind,
+      HostedBackendRetryActionKind.retryConnect,
+    );
   });
 }

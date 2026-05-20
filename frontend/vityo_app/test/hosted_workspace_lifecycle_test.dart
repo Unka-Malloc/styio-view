@@ -47,6 +47,64 @@ void main() {
     expect(pending.remaining, const Duration(days: 5));
     expect(pending.expired, isFalse);
   });
+
+  test('reports hosted backend connector parity and retry actions', () {
+    final project = _project(
+      workspace: _workspace(
+        status: HostedWorkspaceStatus.active,
+        exportState: HostedWorkspaceExportState.ready,
+        coreFileExportUrl: 'https://hosted.example/export/demo.zip',
+      ),
+    );
+
+    final report = const HostedWorkspaceLifecycle().connectorParityReportFor(
+      project,
+      controlPlaneAvailable: false,
+      backendReachable: false,
+      failureMessage: '503 from hosted backend',
+    );
+    final json = report.toJson();
+
+    expect(report.status, HostedBackendConnectorStatus.retryableFailure);
+    expect(report.ready, isFalse);
+    expect(report.message, contains('503 from hosted backend'));
+    expect(
+      report.checks
+          .singleWhere((check) => check.id == 'control-plane')
+          .available,
+      isFalse,
+    );
+    expect(
+      report.actionFor(HostedBackendRetryActionKind.retryConnect)?.enabled,
+      isTrue,
+    );
+    expect(
+      report.actionFor(HostedBackendRetryActionKind.exportCoreFiles)?.enabled,
+      isTrue,
+    );
+    expect(json['status'], 'retryable-failure');
+    expect(json['actions'], isA<List<Object?>>());
+  });
+
+  test('blocks pending-deletion workspace but offers reopen action', () {
+    final project = _project(
+      workspace: _workspace(status: HostedWorkspaceStatus.pendingDeletion),
+    );
+
+    final report = const HostedWorkspaceLifecycle().connectorParityReportFor(
+      project,
+    );
+
+    expect(report.status, HostedBackendConnectorStatus.blocked);
+    expect(
+      report.actionFor(HostedBackendRetryActionKind.reopenWorkspace)?.enabled,
+      isTrue,
+    );
+    expect(
+      report.actionFor(HostedBackendRetryActionKind.retryConnect)?.enabled,
+      isFalse,
+    );
+  });
 }
 
 ProjectGraphSnapshot _project({

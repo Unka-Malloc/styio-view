@@ -4,9 +4,16 @@ import '../../view_ide/backend_toolchain/project_graph_contract.dart';
 import '../../view_ide/workspace/workspace.dart';
 
 class HostedWorkspaceLifecycleBanner extends StatelessWidget {
-  const HostedWorkspaceLifecycleBanner({super.key, required this.plan});
+  const HostedWorkspaceLifecycleBanner({
+    super.key,
+    required this.plan,
+    this.connectorReport,
+    this.onRetryAction,
+  });
 
   final HostedWorkspaceClosePlan plan;
+  final HostedBackendConnectorParityReport? connectorReport;
+  final ValueChanged<HostedBackendRetryAction>? onRetryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +90,63 @@ class HostedWorkspaceLifecycleBanner extends StatelessWidget {
                     : 'Pending-deletion workspace is retained until ${_dateLabel(pendingDeletion.deadline)}.',
                 key: const ValueKey('hosted-workspace-retention-message'),
                 style: theme.textTheme.bodySmall,
+              ),
+            ],
+            if (connectorReport != null) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.sync_problem_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Hosted backend connector',
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                  Chip(label: Text(connectorReport!.status.label)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                connectorReport!.message,
+                key: const ValueKey('hosted-backend-connector-message'),
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final check in connectorReport!.checks)
+                    Chip(
+                      key: ValueKey('hosted-backend-check-${check.id}'),
+                      avatar: Icon(
+                        check.available
+                            ? Icons.check_circle_outline
+                            : Icons.error_outline,
+                        size: 16,
+                      ),
+                      label: Text(check.label),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final action in connectorReport!.actions)
+                    OutlinedButton(
+                      key: ValueKey('hosted-backend-action-${action.id}'),
+                      onPressed: action.enabled && onRetryAction != null
+                          ? () => onRetryAction!(action)
+                          : null,
+                      child: Text(action.label),
+                    ),
+                ],
               ),
             ],
           ],

@@ -17,6 +17,22 @@ void main() {
     int? resizeRows;
     int? resizeCols;
     String? sentInput;
+    final startPlan = TerminalRuntimeStartPlan(
+      profileId: 'sh',
+      executablePath: '/bin/sh',
+      workingDirectory: '/workspace/vityo',
+      rows: 24,
+      cols: 80,
+      ptyPlan: PtyAdapter(PtyFacts.linuxDebianArm(scriptUtilityPath: '/script'))
+          .plan(
+            const PtySessionRequest(
+              executablePath: '/bin/sh',
+              workingDirectory: '/workspace/vityo',
+              rows: 24,
+              cols: 80,
+            ),
+          ),
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -34,6 +50,7 @@ void main() {
               state: PtySessionState.running,
               outputLines: <String>['interactive ok'],
             ),
+            startPlan: startPlan,
             onRunActiveTarget: () async {
               runCount += 1;
             },
@@ -59,6 +76,11 @@ void main() {
     expect(find.text('Integrated Terminal'), findsOneWidget);
     expect(find.text('logs 2'), findsOneWidget);
     expect(find.text('runtime-events 1'), findsOneWidget);
+    expect(find.text('start-plan ready'), findsOneWidget);
+    expect(find.text('terminal-profile sh'), findsOneWidget);
+    expect(find.text('pty-provider ${startPlan.providerKind}'), findsOneWidget);
+    expect(find.byKey(const ValueKey('terminal-start-plan')), findsOneWidget);
+    expect(find.textContaining('/bin/sh'), findsWidgets);
     expect(find.text('session pty-1'), findsOneWidget);
     expect(find.text('pty-state running'), findsOneWidget);
     expect(find.text('pty-lines 1'), findsOneWidget);
@@ -67,14 +89,34 @@ void main() {
     expect(find.textContaining('runtime  stdout: ok'), findsOneWidget);
     expect(find.textContaining('pty      interactive ok'), findsOneWidget);
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('terminal-command-input')),
+    );
+    await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('terminal-command-input')),
       'echo ok',
     );
     await tester.testTextInput.receiveAction(TextInputAction.send);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('terminal-start-session')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('terminal-start-session')));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('terminal-resize-session')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('terminal-resize-session')));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('terminal-close-session')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('terminal-close-session')));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('terminal-run-active-target')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('terminal-run-active-target')));
     await tester.pump();
 

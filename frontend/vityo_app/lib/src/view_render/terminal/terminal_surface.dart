@@ -12,6 +12,7 @@ class TerminalSurface extends StatelessWidget {
     required this.runtimeEventSummaries,
     this.liveOutputSnapshot,
     this.sessionSnapshot,
+    this.startPlan,
     this.onRunActiveTarget,
     this.onStartSession,
     this.onSendInput,
@@ -24,6 +25,7 @@ class TerminalSurface extends StatelessWidget {
   final List<String> runtimeEventSummaries;
   final RuntimeOutputPanelSnapshot? liveOutputSnapshot;
   final TerminalSessionSnapshot? sessionSnapshot;
+  final TerminalRuntimeStartPlan? startPlan;
   final Future<void> Function()? onRunActiveTarget;
   final Future<void> Function()? onStartSession;
   final Future<void> Function(String input)? onSendInput;
@@ -48,147 +50,219 @@ class TerminalSurface extends StatelessWidget {
       key: const ValueKey('terminal-surface'),
       child: Padding(
         padding: EdgeInsets.all(compact ? 14 : 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Integrated Terminal', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 6),
-            Text(
-              'Shell/runtime output entry backed by Vityo execution logs, TerminalRuntime session snapshots, RuntimeOutputLiveBuffer panel snapshots, and explicit start/resize/close controls. TODO: connect concrete ShellManager process execution and OS PTY streams.',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                Chip(label: Text('logs ${logEntries.length}')),
-                Chip(
-                  label: Text('runtime-events ${runtimeEventSummaries.length}'),
-                ),
-                if (liveOutputSnapshot != null) ...[
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Integrated Terminal', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 6),
+              Text(
+                'Shell/runtime output entry backed by Vityo execution logs, TerminalRuntime session snapshots, RuntimeOutputLiveBuffer panel snapshots, explicit start/resize/close controls, and PTY start-plan readiness. TODO: connect native OS PTY resize/signals.',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  Chip(label: Text('logs ${logEntries.length}')),
                   Chip(
                     label: Text(
-                      'live-events ${liveOutputSnapshot!.visibleEvents.length}',
+                      'runtime-events ${runtimeEventSummaries.length}',
                     ),
                   ),
-                  Chip(
-                    label: Text(
-                      'live-channels ${liveOutputSnapshot!.channelSnapshot.visibleChannels.length}',
-                    ),
-                  ),
-                ],
-                if (sessionSnapshot == null)
-                  const Chip(label: Text('pty scaffolded'))
-                else ...[
-                  Chip(label: Text('session ${sessionSnapshot!.sessionId}')),
-                  Chip(label: Text('pty-state ${sessionSnapshot!.state.name}')),
-                  Chip(
-                    label: Text(
-                      'pty-lines ${sessionSnapshot!.outputLines.length}',
-                    ),
-                  ),
-                  Chip(
-                    label: Text('pty-events ${sessionSnapshot!.events.length}'),
-                  ),
-                  if (sessionSnapshot!.lastResize != null)
+                  if (startPlan == null)
+                    const Chip(label: Text('start-plan TODO'))
+                  else ...[
                     Chip(
                       label: Text(
-                        'resize ${sessionSnapshot!.lastResize!.rows}x${sessionSnapshot!.lastResize!.cols}',
+                        'start-plan ${startPlan!.supported ? 'ready' : 'blocked'}',
                       ),
                     ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                FilledButton.tonalIcon(
-                  key: const ValueKey('terminal-start-session'),
-                  onPressed: onStartSession,
-                  icon: const Icon(Icons.terminal_rounded),
-                  label: const Text('Start Terminal'),
-                ),
-                OutlinedButton.icon(
-                  key: const ValueKey('terminal-resize-session'),
-                  onPressed: sessionSnapshot == null || onResizeSession == null
-                      ? null
-                      : () {
-                          onResizeSession!(24, 80);
-                        },
-                  icon: const Icon(Icons.fit_screen_rounded),
-                  label: const Text('Resize 24x80'),
-                ),
-                OutlinedButton.icon(
-                  key: const ValueKey('terminal-close-session'),
-                  onPressed: sessionSnapshot == null ? null : onCloseSession,
-                  icon: const Icon(Icons.stop_circle_outlined),
-                  label: const Text('Close Terminal'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('terminal-command-input'),
-                    enabled: onSendInput != null,
-                    textInputAction: TextInputAction.send,
-                    decoration: InputDecoration(
-                      labelText: 'Terminal input',
-                      helperText: onSendInput == null
-                          ? 'TODO: enable after interactive PTY sessions are wired.'
-                          : 'Send input to the active PTY session.',
-                      border: const OutlineInputBorder(),
+                    Chip(
+                      label: Text('terminal-profile ${startPlan!.profileId}'),
                     ),
-                    onSubmitted: onSendInput,
+                    Chip(
+                      label: Text('pty-provider ${startPlan!.providerKind}'),
+                    ),
+                  ],
+                  if (liveOutputSnapshot != null) ...[
+                    Chip(
+                      label: Text(
+                        'live-events ${liveOutputSnapshot!.visibleEvents.length}',
+                      ),
+                    ),
+                    Chip(
+                      label: Text(
+                        'live-channels ${liveOutputSnapshot!.channelSnapshot.visibleChannels.length}',
+                      ),
+                    ),
+                  ],
+                  if (sessionSnapshot == null)
+                    const Chip(label: Text('pty scaffolded'))
+                  else ...[
+                    Chip(label: Text('session ${sessionSnapshot!.sessionId}')),
+                    Chip(
+                      label: Text('pty-state ${sessionSnapshot!.state.name}'),
+                    ),
+                    Chip(
+                      label: Text(
+                        'pty-lines ${sessionSnapshot!.outputLines.length}',
+                      ),
+                    ),
+                    Chip(
+                      label: Text(
+                        'pty-events ${sessionSnapshot!.events.length}',
+                      ),
+                    ),
+                    if (sessionSnapshot!.lastResize != null)
+                      Chip(
+                        label: Text(
+                          'resize ${sessionSnapshot!.lastResize!.rows}x${sessionSnapshot!.lastResize!.cols}',
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('terminal-start-session'),
+                    onPressed: onStartSession,
+                    icon: const Icon(Icons.terminal_rounded),
+                    label: const Text('Start Terminal'),
                   ),
-                ),
-                const SizedBox(width: 10),
-                FilledButton.icon(
-                  key: const ValueKey('terminal-run-active-target'),
-                  onPressed: onRunActiveTarget,
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Run'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text('Output', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            if (combinedEntries.isEmpty)
-              Text(
-                'No terminal, shell, or runtime output has been recorded.',
-                style: theme.textTheme.bodySmall,
-              )
-            else
-              Expanded(
-                child: Container(
-                  key: const ValueKey('terminal-output-buffer'),
+                  OutlinedButton.icon(
+                    key: const ValueKey('terminal-resize-session'),
+                    onPressed:
+                        sessionSnapshot == null || onResizeSession == null
+                        ? null
+                        : () {
+                            onResizeSession!(24, 80);
+                          },
+                    icon: const Icon(Icons.fit_screen_rounded),
+                    label: const Text('Resize 24x80'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('terminal-close-session'),
+                    onPressed: sessionSnapshot == null ? null : onCloseSession,
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    label: const Text('Close Terminal'),
+                  ),
+                ],
+              ),
+              if (startPlan != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  key: const ValueKey('terminal-start-plan'),
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF111A1F),
+                    color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   padding: const EdgeInsets.all(12),
-                  child: ListView.builder(
-                    itemCount: combinedEntries.length,
-                    itemBuilder: (context, index) {
-                      return Text(
-                        combinedEntries[index],
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFFD9E7DE),
-                          fontFamily: 'monospace',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Start plan', style: theme.textTheme.titleSmall),
+                      const SizedBox(height: 6),
+                      Text(
+                        'shell ${startPlan!.executablePath} ${startPlan!.rows}x${startPlan!.cols}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      if (startPlan!.workingDirectory != null)
+                        Text(
+                          'cwd ${startPlan!.workingDirectory}',
+                          style: theme.textTheme.bodySmall,
                         ),
-                      );
-                    },
+                      Text(
+                        'backend ${startPlan!.backendExecutablePath}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      if (startPlan!.backendArguments.isNotEmpty)
+                        Text(
+                          'args ${startPlan!.backendArguments.join(' ')}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      if (startPlan!.unsupportedMessage != null)
+                        Text(
+                          key: const ValueKey('terminal-start-plan-message'),
+                          startPlan!.unsupportedMessage!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('terminal-command-input'),
+                      enabled: onSendInput != null,
+                      textInputAction: TextInputAction.send,
+                      decoration: InputDecoration(
+                        labelText: 'Terminal input',
+                        helperText: onSendInput == null
+                            ? 'TODO: enable after interactive PTY sessions are wired.'
+                            : 'Send input to the active PTY session.',
+                        border: const OutlineInputBorder(),
+                      ),
+                      onSubmitted: onSendInput,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton.icon(
+                    key: const ValueKey('terminal-run-active-target'),
+                    onPressed: onRunActiveTarget,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Run'),
+                  ),
+                ],
               ),
-          ],
+              const SizedBox(height: 12),
+              Text('Output', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              if (combinedEntries.isEmpty)
+                Text(
+                  'No terminal, shell, or runtime output has been recorded.',
+                  style: theme.textTheme.bodySmall,
+                )
+              else
+                SizedBox(
+                  height: compact ? 180 : 220,
+                  child: Container(
+                    key: const ValueKey('terminal-output-buffer'),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF111A1F),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: ListView.builder(
+                      itemCount: combinedEntries.length,
+                      itemBuilder: (context, index) {
+                        return Text(
+                          combinedEntries[index],
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFFD9E7DE),
+                            fontFamily: 'monospace',
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

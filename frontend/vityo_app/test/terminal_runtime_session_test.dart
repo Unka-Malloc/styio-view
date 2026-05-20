@@ -8,6 +8,46 @@ import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
 void main() {
+  test('terminal runtime exposes a serializable PTY start plan', () async {
+    final session = _FakePtySession();
+    addTearDown(() async {
+      await session.close();
+    });
+    final runtime = TerminalRuntime(
+      ptyManager: _FakePtyManager(session),
+      shellConfiguration: const ShellConfiguration(
+        defaultProfileId: 'sh',
+        profiles: <ShellProfileConfiguration>[
+          ShellProfileConfiguration(
+            id: 'sh',
+            executablePath: '/bin/sh',
+            family: ShellFamily.sh,
+          ),
+        ],
+      ),
+    );
+
+    final plan = runtime.planStart(
+      workingDirectory: '/workspace/vityo',
+      rows: 30,
+      cols: 100,
+    );
+
+    expect(plan.profileId, 'sh');
+    expect(plan.executablePath, '/bin/sh');
+    expect(plan.workingDirectory, '/workspace/vityo');
+    expect(plan.rows, 30);
+    expect(plan.cols, 100);
+    expect(plan.supported, isTrue);
+    expect(plan.backendExecutablePath, '/script');
+    expect(
+      plan.backendArguments.any((argument) => argument.contains('/bin/sh')),
+      isTrue,
+    );
+    expect(plan.toJson()['providerKind'], plan.providerKind);
+    expect(plan.toJson()['supported'], isTrue);
+  });
+
   test(
     'terminal interaction controller records output input and resize',
     () async {

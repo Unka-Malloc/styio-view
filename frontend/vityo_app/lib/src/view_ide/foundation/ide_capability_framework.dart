@@ -520,9 +520,9 @@ class VityoIdeCapabilityFramework {
           layer: IdeCapabilityLayer.runtime,
           title: 'Terminal, PTY, and task runner',
           status: IdeCapabilityStatus.scaffolded,
-          ownerPath: 'lib/src/view_ide/shell_runtime',
+          ownerPath: 'lib/src/view_ide/toolchain/terminal_runtime.dart',
           summary:
-              'Terminal surface is wired to shell/runtime output, RuntimeOutputLiveBuffer panel snapshots, TerminalInteractionController live RuntimeOutputEvent streams, RuntimeOutputProducerEmission adapter binding, ShellManager runtime output adapter bindings, line-chunked ShellCommandResult stdout/stderr events, run handoff, PTY session snapshots, script-PTY stdout/stderr merged output streams, explicit start/resize/close UI controls, TerminalInteractionController input/resize/close contracts, serializable interaction events, terminal-to-runtime-output event conversion, ShellCommandResult output binding, shared runtime task lifecycle snapshots on start/close, and persisted terminal task history.',
+              'Terminal surface is wired to shell/runtime output, RuntimeOutputLiveBuffer panel snapshots, TerminalRuntimeStartPlan readiness, PtyExecutionPlan backend details, TerminalInteractionController live RuntimeOutputEvent streams, RuntimeOutputProducerEmission adapter binding, ShellManager runtime output adapter bindings, line-chunked ShellCommandResult stdout/stderr events, run handoff, PTY session snapshots, script-PTY stdout/stderr merged output streams, explicit start/resize/close UI controls, TerminalInteractionController input/resize/close contracts, serializable interaction events, terminal-to-runtime-output event conversion, ShellCommandResult output binding, shared runtime task lifecycle snapshots on start/close, and persisted terminal task history.',
           todo:
               'TODO: connect native OS PTY resize/signals to lower-level PTY manager implementations.',
           references: <String>[

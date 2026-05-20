@@ -357,6 +357,45 @@ class TerminalRuntimeStartResult {
   }
 }
 
+class TerminalRuntimeStartPlan {
+  const TerminalRuntimeStartPlan({
+    required this.profileId,
+    required this.executablePath,
+    required this.workingDirectory,
+    required this.rows,
+    required this.cols,
+    required this.ptyPlan,
+  });
+
+  final String profileId;
+  final String executablePath;
+  final String? workingDirectory;
+  final int rows;
+  final int cols;
+  final PtyExecutionPlan ptyPlan;
+
+  bool get supported => ptyPlan.supported;
+  String get providerKind => ptyPlan.providerKind.wireValue;
+  String get backendExecutablePath => ptyPlan.backendExecutablePath;
+  List<String> get backendArguments => ptyPlan.backendArguments;
+  String? get unsupportedMessage => ptyPlan.unsupportedMessage;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'profileId': profileId,
+      'executablePath': executablePath,
+      if (workingDirectory != null) 'workingDirectory': workingDirectory,
+      'rows': rows,
+      'cols': cols,
+      'supported': supported,
+      'providerKind': providerKind,
+      'backendExecutablePath': backendExecutablePath,
+      'backendArguments': backendArguments,
+      if (unsupportedMessage != null) 'unsupportedMessage': unsupportedMessage,
+    };
+  }
+}
+
 class TerminalInteractionController extends ChangeNotifier {
   TerminalInteractionController({
     required this.runtime,
@@ -655,6 +694,37 @@ class TerminalRuntime {
     return context.environmentPathListSeparator;
   }
 
+  TerminalRuntimeStartPlan planStart({
+    ShellProfileConfiguration? profile,
+    Iterable<Map<String, String?>> envFileVariables =
+        const <Map<String, String?>>[],
+    Iterable<EnvironmentVariableOverlay> environmentOverlays =
+        const <EnvironmentVariableOverlay>[],
+    Map<String, String> environment = const <String, String>{},
+    String? workingDirectory,
+    int rows = 24,
+    int cols = 80,
+  }) {
+    final selectedProfile = profile ?? _shellConfiguration.defaultProfile;
+    final request = _buildPtySessionRequest(
+      selectedProfile: selectedProfile,
+      envFileVariables: envFileVariables,
+      environmentOverlays: environmentOverlays,
+      environment: environment,
+      workingDirectory: workingDirectory,
+      rows: rows,
+      cols: cols,
+    );
+    return TerminalRuntimeStartPlan(
+      profileId: selectedProfile?.id ?? 'unconfigured',
+      executablePath: request.executablePath,
+      workingDirectory: workingDirectory,
+      rows: rows,
+      cols: cols,
+      ptyPlan: PtyAdapter(_ptyManager.facts).plan(request),
+    );
+  }
+
   Future<PtySession> start({
     ShellProfileConfiguration? profile,
     Iterable<Map<String, String?>> envFileVariables =
@@ -667,45 +737,63 @@ class TerminalRuntime {
     int cols = 80,
   }) {
     final selectedProfile = profile ?? _shellConfiguration.defaultProfile;
-    if (selectedProfile == null) {
-      return _ptyManager.start(
-        PtySessionRequest(
-          executablePath: '',
-          workingDirectory: workingDirectory,
-          rows: rows,
-          cols: cols,
-        ),
-      );
-    }
     return _ptyManager.start(
-      PtySessionRequest(
-        executablePath: selectedProfile.executablePath,
-        arguments: selectedProfile.arguments,
-        environment: _environmentResolver.resolve(
-          inherited: _inheritedEnvironment,
-          envFileVariables: envFileVariables,
-          overlays: <EnvironmentVariableOverlay>[
-            EnvironmentVariableOverlay(
-              id: 'shell-configuration',
-              scope: EnvironmentVariableOverlayScope.profile,
-              target: 'terminal',
-              variables: _shellConfiguration.environmentOverlay,
-            ),
-            ...environmentOverlays,
-            EnvironmentVariableOverlay(
-              id: selectedProfile.id,
-              scope: EnvironmentVariableOverlayScope.profile,
-              target: 'terminal',
-              variables: selectedProfile.environment,
-            ),
-          ],
-          runtimeOverrides: environment,
-          pathSeparator: _pathSeparator,
-        ),
+      _buildPtySessionRequest(
+        selectedProfile: selectedProfile,
+        envFileVariables: envFileVariables,
+        environmentOverlays: environmentOverlays,
+        environment: environment,
         workingDirectory: workingDirectory,
         rows: rows,
         cols: cols,
       ),
+    );
+  }
+
+  PtySessionRequest _buildPtySessionRequest({
+    required ShellProfileConfiguration? selectedProfile,
+    required Iterable<Map<String, String?>> envFileVariables,
+    required Iterable<EnvironmentVariableOverlay> environmentOverlays,
+    required Map<String, String> environment,
+    required String? workingDirectory,
+    required int rows,
+    required int cols,
+  }) {
+    if (selectedProfile == null) {
+      return PtySessionRequest(
+        executablePath: '',
+        workingDirectory: workingDirectory,
+        rows: rows,
+        cols: cols,
+      );
+    }
+    return PtySessionRequest(
+      executablePath: selectedProfile.executablePath,
+      arguments: selectedProfile.arguments,
+      environment: _environmentResolver.resolve(
+        inherited: _inheritedEnvironment,
+        envFileVariables: envFileVariables,
+        overlays: <EnvironmentVariableOverlay>[
+          EnvironmentVariableOverlay(
+            id: 'shell-configuration',
+            scope: EnvironmentVariableOverlayScope.profile,
+            target: 'terminal',
+            variables: _shellConfiguration.environmentOverlay,
+          ),
+          ...environmentOverlays,
+          EnvironmentVariableOverlay(
+            id: selectedProfile.id,
+            scope: EnvironmentVariableOverlayScope.profile,
+            target: 'terminal',
+            variables: selectedProfile.environment,
+          ),
+        ],
+        runtimeOverrides: environment,
+        pathSeparator: _pathSeparator,
+      ),
+      workingDirectory: workingDirectory,
+      rows: rows,
+      cols: cols,
     );
   }
 

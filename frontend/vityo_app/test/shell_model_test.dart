@@ -18,6 +18,7 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/editor/session/editor_session_data_store.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
+import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_event_bridge.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_configuration_store.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_executor.dart'
@@ -474,6 +475,119 @@ void main() {
       expect(agentRefreshResult?.message, contains('Source control refreshed'));
     },
   );
+
+  test('hydrates semantic panel events through shell runtime store', () async {
+    const documentPath = '/workspace/demo/src/main.styio';
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_shell_semantic_panel_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final resourceManager = LocalResourceManager(
+      facts: ResourceFacts.linuxDebianArm(
+        systemTempPath: tempRoot.path,
+        homePath: tempRoot.path,
+      ),
+    );
+    final dataStore = FoundationDataStore(
+      resourceCoordinator: FoundationResourceCoordinator(
+        resourceManager: resourceManager,
+        fileSystemManager: fileSystemManager,
+      ),
+      fileSystemManager: fileSystemManager,
+    );
+    final semanticPanelStore = SemanticSnapshotPanelEventStore.fromDataStore(
+      dataStore: dataStore,
+    );
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.1',
+      compilePlanReady: false,
+      editorFiles: const <String>[documentPath],
+    );
+    await semanticPanelStore.recordEvent(
+      workspaceId: 'demo',
+      event: SemanticSnapshotPanelEvent(
+        target: SemanticSnapshotPanelEventTarget.problems,
+        kind: SemanticSnapshotTelemetryEventKind.codeActionDiscovery,
+        documentId: documentPath,
+        message: 'Fixture quick fix facts are available.',
+        payload: const <String, Object?>{'actionCount': 1},
+        timestamp: DateTime.utc(2026, 5, 20, 1),
+      ),
+    );
+    final shell = ShellModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _SequenceProjectGraphAdapter(
+        snapshots: <ProjectGraphSnapshot>[initialGraph],
+      ),
+      workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: documentPath,
+          text: '#main := () => {}',
+          revision: 1,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+      ),
+      executionAdapter: const _SuccessfulExecutionAdapter(
+        sessionId: 'shell-semantic-panel',
+      ),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _SuccessfulExecutionAdapter(sessionId: 'shell-semantic-panel'),
+      runtimeEventAdapter: createRuntimeEventAdapter(
+        platformTarget: PlatformTarget.macos,
+      ),
+      dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+      deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+      toolchainManagementAdapter: const _SuccessfulToolchainManagementAdapter(),
+      semanticPanelEventStore: semanticPanelStore,
+      semanticPanelEventWorkspaceId: 'demo',
+    );
+    addTearDown(shell.dispose);
+
+    final restoredStates = await shell.restoreSemanticPanelEvents();
+    final languageJson =
+        shell.agentSessionContext.toJson()['language']! as Map<String, Object?>;
+
+    expect(restoredStates.length, SemanticSnapshotPanelEventTarget.values.length);
+    expect(shell.semanticProblemsPanelViewModel?.itemCount, 1);
+    expect(languageJson['semanticPanelViewModelCount'], 1);
+    expect(languageJson['semanticPanelViewModels'], isA<List<Object?>>());
+
+    await shell.recordSemanticPanelEvent(
+      SemanticSnapshotPanelEvent(
+        target: SemanticSnapshotPanelEventTarget.refactor,
+        kind: SemanticSnapshotTelemetryEventKind.renameSafety,
+        documentId: documentPath,
+        message: 'Rename main to appMain is safe.',
+        payload: const <String, Object?>{
+          'safe': true,
+          'targetName': 'main',
+          'newName': 'appMain',
+        },
+        timestamp: DateTime.utc(2026, 5, 20, 2),
+      ),
+    );
+    final storedRefactor = await semanticPanelStore.readState(
+      workspaceId: 'demo',
+      target: SemanticSnapshotPanelEventTarget.refactor,
+    );
+    final updatedLanguageJson =
+        shell.agentSessionContext.toJson()['language']! as Map<String, Object?>;
+
+    expect(shell.semanticRefactorPanelViewModel?.renameSafetyCount, 1);
+    expect(storedRefactor.events.single.message, contains('safe'));
+    expect(updatedLanguageJson['semanticPanelViewModelCount'], 2);
+  });
 
   test(
     'go to definition opens project definition across workspace documents',

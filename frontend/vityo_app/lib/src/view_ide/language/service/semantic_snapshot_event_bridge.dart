@@ -505,8 +505,29 @@ class SemanticSnapshotPanelEventStateController {
     );
   }
 
+  void replaceState(SemanticSnapshotPanelEventState state) {
+    _states[state.target] = state;
+  }
+
+  void replaceStates(Iterable<SemanticSnapshotPanelEventState> states) {
+    for (final state in states) {
+      replaceState(state);
+    }
+  }
+
+  SemanticSnapshotPanelEventState recordEvent(
+    SemanticSnapshotPanelEvent event, {
+    int maxEvents = 50,
+  }) {
+    final next = stateFor(
+      event.target,
+    ).record(event, maxEvents: maxEvents, updatedAt: event.timestamp);
+    replaceState(next);
+    return next;
+  }
+
   void handle(SemanticSnapshotPanelEvent event) {
-    _states[event.target] = stateFor(event.target).record(event);
+    recordEvent(event);
   }
 
   Map<String, Object?> toJson() {

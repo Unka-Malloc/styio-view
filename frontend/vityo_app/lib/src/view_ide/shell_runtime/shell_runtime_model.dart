@@ -15,6 +15,7 @@ import '../editor/editor.dart';
 import '../environment/configuration/configuration.dart';
 import '../interaction/interaction.dart';
 import '../language/language_contract.dart';
+import '../language/service/semantic_snapshot_event_bridge.dart';
 import '../language/service/service.dart';
 import '../module_host/module_host.dart';
 import '../platform/platform.dart';
@@ -421,10 +422,19 @@ class ShellRuntimeModel extends ChangeNotifier {
     this.debugRuntimeTaskHistoryWorkspaceId = 'default',
     this.debugRuntimeTaskHistoryMaxEntries = 50,
     RuntimeOutputLiveBuffer? runtimeOutputBuffer,
+    SemanticSnapshotPanelEventStateController?
+    semanticPanelEventStateController,
+    this.semanticPanelEventStore,
+    String? semanticPanelEventWorkspaceId,
   }) : _activeDocumentPath = workspaceController.activeFilePath,
        projectLanguageService =
            projectLanguageService ?? const ProjectStyioLanguageService(),
        runtimeOutputBuffer = runtimeOutputBuffer ?? RuntimeOutputLiveBuffer(),
+       semanticPanelEventStateController =
+           semanticPanelEventStateController ??
+           SemanticSnapshotPanelEventStateController(),
+       semanticPanelEventWorkspaceId =
+           semanticPanelEventWorkspaceId ?? editorSessionWorkspaceId,
        _ownsRuntimeOutputBuffer = runtimeOutputBuffer == null,
        languageServiceStatus =
            languageServiceStatus ??
@@ -531,6 +541,10 @@ class ShellRuntimeModel extends ChangeNotifier {
   final String debugRuntimeTaskHistoryWorkspaceId;
   final int debugRuntimeTaskHistoryMaxEntries;
   final RuntimeOutputLiveBuffer runtimeOutputBuffer;
+  final SemanticSnapshotPanelEventStateController
+  semanticPanelEventStateController;
+  final SemanticSnapshotPanelEventStore? semanticPanelEventStore;
+  final String semanticPanelEventWorkspaceId;
   final bool _ownsLanguageServiceStatus;
   final bool _ownsAgentCodingController;
   final bool _ownsCommandPalettePreferenceController;
@@ -659,6 +673,29 @@ class ShellRuntimeModel extends ChangeNotifier {
       _localDirtySourceControlStatusSnapshot();
   SourceControlDiffSnapshot? get sourceControlDiffPreview =>
       sourceControlStatusController?.diffPreview;
+
+  SemanticSnapshotPanelViewModel? semanticPanelViewModelFor(
+    SemanticSnapshotPanelEventTarget target,
+  ) {
+    final viewModel = SemanticSnapshotPanelViewModel.fromState(
+      semanticPanelEventStateController.stateFor(target),
+    );
+    return viewModel.empty ? null : viewModel;
+  }
+
+  SemanticSnapshotPanelViewModel? get semanticProblemsPanelViewModel =>
+      semanticPanelViewModelFor(SemanticSnapshotPanelEventTarget.problems);
+
+  SemanticSnapshotPanelViewModel? get semanticRefactorPanelViewModel =>
+      semanticPanelViewModelFor(SemanticSnapshotPanelEventTarget.refactor);
+
+  List<SemanticSnapshotPanelViewModel> get semanticPanelViewModels {
+    return <SemanticSnapshotPanelViewModel>[
+      for (final target in SemanticSnapshotPanelEventTarget.values)
+        if (semanticPanelViewModelFor(target) != null)
+          semanticPanelViewModelFor(target)!,
+    ];
+  }
 
   HoverPayload? get projectHoverAtSelection {
     final hover = projectLanguageService.hoverAt(
@@ -822,7 +859,81 @@ class ShellRuntimeModel extends ChangeNotifier {
       toolchainSnapshot:
           toolchainStatusReport?.value.snapshot ?? _lastToolchainSnapshot,
       clangCppVersionPreference: _clangCppVersionPreference,
+      semanticPanelViewModels: semanticPanelViewModels,
     );
+  }
+
+  Future<List<SemanticSnapshotPanelEventState>> restoreSemanticPanelEvents({
+    String? workspaceId,
+  }) async {
+    final store = semanticPanelEventStore;
+    if (store == null) {
+      appendLog(
+        'Semantic panel event restore unavailable: no DataStore is wired.',
+      );
+      return <SemanticSnapshotPanelEventState>[
+        for (final target in SemanticSnapshotPanelEventTarget.values)
+          semanticPanelEventStateController.stateFor(target),
+      ];
+    }
+    final resolvedWorkspaceId = workspaceId ?? semanticPanelEventWorkspaceId;
+    final states = <SemanticSnapshotPanelEventState>[];
+    for (final target in SemanticSnapshotPanelEventTarget.values) {
+      states.add(
+        await store.readState(workspaceId: resolvedWorkspaceId, target: target),
+      );
+    }
+    semanticPanelEventStateController.replaceStates(states);
+    appendLog(
+      'Semantic panel events restored for $resolvedWorkspaceId: '
+      '${semanticPanelViewModels.length} active panel(s).',
+    );
+    notifyListeners();
+    return List<SemanticSnapshotPanelEventState>.unmodifiable(states);
+  }
+
+  Future<SemanticSnapshotPanelEventState> recordSemanticPanelEvent(
+    SemanticSnapshotPanelEvent event, {
+    String? workspaceId,
+    int? maxEvents,
+  }) async {
+    final store = semanticPanelEventStore;
+    final localMaxEvents =
+        maxEvents ?? store?.retentionPolicy.maxEventsPerTarget ?? 50;
+    var state = semanticPanelEventStateController.recordEvent(
+      event,
+      maxEvents: localMaxEvents,
+    );
+    if (store != null) {
+      try {
+        state = await store.recordEvent(
+          workspaceId: workspaceId ?? semanticPanelEventWorkspaceId,
+          event: event,
+          maxEvents: maxEvents,
+        );
+        semanticPanelEventStateController.replaceState(state);
+      } on Object catch (error) {
+        appendLog('Semantic panel event persistence failed: $error');
+      }
+    }
+    notifyListeners();
+    return state;
+  }
+
+  Future<SemanticSnapshotPanelEvent?> recordSemanticRuntimeOutputEvent(
+    RuntimeOutputEvent event, {
+    bool publishToRuntimeOutput = true,
+  }) async {
+    if (publishToRuntimeOutput) {
+      runtimeOutputBuffer.addEvent(event);
+    }
+    final panelEvent =
+        const SemanticSnapshotPanelEventDispatcher().panelEventFor(event);
+    if (panelEvent == null) {
+      return null;
+    }
+    await recordSemanticPanelEvent(panelEvent);
+    return panelEvent;
   }
 
   SourceControlStatusSnapshot _localDirtySourceControlStatusSnapshot() {

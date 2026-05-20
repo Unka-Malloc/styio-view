@@ -49,6 +49,9 @@ class ShellModel extends ShellRuntimeModel {
     super.testingSessionController,
     super.sourceControlStatusController,
     super.projectLanguageService,
+    super.semanticPanelEventStateController,
+    super.semanticPanelEventStore,
+    super.semanticPanelEventWorkspaceId,
     ShellLayoutPreferenceController? shellLayoutPreferenceController,
   }) : shellLayoutPreferenceController =
            shellLayoutPreferenceController ??

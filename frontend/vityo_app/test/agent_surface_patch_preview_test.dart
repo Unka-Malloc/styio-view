@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_code_patch_applier.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_coding_session_history_store.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
@@ -87,6 +88,84 @@ void main() {
     expect(
       find.textContaining('Styio source files require StyioService-backed'),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('agent surface displays recovery action from history', (
+    tester,
+  ) async {
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord.failure(
+          requestId: 'agent-failed',
+          profile: profile,
+          providerKind: AgentProviderKind.cloudOpenAICompatible,
+          prompt: 'Recover this failed prompt.',
+          errorMessage: 'provider timed out',
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+        ),
+      ],
+    );
+    final controller = AgentCodingSessionController(
+      profile: profile,
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+      sessionHistoryStore: _MemoryAgentCodingSessionHistoryStore(history),
+      sessionHistoryWorkspaceId: 'demo',
+    );
+    addTearDown(controller.dispose);
+    await controller.loadSessionHistory();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-recovery-action-card')),
+      findsOneWidget,
+    );
+    expect(find.text('Recovery Available'), findsOneWidget);
+    expect(find.text('Retry same provider'), findsOneWidget);
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-recovery-restore-prompt')),
+    );
+    await tester.pump();
+
+    expect(controller.draftPrompt, 'Recover this failed prompt.');
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey('agent-prompt-input')),
+          )
+          .controller
+          ?.text,
+      'Recover this failed prompt.',
     );
   });
 
@@ -4870,6 +4949,52 @@ class _StructuredFailureSurfaceAgentProviderAdapter
       message: 'provider timed out',
       recoveryHint: 'Check provider credentials.',
     );
+  }
+}
+
+class _MemoryAgentCodingSessionHistoryStore
+    implements AgentCodingSessionHistoryStore {
+  _MemoryAgentCodingSessionHistoryStore(this.history);
+
+  AgentCodingSessionHistory history;
+
+  @override
+  Future<AgentCodingSessionHistory> readHistory({
+    required String workspaceId,
+  }) async {
+    return history.workspaceId == workspaceId
+        ? history
+        : AgentCodingSessionHistory(workspaceId: workspaceId);
+  }
+
+  @override
+  Future<AgentCodingSessionHistory> appendRecord({
+    required String workspaceId,
+    required AgentCodingSessionHistoryRecord record,
+    int maxEntries = 50,
+  }) async {
+    final current = await readHistory(workspaceId: workspaceId);
+    history = current.append(record, maxEntries: maxEntries);
+    return history;
+  }
+
+  @override
+  Future<AgentCodingSessionCheckpoint> readCheckpoint({
+    required String workspaceId,
+  }) async {
+    return (await readHistory(workspaceId: workspaceId)).toCheckpoint();
+  }
+
+  @override
+  Future<AgentCodingSessionRecoveryPlan> readRecoveryPlan({
+    required String workspaceId,
+  }) async {
+    return (await readHistory(workspaceId: workspaceId)).toRecoveryPlan();
+  }
+
+  @override
+  Future<void> saveHistory(AgentCodingSessionHistory history) async {
+    this.history = history;
   }
 }
 

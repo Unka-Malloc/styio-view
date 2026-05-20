@@ -1486,6 +1486,11 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
             patchResult != null ||
             controller.lastError != null ||
             controller.lastProviderFailure != null;
+        final recoveryPlan = controller.sessionRecoveryPlan;
+        final recoveryCommand =
+            recoveryPlan.status == AgentCodingSessionRecoveryStatus.available
+            ? recoveryPlan.commandFor(recoveryPlan.recommendedAction)
+            : null;
 
         return Container(
           key: const ValueKey('agent-prompt-section'),
@@ -1680,6 +1685,63 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                     child: const Text('Use Local Fallback'),
                   ),
                 ],
+              ],
+              if (recoveryCommand != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  key: const ValueKey('agent-recovery-action-card'),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.62),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Recovery Available',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        recoveryCommand.label,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton(
+                            key: const ValueKey(
+                              'agent-recovery-restore-prompt',
+                            ),
+                            onPressed: applyingAction || controller.sending
+                                ? null
+                                : () => controller.restoreRecoveryDraft(
+                                    recoveryPlan.recommendedAction,
+                                  ),
+                            child: const Text('Restore Prompt'),
+                          ),
+                          FilledButton.tonal(
+                            key: const ValueKey(
+                              'agent-recovery-dispatch-confirmed',
+                            ),
+                            onPressed: applyingAction || controller.sending
+                                ? null
+                                : () => unawaited(
+                                    controller.dispatchRecoveryRequestDraft(
+                                      recoveryPlan.recommendedAction,
+                                      confirmed: true,
+                                    ),
+                                  ),
+                            child: const Text('Run Recovery'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ],
               if (responseText != null && responseText.isNotEmpty) ...[
                 const SizedBox(height: 10),

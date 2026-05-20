@@ -565,7 +565,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'OpenAI-compatible and OpenAI Responses providers, explicit OpenAI Codex Spark preset, Credential DataStore-backed bearer token references, credential-backed routes, fallback readiness, provider execution context, structured response tool definitions, and extension agent provider contribution manifests.',
+              'OpenAI-compatible and OpenAI Responses providers, explicit OpenAI Codex Spark preset, Credential DataStore-backed bearer token references, credential-backed routes, fallback readiness, provider execution context, checkpoint-aware prompt rules, structured response tool definitions, and extension agent provider contribution manifests.',
         ),
         IdeCapabilityDescriptor(
           id: 'agent.coding-loop',

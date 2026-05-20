@@ -36,8 +36,15 @@ void main() {
     expect(decoded.systemPrompt, contains('save/save-all'));
     expect(decoded.systemPrompt, contains('testing.discovered.testCount'));
     expect(decoded.systemPrompt, contains('testing.lastRun.failedTests'));
+    expect(decoded.systemPrompt, contains('testing.rerunFailed'));
+    expect(decoded.systemPrompt, contains('testing.debugFailed'));
     expect(decoded.systemPrompt, contains('skills.activeSkillIds'));
     expect(decoded.systemPrompt, contains('workspace-activated coding skills'));
+    expect(decoded.systemPrompt, contains('workspace.sourceControlContext'));
+    expect(
+      decoded.systemPrompt,
+      contains('workspace.sourceControlContext.requiresHumanConfirmation'),
+    );
     expect(decoded.systemPrompt, contains('language.focusToken'));
     expect(decoded.systemPrompt, contains('token nearest'));
     expect(decoded.systemPrompt, contains('language.focusedDiagnostics'));
@@ -88,6 +95,13 @@ void main() {
       ),
     );
     expect(decoded.systemPrompt, contains('metadata.workspaceEditPreview'));
+    expect(decoded.systemPrompt, contains('collectAgentCodingCheckpoint'));
+    expect(decoded.systemPrompt, contains('metadata.sourceControlContext'));
+    expect(decoded.systemPrompt, contains('metadata.languageServiceStatus'));
+    expect(
+      decoded.systemPrompt,
+      contains('metadata.agentContextSchemaVersion'),
+    );
     expect(decoded.systemPrompt, contains('applying applyQuickFix'));
     expect(decoded.systemPrompt, contains('backendRouteSelection'));
     expect(decoded.systemPrompt, contains('toolchainSelectionStatus'));
@@ -122,6 +136,18 @@ void main() {
     expect(
       decoded.systemPrompt,
       contains('language.serviceStatus.grammarVersion'),
+    );
+    expect(
+      decoded.systemPrompt,
+      contains('language.serviceStatus.syntaxValidationReady'),
+    );
+    expect(
+      decoded.systemPrompt,
+      contains('language.serviceStatus.semanticFactsReady'),
+    );
+    expect(
+      decoded.systemPrompt,
+      contains('language.serviceStatus.unavailablePrimaryCapabilities'),
     );
     expect(decoded.systemPrompt, contains('real StyioService facts'));
     expect(

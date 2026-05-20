@@ -181,6 +181,10 @@ void main() {
     );
     expect(
       entriesById['agent.provider']?.summary,
+      contains('checkpoint-aware prompt rules'),
+    );
+    expect(
+      entriesById['agent.provider']?.summary,
       contains('Credential DataStore-backed bearer token references'),
     );
     expect(

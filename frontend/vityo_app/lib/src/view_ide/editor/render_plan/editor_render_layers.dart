@@ -133,6 +133,94 @@ class EditorSemanticTheme {
   }
 }
 
+class EditorSemanticRenderStyle {
+  const EditorSemanticRenderStyle({
+    required this.styleId,
+    required this.foregroundColor,
+    this.fontWeight = 'normal',
+    this.decoration = '',
+    this.decorationColor,
+  });
+
+  final String styleId;
+  final int foregroundColor;
+  final String fontWeight;
+  final String decoration;
+  final int? decorationColor;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'styleId': styleId,
+      'foregroundColor': foregroundColor,
+      'fontWeight': fontWeight,
+      if (decoration.isNotEmpty) 'decoration': decoration,
+      if (decorationColor != null) 'decorationColor': decorationColor,
+    };
+  }
+}
+
+class EditorSemanticThemeBinding {
+  const EditorSemanticThemeBinding({
+    required this.themeId,
+    required this.semanticStyles,
+    required this.diagnosticStyles,
+    this.todo = '',
+  });
+
+  factory EditorSemanticThemeBinding.fromTheme(EditorSemanticTheme theme) {
+    return EditorSemanticThemeBinding(
+      themeId: theme.themeId,
+      semanticStyles: <String, EditorSemanticRenderStyle>{
+        for (final entry in theme.semanticColors.entries)
+          entry.key: EditorSemanticRenderStyle(
+            styleId: 'semantic.${entry.key}',
+            foregroundColor: entry.value,
+            fontWeight: _semanticFontWeight(entry.key),
+          ),
+      },
+      diagnosticStyles: <String, EditorSemanticRenderStyle>{
+        for (final entry in theme.diagnosticUnderlineColors.entries)
+          entry.key: EditorSemanticRenderStyle(
+            styleId: 'diagnostic.${entry.key}',
+            foregroundColor: entry.value,
+            decoration: 'underline',
+            decorationColor: entry.value,
+          ),
+      },
+      todo:
+          'TODO: bind these render styles into the concrete TextSpan/TextStyle pipeline.',
+    );
+  }
+
+  final String themeId;
+  final Map<String, EditorSemanticRenderStyle> semanticStyles;
+  final Map<String, EditorSemanticRenderStyle> diagnosticStyles;
+  final String todo;
+
+  EditorSemanticRenderStyle? styleForSemanticKind(SemanticKind kind) {
+    return semanticStyles[kind.name];
+  }
+
+  EditorSemanticRenderStyle? styleForDiagnosticSeverity(
+    DiagnosticSeverity severity,
+  ) {
+    return diagnosticStyles[severity.name];
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'themeId': themeId,
+      'semanticStyles': semanticStyles.map(
+        (key, value) => MapEntry<String, Object?>(key, value.toJson()),
+      ),
+      'diagnosticStyles': diagnosticStyles.map(
+        (key, value) => MapEntry<String, Object?>(key, value.toJson()),
+      ),
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
 Map<String, int> _intMapFromJson(Object? value) {
   if (value is! Map) {
     return const <String, int>{};
@@ -141,4 +229,12 @@ Map<String, int> _intMapFromJson(Object? value) {
     final parsedValue = value is int ? value : int.tryParse('$value') ?? 0;
     return MapEntry<String, int>(key.toString(), parsedValue);
   });
+}
+
+String _semanticFontWeight(String semanticKind) {
+  return switch (semanticKind) {
+    'function' || 'typeName' => '600',
+    'state' || 'resource' => '500',
+    _ => 'normal',
+  };
 }

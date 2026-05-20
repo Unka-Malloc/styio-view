@@ -25,6 +25,7 @@ void main() {
   test('editor semantic theme maps semantic and diagnostic colors', () {
     final theme = EditorSemanticTheme.foundation();
     final restored = EditorSemanticTheme.fromJson(theme.toJson());
+    final binding = EditorSemanticThemeBinding.fromTheme(restored);
 
     expect(restored.themeId, 'vityo.foundation.semantic');
     expect(restored.colorForSemanticKind(SemanticKind.function), 0xFFAA4D7D);
@@ -33,6 +34,21 @@ void main() {
       restored.underlineColorForSeverity(DiagnosticSeverity.error),
       0xFFCB4D45,
     );
+    expect(
+      binding.styleForSemanticKind(SemanticKind.function)?.styleId,
+      'semantic.function',
+    );
+    expect(
+      binding.styleForSemanticKind(SemanticKind.function)?.fontWeight,
+      '600',
+    );
+    expect(
+      binding
+          .styleForDiagnosticSeverity(DiagnosticSeverity.warning)
+          ?.decoration,
+      'underline',
+    );
+    expect(binding.toJson()['todo'], contains('TextSpan/TextStyle'));
   });
 
   test('editor render snapshot captures controller presentation facts', () {

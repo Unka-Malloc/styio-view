@@ -254,6 +254,10 @@ void main() {
       AgentCodingSessionCheckpointStatus.ready,
     );
     expect(controller.sessionCheckpoint.latestRequestId, 'agent-request-1');
+    expect(
+      controller.sessionRecoveryPlan.status,
+      AgentCodingSessionRecoveryStatus.notNeeded,
+    );
   });
 
   test('agent coding session sends previous turns with next prompt', () async {
@@ -1907,6 +1911,13 @@ class _ThrowingAgentCodingSessionHistoryStore
 
   @override
   Future<AgentCodingSessionCheckpoint> readCheckpoint({
+    required String workspaceId,
+  }) async {
+    throw StateError(readMessage);
+  }
+
+  @override
+  Future<AgentCodingSessionRecoveryPlan> readRecoveryPlan({
     required String workspaceId,
   }) async {
     throw StateError(readMessage);

@@ -65,6 +65,7 @@ void main() {
     await store.appendRecord(workspaceId: 'demo', record: record);
     final restored = await store.readHistory(workspaceId: 'demo');
     final checkpoint = await store.readCheckpoint(workspaceId: 'demo');
+    final recoveryPlan = await store.readRecoveryPlan(workspaceId: 'demo');
 
     expect(restored.records.single.requestId, 'agent-1');
     expect(restored.records.single.succeeded, isTrue);
@@ -81,6 +82,11 @@ void main() {
     expect(
       AgentCodingSessionCheckpoint.fromJson(checkpoint.toJson()).status,
       AgentCodingSessionCheckpointStatus.ready,
+    );
+    expect(recoveryPlan.status, AgentCodingSessionRecoveryStatus.notNeeded);
+    expect(
+      recoveryPlan.recommendedAction,
+      AgentCodingSessionRecoveryAction.none,
     );
   });
 
@@ -103,13 +109,29 @@ void main() {
       updatedAt: DateTime.utc(2026, 5, 20, 0, 2),
     );
     final checkpoint = history.toCheckpoint();
+    final recoveryPlan = history.toRecoveryPlan();
 
     expect(restored.outcome, AgentCodingSessionOutcome.failed);
     expect(restored.succeeded, isFalse);
     expect(restored.errorMessage, 'Provider timed out.');
     expect(checkpoint.status, AgentCodingSessionCheckpointStatus.needsRecovery);
     expect(checkpoint.needsRecovery, isTrue);
+    expect(checkpoint.latestPromptSample, 'Apply patch');
     expect(checkpoint.recoveryTodo, contains('TODO:'));
     expect(checkpoint.toJson()['latestOutcome'], 'failed');
+    expect(recoveryPlan.status, AgentCodingSessionRecoveryStatus.available);
+    expect(
+      recoveryPlan.recommendedAction,
+      AgentCodingSessionRecoveryAction.retrySameProvider,
+    );
+    expect(recoveryPlan.canRetryProvider, isTrue);
+    expect(recoveryPlan.canFailoverProvider, isTrue);
+    expect(recoveryPlan.canReplayPrompt, isTrue);
+    expect(
+      AgentCodingSessionRecoveryPlan.fromJson(
+        recoveryPlan.toJson(),
+      ).canReplayPrompt,
+      isTrue,
+    );
   });
 }

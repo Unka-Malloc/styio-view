@@ -23,6 +23,34 @@ extension AgentCodingSessionCheckpointStatusX
   };
 }
 
+enum AgentCodingSessionRecoveryStatus { notNeeded, available, blocked }
+
+extension AgentCodingSessionRecoveryStatusX
+    on AgentCodingSessionRecoveryStatus {
+  String get wireValue => switch (this) {
+    AgentCodingSessionRecoveryStatus.notNeeded => 'notNeeded',
+    AgentCodingSessionRecoveryStatus.available => 'available',
+    AgentCodingSessionRecoveryStatus.blocked => 'blocked',
+  };
+}
+
+enum AgentCodingSessionRecoveryAction {
+  none,
+  retrySameProvider,
+  failoverProvider,
+  replayPrompt,
+}
+
+extension AgentCodingSessionRecoveryActionX
+    on AgentCodingSessionRecoveryAction {
+  String get wireValue => switch (this) {
+    AgentCodingSessionRecoveryAction.none => 'none',
+    AgentCodingSessionRecoveryAction.retrySameProvider => 'retrySameProvider',
+    AgentCodingSessionRecoveryAction.failoverProvider => 'failoverProvider',
+    AgentCodingSessionRecoveryAction.replayPrompt => 'replayPrompt',
+  };
+}
+
 class AgentCodingSessionHistoryRecord {
   const AgentCodingSessionHistoryRecord({
     required this.requestId,
@@ -176,6 +204,7 @@ class AgentCodingSessionCheckpoint {
     this.latestProfileId,
     this.latestProviderKind,
     this.latestOutcome,
+    this.latestPromptSample,
     this.latestCompletedAt,
     this.recoveryTodo,
   });
@@ -201,6 +230,7 @@ class AgentCodingSessionCheckpoint {
       latestProfileId: latest?.profileId,
       latestProviderKind: latest?.providerKind,
       latestOutcome: latestOutcome,
+      latestPromptSample: _checkpointPromptSample(latest?.prompt),
       latestCompletedAt: latest?.completedAt,
       recoveryTodo: needsRecovery
           ? 'TODO: route this checkpoint into provider retry, failover, or replay controls before resuming unrelated agent work.'
@@ -226,6 +256,7 @@ class AgentCodingSessionCheckpoint {
           : _agentCodingSessionOutcomeFromWire(
               json['latestOutcome'] as String?,
             ),
+      latestPromptSample: json['latestPromptSample'] as String?,
       latestCompletedAt: DateTime.tryParse(
         json['latestCompletedAt'] as String? ?? '',
       )?.toUtc(),
@@ -241,6 +272,7 @@ class AgentCodingSessionCheckpoint {
   final String? latestProfileId;
   final String? latestProviderKind;
   final AgentCodingSessionOutcome? latestOutcome;
+  final String? latestPromptSample;
   final DateTime? latestCompletedAt;
   final String? recoveryTodo;
 
@@ -260,9 +292,117 @@ class AgentCodingSessionCheckpoint {
       if (latestProfileId != null) 'latestProfileId': latestProfileId,
       if (latestProviderKind != null) 'latestProviderKind': latestProviderKind,
       if (latestOutcome != null) 'latestOutcome': latestOutcome!.wireValue,
+      if (latestPromptSample != null) 'latestPromptSample': latestPromptSample,
       if (latestCompletedAt != null)
         'latestCompletedAt': latestCompletedAt!.toIso8601String(),
       if (recoveryTodo != null) 'recoveryTodo': recoveryTodo,
+    };
+  }
+}
+
+class AgentCodingSessionRecoveryPlan {
+  const AgentCodingSessionRecoveryPlan({
+    required this.workspaceId,
+    required this.status,
+    required this.recommendedAction,
+    required this.availableActions,
+    required this.checkpoint,
+    this.todo,
+  });
+
+  factory AgentCodingSessionRecoveryPlan.fromCheckpoint(
+    AgentCodingSessionCheckpoint checkpoint,
+  ) {
+    if (!checkpoint.hasHistory) {
+      return AgentCodingSessionRecoveryPlan(
+        workspaceId: checkpoint.workspaceId,
+        status: AgentCodingSessionRecoveryStatus.blocked,
+        recommendedAction: AgentCodingSessionRecoveryAction.none,
+        availableActions: const <AgentCodingSessionRecoveryAction>[],
+        checkpoint: checkpoint,
+        todo:
+            'TODO: start a new agent session because no previous request exists to replay.',
+      );
+    }
+    if (!checkpoint.needsRecovery) {
+      return AgentCodingSessionRecoveryPlan(
+        workspaceId: checkpoint.workspaceId,
+        status: AgentCodingSessionRecoveryStatus.notNeeded,
+        recommendedAction: AgentCodingSessionRecoveryAction.none,
+        availableActions: const <AgentCodingSessionRecoveryAction>[
+          AgentCodingSessionRecoveryAction.none,
+        ],
+        checkpoint: checkpoint,
+      );
+    }
+    final actions = checkpoint.latestOutcome == AgentCodingSessionOutcome.failed
+        ? const <AgentCodingSessionRecoveryAction>[
+            AgentCodingSessionRecoveryAction.retrySameProvider,
+            AgentCodingSessionRecoveryAction.failoverProvider,
+            AgentCodingSessionRecoveryAction.replayPrompt,
+          ]
+        : const <AgentCodingSessionRecoveryAction>[
+            AgentCodingSessionRecoveryAction.replayPrompt,
+          ];
+    return AgentCodingSessionRecoveryPlan(
+      workspaceId: checkpoint.workspaceId,
+      status: AgentCodingSessionRecoveryStatus.available,
+      recommendedAction: actions.first,
+      availableActions: actions,
+      checkpoint: checkpoint,
+      todo:
+          'TODO: bind recovery plan actions to provider retry, failover, and replay command execution.',
+    );
+  }
+
+  factory AgentCodingSessionRecoveryPlan.fromJson(Map<String, Object?> json) {
+    return AgentCodingSessionRecoveryPlan(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      status: _agentCodingSessionRecoveryStatusFromWire(
+        json['status'] as String?,
+      ),
+      recommendedAction: _agentCodingSessionRecoveryActionFromWire(
+        json['recommendedAction'] as String?,
+      ),
+      availableActions: _agentCodingSessionRecoveryActionsFromJson(
+        json['availableActions'],
+      ),
+      checkpoint: AgentCodingSessionCheckpoint.fromJson(
+        _jsonObjectMap(json['checkpoint']),
+      ),
+      todo: json['todo'] as String?,
+    );
+  }
+
+  final String workspaceId;
+  final AgentCodingSessionRecoveryStatus status;
+  final AgentCodingSessionRecoveryAction recommendedAction;
+  final List<AgentCodingSessionRecoveryAction> availableActions;
+  final AgentCodingSessionCheckpoint checkpoint;
+  final String? todo;
+
+  bool get canRetryProvider => availableActions.contains(
+    AgentCodingSessionRecoveryAction.retrySameProvider,
+  );
+  bool get canFailoverProvider => availableActions.contains(
+    AgentCodingSessionRecoveryAction.failoverProvider,
+  );
+  bool get canReplayPrompt =>
+      availableActions.contains(AgentCodingSessionRecoveryAction.replayPrompt);
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'status': status.wireValue,
+      'recommendedAction': recommendedAction.wireValue,
+      'availableActions': availableActions
+          .map((action) => action.wireValue)
+          .toList(growable: false),
+      'canRetryProvider': canRetryProvider,
+      'canFailoverProvider': canFailoverProvider,
+      'canReplayPrompt': canReplayPrompt,
+      'checkpoint': checkpoint.toJson(),
+      if (todo != null) 'todo': todo,
     };
   }
 }
@@ -303,6 +443,10 @@ class AgentCodingSessionHistory {
 
   AgentCodingSessionCheckpoint toCheckpoint() {
     return AgentCodingSessionCheckpoint.fromHistory(this);
+  }
+
+  AgentCodingSessionRecoveryPlan toRecoveryPlan() {
+    return AgentCodingSessionRecoveryPlan.fromCheckpoint(toCheckpoint());
   }
 
   Map<String, Object?> toJson() {
@@ -393,6 +537,13 @@ class AgentCodingSessionHistoryStore {
     final history = await readHistory(workspaceId: workspaceId);
     return history.toCheckpoint();
   }
+
+  Future<AgentCodingSessionRecoveryPlan> readRecoveryPlan({
+    required String workspaceId,
+  }) async {
+    final history = await readHistory(workspaceId: workspaceId);
+    return history.toRecoveryPlan();
+  }
 }
 
 AgentCodingSessionOutcome _agentCodingSessionOutcomeFromWire(String? value) {
@@ -413,6 +564,38 @@ AgentCodingSessionCheckpointStatus _agentCodingSessionCheckpointStatusFromWire(
   };
 }
 
+AgentCodingSessionRecoveryStatus _agentCodingSessionRecoveryStatusFromWire(
+  String? value,
+) {
+  return switch (value) {
+    'available' => AgentCodingSessionRecoveryStatus.available,
+    'blocked' => AgentCodingSessionRecoveryStatus.blocked,
+    _ => AgentCodingSessionRecoveryStatus.notNeeded,
+  };
+}
+
+AgentCodingSessionRecoveryAction _agentCodingSessionRecoveryActionFromWire(
+  String? value,
+) {
+  return switch (value) {
+    'retrySameProvider' => AgentCodingSessionRecoveryAction.retrySameProvider,
+    'failoverProvider' => AgentCodingSessionRecoveryAction.failoverProvider,
+    'replayPrompt' => AgentCodingSessionRecoveryAction.replayPrompt,
+    _ => AgentCodingSessionRecoveryAction.none,
+  };
+}
+
+List<AgentCodingSessionRecoveryAction>
+_agentCodingSessionRecoveryActionsFromJson(Object? value) {
+  if (value is! List) {
+    return const <AgentCodingSessionRecoveryAction>[];
+  }
+  return value
+      .whereType<String>()
+      .map(_agentCodingSessionRecoveryActionFromWire)
+      .toList(growable: false);
+}
+
 String _responseTextSample(List<AgentContentPart> contentParts) {
   final text = contentParts
       .map((part) => part.text.trim())
@@ -422,6 +605,17 @@ String _responseTextSample(List<AgentContentPart> contentParts) {
     return text;
   }
   return text.substring(0, 1000);
+}
+
+String? _checkpointPromptSample(String? prompt) {
+  final trimmed = prompt?.trim() ?? '';
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  if (trimmed.length <= 1000) {
+    return trimmed;
+  }
+  return trimmed.substring(0, 1000);
 }
 
 List<AgentCodingSessionHistoryRecord> _historyRecordsFromJson(Object? value) {

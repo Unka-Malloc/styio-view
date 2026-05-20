@@ -510,9 +510,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/execution',
           summary:
-              'ExecutionSession, runtime events, native tool results, runtime execution plans, dependency readiness checks, runtime execution handoff contracts, manager binding routes, default RuntimeExecutionManagerRegistry registrations, dispatch-to-live-output-buffer results, ShellManagerRuntimeExecutionAdapter local shell execution, ToolchainManagerRuntimeExecutionAdapter managed tool execution, output-channel attachment contracts, runtime task lifecycle snapshots, persisted runtime task history, and extension task contribution definitions expose stable serializable execution contracts for UI and Agent consumers.',
+              'ExecutionSession, runtime events, native tool results, runtime execution plans, dependency readiness checks, runtime execution handoff contracts, manager binding routes, default RuntimeExecutionManagerRegistry registrations, dispatch-to-live-output-buffer results, ShellManagerRuntimeExecutionAdapter local shell execution, ToolchainManagerRuntimeExecutionAdapter managed tool execution, HostedRuntimeExecutionAdapter hosted workflow execution, output-channel attachment contracts, runtime task lifecycle snapshots, persisted runtime task history, and extension task contribution definitions expose stable serializable execution contracts for UI and Agent consumers.',
           todo:
-              'TODO: add concrete hosted process execution adapter, then route installer/debug/provider tasks through the same execution bridge.',
+              'TODO: route installer/debug/provider tasks through the same execution bridge and add production retry/cancellation telemetry.',
           references: <String>['VS Code tasks', 'Theia task service'],
         ),
         IdeCapabilityDescriptor(
@@ -645,9 +645,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/runtime',
           summary:
-              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell/toolchain/hosted/terminal producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, and persisted output history.',
+              'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell/toolchain/hosted/terminal producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, ToolchainManagerRuntimeExecutionAdapter streams, HostedRuntimeExecutionAdapter streams, and persisted output history.',
           todo:
-              'TODO: supply concrete ToolchainManager, HostedExecutor, debug, language-service, and PTY stream implementations to the binding controller.',
+              'TODO: supply concrete debug, language-service, and PTY stream implementations to the binding controller.',
           references: <String>[
             'VS Code Output panel',
             'IntelliJ Run and Event Log tool windows',

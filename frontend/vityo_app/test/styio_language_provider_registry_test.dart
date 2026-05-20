@@ -52,6 +52,13 @@ void main() {
       StyioLanguageProviderCapability.completion,
       state: FoundationRegistryEntryState.active,
     );
+    final readiness = registry.readinessReport(
+      requiredCapabilities: const <StyioLanguageProviderCapability>[
+        StyioLanguageProviderCapability.syntaxDiagnostics,
+        StyioLanguageProviderCapability.completion,
+        StyioLanguageProviderCapability.rename,
+      ],
+    );
 
     expect(resolved?.id, 'styio-service');
     expect(
@@ -62,6 +69,31 @@ void main() {
       'styio-service',
       'local-fallback',
     ]);
+    expect(readiness.ready, isFalse);
+    expect(readiness.missingCapabilities, <StyioLanguageProviderCapability>[
+      StyioLanguageProviderCapability.rename,
+    ]);
+    expect(readiness.toJson()['todo'], startsWith('TODO:'));
+  });
+
+  test('Styio language provider readiness reports full active coverage', () {
+    final registry = StyioLanguageProviderRegistry()
+      ..register(
+        const StyioLanguageProviderRegistration(
+          id: 'styio-service',
+          service: LocalStyioLanguageService(),
+          priority: 10,
+          state: FoundationRegistryEntryState.active,
+        ),
+      );
+
+    final readiness = registry.readinessReport();
+    final json = readiness.toJson();
+
+    expect(readiness.ready, isTrue);
+    expect(readiness.missingCapabilities, isEmpty);
+    expect(readiness.summary, contains('10/10'));
+    expect(json.containsKey('todo'), isFalse);
   });
 
   test('Styio language provider registry emits manifest-only metadata', () {

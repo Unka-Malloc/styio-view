@@ -233,6 +233,63 @@ class StyioLanguageProviderBindingPlan {
   }
 }
 
+class StyioLanguageProviderCapabilityCoverage {
+  const StyioLanguageProviderCapabilityCoverage({
+    required this.capability,
+    required this.providerIds,
+  });
+
+  final StyioLanguageProviderCapability capability;
+  final List<String> providerIds;
+
+  bool get covered => providerIds.isNotEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'capability': capability.wireValue,
+      'covered': covered,
+      'providerIds': providerIds,
+    };
+  }
+}
+
+class StyioLanguageProviderReadinessReport {
+  const StyioLanguageProviderReadinessReport({
+    required this.coverage,
+    this.todo = '',
+  });
+
+  final List<StyioLanguageProviderCapabilityCoverage> coverage;
+  final String todo;
+
+  bool get ready => coverage.every((entry) => entry.covered);
+
+  List<StyioLanguageProviderCapability> get missingCapabilities {
+    return coverage
+        .where((entry) => !entry.covered)
+        .map((entry) => entry.capability)
+        .toList(growable: false);
+  }
+
+  String get summary {
+    final coveredCount = coverage.where((entry) => entry.covered).length;
+    return 'Styio language providers cover $coveredCount/${coverage.length} required IDE capabilities.';
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'summary': summary,
+      'coverage': coverage.map((entry) => entry.toJson()).toList(),
+      if (missingCapabilities.isNotEmpty)
+        'missingCapabilities': missingCapabilities
+            .map((capability) => capability.wireValue)
+            .toList(growable: false),
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
 class StyioLanguageProviderRegistry {
   StyioLanguageProviderRegistry({
     FoundationProviderRegistry<StyioLanguageService>? registry,
@@ -294,6 +351,34 @@ class StyioLanguageProviderRegistry {
 
   FoundationRegistryManifest manifest({FoundationRegistryEntryState? state}) {
     return _registry.manifest(owner: owner, state: state);
+  }
+
+  StyioLanguageProviderReadinessReport readinessReport({
+    List<StyioLanguageProviderCapability> requiredCapabilities =
+        defaultStyioLanguageProviderCapabilities,
+    bool activeOnly = true,
+  }) {
+    final coverage = requiredCapabilities
+        .map((capability) {
+          final providers = providersFor(
+            capability,
+            state: activeOnly ? FoundationRegistryEntryState.active : null,
+          );
+          return StyioLanguageProviderCapabilityCoverage(
+            capability: capability,
+            providerIds: providers
+                .map((provider) => provider.id)
+                .toList(growable: false),
+          );
+        })
+        .toList(growable: false);
+    final report = StyioLanguageProviderReadinessReport(
+      coverage: coverage,
+      todo: coverage.every((entry) => entry.covered)
+          ? ''
+          : 'TODO: connect StyioService provider capabilities until all required IDE language features are covered.',
+    );
+    return report;
   }
 }
 

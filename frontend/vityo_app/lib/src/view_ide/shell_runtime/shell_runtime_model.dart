@@ -400,6 +400,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     this.editorSessionWorkspaceId = 'default',
     this.documentCacheLimit = 32,
     this.themeOverrideStore,
+    CommandPaletteDisplayPreferences? commandPalettePreferences,
+    CommandPaletteLivePreferenceController? commandPalettePreferenceController,
     ClangCppVersionPreference? clangCppVersionPreference,
     AgentCodingSessionController? agentCodingController,
     this.agentProviderConfigurator,
@@ -438,6 +440,8 @@ class ShellRuntimeModel extends ChangeNotifier {
        _editorFileBinding =
            editorFileBinding ??
            EditorDocumentResourceBinding(documentStore: workspaceDocumentStore),
+       _ownsCommandPalettePreferenceController =
+           commandPalettePreferenceController == null,
        _adapterCapabilities = normalizeCapabilitySnapshots([
          projectGraphAdapter.capabilitySnapshot,
          executionAdapter.capabilitySnapshot,
@@ -445,6 +449,19 @@ class ShellRuntimeModel extends ChangeNotifier {
          ...supplementalAdapterCapabilities,
        ]),
        _clangCppVersionPreference = clangCppVersionPreference {
+    this.commandPalettePreferenceController =
+        commandPalettePreferenceController ??
+        CommandPaletteLivePreferenceController(
+          initialPreferences:
+              commandPalettePreferences ??
+              CommandPaletteDisplayPreferences(
+                workspaceId: editorSessionWorkspaceId,
+              ),
+        );
+    _commandPalettePreferenceSubscription = this
+        .commandPalettePreferenceController
+        .stream
+        .listen(_handleCommandPalettePreferencesChanged);
     this.agentCodingController =
         agentCodingController ??
         AgentCodingSessionController(
@@ -487,6 +504,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   final String editorSessionWorkspaceId;
   final int documentCacheLimit;
   final VityoThemeOverrideStore? themeOverrideStore;
+  late final CommandPaletteLivePreferenceController
+  commandPalettePreferenceController;
   ClangCppVersionPreference? _clangCppVersionPreference;
   late final AgentCodingSessionController agentCodingController;
   final AgentProviderConfigurator? agentProviderConfigurator;
@@ -506,8 +525,11 @@ class ShellRuntimeModel extends ChangeNotifier {
   final int debugRuntimeTaskHistoryMaxEntries;
   final bool _ownsLanguageServiceStatus;
   final bool _ownsAgentCodingController;
+  final bool _ownsCommandPalettePreferenceController;
   StreamSubscription<DocumentResourceBindingSnapshot>?
   _editorFileBindingSubscription;
+  late final StreamSubscription<CommandPaletteLivePreferenceState>
+  _commandPalettePreferenceSubscription;
 
   final List<String> _debugLog = <String>[];
   final List<NativeToolResultRecord> _nativeToolResults =
@@ -4335,6 +4357,26 @@ class ShellRuntimeModel extends ChangeNotifier {
     return ToolchainSettingsSurface.fromStatus(toolchainStatusSurface);
   }
 
+  CommandPaletteDisplayPreferences get commandPalettePreferences {
+    return commandPalettePreferenceController.state.preferences;
+  }
+
+  Future<void> saveCommandPalettePreferences(
+    CommandPaletteDisplayPreferences preferences,
+  ) async {
+    commandPalettePreferenceController.updatePreferences(preferences);
+    appendLog(
+      'Command palette preferences saved for ${preferences.workspaceId}.',
+    );
+    notifyListeners();
+  }
+
+  void _handleCommandPalettePreferencesChanged(
+    CommandPaletteLivePreferenceState state,
+  ) {
+    notifyListeners();
+  }
+
   Future<ToolchainSelectionResult?> selectToolchainCandidate(String id) async {
     final manager = toolchainManager;
     if (manager == null) {
@@ -5912,6 +5954,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     _editorFileBindingSubscription = null;
     if (_ownsAgentCodingController) {
       agentCodingController.dispose();
+    }
+    unawaited(_commandPalettePreferenceSubscription.cancel());
+    if (_ownsCommandPalettePreferenceController) {
+      unawaited(commandPalettePreferenceController.dispose());
     }
     if (_ownsLanguageServiceStatus &&
         languageServiceStatus is ValueNotifier<LanguageServiceStatusSurface>) {

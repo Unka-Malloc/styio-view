@@ -160,6 +160,10 @@ void main() {
       contains('category contribution manifests'),
     );
     expect(
+      entriesById['interaction.command-palette']?.summary,
+      contains('top-level SettingsSurface preference saves'),
+    );
+    expect(
       entriesById['workspace.edit-application']?.status,
       IdeCapabilityStatus.wired,
     );

@@ -17,6 +17,7 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
+import 'package:vityo_app/src/view_ide/commands/command_palette_recent_store.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_adapter_launcher.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_adapter_protocol.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_adapter_transport.dart';
@@ -42,6 +43,81 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 
 void main() {
+  test(
+    'shell settings save updates command palette live preferences',
+    () async {
+      final projectGraph = ProjectGraphSnapshot.scratch(
+        workspaceRoot: '/workspace/demo',
+        activeFilePath: 'src/main.styio',
+        title: 'Demo',
+        notes: const <String>[],
+      );
+      const initialDocument = DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 0,
+      );
+      final shell = ShellRuntimeModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+        workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+          seededDocuments: const <String, DocumentState>{
+            'src/main.styio': initialDocument,
+          },
+        ),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: initialDocument,
+          languageService: const _NoopStyioLanguageService(),
+        ),
+        executionAdapter: const _NoopExecutionAdapter(),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            const _NoopExecutionAdapter(),
+        runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+        dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+        deploymentAdapter: const _NoopDeploymentAdapter(),
+        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+        commandPalettePreferences: const CommandPaletteDisplayPreferences(
+          workspaceId: 'demo',
+          defaultCategory: AppCommandCategory.navigation,
+        ),
+      );
+      addTearDown(shell.dispose);
+
+      final updates = <CommandPaletteLivePreferenceState>[];
+      final subscription = shell.commandPalettePreferenceController.stream
+          .listen(updates.add);
+      addTearDown(subscription.cancel);
+
+      await shell.saveCommandPalettePreferences(
+        const CommandPaletteDisplayPreferences(
+          workspaceId: 'demo',
+          defaultCategory: AppCommandCategory.diagnostics,
+          showRecentCommands: false,
+        ),
+      );
+
+      expect(
+        shell.commandPalettePreferences.defaultCategory,
+        AppCommandCategory.diagnostics,
+      );
+      expect(shell.commandPalettePreferences.showRecentCommands, isFalse);
+      expect(shell.commandPalettePreferenceController.state.revision, 1);
+      expect(
+        updates.single.preferences.defaultCategory,
+        AppCommandCategory.diagnostics,
+      );
+    },
+  );
+
   test('shell save command persists through editor file binding', () async {
     final projectGraph = ProjectGraphSnapshot.scratch(
       workspaceRoot: '/workspace/demo',

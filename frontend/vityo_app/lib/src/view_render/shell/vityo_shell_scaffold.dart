@@ -352,6 +352,7 @@ class VityoShellScaffold extends StatelessWidget {
           toolchainInstallPlan: shell.toolchainInstallPlanSurface,
           toolchainInstallExecution: shell.toolchainInstallExecutionSurface,
           themeOverride: shell.themeOverride,
+          commandPalettePreferences: shell.commandPalettePreferences,
           onToolchainRecoveryAction: shell.handleToolchainRecoveryAction,
           onSelectToolchain: shell.selectToolchainCandidate,
           onSelectClangCppVersion: (versionId, cppStandard) {
@@ -362,6 +363,7 @@ class VityoShellScaffold extends StatelessWidget {
           },
           onClearToolchain: shell.clearToolchainCandidate,
           onExecuteToolchainInstallPlan: shell.executeLastToolchainInstallPlan,
+          onSaveCommandPalettePreferences: shell.saveCommandPalettePreferences,
           onSaveThemeOverride: shell.saveThemeOverride,
         );
     }

@@ -1,4 +1,5 @@
 import '../../editor/document_state.dart';
+import '../contract/language_contract.dart';
 import 'language_service_foundation.dart';
 import 'styio_language_service.dart';
 
@@ -196,6 +197,114 @@ class SemanticSnapshotFeatureMatrix {
   }
 }
 
+class SemanticSnapshotCodeActionFact {
+  const SemanticSnapshotCodeActionFact({
+    required this.id,
+    required this.label,
+    required this.edits,
+    this.detail = '',
+    this.diagnosticCode = '',
+  });
+
+  final String id;
+  final String label;
+  final List<FormattingEdit> edits;
+  final String detail;
+  final String diagnosticCode;
+
+  bool get hasEdits => edits.isNotEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'label': label,
+      'detail': detail,
+      'diagnosticCode': diagnosticCode,
+      'hasEdits': hasEdits,
+      'editCount': edits.length,
+      'edits': edits.map(_formattingEditToJson).toList(growable: false),
+    };
+  }
+}
+
+class SemanticSnapshotCodeActionResult {
+  const SemanticSnapshotCodeActionResult({
+    required this.source,
+    required this.diagnosticCode,
+    required this.actions,
+    required this.message,
+  });
+
+  final SemanticSnapshotProviderSource source;
+  final String diagnosticCode;
+  final List<SemanticSnapshotCodeActionFact> actions;
+  final String message;
+
+  bool get available => actions.any((action) => action.hasEdits);
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'source': source.wireValue,
+      'diagnosticCode': diagnosticCode,
+      'available': available,
+      'actionCount': actions.length,
+      'message': message,
+      'actions': actions
+          .map((action) => action.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+class SemanticSnapshotRenameSafetyResult {
+  const SemanticSnapshotRenameSafetyResult({
+    required this.source,
+    required this.available,
+    required this.safe,
+    required this.newName,
+    required this.message,
+    this.targetName = '',
+    this.referenceCount = 0,
+    this.editCount = 0,
+    this.conflicts = const <RenameConflict>[],
+  });
+
+  final SemanticSnapshotProviderSource source;
+  final bool available;
+  final bool safe;
+  final String targetName;
+  final String newName;
+  final int referenceCount;
+  final int editCount;
+  final List<RenameConflict> conflicts;
+  final String message;
+
+  bool get canApply => available && safe && editCount > 0;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'source': source.wireValue,
+      'available': available,
+      'safe': safe,
+      'canApply': canApply,
+      'targetName': targetName,
+      'newName': newName,
+      'referenceCount': referenceCount,
+      'editCount': editCount,
+      'conflictCount': conflicts.length,
+      'message': message,
+      'conflicts': conflicts
+          .map(
+            (conflict) => <String, Object?>{
+              'message': conflict.message,
+              'range': _sourceRangeToJson(conflict.range),
+            },
+          )
+          .toList(growable: false),
+    };
+  }
+}
+
 class SemanticSnapshotProvider {
   const SemanticSnapshotProvider({
     required this.languageService,
@@ -235,6 +344,62 @@ class SemanticSnapshotProvider {
     );
   }
 
+  SemanticSnapshotCodeActionResult codeActionsForDiagnostic({
+    required DocumentState document,
+    required Diagnostic diagnostic,
+  }) {
+    final fixes = languageService.quickFixesForDiagnostic(document, diagnostic);
+    final actions = <SemanticSnapshotCodeActionFact>[
+      for (var index = 0; index < fixes.length; index += 1)
+        SemanticSnapshotCodeActionFact(
+          id: '${diagnostic.code}.$index',
+          label: fixes[index].label,
+          detail: fixes[index].detail,
+          diagnosticCode: diagnostic.code,
+          edits: List<FormattingEdit>.unmodifiable(fixes[index].edits),
+        ),
+    ];
+    return SemanticSnapshotCodeActionResult(
+      source: SemanticSnapshotProviderSource.serviceAnalysis,
+      diagnosticCode: diagnostic.code,
+      actions: List<SemanticSnapshotCodeActionFact>.unmodifiable(actions),
+      message: actions.isEmpty
+          ? 'StyioService produced no raw edit code action facts.'
+          : 'StyioService produced ${actions.length} raw edit code action fact(s).',
+    );
+  }
+
+  SemanticSnapshotRenameSafetyResult renameSafetyAt({
+    required DocumentState document,
+    required int offset,
+    required String newName,
+  }) {
+    final plan = languageService.renameAt(document, offset, newName);
+    if (plan == null) {
+      return SemanticSnapshotRenameSafetyResult(
+        source: SemanticSnapshotProviderSource.serviceAnalysis,
+        available: false,
+        safe: false,
+        newName: newName,
+        message:
+            'StyioService did not produce a rename plan for this location.',
+      );
+    }
+    return SemanticSnapshotRenameSafetyResult(
+      source: SemanticSnapshotProviderSource.serviceAnalysis,
+      available: true,
+      safe: !plan.hasConflicts,
+      targetName: plan.target.name,
+      newName: plan.newName,
+      referenceCount: plan.references.length,
+      editCount: plan.edits.length,
+      conflicts: List<RenameConflict>.unmodifiable(plan.conflicts),
+      message: plan.hasConflicts
+          ? 'StyioService blocked rename with ${plan.conflicts.length} conflict(s).'
+          : 'StyioService produced a safe rename plan.',
+    );
+  }
+
   bool _shouldUseFallback(DocumentState document, SemanticSnapshot snapshot) {
     return allowLocalBuilderFallback &&
         document.text.trim().isNotEmpty &&
@@ -252,4 +417,15 @@ class SemanticSnapshotProvider {
   bool _hasSemanticFacts(SemanticSnapshot snapshot) {
     return snapshot.elements.isNotEmpty || snapshot.references.isNotEmpty;
   }
+}
+
+Map<String, Object?> _formattingEditToJson(FormattingEdit edit) {
+  return <String, Object?>{
+    'range': _sourceRangeToJson(edit.range),
+    'newText': edit.newText,
+  };
+}
+
+Map<String, Object?> _sourceRangeToJson(SourceRange range) {
+  return <String, Object?>{'start': range.start, 'end': range.end};
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
+import 'package:vityo_app/src/view_ide/language/service/local_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 
@@ -117,6 +118,70 @@ void main() {
         isFalse,
       );
       expect(result.toJson()['usedFallback'], isTrue);
+    },
+  );
+
+  test('semantic snapshot provider exposes StyioService code action facts', () {
+    const service = LocalStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'fixture://semantic-provider-code-actions',
+      text: '#main := () => {\n  value := 1\n',
+      revision: 1,
+    );
+    final diagnostic = service
+        .analyzeDocument(document)
+        .diagnostics
+        .singleWhere(
+          (diagnostic) => diagnostic.code == 'local.unclosed-delimiter',
+        );
+    const provider = SemanticSnapshotProvider(languageService: service);
+
+    final result = provider.codeActionsForDiagnostic(
+      document: document,
+      diagnostic: diagnostic,
+    );
+    final json = result.toJson();
+
+    expect(result.source, SemanticSnapshotProviderSource.serviceAnalysis);
+    expect(result.available, isTrue);
+    expect(result.actions.single.diagnosticCode, 'local.unclosed-delimiter');
+    expect(result.actions.single.hasEdits, isTrue);
+    expect(result.actions.single.edits.single.range.start, document.length);
+    expect(json['available'], isTrue);
+    expect(
+      ((json['actions']! as List<Object?>).single!
+          as Map<String, Object?>)['editCount'],
+      1,
+    );
+  });
+
+  test(
+    'semantic snapshot provider exposes StyioService rename safety facts',
+    () {
+      const service = LocalStyioLanguageService();
+      const document = DocumentState(
+        documentId: 'fixture://semantic-provider-rename',
+        text: 'value := 1\nvalue\n',
+        revision: 1,
+      );
+      const provider = SemanticSnapshotProvider(languageService: service);
+      final referenceOffset = document.text.lastIndexOf('value') + 1;
+
+      final result = provider.renameSafetyAt(
+        document: document,
+        offset: referenceOffset,
+        newName: 'nextValue',
+      );
+
+      expect(result.source, SemanticSnapshotProviderSource.serviceAnalysis);
+      expect(result.available, isTrue);
+      expect(result.safe, isTrue);
+      expect(result.canApply, isTrue);
+      expect(result.targetName, 'value');
+      expect(result.newName, 'nextValue');
+      expect(result.referenceCount, 2);
+      expect(result.editCount, 2);
+      expect(result.toJson()['canApply'], isTrue);
     },
   );
 }

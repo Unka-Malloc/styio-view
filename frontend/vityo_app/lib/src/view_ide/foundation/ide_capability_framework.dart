@@ -290,9 +290,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/language/service',
           summary:
-              'SemanticSnapshotProvider converts StyioService analysis into resolved elements/references, exposes StyioService-backed code action raw edit facts, code action apply/result telemetry, document rename safety facts, workspace rename safety facts, SemanticSnapshotEventBridge runtime-output events, Problems/Refactor panel event sink dispatching, SemanticSnapshotPanelEventStateController, SemanticSnapshotPanelViewModel Problems/Refactor projections, concrete Problems and Refactor panel projection rendering, SemanticSnapshotPanelEventStore persisted telemetry, publishes a feature coverage matrix for hover/definition/references/completion/rename/code action consumers, and only falls back to local snapshots when service semantic facts are missing.',
+              'SemanticSnapshotProvider converts StyioService analysis into resolved elements/references, exposes StyioService-backed code action raw edit facts, code action apply/result telemetry, document rename safety facts, workspace rename safety facts, SemanticSnapshotEventBridge runtime-output events, Problems/Refactor panel event sink dispatching, SemanticSnapshotPanelEventStateController, SemanticSnapshotPanelViewModel Problems/Refactor projections, concrete Problems and Refactor panel projection rendering, SemanticSnapshotPanelEventStore persisted telemetry with retention policy, publishes a feature coverage matrix for hover/definition/references/completion/rename/code action consumers, and only falls back to local snapshots when service semantic facts are missing.',
           todo:
-              'TODO: bind SemanticSnapshotPanelViewModel to production telemetry retention.',
+              'TODO: connect persisted semantic panel state to shell lifecycle hydration.',
           references: <String>[
             'LSP textDocument/semanticTokens',
             'IntelliJ PSI and symbol resolve',

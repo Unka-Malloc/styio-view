@@ -517,9 +517,50 @@ class SemanticSnapshotPanelEventStateController {
   }
 }
 
+class SemanticSnapshotPanelEventRetentionPolicy {
+  const SemanticSnapshotPanelEventRetentionPolicy({
+    this.maxEventsPerTarget = 50,
+    this.maxEventAge = const Duration(days: 30),
+  });
+
+  final int maxEventsPerTarget;
+  final Duration? maxEventAge;
+
+  SemanticSnapshotPanelEventState apply(
+    SemanticSnapshotPanelEventState state, {
+    DateTime? now,
+    int? maxEventsOverride,
+  }) {
+    final maxEvents = maxEventsOverride ?? maxEventsPerTarget;
+    final normalizedMaxEvents = maxEvents <= 0 ? 50 : maxEvents;
+    final cutoff = maxEventAge == null
+        ? null
+        : (now ?? DateTime.now().toUtc()).subtract(maxEventAge!);
+    final retainedEvents = state.events
+        .where((event) => cutoff == null || !event.timestamp.isBefore(cutoff))
+        .take(normalizedMaxEvents)
+        .toList(growable: false);
+    return SemanticSnapshotPanelEventState(
+      target: state.target,
+      events: List.unmodifiable(retainedEvents),
+      revision: state.revision,
+      updatedAt: state.updatedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'maxEventsPerTarget': maxEventsPerTarget,
+      if (maxEventAge != null) 'maxEventAgeDays': maxEventAge!.inDays,
+    };
+  }
+}
+
 class SemanticSnapshotPanelEventStore {
   SemanticSnapshotPanelEventStore.fromDataStore({
     required FoundationDataStore dataStore,
+    SemanticSnapshotPanelEventRetentionPolicy retentionPolicy =
+        const SemanticSnapshotPanelEventRetentionPolicy(),
   }) : this(
          owner: FoundationDataStoreOwner(
            descriptor: const FoundationDataStoreOwnerDescriptor(
@@ -530,16 +571,19 @@ class SemanticSnapshotPanelEventStore {
            ),
            dataStore: dataStore,
          ),
+         retentionPolicy: retentionPolicy,
        );
 
   const SemanticSnapshotPanelEventStore({
     required FoundationDataStoreOwner owner,
+    this.retentionPolicy = const SemanticSnapshotPanelEventRetentionPolicy(),
   }) : _owner = owner;
 
   static const int schemaVersion = 1;
   static const String _namespaceName = 'service.semantic-snapshot.panel-events';
 
   final FoundationDataStoreOwner _owner;
+  final SemanticSnapshotPanelEventRetentionPolicy retentionPolicy;
 
   Future<SemanticSnapshotPanelEventState> readState({
     required String workspaceId,
@@ -556,7 +600,7 @@ class SemanticSnapshotPanelEventStore {
       return SemanticSnapshotPanelEventState.empty(target);
     }
     final state = SemanticSnapshotPanelEventState.fromJson(value);
-    return state.target == target
+    final normalizedState = state.target == target
         ? state
         : SemanticSnapshotPanelEventState(
             target: target,
@@ -564,17 +608,24 @@ class SemanticSnapshotPanelEventStore {
             revision: state.revision,
             updatedAt: state.updatedAt,
           );
+    return retentionPolicy.apply(normalizedState);
   }
 
   Future<SemanticSnapshotPanelEventState> recordEvent({
     required String workspaceId,
     required SemanticSnapshotPanelEvent event,
-    int maxEvents = 50,
+    int? maxEvents,
   }) async {
-    final next = (await readState(
+    final effectiveMaxEvents = maxEvents ?? retentionPolicy.maxEventsPerTarget;
+    final recorded = (await readState(
       workspaceId: workspaceId,
       target: event.target,
-    )).record(event, maxEvents: maxEvents, updatedAt: event.timestamp);
+    )).record(event, maxEvents: effectiveMaxEvents, updatedAt: event.timestamp);
+    final next = retentionPolicy.apply(
+      recorded,
+      now: event.timestamp,
+      maxEventsOverride: effectiveMaxEvents,
+    );
     await saveState(workspaceId: workspaceId, state: next);
     return next;
   }

@@ -216,6 +216,54 @@ void main() {
       isEmpty,
     );
   });
+
+  test(
+    'semantic snapshot panel event store applies retention policy',
+    () async {
+      final store = SemanticSnapshotPanelEventStore.fromDataStore(
+        dataStore: await _createDataStore(),
+        retentionPolicy: const SemanticSnapshotPanelEventRetentionPolicy(
+          maxEventsPerTarget: 2,
+          maxEventAge: Duration(days: 1),
+        ),
+      );
+
+      Future<SemanticSnapshotPanelEventState> record(
+        String message,
+        DateTime timestamp,
+      ) {
+        return store.recordEvent(
+          workspaceId: 'demo',
+          event: SemanticSnapshotPanelEvent(
+            target: SemanticSnapshotPanelEventTarget.problems,
+            kind: SemanticSnapshotTelemetryEventKind.codeActionApply,
+            documentId: 'src/main.styio',
+            message: message,
+            payload: const <String, Object?>{'status': 'applied'},
+            timestamp: timestamp,
+          ),
+        );
+      }
+
+      await record('old event', DateTime.utc(2026, 5, 18));
+      await record('new event 1', DateTime.utc(2026, 5, 20, 1));
+      await record('new event 2', DateTime.utc(2026, 5, 20, 2));
+      final state = await record('new event 3', DateTime.utc(2026, 5, 20, 3));
+      final restored = await store.readState(
+        workspaceId: 'demo',
+        target: SemanticSnapshotPanelEventTarget.problems,
+      );
+
+      expect(state.events, hasLength(2));
+      expect(state.events.first.message, 'new event 3');
+      expect(state.events.last.message, 'new event 2');
+      expect(restored.events.map((event) => event.message), <String>[
+        'new event 3',
+        'new event 2',
+      ]);
+      expect(store.retentionPolicy.toJson()['maxEventsPerTarget'], 2);
+    },
+  );
 }
 
 Future<FoundationDataStore> _createDataStore() async {

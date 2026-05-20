@@ -128,6 +128,10 @@ void main() {
       contains('staging action contracts'),
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('Agent context snapshots'),
+    );
+    expect(
       entriesById['extension.marketplace']?.status,
       IdeCapabilityStatus.scaffolded,
     );

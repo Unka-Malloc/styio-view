@@ -384,7 +384,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
-              'Source Control surface is wired to dirty editor documents, Git porcelain status parsing, diff preview, diff review summaries, virtualized diff windows, staging action contracts, persisted commit drafts, commit dialog state validation, commit draft summaries, branch picker summaries, branch switch plans, Git branch switch provider, history summaries, action planning and confirmation, Git stage/unstage/discard/commit action provider, Git branch/history provider contracts, non-Git provider adapter descriptors, file open, and save-all handoff.',
+              'Source Control surface is wired to dirty editor documents, Git porcelain status parsing, diff preview, diff review summaries, virtualized diff windows, Agent context snapshots, staging action contracts, persisted commit drafts, commit dialog state validation, commit draft summaries, branch picker summaries, branch switch plans, Git branch switch provider, history summaries, action planning and confirmation, Git stage/unstage/discard/commit action provider, Git branch/history provider contracts, non-Git provider adapter descriptors, file open, and save-all handoff.',
           todo:
               'TODO: bind virtualized diff windows and non-Git adapter descriptors to concrete UI/provider implementations.',
           references: <String>[

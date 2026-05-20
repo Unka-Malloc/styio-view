@@ -714,6 +714,109 @@ class SourceControlDiffReviewSummary {
   }
 }
 
+class SourceControlAgentContextSnapshot {
+  const SourceControlAgentContextSnapshot({
+    required this.workspaceRoot,
+    this.status,
+    this.diffReview,
+    this.diffWindow,
+    this.pendingActionPlan,
+    this.lastActionResult,
+  });
+
+  factory SourceControlAgentContextSnapshot.fromState({
+    required String workspaceRoot,
+    SourceControlStatusSnapshot? status,
+    SourceControlDiffSnapshot? diffPreview,
+    SourceControlActionPlan? pendingActionPlan,
+    SourceControlActionResult? lastActionResult,
+    int diffLineLimit = 80,
+  }) {
+    return SourceControlAgentContextSnapshot(
+      workspaceRoot: workspaceRoot,
+      status: status,
+      diffReview: diffPreview?.reviewSummary,
+      diffWindow: diffPreview?.window(lineLimit: diffLineLimit),
+      pendingActionPlan: pendingActionPlan,
+      lastActionResult: lastActionResult,
+    );
+  }
+
+  final String workspaceRoot;
+  final SourceControlStatusSnapshot? status;
+  final SourceControlDiffReviewSummary? diffReview;
+  final SourceControlDiffWindow? diffWindow;
+  final SourceControlActionPlan? pendingActionPlan;
+  final SourceControlActionResult? lastActionResult;
+
+  bool get loaded => status != null;
+  bool get available => status?.available ?? false;
+  bool get clean => status?.clean ?? true;
+  bool get hasDiffPreview => diffReview != null;
+  bool get requiresHumanConfirmation {
+    return pendingActionPlan?.requiresConfirmation ?? false;
+  }
+
+  String get providerKind {
+    return status?.providerKind.wireValue ?? 'unknown';
+  }
+
+  String get branchName {
+    return status?.branchName ?? '';
+  }
+
+  String get message {
+    return status?.message ?? 'Source control status has not been loaded.';
+  }
+
+  List<String> get stagedPaths {
+    return _pathsWhere((change) => change.staged);
+  }
+
+  List<String> get unstagedPaths {
+    return _pathsWhere((change) => change.unstaged);
+  }
+
+  List<String> get conflictedPaths {
+    return _pathsWhere(
+      (change) =>
+          change.stagedStatus == SourceControlFileStatus.conflicted ||
+          change.unstagedStatus == SourceControlFileStatus.conflicted,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceRoot': workspaceRoot,
+      'providerKind': providerKind,
+      'loaded': loaded,
+      'available': available,
+      'clean': clean,
+      if (branchName.isNotEmpty) 'branchName': branchName,
+      'message': message,
+      'changeCount': status?.changes.length ?? 0,
+      'stagedPaths': stagedPaths,
+      'unstagedPaths': unstagedPaths,
+      'conflictedPaths': conflictedPaths,
+      'hasDiffPreview': hasDiffPreview,
+      'requiresHumanConfirmation': requiresHumanConfirmation,
+      if (diffReview != null) 'diffReview': diffReview!.toJson(),
+      if (diffWindow != null) 'diffWindow': diffWindow!.toJson(),
+      if (pendingActionPlan != null)
+        'pendingActionPlan': pendingActionPlan!.toJson(),
+      if (lastActionResult != null)
+        'lastActionResult': lastActionResult!.toJson(),
+    };
+  }
+
+  List<String> _pathsWhere(bool Function(SourceControlFileChange change) test) {
+    final changes = status?.changes ?? const <SourceControlFileChange>[];
+    return List<String>.unmodifiable(
+      changes.where(test).map((change) => change.path),
+    );
+  }
+}
+
 class SourceControlCommandRequest {
   const SourceControlCommandRequest({
     required this.executable,

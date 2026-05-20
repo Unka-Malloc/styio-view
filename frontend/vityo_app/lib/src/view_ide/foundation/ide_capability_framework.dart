@@ -507,9 +507,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/shell_runtime',
           summary:
-              'Terminal surface is wired to shell/runtime output, run handoff, PTY session snapshots, TerminalInteractionController input/resize/close contracts, serializable interaction events, shared runtime task lifecycle snapshots on start/close, and persisted terminal task history.',
+              'Terminal surface is wired to shell/runtime output, run handoff, PTY session snapshots, explicit start/resize/close UI controls, TerminalInteractionController input/resize/close contracts, serializable interaction events, shared runtime task lifecycle snapshots on start/close, and persisted terminal task history.',
           todo:
-              'TODO: connect real UI session lifecycle controls and shell manager process execution into the terminal/runtime contract.',
+              'TODO: connect concrete ShellManager process execution and live PTY streams into the terminal/runtime contract.',
           references: <String>[
             'VS Code integrated terminal',
             'IntelliJ terminal and run tool windows',

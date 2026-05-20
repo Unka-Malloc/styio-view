@@ -11,7 +11,10 @@ class TerminalSurface extends StatelessWidget {
     required this.runtimeEventSummaries,
     this.sessionSnapshot,
     this.onRunActiveTarget,
+    this.onStartSession,
     this.onSendInput,
+    this.onResizeSession,
+    this.onCloseSession,
   });
 
   final ViewportProfile viewportProfile;
@@ -19,7 +22,10 @@ class TerminalSurface extends StatelessWidget {
   final List<String> runtimeEventSummaries;
   final TerminalSessionSnapshot? sessionSnapshot;
   final Future<void> Function()? onRunActiveTarget;
+  final Future<void> Function()? onStartSession;
   final Future<void> Function(String input)? onSendInput;
+  final Future<void> Function(int rows, int cols)? onResizeSession;
+  final Future<void> Function()? onCloseSession;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +48,7 @@ class TerminalSurface extends StatelessWidget {
             Text('Integrated Terminal', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              'Shell/runtime output entry backed by Vityo execution logs. TODO: connect interactive PTY stdin/stdout sessions through TerminalRuntime and PtyManager.',
+              'Shell/runtime output entry backed by Vityo execution logs, TerminalRuntime session snapshots, and explicit start/resize/close controls. TODO: connect concrete ShellManager process execution and live PTY streams.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -57,13 +63,52 @@ class TerminalSurface extends StatelessWidget {
                 if (sessionSnapshot == null)
                   const Chip(label: Text('pty scaffolded'))
                 else ...[
+                  Chip(label: Text('session ${sessionSnapshot!.sessionId}')),
                   Chip(label: Text('pty-state ${sessionSnapshot!.state.name}')),
                   Chip(
                     label: Text(
                       'pty-lines ${sessionSnapshot!.outputLines.length}',
                     ),
                   ),
+                  Chip(
+                    label: Text('pty-events ${sessionSnapshot!.events.length}'),
+                  ),
+                  if (sessionSnapshot!.lastResize != null)
+                    Chip(
+                      label: Text(
+                        'resize ${sessionSnapshot!.lastResize!.rows}x${sessionSnapshot!.lastResize!.cols}',
+                      ),
+                    ),
                 ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  key: const ValueKey('terminal-start-session'),
+                  onPressed: onStartSession,
+                  icon: const Icon(Icons.terminal_rounded),
+                  label: const Text('Start Terminal'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('terminal-resize-session'),
+                  onPressed: sessionSnapshot == null || onResizeSession == null
+                      ? null
+                      : () {
+                          onResizeSession!(24, 80);
+                        },
+                  icon: const Icon(Icons.fit_screen_rounded),
+                  label: const Text('Resize 24x80'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('terminal-close-session'),
+                  onPressed: sessionSnapshot == null ? null : onCloseSession,
+                  icon: const Icon(Icons.stop_circle_outlined),
+                  label: const Text('Close Terminal'),
+                ),
               ],
             ),
             const SizedBox(height: 12),

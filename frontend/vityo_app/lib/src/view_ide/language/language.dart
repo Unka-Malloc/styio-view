@@ -9,6 +9,7 @@ export 'service/project_document_rule_registry.dart';
 export 'service/project_document_rule_provider.dart';
 export 'service/project_styio_language_service.dart';
 export 'service/project_styio_document_service.dart';
+export 'service/semantic_snapshot_event_bridge.dart';
 export 'service/language_service_foundation.dart';
 export 'service/local_styio_language_service.dart';
 export 'service/styio_service_capability.dart';

@@ -289,9 +289,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/language/service',
           summary:
-              'SemanticSnapshotProvider converts StyioService analysis into resolved elements/references, exposes StyioService-backed code action raw edit facts, code action apply/result telemetry, document rename safety facts, workspace rename safety facts, publishes a feature coverage matrix for hover/definition/references/completion/rename/code action consumers, and only falls back to local snapshots when service semantic facts are missing.',
+              'SemanticSnapshotProvider converts StyioService analysis into resolved elements/references, exposes StyioService-backed code action raw edit facts, code action apply/result telemetry, document rename safety facts, workspace rename safety facts, SemanticSnapshotEventBridge runtime-output events, publishes a feature coverage matrix for hover/definition/references/completion/rename/code action consumers, and only falls back to local snapshots when service semantic facts are missing.',
           todo:
-              'TODO: connect workspace rename safety facts and code action apply telemetry to concrete UI/event sinks.',
+              'TODO: bind SemanticSnapshotEventBridge output to concrete Problems/Refactor panel event sinks.',
           references: <String>[
             'LSP textDocument/semanticTokens',
             'IntelliJ PSI and symbol resolve',

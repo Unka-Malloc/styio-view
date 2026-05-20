@@ -3,6 +3,7 @@ import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/local_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/language/service/project_styio_language_service.dart';
+import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_event_bridge.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 
@@ -157,6 +158,14 @@ void main() {
     expect(applyResult.successful, isTrue);
     expect(applyResult.toJson()['status'], 'applied');
     expect(applyResult.toJson()['appliedEditCount'], 1);
+    final applyEvent = const SemanticSnapshotEventBridge().codeActionApplyEvent(
+      documentId: document.documentId,
+      result: applyResult,
+      timestamp: DateTime.utc(2026, 5, 20, 13, 1),
+    );
+    expect(applyEvent.toJson()['kind'], 'language-service');
+    expect(applyEvent.metadata['semanticEventKind'], 'code-action-apply');
+    expect(applyEvent.metadata['documentId'], document.documentId);
     expect(json['available'], isTrue);
     expect(
       ((json['actions']! as List<Object?>).single!
@@ -196,6 +205,13 @@ void main() {
       ]);
       expect(result.toJson()['scope'], 'document');
       expect(result.toJson()['canApply'], isTrue);
+      final event = const SemanticSnapshotEventBridge().renameSafetyEvent(
+        documentId: document.documentId,
+        result: result,
+        timestamp: DateTime.utc(2026, 5, 20, 14),
+      );
+      expect(event.metadata['semanticEventKind'], 'rename-safety');
+      expect(event.message, contains('is safe'));
     },
   );
 

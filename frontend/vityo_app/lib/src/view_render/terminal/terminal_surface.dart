@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../view_ide/runtime/runtime.dart';
 import '../../view_ide/toolchain/toolchain.dart';
 import '../platform/viewport_profile.dart';
 
@@ -9,6 +10,7 @@ class TerminalSurface extends StatelessWidget {
     required this.viewportProfile,
     required this.logEntries,
     required this.runtimeEventSummaries,
+    this.liveOutputSnapshot,
     this.sessionSnapshot,
     this.onRunActiveTarget,
     this.onStartSession,
@@ -20,6 +22,7 @@ class TerminalSurface extends StatelessWidget {
   final ViewportProfile viewportProfile;
   final List<String> logEntries;
   final List<String> runtimeEventSummaries;
+  final RuntimeOutputPanelSnapshot? liveOutputSnapshot;
   final TerminalSessionSnapshot? sessionSnapshot;
   final Future<void> Function()? onRunActiveTarget;
   final Future<void> Function()? onStartSession;
@@ -32,6 +35,9 @@ class TerminalSurface extends StatelessWidget {
     final theme = Theme.of(context);
     final compact = viewportProfile.isMobile;
     final combinedEntries = <String>[
+      for (final event
+          in liveOutputSnapshot?.visibleEvents ?? const <RuntimeOutputEvent>[])
+        'output   ${event.kind.wireValue} ${event.message}',
       for (final event in runtimeEventSummaries) 'runtime  $event',
       for (final output in sessionSnapshot?.outputLines ?? const <String>[])
         'pty      $output',
@@ -48,7 +54,7 @@ class TerminalSurface extends StatelessWidget {
             Text('Integrated Terminal', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              'Shell/runtime output entry backed by Vityo execution logs, TerminalRuntime session snapshots, and explicit start/resize/close controls. TODO: connect concrete ShellManager process execution and live PTY streams.',
+              'Shell/runtime output entry backed by Vityo execution logs, TerminalRuntime session snapshots, RuntimeOutputLiveBuffer panel snapshots, and explicit start/resize/close controls. TODO: connect concrete ShellManager process execution and OS PTY streams.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -60,6 +66,18 @@ class TerminalSurface extends StatelessWidget {
                 Chip(
                   label: Text('runtime-events ${runtimeEventSummaries.length}'),
                 ),
+                if (liveOutputSnapshot != null) ...[
+                  Chip(
+                    label: Text(
+                      'live-events ${liveOutputSnapshot!.visibleEvents.length}',
+                    ),
+                  ),
+                  Chip(
+                    label: Text(
+                      'live-channels ${liveOutputSnapshot!.channelSnapshot.visibleChannels.length}',
+                    ),
+                  ),
+                ],
                 if (sessionSnapshot == null)
                   const Chip(label: Text('pty scaffolded'))
                 else ...[

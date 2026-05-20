@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/terminal/terminal.dart';
@@ -83,5 +84,40 @@ void main() {
     expect(resizeCols, 80);
     expect(closeCount, 1);
     expect(runCount, 1);
+  });
+
+  testWidgets('terminal surface renders live output snapshot events', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TerminalSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            logEntries: const <String>[],
+            runtimeEventSummaries: const <String>[],
+            liveOutputSnapshot: RuntimeOutputPanelSnapshot(
+              events: <RuntimeOutputEvent>[
+                RuntimeOutputEvent(
+                  channelId: 'runtime.terminal',
+                  label: 'Terminal',
+                  kind: RuntimeOutputChannelKind.stdout,
+                  message: 'live stdout',
+                  timestamp: DateTime.utc(2026, 5, 20),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('live-events 1'), findsOneWidget);
+    expect(find.text('live-channels 1'), findsOneWidget);
+    expect(find.textContaining('output   stdout live stdout'), findsOneWidget);
   });
 }

@@ -361,6 +361,7 @@ class AgentCodingSkillCatalog {
   static AgentSkillContext contextForWorkspace({
     required String activeDocumentId,
     required Iterable<String> workspaceFiles,
+    bool styioServiceAvailable = false,
   }) {
     final normalizedPaths = <String>[
       activeDocumentId,
@@ -407,13 +408,20 @@ class AgentCodingSkillCatalog {
       'IDE-facing work should remain grounded in mature editor, language service, and agent coding references.',
     ]);
 
-    if (hasStyio) {
+    if (hasStyio || styioServiceAvailable) {
       activate('styio-language-service-truth', <String>[
-        'Styio source files require StyioService-backed syntax and semantic facts instead of Vityo-side grammar guesses.',
+        hasStyio
+            ? 'Styio source files require StyioService-backed syntax and semantic facts instead of Vityo-side grammar guesses.'
+            : 'StyioService status is available, so Agent coding should prefer real language facts over generic editing guesses.',
       ]);
       activate('styio-ide-feature-loop', <String>[
-        'Styio IDE features should adapt completion, hover, diagnostics, semantic tokens, definition, references, and rename from language facts.',
+        hasStyio
+            ? 'Styio IDE features should adapt completion, hover, diagnostics, semantic tokens, definition, references, and rename from language facts.'
+            : 'Active language-service status can provide diagnostics, completion, hover, semantic token, and definition readiness for Agent decisions.',
       ]);
+    }
+
+    if (hasStyio) {
       activate('styio-fixture-confidence-matrix', <String>[
         'Styio syntax-sensitive work should use fixture expectations and confidence classification.',
       ]);

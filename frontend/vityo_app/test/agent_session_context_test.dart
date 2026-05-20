@@ -2243,6 +2243,37 @@ void main() {
     },
   );
 
+  test('agent workspace context activates Styio skills from service status', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'README.md',
+        text: '# Demo\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      workspaceFiles: const <String>['README.md'],
+      activeFilePath: 'README.md',
+      languageServiceStatus: _agentLanguageServiceStatus,
+    );
+
+    final skillsJson = context.toJson()['skills']! as Map<String, Object?>;
+    final activeSkillIds = skillsJson['activeSkillIds']! as List<Object?>;
+    final activationReasons =
+        skillsJson['activationReasons']! as Map<String, Object?>;
+
+    expect(activeSkillIds, contains('styio-language-service-truth'));
+    expect(activeSkillIds, contains('styio-ide-feature-loop'));
+    expect(activeSkillIds, isNot(contains('styio-fixture-confidence-matrix')));
+    expect(activeSkillIds, isNot(contains('cpp-clang-toolchain-defaults')));
+    expect(
+      activationReasons['styio-language-service-truth'],
+      contains(
+        'StyioService status is available, so Agent coding should prefer real language facts over generic editing guesses.',
+      ),
+    );
+  });
+
   test(
     'agent workspace context activates native skills for Ninja build files',
     () {

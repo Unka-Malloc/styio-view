@@ -226,6 +226,11 @@ class AgentSessionContext {
       skills: AgentCodingSkillCatalog.contextForWorkspace(
         activeDocumentId: activeFilePath ?? document.documentId,
         workspaceFiles: workspaceFiles,
+        styioServiceAvailable:
+            languageServiceStatus != null &&
+            (languageServiceStatus.usableCapabilityCount > 0 ||
+                languageServiceStatus.toolchainId.isNotEmpty ||
+                languageServiceStatus.primaryCapabilityStates.isNotEmpty),
       ),
       testing: AgentTestingContext(
         discovery: testDiscovery,

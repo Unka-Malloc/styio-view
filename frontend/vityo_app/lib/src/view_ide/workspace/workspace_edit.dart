@@ -162,7 +162,8 @@ class WorkspaceEditPreview {
       'source': source.wireValue,
       'documentCount': documents.length,
       'missingDocumentCount': missingDocumentIds.length,
-      if (missingDocumentIds.isNotEmpty) 'missingDocumentIds': missingDocumentIds,
+      if (missingDocumentIds.isNotEmpty)
+        'missingDocumentIds': missingDocumentIds,
       'editCount': editCount,
       'hasChanges': hasChanges,
       'hasMissingDocuments': hasMissingDocuments,
@@ -170,6 +171,136 @@ class WorkspaceEditPreview {
       'documents': documents
           .map((document) => document.toJson())
           .toList(growable: false),
+    };
+  }
+}
+
+enum WorkspaceEditConfirmationStatus {
+  ready,
+  blockedNoChanges,
+  blockedMissingDocuments,
+  blockedTooManyEdits,
+}
+
+extension WorkspaceEditConfirmationStatusX on WorkspaceEditConfirmationStatus {
+  String get wireValue => switch (this) {
+    WorkspaceEditConfirmationStatus.ready => 'ready',
+    WorkspaceEditConfirmationStatus.blockedNoChanges => 'blocked-no-changes',
+    WorkspaceEditConfirmationStatus.blockedMissingDocuments =>
+      'blocked-missing-documents',
+    WorkspaceEditConfirmationStatus.blockedTooManyEdits =>
+      'blocked-too-many-edits',
+  };
+}
+
+class WorkspaceEditConfirmationPlan {
+  const WorkspaceEditConfirmationPlan({
+    required this.planId,
+    required this.status,
+    required this.message,
+    this.summary = '',
+    this.source = WorkspaceEditSource.manual,
+    this.documentIds = const <String>[],
+    this.missingDocumentIds = const <String>[],
+    this.editCount = 0,
+    this.requiresUserConfirmation = true,
+    this.todo = '',
+  });
+
+  factory WorkspaceEditConfirmationPlan.fromPreview(
+    WorkspaceEditPreview preview, {
+    int maxEditCount = 500,
+  }) {
+    final documentIds =
+        preview.documents
+            .map((document) => document.documentId)
+            .toSet()
+            .toList(growable: false)
+          ..sort();
+    final missingDocumentIds =
+        preview.missingDocumentIds
+            .map((documentId) => documentId.trim())
+            .where((documentId) => documentId.isNotEmpty)
+            .toSet()
+            .toList(growable: false)
+          ..sort();
+    if (!preview.hasChanges) {
+      return WorkspaceEditConfirmationPlan(
+        planId: preview.planId,
+        status: WorkspaceEditConfirmationStatus.blockedNoChanges,
+        summary: preview.summary,
+        source: preview.source,
+        documentIds: documentIds,
+        missingDocumentIds: missingDocumentIds,
+        editCount: preview.editCount,
+        requiresUserConfirmation: false,
+        message: 'Workspace edit preview has no text changes.',
+      );
+    }
+    if (missingDocumentIds.isNotEmpty) {
+      return WorkspaceEditConfirmationPlan(
+        planId: preview.planId,
+        status: WorkspaceEditConfirmationStatus.blockedMissingDocuments,
+        summary: preview.summary,
+        source: preview.source,
+        documentIds: documentIds,
+        missingDocumentIds: missingDocumentIds,
+        editCount: preview.editCount,
+        message:
+            'Workspace edit preview is blocked until missing documents are loaded.',
+      );
+    }
+    if (preview.editCount > maxEditCount) {
+      return WorkspaceEditConfirmationPlan(
+        planId: preview.planId,
+        status: WorkspaceEditConfirmationStatus.blockedTooManyEdits,
+        summary: preview.summary,
+        source: preview.source,
+        documentIds: documentIds,
+        editCount: preview.editCount,
+        message:
+            'Workspace edit preview contains too many edits: ${preview.editCount} exceeds $maxEditCount.',
+      );
+    }
+    return WorkspaceEditConfirmationPlan(
+      planId: preview.planId,
+      status: WorkspaceEditConfirmationStatus.ready,
+      summary: preview.summary,
+      source: preview.source,
+      documentIds: documentIds,
+      editCount: preview.editCount,
+      message: 'Workspace edit preview is ready for confirmation.',
+      todo:
+          'TODO: bind this confirmation plan to the diff UI and apply/cancel controls.',
+    );
+  }
+
+  final String planId;
+  final WorkspaceEditConfirmationStatus status;
+  final String message;
+  final String summary;
+  final WorkspaceEditSource source;
+  final List<String> documentIds;
+  final List<String> missingDocumentIds;
+  final int editCount;
+  final bool requiresUserConfirmation;
+  final String todo;
+
+  bool get ready => status == WorkspaceEditConfirmationStatus.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'status': status.wireValue,
+      'ready': ready,
+      'summary': summary,
+      'source': source.wireValue,
+      'documentIds': documentIds,
+      'missingDocumentIds': missingDocumentIds,
+      'editCount': editCount,
+      'requiresUserConfirmation': requiresUserConfirmation,
+      'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
     };
   }
 }
@@ -279,6 +410,16 @@ class WorkspaceEditApplicationResult {
   final int appliedEditCount;
   final List<String> appliedDocumentIds;
   final List<String> skippedNoOpDocumentIds;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'applied': applied,
+      'message': message,
+      'appliedEditCount': appliedEditCount,
+      'appliedDocumentIds': appliedDocumentIds,
+      'skippedNoOpDocumentIds': skippedNoOpDocumentIds,
+    };
+  }
 }
 
 class WorkspaceEditApplier {
@@ -378,8 +519,7 @@ class WorkspaceEditApplier {
     if (appliedEditCount == 0) {
       return WorkspaceEditApplicationResult(
         applied: false,
-        message:
-            'Workspace edit plan ${plan.id} produced no text changes.',
+        message: 'Workspace edit plan ${plan.id} produced no text changes.',
         appliedDocumentIds: const <String>[],
         skippedNoOpDocumentIds: List<String>.unmodifiable(
           skippedNoOpDocumentIds,
@@ -393,9 +533,7 @@ class WorkspaceEditApplier {
       applied: true,
       appliedEditCount: appliedEditCount,
       appliedDocumentIds: List<String>.unmodifiable(appliedDocumentIds),
-      skippedNoOpDocumentIds: List<String>.unmodifiable(
-        skippedNoOpDocumentIds,
-      ),
+      skippedNoOpDocumentIds: List<String>.unmodifiable(skippedNoOpDocumentIds),
       message:
           'Applied $appliedEditCount workspace edit(s) from ${plan.source.wireValue} plan ${plan.id}.',
     );

@@ -48,6 +48,7 @@ void main() {
 
       expect(result.applied, isTrue);
       expect(result.appliedEditCount, 2);
+      expect(result.toJson()['applied'], isTrue);
       expect(result.appliedDocumentIds, <String>[
         'lib/math.styio',
         'main.styio',
@@ -78,15 +79,13 @@ void main() {
       },
     );
 
-    final preview = plan.preview(
-      const <DocumentState>[
-        DocumentState(
-          documentId: 'main.styio',
-          text: 'head\nvalue = 1\n',
-          revision: 4,
-        ),
-      ],
-    );
+    final preview = plan.preview(const <DocumentState>[
+      DocumentState(
+        documentId: 'main.styio',
+        text: 'head\nvalue = 1\n',
+        revision: 4,
+      ),
+    ]);
 
     expect(preview.planId, 'preview-rename');
     expect(preview.summary, 'Preview rename.');
@@ -106,6 +105,15 @@ void main() {
     expect(previewJson['missingDocumentIds'], <String>['missing.styio']);
     expect(previewJson['hasMissingDocuments'], isTrue);
     expect(previewJson['canApply'], isFalse);
+    final confirmation = WorkspaceEditConfirmationPlan.fromPreview(preview);
+    expect(
+      confirmation.status,
+      WorkspaceEditConfirmationStatus.blockedMissingDocuments,
+    );
+    expect(confirmation.ready, isFalse);
+    expect(confirmation.toJson()['missingDocumentIds'], <String>[
+      'missing.styio',
+    ]);
     final documentJson =
         (previewJson['documents']! as List<Object?>).single!
             as Map<String, Object?>;
@@ -178,44 +186,38 @@ void main() {
     },
   );
 
-  test(
-    'workspace edit applier skips no-op edits without saving',
-    () async {
-      final store = InMemoryWorkspaceDocumentStore(
-        seededDocuments: const <String, DocumentState>{
-          'main.styio': DocumentState(
-            documentId: 'main.styio',
-            text: 'value = 1\n',
-            revision: 9,
-          ),
-        },
-      );
-      final applier = WorkspaceEditApplier(workspaceDocumentStore: store);
-      final plan = WorkspaceEditPlan.singleDocument(
-        id: 'noop',
-        summary: 'No-op.',
-        source: WorkspaceEditSource.codeAction,
-        documentId: 'main.styio',
-        edits: const <FormattingEdit>[
-          FormattingEdit(
-            range: SourceRange(start: 0, end: 5),
-            newText: 'value',
-          ),
-        ],
-      );
+  test('workspace edit applier skips no-op edits without saving', () async {
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'main.styio': DocumentState(
+          documentId: 'main.styio',
+          text: 'value = 1\n',
+          revision: 9,
+        ),
+      },
+    );
+    final applier = WorkspaceEditApplier(workspaceDocumentStore: store);
+    final plan = WorkspaceEditPlan.singleDocument(
+      id: 'noop',
+      summary: 'No-op.',
+      source: WorkspaceEditSource.codeAction,
+      documentId: 'main.styio',
+      edits: const <FormattingEdit>[
+        FormattingEdit(range: SourceRange(start: 0, end: 5), newText: 'value'),
+      ],
+    );
 
-      final result = await applier.apply(plan);
-      final document = await store.loadDocument('main.styio');
+    final result = await applier.apply(plan);
+    final document = await store.loadDocument('main.styio');
 
-      expect(result.applied, isFalse);
-      expect(result.appliedEditCount, 0);
-      expect(result.appliedDocumentIds, isEmpty);
-      expect(result.skippedNoOpDocumentIds, <String>['main.styio']);
-      expect(result.message, contains('produced no text changes'));
-      expect(document.text, 'value = 1\n');
-      expect(document.revision, 9);
-    },
-  );
+    expect(result.applied, isFalse);
+    expect(result.appliedEditCount, 0);
+    expect(result.appliedDocumentIds, isEmpty);
+    expect(result.skippedNoOpDocumentIds, <String>['main.styio']);
+    expect(result.message, contains('produced no text changes'));
+    expect(document.text, 'value = 1\n');
+    expect(document.revision, 9);
+  });
 
   test('workspace edit plan can be created from quick fix', () {
     const quickFix = DiagnosticQuickFix(
@@ -243,6 +245,70 @@ void main() {
       contains('@import'),
     );
   });
+
+  test(
+    'workspace edit confirmation plan reports ready and blocked previews',
+    () {
+      const readyPreview = WorkspaceEditPreview(
+        planId: 'ready',
+        summary: 'Ready edit.',
+        source: WorkspaceEditSource.agent,
+        documents: <WorkspaceEditDocumentPreview>[
+          WorkspaceEditDocumentPreview(
+            documentId: 'main.styio',
+            revision: 1,
+            beforeText: 'old',
+            afterText: 'new',
+            edits: <FormattingEdit>[
+              FormattingEdit(
+                range: SourceRange(start: 0, end: 3),
+                newText: 'new',
+              ),
+            ],
+          ),
+        ],
+      );
+      const noChangePreview = WorkspaceEditPreview(
+        planId: 'noop',
+        summary: 'No-op edit.',
+        source: WorkspaceEditSource.agent,
+        documents: <WorkspaceEditDocumentPreview>[
+          WorkspaceEditDocumentPreview(
+            documentId: 'main.styio',
+            revision: 1,
+            beforeText: 'same',
+            afterText: 'same',
+            edits: <FormattingEdit>[
+              FormattingEdit(
+                range: SourceRange(start: 0, end: 4),
+                newText: 'same',
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final ready = WorkspaceEditConfirmationPlan.fromPreview(readyPreview);
+      final noChange = WorkspaceEditConfirmationPlan.fromPreview(
+        noChangePreview,
+      );
+      final tooMany = WorkspaceEditConfirmationPlan.fromPreview(
+        readyPreview,
+        maxEditCount: 0,
+      );
+
+      expect(ready.ready, isTrue);
+      expect(ready.requiresUserConfirmation, isTrue);
+      expect(ready.documentIds, <String>['main.styio']);
+      expect(ready.toJson()['todo'], contains('diff UI'));
+      expect(noChange.status, WorkspaceEditConfirmationStatus.blockedNoChanges);
+      expect(noChange.requiresUserConfirmation, isFalse);
+      expect(
+        tooMany.status,
+        WorkspaceEditConfirmationStatus.blockedTooManyEdits,
+      );
+    },
+  );
 
   test('workspace edit plan can be created from rename plan', () {
     const renamePlan = RenamePlan(

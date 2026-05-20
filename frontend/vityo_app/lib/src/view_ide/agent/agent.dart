@@ -11,6 +11,7 @@ export 'agent_provider_credential_resolver.dart';
 export 'agent_provider_configurator.dart';
 export 'agent_provider_health_history_store.dart';
 export 'agent_provider_network_transport.dart';
+export 'agent_provider_retry_policy.dart';
 export 'agent_provider_route_executor.dart';
 export 'agent_provider_registry.dart';
 export 'agent_prompt_profile_store.dart';

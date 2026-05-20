@@ -28,6 +28,10 @@ class WorkspaceSearchFailure {
 
   final String documentId;
   final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{'documentId': documentId, 'message': message};
+  }
 }
 
 class WorkspaceSearchResult {
@@ -265,6 +269,173 @@ class WorkspaceSearchIndexBuildResult {
 
   final WorkspaceSearchIndex index;
   final List<WorkspaceSearchFailure> failures;
+}
+
+enum WorkspaceSearchIndexRefreshStatus { idle, refreshing, ready, failed }
+
+extension WorkspaceSearchIndexRefreshStatusX
+    on WorkspaceSearchIndexRefreshStatus {
+  String get wireValue {
+    return switch (this) {
+      WorkspaceSearchIndexRefreshStatus.idle => 'idle',
+      WorkspaceSearchIndexRefreshStatus.refreshing => 'refreshing',
+      WorkspaceSearchIndexRefreshStatus.ready => 'ready',
+      WorkspaceSearchIndexRefreshStatus.failed => 'failed',
+    };
+  }
+}
+
+class WorkspaceSearchIndexRefreshSnapshot {
+  const WorkspaceSearchIndexRefreshSnapshot({
+    required this.status,
+    required this.generation,
+    this.index,
+    this.failures = const <WorkspaceSearchFailure>[],
+    this.staleDocumentIds = const <String>[],
+    this.startedAt,
+    this.completedAt,
+    this.errorMessage,
+  });
+
+  final WorkspaceSearchIndexRefreshStatus status;
+  final int generation;
+  final WorkspaceSearchIndex? index;
+  final List<WorkspaceSearchFailure> failures;
+  final List<String> staleDocumentIds;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+  final String? errorMessage;
+
+  bool get ready => status == WorkspaceSearchIndexRefreshStatus.ready;
+  bool get refreshing => status == WorkspaceSearchIndexRefreshStatus.refreshing;
+  bool get stale => staleDocumentIds.isNotEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'generation': generation,
+      'ready': ready,
+      'refreshing': refreshing,
+      'stale': stale,
+      'staleDocumentIds': staleDocumentIds,
+      if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
+      if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
+      if (index != null) 'index': index!.toJson(),
+      'failureCount': failures.length,
+      'failures': failures.map((failure) => failure.toJson()).toList(),
+      if (errorMessage != null) 'errorMessage': errorMessage,
+    };
+  }
+}
+
+class WorkspaceSearchIndexController {
+  WorkspaceSearchIndexController({required this.service})
+    : _snapshot = const WorkspaceSearchIndexRefreshSnapshot(
+        status: WorkspaceSearchIndexRefreshStatus.idle,
+        generation: 0,
+      );
+
+  final WorkspaceSearchService service;
+  WorkspaceSearchIndexRefreshSnapshot _snapshot;
+
+  WorkspaceSearchIndexRefreshSnapshot get snapshot => _snapshot;
+
+  Future<WorkspaceSearchIndexRefreshSnapshot> refresh({
+    required Iterable<String> documentIds,
+    int maxDocuments = 5000,
+  }) async {
+    final generation = _snapshot.generation + 1;
+    final previousKey = _snapshot.index?.invalidationKey;
+    final startedAt = DateTime.now().toUtc();
+    _snapshot = WorkspaceSearchIndexRefreshSnapshot(
+      status: WorkspaceSearchIndexRefreshStatus.refreshing,
+      generation: generation,
+      index: _snapshot.index,
+      startedAt: startedAt,
+    );
+    try {
+      final build = await service.buildIndex(
+        documentIds: documentIds,
+        maxDocuments: maxDocuments,
+      );
+      final staleDocumentIds =
+          previousKey?.staleDocumentIds(build.index.invalidationKey) ??
+          build.index.documentIds;
+      _snapshot = WorkspaceSearchIndexRefreshSnapshot(
+        status: WorkspaceSearchIndexRefreshStatus.ready,
+        generation: generation,
+        index: build.index,
+        failures: build.failures,
+        staleDocumentIds: staleDocumentIds,
+        startedAt: startedAt,
+        completedAt: DateTime.now().toUtc(),
+      );
+    } on Object catch (error) {
+      _snapshot = WorkspaceSearchIndexRefreshSnapshot(
+        status: WorkspaceSearchIndexRefreshStatus.failed,
+        generation: generation,
+        index: _snapshot.index,
+        startedAt: startedAt,
+        completedAt: DateTime.now().toUtc(),
+        errorMessage: error.toString(),
+      );
+    }
+    return _snapshot;
+  }
+
+  Future<WorkspaceSearchIndexRefreshSnapshot> refreshIfStale({
+    required Iterable<DocumentState> currentDocuments,
+    int maxDocuments = 5000,
+  }) async {
+    final currentKey = WorkspaceSearchIndexInvalidationKey.fromDocumentStates(
+      currentDocuments,
+    );
+    final currentIndex = _snapshot.index;
+    if (currentIndex != null &&
+        currentIndex.invalidationKey.matches(currentKey)) {
+      _snapshot = WorkspaceSearchIndexRefreshSnapshot(
+        status: WorkspaceSearchIndexRefreshStatus.ready,
+        generation: _snapshot.generation,
+        index: currentIndex,
+        failures: _snapshot.failures,
+        startedAt: _snapshot.startedAt,
+        completedAt: _snapshot.completedAt,
+      );
+      return _snapshot;
+    }
+    return refresh(
+      documentIds: currentKey.documentIds,
+      maxDocuments: maxDocuments,
+    );
+  }
+
+  WorkspaceSearchResult searchCached({
+    required String query,
+    bool caseSensitive = false,
+    bool wholeWord = false,
+    bool useRegex = false,
+    int maxMatches = 1000,
+  }) {
+    final index = _snapshot.index;
+    if (index == null || !_snapshot.ready) {
+      return const WorkspaceSearchResult(
+        matches: <WorkspaceSearchMatch>[],
+        failures: <WorkspaceSearchFailure>[
+          WorkspaceSearchFailure(
+            documentId: '',
+            message: 'Workspace search index is not ready.',
+          ),
+        ],
+      );
+    }
+    return index.search(
+      query: query,
+      caseSensitive: caseSensitive,
+      wholeWord: wholeWord,
+      useRegex: useRegex,
+      maxMatches: maxMatches,
+    );
+  }
 }
 
 class WorkspaceReplaceDocumentResult {

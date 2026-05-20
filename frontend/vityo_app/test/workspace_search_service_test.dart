@@ -250,6 +250,90 @@ void main() {
   });
 
   test(
+    'workspace search index controller refreshes only stale revisions',
+    () async {
+      final store = _CountingWorkspaceSearchStore(
+        documents: const <String, DocumentState>{
+          'main.styio': DocumentState(
+            documentId: 'main.styio',
+            text: 'value := 1\n',
+            revision: 1,
+          ),
+          'helper.styio': DocumentState(
+            documentId: 'helper.styio',
+            text: 'helper := value\n',
+            revision: 1,
+          ),
+        },
+      );
+      final controller = WorkspaceSearchIndexController(
+        service: WorkspaceSearchService(documentStore: store),
+      );
+
+      final first = await controller.refreshIfStale(
+        currentDocuments: const <DocumentState>[
+          DocumentState(
+            documentId: 'main.styio',
+            text: 'value := 1\n',
+            revision: 1,
+          ),
+          DocumentState(
+            documentId: 'helper.styio',
+            text: 'helper := value\n',
+            revision: 1,
+          ),
+        ],
+      );
+      final cached = await controller.refreshIfStale(
+        currentDocuments: const <DocumentState>[
+          DocumentState(
+            documentId: 'main.styio',
+            text: 'value := 1\n',
+            revision: 1,
+          ),
+          DocumentState(
+            documentId: 'helper.styio',
+            text: 'helper := value\n',
+            revision: 1,
+          ),
+        ],
+      );
+      await store.saveDocument(
+        const DocumentState(
+          documentId: 'main.styio',
+          text: 'next := value\n',
+          revision: 2,
+        ),
+      );
+      final refreshed = await controller.refreshIfStale(
+        currentDocuments: const <DocumentState>[
+          DocumentState(
+            documentId: 'main.styio',
+            text: 'next := value\n',
+            revision: 2,
+          ),
+          DocumentState(
+            documentId: 'helper.styio',
+            text: 'helper := value\n',
+            revision: 1,
+          ),
+        ],
+      );
+      final cachedSearch = controller.searchCached(query: 'next');
+
+      expect(first.status, WorkspaceSearchIndexRefreshStatus.ready);
+      expect(first.staleDocumentIds, <String>['helper.styio', 'main.styio']);
+      expect(first.generation, 1);
+      expect(cached.generation, 1);
+      expect(store.loadCount, 4);
+      expect(refreshed.generation, 2);
+      expect(refreshed.staleDocumentIds, <String>['main.styio']);
+      expect(cachedSearch.matches.single.documentId, 'main.styio');
+      expect(refreshed.toJson()['status'], 'ready');
+    },
+  );
+
+  test(
     'workspace search records load failures and truncates matches',
     () async {
       final service = WorkspaceSearchService(

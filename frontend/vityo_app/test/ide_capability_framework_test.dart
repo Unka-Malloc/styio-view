@@ -44,6 +44,10 @@ void main() {
       contains('replace preview contract'),
     );
     expect(
+      entriesById['interaction.search']?.summary,
+      contains('WorkspaceSearchIndexController stale-revision refresh'),
+    );
+    expect(
       entriesById['presentation.problems-panel']?.status,
       IdeCapabilityStatus.scaffolded,
     );

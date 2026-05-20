@@ -93,6 +93,7 @@ void main() {
     expect(surface.toJson()['semanticFactsReady'], isFalse);
     expect(surface.toJson()['capabilityHealth'], 'degraded');
     expect(surface.toJson()['missingCapabilityCount'], greaterThan(0));
+    expect(surface.toJson()['refreshRecommended'], isTrue);
     expect(
       surface.toJson()['unavailablePrimaryCapabilities'],
       contains(StyioServiceCapability.definition.wireValue),
@@ -285,6 +286,7 @@ void main() {
 
       expect(surface.severity, LanguageServiceStatusSeverity.unavailable);
       expect(surface.actionable, isTrue);
+      expect(surface.refreshRecommended, isTrue);
       expect(surface.capabilities, isEmpty);
       expect(
         surface.primaryCapabilityStates[StyioServiceCapability.hover.wireValue],

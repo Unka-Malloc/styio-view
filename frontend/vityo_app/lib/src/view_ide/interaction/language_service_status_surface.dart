@@ -163,6 +163,16 @@ class LanguageServiceStatusSurface {
         severity == LanguageServiceStatusSeverity.failed;
   }
 
+  bool get refreshRecommended {
+    if (severity == LanguageServiceStatusSeverity.refreshing) {
+      return false;
+    }
+    return severity != LanguageServiceStatusSeverity.ready ||
+        capabilityHealth != StyioServiceCapabilityHealth.ready.wireValue ||
+        missingCapabilityCount > 0 ||
+        blockedCapabilityCount > 0;
+  }
+
   bool get syntaxValidationReady {
     return _stateUsable(
           primaryCapabilityStates[StyioServiceCapability.diagnostics.wireValue],
@@ -213,6 +223,7 @@ class LanguageServiceStatusSurface {
           .map((capability) => capability.toJson())
           .toList(growable: false),
       'actionable': actionable,
+      'refreshRecommended': refreshRecommended,
       'syntaxValidationReady': syntaxValidationReady,
       'semanticFactsReady': semanticFactsReady,
       'unavailablePrimaryCapabilities': unavailablePrimaryCapabilities,

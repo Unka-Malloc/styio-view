@@ -49,6 +49,7 @@ class EditorSurface extends StatelessWidget {
     this.activeDocumentId,
     this.onSelectDocument,
     this.onCloseDocument,
+    this.onRefreshLanguageService,
   });
 
   final EditorSessionController controller;
@@ -71,6 +72,7 @@ class EditorSurface extends StatelessWidget {
   final String? activeDocumentId;
   final ValueChanged<String>? onSelectDocument;
   final ValueChanged<String>? onCloseDocument;
+  final VoidCallback? onRefreshLanguageService;
 
   @override
   Widget build(BuildContext context) {
@@ -102,12 +104,7 @@ class EditorSurface extends StatelessWidget {
         final visibleOpenDocumentIds = openDocumentIds.isEmpty
             ? <String>[document.documentId]
             : openDocumentIds;
-        final visibleServiceStatus =
-            serviceStatus != null &&
-                serviceStatus.severity !=
-                    LanguageServiceStatusSeverity.unavailable
-            ? serviceStatus
-            : null;
+        final visibleServiceStatus = serviceStatus;
         final summaryPills = <String>[
           'lines ${document.lines.length}',
           'chars ${document.length}',
@@ -319,6 +316,8 @@ class EditorSurface extends StatelessWidget {
                                                         activeSemanticKind,
                                                     languageServiceStatus:
                                                         visibleServiceStatus,
+                                                    onRefreshLanguageService:
+                                                        onRefreshLanguageService,
                                                   ),
                                                 ),
                                               ],
@@ -372,6 +371,8 @@ class EditorSurface extends StatelessWidget {
                                                       activeSemanticKind,
                                                   languageServiceStatus:
                                                       visibleServiceStatus,
+                                                  onRefreshLanguageService:
+                                                      onRefreshLanguageService,
                                                 ),
                                               ),
                                             ],
@@ -426,6 +427,8 @@ class EditorSurface extends StatelessWidget {
                                                     activeSemanticKind,
                                                 languageServiceStatus:
                                                     visibleServiceStatus,
+                                                onRefreshLanguageService:
+                                                    onRefreshLanguageService,
                                               ),
                                             ),
                                           ],
@@ -5247,6 +5250,7 @@ class _LanguageServicePane extends StatefulWidget {
     required this.activeToken,
     required this.activeSemanticKind,
     required this.languageServiceStatus,
+    required this.onRefreshLanguageService,
   });
 
   final EditorSessionController controller;
@@ -5257,6 +5261,7 @@ class _LanguageServicePane extends StatefulWidget {
   final TokenSpan? activeToken;
   final SemanticKind? activeSemanticKind;
   final LanguageServiceStatusSurface? languageServiceStatus;
+  final VoidCallback? onRefreshLanguageService;
 
   @override
   State<_LanguageServicePane> createState() => _LanguageServicePaneState();
@@ -5277,10 +5282,7 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
   @override
   Widget build(BuildContext context) {
     final analysis = widget.analysis;
-    final showServiceStatusCard =
-        widget.languageServiceStatus != null &&
-        widget.languageServiceStatus!.severity !=
-            LanguageServiceStatusSeverity.unavailable;
+    final showServiceStatusCard = widget.languageServiceStatus != null;
 
     if (widget.viewportProfile.isMobile) {
       return KeyedSubtree(
@@ -5488,6 +5490,15 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
               _CapabilityPill(label: '${entry.key} ${entry.value}'),
           ],
         ),
+        if (status.refreshRecommended) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            key: const ValueKey('language-service-refresh-action'),
+            onPressed: widget.onRefreshLanguageService,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Refresh language service'),
+          ),
+        ],
       ],
     );
   }

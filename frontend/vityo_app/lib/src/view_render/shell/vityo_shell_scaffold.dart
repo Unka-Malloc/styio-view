@@ -665,6 +665,11 @@ class _DesktopShellBody extends StatelessWidget {
                               shell.workspaceController.activeFilePath,
                           onSelectDocument: shell.workspaceController.openFile,
                           onCloseDocument: shell.requestCloseWorkspaceFile,
+                          onRefreshLanguageService: () {
+                            shell.executeCommand(
+                              AppCommandId.refreshLanguageService,
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -754,6 +759,9 @@ class _MobileShellBody extends StatelessWidget {
               activeDocumentId: shell.workspaceController.activeFilePath,
               onSelectDocument: shell.workspaceController.openFile,
               onCloseDocument: shell.requestCloseWorkspaceFile,
+              onRefreshLanguageService: () {
+                shell.executeCommand(AppCommandId.refreshLanguageService);
+              },
             ),
           ),
           const SizedBox(height: 16),

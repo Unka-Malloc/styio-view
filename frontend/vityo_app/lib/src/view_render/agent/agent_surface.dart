@@ -442,6 +442,16 @@ class _AgentProviderProfileSectionState
             'Preset requires an explicit OpenAI API key or bearer token. Vityo stores the credential through Credential DataStore and does not read Codex OAuth from the host.',
             style: theme.textTheme.bodySmall,
           ),
+          if (_endpointCredentialReference != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Credential reference: ${_endpointCredentialReference!.key.stableId} (${_endpointCredentialReference!.kind.wireValue})',
+              key: const ValueKey('agent-profile-credential-reference'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           FilledButton(
             key: const ValueKey('agent-profile-save-button'),

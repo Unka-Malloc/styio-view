@@ -208,6 +208,10 @@ void main() {
         find.textContaining('OpenAI API key or bearer token'),
         findsOneWidget,
       );
+      expect(
+        find.textContaining('user:agent.provider:openai-api-key'),
+        findsOneWidget,
+      );
       expect(find.textContaining('does not read Codex OAuth'), findsOneWidget);
 
       await tester.enterText(

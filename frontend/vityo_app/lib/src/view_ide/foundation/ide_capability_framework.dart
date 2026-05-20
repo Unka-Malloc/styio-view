@@ -342,9 +342,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/interaction',
           summary:
-              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
+              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
           todo:
-              'TODO: add native diagnostic producers and route quick-fix review outcomes into producer execution telemetry.',
+              'TODO: add native diagnostic producers and persist quick-fix review outcomes into producer execution telemetry stores.',
           dependencies: <String>['workspace.diagnostics'],
         ),
         IdeCapabilityDescriptor(

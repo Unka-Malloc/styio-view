@@ -754,6 +754,12 @@ void main() {
         shell.debugLog.any((entry) => entry.contains('Quick fix applied')),
         isTrue,
       );
+      final telemetry = shell.runtimeOutputBuffer.snapshot.events.singleWhere(
+        (event) => event.channelId == 'diagnostics.activity',
+      );
+      expect(telemetry.message, 'Quick fix applied at editor selection.');
+      expect(telemetry.metadata['action'], 'applyQuickFix');
+      expect(telemetry.metadata['succeeded'], isTrue);
     },
   );
 
@@ -1408,6 +1414,14 @@ void main() {
       shell.debugLog.any((entry) => entry.contains('applyQuickFix applied')),
       isTrue,
     );
+    final telemetry = shell.runtimeOutputBuffer.snapshot.events.singleWhere(
+      (event) => event.metadata['action'] == 'agent.applyQuickFix',
+    );
+    expect(
+      telemetry.message,
+      'Agent command applyQuickFix applied at editor selection.',
+    );
+    expect(telemetry.metadata['succeeded'], isTrue);
   });
 
   test('shell runtime applies agent navigation command suggestions', () async {

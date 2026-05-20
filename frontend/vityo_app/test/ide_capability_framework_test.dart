@@ -84,6 +84,10 @@ void main() {
       contains('workspace.diagnostics'),
     );
     expect(
+      entriesById['interaction.diagnostics']?.summary,
+      contains('RuntimeOutputLiveBuffer quick-fix action telemetry'),
+    );
+    expect(
       entriesById['runtime.terminal']?.status,
       IdeCapabilityStatus.scaffolded,
     );

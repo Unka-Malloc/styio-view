@@ -1052,6 +1052,29 @@ class ShellRuntimeModel extends ChangeNotifier {
     return fixes;
   }
 
+  void _publishDiagnosticActionTelemetry({
+    required String action,
+    required bool succeeded,
+    required String message,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    runtimeOutputBuffer.addEvent(
+      RuntimeOutputEvent(
+        channelId: 'diagnostics.activity',
+        label: 'Diagnostics Activity',
+        kind: RuntimeOutputChannelKind.languageService,
+        message: message,
+        timestamp: DateTime.now().toUtc(),
+        metadata: <String, Object?>{
+          'action': action,
+          'succeeded': succeeded,
+          'activeDocumentPath': _activeDocumentPath,
+          ...metadata,
+        },
+      ),
+    );
+  }
+
   Future<bool> applyFirstProjectWorkspaceQuickFix() async {
     final fixes = await collectProjectWorkspaceQuickFixes();
     if (fixes.isEmpty) {
@@ -1638,6 +1661,12 @@ class ShellRuntimeModel extends ChangeNotifier {
           _cacheDocument(_activeDocumentPath, editorController.document);
           _dirtyDocumentPaths.add(_activeDocumentPath);
           appendLog('Agent command applyQuickFix applied at editor selection.');
+          _publishDiagnosticActionTelemetry(
+            action: 'agent.applyQuickFix',
+            succeeded: true,
+            message: 'Agent command applyQuickFix applied at editor selection.',
+            metadata: const <String, Object?>{'scope': 'selection'},
+          );
           _recordAgentIdeCommandResult(
             suggestion,
             applied: true,
@@ -1647,6 +1676,13 @@ class ShellRuntimeModel extends ChangeNotifier {
           return true;
         }
         if (await applyFirstProjectWorkspaceQuickFix()) {
+          _publishDiagnosticActionTelemetry(
+            action: 'agent.applyQuickFix',
+            succeeded: true,
+            message:
+                'Agent command applyQuickFix applied project workspace fix.',
+            metadata: const <String, Object?>{'scope': 'workspace'},
+          );
           _recordAgentIdeCommandResult(
             suggestion,
             applied: true,
@@ -1657,6 +1693,13 @@ class ShellRuntimeModel extends ChangeNotifier {
         }
         appendLog(
           'Agent command applyQuickFix skipped: no quick fix available.',
+        );
+        _publishDiagnosticActionTelemetry(
+          action: 'agent.applyQuickFix',
+          succeeded: false,
+          message:
+              'Agent command applyQuickFix skipped: no quick fix available.',
+          metadata: const <String, Object?>{'scope': 'selection'},
         );
         _recordAgentIdeCommandResult(
           suggestion,
@@ -1669,6 +1712,16 @@ class ShellRuntimeModel extends ChangeNotifier {
       case 'previewQuickFix':
         final preview = await previewFirstProjectWorkspaceQuickFix();
         final applied = preview?.canApply ?? false;
+        _publishDiagnosticActionTelemetry(
+          action: 'agent.previewQuickFix',
+          succeeded: applied,
+          message: applied
+              ? 'Agent command previewQuickFix collected workspace edit preview.'
+              : 'Agent command previewQuickFix skipped: no quick fix available.',
+          metadata: <String, Object?>{
+            if (preview != null) 'workspaceEditPreview': preview.toJson(),
+          },
+        );
         _recordAgentIdeCommandResult(
           suggestion,
           applied: applied,
@@ -5054,6 +5107,16 @@ class ShellRuntimeModel extends ChangeNotifier {
         return;
       case AppCommandId.previewQuickFix:
         final preview = await previewFirstProjectWorkspaceQuickFix();
+        _publishDiagnosticActionTelemetry(
+          action: 'previewQuickFix',
+          succeeded: preview?.canApply ?? false,
+          message: preview?.canApply ?? false
+              ? 'Quick fix preview collected.'
+              : 'Quick fix preview skipped: no action available.',
+          metadata: <String, Object?>{
+            if (preview != null) 'workspaceEditPreview': preview.toJson(),
+          },
+        );
         _recordAgentIdeCommandResult(
           AgentIdeCommandSuggestion(commandId: commandId.name),
           applied: preview?.canApply ?? false,
@@ -5071,10 +5134,28 @@ class ShellRuntimeModel extends ChangeNotifier {
           _cacheDocument(_activeDocumentPath, editorController.document);
           _dirtyDocumentPaths.add(_activeDocumentPath);
           appendLog('Quick fix applied at editor selection.');
+          _publishDiagnosticActionTelemetry(
+            action: 'applyQuickFix',
+            succeeded: true,
+            message: 'Quick fix applied at editor selection.',
+            metadata: const <String, Object?>{'scope': 'selection'},
+          );
         } else if (await applyFirstProjectWorkspaceQuickFix()) {
           appendLog('Project workspace quick fix applied from editor command.');
+          _publishDiagnosticActionTelemetry(
+            action: 'applyQuickFix',
+            succeeded: true,
+            message: 'Project workspace quick fix applied from editor command.',
+            metadata: const <String, Object?>{'scope': 'workspace'},
+          );
         } else {
           appendLog('Quick fix skipped: no action available at selection.');
+          _publishDiagnosticActionTelemetry(
+            action: 'applyQuickFix',
+            succeeded: false,
+            message: 'Quick fix skipped: no action available at selection.',
+            metadata: const <String, Object?>{'scope': 'selection'},
+          );
         }
         notifyListeners();
         return;

@@ -1,4 +1,5 @@
 import '../foundation/foundation.dart';
+import 'extension_host_isolation.dart';
 import 'extension_manifest_contract.dart';
 
 enum ExtensionInstallPlanStatus {
@@ -123,6 +124,271 @@ class ExtensionInstallPlan {
       if (listing != null) 'listing': listing!.toJson(),
       if (todo.isNotEmpty) 'todo': todo,
     };
+  }
+}
+
+enum ExtensionInstallExecutionStatus {
+  ready,
+  alreadyInstalled,
+  blockedInvalidListing,
+  blockedUnverifiedPackage,
+  blockedHostIsolation,
+}
+
+extension ExtensionInstallExecutionStatusX on ExtensionInstallExecutionStatus {
+  String get wireValue => switch (this) {
+    ExtensionInstallExecutionStatus.ready => 'ready',
+    ExtensionInstallExecutionStatus.alreadyInstalled => 'already-installed',
+    ExtensionInstallExecutionStatus.blockedInvalidListing =>
+      'blocked-invalid-listing',
+    ExtensionInstallExecutionStatus.blockedUnverifiedPackage =>
+      'blocked-unverified-package',
+    ExtensionInstallExecutionStatus.blockedHostIsolation =>
+      'blocked-host-isolation',
+  };
+}
+
+enum ExtensionInstallExecutionStepKind {
+  downloadPackage,
+  verifySignature,
+  registerManifest,
+  applyLifecyclePolicy,
+  planHostIsolation,
+}
+
+extension ExtensionInstallExecutionStepKindX
+    on ExtensionInstallExecutionStepKind {
+  String get wireValue => switch (this) {
+    ExtensionInstallExecutionStepKind.downloadPackage => 'download-package',
+    ExtensionInstallExecutionStepKind.verifySignature => 'verify-signature',
+    ExtensionInstallExecutionStepKind.registerManifest => 'register-manifest',
+    ExtensionInstallExecutionStepKind.applyLifecyclePolicy =>
+      'apply-lifecycle-policy',
+    ExtensionInstallExecutionStepKind.planHostIsolation =>
+      'plan-host-isolation',
+  };
+}
+
+class ExtensionInstallExecutionStep {
+  const ExtensionInstallExecutionStep({
+    required this.kind,
+    required this.ready,
+    required this.message,
+    this.todo = '',
+  });
+
+  final ExtensionInstallExecutionStepKind kind;
+  final bool ready;
+  final String message;
+  final String todo;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'ready': ready,
+      'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class ExtensionInstallLifecyclePolicyDecision {
+  const ExtensionInstallLifecyclePolicyDecision({
+    required this.extensionId,
+    required this.enabledAfterInstall,
+    required this.trustedAfterInstall,
+    required this.activateAfterInstall,
+    required this.message,
+  });
+
+  final String extensionId;
+  final bool enabledAfterInstall;
+  final bool trustedAfterInstall;
+  final bool activateAfterInstall;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'enabledAfterInstall': enabledAfterInstall,
+      'trustedAfterInstall': trustedAfterInstall,
+      'activateAfterInstall': activateAfterInstall,
+      'message': message,
+    };
+  }
+}
+
+class ExtensionInstallLifecyclePolicy {
+  const ExtensionInstallLifecyclePolicy({
+    this.enableAfterInstall = true,
+    this.trustVerifiedListings = true,
+    this.activateTrustedAfterInstall = false,
+  });
+
+  final bool enableAfterInstall;
+  final bool trustVerifiedListings;
+  final bool activateTrustedAfterInstall;
+
+  ExtensionInstallLifecyclePolicyDecision decide(
+    ExtensionMarketplaceListing listing,
+  ) {
+    final trusted =
+        listing.manifest.trustedByDefault ||
+        (trustVerifiedListings && listing.verified);
+    return ExtensionInstallLifecyclePolicyDecision(
+      extensionId: listing.extensionId,
+      enabledAfterInstall: enableAfterInstall,
+      trustedAfterInstall: trusted,
+      activateAfterInstall: activateTrustedAfterInstall && trusted,
+      message: trusted
+          ? 'Extension ${listing.extensionId} can be trusted after install.'
+          : 'Extension ${listing.extensionId} requires explicit user trust.',
+    );
+  }
+}
+
+class ExtensionInstallExecutionPlan {
+  const ExtensionInstallExecutionPlan({
+    required this.extensionId,
+    required this.status,
+    required this.message,
+    required this.installPlan,
+    required this.steps,
+    this.hostExecutionPlan,
+    this.lifecycleDecision,
+  });
+
+  final String extensionId;
+  final ExtensionInstallExecutionStatus status;
+  final String message;
+  final ExtensionInstallPlan installPlan;
+  final List<ExtensionInstallExecutionStep> steps;
+  final ExtensionHostExecutionPlan? hostExecutionPlan;
+  final ExtensionInstallLifecyclePolicyDecision? lifecycleDecision;
+
+  bool get executable {
+    return status == ExtensionInstallExecutionStatus.ready &&
+        steps.every((step) => step.ready);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'status': status.wireValue,
+      'message': message,
+      'executable': executable,
+      'installPlan': installPlan.toJson(),
+      'steps': steps.map((step) => step.toJson()).toList(growable: false),
+      if (hostExecutionPlan != null)
+        'hostExecutionPlan': hostExecutionPlan!.toJson(),
+      if (lifecycleDecision != null)
+        'lifecycleDecision': lifecycleDecision!.toJson(),
+    };
+  }
+}
+
+class ExtensionMarketplaceInstaller {
+  const ExtensionMarketplaceInstaller({
+    this.requireVerifiedPackage = true,
+    this.isolationPolicy = const ExtensionHostIsolationPolicy(),
+    this.lifecyclePolicy = const ExtensionInstallLifecyclePolicy(),
+  });
+
+  final bool requireVerifiedPackage;
+  final ExtensionHostIsolationPolicy isolationPolicy;
+  final ExtensionInstallLifecyclePolicy lifecyclePolicy;
+
+  ExtensionInstallExecutionPlan planExecution(ExtensionInstallPlan plan) {
+    if (plan.status == ExtensionInstallPlanStatus.alreadyInstalled) {
+      return ExtensionInstallExecutionPlan(
+        extensionId: plan.extensionId,
+        status: ExtensionInstallExecutionStatus.alreadyInstalled,
+        message: plan.message,
+        installPlan: plan,
+        steps: const <ExtensionInstallExecutionStep>[],
+      );
+    }
+    if (!plan.ready || plan.listing == null) {
+      return ExtensionInstallExecutionPlan(
+        extensionId: plan.extensionId,
+        status: ExtensionInstallExecutionStatus.blockedInvalidListing,
+        message: plan.message,
+        installPlan: plan,
+        steps: const <ExtensionInstallExecutionStep>[],
+      );
+    }
+
+    final listing = plan.listing!;
+    final lifecycleDecision = lifecyclePolicy.decide(listing);
+    final hostPlan = isolationPolicy.planFor(listing.manifest);
+    final signatureReady = !requireVerifiedPackage || listing.verified;
+    final steps = <ExtensionInstallExecutionStep>[
+      ExtensionInstallExecutionStep(
+        kind: ExtensionInstallExecutionStepKind.downloadPackage,
+        ready: true,
+        message: 'Download ${listing.extensionId} from ${listing.sourceUri}.',
+        todo:
+            'TODO: replace this planning step with a real downloader and cache writer.',
+      ),
+      ExtensionInstallExecutionStep(
+        kind: ExtensionInstallExecutionStepKind.verifySignature,
+        ready: signatureReady,
+        message: signatureReady
+            ? 'Package verification policy is satisfied.'
+            : 'Package must be verified before installation.',
+        todo:
+            'TODO: replace listing.verified with checksum and detached signature verification.',
+      ),
+      ExtensionInstallExecutionStep(
+        kind: ExtensionInstallExecutionStepKind.registerManifest,
+        ready: true,
+        message:
+            'Register manifest ${listing.manifest.extensionId} after package staging.',
+      ),
+      ExtensionInstallExecutionStep(
+        kind: ExtensionInstallExecutionStepKind.applyLifecyclePolicy,
+        ready: true,
+        message: lifecycleDecision.message,
+      ),
+      ExtensionInstallExecutionStep(
+        kind: ExtensionInstallExecutionStepKind.planHostIsolation,
+        ready: hostPlan.executable,
+        message: hostPlan.reason,
+      ),
+    ];
+
+    if (!signatureReady) {
+      return ExtensionInstallExecutionPlan(
+        extensionId: plan.extensionId,
+        status: ExtensionInstallExecutionStatus.blockedUnverifiedPackage,
+        message: 'Extension ${plan.extensionId} is blocked until verified.',
+        installPlan: plan,
+        steps: steps,
+        hostExecutionPlan: hostPlan,
+        lifecycleDecision: lifecycleDecision,
+      );
+    }
+    if (!hostPlan.executable) {
+      return ExtensionInstallExecutionPlan(
+        extensionId: plan.extensionId,
+        status: ExtensionInstallExecutionStatus.blockedHostIsolation,
+        message:
+            'Extension ${plan.extensionId} cannot start under the current host isolation policy.',
+        installPlan: plan,
+        steps: steps,
+        hostExecutionPlan: hostPlan,
+        lifecycleDecision: lifecycleDecision,
+      );
+    }
+    return ExtensionInstallExecutionPlan(
+      extensionId: plan.extensionId,
+      status: ExtensionInstallExecutionStatus.ready,
+      message: 'Extension ${plan.extensionId} install execution is planned.',
+      installPlan: plan,
+      steps: steps,
+      hostExecutionPlan: hostPlan,
+      lifecycleDecision: lifecycleDecision,
+    );
   }
 }
 

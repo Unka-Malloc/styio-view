@@ -73,6 +73,94 @@ void main() {
     );
   });
 
+  test('extension marketplace installer composes execution steps', () {
+    const listing = ExtensionMarketplaceListing(
+      manifest: ExtensionManifest(
+        extensionId: 'styio.language',
+        displayName: 'Styio Language',
+        version: '1.0.0',
+        publisher: 'vityo',
+        entrypoint: 'styio_language.dart',
+        trustedByDefault: true,
+        metadata: <String, Object?>{'isolationMode': 'local-process'},
+      ),
+      sourceUri: 'https://marketplace.vityo.invalid/styio.language-1.0.0.zip',
+      verified: true,
+    );
+    const index = ExtensionMarketplaceIndex(
+      workspaceId: 'demo',
+      listings: <ExtensionMarketplaceListing>[listing],
+    );
+    final installPlan = index.installPlan(
+      installedRegistry: ExtensionManifestRegistry(),
+      extensionId: 'styio.language',
+    );
+
+    final executionPlan = const ExtensionMarketplaceInstaller().planExecution(
+      installPlan,
+    );
+
+    expect(executionPlan.status, ExtensionInstallExecutionStatus.ready);
+    expect(executionPlan.executable, isTrue);
+    expect(
+      executionPlan.steps.map((step) => step.kind).toList(growable: false),
+      <ExtensionInstallExecutionStepKind>[
+        ExtensionInstallExecutionStepKind.downloadPackage,
+        ExtensionInstallExecutionStepKind.verifySignature,
+        ExtensionInstallExecutionStepKind.registerManifest,
+        ExtensionInstallExecutionStepKind.applyLifecyclePolicy,
+        ExtensionInstallExecutionStepKind.planHostIsolation,
+      ],
+    );
+    expect(
+      executionPlan.hostExecutionPlan?.mode,
+      ExtensionHostIsolationMode.localProcess,
+    );
+    expect(executionPlan.lifecycleDecision?.trustedAfterInstall, isTrue);
+    expect(executionPlan.toJson()['status'], 'ready');
+  });
+
+  test('extension marketplace installer blocks unverified packages', () {
+    const listing = ExtensionMarketplaceListing(
+      manifest: ExtensionManifest(
+        extensionId: 'external.theme',
+        displayName: 'External Theme',
+        version: '1.0.0',
+        publisher: 'external',
+        entrypoint: 'theme.dart',
+        trustedByDefault: true,
+      ),
+      sourceUri: 'https://marketplace.vityo.invalid/external.theme-1.0.0.zip',
+    );
+    const index = ExtensionMarketplaceIndex(
+      workspaceId: 'demo',
+      listings: <ExtensionMarketplaceListing>[listing],
+    );
+    final installPlan = index.installPlan(
+      installedRegistry: ExtensionManifestRegistry(),
+      extensionId: 'external.theme',
+    );
+
+    final executionPlan = const ExtensionMarketplaceInstaller().planExecution(
+      installPlan,
+    );
+
+    expect(
+      executionPlan.status,
+      ExtensionInstallExecutionStatus.blockedUnverifiedPackage,
+    );
+    expect(executionPlan.executable, isFalse);
+    expect(
+      executionPlan.steps
+          .singleWhere(
+            (step) =>
+                step.kind == ExtensionInstallExecutionStepKind.verifySignature,
+          )
+          .ready,
+      isFalse,
+    );
+  });
+
   test(
     'extension marketplace index persists through Foundation DataStore',
     () async {

@@ -6,6 +6,86 @@ import '../runtime/runtime.dart';
 import 'test_run_history_store.dart';
 import 'testing_provider.dart';
 
+class FailedTestDebugCancellationRoute {
+  const FailedTestDebugCancellationRoute({
+    required this.taskId,
+    required this.providerId,
+    required this.configurationId,
+    required this.failedTestName,
+    required this.failedTestId,
+    required this.status,
+    required this.ready,
+    required this.cancelled,
+    required this.message,
+  });
+
+  factory FailedTestDebugCancellationRoute.fromState({
+    required RuntimeTaskSnapshot? runtimeTask,
+    required TestRunConfiguration? configuration,
+    required Map<String, Object?> failedTest,
+    bool cancelled = false,
+    String? message,
+  }) {
+    final failedTestName =
+        failedTest['name'] as String? ?? failedTest['id'] as String? ?? '';
+    final failedTestId =
+        failedTest['id'] as String? ?? failedTest['name'] as String? ?? '';
+    final isDebugTask = runtimeTask?.definition.kind == RuntimeTaskKind.debug;
+    final active = runtimeTask?.active ?? false;
+    final ready = runtimeTask != null && isDebugTask && active && !cancelled;
+    final blockedReason = runtimeTask == null
+        ? 'No active test debug runtime task is available.'
+        : !isDebugTask
+        ? 'The active test runtime task is not a debug task.'
+        : !active
+        ? 'The test debug runtime task is not active.'
+        : '';
+    return FailedTestDebugCancellationRoute(
+      taskId: runtimeTask?.definition.id ?? '',
+      providerId: configuration?.providerId ?? '',
+      configurationId: configuration?.id ?? '',
+      failedTestName: failedTestName,
+      failedTestId: failedTestId,
+      status: cancelled
+          ? RuntimeTaskStatus.cancelled.wireValue
+          : runtimeTask?.status.wireValue ?? 'unavailable',
+      ready: ready,
+      cancelled: cancelled,
+      message:
+          message ??
+          (ready
+              ? 'Failed-test debug cancellation is ready for $failedTestName.'
+              : blockedReason),
+    );
+  }
+
+  final String taskId;
+  final String providerId;
+  final String configurationId;
+  final String failedTestName;
+  final String failedTestId;
+  final String status;
+  final bool ready;
+  final bool cancelled;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'taskId': taskId,
+      'providerId': providerId,
+      'configurationId': configurationId,
+      'failedTestName': failedTestName,
+      'failedTestId': failedTestId,
+      'status': status,
+      'ready': ready,
+      'cancelled': cancelled,
+      'message': message,
+      'todo':
+          'TODO: connect route cancellation to the concrete debug adapter or test runner process.',
+    };
+  }
+}
+
 class TestingSessionController extends ChangeNotifier {
   TestingSessionController({
     this.discoveryProvider,
@@ -46,6 +126,7 @@ class TestingSessionController extends ChangeNotifier {
   TestRunRequest? _lastRunRequest;
   TestRunConfiguration? _lastRunConfiguration;
   RuntimeTaskSnapshot? _lastRuntimeTask;
+  FailedTestDebugCancellationRoute? _lastFailedDebugCancellationRoute;
   final List<TestRunResult> _runHistory = <TestRunResult>[];
   final List<FailedTestRetryRecord> _failedRetryHistory =
       <FailedTestRetryRecord>[];
@@ -57,6 +138,8 @@ class TestingSessionController extends ChangeNotifier {
   TestRunRequest? get lastRunRequest => _lastRunRequest;
   TestRunConfiguration? get lastRunConfiguration => _lastRunConfiguration;
   RuntimeTaskSnapshot? get lastRuntimeTask => _lastRuntimeTask;
+  FailedTestDebugCancellationRoute? get lastFailedDebugCancellationRoute =>
+      _lastFailedDebugCancellationRoute;
   List<TestRunResult> get runHistory =>
       List<TestRunResult>.unmodifiable(_runHistory);
   List<FailedTestRetryRecord> get failedRetryHistory =>
@@ -164,6 +247,14 @@ class TestingSessionController extends ChangeNotifier {
 
     try {
       final providerResult = await provider.run(request);
+      if (_isRuntimeTaskCancelled(runtimeTask)) {
+        final result = await _storeCancelledRun(
+          providerId: provider.providerId,
+          runtimeTask: runtimeTask,
+          generation: generation,
+        );
+        return result;
+      }
       final finishedTask = _finishRuntimeTask(
         runtimeTask,
         status: providerResult.status,
@@ -174,6 +265,14 @@ class TestingSessionController extends ChangeNotifier {
       await _storeRun(result, generation);
       return result;
     } on Object catch (error) {
+      if (_isRuntimeTaskCancelled(runtimeTask)) {
+        final result = await _storeCancelledRun(
+          providerId: provider.providerId,
+          runtimeTask: runtimeTask,
+          generation: generation,
+        );
+        return result;
+      }
       final finishedTask = _finishRuntimeTask(
         runtimeTask,
         status: TestRunStatus.error,
@@ -226,6 +325,48 @@ class TestingSessionController extends ChangeNotifier {
 
   Future<TestRunResult> debugConfiguration(TestRunConfiguration configuration) {
     return runConfiguration(configuration.copyWith(debug: true));
+  }
+
+  FailedTestDebugCancellationRoute planFailedTestDebugCancellation({
+    Map<String, Object?> failedTest = const <String, Object?>{},
+  }) {
+    final route = FailedTestDebugCancellationRoute.fromState(
+      runtimeTask: _lastRuntimeTask,
+      configuration: _lastRunConfiguration,
+      failedTest: failedTest,
+    );
+    _lastFailedDebugCancellationRoute = route;
+    notifyListeners();
+    return route;
+  }
+
+  Future<FailedTestDebugCancellationRoute> cancelFailedTestDebug({
+    Map<String, Object?> failedTest = const <String, Object?>{},
+  }) async {
+    final route = planFailedTestDebugCancellation(failedTest: failedTest);
+    final controller = _runtimeTaskLifecycleController;
+    if (!route.ready || controller == null) {
+      return route;
+    }
+    final cancelled = controller.cancel(
+      route.taskId,
+      message:
+          'Cancelled failed-test debug task ${route.taskId} for ${route.failedTestName}.',
+    );
+    _cancelledRuntimeTaskIds.add(route.taskId);
+    _lastRuntimeTask = cancelled;
+    await _persistRuntimeTask(cancelled);
+    final cancelledRoute = FailedTestDebugCancellationRoute.fromState(
+      runtimeTask: cancelled,
+      configuration: _lastRunConfiguration,
+      failedTest: failedTest,
+      cancelled: true,
+      message:
+          'Failed-test debug cancellation routed for ${route.failedTestName}.',
+    );
+    _lastFailedDebugCancellationRoute = cancelledRoute;
+    notifyListeners();
+    return cancelledRoute;
   }
 
   Future<TestRunResult> rerunFailed({
@@ -335,13 +476,54 @@ class TestingSessionController extends ChangeNotifier {
     );
     controller.register(definition);
     if (!definition.runnable) {
-      return controller.block(
+      final blocked = controller.block(
         taskId,
         message: 'Test task $taskId has no runnable provider.',
         metadata: const <String, Object?>{'phase': 'provider-selection'},
       );
+      _lastRuntimeTask = blocked;
+      return blocked;
     }
-    return controller.start(taskId, message: 'Test task $taskId started.');
+    final started = controller.start(
+      taskId,
+      message: 'Test task $taskId started.',
+    );
+    _lastRuntimeTask = started;
+    return started;
+  }
+
+  final Set<String> _cancelledRuntimeTaskIds = <String>{};
+
+  bool _isRuntimeTaskCancelled(RuntimeTaskSnapshot? runtimeTask) {
+    return runtimeTask != null &&
+        _cancelledRuntimeTaskIds.contains(runtimeTask.definition.id);
+  }
+
+  Future<TestRunResult> _storeCancelledRun({
+    required String providerId,
+    required RuntimeTaskSnapshot? runtimeTask,
+    required int generation,
+  }) async {
+    final taskId = runtimeTask?.definition.id ?? '';
+    if (taskId.isNotEmpty) {
+      _cancelledRuntimeTaskIds.remove(taskId);
+    }
+    final snapshot = taskId.isEmpty
+        ? runtimeTask
+        : _runtimeTaskLifecycleController?.snapshotFor(taskId) ?? runtimeTask;
+    await _persistRuntimeTask(snapshot);
+    final result = _attachRuntimeTask(
+      TestRunResult(
+        providerId: providerId,
+        status: TestRunStatus.notRun,
+        message: taskId.isEmpty
+            ? 'Test debug run cancelled.'
+            : 'Test debug run cancelled: $taskId.',
+      ),
+      snapshot,
+    );
+    await _storeRun(result, generation);
+    return result;
   }
 
   RuntimeTaskSnapshot? _finishRuntimeTask(

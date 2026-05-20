@@ -644,6 +644,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   List<FailedTestRetryRecord> get failedTestRetryHistory =>
       testingSessionController?.failedRetryHistory ??
       const <FailedTestRetryRecord>[];
+  FailedTestDebugCancellationRoute? get failedDebugCancellationRoute =>
+      testingSessionController?.lastFailedDebugCancellationRoute;
   TestRunConfigurationSet get testRunConfigurationSet {
     final workspaceRoot = workspaceController.activeProject.workspaceRoot;
     final lastRun = lastTestRun;
@@ -1184,6 +1186,20 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
     final result = await controller.debugConfiguration(debugConfiguration);
     appendLog(_testRunResultMessage('Debug test configuration', result));
+    notifyListeners();
+  }
+
+  Future<void> cancelFailedTestDebug(Map<String, Object?> failedTest) async {
+    final controller = testingSessionController;
+    if (controller == null) {
+      appendLog('Failed-test debug cancellation skipped: no test controller.');
+      notifyListeners();
+      return;
+    }
+    final route = await controller.cancelFailedTestDebug(
+      failedTest: failedTest,
+    );
+    appendLog(route.message);
     notifyListeners();
   }
 

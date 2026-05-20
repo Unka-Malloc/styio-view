@@ -305,6 +305,7 @@ class VityoShellScaffold extends StatelessWidget {
             runHistory: shell.testRunHistory,
             failedRetryHistory: shell.failedTestRetryHistory,
             configurationSet: shell.testRunConfigurationSet,
+            failedDebugCancellationRoute: shell.failedDebugCancellationRoute,
             onRunTests: () {
               return shell.executeCommand(AppCommandId.runTests);
             },
@@ -313,6 +314,7 @@ class VityoShellScaffold extends StatelessWidget {
               await shell.debugTestConfiguration(configuration);
               shell.selectBottomTab(BottomSurfaceTab.debug);
             },
+            onCancelFailedTestDebug: shell.cancelFailedTestDebug,
             onRerunFailed: () {
               return shell.rerunFailedTests();
             },

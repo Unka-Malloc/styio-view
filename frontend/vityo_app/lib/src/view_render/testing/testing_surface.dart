@@ -16,9 +16,11 @@ class TestingSurface extends StatelessWidget {
     this.runHistory = const <TestRunResult>[],
     this.failedRetryHistory = const <FailedTestRetryRecord>[],
     this.configurationSet,
+    this.failedDebugCancellationRoute,
     this.onRunTests,
     this.onRunConfiguration,
     this.onDebugConfiguration,
+    this.onCancelFailedTestDebug,
     this.onRerunFailed,
     this.onSelectRunConfiguration,
     this.onSelectFailedTest,
@@ -32,11 +34,14 @@ class TestingSurface extends StatelessWidget {
   final List<TestRunResult> runHistory;
   final List<FailedTestRetryRecord> failedRetryHistory;
   final TestRunConfigurationSet? configurationSet;
+  final FailedTestDebugCancellationRoute? failedDebugCancellationRoute;
   final Future<void> Function()? onRunTests;
   final Future<void> Function(TestRunConfiguration configuration)?
   onRunConfiguration;
   final Future<void> Function(TestRunConfiguration configuration)?
   onDebugConfiguration;
+  final Future<void> Function(Map<String, Object?> failedTest)?
+  onCancelFailedTestDebug;
   final Future<void> Function()? onRerunFailed;
   final ValueChanged<TestRunConfiguration>? onSelectRunConfiguration;
   final ValueChanged<Map<String, Object?>>? onSelectFailedTest;
@@ -90,6 +95,12 @@ class TestingSurface extends StatelessWidget {
                       selectedConfiguration.ready
                           ? 'config ready'
                           : 'config blocked',
+                    ),
+                  ),
+                if (failedDebugCancellationRoute != null)
+                  Chip(
+                    label: Text(
+                      'debug-cancel ${failedDebugCancellationRoute!.status}',
                     ),
                   ),
                 if (discovery != null)
@@ -311,6 +322,16 @@ class TestingSurface extends StatelessWidget {
                         ),
                     ],
                     if (failedTests.isNotEmpty) ...[
+                      if (failedDebugCancellationRoute != null)
+                        ListTile(
+                          key: const ValueKey(
+                            'testing-failed-debug-cancellation-route',
+                          ),
+                          dense: true,
+                          leading: const Icon(Icons.cancel_schedule_send),
+                          title: const Text('Failed-test debug cancellation'),
+                          subtitle: Text(failedDebugCancellationRoute!.message),
+                        ),
                       Padding(
                         padding: const EdgeInsets.only(
                           left: 16,
@@ -330,6 +351,18 @@ class TestingSurface extends StatelessWidget {
                           leading: const Icon(Icons.cancel_outlined),
                           title: Text('${failed['name'] ?? 'unknown'}'),
                           subtitle: Text('${failed['status'] ?? 'failed'}'),
+                          trailing: onCancelFailedTestDebug == null
+                              ? null
+                              : IconButton(
+                                  key: ValueKey(
+                                    'testing-cancel-failed-debug-${failed['name']}',
+                                  ),
+                                  tooltip: 'Cancel failed-test debug',
+                                  icon: const Icon(Icons.stop_circle_outlined),
+                                  onPressed: () {
+                                    onCancelFailedTestDebug!(failed);
+                                  },
+                                ),
                           onTap: onSelectFailedTest == null
                               ? null
                               : () {

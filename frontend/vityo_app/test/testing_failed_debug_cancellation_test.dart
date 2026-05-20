@@ -1,0 +1,159 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
+import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime.dart';
+import 'package:vityo_app/src/view_ide/testing/testing.dart';
+import 'package:vityo_app/src/view_render/platform/viewport_profile.dart';
+import 'package:vityo_app/src/view_render/testing/testing.dart';
+import 'package:vityo_app/src/platform/platform_target.dart';
+
+void main() {
+  test('testing controller routes failed-test debug cancellation', () async {
+    final completer = Completer<TestRunResult>();
+    final lifecycle = RuntimeTaskLifecycleController();
+    final controller = TestingSessionController(
+      runtimeTaskLifecycleController: lifecycle,
+      runProvider: _PendingTestRunProvider(completer.future),
+    );
+    addTearDown(controller.dispose);
+    controller.recordRunResult(
+      const TestRunResult(
+        providerId: 'fixture-runner',
+        status: TestRunStatus.failed,
+        message: 'failed',
+        failedCount: 1,
+        cases: <TestCaseResult>[
+          TestCaseResult(
+            id: 'parser.syntax',
+            name: 'parser syntax',
+            status: TestRunStatus.failed,
+          ),
+        ],
+        metadata: <String, Object?>{
+          'debuggerExecutablePath': '/usr/bin/lldb-dap',
+          'programPath': 'build/vityo-tests',
+        },
+      ),
+    );
+
+    final pending = controller.rerunFailed(
+      workspaceRoot: '/workspace/vityo',
+      debug: true,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final planned = controller.planFailedTestDebugCancellation(
+      failedTest: const <String, Object?>{
+        'id': 'parser.syntax',
+        'name': 'parser syntax',
+      },
+    );
+    final cancelled = await controller.cancelFailedTestDebug(
+      failedTest: const <String, Object?>{
+        'id': 'parser.syntax',
+        'name': 'parser syntax',
+      },
+    );
+    completer.complete(
+      const TestRunResult(
+        providerId: 'fixture-runner',
+        status: TestRunStatus.passed,
+        message: 'late pass ignored after cancellation.',
+      ),
+    );
+    final result = await pending;
+
+    expect(planned.ready, isTrue);
+    expect(cancelled.cancelled, isTrue);
+    expect(cancelled.status, 'cancelled');
+    expect(lifecycle.snapshotFor(planned.taskId)?.status,
+        RuntimeTaskStatus.cancelled);
+    expect(result.status, TestRunStatus.notRun);
+    expect(result.message, contains('cancelled'));
+  });
+
+  testWidgets('testing surface emits failed-test debug cancellation action', (
+    tester,
+  ) async {
+    Map<String, Object?>? cancelledFailedTest;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TestingSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            nativeToolResults: const <NativeToolResultRecord>[],
+            lastRun: const TestRunResult(
+              providerId: 'ctest',
+              status: TestRunStatus.failed,
+              message: 'One failed.',
+              failedCount: 1,
+              cases: <TestCaseResult>[
+                TestCaseResult(
+                  id: 'parser.syntax',
+                  name: 'parser syntax',
+                  status: TestRunStatus.failed,
+                ),
+              ],
+            ),
+            failedDebugCancellationRoute:
+                const FailedTestDebugCancellationRoute(
+              taskId: 'debug.test.rerun-failed',
+              providerId: 'ctest',
+              configurationId: 'rerun-failed',
+              failedTestName: 'parser syntax',
+              failedTestId: 'parser.syntax',
+              status: 'running',
+              ready: true,
+              cancelled: false,
+              message: 'Cancellation is ready.',
+            ),
+            onCancelFailedTestDebug: (failedTest) async {
+              cancelledFailedTest = failedTest;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(
+        const ValueKey('testing-cancel-failed-debug-parser syntax'),
+      ),
+      120,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(
+      find.byKey(
+        const ValueKey('testing-cancel-failed-debug-parser syntax'),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('testing-failed-debug-cancellation-route')),
+      findsOneWidget,
+    );
+    expect(cancelledFailedTest?['name'], 'parser syntax');
+  });
+}
+
+class _PendingTestRunProvider extends TestRunProvider {
+  const _PendingTestRunProvider(this.result);
+
+  final Future<TestRunResult> result;
+
+  @override
+  String get providerId => 'fixture-runner';
+
+  @override
+  Future<TestRunResult> run(TestRunRequest request) {
+    return result;
+  }
+}

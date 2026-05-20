@@ -2411,6 +2411,34 @@ class ShellRuntimeModel extends ChangeNotifier {
           );
           return true;
         }
+        final failedWorkspaceApply = _lastWorkspaceEditApplyResult;
+        if (failedWorkspaceApply != null && !failedWorkspaceApply.successful) {
+          final message =
+              'Agent command applyQuickFix skipped: ${failedWorkspaceApply.message}';
+          final metadata = <String, Object?>{
+            'scope': 'workspace',
+            if (failedWorkspaceApply.message.contains('preview is stale'))
+              'requiredCommand': 'previewQuickFix',
+            if (_lastWorkspaceEditPreview != null)
+              'workspaceEditPreview': _lastWorkspaceEditPreview!.toJson(),
+            'workspaceEditApplyResult': failedWorkspaceApply.toJson(),
+          };
+          appendLog(message);
+          _publishDiagnosticActionTelemetry(
+            action: 'agent.applyQuickFix',
+            succeeded: false,
+            message: message,
+            metadata: metadata,
+          );
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message: message,
+            metadata: metadata,
+          );
+          notifyListeners();
+          return false;
+        }
         appendLog(
           'Agent command applyQuickFix skipped: no quick fix available.',
         );

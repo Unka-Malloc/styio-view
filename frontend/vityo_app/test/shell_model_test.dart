@@ -1186,6 +1186,27 @@ void main() {
     expect(gatedResult?.message, contains('requires previewQuickFix'));
     expect(gatedConfirmation?['riskLevel'], 'low');
 
+    final staleAgentShell = createShell(
+      'shell-project-workspace-fix-agent-stale',
+    );
+    addTearDown(staleAgentShell.dispose);
+    final stalePreview = await staleAgentShell
+        .previewFirstProjectWorkspaceQuickFix();
+    final staleApply = await staleAgentShell.applyFirstProjectWorkspaceQuickFix(
+      expectedPreviewPlanId: 'project-workspace-fix-stale',
+    );
+    expect(stalePreview, isNotNull);
+    expect(staleApply, isFalse);
+    expect(
+      staleAgentShell.lastWorkspaceEditPreview?.planId,
+      stalePreview?.planId,
+    );
+    expect(staleAgentShell.lastWorkspaceEditApplyResult?.successful, isFalse);
+    expect(
+      staleAgentShell.lastWorkspaceEditApplyResult?.message,
+      contains('preview is stale'),
+    );
+
     final agentShell = createShell('shell-project-workspace-fix-agent');
     addTearDown(agentShell.dispose);
     final previewApplied = await agentShell.applyAgentIdeCommandSuggestion(

@@ -357,6 +357,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('workspace apply failure metadata propagation'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('workspace-edit risk prompt guidance'),
     );
     expect(

@@ -177,6 +177,10 @@ void main() {
     );
     expect(
       entriesById['interaction.command-palette']?.summary,
+      contains('shell-level DataStore preference hydration/persistence'),
+    );
+    expect(
+      entriesById['interaction.command-palette']?.summary,
       contains('top-level SettingsSurface preference saves'),
     );
     expect(

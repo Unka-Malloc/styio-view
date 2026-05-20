@@ -46,6 +46,33 @@ void main() {
   test(
     'shell settings save updates command palette live preferences',
     () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_command_palette_preferences_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final dataStore = FoundationDataStore(
+        resourceCoordinator: FoundationResourceCoordinator(
+          resourceManager: LocalResourceManager(
+            facts: ResourceFacts.linuxDebianArm(
+              systemTempPath: tempRoot.path,
+              homePath: tempRoot.path,
+            ),
+          ),
+          fileSystemManager: fileSystemManager,
+        ),
+        fileSystemManager: fileSystemManager,
+      );
+      final preferencesStore =
+          CommandPaletteDisplayPreferencesStore.fromDataStore(
+            dataStore: dataStore,
+          );
+      await preferencesStore.savePreferences(
+        const CommandPaletteDisplayPreferences(
+          workspaceId: 'demo',
+          defaultCategory: AppCommandCategory.settings,
+        ),
+      );
       final projectGraph = ProjectGraphSnapshot.scratch(
         workspaceRoot: '/workspace/demo',
         activeFilePath: 'src/main.styio',
@@ -85,6 +112,7 @@ void main() {
         dependencySourceAdapter: const _NoopDependencySourceAdapter(),
         deploymentAdapter: const _NoopDeploymentAdapter(),
         toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+        commandPalettePreferencesStore: preferencesStore,
         commandPalettePreferences: const CommandPaletteDisplayPreferences(
           workspaceId: 'demo',
           defaultCategory: AppCommandCategory.navigation,
@@ -92,6 +120,9 @@ void main() {
       );
       addTearDown(shell.dispose);
 
+      final loaded = await shell.loadCommandPalettePreferences(
+        workspaceId: 'demo',
+      );
       final updates = <CommandPaletteLivePreferenceState>[];
       final subscription = shell.commandPalettePreferenceController.stream
           .listen(updates.add);
@@ -104,13 +135,19 @@ void main() {
           showRecentCommands: false,
         ),
       );
+      final persisted = await preferencesStore.readPreferences(
+        workspaceId: 'demo',
+      );
 
+      expect(loaded.defaultCategory, AppCommandCategory.settings);
       expect(
         shell.commandPalettePreferences.defaultCategory,
         AppCommandCategory.diagnostics,
       );
+      expect(persisted.defaultCategory, AppCommandCategory.diagnostics);
+      expect(persisted.showRecentCommands, isFalse);
       expect(shell.commandPalettePreferences.showRecentCommands, isFalse);
-      expect(shell.commandPalettePreferenceController.state.revision, 1);
+      expect(shell.commandPalettePreferenceController.state.revision, 2);
       expect(
         updates.single.preferences.defaultCategory,
         AppCommandCategory.diagnostics,

@@ -400,6 +400,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     this.editorSessionWorkspaceId = 'default',
     this.documentCacheLimit = 32,
     this.themeOverrideStore,
+    this.commandPalettePreferencesStore,
     CommandPaletteDisplayPreferences? commandPalettePreferences,
     CommandPaletteLivePreferenceController? commandPalettePreferenceController,
     ClangCppVersionPreference? clangCppVersionPreference,
@@ -508,6 +509,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   final String editorSessionWorkspaceId;
   final int documentCacheLimit;
   final VityoThemeOverrideStore? themeOverrideStore;
+  final CommandPaletteDisplayPreferencesStore? commandPalettePreferencesStore;
   late final CommandPaletteLivePreferenceController
   commandPalettePreferenceController;
   ClangCppVersionPreference? _clangCppVersionPreference;
@@ -4420,13 +4422,53 @@ class ShellRuntimeModel extends ChangeNotifier {
     return commandPalettePreferenceController.state.preferences;
   }
 
+  Future<CommandPaletteDisplayPreferences> loadCommandPalettePreferences({
+    String? workspaceId,
+  }) async {
+    final store = commandPalettePreferencesStore;
+    final targetWorkspaceId = workspaceId ?? editorSessionWorkspaceId;
+    if (store == null) {
+      final preferences = commandPalettePreferences.workspaceId.isEmpty
+          ? CommandPaletteDisplayPreferences(workspaceId: targetWorkspaceId)
+          : commandPalettePreferences;
+      commandPalettePreferenceController.updatePreferences(preferences);
+      appendLog(
+        'Command palette preferences loaded from live defaults for ${preferences.workspaceId}.',
+      );
+      notifyListeners();
+      return preferences;
+    }
+    try {
+      final preferences = await store.readPreferences(
+        workspaceId: targetWorkspaceId,
+      );
+      commandPalettePreferenceController.updatePreferences(preferences);
+      appendLog(
+        'Command palette preferences loaded for ${preferences.workspaceId}.',
+      );
+      notifyListeners();
+      return preferences;
+    } on Object catch (error) {
+      appendLog('Command palette preferences load failed: $error');
+      notifyListeners();
+      return commandPalettePreferences;
+    }
+  }
+
   Future<void> saveCommandPalettePreferences(
     CommandPaletteDisplayPreferences preferences,
   ) async {
-    commandPalettePreferenceController.updatePreferences(preferences);
-    appendLog(
-      'Command palette preferences saved for ${preferences.workspaceId}.',
-    );
+    var next = preferences;
+    final store = commandPalettePreferencesStore;
+    if (store != null) {
+      try {
+        next = await store.savePreferences(preferences);
+      } on Object catch (error) {
+        appendLog('Command palette preferences save failed: $error');
+      }
+    }
+    commandPalettePreferenceController.updatePreferences(next);
+    appendLog('Command palette preferences saved for ${next.workspaceId}.');
     notifyListeners();
   }
 

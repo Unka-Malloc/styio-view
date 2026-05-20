@@ -411,9 +411,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/commands',
           summary:
-              'Command Palette surface is wired to StyioCommandRegistry, category contribution manifests, shell command execution, reusable query scoring, overlay selection state, live display preference updates, top-level SettingsSurface preference saves, category filter chips, display preferences, Settings UI preference controls, Up/Down/Enter keyboard navigation, typed input draft contracts, keyboard shortcuts, persisted recent command ranking, recent command record hooks, and blocked command availability reasons.',
+              'Command Palette surface is wired to StyioCommandRegistry, category contribution manifests, shell command execution, reusable query scoring, overlay selection state, live display preference updates, top-level SettingsSurface preference saves, shell-level DataStore preference hydration/persistence, category filter chips, display preferences, Settings UI preference controls, Up/Down/Enter keyboard navigation, typed input draft contracts, keyboard shortcuts, persisted recent command ranking, recent command record hooks, and blocked command availability reasons.',
           todo:
-              'TODO: hydrate shell-level live command palette preferences from DataStore during app boot and persist every shell-level preference save.',
+              'TODO: wire command palette preference hydration into the top-level app bootstrap lifecycle.',
           references: <String>[
             'VS Code command palette',
             'IntelliJ action search',

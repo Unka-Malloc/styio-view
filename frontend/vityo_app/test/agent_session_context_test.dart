@@ -461,6 +461,7 @@ void main() {
         commandsJson['nativeToolCommands']! as List<Object?>;
     final nativeToolCommandReadiness =
         commandsJson['nativeToolCommandReadiness']! as List<Object?>;
+    final testingCommands = commandsJson['testingCommands']! as List<Object?>;
     final debugCommands = commandsJson['debugCommands']! as List<Object?>;
     final debugCommandReadiness =
         commandsJson['debugCommandReadiness']! as List<Object?>;
@@ -487,7 +488,7 @@ void main() {
     final testingDebugRoute =
         testingJson['debugFailedRoutePlan']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 54);
+    expect(json['schemaVersion'], 55);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1122,6 +1123,10 @@ void main() {
       contains('Requires a registered cmake or ninja build-tool toolchain.'),
     );
     expect(
+      (testingCommands.single! as Map<String, Object?>)['id'],
+      'rerunFailedTests',
+    );
+    expect(
       (debugCommands.first! as Map<String, Object?>)['id'],
       'toggleBreakpoint',
     );
@@ -1574,7 +1579,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 54);
+    expect(json['schemaVersion'], 55);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1849,7 +1854,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 54);
+    expect(context.schemaVersion, 55);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

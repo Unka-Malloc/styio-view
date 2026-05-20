@@ -515,6 +515,42 @@ void main() {
       expect(commitDialog['status'], 'ready');
       expect(shell.sourceControlCommitDialogState?.canSubmit, isTrue);
 
+      testingController.recordRunResult(
+        const TestRunResult(
+          providerId: 'static-runner',
+          runner: 'fixture',
+          status: TestRunStatus.failed,
+          message: 'Fixture tests failed.',
+          totalCount: 1,
+          failedCount: 1,
+          cases: <TestCaseResult>[
+            TestCaseResult(
+              id: 'parser-syntax',
+              name: 'parser syntax',
+              status: TestRunStatus.failed,
+              message: 'Expected parser success.',
+            ),
+          ],
+        ),
+      );
+      final agentRerunFailedApplied = await shell
+          .applyAgentIdeCommandSuggestion(
+            const AgentIdeCommandSuggestion(commandId: 'rerunFailedTests'),
+          );
+      final agentRerunFailedResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(agentRerunFailedApplied, isTrue);
+      expect(agentRerunFailedResult?.commandId, 'rerunFailedTests');
+      final rerunFailedTestResult =
+          agentRerunFailedResult?.metadata['testResult']!
+              as Map<String, Object?>;
+      final failedRetryHistory =
+          agentRerunFailedResult?.metadata['failedRetryHistory']!
+              as List<Object?>;
+      expect(rerunFailedTestResult['status'], 'passed');
+      expect(failedRetryHistory, hasLength(1));
+      expect(shell.failedTestRetryHistory, hasLength(1));
+
       await shell.executeCommand(AppCommandId.collectAgentCodingCheckpoint);
       final checkpointCommandResult =
           shell.agentSessionContext.commands.lastResult;
@@ -541,7 +577,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        54,
+        55,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],

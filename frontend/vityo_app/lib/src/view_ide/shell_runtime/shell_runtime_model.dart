@@ -1469,6 +1469,19 @@ class ShellRuntimeModel extends ChangeNotifier {
     return '$action: ${result.status.wireValue} · ${result.message}';
   }
 
+  bool _agentTestingCommandApplied(TestRunResult? result) {
+    return result != null && result.status != TestRunStatus.notRun;
+  }
+
+  Map<String, Object?> _agentTestingCommandMetadata(TestRunResult? result) {
+    return <String, Object?>{
+      if (result != null) 'testResult': result.toJson(),
+      'failedRetryHistory': failedTestRetryHistory
+          .map((record) => record.toJson())
+          .toList(growable: false),
+    };
+  }
+
   String _sourceControlActionMessage(SourceControlActionResult result) {
     final action = result.kind.wireValue;
     if (!result.applied) {
@@ -3178,6 +3191,22 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: result.metadata,
         );
         return result.applied;
+      case 'rerunFailedTests':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        await rerunFailedTests();
+        final result = lastTestRun;
+        final applied = _agentTestingCommandApplied(result);
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: applied,
+          message: result == null
+              ? 'Agent command rerunFailedTests skipped: no test result is available.'
+              : _testRunResultMessage('Agent command rerunFailedTests', result),
+          metadata: _agentTestingCommandMetadata(result),
+        );
+        return applied;
       default:
         _recordAgentIdeCommandResult(
           suggestion,
@@ -3830,6 +3859,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.searchWorkspace:
       case AppCommandId.previewWorkspaceReplace:
       case AppCommandId.applyWorkspaceReplace:
+      case AppCommandId.rerunFailedTests:
       case AppCommandId.goToDefinition:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
@@ -3867,6 +3897,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.save:
       case AppCommandId.saveAll:
       case AppCommandId.run:
+      case AppCommandId.rerunFailedTests:
       case AppCommandId.fetchDependencies:
       case AppCommandId.vendorDependencies:
       case AppCommandId.useActiveCompiler:
@@ -6633,6 +6664,18 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: result.metadata,
         );
         return;
+      case AppCommandId.rerunFailedTests:
+        await rerunFailedTests();
+        final result = lastTestRun;
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: _agentTestingCommandApplied(result),
+          message: result == null
+              ? 'Rerun Failed Tests skipped: no test result is available.'
+              : _testRunResultMessage('Rerun Failed Tests', result),
+          metadata: _agentTestingCommandMetadata(result),
+        );
+        return;
       case AppCommandId.renameSymbol:
         appendLog('Rename Symbol requires caller-provided input.');
         return;
@@ -6804,6 +6847,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:
       case AppCommandId.runTests:
+      case AppCommandId.rerunFailedTests:
         await executeCommand(commandId);
         return;
     }
@@ -7026,6 +7070,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:
       case AppCommandId.runTests:
+      case AppCommandId.rerunFailedTests:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
       case AppCommandId.renameSymbol:

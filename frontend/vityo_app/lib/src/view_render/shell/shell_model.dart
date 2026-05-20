@@ -146,6 +146,7 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:
       case AppCommandId.runTests:
+      case AppCommandId.rerunFailedTests:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
       case AppCommandId.renameSymbol:

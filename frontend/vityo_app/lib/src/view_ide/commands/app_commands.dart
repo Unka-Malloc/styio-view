@@ -48,6 +48,7 @@ enum AppCommandId {
   formatActiveDocument,
   runStaticAnalysis,
   runTests,
+  rerunFailedTests,
   goToDefinition,
   nextReference,
   previousReference,
@@ -62,6 +63,7 @@ enum AppCommandId {
 enum AppCommandCategory {
   persistence,
   execution,
+  testing,
   dependency,
   toolchain,
   deployment,
@@ -83,6 +85,7 @@ extension AppCommandCategoryX on AppCommandCategory {
     return switch (this) {
       AppCommandCategory.persistence => 'persistence',
       AppCommandCategory.execution => 'execution',
+      AppCommandCategory.testing => 'testing',
       AppCommandCategory.dependency => 'dependency',
       AppCommandCategory.toolchain => 'toolchain',
       AppCommandCategory.deployment => 'deployment',
@@ -162,6 +165,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.formatActiveDocument ||
       AppCommandId.runStaticAnalysis ||
       AppCommandId.runTests => AppCommandCategory.execution,
+      AppCommandId.rerunFailedTests => AppCommandCategory.testing,
       AppCommandId.refreshModules => AppCommandCategory.module,
       AppCommandId.openSettings => AppCommandCategory.settings,
     };
@@ -647,6 +651,13 @@ class StyioCommandRegistry {
       description: 'Run the registered native test runner for the workspace.',
     ),
     AppCommandDescriptor(
+      id: AppCommandId.rerunFailedTests,
+      label: 'Rerun Failed Tests',
+      shortcutHint: 'Route',
+      description:
+          'Rerun only the failed tests from the latest IDE test session.',
+    ),
+    AppCommandDescriptor(
       id: AppCommandId.nextReference,
       label: 'Next Reference',
       shortcutHint: 'Shift+F12',
@@ -786,6 +797,9 @@ class StyioCommandRegistry {
           _ => false,
         },
       );
+
+  static Iterable<AppCommandDescriptor> get testingCommands =>
+      commandsForCategory(AppCommandCategory.testing);
 
   static Iterable<AppCommandDescriptor> get dependencyCommands =>
       commandsForCategory(AppCommandCategory.dependency);

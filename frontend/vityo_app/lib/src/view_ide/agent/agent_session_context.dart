@@ -161,7 +161,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 54,
+      schemaVersion: 55,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -444,6 +444,7 @@ class AgentSessionContext {
         toolchainCommands: commands.toolchainCommands,
         nativeToolCommands: commands.nativeToolCommands,
         nativeToolCommandReadiness: commands.nativeToolCommandReadiness,
+        testingCommands: commands.testingCommands,
         debugCommands: commands.debugCommands,
         debugCommandReadiness: commands.debugCommandReadiness,
         settingsCommands: commands.settingsCommands,
@@ -3511,6 +3512,7 @@ class AgentCommandCatalogContext {
     required this.toolchainCommands,
     required this.nativeToolCommands,
     required this.nativeToolCommandReadiness,
+    required this.testingCommands,
     required this.debugCommands,
     required this.debugCommandReadiness,
     required this.settingsCommands,
@@ -3529,6 +3531,7 @@ class AgentCommandCatalogContext {
   final List<AgentCommandContext> toolchainCommands;
   final List<AgentCommandContext> nativeToolCommands;
   final List<AgentNativeToolCommandReadinessContext> nativeToolCommandReadiness;
+  final List<AgentCommandContext> testingCommands;
   final List<AgentCommandContext> debugCommands;
   final List<AgentDebugCommandReadinessContext> debugCommandReadiness;
   final List<AgentCommandContext> settingsCommands;
@@ -3592,6 +3595,9 @@ class AgentCommandCatalogContext {
         dirtyDocumentIds: dirtyDocumentIds,
         buildFacts: buildFacts,
       ),
+      testingCommands: StyioCommandRegistry.testingCommands
+          .map(AgentCommandContext.fromDescriptor)
+          .toList(growable: false),
       debugCommands: debugCommands,
       debugCommandReadiness: _debugCommandReadinessFor(
         debugCommands: debugCommands,
@@ -3640,6 +3646,9 @@ class AgentCommandCatalogContext {
           .toList(growable: false),
       'nativeToolCommandReadiness': nativeToolCommandReadiness
           .map((readiness) => readiness.toJson())
+          .toList(growable: false),
+      'testingCommands': testingCommands
+          .map((command) => command.toJson())
           .toList(growable: false),
       'debugCommands': debugCommands
           .map((command) => command.toJson())

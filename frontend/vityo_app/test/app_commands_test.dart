@@ -81,6 +81,9 @@ void main() {
       final runTests = StyioCommandRegistry.descriptorFor(
         AppCommandId.runTests,
       );
+      final rerunFailedTests = StyioCommandRegistry.descriptorFor(
+        AppCommandId.rerunFailedTests,
+      );
       final toggleBreakpoint = StyioCommandRegistry.descriptorFor(
         AppCommandId.toggleBreakpoint,
       );
@@ -236,6 +239,9 @@ void main() {
       expect(runStaticAnalysis.shortcutHint, 'Route');
       expect(runTests.label, 'Run Tests');
       expect(runTests.shortcutHint, 'Route');
+      expect(rerunFailedTests.label, 'Rerun Failed Tests');
+      expect(rerunFailedTests.category, AppCommandCategory.testing);
+      expect(rerunFailedTests.shortcutHint, 'Route');
       expect(toggleBreakpoint.label, 'Toggle Breakpoint');
       expect(toggleBreakpoint.shortcutHint, 'F9');
       expect(startDebugging.label, 'Start Debugging');
@@ -427,6 +433,10 @@ void main() {
         AppCommandId.runStaticAnalysis,
         AppCommandId.runTests,
       ],
+    );
+    expect(
+      StyioCommandRegistry.testingCommands.map((command) => command.id),
+      <AppCommandId>[AppCommandId.rerunFailedTests],
     );
     expect(
       StyioCommandRegistry.sourceControlCommands.map((command) => command.id),

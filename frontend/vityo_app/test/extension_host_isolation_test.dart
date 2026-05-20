@@ -71,4 +71,60 @@ void main() {
       ExtensionHostIsolationMode.remoteService,
     ]);
   });
+
+  test('extension host supervisor maps activation to host start requests', () {
+    final registry = ExtensionManifestRegistry()
+      ..register(
+        const ExtensionManifest(
+          extensionId: 'styio.language',
+          displayName: 'Styio Language',
+          version: '1.0.0',
+          publisher: 'vityo',
+          entrypoint: 'language.dart',
+          activationEvents: <String>['onLanguage:styio'],
+          trustedByDefault: true,
+          metadata: <String, Object?>{'isolationMode': 'local-process'},
+        ),
+      )
+      ..register(
+        const ExtensionManifest(
+          extensionId: 'external.debug',
+          displayName: 'External Debug',
+          version: '1.0.0',
+          publisher: 'external',
+          entrypoint: 'debug.dart',
+          activationEvents: <String>['onLanguage:styio'],
+          metadata: <String, Object?>{'isolationMode': 'remote-service'},
+        ),
+      );
+    final session = ExtensionActivator(
+      clock: () => DateTime.utc(2026, 5, 20),
+    ).activate(registry: registry, event: 'onLanguage:styio');
+    final supervisor = ExtensionHostSupervisor(
+      clock: () => DateTime.utc(2026, 5, 20, 1),
+    );
+
+    final snapshot = supervisor.applyActivation(
+      registry: registry,
+      session: session,
+    );
+    final running = supervisor.markRunning(
+      snapshot: snapshot,
+      extensionId: 'styio.language',
+    );
+
+    expect(snapshot.startingExtensionIds, <String>['styio.language']);
+    expect(snapshot.blockedExtensionIds, <String>['external.debug']);
+    expect(
+      snapshot.lookup('styio.language')?.action,
+      ExtensionHostSupervisorAction.spawnLocalProcess,
+    );
+    expect(running.runningExtensionIds, <String>['styio.language']);
+    expect(
+      running.telemetryEvents
+          .map((event) => event.toJson()['action'])
+          .toList(growable: false),
+      <String>['none', 'spawn-local-process'],
+    );
+  });
 }

@@ -27,6 +27,7 @@ import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
+import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
@@ -326,6 +327,7 @@ void main() {
   Future<AppBootstrap> createBootstrap(
     PlatformTarget target, {
     CommandPaletteDisplayPreferencesStore? commandPalettePreferencesStore,
+    Future<void> Function()? refreshActiveLanguageService,
   }) async {
     final projectSnapshot = createProjectSnapshot(target);
     final workspaceController = WorkspaceController(
@@ -413,6 +415,7 @@ void main() {
       ),
       agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
       commandPalettePreferencesStore: commandPalettePreferencesStore,
+      refreshActiveLanguageService: refreshActiveLanguageService,
       toolchainStatusReport: toolchainStatusReport,
     );
   }
@@ -859,6 +862,39 @@ void main() {
     await tapVisibleText(tester, 'Debug');
 
     expect(find.byKey(const ValueKey('debug-surface-desktop')), findsOneWidget);
+  });
+
+  testWidgets('shell scaffold routes language service refresh action', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var refreshCount = 0;
+    final bootstrap = await createBootstrap(
+      PlatformTarget.macos,
+      refreshActiveLanguageService: () async {
+        refreshCount += 1;
+      },
+    );
+    bootstrap.languageServiceStatus.value =
+        LanguageServiceStatusSurface.unavailable(
+          message: 'StyioService is unavailable in the smoke harness.',
+        );
+
+    await pumpShellScaffold(tester, bootstrap);
+
+    final refreshAction = find.byKey(
+      const ValueKey('language-service-refresh-action'),
+      skipOffstage: false,
+    );
+    expect(refreshAction, findsOneWidget);
+
+    tester.widget<OutlinedButton>(refreshAction).onPressed!();
+    await tester.pump();
+
+    expect(refreshCount, 1);
   });
 
   test('app bootstrap carries command palette preferences store', () async {
@@ -3889,6 +3925,7 @@ class _ShellScaffoldHarnessState extends State<_ShellScaffoldHarness> {
       toolchainManagementAdapter: bootstrap.toolchainManagementAdapter,
       agentCodingController: bootstrap.agentCodingController,
       agentProviderConfigurator: bootstrap.agentProviderConfigurator,
+      refreshActiveLanguageService: bootstrap.refreshActiveLanguageService,
       toolchainManager: bootstrap.toolchainManager,
       languageServiceStatus: bootstrap.languageServiceStatus,
       toolchainStatusReport: bootstrap.toolchainStatusReport,

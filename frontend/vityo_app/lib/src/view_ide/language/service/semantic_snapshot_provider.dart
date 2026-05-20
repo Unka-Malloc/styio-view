@@ -1,9 +1,19 @@
 import '../../editor/document_state.dart';
 import '../contract/language_contract.dart';
 import 'language_service_foundation.dart';
+import 'project_styio_language_service.dart';
 import 'styio_language_service.dart';
 
 enum SemanticSnapshotProviderSource { serviceAnalysis, localBuilderFallback }
+
+enum SemanticSnapshotRenameSafetyScope { document, workspace }
+
+enum SemanticSnapshotCodeActionApplyStatus {
+  proposed,
+  applied,
+  blocked,
+  failed,
+}
 
 enum SemanticSnapshotConsumerFeature {
   hover,
@@ -21,6 +31,28 @@ extension SemanticSnapshotProviderSourceX on SemanticSnapshotProviderSource {
       SemanticSnapshotProviderSource.serviceAnalysis => 'service-analysis',
       SemanticSnapshotProviderSource.localBuilderFallback =>
         'local-builder-fallback',
+    };
+  }
+}
+
+extension SemanticSnapshotRenameSafetyScopeX
+    on SemanticSnapshotRenameSafetyScope {
+  String get wireValue {
+    return switch (this) {
+      SemanticSnapshotRenameSafetyScope.document => 'document',
+      SemanticSnapshotRenameSafetyScope.workspace => 'workspace',
+    };
+  }
+}
+
+extension SemanticSnapshotCodeActionApplyStatusX
+    on SemanticSnapshotCodeActionApplyStatus {
+  String get wireValue {
+    return switch (this) {
+      SemanticSnapshotCodeActionApplyStatus.proposed => 'proposed',
+      SemanticSnapshotCodeActionApplyStatus.applied => 'applied',
+      SemanticSnapshotCodeActionApplyStatus.blocked => 'blocked',
+      SemanticSnapshotCodeActionApplyStatus.failed => 'failed',
     };
   }
 }
@@ -214,6 +246,24 @@ class SemanticSnapshotCodeActionFact {
 
   bool get hasEdits => edits.isNotEmpty;
 
+  SemanticSnapshotCodeActionApplyResult reportApplyResult({
+    required SemanticSnapshotCodeActionApplyStatus status,
+    required String message,
+    int? appliedEditCount,
+    DateTime? timestamp,
+  }) {
+    return SemanticSnapshotCodeActionApplyResult(
+      actionId: id,
+      label: label,
+      diagnosticCode: diagnosticCode,
+      status: status,
+      editCount: edits.length,
+      appliedEditCount: appliedEditCount ?? 0,
+      message: message,
+      timestamp: timestamp,
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'id': id,
@@ -223,6 +273,45 @@ class SemanticSnapshotCodeActionFact {
       'hasEdits': hasEdits,
       'editCount': edits.length,
       'edits': edits.map(_formattingEditToJson).toList(growable: false),
+    };
+  }
+}
+
+class SemanticSnapshotCodeActionApplyResult {
+  const SemanticSnapshotCodeActionApplyResult({
+    required this.actionId,
+    required this.label,
+    required this.diagnosticCode,
+    required this.status,
+    required this.editCount,
+    required this.appliedEditCount,
+    required this.message,
+    this.timestamp,
+  });
+
+  final String actionId;
+  final String label;
+  final String diagnosticCode;
+  final SemanticSnapshotCodeActionApplyStatus status;
+  final int editCount;
+  final int appliedEditCount;
+  final String message;
+  final DateTime? timestamp;
+
+  bool get successful =>
+      status == SemanticSnapshotCodeActionApplyStatus.applied;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'actionId': actionId,
+      'label': label,
+      'diagnosticCode': diagnosticCode,
+      'status': status.wireValue,
+      'successful': successful,
+      'editCount': editCount,
+      'appliedEditCount': appliedEditCount,
+      'message': message,
+      if (timestamp != null) 'timestamp': timestamp!.toIso8601String(),
     };
   }
 }
@@ -263,27 +352,38 @@ class SemanticSnapshotRenameSafetyResult {
     required this.safe,
     required this.newName,
     required this.message,
+    this.scope = SemanticSnapshotRenameSafetyScope.document,
     this.targetName = '',
     this.referenceCount = 0,
     this.editCount = 0,
+    this.affectedDocumentIds = const <String>[],
     this.conflicts = const <RenameConflict>[],
+    this.conflictMessages = const <String>[],
   });
 
   final SemanticSnapshotProviderSource source;
+  final SemanticSnapshotRenameSafetyScope scope;
   final bool available;
   final bool safe;
   final String targetName;
   final String newName;
   final int referenceCount;
   final int editCount;
+  final List<String> affectedDocumentIds;
   final List<RenameConflict> conflicts;
+  final List<String> conflictMessages;
   final String message;
 
   bool get canApply => available && safe && editCount > 0;
 
+  int get affectedDocumentCount => affectedDocumentIds.length;
+
+  int get conflictCount => conflicts.length + conflictMessages.length;
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'source': source.wireValue,
+      'scope': scope.wireValue,
       'available': available,
       'safe': safe,
       'canApply': canApply,
@@ -291,7 +391,9 @@ class SemanticSnapshotRenameSafetyResult {
       'newName': newName,
       'referenceCount': referenceCount,
       'editCount': editCount,
-      'conflictCount': conflicts.length,
+      'affectedDocumentCount': affectedDocumentCount,
+      'affectedDocumentIds': affectedDocumentIds,
+      'conflictCount': conflictCount,
       'message': message,
       'conflicts': conflicts
           .map(
@@ -301,6 +403,7 @@ class SemanticSnapshotRenameSafetyResult {
             },
           )
           .toList(growable: false),
+      if (conflictMessages.isNotEmpty) 'conflictMessages': conflictMessages,
     };
   }
 }
@@ -393,10 +496,54 @@ class SemanticSnapshotProvider {
       newName: plan.newName,
       referenceCount: plan.references.length,
       editCount: plan.edits.length,
+      affectedDocumentIds: document.documentId.isEmpty
+          ? const <String>[]
+          : <String>[document.documentId],
       conflicts: List<RenameConflict>.unmodifiable(plan.conflicts),
+      conflictMessages: List<String>.unmodifiable(
+        plan.conflicts.map((conflict) => conflict.message),
+      ),
       message: plan.hasConflicts
           ? 'StyioService blocked rename with ${plan.conflicts.length} conflict(s).'
           : 'StyioService produced a safe rename plan.',
+    );
+  }
+
+  SemanticSnapshotRenameSafetyResult workspaceRenameSafetyFromPreview({
+    required StyioProjectRenamePreview? preview,
+    required String newName,
+  }) {
+    if (preview == null) {
+      return SemanticSnapshotRenameSafetyResult(
+        source: SemanticSnapshotProviderSource.serviceAnalysis,
+        scope: SemanticSnapshotRenameSafetyScope.workspace,
+        available: false,
+        safe: false,
+        newName: newName,
+        message:
+            'StyioService did not produce a workspace rename preview for this location.',
+      );
+    }
+    final affectedDocumentIds = preview.editsByDocument.keys.toList(
+      growable: false,
+    )..sort();
+    final conflictMessages = <String>[
+      if (preview.conflict != null) preview.conflict!,
+    ];
+    return SemanticSnapshotRenameSafetyResult(
+      source: SemanticSnapshotProviderSource.serviceAnalysis,
+      scope: SemanticSnapshotRenameSafetyScope.workspace,
+      available: true,
+      safe: !preview.hasConflict,
+      targetName: preview.oldName,
+      newName: preview.newName,
+      referenceCount: preview.editCount,
+      editCount: preview.editCount,
+      affectedDocumentIds: List<String>.unmodifiable(affectedDocumentIds),
+      conflictMessages: List<String>.unmodifiable(conflictMessages),
+      message: preview.hasConflict
+          ? 'StyioService blocked workspace rename: ${preview.conflict}'
+          : 'StyioService produced a safe workspace rename across ${affectedDocumentIds.length} document(s).',
     );
   }
 

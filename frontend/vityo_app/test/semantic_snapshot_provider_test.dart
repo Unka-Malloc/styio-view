@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/local_styio_language_service.dart';
+import 'package:vityo_app/src/view_ide/language/service/project_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 
@@ -147,6 +148,15 @@ void main() {
     expect(result.actions.single.diagnosticCode, 'local.unclosed-delimiter');
     expect(result.actions.single.hasEdits, isTrue);
     expect(result.actions.single.edits.single.range.start, document.length);
+    final applyResult = result.actions.single.reportApplyResult(
+      status: SemanticSnapshotCodeActionApplyStatus.applied,
+      appliedEditCount: 1,
+      message: 'Applied from Problems panel.',
+      timestamp: DateTime.utc(2026, 5, 20, 13),
+    );
+    expect(applyResult.successful, isTrue);
+    expect(applyResult.toJson()['status'], 'applied');
+    expect(applyResult.toJson()['appliedEditCount'], 1);
     expect(json['available'], isTrue);
     expect(
       ((json['actions']! as List<Object?>).single!
@@ -181,7 +191,65 @@ void main() {
       expect(result.newName, 'nextValue');
       expect(result.referenceCount, 2);
       expect(result.editCount, 2);
+      expect(result.affectedDocumentIds, <String>[
+        'fixture://semantic-provider-rename',
+      ]);
+      expect(result.toJson()['scope'], 'document');
       expect(result.toJson()['canApply'], isTrue);
     },
   );
+
+  test('semantic snapshot provider exposes workspace rename safety facts', () {
+    const projectService = ProjectStyioLanguageService();
+    const provider = SemanticSnapshotProvider(
+      languageService: LocalStyioLanguageService(),
+    );
+    const documents = <DocumentState>[
+      DocumentState(
+        documentId: 'lib/runtime.styio',
+        text: '''
+@prices : f64|..2| := {}
+
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+''',
+        revision: 0,
+      ),
+      DocumentState(
+        documentId: 'main.styio',
+        text: '''
+@import { lib/runtime }
+price = 1.0
+value = blend(price, 2.0)
+price -> @prices
+''',
+        revision: 0,
+      ),
+    ];
+    final source = documents[1].text;
+    final preview = projectService.renamePreviewAt(
+      documents: documents,
+      documentId: 'main.styio',
+      offset: source.indexOf('blend'),
+      newName: 'mix',
+    );
+
+    final result = provider.workspaceRenameSafetyFromPreview(
+      preview: preview,
+      newName: 'mix',
+    );
+    final json = result.toJson();
+
+    expect(result.scope, SemanticSnapshotRenameSafetyScope.workspace);
+    expect(result.safe, isTrue);
+    expect(result.canApply, isTrue);
+    expect(result.affectedDocumentIds, <String>[
+      'lib/runtime.styio',
+      'main.styio',
+    ]);
+    expect(result.editCount, 2);
+    expect(json['scope'], 'workspace');
+    expect(json['affectedDocumentCount'], 2);
+  });
 }

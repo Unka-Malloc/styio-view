@@ -19,6 +19,7 @@ export 'service/styio_service_connector.dart';
 export 'service/styio_service_manager_connector.dart';
 export 'service/styio_service_project_document_rule_provider.dart';
 export 'service/styio_service_runtime.dart';
+export 'service/styio_service_subscription.dart';
 export 'service/styio_language_service.dart';
 export 'service/styio_language_provider_registry.dart';
 export 'service/styio_workspace_diagnostics_provider.dart';

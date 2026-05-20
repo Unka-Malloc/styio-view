@@ -249,6 +249,11 @@ void main() {
       history.records.single.responseTextSample,
       contains('History recorded'),
     );
+    expect(
+      controller.sessionCheckpoint.status,
+      AgentCodingSessionCheckpointStatus.ready,
+    );
+    expect(controller.sessionCheckpoint.latestRequestId, 'agent-request-1');
   });
 
   test('agent coding session sends previous turns with next prompt', () async {
@@ -1898,6 +1903,13 @@ class _ThrowingAgentCodingSessionHistoryStore
     int maxEntries = 50,
   }) async {
     throw StateError(appendMessage);
+  }
+
+  @override
+  Future<AgentCodingSessionCheckpoint> readCheckpoint({
+    required String workspaceId,
+  }) async {
+    throw StateError(readMessage);
   }
 
   @override

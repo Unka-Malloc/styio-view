@@ -128,6 +128,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentCodingSessionHistory get sessionHistorySnapshot =>
       _sessionHistorySnapshot ??
       AgentCodingSessionHistory(workspaceId: sessionHistoryWorkspaceId);
+  AgentCodingSessionCheckpoint get sessionCheckpoint =>
+      sessionHistorySnapshot.toCheckpoint();
   String? get lastError => _lastError;
   AgentProviderTransportException? get lastProviderFailure =>
       _lastProviderFailure;

@@ -64,6 +64,7 @@ void main() {
 
     await store.appendRecord(workspaceId: 'demo', record: record);
     final restored = await store.readHistory(workspaceId: 'demo');
+    final checkpoint = await store.readCheckpoint(workspaceId: 'demo');
 
     expect(restored.records.single.requestId, 'agent-1');
     expect(restored.records.single.succeeded, isTrue);
@@ -73,9 +74,17 @@ void main() {
       contains('language service snapshot'),
     );
     expect(restored.toJson()['recordCount'], 1);
+    expect(checkpoint.status, AgentCodingSessionCheckpointStatus.ready);
+    expect(checkpoint.latestRequestId, 'agent-1');
+    expect(checkpoint.latestOutcome, AgentCodingSessionOutcome.succeeded);
+    expect(checkpoint.needsRecovery, isFalse);
+    expect(
+      AgentCodingSessionCheckpoint.fromJson(checkpoint.toJson()).status,
+      AgentCodingSessionCheckpointStatus.ready,
+    );
   });
 
-  test('agent coding session history stores failures', () {
+  test('agent coding session history stores failure checkpoints', () {
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.macos);
 
     final record = AgentCodingSessionHistoryRecord.failure(
@@ -88,9 +97,19 @@ void main() {
       completedAt: DateTime.utc(2026, 5, 20, 0, 1),
     );
     final restored = AgentCodingSessionHistoryRecord.fromJson(record.toJson());
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[restored],
+      updatedAt: DateTime.utc(2026, 5, 20, 0, 2),
+    );
+    final checkpoint = history.toCheckpoint();
 
     expect(restored.outcome, AgentCodingSessionOutcome.failed);
     expect(restored.succeeded, isFalse);
     expect(restored.errorMessage, 'Provider timed out.');
+    expect(checkpoint.status, AgentCodingSessionCheckpointStatus.needsRecovery);
+    expect(checkpoint.needsRecovery, isTrue);
+    expect(checkpoint.recoveryTodo, contains('TODO:'));
+    expect(checkpoint.toJson()['latestOutcome'], 'failed');
   });
 }

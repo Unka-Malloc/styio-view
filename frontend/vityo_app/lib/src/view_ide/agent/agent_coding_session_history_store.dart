@@ -12,6 +12,17 @@ extension AgentCodingSessionOutcomeX on AgentCodingSessionOutcome {
   };
 }
 
+enum AgentCodingSessionCheckpointStatus { empty, ready, needsRecovery }
+
+extension AgentCodingSessionCheckpointStatusX
+    on AgentCodingSessionCheckpointStatus {
+  String get wireValue => switch (this) {
+    AgentCodingSessionCheckpointStatus.empty => 'empty',
+    AgentCodingSessionCheckpointStatus.ready => 'ready',
+    AgentCodingSessionCheckpointStatus.needsRecovery => 'needsRecovery',
+  };
+}
+
 class AgentCodingSessionHistoryRecord {
   const AgentCodingSessionHistoryRecord({
     required this.requestId,
@@ -155,6 +166,107 @@ class AgentCodingSessionHistoryRecord {
   }
 }
 
+class AgentCodingSessionCheckpoint {
+  const AgentCodingSessionCheckpoint({
+    required this.workspaceId,
+    required this.status,
+    required this.updatedAt,
+    required this.recordCount,
+    this.latestRequestId,
+    this.latestProfileId,
+    this.latestProviderKind,
+    this.latestOutcome,
+    this.latestCompletedAt,
+    this.recoveryTodo,
+  });
+
+  factory AgentCodingSessionCheckpoint.fromHistory(
+    AgentCodingSessionHistory history,
+  ) {
+    final latest = history.records.isEmpty ? null : history.records.first;
+    final latestOutcome = latest?.outcome;
+    final needsRecovery =
+        latestOutcome == AgentCodingSessionOutcome.failed ||
+        latestOutcome == AgentCodingSessionOutcome.cancelled;
+    return AgentCodingSessionCheckpoint(
+      workspaceId: history.workspaceId,
+      status: latest == null
+          ? AgentCodingSessionCheckpointStatus.empty
+          : needsRecovery
+          ? AgentCodingSessionCheckpointStatus.needsRecovery
+          : AgentCodingSessionCheckpointStatus.ready,
+      updatedAt: history.updatedAt,
+      recordCount: history.records.length,
+      latestRequestId: latest?.requestId,
+      latestProfileId: latest?.profileId,
+      latestProviderKind: latest?.providerKind,
+      latestOutcome: latestOutcome,
+      latestCompletedAt: latest?.completedAt,
+      recoveryTodo: needsRecovery
+          ? 'TODO: route this checkpoint into provider retry, failover, or replay controls before resuming unrelated agent work.'
+          : null,
+    );
+  }
+
+  factory AgentCodingSessionCheckpoint.fromJson(Map<String, Object?> json) {
+    return AgentCodingSessionCheckpoint(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      status: _agentCodingSessionCheckpointStatusFromWire(
+        json['status'] as String?,
+      ),
+      updatedAt:
+          DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      recordCount: json['recordCount'] as int? ?? 0,
+      latestRequestId: json['latestRequestId'] as String?,
+      latestProfileId: json['latestProfileId'] as String?,
+      latestProviderKind: json['latestProviderKind'] as String?,
+      latestOutcome: json['latestOutcome'] == null
+          ? null
+          : _agentCodingSessionOutcomeFromWire(
+              json['latestOutcome'] as String?,
+            ),
+      latestCompletedAt: DateTime.tryParse(
+        json['latestCompletedAt'] as String? ?? '',
+      )?.toUtc(),
+      recoveryTodo: json['recoveryTodo'] as String?,
+    );
+  }
+
+  final String workspaceId;
+  final AgentCodingSessionCheckpointStatus status;
+  final DateTime updatedAt;
+  final int recordCount;
+  final String? latestRequestId;
+  final String? latestProfileId;
+  final String? latestProviderKind;
+  final AgentCodingSessionOutcome? latestOutcome;
+  final DateTime? latestCompletedAt;
+  final String? recoveryTodo;
+
+  bool get hasHistory => recordCount > 0;
+  bool get needsRecovery =>
+      status == AgentCodingSessionCheckpointStatus.needsRecovery;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'status': status.wireValue,
+      'updatedAt': updatedAt.toIso8601String(),
+      'recordCount': recordCount,
+      'hasHistory': hasHistory,
+      'needsRecovery': needsRecovery,
+      if (latestRequestId != null) 'latestRequestId': latestRequestId,
+      if (latestProfileId != null) 'latestProfileId': latestProfileId,
+      if (latestProviderKind != null) 'latestProviderKind': latestProviderKind,
+      if (latestOutcome != null) 'latestOutcome': latestOutcome!.wireValue,
+      if (latestCompletedAt != null)
+        'latestCompletedAt': latestCompletedAt!.toIso8601String(),
+      if (recoveryTodo != null) 'recoveryTodo': recoveryTodo,
+    };
+  }
+}
+
 class AgentCodingSessionHistory {
   AgentCodingSessionHistory({
     required this.workspaceId,
@@ -187,6 +299,10 @@ class AgentCodingSessionHistory {
       records: nextRecords.take(maxEntries).toList(growable: false),
       updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
+  }
+
+  AgentCodingSessionCheckpoint toCheckpoint() {
+    return AgentCodingSessionCheckpoint.fromHistory(this);
   }
 
   Map<String, Object?> toJson() {
@@ -270,6 +386,13 @@ class AgentCodingSessionHistoryStore {
     await saveHistory(next);
     return next;
   }
+
+  Future<AgentCodingSessionCheckpoint> readCheckpoint({
+    required String workspaceId,
+  }) async {
+    final history = await readHistory(workspaceId: workspaceId);
+    return history.toCheckpoint();
+  }
 }
 
 AgentCodingSessionOutcome _agentCodingSessionOutcomeFromWire(String? value) {
@@ -277,6 +400,16 @@ AgentCodingSessionOutcome _agentCodingSessionOutcomeFromWire(String? value) {
     'failed' => AgentCodingSessionOutcome.failed,
     'cancelled' => AgentCodingSessionOutcome.cancelled,
     _ => AgentCodingSessionOutcome.succeeded,
+  };
+}
+
+AgentCodingSessionCheckpointStatus _agentCodingSessionCheckpointStatusFromWire(
+  String? value,
+) {
+  return switch (value) {
+    'ready' => AgentCodingSessionCheckpointStatus.ready,
+    'needsRecovery' => AgentCodingSessionCheckpointStatus.needsRecovery,
+    _ => AgentCodingSessionCheckpointStatus.empty,
   };
 }
 

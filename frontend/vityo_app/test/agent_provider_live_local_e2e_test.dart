@@ -96,6 +96,84 @@ void main() {
       expect((messages.last! as Map)['content'], 'Explain this file.');
     },
   );
+
+  test(
+    'OpenAI Responses Codex Spark provider posts tool schema locally',
+    () async {
+      final requestBodies = <Map<String, Object?>>[];
+      final requestPaths = <String>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      unawaited(() async {
+        await for (final request in server) {
+          requestPaths.add(request.uri.path);
+          final bodyText = await utf8.decoder.bind(request).join();
+          requestBodies.add(
+            (jsonDecode(bodyText) as Map).map(
+              (key, value) => MapEntry<String, Object?>(key.toString(), value),
+            ),
+          );
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(
+            jsonEncode(<String, Object?>{
+              'id': 'resp-codex-spark-local',
+              'status': 'completed',
+              'output_text': 'codex spark local ok',
+            }),
+          );
+          await request.response.close();
+        }
+      }());
+
+      final preset = AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      );
+      final endpoint = AgentProviderEndpoint(
+        route: AgentProviderRoute.desktopLocalBridge,
+        baseUrl: 'http://${server.address.host}:${server.port}/v1',
+        model: preset.endpoint.model,
+        protocol: preset.endpoint.protocol,
+        reasoningEffort: preset.endpoint.reasoningEffort,
+        requiresCredential: false,
+      );
+      final profile = preset.copyWith(endpoint: endpoint);
+      final controller = AgentCodingSessionController(
+        profile: profile,
+        adapter: OpenAIResponsesAgentProviderAdapter(
+          transport: NetworkAgentProviderTransport(
+            networkManager: LocalNetworkManager.linuxDebianArmForTest(),
+            timeout: const Duration(seconds: 5),
+          ),
+          endpoint: endpoint,
+        ),
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+
+      controller.updatePrompt('Patch this Styio file.');
+      final response = await controller.sendPrompt();
+
+      expect(response?.providerMessageId, 'resp-codex-spark-local');
+      expect(response?.contentParts.single.text, 'codex spark local ok');
+      expect(controller.lastError, isNull);
+      expect(controller.lastProviderFailure, isNull);
+      expect(requestPaths, <String>['/v1/responses']);
+      expect(requestBodies, hasLength(1));
+      expect(requestBodies.single['model'], 'gpt-5.3-codex-spark');
+      expect(requestBodies.single['tool_choice'], 'auto');
+      expect(
+        (requestBodies.single['reasoning']! as Map<String, Object?>)['effort'],
+        'high',
+      );
+      final tools = requestBodies.single['tools']! as List<Object?>;
+      final toolNames = tools
+          .whereType<Map<String, Object?>>()
+          .map((tool) => tool['name'])
+          .toList(growable: false);
+      expect(toolNames, contains('vityo_code_patch'));
+      expect(toolNames, contains('vityo_ide_command'));
+    },
+  );
 }
 
 AgentSessionContext _context() {

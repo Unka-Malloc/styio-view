@@ -260,6 +260,54 @@ void main() {
     );
   });
 
+  test('agent coding session restores recovery request draft', () async {
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord.failure(
+          requestId: 'agent-failed',
+          profile: profile,
+          providerKind: AgentProviderKind.cloudOpenAICompatible,
+          prompt: 'Retry the failed coding task.',
+          errorMessage: 'Provider timed out.',
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+        ),
+      ],
+      updatedAt: DateTime.utc(2026, 5, 20, 0, 2),
+    );
+    final controller = AgentCodingSessionController(
+      profile: profile,
+      adapter: _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'unused',
+          role: 'assistant',
+          finishReason: 'unused',
+          contentParts: <AgentContentPart>[],
+        ),
+      ),
+      contextProvider: _context,
+      sessionHistoryStore: _MemoryAgentCodingSessionHistoryStore(history),
+      sessionHistoryWorkspaceId: 'demo',
+    );
+
+    await controller.loadSessionHistory();
+    final draft = controller.recoveryRequestDraftFor(
+      AgentCodingSessionRecoveryAction.retrySameProvider,
+    );
+
+    expect(draft?.prompt, 'Retry the failed coding task.');
+    expect(draft?.readyToDispatch, isTrue);
+    expect(
+      controller.restoreRecoveryDraft(
+        AgentCodingSessionRecoveryAction.retrySameProvider,
+      ),
+      isTrue,
+    );
+    expect(controller.draftPrompt, 'Retry the failed coding task.');
+  });
+
   test('agent coding session sends previous turns with next prompt', () async {
     final adapter = _FakeAgentProviderAdapter(
       response: const AgentProviderResponseEnvelope(
@@ -1926,6 +1974,52 @@ class _ThrowingAgentCodingSessionHistoryStore
   @override
   Future<void> saveHistory(AgentCodingSessionHistory history) async {
     throw StateError('save failed');
+  }
+}
+
+class _MemoryAgentCodingSessionHistoryStore
+    implements AgentCodingSessionHistoryStore {
+  _MemoryAgentCodingSessionHistoryStore(this.history);
+
+  AgentCodingSessionHistory history;
+
+  @override
+  Future<AgentCodingSessionHistory> readHistory({
+    required String workspaceId,
+  }) async {
+    return history.workspaceId == workspaceId
+        ? history
+        : AgentCodingSessionHistory(workspaceId: workspaceId);
+  }
+
+  @override
+  Future<AgentCodingSessionHistory> appendRecord({
+    required String workspaceId,
+    required AgentCodingSessionHistoryRecord record,
+    int maxEntries = 50,
+  }) async {
+    final current = await readHistory(workspaceId: workspaceId);
+    history = current.append(record, maxEntries: maxEntries);
+    return history;
+  }
+
+  @override
+  Future<AgentCodingSessionCheckpoint> readCheckpoint({
+    required String workspaceId,
+  }) async {
+    return (await readHistory(workspaceId: workspaceId)).toCheckpoint();
+  }
+
+  @override
+  Future<AgentCodingSessionRecoveryPlan> readRecoveryPlan({
+    required String workspaceId,
+  }) async {
+    return (await readHistory(workspaceId: workspaceId)).toRecoveryPlan();
+  }
+
+  @override
+  Future<void> saveHistory(AgentCodingSessionHistory history) async {
+    this.history = history;
   }
 }
 

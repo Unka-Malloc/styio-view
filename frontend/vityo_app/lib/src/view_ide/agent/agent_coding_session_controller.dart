@@ -132,6 +132,16 @@ class AgentCodingSessionController extends ChangeNotifier {
       sessionHistorySnapshot.toCheckpoint();
   AgentCodingSessionRecoveryPlan get sessionRecoveryPlan =>
       sessionHistorySnapshot.toRecoveryPlan();
+  AgentCodingSessionRecoveryRequestDraft? recoveryRequestDraftFor(
+    AgentCodingSessionRecoveryAction action, {
+    String? targetProviderProfileId,
+  }) {
+    return sessionHistorySnapshot.toRecoveryRequestDraft(
+      action,
+      targetProviderProfileId: targetProviderProfileId,
+    );
+  }
+
   String? get lastError => _lastError;
   AgentProviderTransportException? get lastProviderFailure =>
       _lastProviderFailure;
@@ -217,6 +227,21 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
     _draftPrompt = value;
     notifyListeners();
+  }
+
+  bool restoreRecoveryDraft(
+    AgentCodingSessionRecoveryAction action, {
+    String? targetProviderProfileId,
+  }) {
+    final draft = recoveryRequestDraftFor(
+      action,
+      targetProviderProfileId: targetProviderProfileId,
+    );
+    if (draft == null || draft.prompt.trim().isEmpty) {
+      return false;
+    }
+    updatePrompt(draft.prompt);
+    return true;
   }
 
   void cancelActiveRequest() {

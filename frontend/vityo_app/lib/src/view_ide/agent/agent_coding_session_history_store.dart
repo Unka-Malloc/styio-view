@@ -488,6 +488,39 @@ class AgentCodingSessionRecoveryCommandPlan {
   }
 }
 
+class AgentCodingSessionRecoveryRequestDraft {
+  const AgentCodingSessionRecoveryRequestDraft({
+    required this.commandPlan,
+    required this.prompt,
+    this.targetProviderProfileId,
+  });
+
+  final AgentCodingSessionRecoveryCommandPlan commandPlan;
+  final String prompt;
+  final String? targetProviderProfileId;
+
+  AgentCodingSessionRecoveryAction get action => commandPlan.action;
+  bool get requiresProviderSelection => commandPlan.requiresProviderSelection;
+  bool get readyToDispatch =>
+      prompt.trim().isNotEmpty &&
+      (!requiresProviderSelection ||
+          (targetProviderProfileId?.trim().isNotEmpty ?? false));
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'commandPlan': commandPlan.toJson(),
+      'action': action.wireValue,
+      'prompt': prompt,
+      'requiresProviderSelection': requiresProviderSelection,
+      'readyToDispatch': readyToDispatch,
+      if (targetProviderProfileId != null)
+        'targetProviderProfileId': targetProviderProfileId,
+      'TODO':
+          'Bind this recovery request draft to explicit user confirmation before dispatching provider retry, failover, or replay.',
+    };
+  }
+}
+
 class AgentCodingSessionHistory {
   AgentCodingSessionHistory({
     required this.workspaceId,
@@ -528,6 +561,25 @@ class AgentCodingSessionHistory {
 
   AgentCodingSessionRecoveryPlan toRecoveryPlan() {
     return AgentCodingSessionRecoveryPlan.fromCheckpoint(toCheckpoint());
+  }
+
+  AgentCodingSessionRecoveryRequestDraft? toRecoveryRequestDraft(
+    AgentCodingSessionRecoveryAction action, {
+    String? targetProviderProfileId,
+  }) {
+    if (records.isEmpty) {
+      return null;
+    }
+    final recoveryPlan = toRecoveryPlan();
+    final commandPlan = recoveryPlan.commandFor(action);
+    if (commandPlan == null) {
+      return null;
+    }
+    return AgentCodingSessionRecoveryRequestDraft(
+      commandPlan: commandPlan,
+      prompt: records.first.prompt,
+      targetProviderProfileId: targetProviderProfileId,
+    );
   }
 
   Map<String, Object?> toJson() {

@@ -152,5 +152,17 @@ void main() {
     expect(failoverCommand?.commandId, 'failoverAgentProvider');
     expect(failoverCommand?.requiresProviderSelection, isTrue);
     expect(failoverCommand?.toJson()['todo'], contains('TODO:'));
+    final retryDraft = history.toRecoveryRequestDraft(
+      AgentCodingSessionRecoveryAction.retrySameProvider,
+    );
+    final failoverDraft = history.toRecoveryRequestDraft(
+      AgentCodingSessionRecoveryAction.failoverProvider,
+      targetProviderProfileId: 'backup-provider',
+    );
+    expect(retryDraft?.prompt, 'Apply patch');
+    expect(retryDraft?.readyToDispatch, isTrue);
+    expect(failoverDraft?.targetProviderProfileId, 'backup-provider');
+    expect(failoverDraft?.readyToDispatch, isTrue);
+    expect(failoverDraft?.toJson()['TODO'], contains('confirmation'));
   });
 }

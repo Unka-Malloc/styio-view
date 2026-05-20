@@ -1666,6 +1666,46 @@ void main() {
       expect(pendingResponse, completion(isNull));
     },
   );
+
+  test(
+    'agent coding session cancels streaming provider requests with telemetry',
+    () async {
+      final adapter = _CancellableStreamingAgentProviderAdapter();
+      final buffer = RuntimeOutputLiveBuffer();
+      addTearDown(buffer.dispose);
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+        runtimeOutputBuffer: buffer,
+      );
+
+      controller.updatePrompt('Explain this file.');
+      final pendingResponse = controller.sendPrompt();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.sending, isTrue);
+      expect(adapter.streamedRequestIds, <String>['agent-request-1']);
+
+      controller.cancelActiveRequest();
+
+      expect(adapter.cancelledRequestIds, <String>['agent-request-1']);
+      expect(controller.sending, isFalse);
+      expect(controller.lastError, 'Agent request cancelled.');
+      expect(
+        buffer.snapshot.events.any(
+          (event) =>
+              event.channelId == 'agent.activity' &&
+              event.metadata['outcome'] == 'cancelled',
+        ),
+        isTrue,
+      );
+
+      adapter.complete();
+
+      expect(await pendingResponse, isNull);
+    },
+  );
 }
 
 AgentSessionContext _context() {
@@ -1734,6 +1774,50 @@ class _StreamingAgentProviderAdapter implements StreamingAgentProviderAdapter {
       text: 'streamed answer',
     );
     yield AgentProviderStreamEvent.completed(requestId: request.requestId);
+  }
+}
+
+class _CancellableStreamingAgentProviderAdapter
+    implements StreamingAgentProviderAdapter, CancellableAgentProviderAdapter {
+  final List<String> streamedRequestIds = <String>[];
+  final List<String> cancelledRequestIds = <String>[];
+  final Completer<void> _completion = Completer<void>();
+
+  @override
+  String get adapterId => 'cancellable-streaming';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.cloudOpenAICompatible;
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(AgentProviderRequest request) {
+    throw StateError('cancellable streaming adapter send should not be used');
+  }
+
+  @override
+  Stream<AgentProviderStreamEvent> stream(AgentProviderRequest request) async* {
+    streamedRequestIds.add(request.requestId);
+    yield AgentProviderStreamEvent.started(request.requestId);
+    await _completion.future;
+    yield AgentProviderStreamEvent.delta(
+      requestId: request.requestId,
+      text: 'late streamed answer',
+    );
+    yield AgentProviderStreamEvent.completed(requestId: request.requestId);
+  }
+
+  @override
+  void cancelRequest(String requestId) {
+    cancelledRequestIds.add(requestId);
+  }
+
+  void complete() {
+    if (!_completion.isCompleted) {
+      _completion.complete();
+    }
   }
 }
 

@@ -573,7 +573,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, Source Control Agent context bridge, failed-test rerun context, StyioService readiness checkpoints, checkpoint result prompt replay, patch application loop, persisted coding session history, RuntimeOutputLiveBuffer agent activity publishing, AgentProviderSelectionContext prompt injection, provider credential/execution readiness selection, provider readiness context serialization, provider selection status rendering, and embeddable activity history surface.',
+              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, Source Control Agent context bridge, failed-test rerun context, StyioService readiness checkpoints, SemanticSnapshotPanelViewModel Problems/Refactor context, checkpoint result prompt replay, patch application loop, persisted coding session history, RuntimeOutputLiveBuffer agent activity publishing, AgentProviderSelectionContext prompt injection, provider credential/execution readiness selection, provider readiness context serialization, provider selection status rendering, and embeddable activity history surface.',
           dependencies: <String>['workspace.edit-application'],
           references: <String>[
             'VS Code chat participants',

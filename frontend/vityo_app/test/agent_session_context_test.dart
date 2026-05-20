@@ -10,6 +10,7 @@ import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
+import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_event_bridge.dart';
 import 'package:vityo_app/src/view_ide/testing/testing.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
@@ -453,7 +454,7 @@ void main() {
     final testingDebugRoute =
         testingJson['debugFailedRoutePlan']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 47);
+    expect(json['schemaVersion'], 48);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1487,7 +1488,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 47);
+    expect(json['schemaVersion'], 48);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1726,6 +1727,52 @@ void main() {
     expect(plan['acceptanceCriteria'], <String>['Patch preview is shown.']);
     expect(plan['risks'], <String>['Dirty inactive files.']);
     expect(plan['text'], 'Plan before patch.');
+  });
+
+  test('agent session context serializes semantic panel view models', () {
+    final semanticPanel = SemanticSnapshotPanelViewModel.fromState(
+      SemanticSnapshotPanelEventState.empty(
+        SemanticSnapshotPanelEventTarget.problems,
+      ).record(
+        SemanticSnapshotPanelEvent(
+          target: SemanticSnapshotPanelEventTarget.problems,
+          kind: SemanticSnapshotTelemetryEventKind.codeActionApply,
+          documentId: 'src/main.styio',
+          message: 'Applied quick fix.',
+          payload: <String, Object?>{
+            'status': 'applied',
+            'label': 'Insert assignment',
+          },
+          timestamp: DateTime.utc(2026, 5, 20, 7),
+        ),
+      ),
+    );
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value\n',
+        revision: 1,
+      ),
+      selection: const SelectionState(baseOffset: 0, extentOffset: 0),
+      diagnostics: const <Diagnostic>[],
+      semanticPanelViewModels: <SemanticSnapshotPanelViewModel>[semanticPanel],
+    );
+
+    final languageJson = context.toJson()['language']! as Map<String, Object?>;
+    final panels = languageJson['semanticPanelViewModels']! as List<Object?>;
+    final panel = panels.single! as Map<String, Object?>;
+    final items = panel['items']! as List<Object?>;
+
+    expect(context.schemaVersion, 48);
+    expect(languageJson['semanticPanelViewModelCount'], 1);
+    expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
+    expect(panel['target'], 'problems');
+    expect(panel['codeActionCount'], 1);
+    expect((items.single! as Map<String, Object?>)['severity'], 'success');
+    expect(
+      (items.single! as Map<String, Object?>)['actionLabel'],
+      'Insert assignment',
+    );
   });
 
   test('agent session context serializes recent diagnostic summaries', () {

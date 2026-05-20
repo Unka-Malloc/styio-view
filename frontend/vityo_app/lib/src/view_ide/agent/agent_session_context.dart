@@ -7,6 +7,7 @@ import '../foundation/foundation.dart';
 import '../interaction/language_service_status_surface.dart';
 import '../language/language_contract.dart';
 import '../language/service/language_service_foundation.dart';
+import '../language/service/semantic_snapshot_event_bridge.dart';
 import '../testing/testing.dart';
 import '../toolchain/clang_cpp_version_configuration.dart';
 import '../toolchain/clang_cpp_version_manager.dart';
@@ -98,6 +99,8 @@ class AgentSessionContext {
     Iterable<DocumentSymbol> documentSymbols = const <DocumentSymbol>[],
     Iterable<InlayHint> inlayHints = const <InlayHint>[],
     Iterable<SemanticBlockRange> semanticBlocks = const <SemanticBlockRange>[],
+    Iterable<SemanticSnapshotPanelViewModel> semanticPanelViewModels =
+        const <SemanticSnapshotPanelViewModel>[],
     LanguageServiceStatusSurface? languageServiceStatus,
     IdeCapabilityFrameworkSnapshot? ideCapabilityFramework,
     ToolchainStateSnapshot? toolchainSnapshot,
@@ -152,7 +155,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 47,
+      schemaVersion: 48,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -225,6 +228,7 @@ class AgentSessionContext {
         documentSymbols: documentSymbols,
         inlayHints: inlayHints,
         semanticBlocks: semanticBlocks,
+        semanticPanelViewModels: semanticPanelViewModels,
         serviceStatus: languageServiceStatus == null
             ? null
             : AgentLanguageServiceStatusContext.fromSurface(
@@ -1525,6 +1529,9 @@ class AgentLanguageContext {
     required this.semanticBlocksTruncated,
     required this.refactorPreviewCount,
     required this.refactorPreviews,
+    required this.semanticPanelViewModelCount,
+    required this.semanticPanelViewModels,
+    required this.semanticPanelViewModelsTruncated,
     required this.surroundTemplateCount,
     required this.surroundTemplates,
     required this.surroundTemplatesTruncated,
@@ -1567,6 +1574,9 @@ class AgentLanguageContext {
   final bool semanticBlocksTruncated;
   final int refactorPreviewCount;
   final List<AgentRefactorPreviewContext> refactorPreviews;
+  final int semanticPanelViewModelCount;
+  final List<AgentSemanticPanelViewModelContext> semanticPanelViewModels;
+  final bool semanticPanelViewModelsTruncated;
   final int surroundTemplateCount;
   final List<AgentSurroundTemplateContext> surroundTemplates;
   final bool surroundTemplatesTruncated;
@@ -1592,6 +1602,8 @@ class AgentLanguageContext {
     Iterable<DocumentSymbol> documentSymbols = const <DocumentSymbol>[],
     Iterable<InlayHint> inlayHints = const <InlayHint>[],
     Iterable<SemanticBlockRange> semanticBlocks = const <SemanticBlockRange>[],
+    Iterable<SemanticSnapshotPanelViewModel> semanticPanelViewModels =
+        const <SemanticSnapshotPanelViewModel>[],
     AgentLanguageServiceStatusContext? serviceStatus,
     int maxReferences = 50,
     int maxFocusedDiagnostics = 20,
@@ -1601,6 +1613,7 @@ class AgentLanguageContext {
     int maxDocumentSymbols = 120,
     int maxInlayHints = 120,
     int maxSemanticBlocks = 120,
+    int maxSemanticPanelViewModels = 12,
     int maxSurroundTemplates = 24,
   }) {
     final surroundTemplateList = surroundTemplates.toList(growable: false);
@@ -1612,6 +1625,9 @@ class AgentLanguageContext {
     final documentSymbolList = documentSymbols.toList(growable: false);
     final inlayHintList = inlayHints.toList(growable: false);
     final semanticBlockList = semanticBlocks.toList(growable: false);
+    final semanticPanelViewModelList = semanticPanelViewModels.toList(
+      growable: false,
+    );
     final refactorPreviewList = <AgentRefactorPreviewContext>[
       if (safeDeletePlan != null)
         AgentRefactorPreviewContext.fromSafeDeletePlan(
@@ -1756,6 +1772,13 @@ class AgentLanguageContext {
       semanticBlocksTruncated: semanticBlockList.length > maxSemanticBlocks,
       refactorPreviewCount: refactorPreviewList.length,
       refactorPreviews: refactorPreviewList,
+      semanticPanelViewModelCount: semanticPanelViewModelList.length,
+      semanticPanelViewModels: semanticPanelViewModelList
+          .take(maxSemanticPanelViewModels)
+          .map(AgentSemanticPanelViewModelContext.fromViewModel)
+          .toList(growable: false),
+      semanticPanelViewModelsTruncated:
+          semanticPanelViewModelList.length > maxSemanticPanelViewModels,
       surroundTemplateCount: surroundTemplateList.length,
       surroundTemplates: surroundTemplateList
           .take(maxSurroundTemplates)
@@ -1824,12 +1847,117 @@ class AgentLanguageContext {
       'refactorPreviews': refactorPreviews
           .map((preview) => preview.toJson())
           .toList(growable: false),
+      'semanticPanelViewModelCount': semanticPanelViewModelCount,
+      'semanticPanelViewModels': semanticPanelViewModels
+          .map((model) => model.toJson())
+          .toList(growable: false),
+      'semanticPanelViewModelsTruncated': semanticPanelViewModelsTruncated,
       'surroundTemplateCount': surroundTemplateCount,
       'surroundTemplates': surroundTemplates
           .map((template) => template.toJson())
           .toList(growable: false),
       'surroundTemplatesTruncated': surroundTemplatesTruncated,
       if (serviceStatus != null) 'serviceStatus': serviceStatus!.toJson(),
+    };
+  }
+}
+
+class AgentSemanticPanelViewModelContext {
+  const AgentSemanticPanelViewModelContext({
+    required this.target,
+    required this.title,
+    required this.revision,
+    required this.itemCount,
+    required this.codeActionCount,
+    required this.renameSafetyCount,
+    required this.items,
+    required this.itemsTruncated,
+  });
+
+  factory AgentSemanticPanelViewModelContext.fromViewModel(
+    SemanticSnapshotPanelViewModel model, {
+    int maxItems = 12,
+  }) {
+    return AgentSemanticPanelViewModelContext(
+      target: model.target.wireValue,
+      title: model.title,
+      revision: model.revision,
+      itemCount: model.itemCount,
+      codeActionCount: model.codeActionCount,
+      renameSafetyCount: model.renameSafetyCount,
+      items: model.items
+          .take(maxItems)
+          .map(AgentSemanticPanelViewItemContext.fromItem)
+          .toList(growable: false),
+      itemsTruncated: model.items.length > maxItems,
+    );
+  }
+
+  final String target;
+  final String title;
+  final int revision;
+  final int itemCount;
+  final int codeActionCount;
+  final int renameSafetyCount;
+  final List<AgentSemanticPanelViewItemContext> items;
+  final bool itemsTruncated;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'target': target,
+      'title': title,
+      'revision': revision,
+      'itemCount': itemCount,
+      'codeActionCount': codeActionCount,
+      'renameSafetyCount': renameSafetyCount,
+      'items': items.map((item) => item.toJson()).toList(growable: false),
+      'itemsTruncated': itemsTruncated,
+    };
+  }
+}
+
+class AgentSemanticPanelViewItemContext {
+  const AgentSemanticPanelViewItemContext({
+    required this.id,
+    required this.kind,
+    required this.documentId,
+    required this.title,
+    required this.message,
+    required this.severity,
+    required this.actionLabel,
+  });
+
+  factory AgentSemanticPanelViewItemContext.fromItem(
+    SemanticSnapshotPanelEventViewItem item,
+  ) {
+    return AgentSemanticPanelViewItemContext(
+      id: item.id,
+      kind: item.kind.wireValue,
+      documentId: item.documentId,
+      title: item.title,
+      message: item.message,
+      severity: item.severity,
+      actionLabel: item.actionLabel,
+    );
+  }
+
+  final String id;
+  final String kind;
+  final String documentId;
+  final String title;
+  final String message;
+  final String severity;
+  final String actionLabel;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'kind': kind,
+      'documentId': documentId,
+      'title': title,
+      'message': message,
+      'severity': severity,
+      if (actionLabel.isNotEmpty) 'actionLabel': actionLabel,
     };
   }
 }

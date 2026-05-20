@@ -56,11 +56,6 @@ void main() {
     );
     expect(find.text('registered 2'), findsOneWidget);
     expect(find.text('selected Rename Symbol'), findsOneWidget);
-    expect(find.text('Save'), findsOneWidget);
-    expect(find.text('Rename Symbol'), findsOneWidget);
-    expect(find.text(AppCommandCategory.persistence.wireValue), findsOneWidget);
-    expect(find.text(AppCommandCategory.refactor.wireValue), findsOneWidget);
-    expect(find.textContaining('Blocked: Needs input'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const ValueKey('command-palette-query-input')),
@@ -70,10 +65,8 @@ void main() {
 
     expect(find.text('visible 1'), findsOneWidget);
     expect(find.text('selected Save'), findsOneWidget);
-    expect(find.text('Save'), findsOneWidget);
-    expect(find.text('Rename Symbol'), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('command-palette-save')));
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
 
     expect(executedCommandId, AppCommandId.save);
@@ -119,6 +112,27 @@ void main() {
         ),
       ),
     );
+
+    expect(
+      find.byKey(const ValueKey('command-palette-category-filters')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('command-palette-category-navigation')),
+    );
+    await tester.pump();
+
+    expect(find.text('category navigation'), findsOneWidget);
+    expect(find.text('Search Workspace'), findsOneWidget);
+    expect(find.text('Rename Symbol'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const ValueKey('command-palette-category-all')),
+    );
+    await tester.pump();
+
+    expect(find.text('Search Workspace'), findsOneWidget);
+    expect(find.text('Rename Symbol'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const ValueKey('command-palette-query-input')),

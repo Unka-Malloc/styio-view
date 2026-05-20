@@ -268,6 +268,10 @@ void main() {
       contains('Credential DataStore-backed bearer token references'),
     );
     expect(
+      entriesById['debugger.dap']?.summary,
+      contains('DebugLaunchTelemetryStore'),
+    );
+    expect(
       entriesById['agent.coding-loop']?.summary,
       contains('Source Control Agent context bridge'),
     );

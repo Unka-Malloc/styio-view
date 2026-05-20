@@ -1,0 +1,316 @@
+import '../foundation/foundation.dart';
+import 'debug_adapter_launcher.dart';
+import 'debug_adapter_session.dart';
+import 'debug_launch_contract.dart';
+
+enum DebugLaunchTelemetryStatus { planned, launched, blocked, failed, closed }
+
+extension DebugLaunchTelemetryStatusX on DebugLaunchTelemetryStatus {
+  String get wireValue => switch (this) {
+    DebugLaunchTelemetryStatus.planned => 'planned',
+    DebugLaunchTelemetryStatus.launched => 'launched',
+    DebugLaunchTelemetryStatus.blocked => 'blocked',
+    DebugLaunchTelemetryStatus.failed => 'failed',
+    DebugLaunchTelemetryStatus.closed => 'closed',
+  };
+}
+
+class DebugLaunchTelemetryRecord {
+  const DebugLaunchTelemetryRecord({
+    required this.workspaceId,
+    required this.profileId,
+    required this.debuggerId,
+    required this.status,
+    required this.message,
+    required this.timestamp,
+    this.planStatus = '',
+    this.ready = false,
+    this.sessionStatus,
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory DebugLaunchTelemetryRecord.fromExecutionPlan({
+    required String workspaceId,
+    required DapDebugAdapterExecutionPlan plan,
+    required DebugLaunchTelemetryStatus status,
+    String message = '',
+    DateTime? timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return DebugLaunchTelemetryRecord(
+      workspaceId: workspaceId,
+      profileId: plan.profileId,
+      debuggerId: plan.launchConfiguration.debuggerId,
+      status: status,
+      planStatus: plan.status.wireValue,
+      ready: plan.ready,
+      message: message.trim().isEmpty ? plan.message : message.trim(),
+      timestamp: (timestamp ?? DateTime.now()).toUtc(),
+      metadata: <String, Object?>{
+        'routeStatus': plan.routePlan.status.wireValue,
+        'outputChannelId': plan.outputBinding.outputChannel.id,
+        ...metadata,
+      },
+    );
+  }
+
+  factory DebugLaunchTelemetryRecord.fromSessionSnapshot({
+    required String workspaceId,
+    required DapDebugAdapterExecutionPlan plan,
+    required DapSessionSnapshot snapshot,
+    required DebugLaunchTelemetryStatus status,
+    String message = '',
+    DateTime? timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return DebugLaunchTelemetryRecord.fromExecutionPlan(
+      workspaceId: workspaceId,
+      plan: plan,
+      status: status,
+      message: message.trim().isEmpty
+          ? 'DAP session ${snapshot.status.name}: ${snapshot.events.length} event(s).'
+          : message,
+      timestamp: timestamp,
+      metadata: <String, Object?>{
+        'sessionStatus': snapshot.status.name,
+        'eventCount': snapshot.events.length,
+        'pendingRequestCount': snapshot.pendingRequests.length,
+        ...metadata,
+      },
+    ).copyWith(sessionStatus: snapshot.status.name);
+  }
+
+  factory DebugLaunchTelemetryRecord.fromJson(Map<String, Object?> json) {
+    return DebugLaunchTelemetryRecord(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      profileId: json['profileId'] as String? ?? '',
+      debuggerId: json['debuggerId'] as String? ?? '',
+      status:
+          _debugLaunchTelemetryStatusFromWire(json['status']) ??
+          DebugLaunchTelemetryStatus.planned,
+      message: json['message'] as String? ?? '',
+      timestamp:
+          DateTime.tryParse(json['timestamp'] as String? ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      planStatus: json['planStatus'] as String? ?? '',
+      ready: json['ready'] as bool? ?? false,
+      sessionStatus: json['sessionStatus'] as String?,
+      metadata: json['metadata'] is Map
+          ? (json['metadata']! as Map).map(
+              (key, value) => MapEntry<String, Object?>(key.toString(), value),
+            )
+          : const <String, Object?>{},
+    );
+  }
+
+  final String workspaceId;
+  final String profileId;
+  final String debuggerId;
+  final DebugLaunchTelemetryStatus status;
+  final String message;
+  final DateTime timestamp;
+  final String planStatus;
+  final bool ready;
+  final String? sessionStatus;
+  final Map<String, Object?> metadata;
+
+  bool get successful =>
+      status == DebugLaunchTelemetryStatus.launched ||
+      status == DebugLaunchTelemetryStatus.closed;
+
+  DebugLaunchTelemetryRecord copyWith({String? sessionStatus}) {
+    return DebugLaunchTelemetryRecord(
+      workspaceId: workspaceId,
+      profileId: profileId,
+      debuggerId: debuggerId,
+      status: status,
+      message: message,
+      timestamp: timestamp,
+      planStatus: planStatus,
+      ready: ready,
+      sessionStatus: sessionStatus ?? this.sessionStatus,
+      metadata: metadata,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'profileId': profileId,
+      'debuggerId': debuggerId,
+      'status': status.wireValue,
+      'successful': successful,
+      'message': message,
+      'timestamp': timestamp.toIso8601String(),
+      if (planStatus.isNotEmpty) 'planStatus': planStatus,
+      'ready': ready,
+      if (sessionStatus != null) 'sessionStatus': sessionStatus,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class DebugLaunchTelemetrySnapshot {
+  const DebugLaunchTelemetrySnapshot({
+    required this.workspaceId,
+    this.records = const <DebugLaunchTelemetryRecord>[],
+    this.updatedAt,
+  });
+
+  factory DebugLaunchTelemetrySnapshot.fromJson(Map<String, Object?> json) {
+    final rawRecords = json['records'];
+    final records = <DebugLaunchTelemetryRecord>[];
+    if (rawRecords is List) {
+      for (final rawRecord in rawRecords) {
+        if (rawRecord is Map) {
+          records.add(
+            DebugLaunchTelemetryRecord.fromJson(
+              rawRecord.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            ),
+          );
+        }
+      }
+    }
+    return DebugLaunchTelemetrySnapshot(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      records: List.unmodifiable(records),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final List<DebugLaunchTelemetryRecord> records;
+  final DateTime? updatedAt;
+
+  int get successfulCount {
+    return records.where((record) => record.successful).length;
+  }
+
+  int get blockedCount {
+    return records
+        .where((record) => record.status == DebugLaunchTelemetryStatus.blocked)
+        .length;
+  }
+
+  DebugLaunchTelemetrySnapshot record(
+    DebugLaunchTelemetryRecord record, {
+    int maxRecords = 50,
+  }) {
+    return DebugLaunchTelemetrySnapshot(
+      workspaceId: workspaceId,
+      records: <DebugLaunchTelemetryRecord>[
+        record,
+        ...records,
+      ].take(maxRecords).toList(growable: false),
+      updatedAt: record.timestamp,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'recordCount': records.length,
+      'successfulCount': successfulCount,
+      'blockedCount': blockedCount,
+      'records': records.map((record) => record.toJson()).toList(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class DebugLaunchTelemetryStore {
+  DebugLaunchTelemetryStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'debug.launch.telemetry',
+             layer: 'debugger',
+             stateFamily: 'debug-launch-telemetry',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const DebugLaunchTelemetryStore({required FoundationDataStoreOwner owner})
+    : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'debug.launch.telemetry';
+  static const String _key = 'debug-launch-telemetry';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<DebugLaunchTelemetrySnapshot> readSnapshot({
+    required String workspaceId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return DebugLaunchTelemetrySnapshot(workspaceId: workspaceId);
+    }
+    final snapshot = DebugLaunchTelemetrySnapshot.fromJson(value);
+    return snapshot.workspaceId.isEmpty
+        ? DebugLaunchTelemetrySnapshot(
+            workspaceId: workspaceId,
+            records: snapshot.records,
+            updatedAt: snapshot.updatedAt,
+          )
+        : snapshot;
+  }
+
+  Future<DebugLaunchTelemetrySnapshot> record({
+    required DebugLaunchTelemetryRecord record,
+    int maxRecords = 50,
+  }) async {
+    final next = (await readSnapshot(
+      workspaceId: record.workspaceId,
+    )).record(record, maxRecords: maxRecords);
+    await saveSnapshot(snapshot: next);
+    return next;
+  }
+
+  Future<DebugLaunchTelemetrySnapshot> saveSnapshot({
+    required DebugLaunchTelemetrySnapshot snapshot,
+  }) async {
+    await _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: snapshot.toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: snapshot.workspaceId,
+    );
+    return snapshot;
+  }
+
+  Future<bool> clearSnapshot({required String workspaceId}) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+}
+
+DebugLaunchTelemetryStatus? _debugLaunchTelemetryStatusFromWire(Object? value) {
+  return switch (value) {
+    'planned' => DebugLaunchTelemetryStatus.planned,
+    'launched' => DebugLaunchTelemetryStatus.launched,
+    'blocked' => DebugLaunchTelemetryStatus.blocked,
+    'failed' => DebugLaunchTelemetryStatus.failed,
+    'closed' => DebugLaunchTelemetryStatus.closed,
+    _ => null,
+  };
+}

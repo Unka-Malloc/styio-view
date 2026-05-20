@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_adapter_launcher.dart';
@@ -6,6 +7,9 @@ import 'package:vityo_app/src/view_ide/debugger/debug_adapter_protocol.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_adapter_session.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_adapter_transport.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_launch_contract.dart';
+import 'package:vityo_app/src/view_ide/debugger/debug_launch_telemetry_store.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 
 void main() {
@@ -60,6 +64,35 @@ void main() {
       await handle.close();
     },
   );
+
+  test('DAP debug launch telemetry store persists execution records', () async {
+    final store = DebugLaunchTelemetryStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+    final plan = DapDebugAdapterExecutionPlan.fromConfiguration(
+      profileId: 'debug-styio',
+      launchConfiguration: _readyLaunch(),
+    );
+    final record = DebugLaunchTelemetryRecord.fromExecutionPlan(
+      workspaceId: 'demo',
+      plan: plan,
+      status: DebugLaunchTelemetryStatus.planned,
+      timestamp: DateTime.utc(2026, 5, 20, 15),
+    );
+
+    await store.record(record: record);
+
+    final restored = await store.readSnapshot(workspaceId: 'demo');
+
+    expect(restored.records.single.profileId, 'debug-styio');
+    expect(restored.records.single.debuggerId, 'lldb-dap');
+    expect(restored.records.single.planStatus, 'ready');
+    expect(restored.records.single.ready, isTrue);
+    expect(restored.records.single.metadata['outputChannelId'], isNotEmpty);
+    expect(restored.toJson()['recordCount'], 1);
+    expect(await store.clearSnapshot(workspaceId: 'demo'), isTrue);
+    expect((await store.readSnapshot(workspaceId: 'demo')).records, isEmpty);
+  });
 
   test('DAP debug adapter launcher exposes live session event state', () async {
     const codec = DapContentFrameCodec();
@@ -135,6 +168,27 @@ DebugLaunchConfiguration _missingProgramLaunch() {
       metadata: <String, Object?>{'adapterProtocol': 'dap'},
     ),
     workspaceRoot: '/workspace/vityo',
+  );
+}
+
+Future<FoundationDataStore> _createDataStore() async {
+  final tempRoot = await Directory.systemTemp.createTemp(
+    'vityo_debug_launch_telemetry_test_',
+  );
+  addTearDown(() => tempRoot.delete(recursive: true));
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: tempRoot.path,
+      homePath: tempRoot.path,
+    ),
+  );
+  return FoundationDataStore(
+    resourceCoordinator: FoundationResourceCoordinator(
+      resourceManager: resourceManager,
+      fileSystemManager: fileSystemManager,
+    ),
+    fileSystemManager: fileSystemManager,
   );
 }
 

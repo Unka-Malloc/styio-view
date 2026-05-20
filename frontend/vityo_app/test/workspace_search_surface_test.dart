@@ -232,6 +232,8 @@ void main() {
     );
     expect(find.text('replacements 1'), findsOneWidget);
     expect(find.text('src/main.styio'), findsOneWidget);
+    expect(find.text('Before: needle := 1'), findsOneWidget);
+    expect(find.text('After: value := 1'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('workspace-replace-apply-submit')),

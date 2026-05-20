@@ -465,8 +465,20 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
                 return ListTile(
                   dense: true,
                   title: Text(document.documentId),
-                  subtitle: Text(
-                    '${document.replacementCount} replacement(s), revision ${document.revision}',
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${document.replacementCount} replacement(s), revision ${document.revision}',
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Before: ${_workspaceReplacePreviewSnippet(document.beforeText)}',
+                      ),
+                      Text(
+                        'After: ${_workspaceReplacePreviewSnippet(document.afterText)}',
+                      ),
+                    ],
                   ),
                 );
               },
@@ -475,6 +487,19 @@ class _WorkspaceReplacePreviewView extends StatelessWidget {
       ],
     );
   }
+}
+
+String _workspaceReplacePreviewSnippet(String text, {int maxLength = 96}) {
+  final normalized = text
+      .split('\n')
+      .where((line) => line.trim().isNotEmpty)
+      .take(2)
+      .join(' / ')
+      .trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return '${normalized.substring(0, maxLength - 3)}...';
 }
 
 class _WorkspaceSearchResultView extends StatelessWidget {

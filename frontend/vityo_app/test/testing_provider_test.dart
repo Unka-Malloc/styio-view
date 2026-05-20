@@ -115,11 +115,23 @@ void main() {
         const TestRunRequest(workspaceRoot: '/workspace/vityo'),
       );
       final manifest = catalog.manifest();
+      final health = catalog.healthSnapshot();
+      final retryPlan = catalog.retryPlan();
 
       expect(discovery.providerId, 'styio-discovery');
       expect(discovery.testCount, 1);
       expect(run.providerId, 'ctest-runner');
       expect(run.runner, 'ctest');
+      expect(health.ready, isTrue);
+      expect(health.summary, contains('discovery ready'));
+      expect(health.summary, contains('run ready'));
+      expect(
+        retryPlan.actions.map((action) => action.id),
+        containsAll(<String>[
+          'testing.discovery.retry.styio-discovery',
+          'testing.run.retry.ctest-runner',
+        ]),
+      );
       expect(
         ((manifest['run']! as Map<String, Object?>)['entries']!
             as List<Object?>),
@@ -132,6 +144,25 @@ void main() {
       );
     },
   );
+
+  test('testing provider catalog reports missing provider retry blockers', () {
+    final health = TestingProviderCatalog().healthSnapshot();
+    final retryPlan = TestingProviderCatalog().retryPlan();
+
+    expect(health.ready, isFalse);
+    expect(health.hasActiveDiscoveryProvider, isFalse);
+    expect(health.hasActiveRunProvider, isFalse);
+    expect(health.retryActions, hasLength(2));
+    expect(retryPlan.ready, isFalse);
+    expect(
+      retryPlan.message,
+      contains('TODO: register an active testing provider'),
+    );
+    expect(
+      retryPlan.actions.map((action) => action.toJson()['enabled']),
+      everyElement(isFalse),
+    );
+  });
 
   test('static testing provider returns configured result', () async {
     const provider = StaticTestRunProvider(

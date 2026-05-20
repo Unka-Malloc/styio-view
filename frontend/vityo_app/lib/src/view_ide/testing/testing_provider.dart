@@ -890,3 +890,256 @@ class CTestOutputParser {
         .toList(growable: false);
   }
 }
+
+/// Lightweight health state for a testing provider contribution.
+///
+/// This mirrors the provider/registry model used by mature IDEs: provider
+/// discovery stays decoupled from execution, while the UI/runtime can still
+/// surface whether a provider is active and which retry action is safe.
+class TestingProviderHealthRecord {
+  const TestingProviderHealthRecord({
+    required this.surface,
+    required this.id,
+    required this.state,
+    required this.active,
+    this.providerContract = '',
+    this.todo = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String surface;
+  final String id;
+  final String state;
+  final bool active;
+  final String providerContract;
+  final String todo;
+  final Map<String, Object?> metadata;
+
+  bool get hasTodo => todo.trim().startsWith('TODO:');
+
+  String get label => '$surface:$id';
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'surface': surface,
+      'id': id,
+      'state': state,
+      'active': active,
+      if (providerContract.isNotEmpty) 'providerContract': providerContract,
+      if (todo.isNotEmpty) 'todo': todo,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class TestingProviderRetryAction {
+  const TestingProviderRetryAction({
+    required this.id,
+    required this.surface,
+    required this.providerId,
+    required this.label,
+    required this.enabled,
+    required this.reason,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String id;
+  final String surface;
+  final String providerId;
+  final String label;
+  final bool enabled;
+  final String reason;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'surface': surface,
+      'providerId': providerId,
+      'label': label,
+      'enabled': enabled,
+      'reason': reason,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class TestingProviderHealthSnapshot {
+  const TestingProviderHealthSnapshot({
+    required this.records,
+    required this.retryActions,
+  });
+
+  factory TestingProviderHealthSnapshot.fromManifest(
+    Map<String, Object?> manifest,
+  ) {
+    final records = <TestingProviderHealthRecord>[
+      ..._recordsFromManifestSection(
+        surface: 'discovery',
+        section: manifest['discovery'],
+      ),
+      ..._recordsFromManifestSection(surface: 'run', section: manifest['run']),
+    ];
+    return TestingProviderHealthSnapshot(
+      records: records,
+      retryActions: _retryActionsFromRecords(records),
+    );
+  }
+
+  final List<TestingProviderHealthRecord> records;
+  final List<TestingProviderRetryAction> retryActions;
+
+  bool get hasActiveDiscoveryProvider =>
+      records.any((record) => record.surface == 'discovery' && record.active);
+
+  bool get hasActiveRunProvider =>
+      records.any((record) => record.surface == 'run' && record.active);
+
+  bool get ready => hasActiveDiscoveryProvider && hasActiveRunProvider;
+
+  String get summary {
+    final activeDiscovery = hasActiveDiscoveryProvider ? 'ready' : 'missing';
+    final activeRun = hasActiveRunProvider ? 'ready' : 'missing';
+    return 'Testing providers: discovery $activeDiscovery, run $activeRun.';
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'summary': summary,
+      'records': records.map((record) => record.toJson()).toList(),
+      'retryActions': retryActions.map((action) => action.toJson()).toList(),
+    };
+  }
+}
+
+class TestingProviderRetryPlan {
+  const TestingProviderRetryPlan({
+    required this.ready,
+    required this.message,
+    required this.actions,
+  });
+
+  factory TestingProviderRetryPlan.fromHealth(
+    TestingProviderHealthSnapshot snapshot,
+  ) {
+    final enabledActions = snapshot.retryActions
+        .where((action) => action.enabled)
+        .toList(growable: false);
+    return TestingProviderRetryPlan(
+      ready: enabledActions.isNotEmpty,
+      message: enabledActions.isEmpty
+          ? '${snapshot.summary} TODO: register an active testing provider before retrying.'
+          : '${snapshot.summary} ${enabledActions.length} retry action${enabledActions.length == 1 ? '' : 's'} available.',
+      actions: snapshot.retryActions,
+    );
+  }
+
+  final bool ready;
+  final String message;
+  final List<TestingProviderRetryAction> actions;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'message': message,
+      'actions': actions.map((action) => action.toJson()).toList(),
+    };
+  }
+}
+
+extension TestingProviderCatalogHealth on TestingProviderCatalog {
+  TestingProviderHealthSnapshot healthSnapshot() {
+    return TestingProviderHealthSnapshot.fromManifest(manifest());
+  }
+
+  TestingProviderRetryPlan retryPlan() {
+    return TestingProviderRetryPlan.fromHealth(healthSnapshot());
+  }
+}
+
+List<TestingProviderHealthRecord> _recordsFromManifestSection({
+  required String surface,
+  required Object? section,
+}) {
+  if (section is! Map<Object?, Object?>) {
+    return const <TestingProviderHealthRecord>[];
+  }
+  final rawEntries = section['entries'];
+  if (rawEntries is! Iterable<Object?>) {
+    return const <TestingProviderHealthRecord>[];
+  }
+  return rawEntries
+      .whereType<Map<Object?, Object?>>()
+      .map((entry) {
+        final metadata = _stringObjectMap(entry['metadata']);
+        final state = (entry['state'] as String? ?? '').trim();
+        final id = (entry['id'] as String? ?? '').trim();
+        return TestingProviderHealthRecord(
+          surface: surface,
+          id: id,
+          state: state,
+          active: state == 'active',
+          providerContract: (metadata['providerContract'] as String? ?? '')
+              .trim(),
+          todo: (entry['todo'] as String? ?? '').trim(),
+          metadata: metadata,
+        );
+      })
+      .toList(growable: false);
+}
+
+List<TestingProviderRetryAction> _retryActionsFromRecords(
+  List<TestingProviderHealthRecord> records,
+) {
+  final actions = <TestingProviderRetryAction>[];
+  for (final surface in const <String>['discovery', 'run']) {
+    final surfaceRecords = records
+        .where((record) => record.surface == surface)
+        .toList(growable: false);
+    final activeRecords = surfaceRecords
+        .where((record) => record.active)
+        .toList(growable: false);
+    if (activeRecords.isEmpty) {
+      actions.add(
+        TestingProviderRetryAction(
+          id: 'testing.$surface.configure-provider',
+          surface: surface,
+          providerId: 'unavailable',
+          label: 'Configure $surface test provider',
+          enabled: false,
+          reason:
+              'No active $surface test provider is registered. TODO: register Styio, CTest, or custom testing adapters.',
+        ),
+      );
+      continue;
+    }
+    for (final record in activeRecords) {
+      actions.add(
+        TestingProviderRetryAction(
+          id: 'testing.$surface.retry.${record.id}',
+          surface: surface,
+          providerId: record.id,
+          label: 'Retry $surface with ${record.id}',
+          enabled: true,
+          reason: 'Active $surface provider ${record.id} can be retried.',
+          metadata: <String, Object?>{
+            if (record.providerContract.isNotEmpty)
+              'providerContract': record.providerContract,
+            if (record.hasTodo) 'todo': record.todo,
+          },
+        ),
+      );
+    }
+  }
+  return actions;
+}
+
+Map<String, Object?> _stringObjectMap(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return const <String, Object?>{};
+  }
+  return <String, Object?>{
+    for (final entry in value.entries) entry.key.toString(): entry.value,
+  };
+}

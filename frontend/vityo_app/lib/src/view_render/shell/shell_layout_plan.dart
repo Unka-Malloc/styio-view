@@ -1,3 +1,4 @@
+import '../../view_ide/foundation/foundation.dart';
 import 'shell_model.dart';
 
 enum ShellLayoutMode { desktop, compact }
@@ -51,6 +52,26 @@ class ShellPanelDescriptor {
   final bool active;
   final Map<String, Object?> metadata;
   final String todo;
+
+  ShellPanelDescriptor copyWith({
+    String? id,
+    String? title,
+    ShellLayoutRegion? region,
+    bool? visible,
+    bool? active,
+    Map<String, Object?>? metadata,
+    String? todo,
+  }) {
+    return ShellPanelDescriptor(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      region: region ?? this.region,
+      visible: visible ?? this.visible,
+      active: active ?? this.active,
+      metadata: metadata ?? this.metadata,
+      todo: todo ?? this.todo,
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -140,6 +161,20 @@ class ShellLayoutPlan {
   final List<ShellPanelDescriptor> panels;
   final String todo;
 
+  ShellLayoutPlan copyWith({
+    ShellLayoutMode? mode,
+    BottomSurfaceTab? activeBottomTab,
+    List<ShellPanelDescriptor>? panels,
+    String? todo,
+  }) {
+    return ShellLayoutPlan(
+      mode: mode ?? this.mode,
+      activeBottomTab: activeBottomTab ?? this.activeBottomTab,
+      panels: panels ?? this.panels,
+      todo: todo ?? this.todo,
+    );
+  }
+
   ShellPanelDescriptor? panelById(String id) {
     for (final panel in panels) {
       if (panel.id == id) {
@@ -168,6 +203,167 @@ class ShellLayoutPlan {
       'panels': panels.map((panel) => panel.toJson()).toList(growable: false),
       if (todo.isNotEmpty) 'todo': todo,
     };
+  }
+}
+
+class ShellLayoutPreferences {
+  const ShellLayoutPreferences({
+    required this.workspaceId,
+    this.activeBottomTab = BottomSurfaceTab.runtime,
+    this.hiddenPanelIds = const <String>{},
+    this.pinnedPanelIds = const <String>{},
+    this.bottomPanelExpanded = true,
+    this.updatedAt,
+  });
+
+  factory ShellLayoutPreferences.fromJson(Map<String, Object?> json) {
+    return ShellLayoutPreferences(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      activeBottomTab: _bottomTabFromWire(json['activeBottomTab']),
+      hiddenPanelIds: _jsonStringSet(json['hiddenPanelIds']),
+      pinnedPanelIds: _jsonStringSet(json['pinnedPanelIds']),
+      bottomPanelExpanded: json['bottomPanelExpanded'] as bool? ?? true,
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final BottomSurfaceTab activeBottomTab;
+  final Set<String> hiddenPanelIds;
+  final Set<String> pinnedPanelIds;
+  final bool bottomPanelExpanded;
+  final DateTime? updatedAt;
+
+  ShellLayoutPreferences copyWith({
+    String? workspaceId,
+    BottomSurfaceTab? activeBottomTab,
+    Set<String>? hiddenPanelIds,
+    Set<String>? pinnedPanelIds,
+    bool? bottomPanelExpanded,
+    DateTime? updatedAt,
+  }) {
+    return ShellLayoutPreferences(
+      workspaceId: workspaceId ?? this.workspaceId,
+      activeBottomTab: activeBottomTab ?? this.activeBottomTab,
+      hiddenPanelIds: hiddenPanelIds ?? this.hiddenPanelIds,
+      pinnedPanelIds: pinnedPanelIds ?? this.pinnedPanelIds,
+      bottomPanelExpanded: bottomPanelExpanded ?? this.bottomPanelExpanded,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  ShellLayoutPlan applyTo(ShellLayoutPlan plan) {
+    final activeBottomPanelId = 'bottom.${activeBottomTab.name}';
+    return plan.copyWith(
+      activeBottomTab: activeBottomTab,
+      panels: plan.panels
+          .map((panel) {
+            final metadata = <String, Object?>{
+              ...panel.metadata,
+              if (pinnedPanelIds.contains(panel.id)) 'pinned': true,
+              if (panel.region == ShellLayoutRegion.bottomPanel)
+                'bottomPanelExpanded': bottomPanelExpanded,
+            };
+            return panel.copyWith(
+              visible: hiddenPanelIds.contains(panel.id)
+                  ? false
+                  : panel.visible,
+              active: panel.region == ShellLayoutRegion.bottomPanel
+                  ? panel.id == activeBottomPanelId
+                  : panel.active,
+              metadata: metadata,
+            );
+          })
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'activeBottomTab': activeBottomTab.name,
+      'hiddenPanelIds': _sortedStrings(hiddenPanelIds),
+      'pinnedPanelIds': _sortedStrings(pinnedPanelIds),
+      'bottomPanelExpanded': bottomPanelExpanded,
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class ShellLayoutPreferencesStore {
+  ShellLayoutPreferencesStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'presentation.shell-layout-preferences',
+             layer: 'presentation',
+             stateFamily: 'shell-layout',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const ShellLayoutPreferencesStore({required FoundationDataStoreOwner owner})
+    : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'presentation.shell-layout';
+  static const String _key = 'preferences';
+
+  final FoundationDataStoreOwner _owner;
+
+  Future<void> savePreferences(ShellLayoutPreferences preferences) {
+    return _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: preferences.copyWith(updatedAt: DateTime.now().toUtc()).toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: preferences.workspaceId,
+    );
+  }
+
+  Future<ShellLayoutPreferences> readPreferences({
+    required String workspaceId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return ShellLayoutPreferences(workspaceId: workspaceId);
+    }
+    final preferences = ShellLayoutPreferences.fromJson(value);
+    return preferences.workspaceId.isEmpty
+        ? preferences.copyWith(workspaceId: workspaceId)
+        : preferences;
+  }
+
+  Future<bool> deletePreferences({required String workspaceId}) {
+    return _owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+
+  Stream<FoundationDataStoreChange> watchPreferences({
+    required String workspaceId,
+  }) {
+    return _owner.watchJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
   }
 }
 
@@ -278,4 +474,18 @@ Map<String, Object?> _jsonObjectMap(Object? value) {
   return Map<String, Object?>.unmodifiable(
     value.map((key, value) => MapEntry<String, Object?>(key.toString(), value)),
   );
+}
+
+Set<String> _jsonStringSet(Object? value) {
+  if (value is! List) {
+    return const <String>{};
+  }
+  return Set<String>.unmodifiable(
+    value.whereType<String>().where((item) => item.trim().isNotEmpty),
+  );
+}
+
+List<String> _sortedStrings(Iterable<String> values) {
+  final sorted = values.toList(growable: false)..sort();
+  return sorted;
 }

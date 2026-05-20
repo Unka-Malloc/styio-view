@@ -87,6 +87,7 @@ void main() {
               required workspaceId,
               required profileId,
               required secretValue,
+              CredentialReference? preferredReference,
             }) async {
               savedTokens.add(secretValue);
               return CredentialReference(
@@ -134,6 +135,74 @@ void main() {
       expect(result.selectionPlan?.ready, isTrue);
       expect(result.selectionPlan?.selectedProvider?.providerId, 'cloud');
       expect(result.executionResolution, same(executionResolution));
+    },
+  );
+
+  test(
+    'agent provider configurator writes token to preferred OpenAI credential',
+    () async {
+      final savedProfiles = <AgentPromptProfile>[];
+      final savedTokens = <String>[];
+      final preferredReferences = <CredentialReference?>[];
+      final adapter = const _FakeAgentProviderAdapter(
+        kind: AgentProviderKind.cloudOpenAICompatible,
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+      final configurator = AgentProviderConfigurator(
+        workspaceId: 'workspace-1',
+        saveProfile:
+            ({required workspaceId, required key, required profile}) async {
+              savedProfiles.add(profile);
+            },
+        createAdapter: (_) async => adapter,
+        saveBearerToken:
+            ({
+              required workspaceId,
+              required profileId,
+              required secretValue,
+              CredentialReference? preferredReference,
+            }) async {
+              savedTokens.add(secretValue);
+              preferredReferences.add(preferredReference);
+              return preferredReference!;
+            },
+      );
+      final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      );
+
+      final result = await configurator.saveAndMount(
+        profile: profile,
+        controller: controller,
+        bearerToken: 'user-openai-key',
+      );
+      final credentialReference =
+          savedProfiles.single.endpoint.credentialReference!;
+
+      expect(result.saved, isTrue);
+      expect(savedTokens.single, 'user-openai-key');
+      expect(
+        preferredReferences.single,
+        same(profile.endpoint.credentialReference),
+      );
+      expect(credentialReference.key.namespace, 'agent.provider');
+      expect(credentialReference.key.name, 'openai-api-key');
+      expect(credentialReference.key.scope, CredentialScope.user);
+      expect(credentialReference.kind, CredentialKind.remoteServiceCredential);
+      expect(savedProfiles.single.endpoint.model, 'gpt-5.3-codex-spark');
+      expect(
+        savedProfiles.single.endpoint.toJson().toString(),
+        isNot(contains('user-openai-key')),
+      );
+      expect(
+        controller.profile.endpoint.credentialReference,
+        credentialReference,
+      );
     },
   );
 
@@ -296,6 +365,7 @@ void main() {
             required workspaceId,
             required profileId,
             required secretValue,
+            CredentialReference? preferredReference,
           }) async {
             savedTokens.add(secretValue);
             return CredentialReference(
@@ -348,6 +418,7 @@ void main() {
               required workspaceId,
               required profileId,
               required secretValue,
+              CredentialReference? preferredReference,
             }) async {
               return CredentialReference(
                 key: CredentialDataStoreKey(

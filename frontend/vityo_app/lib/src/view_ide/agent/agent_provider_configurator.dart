@@ -37,6 +37,7 @@ typedef AgentBearerTokenSaver =
       required String workspaceId,
       required String profileId,
       required String secretValue,
+      CredentialReference? preferredReference,
     });
 
 class AgentProviderConfigurationResult {
@@ -104,26 +105,33 @@ class AgentProviderConfigurator {
             required workspaceId,
             required profileId,
             required secretValue,
+            CredentialReference? preferredReference,
           }) async {
-            final key = CredentialDataStoreKey(
-              namespace: 'agent.provider',
-              name: profileId,
-              scope: CredentialScope.workspace,
-              targetId: workspaceId,
-            );
+            final key =
+                preferredReference?.key ??
+                CredentialDataStoreKey(
+                  namespace: 'agent.provider',
+                  name: profileId,
+                  scope: CredentialScope.workspace,
+                  targetId: workspaceId,
+                );
+            final kind = preferredReference?.kind ?? CredentialKind.token;
+            final displayName =
+                preferredReference?.displayName ?? 'Agent provider token';
             await credentialDataStore.write(
               CredentialSecretRecord(
                 key: key,
-                kind: CredentialKind.token,
+                kind: kind,
                 secretValue: secretValue,
-                displayName: 'Agent provider token',
+                displayName: displayName,
               ),
             );
-            return CredentialReference(
-              key: key,
-              kind: CredentialKind.token,
-              displayName: 'Agent provider token',
-            );
+            return preferredReference ??
+                CredentialReference(
+                  key: key,
+                  kind: kind,
+                  displayName: displayName,
+                );
           },
     );
   }
@@ -264,6 +272,7 @@ class AgentProviderConfigurator {
       workspaceId: workspaceId,
       profileId: profile.profileId,
       secretValue: token,
+      preferredReference: profile.endpoint.credentialReference,
     );
     return AgentPromptProfile(
       profileId: profile.profileId,

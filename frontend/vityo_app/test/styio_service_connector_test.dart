@@ -616,6 +616,76 @@ void main() {
     expect(merged.referenceSpans, isEmpty);
   });
 
+  test('response telemetry bridge emits semantic panel events', () {
+    const bridge = StyioServiceResponseTelemetryBridge();
+    final events = bridge.eventsForResponse(
+      const StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: 'fixture://telemetry',
+        revision: 7,
+        diagnostics: <StyioServiceDiagnosticDto>[
+          StyioServiceDiagnosticDto(
+            severity: DiagnosticSeverity.error,
+            code: 'styio.syntax',
+            message: 'Unexpected token.',
+            range: SourceRange(start: 0, end: 1),
+          ),
+        ],
+        semanticSpans: <SemanticSpan>[
+          SemanticSpan(
+            range: SourceRange(start: 0, end: 4),
+            kind: SemanticKind.function,
+          ),
+        ],
+        semanticBlocks: <SemanticBlockRange>[
+          SemanticBlockRange(
+            range: SourceRange(start: 0, end: 4),
+            label: 'function',
+          ),
+        ],
+        documentSymbols: <DocumentSymbol>[
+          DocumentSymbol(
+            name: 'main',
+            kind: SymbolKind.function,
+            nameRange: SourceRange(start: 0, end: 4),
+            declarationRange: SourceRange(start: 0, end: 4),
+          ),
+        ],
+        inlayHints: <InlayHint>[
+          InlayHint(
+            label: ': string',
+            kind: InlayHintKind.type,
+            position: 4,
+            range: SourceRange(start: 0, end: 4),
+          ),
+        ],
+        protocolVersion: 'styio-cli-jsonl-v2',
+        parserEngine: 'nightly',
+        grammarVersion: '2026.05',
+        toolchainId: 'styio-nightly',
+      ),
+      timestamp: DateTime.utc(2026, 5, 21, 3),
+    );
+
+    final diagnosticsPayload =
+        events.first.metadata['payload']! as Map<String, Object?>;
+    final tokensPayload =
+        events.last.metadata['payload']! as Map<String, Object?>;
+
+    expect(events, hasLength(2));
+    expect(events.first.metadata['semanticEventKind'], 'diagnostics-snapshot');
+    expect(events.last.metadata['semanticEventKind'], 'semantic-tokens');
+    expect(diagnosticsPayload['providerId'], 'styio-service:styio-nightly');
+    expect(diagnosticsPayload['diagnosticCount'], 1);
+    expect(diagnosticsPayload['hasErrors'], isTrue);
+    expect(diagnosticsPayload['status'], 'succeeded');
+    expect(diagnosticsPayload['grammarVersion'], '2026.05');
+    expect(tokensPayload['semanticSpanCount'], 1);
+    expect(tokensPayload['semanticBlockCount'], 1);
+    expect(tokensPayload['documentSymbolCount'], 1);
+    expect(tokensPayload['inlayHintCount'], 1);
+  });
+
   test(
     'result adapter keeps local diagnostics when failed service diagnostics are unsafe',
     () {

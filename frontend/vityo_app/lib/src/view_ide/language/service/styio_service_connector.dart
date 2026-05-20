@@ -7,6 +7,7 @@ import '../../environment/configuration/environment_variable_configuration.dart'
 import '../../environment/system_compatibility/file_system/file_system.dart';
 import '../../environment/system_compatibility/resource/resource.dart';
 import '../../foundation/foundation.dart';
+import '../../runtime/runtime_output_channels.dart';
 import '../../toolchain/toolchain_catalog.dart';
 import '../../toolchain/toolchain_catalog_change.dart';
 import '../../toolchain/toolchain_codec.dart';
@@ -17,6 +18,7 @@ import '../contract/language_contract.dart';
 import '../features/styio_semantic_token_feature.dart';
 import 'language_service_foundation.dart';
 import 'local_styio_language_service.dart';
+import 'semantic_snapshot_event_bridge.dart';
 import 'styio_service_capability.dart';
 import 'styio_language_service.dart';
 
@@ -2066,6 +2068,92 @@ class StyioServiceResultAdapter {
 
   bool _isSafeOffset(DocumentState document, int offset) {
     return offset >= 0 && offset <= document.length;
+  }
+}
+
+class StyioServiceResponseTelemetryBridge {
+  const StyioServiceResponseTelemetryBridge({
+    this.semanticBridge = const SemanticSnapshotEventBridge(),
+  });
+
+  final SemanticSnapshotEventBridge semanticBridge;
+
+  List<RuntimeOutputEvent> eventsForResponse(
+    StyioServiceResponse response, {
+    DateTime? timestamp,
+  }) {
+    final emittedAt = timestamp ?? DateTime.now().toUtc();
+    return <RuntimeOutputEvent>[
+      semanticBridge.diagnosticsSnapshotEvent(
+        documentId: response.documentId,
+        providerId: _providerId(response),
+        diagnosticCount: response.diagnostics.length,
+        hasErrors: _hasErrors(response),
+        severityCounts: _severityCounts(response),
+        documentCount: response.documentId.isEmpty ? 0 : 1,
+        sourceCount: response.diagnostics.isEmpty ? 0 : 1,
+        timestamp: emittedAt,
+        message:
+            'StyioService ${response.status.name} diagnostics: '
+            '${response.diagnostics.length} diagnostic(s).',
+        payload: _basePayload(response),
+      ),
+      semanticBridge.semanticTokensEvent(
+        documentId: response.documentId,
+        semanticSpanCount: response.semanticSpans.length,
+        semanticBlockCount: response.semanticBlocks.length,
+        documentSymbolCount: response.documentSymbols.length,
+        inlayHintCount: response.inlayHints.length,
+        diagnosticCount: response.diagnostics.length,
+        timestamp: emittedAt,
+        message:
+            'StyioService ${response.status.name} semantic tokens: '
+            '${response.semanticSpans.length} span(s), '
+            '${response.semanticBlocks.length} block(s).',
+        payload: _basePayload(response),
+      ),
+    ];
+  }
+
+  String _providerId(StyioServiceResponse response) {
+    return response.toolchainId.isEmpty
+        ? 'styio-service'
+        : 'styio-service:${response.toolchainId}';
+  }
+
+  bool _hasErrors(StyioServiceResponse response) {
+    return response.diagnostics.any(
+      (diagnostic) => diagnostic.severity == DiagnosticSeverity.error,
+    );
+  }
+
+  Map<String, int> _severityCounts(StyioServiceResponse response) {
+    return <String, int>{
+      for (final severity in DiagnosticSeverity.values)
+        severity.name: response.diagnostics
+            .where((diagnostic) => diagnostic.severity == severity)
+            .length,
+    };
+  }
+
+  Map<String, Object?> _basePayload(StyioServiceResponse response) {
+    return <String, Object?>{
+      'source': 'styio-service-response',
+      'status': response.status.name,
+      'protocolVersion': response.protocolVersion,
+      if (response.parserEngine != null) 'parserEngine': response.parserEngine,
+      if (response.grammarVersion != null)
+        'grammarVersion': response.grammarVersion,
+      if (response.toolchainId.isNotEmpty) 'toolchainId': response.toolchainId,
+      if (response.configPath != null) 'configPath': response.configPath,
+      if (response.workingDirectory != null)
+        'workingDirectory': response.workingDirectory,
+      'payloadCounts': response.payloadCounts,
+      'stdoutBytes': utf8.encode(response.stdout).length,
+      'stderrBytes': utf8.encode(response.stderr).length,
+      if (response.exitCode != null) 'exitCode': response.exitCode,
+      if (response.message != null) 'message': response.message,
+    };
   }
 }
 

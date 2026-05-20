@@ -214,6 +214,7 @@ class VityoShellScaffold extends StatelessWidget {
             onPreviewDiff: shell.previewSourceControlDiff,
             onStagePaths: shell.stageSourceControlPaths,
             onUnstagePaths: shell.unstageSourceControlPaths,
+            onConfirmDiffAction: shell.confirmSourceControlDiffAction,
           );
         }
 

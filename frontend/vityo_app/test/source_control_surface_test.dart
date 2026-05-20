@@ -14,6 +14,7 @@ void main() {
     List<String>? stagedPaths;
     List<String>? unstagedPaths;
     SourceControlBranchSwitchPlan? switchedBranchPlan;
+    SourceControlDiffConfirmationPlan? confirmedDiffPlan;
     var saveAllCount = 0;
     var refreshCount = 0;
     var openCommitCount = 0;
@@ -118,6 +119,9 @@ R  src/old.styio -> src/new.styio
             onOpenCommit: () async {
               openCommitCount += 1;
             },
+            onConfirmDiffAction: (plan) async {
+              confirmedDiffPlan = plan;
+            },
           ),
         ),
       ),
@@ -177,10 +181,16 @@ R  src/old.styio -> src/new.styio
     );
     expect(find.text('Diff Preview'), findsOneWidget);
     expect(find.text('hunks 0'), findsOneWidget);
-    expect(find.text('+1 -0'), findsOneWidget);
+    expect(find.text('+1 -0'), findsWidgets);
     expect(find.text('virtual-window 0-2/3'), findsOneWidget);
     expect(find.text('has next window'), findsOneWidget);
     expect(find.textContaining('+value'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('source-control-diff-confirmation')),
+      findsOneWidget,
+    );
+    expect(find.text('stage risk index-write'), findsOneWidget);
+    expect(find.text('discard requires confirmation'), findsOneWidget);
 
     Future<void> tapVisible(String key) async {
       final finder = find.byKey(ValueKey(key));
@@ -201,6 +211,11 @@ R  src/old.styio -> src/new.styio
     expect(openedDocumentId, 'src/new.styio');
 
     await tapVisible('source-control-preview-diff-src/main.styio');
+    await tapVisible('source-control-confirm-diff-stage');
+    expect(confirmedDiffPlan?.kind, SourceControlActionKind.stage);
+    expect(confirmedDiffPlan?.path, 'src/main.styio');
+    await tapVisible('source-control-confirm-diff-discard');
+    expect(confirmedDiffPlan?.kind, SourceControlActionKind.discard);
     await tapVisible('source-control-change-src/main.styio');
 
     expect(openedDocumentId, 'src/main.styio');

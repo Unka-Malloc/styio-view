@@ -712,10 +712,9 @@ class SourceControlDiffWindowBinding {
   SourceControlDiffWindowBinding previousWindow() {
     final currentWindow = window;
     final normalizedLimit = lineLimit <= 0 ? 200 : lineLimit;
-    final previousStart = (currentWindow.startLine - normalizedLimit).clamp(
-      0,
-      currentWindow.totalLineCount,
-    ).toInt();
+    final previousStart = (currentWindow.startLine - normalizedLimit)
+        .clamp(0, currentWindow.totalLineCount)
+        .toInt();
     return copyWith(startLine: previousStart);
   }
 
@@ -783,6 +782,71 @@ class SourceControlDiffReviewSummary {
       'deletionCount': deletionCount,
       'hasChanges': hasChanges,
       'truncated': truncated,
+    };
+  }
+}
+
+class SourceControlDiffConfirmationPlan {
+  const SourceControlDiffConfirmationPlan({
+    required this.kind,
+    required this.path,
+    required this.risk,
+    required this.requiresConfirmation,
+    required this.canRun,
+    required this.summary,
+    required this.reviewSummary,
+    this.blockedReason = '',
+  });
+
+  factory SourceControlDiffConfirmationPlan.fromDiff({
+    required SourceControlDiffSnapshot snapshot,
+    required SourceControlActionKind kind,
+  }) {
+    final actionPlan = SourceControlActionPlan.fromRequest(
+      SourceControlActionRequest(kind: kind, paths: <String>[snapshot.path]),
+    );
+    final reviewSummary = snapshot.reviewSummary;
+    final blockedReason = !snapshot.available
+        ? 'Source control diff confirmation requires an available diff preview.'
+        : snapshot.empty
+        ? 'Source control diff confirmation requires reviewed diff content.'
+        : actionPlan.blockedReason;
+    return SourceControlDiffConfirmationPlan(
+      kind: kind,
+      path: snapshot.path,
+      risk: actionPlan.risk,
+      requiresConfirmation: actionPlan.requiresConfirmation,
+      canRun: blockedReason.isEmpty && actionPlan.canRun,
+      blockedReason: blockedReason,
+      reviewSummary: reviewSummary,
+      summary:
+          '${kind.wireValue} reviewed diff ${snapshot.path} · +${reviewSummary.additionCount} -${reviewSummary.deletionCount} · risk ${actionPlan.risk.wireValue}',
+    );
+  }
+
+  final SourceControlActionKind kind;
+  final String path;
+  final SourceControlActionRisk risk;
+  final bool requiresConfirmation;
+  final bool canRun;
+  final String summary;
+  final String blockedReason;
+  final SourceControlDiffReviewSummary reviewSummary;
+
+  SourceControlActionRequest toActionRequest() {
+    return SourceControlActionRequest(kind: kind, paths: <String>[path]);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'path': path,
+      'risk': risk.wireValue,
+      'requiresConfirmation': requiresConfirmation,
+      'canRun': canRun,
+      'summary': summary,
+      'reviewSummary': reviewSummary.toJson(),
+      if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
     };
   }
 }

@@ -632,18 +632,16 @@ class ShellRuntimeModel extends ChangeNotifier {
         providerId: providerId,
       ),
     ];
-    final failedDebugConfiguration =
-        testingSessionController?.rerunPlanner.plan(
-          lastRun: lastRun,
-          workspaceRoot: workspaceRoot,
-          debug: true,
-        );
+    final failedDebugConfiguration = testingSessionController?.rerunPlanner
+        .plan(lastRun: lastRun, workspaceRoot: workspaceRoot, debug: true);
     if (failedDebugConfiguration != null) {
       configurations.add(failedDebugConfiguration);
     }
-    final selectedId = configurations.any(
-      (configuration) => configuration.id == _selectedTestRunConfigurationId,
-    )
+    final selectedId =
+        configurations.any(
+          (configuration) =>
+              configuration.id == _selectedTestRunConfigurationId,
+        )
         ? _selectedTestRunConfigurationId
         : configurations.first.id;
     return TestRunConfigurationSet(
@@ -652,6 +650,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       configurations: List<TestRunConfiguration>.unmodifiable(configurations),
     );
   }
+
   SourceControlStatusSnapshot get sourceControlStatusSnapshot =>
       sourceControlStatusController?.snapshot ??
       _localDirtySourceControlStatusSnapshot();
@@ -922,6 +921,23 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
   }
 
+  Future<SourceControlActionResult> confirmSourceControlDiffAction(
+    SourceControlDiffConfirmationPlan plan,
+  ) {
+    if (!plan.canRun) {
+      final result = SourceControlActionResult(
+        kind: plan.kind,
+        applied: false,
+        paths: <String>[plan.path],
+        message: plan.blockedReason,
+      );
+      appendLog(_sourceControlActionMessage(result));
+      notifyListeners();
+      return Future<SourceControlActionResult>.value(result);
+    }
+    return runSourceControlAction(plan.toActionRequest());
+  }
+
   Future<void> rerunFailedTests() async {
     final controller = testingSessionController;
     if (controller == null || controller.runProvider == null) {
@@ -952,13 +968,13 @@ class ShellRuntimeModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> debugTestConfiguration(TestRunConfiguration configuration) async {
+  Future<void> debugTestConfiguration(
+    TestRunConfiguration configuration,
+  ) async {
     final debugConfiguration = configuration.debug
         ? configuration
         : configuration.copyWith(debug: true);
-    final route = const TestDebugLaunchRoutePlanner().plan(
-      debugConfiguration,
-    );
+    final route = const TestDebugLaunchRoutePlanner().plan(debugConfiguration);
     runtimeOutputBuffer.addEvent(
       RuntimeOutputEvent(
         channelId: route.handoff.outputChannelId ?? 'debug.tests',
@@ -3097,8 +3113,7 @@ class ShellRuntimeModel extends ChangeNotifier {
             DebugSessionSnapshot(
               status: DebugSessionStatus.blocked,
               message:
-                  record?.message ??
-                  executionResult.dispatchResult.message,
+                  record?.message ?? executionResult.dispatchResult.message,
               debuggerId: activeDebugger.id,
               debuggerLabel: activeDebugger.displayName,
               breakpoints: debugBreakpoints,

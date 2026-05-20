@@ -26,6 +26,7 @@ class SourceControlSurface extends StatelessWidget {
     this.onUnstagePaths,
     this.onSwitchBranch,
     this.onOpenCommit,
+    this.onConfirmDiffAction,
   });
 
   final ViewportProfile viewportProfile;
@@ -48,6 +49,8 @@ class SourceControlSurface extends StatelessWidget {
   final Future<void> Function(SourceControlBranchSwitchPlan plan)?
   onSwitchBranch;
   final Future<void> Function()? onOpenCommit;
+  final Future<void> Function(SourceControlDiffConfirmationPlan plan)?
+  onConfirmDiffAction;
 
   @override
   Widget build(BuildContext context) {
@@ -320,6 +323,11 @@ class SourceControlSurface extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                _DiffConfirmationControls(
+                  snapshot: diffPreview!,
+                  onConfirmDiffAction: onConfirmDiffAction,
+                ),
                 const SizedBox(height: 12),
               ],
               Text('Changes', style: theme.textTheme.titleSmall),
@@ -357,6 +365,94 @@ class SourceControlSurface extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DiffConfirmationControls extends StatelessWidget {
+  const _DiffConfirmationControls({
+    required this.snapshot,
+    this.onConfirmDiffAction,
+  });
+
+  final SourceControlDiffSnapshot snapshot;
+  final Future<void> Function(SourceControlDiffConfirmationPlan plan)?
+  onConfirmDiffAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final stagePlan = SourceControlDiffConfirmationPlan.fromDiff(
+      snapshot: snapshot,
+      kind: SourceControlActionKind.stage,
+    );
+    final discardPlan = SourceControlDiffConfirmationPlan.fromDiff(
+      snapshot: snapshot,
+      kind: SourceControlActionKind.discard,
+    );
+    return Container(
+      key: const ValueKey('source-control-diff-confirmation'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Diff confirmation', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            'Confirm actions only after the visible diff review summary has been loaded. TODO: add per-hunk selection before executing partial actions.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(
+                label: Text(
+                  '+${stagePlan.reviewSummary.additionCount} -${stagePlan.reviewSummary.deletionCount}',
+                ),
+              ),
+              Chip(label: Text('stage risk ${stagePlan.risk.wireValue}')),
+              Chip(label: Text('discard risk ${discardPlan.risk.wireValue}')),
+              if (discardPlan.requiresConfirmation)
+                const Chip(label: Text('discard requires confirmation')),
+              if (!stagePlan.canRun) Chip(label: Text(stagePlan.blockedReason)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                key: const ValueKey('source-control-confirm-diff-stage'),
+                onPressed: stagePlan.canRun && onConfirmDiffAction != null
+                    ? () {
+                        onConfirmDiffAction!(stagePlan);
+                      }
+                    : null,
+                icon: const Icon(Icons.add_task_rounded),
+                label: const Text('Stage Reviewed Diff'),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('source-control-confirm-diff-discard'),
+                onPressed: discardPlan.canRun && onConfirmDiffAction != null
+                    ? () {
+                        onConfirmDiffAction!(discardPlan);
+                      }
+                    : null,
+                icon: const Icon(Icons.delete_sweep_outlined),
+                label: const Text('Discard Reviewed Diff'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

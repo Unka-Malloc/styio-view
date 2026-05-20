@@ -263,6 +263,7 @@ void main() {
                 'diff --git a/src/main.styio b/src/main.styio\n+changed\n',
           ),
         ),
+        actionProvider: const _ShellSourceControlActionProvider(),
         workspaceRoot: '/workspace/demo',
       );
       addTearDown(sourceControlController.dispose);
@@ -339,6 +340,14 @@ void main() {
       expect(diffPreview.available, isTrue);
       expect(sourceControlDiffJson['path'], documentPath);
       expect(sourceControlDiffJson['unifiedDiff'], contains('+changed'));
+      final diffConfirmationResult = await shell.confirmSourceControlDiffAction(
+        SourceControlDiffConfirmationPlan.fromDiff(
+          snapshot: diffPreview,
+          kind: SourceControlActionKind.stage,
+        ),
+      );
+      expect(diffConfirmationResult.applied, isTrue);
+      expect(diffConfirmationResult.paths, <String>[documentPath]);
 
       final agentDiffApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(
@@ -2085,6 +2094,26 @@ class _SuccessfulDeploymentAdapter implements DeploymentAdapter {
         'package': packageName ?? 'demo/app',
         'archive_path': '/workspace/demo/dist/app-0.0.5.tar',
       },
+    );
+  }
+}
+
+class _ShellSourceControlActionProvider extends SourceControlActionProvider {
+  const _ShellSourceControlActionProvider();
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlActionResult> runAction({
+    required String workspaceRoot,
+    required SourceControlActionRequest request,
+  }) async {
+    return SourceControlActionResult(
+      kind: request.kind,
+      applied: true,
+      paths: request.paths,
+      message: 'confirmed in $workspaceRoot',
     );
   }
 }

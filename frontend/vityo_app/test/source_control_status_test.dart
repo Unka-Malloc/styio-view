@@ -167,9 +167,10 @@ diff --git a/lib/main.styio b/lib/main.styio
     final snapshot = SourceControlDiffSnapshot(
       providerKind: SourceControlProviderKind.git,
       path: 'src/main.styio',
-      unifiedDiff: List<String>.generate(5, (index) => 'line-$index').join(
-        '\n',
-      ),
+      unifiedDiff: List<String>.generate(
+        5,
+        (index) => 'line-$index',
+      ).join('\n'),
     );
     final binding = SourceControlDiffWindowBinding(
       snapshot: snapshot,
@@ -187,6 +188,38 @@ diff --git a/lib/main.styio b/lib/main.styio
     expect(previous.window.startLine, 0);
     expect(json['providerKind'], 'git');
     expect((json['window']! as Map<String, Object?>)['lineCount'], 2);
+  });
+
+  test('source control diff confirmation plan wraps reviewed diff actions', () {
+    const snapshot = SourceControlDiffSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      path: 'src/main.styio',
+      unifiedDiff: 'diff --git a/src/main.styio b/src/main.styio\n+new\n',
+    );
+    final stagePlan = SourceControlDiffConfirmationPlan.fromDiff(
+      snapshot: snapshot,
+      kind: SourceControlActionKind.stage,
+    );
+    final discardPlan = SourceControlDiffConfirmationPlan.fromDiff(
+      snapshot: snapshot,
+      kind: SourceControlActionKind.discard,
+    );
+    final blockedPlan = SourceControlDiffConfirmationPlan.fromDiff(
+      snapshot: const SourceControlDiffSnapshot(
+        providerKind: SourceControlProviderKind.git,
+        path: 'src/empty.styio',
+      ),
+      kind: SourceControlActionKind.stage,
+    );
+
+    expect(stagePlan.canRun, isTrue);
+    expect(stagePlan.toActionRequest().paths, <String>['src/main.styio']);
+    expect(stagePlan.reviewSummary.additionCount, 1);
+    expect(discardPlan.risk, SourceControlActionRisk.destructive);
+    expect(discardPlan.requiresConfirmation, isTrue);
+    expect(blockedPlan.canRun, isFalse);
+    expect(blockedPlan.blockedReason, contains('reviewed diff content'));
+    expect(stagePlan.toJson()['summary'], contains('reviewed diff'));
   });
 
   test(

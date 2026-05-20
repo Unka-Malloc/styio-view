@@ -63,7 +63,7 @@ class TestingSurface extends StatelessWidget {
             Text('Testing', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              'Test result surface backed by registered test providers, persisted run configurations, failed-test rerun planning, the runTests command, and native tool result records. TODO: add richer failure navigation and concrete debug adapter launch routing.',
+              'Test result surface backed by registered test providers, persisted run configurations, failed-test rerun planning, the runTests command, native tool result records, and debug adapter launch routing handoff.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),

@@ -3657,6 +3657,16 @@ printf '100%% tests passed, 0 tests failed out of 3\\n'
     expect(shell.lastTestRun?.status, TestRunStatus.passed);
     expect(shell.lastTestRun?.totalCount, 3);
     expect(shell.agentSessionContext.testing.lastRun?.totalCount, 3);
+    final selectedConfiguration = shell.testRunConfigurationSet
+        .selectedConfiguration!;
+    expect(selectedConfiguration.id, 'all-tests');
+    await shell.debugTestConfiguration(selectedConfiguration);
+    expect(
+      shell.runtimeOutputBuffer.snapshot.visibleEvents.any(
+        (event) => event.metadata.containsKey('testDebugLaunchRoute'),
+      ),
+      isTrue,
+    );
     expect(
       await ctestLog.readAsString(),
       '--test-dir build --output-on-failure\n',

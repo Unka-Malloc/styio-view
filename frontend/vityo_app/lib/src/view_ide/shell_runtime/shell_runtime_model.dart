@@ -552,6 +552,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   bool _suppressWorkspaceChangedLoad = false;
   bool _suppressSelectionTracking = false;
   int _workspaceDocumentLoadGeneration = 0;
+  String _selectedTestRunConfigurationId = '';
   ExecutionSession? _lastExecutionSession;
   List<RuntimeEventEnvelope> _lastRuntimeEvents =
       const <RuntimeEventEnvelope>[];
@@ -619,6 +620,38 @@ class ShellRuntimeModel extends ChangeNotifier {
   TestRunResult? get lastTestRun => testingSessionController?.lastRun;
   List<TestRunResult> get testRunHistory =>
       testingSessionController?.runHistory ?? const <TestRunResult>[];
+  TestRunConfigurationSet get testRunConfigurationSet {
+    final workspaceRoot = workspaceController.activeProject.workspaceRoot;
+    final lastRun = lastTestRun;
+    final providerId = lastRun?.providerId ?? 'native-tool-runTests';
+    final configurations = <TestRunConfiguration>[
+      TestRunConfiguration(
+        id: 'all-tests',
+        label: 'All Tests',
+        workspaceRoot: workspaceRoot,
+        providerId: providerId,
+      ),
+    ];
+    final failedDebugConfiguration =
+        testingSessionController?.rerunPlanner.plan(
+          lastRun: lastRun,
+          workspaceRoot: workspaceRoot,
+          debug: true,
+        );
+    if (failedDebugConfiguration != null) {
+      configurations.add(failedDebugConfiguration);
+    }
+    final selectedId = configurations.any(
+      (configuration) => configuration.id == _selectedTestRunConfigurationId,
+    )
+        ? _selectedTestRunConfigurationId
+        : configurations.first.id;
+    return TestRunConfigurationSet(
+      workspaceId: workspaceRoot,
+      selectedConfigurationId: selectedId,
+      configurations: List<TestRunConfiguration>.unmodifiable(configurations),
+    );
+  }
   SourceControlStatusSnapshot get sourceControlStatusSnapshot =>
       sourceControlStatusController?.snapshot ??
       _localDirtySourceControlStatusSnapshot();
@@ -899,6 +932,55 @@ class ShellRuntimeModel extends ChangeNotifier {
       workspaceRoot: workspaceController.activeProject.workspaceRoot,
     );
     appendLog(_testRunResultMessage('Rerun failed tests', result));
+    notifyListeners();
+  }
+
+  void selectTestRunConfiguration(TestRunConfiguration configuration) {
+    _selectedTestRunConfigurationId = configuration.id;
+    appendLog('Selected test run configuration ${configuration.id}.');
+    notifyListeners();
+  }
+
+  Future<void> runTestConfiguration(TestRunConfiguration configuration) async {
+    final controller = testingSessionController;
+    if (controller == null) {
+      await executeCommand(AppCommandId.runTests);
+      return;
+    }
+    final result = await controller.runConfiguration(configuration);
+    appendLog(_testRunResultMessage('Run test configuration', result));
+    notifyListeners();
+  }
+
+  Future<void> debugTestConfiguration(TestRunConfiguration configuration) async {
+    final debugConfiguration = configuration.debug
+        ? configuration
+        : configuration.copyWith(debug: true);
+    final route = const TestDebugLaunchRoutePlanner().plan(
+      debugConfiguration,
+    );
+    runtimeOutputBuffer.addEvent(
+      RuntimeOutputEvent(
+        channelId: route.handoff.outputChannelId ?? 'debug.tests',
+        label: 'Test Debug',
+        kind: RuntimeOutputChannelKind.debug,
+        message:
+            '${route.ready ? 'ready' : 'blocked'} ${route.profileId}: ${route.handoff.plan.message}',
+        timestamp: DateTime.now().toUtc(),
+        metadata: <String, Object?>{
+          'testDebugLaunchRoute': route.toJson(),
+          'configuration': debugConfiguration.toJson(),
+        },
+      ),
+    );
+    final controller = testingSessionController;
+    if (controller == null) {
+      appendLog('Debug test configuration routed: ${route.profileId}.');
+      notifyListeners();
+      return;
+    }
+    final result = await controller.debugConfiguration(debugConfiguration);
+    appendLog(_testRunResultMessage('Debug test configuration', result));
     notifyListeners();
   }
 

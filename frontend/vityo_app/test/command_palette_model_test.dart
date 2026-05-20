@@ -70,4 +70,42 @@ void main() {
     expect(readyDraft.ready, isTrue);
     expect(readyDraft.toJson()['input'], 'renamed');
   });
+
+  test('command palette overlay state tracks selection and input draft', () {
+    const commands = <AppCommandDescriptor>[
+      AppCommandDescriptor(
+        id: AppCommandId.save,
+        label: 'Save',
+        shortcutHint: 'Cmd/Ctrl+S',
+        description: 'Persist file.',
+      ),
+      AppCommandDescriptor(
+        id: AppCommandId.renameSymbol,
+        label: 'Rename Symbol',
+        shortcutHint: 'Route',
+        description: 'Rename selected symbol.',
+        requiresInput: true,
+        inputLabel: 'New symbol name',
+      ),
+    ];
+    const model = CommandPaletteModel(commands: commands);
+
+    final state = model.overlayStateFor(
+      const CommandPaletteQueryState(query: 'rename'),
+      selectedIndex: 99,
+    );
+    final moved = state.moveSelection(-1);
+    final json = state.toJson();
+
+    expect(state.visible, isTrue);
+    expect(state.visibleCount, 1);
+    expect(state.selectedEntry?.command.id, AppCommandId.renameSymbol);
+    expect(state.selectedInputDraft?.ready, isFalse);
+    expect(moved.selectedIndex, 0);
+    expect(json['selectedIndex'], 0);
+    expect(
+      (json['selectedInputDraft']! as Map<String, Object?>)['inputLabel'],
+      'New symbol name',
+    );
+  });
 }

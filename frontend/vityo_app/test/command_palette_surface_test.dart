@@ -54,6 +54,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('registered 2'), findsOneWidget);
+    expect(find.text('selected Rename Symbol'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
     expect(find.text('Rename Symbol'), findsOneWidget);
     expect(find.text(AppCommandCategory.persistence.wireValue), findsOneWidget);
@@ -67,6 +68,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('visible 1'), findsOneWidget);
+    expect(find.text('selected Save'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
     expect(find.text('Rename Symbol'), findsNothing);
 

@@ -68,6 +68,77 @@ class CommandPaletteInputDraft {
   }
 }
 
+class CommandPaletteOverlayState {
+  const CommandPaletteOverlayState({
+    required this.queryState,
+    required this.entries,
+    this.selectedIndex = 0,
+  });
+
+  factory CommandPaletteOverlayState.fromModel({
+    required CommandPaletteModel model,
+    required CommandPaletteQueryState queryState,
+    int selectedIndex = 0,
+  }) {
+    final entries = model.entriesFor(queryState);
+    return CommandPaletteOverlayState(
+      queryState: queryState,
+      entries: entries,
+      selectedIndex: entries.isEmpty
+          ? 0
+          : selectedIndex.clamp(0, entries.length - 1),
+    );
+  }
+
+  final CommandPaletteQueryState queryState;
+  final List<CommandPaletteCommandEntry> entries;
+  final int selectedIndex;
+
+  bool get visible => true;
+  bool get empty => entries.isEmpty;
+  int get visibleCount => entries.length;
+  CommandPaletteCommandEntry? get selectedEntry {
+    if (entries.isEmpty) {
+      return null;
+    }
+    return entries[selectedIndex.clamp(0, entries.length - 1)];
+  }
+
+  CommandPaletteInputDraft? get selectedInputDraft {
+    final entry = selectedEntry;
+    if (entry == null) {
+      return null;
+    }
+    return CommandPaletteInputDraft(command: entry.command);
+  }
+
+  CommandPaletteOverlayState moveSelection(int delta) {
+    if (entries.isEmpty) {
+      return this;
+    }
+    final nextIndex = (selectedIndex + delta).clamp(0, entries.length - 1);
+    return CommandPaletteOverlayState(
+      queryState: queryState,
+      entries: entries,
+      selectedIndex: nextIndex,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'visible': visible,
+      'empty': empty,
+      'selectedIndex': selectedIndex,
+      'visibleCount': visibleCount,
+      'queryState': queryState.toJson(),
+      if (selectedEntry != null) 'selectedEntry': selectedEntry!.toJson(),
+      if (selectedInputDraft != null)
+        'selectedInputDraft': selectedInputDraft!.toJson(),
+      'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+    };
+  }
+}
+
 class CommandPaletteModel {
   const CommandPaletteModel({required this.commands});
 
@@ -119,6 +190,17 @@ class CommandPaletteModel {
     return entriesFor(
       state,
     ).map((entry) => entry.command).toList(growable: false);
+  }
+
+  CommandPaletteOverlayState overlayStateFor(
+    CommandPaletteQueryState state, {
+    int selectedIndex = 0,
+  }) {
+    return CommandPaletteOverlayState.fromModel(
+      model: this,
+      queryState: state,
+      selectedIndex: selectedIndex,
+    );
   }
 
   int _score(AppCommandDescriptor command, String query) {

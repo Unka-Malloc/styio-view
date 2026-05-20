@@ -41,9 +41,10 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = widget.viewportProfile.isMobile;
-    final visibleCommands = CommandPaletteModel(
+    final overlayState = CommandPaletteModel(
       commands: widget.commands,
-    ).commandsFor(CommandPaletteQueryState(query: _query));
+    ).overlayStateFor(CommandPaletteQueryState(query: _query));
+    final visibleEntries = overlayState.entries;
 
     return Card(
       key: const ValueKey('command-palette-surface'),
@@ -55,7 +56,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
             Text('Command Palette', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              'Searchable command registry surface backed by reusable query scoring and typed input draft contracts. TODO: promote this panel to an overlay palette with typed command input UI and persisted recent command ranking.',
+              'Searchable command registry surface backed by reusable query scoring, overlay selection state, and typed input draft contracts. TODO: persist recent command ranking and bind keyboard navigation to the overlay state.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -78,12 +79,19 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
               runSpacing: 8,
               children: [
                 Chip(label: Text('registered ${widget.commands.length}')),
-                Chip(label: Text('visible ${visibleCommands.length}')),
+                Chip(label: Text('visible ${overlayState.visibleCount}')),
+                if (overlayState.selectedEntry != null)
+                  Chip(
+                    key: const ValueKey('command-palette-selected-chip'),
+                    label: Text(
+                      'selected ${overlayState.selectedEntry!.command.label}',
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: visibleCommands.isEmpty
+              child: visibleEntries.isEmpty
                   ? Center(
                       key: const ValueKey('command-palette-empty-state'),
                       child: Text(
@@ -95,14 +103,17 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                     )
                   : ListView.separated(
                       key: const ValueKey('command-palette-command-list'),
-                      itemCount: visibleCommands.length,
+                      itemCount: visibleEntries.length,
                       separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
-                        final command = visibleCommands[index];
+                        final entry = visibleEntries[index];
+                        final command = entry.command;
                         final blockedReason = widget.blockedReasonForCommand
                             ?.call(command.id);
+                        final selected = index == overlayState.selectedIndex;
                         return ListTile(
                           key: ValueKey('command-palette-${command.id.name}'),
+                          selected: selected,
                           dense: true,
                           title: Text(command.label),
                           subtitle: Text(

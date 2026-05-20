@@ -347,6 +347,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('semantic feature confidence matrix context'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('checkpoint result prompt replay'),
     );
     expect(

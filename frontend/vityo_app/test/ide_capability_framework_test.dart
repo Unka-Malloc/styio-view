@@ -72,6 +72,14 @@ void main() {
       contains('SemanticSnapshotProvider'),
     );
     expect(
+      entriesById['service.remote-service']?.summary,
+      contains('HostedBackendRetryActionExecutor'),
+    );
+    expect(
+      entriesById['service.remote-service']?.summary,
+      contains('HostedControlPlaneRetryTransport'),
+    );
+    expect(
       entriesById['workspace.file-explorer']?.summary,
       contains('create, rename, delete, and reveal contracts'),
     );

@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/backend_toolchain/hosted_control_plane.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
+import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -105,6 +107,60 @@ void main() {
       isFalse,
     );
   });
+
+  test(
+    'executes hosted retry action through control plane transport',
+    () async {
+      final project = _project(
+        workspace: _workspace(status: HostedWorkspaceStatus.active),
+      );
+      final report = const HostedWorkspaceLifecycle().connectorParityReportFor(
+        project,
+        backendReachable: false,
+        failureMessage: 'temporary failure',
+      );
+      final client = _RecordingHostedRetryClient();
+      final executor = HostedBackendRetryActionExecutor(
+        transport: HostedControlPlaneRetryTransport(
+          hostedClient: client,
+          platformTarget: PlatformTarget.linux,
+        ),
+      );
+
+      final result = await executor.execute(
+        action: report.actionFor(HostedBackendRetryActionKind.retryConnect)!,
+        workspace: project.hostedWorkspace!,
+      );
+
+      expect(result.status, HostedBackendRetryActionExecutionStatus.completed);
+      expect(result.successful, isTrue);
+      expect(result.message, 'project graph refreshed');
+      expect(client.projectGraphWorkspaceIds, <String>['hosted-demo']);
+    },
+  );
+
+  test('marks unpublished hosted retry endpoints as unsupported', () async {
+    final client = _RecordingHostedRetryClient();
+    final executor = HostedBackendRetryActionExecutor(
+      transport: HostedControlPlaneRetryTransport(
+        hostedClient: client,
+        platformTarget: PlatformTarget.linux,
+      ),
+    );
+
+    final result = await executor.execute(
+      action: const HostedBackendRetryAction(
+        id: 'reopen-workspace',
+        label: 'Reopen workspace',
+        kind: HostedBackendRetryActionKind.reopenWorkspace,
+      ),
+      workspace: _workspace(status: HostedWorkspaceStatus.pendingDeletion),
+    );
+
+    expect(result.status, HostedBackendRetryActionExecutionStatus.unsupported);
+    expect(result.message, contains('TODO: hosted control plane reopen'));
+    expect(client.projectGraphWorkspaceIds, isEmpty);
+  });
 }
 
 ProjectGraphSnapshot _project({
@@ -136,6 +192,32 @@ ProjectGraphSnapshot _project({
     hostedWorkspace: workspace,
     notes: const <String>[],
   );
+}
+
+class _RecordingHostedRetryClient implements HostedControlPlaneClient {
+  final List<String> projectGraphWorkspaceIds = <String>[];
+
+  @override
+  HostedControlPlaneConfig get config => const HostedControlPlaneConfig(
+    baseUrl: 'https://hosted.example.test',
+    workspaceRoot: '/workspace/demo',
+    workspaceId: 'hosted-demo',
+  );
+
+  @override
+  Future<Map<String, dynamic>> projectGraph({
+    required String workspaceId,
+  }) async {
+    projectGraphWorkspaceIds.add(workspaceId);
+    return <String, dynamic>{
+      'returncode': 0,
+      'message': 'project graph refreshed',
+      'payload': <String, Object?>{'workspace_id': workspaceId},
+    };
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 HostedWorkspaceRecordSnapshot _workspace({

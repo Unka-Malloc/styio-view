@@ -402,7 +402,7 @@ class WorkspaceEditDiffWindow {
           .map((operation) => operation.toJson())
           .toList(growable: false),
       'todo':
-          'TODO: bind this virtualized diff window to the concrete multi-file diff UI.',
+          'TODO: persist diff pagination state and connect lazy expansion controls.',
     };
   }
 }
@@ -525,7 +525,7 @@ class WorkspaceEditConfirmationPlan {
       fileOperationCount: preview.fileOperations.length,
       message: 'Workspace edit preview is ready for confirmation.',
       todo:
-          'TODO: add richer virtualized diff UI and file operation expansion.',
+          'TODO: persist review pagination state and connect lazy expansion controls.',
     );
   }
 

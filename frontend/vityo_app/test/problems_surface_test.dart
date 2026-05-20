@@ -287,6 +287,60 @@ void main() {
   ) async {
     WorkspaceEditReviewControls? appliedControls;
     WorkspaceEditReviewControls? canceledControls;
+    const readyPreview = WorkspaceEditPreview(
+      planId: 'ready-fix',
+      summary: 'Rename symbol in workspace',
+      source: WorkspaceEditSource.rename,
+      documents: <WorkspaceEditDocumentPreview>[
+        WorkspaceEditDocumentPreview(
+          documentId: 'src/main.styio',
+          revision: 7,
+          beforeText: 'old',
+          afterText: 'new',
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 0, end: 3),
+              newText: 'new',
+            ),
+          ],
+        ),
+        WorkspaceEditDocumentPreview(
+          documentId: 'src/lib.styio',
+          revision: 2,
+          beforeText: 'old lib',
+          afterText: 'new lib',
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 0, end: 3),
+              newText: 'new',
+            ),
+          ],
+        ),
+        WorkspaceEditDocumentPreview(
+          documentId: 'src/hidden.styio',
+          revision: 1,
+          beforeText: 'old hidden',
+          afterText: 'new hidden',
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 0, end: 3),
+              newText: 'new',
+            ),
+          ],
+        ),
+      ],
+      fileOperations: <WorkspaceFileOperationPreview>[
+        WorkspaceFileOperationPreview(
+          operation: WorkspaceFileOperation.create(
+            documentId: 'src/new.styio',
+            text: 'value = 1',
+          ),
+          status: WorkspaceFileOperationPreviewStatus.ready,
+          message: 'Document src/new.styio will be created.',
+          afterText: 'value = 1',
+        ),
+      ],
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -299,24 +353,10 @@ void main() {
             ),
             documentId: 'src/main.styio',
             diagnostics: const <Diagnostic>[],
-            workspaceEditPreview: const WorkspaceEditPreview(
-              planId: 'ready-fix',
-              summary: 'Rename symbol in workspace',
-              source: WorkspaceEditSource.rename,
-              documents: <WorkspaceEditDocumentPreview>[
-                WorkspaceEditDocumentPreview(
-                  documentId: 'src/main.styio',
-                  revision: 7,
-                  beforeText: 'old',
-                  afterText: 'new',
-                  edits: <FormattingEdit>[
-                    FormattingEdit(
-                      range: SourceRange(start: 0, end: 3),
-                      newText: 'new',
-                    ),
-                  ],
-                ),
-              ],
+            workspaceEditPreview: readyPreview,
+            workspaceEditDiffWindow: readyPreview.diffWindow(
+              documentLimit: 2,
+              fileOperationLimit: 1,
             ),
             onApplyWorkspaceEdit: (controls) async {
               appliedControls = controls;
@@ -331,6 +371,18 @@ void main() {
 
     expect(
       find.textContaining('ready · Workspace edit preview is ready'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('problems-workspace-edit-diff-window')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('documents 0+2/3'), findsOneWidget);
+    expect(find.text('+1 more document(s)'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('problems-workspace-edit-file-operation-src/new.styio'),
+      ),
       findsOneWidget,
     );
 

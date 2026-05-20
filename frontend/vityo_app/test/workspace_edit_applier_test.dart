@@ -515,7 +515,7 @@ void main() {
     expect(window.fileOperations.single.operation.documentId, 'c.styio');
     expect(window.hasMoreDocuments, isFalse);
     expect(window.toJson()['totalDocumentCount'], 2);
-    expect(window.toJson()['todo'], contains('virtualized diff window'));
+    expect(window.toJson()['todo'], contains('pagination state'));
     expect(appliedTelemetry.successful, isTrue);
     expect(appliedTelemetry.toJson()['status'], 'applied');
     expect(appliedTelemetry.toJson()['recordedAt'], '2026-05-20T00:00:00.000Z');

@@ -17,6 +17,7 @@ class ProblemsSurface extends StatefulWidget {
     this.onSelectWorkspaceDiagnostic,
     this.onRefreshWorkspaceDiagnostics,
     this.workspaceEditPreview,
+    this.workspaceEditDiffWindow,
     this.severityFilter = const <DiagnosticSeverity>[],
     this.filterState,
     this.onPreviewWorkspaceQuickFix,
@@ -39,6 +40,7 @@ class ProblemsSurface extends StatefulWidget {
   final ValueChanged<WorkspaceDiagnostic>? onSelectWorkspaceDiagnostic;
   final Future<void> Function()? onRefreshWorkspaceDiagnostics;
   final WorkspaceEditPreview? workspaceEditPreview;
+  final WorkspaceEditDiffWindow? workspaceEditDiffWindow;
   final List<DiagnosticSeverity> severityFilter;
   final WorkspaceDiagnosticsFilterState? filterState;
   final Future<void> Function()? onPreviewWorkspaceQuickFix;
@@ -254,6 +256,7 @@ class _ProblemsSurfaceState extends State<ProblemsSurface> {
                   const SizedBox(height: 12),
                   _WorkspaceEditPreviewCard(
                     preview: widget.workspaceEditPreview!,
+                    diffWindow: widget.workspaceEditDiffWindow,
                     reviewControls: workspaceEditReviewControls!,
                     onApply: widget.onApplyWorkspaceEdit,
                     onCancel: widget.onCancelWorkspaceEdit,
@@ -474,6 +477,7 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
   const _WorkspaceEditPreviewCard({
     required this.preview,
     required this.reviewControls,
+    this.diffWindow,
     this.cardKey = const ValueKey('problems-workspace-edit-preview'),
     this.applyKey = const ValueKey('problems-workspace-edit-apply'),
     this.cancelKey = const ValueKey('problems-workspace-edit-cancel'),
@@ -484,6 +488,7 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
 
   final WorkspaceEditPreview preview;
   final WorkspaceEditReviewControls reviewControls;
+  final WorkspaceEditDiffWindow? diffWindow;
   final Key cardKey;
   final Key applyKey;
   final Key cancelKey;
@@ -495,12 +500,20 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final confirmation = reviewControls.confirmationPlan;
-    final changedDocuments = preview.documents
+    final effectiveWindow =
+        diffWindow ??
+        preview.diffWindow(documentLimit: 3, fileOperationLimit: 3);
+    final sampleDocuments = effectiveWindow.documents
         .where((document) => document.changed)
         .toList(growable: false);
-    final sampleDocuments = changedDocuments.take(3).toList(growable: false);
     final hiddenDocumentCount =
-        changedDocuments.length - sampleDocuments.length;
+        effectiveWindow.totalDocumentCount -
+        (effectiveWindow.documentOffset + effectiveWindow.documents.length);
+    final sampleFileOperations = effectiveWindow.fileOperations;
+    final hiddenFileOperationCount =
+        effectiveWindow.totalFileOperationCount -
+        (effectiveWindow.fileOperationOffset +
+            effectiveWindow.fileOperations.length);
 
     return Container(
       key: cardKey,
@@ -518,8 +531,15 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${preview.summary} · ${preview.editCount} edit(s) · '
-            '${changedDocuments.length} document(s)',
+            '${effectiveWindow.totalDocumentCount} document(s)',
             key: const ValueKey('problems-workspace-edit-preview-summary'),
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Diff window documents ${effectiveWindow.documentOffset}+${effectiveWindow.documents.length}/${effectiveWindow.totalDocumentCount} · '
+            'file operations ${effectiveWindow.fileOperationOffset}+${effectiveWindow.fileOperations.length}/${effectiveWindow.totalFileOperationCount}',
+            key: const ValueKey('problems-workspace-edit-diff-window'),
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 4),
@@ -599,6 +619,23 @@ class _WorkspaceEditPreviewCard extends StatelessWidget {
               '+$hiddenDocumentCount more document(s)',
               style: theme.textTheme.bodySmall,
             ),
+          for (final operation in sampleFileOperations)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '${operation.operation.kind.wireValue}: '
+                '${operation.operation.documentId} · ${operation.status.wireValue}',
+                key: ValueKey(
+                  'problems-workspace-edit-file-operation-${operation.operation.documentId}',
+                ),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          if (hiddenFileOperationCount > 0)
+            Text(
+              '+$hiddenFileOperationCount more file operation(s)',
+              style: theme.textTheme.bodySmall,
+            ),
           if (preview.hasMissingDocuments)
             Text(
               'Missing preview documents: ${preview.missingDocumentIds.join(', ')}',
@@ -668,6 +705,10 @@ class _WorkspaceQuickFixReviewCard extends StatelessWidget {
               cancelKey: const ValueKey('problems-quick-fix-review-cancel'),
               title: 'Quick-fix diff preview',
               preview: preview,
+              diffWindow: reviewPlan.diffWindow(
+                documentLimit: 3,
+                fileOperationLimit: 3,
+              ),
               reviewControls: controls,
               onApply: onApply == null ? null : (_) => onApply!(reviewPlan),
               onCancel: onCancel == null ? null : (_) => onCancel!(reviewPlan),

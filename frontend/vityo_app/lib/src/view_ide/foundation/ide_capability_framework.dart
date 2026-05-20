@@ -476,9 +476,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/workspace/workspace_edit.dart',
           summary:
-              'WorkspaceEditPlan, WorkspaceEditPreview, WorkspaceEditDiffWindow, WorkspaceEditConfirmationPlan, WorkspaceEditReviewControls, WorkspaceEditReviewResultTelemetry, file create/delete operations, serializable application results, and WorkspaceEditApplier provide a shared preview, confirmation, review-control, result telemetry, and edit application path for agent patches, code actions, rename, and formatting.',
+              'WorkspaceEditPlan, WorkspaceEditPreview, WorkspaceEditDiffWindow, WorkspaceEditConfirmationPlan, WorkspaceEditReviewControls, WorkspaceEditReviewResultTelemetry, file create/delete operations, Problems diff-window rendering, serializable application results, and WorkspaceEditApplier provide a shared preview, confirmation, review-control, result telemetry, and edit application path for agent patches, code actions, rename, and formatting.',
           todo:
-              'TODO: bind WorkspaceEditDiffWindow and review telemetry into the concrete multi-file diff UI.',
+              'TODO: persist diff pagination state and bind review telemetry into concrete apply-result UI.',
           dependencies: <String>[
             'foundation.registry',
             'workspace.project-model',

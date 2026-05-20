@@ -368,6 +368,7 @@ class _AgentProviderProfileSectionState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final providerFailure = widget.controller.lastProviderFailure;
+    final providerSelection = widget.controller.providerSelectionPlan;
     final executionResolution = widget.controller.providerExecutionResolution;
     final locked =
         _saving ||
@@ -405,6 +406,10 @@ class _AgentProviderProfileSectionState
                 ),
               ),
             ),
+          ],
+          if (providerSelection != null) ...[
+            const SizedBox(height: 8),
+            _AgentProviderSelectionStatusCard(plan: providerSelection),
           ],
           if (executionResolution != null) ...[
             const SizedBox(height: 8),
@@ -724,6 +729,80 @@ bool _isValidProviderBaseUrl(String value) {
       endpointUri.hasScheme &&
       (endpointUri.scheme == 'http' || endpointUri.scheme == 'https');
   return isRootRelativePath || isHttpUrl;
+}
+
+class _AgentProviderSelectionStatusCard extends StatelessWidget {
+  const _AgentProviderSelectionStatusCard({required this.plan});
+
+  final AgentProviderSelectionPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selected = plan.selectedProvider;
+    return Container(
+      key: const ValueKey('agent-provider-selection-status'),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.secondary.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Provider selection: ${plan.status.wireValue}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            selected == null
+                ? 'No provider registration currently supports this profile.'
+                : 'Selected provider ${selected.displayName} (${selected.providerId}).',
+            key: const ValueKey('agent-provider-selection-selected'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Candidate providers: ${plan.candidates.length}',
+            key: const ValueKey('agent-provider-selection-candidates'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+          if (plan.requiresCredential) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Credential required before real provider requests.',
+              key: const ValueKey('agent-provider-selection-credential'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (plan.todo.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              plan.todo,
+              key: const ValueKey('agent-provider-selection-todo'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _AgentProviderExecutionStatusCard extends StatelessWidget {

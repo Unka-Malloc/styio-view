@@ -4,6 +4,7 @@ import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_registry.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -361,6 +362,89 @@ void main() {
           .controller
           ?.text,
       isEmpty,
+    );
+  });
+
+  testWidgets('agent surface renders provider selection plan', (tester) async {
+    const selectionPlan = AgentProviderSelectionPlan(
+      status: AgentProviderSelectionStatus.ready,
+      route: AgentProviderRoute.webHosted,
+      protocol: 'openai-compatible',
+      requiresCredential: true,
+      selectedProvider: AgentProviderRegistrationManifest(
+        providerId: 'cloud',
+        displayName: 'Cloud Provider',
+        kind: AgentProviderKind.cloudOpenAICompatible,
+        priority: 10,
+        supportsCodePatch: true,
+        supportedRoutes: <String>['web-hosted'],
+        supportedProtocols: <String>['openai-compatible'],
+        capabilities: <String>['plan', 'code_patch'],
+      ),
+      candidates: <AgentProviderRegistrationManifest>[
+        AgentProviderRegistrationManifest(
+          providerId: 'cloud',
+          displayName: 'Cloud Provider',
+          kind: AgentProviderKind.cloudOpenAICompatible,
+          priority: 10,
+          supportsCodePatch: true,
+          supportedRoutes: <String>['web-hosted'],
+          supportedProtocols: <String>['openai-compatible'],
+          capabilities: <String>['plan', 'code_patch'],
+        ),
+      ],
+      todo: 'TODO: resolve credential before sending.',
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      providerSelectionPlan: selectionPlan,
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-provider-selection-status')),
+      findsOneWidget,
+    );
+    expect(find.text('Provider selection: ready'), findsOneWidget);
+    expect(
+      find.text('Selected provider Cloud Provider (cloud).'),
+      findsOneWidget,
+    );
+    expect(find.text('Candidate providers: 1'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('agent-provider-selection-credential')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-provider-selection-todo')),
+      findsOneWidget,
     );
   });
 

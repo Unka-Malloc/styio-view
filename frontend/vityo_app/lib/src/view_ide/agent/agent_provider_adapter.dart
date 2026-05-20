@@ -237,6 +237,187 @@ class AgentProviderResponseEnvelope {
   }
 }
 
+enum AgentProviderStreamEventKind {
+  started,
+  contentDelta,
+  contentPart,
+  completed,
+  failed,
+}
+
+class AgentProviderStreamEvent {
+  AgentProviderStreamEvent({
+    required this.kind,
+    required this.requestId,
+    this.deltaText = '',
+    this.contentPart,
+    this.response,
+    this.errorMessage,
+    this.metadata = const <String, Object?>{},
+    DateTime? emittedAt,
+  }) : emittedAt = emittedAt ?? DateTime.now().toUtc();
+
+  factory AgentProviderStreamEvent.started(String requestId) {
+    return AgentProviderStreamEvent(
+      kind: AgentProviderStreamEventKind.started,
+      requestId: requestId,
+    );
+  }
+
+  factory AgentProviderStreamEvent.delta({
+    required String requestId,
+    required String text,
+  }) {
+    return AgentProviderStreamEvent(
+      kind: AgentProviderStreamEventKind.contentDelta,
+      requestId: requestId,
+      deltaText: text,
+    );
+  }
+
+  factory AgentProviderStreamEvent.part({
+    required String requestId,
+    required AgentContentPart contentPart,
+  }) {
+    return AgentProviderStreamEvent(
+      kind: AgentProviderStreamEventKind.contentPart,
+      requestId: requestId,
+      contentPart: contentPart,
+    );
+  }
+
+  factory AgentProviderStreamEvent.completed({
+    required String requestId,
+    AgentProviderResponseEnvelope? response,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return AgentProviderStreamEvent(
+      kind: AgentProviderStreamEventKind.completed,
+      requestId: requestId,
+      response: response,
+      metadata: metadata,
+    );
+  }
+
+  factory AgentProviderStreamEvent.failed({
+    required String requestId,
+    required String message,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return AgentProviderStreamEvent(
+      kind: AgentProviderStreamEventKind.failed,
+      requestId: requestId,
+      errorMessage: message,
+      metadata: metadata,
+    );
+  }
+
+  final AgentProviderStreamEventKind kind;
+  final String requestId;
+  final String deltaText;
+  final AgentContentPart? contentPart;
+  final AgentProviderResponseEnvelope? response;
+  final String? errorMessage;
+  final Map<String, Object?> metadata;
+  final DateTime emittedAt;
+
+  bool get terminal =>
+      kind == AgentProviderStreamEventKind.completed ||
+      kind == AgentProviderStreamEventKind.failed;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.name,
+      'requestId': requestId,
+      'terminal': terminal,
+      if (deltaText.isNotEmpty) 'deltaText': deltaText,
+      if (contentPart != null) 'contentPart': contentPart!.toJson(),
+      if (response != null) 'response': response!.toJson(),
+      if (errorMessage != null) 'errorMessage': errorMessage,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+      'emittedAt': emittedAt.toIso8601String(),
+    };
+  }
+}
+
+abstract class StreamingAgentProviderAdapter implements AgentProviderAdapter {
+  Stream<AgentProviderStreamEvent> stream(AgentProviderRequest request);
+}
+
+class AgentProviderStreamingResponseCollector {
+  const AgentProviderStreamingResponseCollector();
+
+  Future<AgentProviderResponseEnvelope> collect({
+    required String requestId,
+    required Stream<AgentProviderStreamEvent> events,
+    String role = 'assistant',
+    String defaultFinishReason = 'stream_complete',
+  }) async {
+    final parts = <AgentContentPart>[];
+    final textBuffer = StringBuffer();
+    var finishReason = defaultFinishReason;
+    Map<String, Object?>? usage;
+
+    void flushTextBuffer() {
+      final text = textBuffer.toString();
+      if (text.isEmpty) {
+        return;
+      }
+      parts.add(AgentContentPart(kind: AgentContentPartKind.text, text: text));
+      textBuffer.clear();
+    }
+
+    await for (final event in events) {
+      if (event.requestId != requestId) {
+        continue;
+      }
+      switch (event.kind) {
+        case AgentProviderStreamEventKind.started:
+          break;
+        case AgentProviderStreamEventKind.contentDelta:
+          textBuffer.write(event.deltaText);
+          break;
+        case AgentProviderStreamEventKind.contentPart:
+          flushTextBuffer();
+          final part = event.contentPart;
+          if (part != null) {
+            parts.add(part);
+          }
+          break;
+        case AgentProviderStreamEventKind.completed:
+          final response = event.response;
+          if (response != null) {
+            return response;
+          }
+          final finish = event.metadata['finishReason'];
+          if (finish is String && finish.trim().isNotEmpty) {
+            finishReason = finish.trim();
+          }
+          final usageJson = event.metadata['usage'];
+          if (usageJson is Map<String, Object?>) {
+            usage = usageJson;
+          }
+          break;
+        case AgentProviderStreamEventKind.failed:
+          throw AgentProviderTransportException(
+            kind: AgentProviderTransportFailureKind.unknown,
+            message: event.errorMessage ?? 'Agent provider stream failed.',
+            operation: 'agent.provider.stream',
+          );
+      }
+    }
+
+    flushTextBuffer();
+    return AgentProviderResponseEnvelope(
+      requestId: requestId,
+      role: role,
+      contentParts: List<AgentContentPart>.unmodifiable(parts),
+      finishReason: finishReason,
+      usage: usage,
+    );
+  }
+}
+
 class AgentContentPart {
   const AgentContentPart({
     required this.kind,

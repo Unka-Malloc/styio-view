@@ -343,6 +343,8 @@ class VityoIdeCapabilityFramework {
           ownerPath: 'lib/src/view_ide/interaction',
           summary:
               'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore review outcomes, WorkspaceDiagnosticsRuntimeOutputBinding producer telemetry, WorkspaceDiagnosticsProducerExecutionPlan native toolchain handoff triggers and WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots, Problems producer lifecycle progress/cancel controls, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
+          todo:
+              'TODO: connect remaining producer cancellation paths to concrete process handles and long-running provider streams.',
           dependencies: <String>['workspace.diagnostics'],
         ),
         IdeCapabilityDescriptor(
@@ -368,6 +370,8 @@ class VityoIdeCapabilityFramework {
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
               'Workspace text search service, in-memory search index snapshot, WorkspaceSearchIndexController stale-revision refresh execution, persistent index invalidation key contract, symbol search service, file quick open service, replace preview contract with before/after diff summary, virtualized replace-preview document windows, persisted multi-file diff expansion state, replace apply confirmation, search history persistence, persisted result filter state, search history/index/filter/expansion summaries in the user surface, agent search command, and match-level navigation callback are wired.',
+          todo:
+              'TODO: bind project-scale search index refresh to concrete File System Manager watcher execution and replace safeguards.',
           references: <String>[
             'VS Code search service',
             'IntelliJ Search Everywhere',
@@ -558,7 +562,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'OpenAI-compatible and OpenAI Responses providers, explicit OpenAI Codex Spark preset, serializable client credential policy, Credential DataStore-backed bearer token references, credential-backed routes, AgentProviderSelectionPlan registry selection, configurator selection result propagation, fallback readiness, provider execution context, checkpoint-aware prompt rules, structured response tool definitions, and extension agent provider contribution manifests.',
+              'OpenAI-compatible and OpenAI Responses providers, explicit OpenAI Codex Spark preset, serializable client credential policy, Credential DataStore-backed bearer token references, credential-backed routes, AgentProviderSelectionPlan registry selection, configurator selection result propagation, fallback readiness, provider execution context, checkpoint-aware prompt rules, structured response tool definitions, streaming provider event contracts, streaming response collection, and extension agent provider contribution manifests.',
         ),
         IdeCapabilityDescriptor(
           id: 'agent.coding-loop',
@@ -567,7 +571,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, Source Control Agent context bridge, failed-test rerun context, StyioService readiness checkpoints, SemanticSnapshotPanelViewModel Problems/Refactor context, checkpoint result prompt replay, patch application loop, persisted coding session history, history restore/persistence failure output events, RuntimeOutputLiveBuffer agent activity publishing, AgentProviderSelectionContext prompt injection, provider credential/execution readiness selection, provider readiness context serialization, provider selection status rendering, and embeddable activity history surface.',
+              'Structured plan, diagnostics, code patch, IDE command, command result, streaming content deltas, WorkspaceEdit bridge, Source Control Agent context bridge, failed-test rerun context, StyioService readiness checkpoints, SemanticSnapshotPanelViewModel Problems/Refactor context, checkpoint result prompt replay, patch application loop, persisted coding session history, history restore/persistence failure output events, RuntimeOutputLiveBuffer agent activity publishing, AgentProviderSelectionContext prompt injection, provider credential/execution readiness selection, provider readiness context serialization, provider selection status rendering, and embeddable activity history surface.',
           dependencies: <String>['workspace.edit-application'],
           references: <String>[
             'VS Code chat participants',

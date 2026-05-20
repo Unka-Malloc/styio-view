@@ -564,7 +564,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'OpenAI-compatible and OpenAI Responses providers, explicit OpenAI Codex Spark preset, Credential DataStore-backed bearer token references, credential-backed routes, fallback readiness, provider execution context, checkpoint-aware prompt rules, structured response tool definitions, and extension agent provider contribution manifests.',
+              'OpenAI-compatible and OpenAI Responses providers, explicit OpenAI Codex Spark preset, Credential DataStore-backed bearer token references, credential-backed routes, AgentProviderSelectionPlan registry selection, configurator selection result propagation, fallback readiness, provider execution context, checkpoint-aware prompt rules, structured response tool definitions, and extension agent provider contribution manifests.',
         ),
         IdeCapabilityDescriptor(
           id: 'agent.coding-loop',
@@ -573,7 +573,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, Source Control Agent context bridge, failed-test rerun context, StyioService readiness checkpoints, checkpoint result prompt replay, patch application loop, persisted coding session history, RuntimeOutputLiveBuffer agent activity publishing, and embeddable activity history surface.',
+              'Structured plan, diagnostics, code patch, IDE command, command result, WorkspaceEdit bridge, Source Control Agent context bridge, failed-test rerun context, StyioService readiness checkpoints, checkpoint result prompt replay, patch application loop, persisted coding session history, RuntimeOutputLiveBuffer agent activity publishing, AgentProviderSelectionContext prompt injection, provider selection status rendering, and embeddable activity history surface.',
           dependencies: <String>['workspace.edit-application'],
           references: <String>[
             'VS Code chat participants',

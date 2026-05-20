@@ -305,6 +305,18 @@ void main() {
       entriesById['agent.coding-loop']?.summary,
       contains('RuntimeOutputLiveBuffer agent activity publishing'),
     );
+    expect(
+      entriesById['agent.provider']?.summary,
+      contains('AgentProviderSelectionPlan registry selection'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('AgentProviderSelectionContext prompt injection'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('provider selection status rendering'),
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

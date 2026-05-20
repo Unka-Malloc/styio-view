@@ -2321,6 +2321,43 @@ class ShellRuntimeModel extends ChangeNotifier {
               : 'Agent command searchWorkspace failed for $input.',
         );
         return applied;
+      case 'previewWorkspaceReplace':
+        final input = _parseWorkspaceReplaceCommandInput(suggestion.input);
+        if (input == null) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message:
+                'Agent command previewWorkspaceReplace skipped: expected "search query -> replacement" input.',
+            metadata: const <String, Object?>{
+              'requiredInput': 'Search query -> replacement',
+            },
+          );
+          appendLog(_lastAgentIdeCommandResult!.message);
+          return false;
+        }
+        final preview = await previewWorkspaceReplace(
+          query: input[0],
+          replacement: input[1],
+        );
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: preview != null,
+          message: preview == null
+              ? 'Agent command previewWorkspaceReplace skipped.'
+              : 'Agent command previewWorkspaceReplace collected ${preview.replacementCount} replacement(s).',
+          metadata: <String, Object?>{
+            'query': input[0],
+            'replacement': input[1],
+            if (preview != null)
+              'workspaceReplacePreview': _workspaceReplacePreviewMetadata(
+                preview,
+              ),
+          },
+        );
+        return preview != null;
+      case 'applyWorkspaceReplace':
+        return _applyLastWorkspaceReplacePreviewForAgent(suggestion);
       case 'renameSymbol':
         final input = suggestion.input?.trim();
         if (input == null || input.isEmpty) {
@@ -2981,6 +3018,111 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result.applied;
   }
 
+  List<String>? _parseWorkspaceReplaceCommandInput(String? rawInput) {
+    final input = rawInput?.trim() ?? '';
+    final arrowIndex = input.indexOf('->');
+    if (arrowIndex <= 0) {
+      return null;
+    }
+    final query = input.substring(0, arrowIndex).trim();
+    if (query.isEmpty) {
+      return null;
+    }
+    final replacement = input.substring(arrowIndex + 2).trim();
+    return <String>[query, replacement];
+  }
+
+  Future<bool> _applyLastWorkspaceReplacePreviewForAgent(
+    AgentIdeCommandSuggestion suggestion,
+  ) async {
+    final preview = _lastWorkspaceReplacePreview;
+    if (preview == null) {
+      _recordAgentIdeCommandResult(
+        suggestion,
+        applied: false,
+        message:
+            'Agent command applyWorkspaceReplace skipped: no workspace replace preview is available.',
+        metadata: const <String, Object?>{
+          'requiredCommand': 'previewWorkspaceReplace',
+        },
+      );
+      appendLog(_lastAgentIdeCommandResult!.message);
+      return false;
+    }
+    final result = await applyWorkspaceReplacePreview(preview);
+    if (result == null) {
+      _recordAgentIdeCommandResult(
+        suggestion,
+        applied: false,
+        message:
+            'Agent command applyWorkspaceReplace skipped: no preview changes.',
+        metadata: <String, Object?>{
+          'workspaceReplacePreview': _workspaceReplacePreviewMetadata(preview),
+        },
+      );
+      return false;
+    }
+    final applied = result.documents.isNotEmpty && result.failures.isEmpty;
+    _recordAgentIdeCommandResult(
+      suggestion,
+      applied: applied,
+      message:
+          'Agent command applyWorkspaceReplace changed ${result.replacementCount} replacement(s).',
+      metadata: <String, Object?>{
+        'workspaceReplaceResult': _workspaceReplaceResultMetadata(result),
+      },
+    );
+    return applied;
+  }
+
+  Map<String, Object?> _workspaceReplacePreviewMetadata(
+    WorkspaceReplacePreview preview,
+  ) {
+    return <String, Object?>{
+      'replacementCount': preview.replacementCount,
+      'documentCount': preview.documents.length,
+      'failureCount': preview.failures.length,
+      'truncated': preview.truncated,
+      'documents': preview.documents
+          .map(
+            (document) => <String, Object?>{
+              'documentId': document.documentId,
+              'replacementCount': document.replacementCount,
+              'revision': document.revision,
+            },
+          )
+          .toList(growable: false),
+      if (preview.failures.isNotEmpty)
+        'failures': preview.failures
+            .map((failure) => failure.toJson())
+            .toList(growable: false),
+    };
+  }
+
+  Map<String, Object?> _workspaceReplaceResultMetadata(
+    WorkspaceReplaceResult result,
+  ) {
+    return <String, Object?>{
+      'replacementCount': result.replacementCount,
+      'documentCount': result.documents.length,
+      'failureCount': result.failures.length,
+      'truncated': result.truncated,
+      'documents': result.documents
+          .map(
+            (document) => <String, Object?>{
+              'documentId': document.documentId,
+              'replacementCount': document.replacementCount,
+              'revision': document.revision,
+            },
+          )
+          .toList(growable: false),
+      if (result.failures.isNotEmpty)
+        'failures': result.failures
+            .map((failure) => failure.toJson())
+            .toList(growable: false),
+    };
+  }
+
   void _recordAgentIdeCommandResult(
     AgentIdeCommandSuggestion suggestion, {
     required bool applied,
@@ -3480,6 +3622,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.deleteWorkspaceFile:
       case AppCommandId.revealWorkspaceFile:
       case AppCommandId.searchWorkspace:
+      case AppCommandId.previewWorkspaceReplace:
+      case AppCommandId.applyWorkspaceReplace:
       case AppCommandId.goToDefinition:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
@@ -3556,6 +3700,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.deleteWorkspaceFile:
       case AppCommandId.revealWorkspaceFile:
       case AppCommandId.searchWorkspace:
+      case AppCommandId.previewWorkspaceReplace:
+      case AppCommandId.applyWorkspaceReplace:
       case AppCommandId.goToDefinition:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
@@ -6239,6 +6385,14 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.searchWorkspace:
         appendLog('Search Workspace requires caller-provided input.');
         return;
+      case AppCommandId.previewWorkspaceReplace:
+        appendLog('Preview Workspace Replace requires caller-provided input.');
+        return;
+      case AppCommandId.applyWorkspaceReplace:
+        await _applyLastWorkspaceReplacePreviewForAgent(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+        );
+        return;
       case AppCommandId.runBuild:
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:
@@ -6324,6 +6478,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     switch (commandId) {
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
+      case AppCommandId.previewWorkspaceReplace:
       case AppCommandId.renameSymbol:
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.stageSourceControl:
@@ -6403,6 +6558,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshLanguageService:
       case AppCommandId.refreshWorkspaceDiagnostics:
       case AppCommandId.refreshSourceControl:
+      case AppCommandId.applyWorkspaceReplace:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
       case AppCommandId.retryAgentProvider:
@@ -6632,6 +6788,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.deleteWorkspaceFile:
       case AppCommandId.revealWorkspaceFile:
       case AppCommandId.searchWorkspace:
+      case AppCommandId.previewWorkspaceReplace:
+      case AppCommandId.applyWorkspaceReplace:
       case AppCommandId.runBuild:
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:

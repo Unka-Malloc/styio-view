@@ -2144,6 +2144,10 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.folder_open_outlined;
     case AppCommandId.searchWorkspace:
       return Icons.search_rounded;
+    case AppCommandId.previewWorkspaceReplace:
+      return Icons.find_replace_rounded;
+    case AppCommandId.applyWorkspaceReplace:
+      return Icons.playlist_add_check_rounded;
     case AppCommandId.runBuild:
       return Icons.construction_rounded;
     case AppCommandId.formatActiveDocument:

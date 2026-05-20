@@ -138,6 +138,8 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.renameWorkspaceFile:
       case AppCommandId.deleteWorkspaceFile:
       case AppCommandId.revealWorkspaceFile:
+      case AppCommandId.previewWorkspaceReplace:
+      case AppCommandId.applyWorkspaceReplace:
       case AppCommandId.runBuild:
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:

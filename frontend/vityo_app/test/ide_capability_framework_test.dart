@@ -45,6 +45,10 @@ void main() {
     );
     expect(
       entriesById['interaction.search']?.summary,
+      contains('Agent workspace replace preview/apply command routing'),
+    );
+    expect(
+      entriesById['interaction.search']?.summary,
       contains('WorkspaceSearchIndexController stale-revision refresh'),
     );
     expect(

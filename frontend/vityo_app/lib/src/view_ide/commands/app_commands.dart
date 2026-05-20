@@ -40,6 +40,8 @@ enum AppCommandId {
   deleteWorkspaceFile,
   revealWorkspaceFile,
   searchWorkspace,
+  previewWorkspaceReplace,
+  applyWorkspaceReplace,
   runBuild,
   formatActiveDocument,
   runStaticAnalysis,
@@ -132,6 +134,8 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.replayAgentPrompt => AppCommandCategory.agentCoding,
       AppCommandId.openWorkspaceFile ||
       AppCommandId.searchWorkspace ||
+      AppCommandId.previewWorkspaceReplace ||
+      AppCommandId.applyWorkspaceReplace ||
       AppCommandId.goToDefinition ||
       AppCommandId.nextReference ||
       AppCommandId.previousReference => AppCommandCategory.navigation,
@@ -575,6 +579,22 @@ class StyioCommandRegistry {
           'Search workspace documents and expose capped results to the next Agent context.',
       requiresInput: true,
       inputLabel: 'Search query',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.previewWorkspaceReplace,
+      label: 'Preview Workspace Replace',
+      shortcutHint: 'Route',
+      description:
+          'Preview a workspace-wide replacement without modifying documents.',
+      requiresInput: true,
+      inputLabel: 'Search query -> replacement',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.applyWorkspaceReplace,
+      label: 'Apply Workspace Replace',
+      shortcutHint: 'Route',
+      description:
+          'Apply the latest workspace replace preview after it has been reviewed.',
     ),
     AppCommandDescriptor(
       id: AppCommandId.runBuild,

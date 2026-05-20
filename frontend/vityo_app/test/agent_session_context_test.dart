@@ -1032,6 +1032,22 @@ void main() {
       isTrue,
     );
     expect(
+      (navigationCommands[2]! as Map<String, Object?>)['id'],
+      'searchWorkspace',
+    );
+    expect(
+      (navigationCommands[3]! as Map<String, Object?>)['id'],
+      'previewWorkspaceReplace',
+    );
+    expect(
+      (navigationCommands[3]! as Map<String, Object?>)['requiresInput'],
+      isTrue,
+    );
+    expect(
+      (navigationCommands[4]! as Map<String, Object?>)['id'],
+      'applyWorkspaceReplace',
+    );
+    expect(
       (workspaceFileCommands.first! as Map<String, Object?>)['id'],
       'createWorkspaceFile',
     );

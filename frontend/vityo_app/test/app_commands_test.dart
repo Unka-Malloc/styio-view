@@ -63,6 +63,12 @@ void main() {
       final searchWorkspace = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspace,
       );
+      final previewWorkspaceReplace = StyioCommandRegistry.descriptorFor(
+        AppCommandId.previewWorkspaceReplace,
+      );
+      final applyWorkspaceReplace = StyioCommandRegistry.descriptorFor(
+        AppCommandId.applyWorkspaceReplace,
+      );
       final runBuild = StyioCommandRegistry.descriptorFor(
         AppCommandId.runBuild,
       );
@@ -207,6 +213,13 @@ void main() {
       expect(searchWorkspace.shortcutHint, 'Route');
       expect(searchWorkspace.requiresInput, isTrue);
       expect(searchWorkspace.inputLabel, 'Search query');
+      expect(previewWorkspaceReplace.label, 'Preview Workspace Replace');
+      expect(previewWorkspaceReplace.category, AppCommandCategory.navigation);
+      expect(previewWorkspaceReplace.requiresInput, isTrue);
+      expect(previewWorkspaceReplace.inputLabel, 'Search query -> replacement');
+      expect(applyWorkspaceReplace.label, 'Apply Workspace Replace');
+      expect(applyWorkspaceReplace.category, AppCommandCategory.navigation);
+      expect(applyWorkspaceReplace.requiresInput, isFalse);
 
       expect(runBuild.label, 'Run Build');
       expect(runBuild.category, AppCommandCategory.execution);
@@ -312,6 +325,8 @@ void main() {
         AppCommandId.goToDefinition,
         AppCommandId.openWorkspaceFile,
         AppCommandId.searchWorkspace,
+        AppCommandId.previewWorkspaceReplace,
+        AppCommandId.applyWorkspaceReplace,
         AppCommandId.nextReference,
         AppCommandId.previousReference,
       ],
@@ -340,6 +355,8 @@ void main() {
         AppCommandId.goToDefinition,
         AppCommandId.openWorkspaceFile,
         AppCommandId.searchWorkspace,
+        AppCommandId.previewWorkspaceReplace,
+        AppCommandId.applyWorkspaceReplace,
         AppCommandId.nextReference,
         AppCommandId.previousReference,
       ],

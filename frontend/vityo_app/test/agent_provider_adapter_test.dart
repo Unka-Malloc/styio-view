@@ -324,7 +324,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['navigationCommandCount'],
-      5,
+      7,
     );
     expect((json['usage']! as Map<String, Object?>)['refactorCommandCount'], 3);
     expect((json['usage']! as Map<String, Object?>)['debugCommandCount'], 7);
@@ -869,6 +869,8 @@ void main() {
         contains('commands.workspaceFileCommands'),
       );
       expect(systemMessage['content'], contains('deleteWorkspaceFile'));
+      expect(systemMessage['content'], contains('previewWorkspaceReplace'));
+      expect(systemMessage['content'], contains('applyWorkspaceReplace'));
       expect(
         systemMessage['content'],
         contains('workspace.sourceControlContext'),
@@ -1007,7 +1009,7 @@ void main() {
       expect(metadata['persistenceCommandCount'], 2);
       expect(metadata['diagnosticCommandCount'], 5);
       expect(metadata['languageServiceCommandCount'], 1);
-      expect(metadata['navigationCommandCount'], 5);
+      expect(metadata['navigationCommandCount'], 7);
       expect(metadata['refactorCommandCount'], 3);
       expect(metadata['debugCommandCount'], 7);
       expect(metadata['settingsCommandCount'], 1);

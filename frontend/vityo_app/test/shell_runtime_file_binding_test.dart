@@ -2771,6 +2771,57 @@ void main() {
       'src/lib.styio',
     ]);
     expect(storedMain.text, 'needle := 1\n');
+
+    final missingPreviewApplied = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(commandId: 'previewWorkspaceReplace'),
+    );
+    final missingPreviewResult = shell.lastAgentIdeCommandResult;
+    expect(missingPreviewApplied, isFalse);
+    expect(
+      missingPreviewResult?.metadata['requiredInput'],
+      'Search query -> replacement',
+    );
+
+    final agentPreviewApplied = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(
+        commandId: 'previewWorkspaceReplace',
+        input: 'needle -> value',
+      ),
+    );
+    final agentPreviewResult = shell.lastAgentIdeCommandResult;
+    expect(agentPreviewApplied, isTrue);
+    expect(agentPreviewResult?.commandId, 'previewWorkspaceReplace');
+    final agentPreviewMetadata =
+        agentPreviewResult?.metadata['workspaceReplacePreview']!
+            as Map<String, Object?>;
+    expect(agentPreviewMetadata['replacementCount'], 2);
+    expect(agentPreviewMetadata['documentCount'], 2);
+
+    final agentApplyApplied = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(commandId: 'applyWorkspaceReplace'),
+    );
+    final agentApplyResult = shell.lastAgentIdeCommandResult;
+    final replacedMain = await documentStore.loadDocument('src/main.styio');
+    final replacedLib = await documentStore.loadDocument('src/lib.styio');
+    expect(agentApplyApplied, isTrue);
+    expect(agentApplyResult?.commandId, 'applyWorkspaceReplace');
+    final agentApplyMetadata =
+        agentApplyResult?.metadata['workspaceReplaceResult']!
+            as Map<String, Object?>;
+    expect(agentApplyMetadata['replacementCount'], 2);
+    expect(agentApplyMetadata['failureCount'], 0);
+    expect(replacedMain.text, 'value := 1\n');
+    expect(replacedLib.text, 'lib := value\n');
+
+    final staleApplyApplied = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(commandId: 'applyWorkspaceReplace'),
+    );
+    final staleApplyResult = shell.lastAgentIdeCommandResult;
+    expect(staleApplyApplied, isFalse);
+    expect(
+      staleApplyResult?.metadata['requiredCommand'],
+      'previewWorkspaceReplace',
+    );
   });
 
   test(

@@ -2112,6 +2112,12 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.assignment_turned_in_outlined;
     case AppCommandId.collectProjectLanguageContext:
       return Icons.schema_outlined;
+    case AppCommandId.retryAgentProvider:
+      return Icons.replay_rounded;
+    case AppCommandId.failoverAgentProvider:
+      return Icons.swap_horiz_rounded;
+    case AppCommandId.replayAgentPrompt:
+      return Icons.history_edu_outlined;
     case AppCommandId.goToDefinition:
       return Icons.subdirectory_arrow_right_rounded;
     case AppCommandId.openWorkspaceFile:

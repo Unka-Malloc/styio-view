@@ -3222,6 +3222,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
+      case AppCommandId.retryAgentProvider:
+      case AppCommandId.failoverAgentProvider:
+      case AppCommandId.replayAgentPrompt:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.createWorkspaceFile:
       case AppCommandId.renameWorkspaceFile:
@@ -3293,6 +3296,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
+      case AppCommandId.retryAgentProvider:
+      case AppCommandId.failoverAgentProvider:
+      case AppCommandId.replayAgentPrompt:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.createWorkspaceFile:
       case AppCommandId.renameWorkspaceFile:
@@ -5629,6 +5635,24 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: <String, Object?>{'projectLanguage': metadata},
         );
         return;
+      case AppCommandId.retryAgentProvider:
+      case AppCommandId.replayAgentPrompt:
+        final message =
+            '${StyioCommandRegistry.descriptorFor(commandId).label} prepared; TODO: bind Agent recovery command execution.';
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: false,
+          message: message,
+          metadata: const <String, Object?>{
+            'TODO':
+                'Bind Agent recovery command execution to provider retry/replay controls.',
+          },
+        );
+        appendLog(message);
+        return;
+      case AppCommandId.failoverAgentProvider:
+        appendLog('Fail Over Agent Provider requires caller-provided input.');
+        return;
       case AppCommandId.run:
         final routeSelection = selectBackendExecutionRoute(
           platformTarget: platformTarget,
@@ -5962,6 +5986,24 @@ class ShellRuntimeModel extends ChangeNotifier {
           ),
         );
         return;
+      case AppCommandId.failoverAgentProvider:
+        final message =
+            'Fail Over Agent Provider prepared for $normalizedInput; TODO: bind Agent provider failover execution.';
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(
+            commandId: commandId.name,
+            input: normalizedInput,
+          ),
+          applied: false,
+          message: message,
+          metadata: <String, Object?>{
+            'targetProviderProfileId': normalizedInput,
+            'TODO':
+                'Bind Agent provider failover execution to configured provider profiles.',
+          },
+        );
+        appendLog(message);
+        return;
       case AppCommandId.createWorkspaceFile:
       case AppCommandId.renameWorkspaceFile:
       case AppCommandId.deleteWorkspaceFile:
@@ -6009,6 +6051,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshSourceControl:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
+      case AppCommandId.retryAgentProvider:
+      case AppCommandId.replayAgentPrompt:
       case AppCommandId.goToDefinition:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
@@ -6222,6 +6266,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
+      case AppCommandId.retryAgentProvider:
+      case AppCommandId.failoverAgentProvider:
+      case AppCommandId.replayAgentPrompt:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.createWorkspaceFile:

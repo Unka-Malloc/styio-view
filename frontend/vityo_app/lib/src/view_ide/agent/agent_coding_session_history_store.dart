@@ -440,11 +440,11 @@ class AgentCodingSessionRecoveryCommandPlan {
     return AgentCodingSessionRecoveryCommandPlan(
       commandId: switch (action) {
         AgentCodingSessionRecoveryAction.retrySameProvider =>
-          'agent.retryProvider',
+          'retryAgentProvider',
         AgentCodingSessionRecoveryAction.failoverProvider =>
-          'agent.failoverProvider',
-        AgentCodingSessionRecoveryAction.replayPrompt => 'agent.replayPrompt',
-        AgentCodingSessionRecoveryAction.none => 'agent.noop',
+          'failoverAgentProvider',
+        AgentCodingSessionRecoveryAction.replayPrompt => 'replayAgentPrompt',
+        AgentCodingSessionRecoveryAction.none => 'noop',
       },
       label: switch (action) {
         AgentCodingSessionRecoveryAction.retrySameProvider =>

@@ -29,6 +29,9 @@ enum AppCommandId {
   previewSourceControlDiff,
   collectAgentCodingCheckpoint,
   collectProjectLanguageContext,
+  retryAgentProvider,
+  failoverAgentProvider,
+  replayAgentPrompt,
   openWorkspaceFile,
   createWorkspaceFile,
   renameWorkspaceFile,
@@ -119,8 +122,10 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.refreshSourceControl ||
       AppCommandId.previewSourceControlDiff => AppCommandCategory.sourceControl,
       AppCommandId.collectAgentCodingCheckpoint ||
-      AppCommandId.collectProjectLanguageContext =>
-        AppCommandCategory.agentCoding,
+      AppCommandId.collectProjectLanguageContext ||
+      AppCommandId.retryAgentProvider ||
+      AppCommandId.failoverAgentProvider ||
+      AppCommandId.replayAgentPrompt => AppCommandCategory.agentCoding,
       AppCommandId.openWorkspaceFile ||
       AppCommandId.searchWorkspace ||
       AppCommandId.goToDefinition ||
@@ -464,6 +469,29 @@ class StyioCommandRegistry {
       shortcutHint: 'Route',
       description:
           'Collect project-level Styio definitions, references, hover, and completion facts for the Agent coding loop.',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.retryAgentProvider,
+      label: 'Retry Agent Provider',
+      shortcutHint: 'Route',
+      description:
+          'Retry the failed Agent coding request with the same provider profile.',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.failoverAgentProvider,
+      label: 'Fail Over Agent Provider',
+      shortcutHint: 'Route',
+      description:
+          'Replay the failed Agent coding request through another configured provider profile.',
+      requiresInput: true,
+      inputLabel: 'Agent provider profile id',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.replayAgentPrompt,
+      label: 'Replay Agent Prompt',
+      shortcutHint: 'Route',
+      description:
+          'Replay the last failed or cancelled Agent coding prompt after the user confirms the recovered context.',
     ),
     AppCommandDescriptor(
       id: AppCommandId.goToDefinition,

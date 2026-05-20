@@ -127,6 +127,9 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.previewSourceControlDiff:
       case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
+      case AppCommandId.retryAgentProvider:
+      case AppCommandId.failoverAgentProvider:
+      case AppCommandId.replayAgentPrompt:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.createWorkspaceFile:

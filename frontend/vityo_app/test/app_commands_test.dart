@@ -123,6 +123,15 @@ void main() {
       final collectProjectLanguageContext = StyioCommandRegistry.descriptorFor(
         AppCommandId.collectProjectLanguageContext,
       );
+      final retryAgentProvider = StyioCommandRegistry.descriptorFor(
+        AppCommandId.retryAgentProvider,
+      );
+      final failoverAgentProvider = StyioCommandRegistry.descriptorFor(
+        AppCommandId.failoverAgentProvider,
+      );
+      final replayAgentPrompt = StyioCommandRegistry.descriptorFor(
+        AppCommandId.replayAgentPrompt,
+      );
 
       expect(save.label, 'Save');
       expect(save.shortcutHint, 'Cmd/Ctrl+S');
@@ -267,6 +276,16 @@ void main() {
       );
       expect(collectProjectLanguageContext.shortcutHint, 'Route');
       expect(collectProjectLanguageContext.requiresInput, isFalse);
+      expect(retryAgentProvider.label, 'Retry Agent Provider');
+      expect(retryAgentProvider.category, AppCommandCategory.agentCoding);
+      expect(retryAgentProvider.requiresInput, isFalse);
+      expect(failoverAgentProvider.label, 'Fail Over Agent Provider');
+      expect(failoverAgentProvider.category, AppCommandCategory.agentCoding);
+      expect(failoverAgentProvider.requiresInput, isTrue);
+      expect(failoverAgentProvider.inputLabel, 'Agent provider profile id');
+      expect(replayAgentPrompt.label, 'Replay Agent Prompt');
+      expect(replayAgentPrompt.category, AppCommandCategory.agentCoding);
+      expect(replayAgentPrompt.requiresInput, isFalse);
     },
   );
 
@@ -362,6 +381,9 @@ void main() {
         AppCommandId.previewQuickFix,
         AppCommandId.collectAgentCodingCheckpoint,
         AppCommandId.collectProjectLanguageContext,
+        AppCommandId.retryAgentProvider,
+        AppCommandId.failoverAgentProvider,
+        AppCommandId.replayAgentPrompt,
       ],
     );
   });

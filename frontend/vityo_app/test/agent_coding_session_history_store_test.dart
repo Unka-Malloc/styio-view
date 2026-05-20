@@ -145,11 +145,11 @@ void main() {
     final failoverCommand = recoveryPlan.commandFor(
       AgentCodingSessionRecoveryAction.failoverProvider,
     );
-    expect(retryCommand?.commandId, 'agent.retryProvider');
+    expect(retryCommand?.commandId, 'retryAgentProvider');
     expect(retryCommand?.requestId, 'agent-failed');
     expect(retryCommand?.promptSample, 'Apply patch');
     expect(retryCommand?.requiresProviderSelection, isFalse);
-    expect(failoverCommand?.commandId, 'agent.failoverProvider');
+    expect(failoverCommand?.commandId, 'failoverAgentProvider');
     expect(failoverCommand?.requiresProviderSelection, isTrue);
     expect(failoverCommand?.toJson()['todo'], contains('TODO:'));
   });

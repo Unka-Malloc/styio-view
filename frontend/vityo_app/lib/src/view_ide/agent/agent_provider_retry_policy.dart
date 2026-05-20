@@ -3,6 +3,10 @@ import 'agent_provider_adapter.dart';
 typedef AgentProviderRetryOperation<T> = Future<T> Function(int attempt);
 typedef AgentProviderRetryDelay = Future<void> Function(Duration delay);
 typedef AgentProviderRetryClock = DateTime Function();
+typedef AgentProviderResponseRetryTelemetrySink =
+    void Function(
+      AgentProviderRetryExecution<AgentProviderResponseEnvelope> execution,
+    );
 
 DateTime _retryNow() => DateTime.now().toUtc();
 
@@ -223,10 +227,12 @@ class RetryingAgentProviderAdapter
   const RetryingAgentProviderAdapter({
     required this.inner,
     this.retryExecutor = const AgentProviderRetryExecutor(),
+    this.telemetrySink,
   });
 
   final AgentProviderAdapter inner;
   final AgentProviderRetryExecutor retryExecutor;
+  final AgentProviderResponseRetryTelemetrySink? telemetrySink;
 
   @override
   AgentProviderKind get kind => inner.kind;
@@ -245,6 +251,7 @@ class RetryingAgentProviderAdapter
         .execute<AgentProviderResponseEnvelope>(
           operation: (_) => inner.send(request),
         );
+    telemetrySink?.call(execution);
     if (execution.succeeded && execution.value != null) {
       return execution.value!;
     }

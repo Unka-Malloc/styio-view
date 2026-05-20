@@ -347,7 +347,9 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
-      contains('semantic feature confidence matrix context'),
+      contains(
+        'semantic feature confidence matrix context and prompt guidance',
+      ),
     );
     expect(
       entriesById['agent.coding-loop']?.summary,

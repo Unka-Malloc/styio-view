@@ -1,3 +1,4 @@
+import 'runtime_output_channels.dart';
 import 'runtime_task_lifecycle.dart';
 
 enum RuntimeExecutionPlanStatus {
@@ -7,6 +8,8 @@ enum RuntimeExecutionPlanStatus {
 }
 
 enum RuntimeExecutionHandoffStatus { ready, blocked }
+
+enum RuntimeExecutionHandoffBindingStatus { ready, blocked }
 
 enum RuntimeExecutionHandoffTarget {
   shellManager,
@@ -37,6 +40,14 @@ extension RuntimeExecutionHandoffTargetX on RuntimeExecutionHandoffTarget {
     RuntimeExecutionHandoffTarget.terminalRuntime => 'terminal-runtime',
     RuntimeExecutionHandoffTarget.toolchainManager => 'toolchain-manager',
     RuntimeExecutionHandoffTarget.hostedExecutor => 'hosted-executor',
+  };
+}
+
+extension RuntimeExecutionHandoffBindingStatusX
+    on RuntimeExecutionHandoffBindingStatus {
+  String get wireValue => switch (this) {
+    RuntimeExecutionHandoffBindingStatus.ready => 'ready',
+    RuntimeExecutionHandoffBindingStatus.blocked => 'blocked',
   };
 }
 
@@ -222,6 +233,17 @@ class RuntimeExecutionHandoff {
 
   bool get ready => status == RuntimeExecutionHandoffStatus.ready;
 
+  RuntimeExecutionHandoffBinding bind({
+    RuntimeOutputChannelKind? outputKind,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeExecutionHandoffBinding.fromHandoff(
+      this,
+      outputKind: outputKind,
+      metadata: metadata,
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'plan': plan.toJson(),
@@ -234,6 +256,100 @@ class RuntimeExecutionHandoff {
       if (workingDirectory != null) 'workingDirectory': workingDirectory,
       'environment': environment,
       if (outputChannelId != null) 'outputChannelId': outputChannelId,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class RuntimeExecutionHandoffBinding {
+  const RuntimeExecutionHandoffBinding({
+    required this.handoff,
+    required this.status,
+    required this.managerId,
+    required this.routeKind,
+    required this.outputChannel,
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory RuntimeExecutionHandoffBinding.fromHandoff(
+    RuntimeExecutionHandoff handoff, {
+    RuntimeOutputChannelKind? outputKind,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final effectiveOutputKind =
+        outputKind ?? _defaultOutputKindForHandoffTarget(handoff.target);
+    final normalizedMetadata = <String, Object?>{
+      'handoffTarget': handoff.target.wireValue,
+      'handoffStatus': handoff.status.wireValue,
+      'taskId': handoff.taskId,
+      'command': handoff.command,
+      'managerId': _managerIdForHandoffTarget(handoff.target),
+      'routeKind': _routeKindForHandoffTarget(handoff.target),
+      if (handoff.target == RuntimeExecutionHandoffTarget.toolchainManager)
+        'toolchainManagerRoute': true,
+      if (handoff.target == RuntimeExecutionHandoffTarget.hostedExecutor)
+        'hostedExecutorRoute': true,
+      ...handoff.metadata,
+      ...metadata,
+    };
+    final outputChannelId =
+        handoff.outputChannelId ?? 'runtime.${handoff.taskId}';
+    return RuntimeExecutionHandoffBinding(
+      handoff: handoff,
+      status: handoff.ready
+          ? RuntimeExecutionHandoffBindingStatus.ready
+          : RuntimeExecutionHandoffBindingStatus.blocked,
+      managerId: _managerIdForHandoffTarget(handoff.target),
+      routeKind: _routeKindForHandoffTarget(handoff.target),
+      outputChannel: RuntimeOutputChannelSummary(
+        id: outputChannelId,
+        label: '${handoff.plan.definition.label} Output',
+        kind: effectiveOutputKind,
+        eventCount: 0,
+        latestMessage: 'No output has been attached yet.',
+      ),
+      metadata: Map<String, Object?>.unmodifiable(normalizedMetadata),
+    );
+  }
+
+  final RuntimeExecutionHandoff handoff;
+  final RuntimeExecutionHandoffBindingStatus status;
+  final String managerId;
+  final String routeKind;
+  final RuntimeOutputChannelSummary outputChannel;
+  final Map<String, Object?> metadata;
+
+  bool get ready => status == RuntimeExecutionHandoffBindingStatus.ready;
+
+  RuntimeOutputEvent outputEvent({
+    required String message,
+    required DateTime timestamp,
+    RuntimeOutputChannelKind? kind,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return RuntimeOutputEvent(
+      channelId: outputChannel.id,
+      label: outputChannel.label,
+      kind: kind ?? outputChannel.kind,
+      message: message,
+      timestamp: timestamp,
+      metadata: <String, Object?>{
+        'taskId': handoff.taskId,
+        'managerId': managerId,
+        'routeKind': routeKind,
+        ...metadata,
+      },
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'ready': ready,
+      'managerId': managerId,
+      'routeKind': routeKind,
+      'handoff': handoff.toJson(),
+      'outputChannel': outputChannel.toJson(),
       if (metadata.isNotEmpty) 'metadata': metadata,
     };
   }
@@ -305,6 +421,39 @@ RuntimeExecutionHandoffTarget _handoffTargetFromWire(Object? value) {
     'toolchain-manager' => RuntimeExecutionHandoffTarget.toolchainManager,
     'hosted-executor' => RuntimeExecutionHandoffTarget.hostedExecutor,
     _ => RuntimeExecutionHandoffTarget.terminalRuntime,
+  };
+}
+
+String _managerIdForHandoffTarget(RuntimeExecutionHandoffTarget target) {
+  return switch (target) {
+    RuntimeExecutionHandoffTarget.shellManager => 'shell-manager',
+    RuntimeExecutionHandoffTarget.terminalRuntime => 'terminal-runtime',
+    RuntimeExecutionHandoffTarget.toolchainManager => 'toolchain-manager',
+    RuntimeExecutionHandoffTarget.hostedExecutor => 'hosted-executor',
+  };
+}
+
+String _routeKindForHandoffTarget(RuntimeExecutionHandoffTarget target) {
+  return switch (target) {
+    RuntimeExecutionHandoffTarget.shellManager => 'local-shell',
+    RuntimeExecutionHandoffTarget.terminalRuntime => 'terminal-session',
+    RuntimeExecutionHandoffTarget.toolchainManager => 'toolchain-task',
+    RuntimeExecutionHandoffTarget.hostedExecutor => 'hosted-task',
+  };
+}
+
+RuntimeOutputChannelKind _defaultOutputKindForHandoffTarget(
+  RuntimeExecutionHandoffTarget target,
+) {
+  return switch (target) {
+    RuntimeExecutionHandoffTarget.shellManager =>
+      RuntimeOutputChannelKind.stdout,
+    RuntimeExecutionHandoffTarget.terminalRuntime =>
+      RuntimeOutputChannelKind.runtimeEvents,
+    RuntimeExecutionHandoffTarget.toolchainManager =>
+      RuntimeOutputChannelKind.nativeTools,
+    RuntimeExecutionHandoffTarget.hostedExecutor =>
+      RuntimeOutputChannelKind.runtimeEvents,
   };
 }
 

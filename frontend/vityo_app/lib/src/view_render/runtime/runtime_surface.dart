@@ -683,7 +683,7 @@ class _OutputChannelSection extends StatelessWidget {
           Text('Output Channels', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'Filtered output channel summary for runtime events, process streams, native tool activity, RuntimeOutputLiveBuffer snapshots, and ShellManagerRuntimeExecutionAdapter streams. TODO: connect language-service and debug producers to live streams.',
+            'Filtered output channel summary for runtime events, process streams, native tool activity, RuntimeOutputLiveBuffer snapshots, ShellManagerRuntimeExecutionAdapter streams, language-service output, and debug output producers.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 6),

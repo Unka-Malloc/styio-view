@@ -53,6 +53,17 @@ void main() {
                   'runtimeShellExecutionStatus': 'executed',
                 },
               ),
+              RuntimeOutputEvent(
+                channelId: 'debug.demo',
+                label: 'Debug',
+                kind: RuntimeOutputChannelKind.debug,
+                message:
+                    'launched debug-styio: Debug adapter launched through runtime execution route.',
+                timestamp: DateTime.utc(2026, 5, 20, 12, 1),
+                metadata: const <String, Object?>{
+                  'debugRuntimeExecution': 'dap-launcher',
+                },
+              ),
             ],
           ),
         ),
@@ -64,6 +75,12 @@ void main() {
     expect(
       find.text(
         'shell.runtime runtime-events Runtime shell handoff shell-run completed.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'debug.demo debug launched debug-styio: Debug adapter launched through runtime execution route.',
       ),
       findsOneWidget,
     );

@@ -119,11 +119,57 @@ void main() {
             as Map<String, Object?>)['kind'],
         'closed',
       );
+      final runtimeEvents = controller.snapshot!.runtimeOutputEvents(
+        channelId: 'terminal.fake-pty',
+        label: 'Fake Terminal',
+      );
+      final outputPanelSnapshot = controller.snapshot!.outputPanelSnapshot(
+        channelId: 'terminal.fake-pty',
+        label: 'Fake Terminal',
+      );
+      expect(runtimeEvents, hasLength(5));
+      expect(runtimeEvents[1].kind, RuntimeOutputChannelKind.stdout);
+      expect(runtimeEvents.last.metadata['terminalEventKind'], 'closed');
+      expect(outputPanelSnapshot.visibleEvents, hasLength(5));
       final history = await historyStore.readHistory(workspaceId: 'demo');
       expect(history.tasks.single.definition.id, 'terminal.sh');
       expect(history.tasks.single.status, RuntimeTaskStatus.succeeded);
     },
   );
+
+  test('terminal shell command output binding exposes runtime events', () {
+    const result = ShellCommandResult(
+      status: ShellCommandStatus.failed,
+      command: 'styio',
+      executablePath: '/usr/bin/styio',
+      arguments: <String>['test'],
+      exitCode: 1,
+      stdout: 'running tests\n',
+      stderr: 'test failed\n',
+      duration: Duration(milliseconds: 42),
+      message: 'Shell command failed.',
+    );
+    final binding = TerminalShellCommandOutputBinding(
+      result: result,
+      channelId: 'shell.styio-test',
+      label: 'Styio Test Shell',
+      timestamp: DateTime.utc(2026, 5, 20, 9),
+    );
+    final panelSnapshot = binding.outputPanelSnapshot();
+
+    expect(binding.events, hasLength(3));
+    expect(
+      binding.events.map((event) => event.kind),
+      <RuntimeOutputChannelKind>[
+        RuntimeOutputChannelKind.runtimeEvents,
+        RuntimeOutputChannelKind.stdout,
+        RuntimeOutputChannelKind.stderr,
+      ],
+    );
+    expect(binding.events.last.metadata['exitCode'], 1);
+    expect(panelSnapshot.eventCountsByKind['stderr'], 1);
+    expect(binding.toJson()['eventCount'], 3);
+  });
 }
 
 class _FakePtyManager implements PtyManager {

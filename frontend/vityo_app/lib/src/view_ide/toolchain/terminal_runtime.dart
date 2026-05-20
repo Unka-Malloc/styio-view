@@ -41,6 +41,33 @@ class TerminalSessionSnapshot {
       if (taskSnapshot != null) 'task': taskSnapshot!.toJson(),
     };
   }
+
+  List<RuntimeOutputEvent> runtimeOutputEvents({
+    String? channelId,
+    String label = 'Terminal',
+  }) {
+    final resolvedChannelId = channelId ?? 'terminal.$sessionId';
+    return events
+        .map(
+          (event) => event.toRuntimeOutputEvent(
+            channelId: resolvedChannelId,
+            label: label,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  RuntimeOutputPanelSnapshot outputPanelSnapshot({
+    String? channelId,
+    String label = 'Terminal',
+    RuntimeOutputChannelFilterState filter =
+        const RuntimeOutputChannelFilterState(),
+  }) {
+    return RuntimeOutputPanelSnapshot(
+      events: runtimeOutputEvents(channelId: channelId, label: label),
+      filter: filter,
+    );
+  }
 }
 
 enum TerminalInteractionEventKind { started, output, input, resized, closed }
@@ -86,6 +113,104 @@ class TerminalInteractionEvent {
       if (rows != null) 'rows': rows,
       if (cols != null) 'cols': cols,
       if (exitCode != null) 'exitCode': exitCode,
+    };
+  }
+
+  RuntimeOutputEvent toRuntimeOutputEvent({
+    required String channelId,
+    required String label,
+  }) {
+    return RuntimeOutputEvent(
+      channelId: channelId,
+      label: label,
+      kind: kind == TerminalInteractionEventKind.output
+          ? RuntimeOutputChannelKind.stdout
+          : RuntimeOutputChannelKind.runtimeEvents,
+      message: message.isEmpty ? kind.wireValue : message,
+      timestamp: timestamp,
+      metadata: <String, Object?>{
+        'terminalSessionId': sessionId,
+        'terminalEventKind': kind.wireValue,
+        'sequence': sequence,
+        if (rows != null) 'rows': rows,
+        if (cols != null) 'cols': cols,
+        if (exitCode != null) 'exitCode': exitCode,
+      },
+    );
+  }
+}
+
+class TerminalShellCommandOutputBinding {
+  const TerminalShellCommandOutputBinding({
+    required this.result,
+    required this.channelId,
+    required this.label,
+    required this.timestamp,
+  });
+
+  final ShellCommandResult result;
+  final String channelId;
+  final String label;
+  final DateTime timestamp;
+
+  List<RuntimeOutputEvent> get events {
+    return <RuntimeOutputEvent>[
+      RuntimeOutputEvent(
+        channelId: channelId,
+        label: label,
+        kind: RuntimeOutputChannelKind.runtimeEvents,
+        message: result.message ?? 'Shell command ${result.command} completed.',
+        timestamp: timestamp,
+        metadata: _metadata('status'),
+      ),
+      if (result.stdout.isNotEmpty)
+        RuntimeOutputEvent(
+          channelId: '$channelId.stdout',
+          label: '$label stdout',
+          kind: RuntimeOutputChannelKind.stdout,
+          message: result.stdout,
+          timestamp: timestamp,
+          metadata: _metadata('stdout'),
+        ),
+      if (result.stderr.isNotEmpty)
+        RuntimeOutputEvent(
+          channelId: '$channelId.stderr',
+          label: '$label stderr',
+          kind: RuntimeOutputChannelKind.stderr,
+          message: result.stderr,
+          timestamp: timestamp,
+          metadata: _metadata('stderr'),
+        ),
+    ];
+  }
+
+  RuntimeOutputPanelSnapshot outputPanelSnapshot({
+    RuntimeOutputChannelFilterState filter =
+        const RuntimeOutputChannelFilterState(),
+  }) {
+    return RuntimeOutputPanelSnapshot(events: events, filter: filter);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'channelId': channelId,
+      'label': label,
+      'status': result.status.name,
+      'succeeded': result.succeeded,
+      'exitCode': result.exitCode,
+      'eventCount': events.length,
+      'events': events.map((event) => event.toJson()).toList(growable: false),
+    };
+  }
+
+  Map<String, Object?> _metadata(String stream) {
+    return <String, Object?>{
+      'stream': stream,
+      'command': result.command,
+      'executablePath': result.executablePath,
+      'status': result.status.name,
+      if (result.exitCode != null) 'exitCode': result.exitCode,
+      'durationMs': result.duration.inMilliseconds,
     };
   }
 }

@@ -341,9 +341,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/interaction',
           summary:
-              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, focused problem actions, and keyboard-navigable Problems panel bindings.',
+              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixReviewPlan bridges into WorkspaceEdit preview/controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
           todo:
-              'TODO: expand quick-fix diff/apply controls beyond project-level actions and add native diagnostic producers.',
+              'TODO: bind WorkspaceQuickFixReviewPlan into concrete Problems diff/apply controls and add native diagnostic producers.',
           dependencies: <String>['workspace.diagnostics'],
         ),
         IdeCapabilityDescriptor(
@@ -614,7 +614,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render',
           summary:
-              'Active document diagnostics panel is wired into the IDE shell and has workspace diagnostics grouping, source grouping, severity filter, provider contract, per-diagnostic quick-fix selection, quick-fix confirmation planning, preview, and navigation available.',
+              'Active document diagnostics panel is wired into the IDE shell and has workspace diagnostics grouping, source grouping, severity filter, provider contract, per-diagnostic quick-fix selection, quick-fix confirmation planning, WorkspaceQuickFixReviewPlan preview/control contracts, preview, and navigation available.',
           todo:
               'TODO: add virtualized multi-file diff expansion and concrete per-fix apply routing.',
           dependencies: <String>['workspace.diagnostics'],

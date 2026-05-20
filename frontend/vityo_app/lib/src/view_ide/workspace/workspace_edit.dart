@@ -132,6 +132,27 @@ class WorkspaceEditPlan {
     return ids;
   }
 
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'summary': summary,
+      'source': source.wireValue,
+      'documentIds': documentIds,
+      'editCount': editCount,
+      'fileOperationCount': fileOperations.length,
+      'changeCount': changeCount,
+      'editsByDocument': editsByDocument.map(
+        (documentId, edits) => MapEntry<String, Object?>(
+          documentId,
+          edits.map(_workspaceEditPlanEditToJson).toList(growable: false),
+        ),
+      ),
+      'fileOperations': fileOperations
+          .map((operation) => operation.toJson())
+          .toList(growable: false),
+    };
+  }
+
   WorkspaceEditPreview preview(List<DocumentState> documents) {
     final documentsById = {
       for (final document in documents) document.documentId: document,
@@ -714,6 +735,14 @@ Map<String, Object?> _workspaceEditPreviewEditToJson(
     'start': edit.range.start,
     'end': edit.range.end,
     'range': _workspaceEditPreviewRangeToJson(edit.range, documentText),
+    'newText': edit.newText,
+  };
+}
+
+Map<String, Object?> _workspaceEditPlanEditToJson(FormattingEdit edit) {
+  return <String, Object?>{
+    'start': edit.range.start,
+    'end': edit.range.end,
     'newText': edit.newText,
   };
 }

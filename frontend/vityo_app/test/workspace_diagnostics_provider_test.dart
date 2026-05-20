@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
@@ -208,6 +209,61 @@ void main() {
     expect(blocked.missingDocumentIds, <String>['src/missing.styio']);
     expect(
       missing.status,
+      WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+    );
+  });
+
+  test('workspace diagnostic quick fix review bridges into workspace edit', () {
+    const diagnostic = WorkspaceDiagnostic(
+      documentId: 'src/main.styio',
+      source: 'styio-language',
+      diagnostic: Diagnostic(
+        severity: DiagnosticSeverity.warning,
+        code: 'missing-assignment',
+        message: 'Variable declaration is missing `=`.',
+        range: SourceRange(start: 0, end: 9),
+      ),
+      quickFixes: <DiagnosticQuickFix>[
+        DiagnosticQuickFix(
+          label: 'Insert assignment',
+          detail: 'Append assignment.',
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 9, end: 9),
+              newText: ' = value',
+            ),
+          ],
+        ),
+      ],
+    );
+    const documents = <DocumentState>[
+      DocumentState(
+        documentId: 'src/main.styio',
+        text: 'let count\n',
+        revision: 3,
+      ),
+    ];
+
+    final review = WorkspaceQuickFixReviewPlan.fromDiagnostic(
+      diagnostic: diagnostic,
+      documents: documents,
+    );
+    final window = review.diffWindow();
+    final missing = WorkspaceQuickFixReviewPlan.fromDiagnostic(
+      diagnostic: diagnostic,
+      documents: documents,
+      quickFixIndex: 4,
+    );
+
+    expect(review.ready, isTrue);
+    expect(review.plan?.source, WorkspaceEditSource.codeAction);
+    expect(review.preview?.canApply, isTrue);
+    expect(review.controls?.canApply, isTrue);
+    expect(window?.documents.single.afterText, 'let count = value\n');
+    expect(review.toJson()['todo'], contains('Problems panel'));
+    expect(missing.ready, isFalse);
+    expect(
+      missing.confirmationPlan.status,
       WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
     );
   });

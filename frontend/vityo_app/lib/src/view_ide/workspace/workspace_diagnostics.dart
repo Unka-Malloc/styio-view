@@ -585,6 +585,88 @@ class WorkspaceQuickFixConfirmationPlan {
   }
 }
 
+class WorkspaceQuickFixReviewPlan {
+  const WorkspaceQuickFixReviewPlan({
+    required this.diagnostic,
+    required this.quickFixIndex,
+    required this.confirmationPlan,
+    this.plan,
+    this.preview,
+    this.controls,
+  });
+
+  factory WorkspaceQuickFixReviewPlan.fromDiagnostic({
+    required WorkspaceDiagnostic diagnostic,
+    required List<DocumentState> documents,
+    int quickFixIndex = 0,
+  }) {
+    if (quickFixIndex < 0 || quickFixIndex >= diagnostic.quickFixes.length) {
+      return WorkspaceQuickFixReviewPlan(
+        diagnostic: diagnostic,
+        quickFixIndex: quickFixIndex,
+        confirmationPlan: const WorkspaceQuickFixConfirmationPlan(
+          planId: '',
+          status: WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+          message: 'Workspace diagnostic has no quick fix at this index.',
+        ),
+      );
+    }
+    final quickFix = diagnostic.quickFixes[quickFixIndex];
+    final plan = WorkspaceEditPlan.fromQuickFix(
+      id: 'quick-fix.${diagnostic.documentId}.${diagnostic.diagnostic.code}.$quickFixIndex',
+      documentId: diagnostic.documentId,
+      quickFix: quickFix,
+    );
+    final preview = plan.preview(documents);
+    return WorkspaceQuickFixReviewPlan(
+      diagnostic: diagnostic,
+      quickFixIndex: quickFixIndex,
+      plan: plan,
+      preview: preview,
+      confirmationPlan: WorkspaceQuickFixConfirmationPlan.fromPreview(preview),
+      controls: WorkspaceEditReviewControls.fromPreview(preview),
+    );
+  }
+
+  final WorkspaceDiagnostic diagnostic;
+  final int quickFixIndex;
+  final WorkspaceEditPlan? plan;
+  final WorkspaceEditPreview? preview;
+  final WorkspaceQuickFixConfirmationPlan confirmationPlan;
+  final WorkspaceEditReviewControls? controls;
+
+  bool get ready => confirmationPlan.ready && (controls?.canApply ?? false);
+
+  WorkspaceEditDiffWindow? diffWindow({
+    int documentOffset = 0,
+    int documentLimit = 20,
+    int fileOperationOffset = 0,
+    int fileOperationLimit = 20,
+  }) {
+    return preview?.diffWindow(
+      documentOffset: documentOffset,
+      documentLimit: documentLimit,
+      fileOperationOffset: fileOperationOffset,
+      fileOperationLimit: fileOperationLimit,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'documentId': diagnostic.documentId,
+      'diagnosticCode': diagnostic.diagnostic.code,
+      'quickFixIndex': quickFixIndex,
+      'ready': ready,
+      'confirmationPlan': confirmationPlan.toJson(),
+      if (plan != null) 'plan': plan!.toJson(),
+      if (preview != null) 'preview': preview!.toJson(),
+      if (controls != null) 'controls': controls!.toJson(),
+      'todo':
+          'TODO: bind this review plan to the Problems panel diff/apply controls.',
+    };
+  }
+}
+
 List<WorkspaceDiagnosticsDocumentGroup> groupWorkspaceDiagnostics(
   List<WorkspaceDiagnostic> diagnostics,
 ) {

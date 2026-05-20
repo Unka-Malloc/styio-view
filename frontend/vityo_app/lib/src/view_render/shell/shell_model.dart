@@ -52,6 +52,8 @@ class ShellModel extends ShellRuntimeModel {
     super.semanticPanelEventStateController,
     super.semanticPanelEventStore,
     super.semanticPanelEventWorkspaceId,
+    super.workspaceQuickFixTelemetryStore,
+    super.workspaceQuickFixTelemetryWorkspaceId,
     ShellLayoutPreferenceController? shellLayoutPreferenceController,
   }) : shellLayoutPreferenceController =
            shellLayoutPreferenceController ??

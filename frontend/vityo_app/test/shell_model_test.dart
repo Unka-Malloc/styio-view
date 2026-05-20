@@ -596,6 +596,119 @@ void main() {
     expect(updatedLanguageJson['semanticPanelViewModelCount'], 2);
   });
 
+  test('hydrates quick-fix telemetry through shell runtime store', () async {
+    const documentPath = '/workspace/demo/src/main.styio';
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_shell_quick_fix_telemetry_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final resourceManager = LocalResourceManager(
+      facts: ResourceFacts.linuxDebianArm(
+        systemTempPath: tempRoot.path,
+        homePath: tempRoot.path,
+      ),
+    );
+    final dataStore = FoundationDataStore(
+      resourceCoordinator: FoundationResourceCoordinator(
+        resourceManager: resourceManager,
+        fileSystemManager: fileSystemManager,
+      ),
+      fileSystemManager: fileSystemManager,
+    );
+    final telemetryStore = WorkspaceQuickFixTelemetryStore.fromDataStore(
+      dataStore: dataStore,
+    );
+    await telemetryStore.recordOutcome(
+      outcome: WorkspaceQuickFixReviewOutcome(
+        workspaceId: 'demo',
+        producerId: 'styio-service',
+        documentId: documentPath,
+        diagnosticCode: 'missing-assignment',
+        quickFixIndex: 0,
+        planId: 'quick-fix.src/main.styio.missing-assignment.0',
+        outcomeKind: WorkspaceQuickFixReviewOutcomeKind.applied,
+        confirmationStatus: WorkspaceQuickFixConfirmationStatus.ready,
+        ready: true,
+        message: 'Applied assignment fix.',
+        affectedDocumentIds: const <String>[documentPath],
+        timestamp: DateTime.utc(2026, 5, 20, 3),
+      ),
+    );
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.1',
+      compilePlanReady: false,
+      editorFiles: const <String>[documentPath],
+    );
+    final shell = ShellModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _SequenceProjectGraphAdapter(
+        snapshots: <ProjectGraphSnapshot>[initialGraph],
+      ),
+      workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: documentPath,
+          text: '#main := () => {}',
+          revision: 1,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+      ),
+      executionAdapter: const _SuccessfulExecutionAdapter(
+        sessionId: 'shell-quick-fix-telemetry',
+      ),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _SuccessfulExecutionAdapter(
+            sessionId: 'shell-quick-fix-telemetry',
+          ),
+      runtimeEventAdapter: createRuntimeEventAdapter(
+        platformTarget: PlatformTarget.macos,
+      ),
+      dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+      deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+      toolchainManagementAdapter: const _SuccessfulToolchainManagementAdapter(),
+      workspaceQuickFixTelemetryStore: telemetryStore,
+      workspaceQuickFixTelemetryWorkspaceId: 'demo',
+    );
+    addTearDown(shell.dispose);
+
+    final restored = await shell.restoreWorkspaceQuickFixTelemetry();
+
+    expect(restored.outcomes.single.diagnosticCode, 'missing-assignment');
+    expect(shell.workspaceQuickFixTelemetrySnapshot?.appliedCount, 1);
+    final recorded = await shell.recordWorkspaceQuickFixOutcome(
+      WorkspaceQuickFixReviewOutcome(
+        workspaceId: 'demo',
+        producerId: 'styio-service',
+        documentId: documentPath,
+        diagnosticCode: 'unused-value',
+        quickFixIndex: 1,
+        planId: 'quick-fix.src/main.styio.unused-value.1',
+        outcomeKind: WorkspaceQuickFixReviewOutcomeKind.blocked,
+        confirmationStatus: WorkspaceQuickFixConfirmationStatus.blockedNoPreview,
+        ready: false,
+        message: 'Preview required before apply.',
+        timestamp: DateTime.utc(2026, 5, 20, 4),
+      ),
+    );
+
+    expect(recorded.outcomes.length, 2);
+    expect(recorded.blockedCount, 1);
+    expect(
+      (await telemetryStore.readSnapshot(workspaceId: 'demo')).outcomes.length,
+      2,
+    );
+  });
+
   test(
     'go to definition opens project definition across workspace documents',
     () async {

@@ -426,6 +426,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     semanticPanelEventStateController,
     this.semanticPanelEventStore,
     String? semanticPanelEventWorkspaceId,
+    this.workspaceQuickFixTelemetryStore,
+    String? workspaceQuickFixTelemetryWorkspaceId,
   }) : _activeDocumentPath = workspaceController.activeFilePath,
        projectLanguageService =
            projectLanguageService ?? const ProjectStyioLanguageService(),
@@ -435,6 +437,8 @@ class ShellRuntimeModel extends ChangeNotifier {
            SemanticSnapshotPanelEventStateController(),
        semanticPanelEventWorkspaceId =
            semanticPanelEventWorkspaceId ?? editorSessionWorkspaceId,
+       workspaceQuickFixTelemetryWorkspaceId =
+           workspaceQuickFixTelemetryWorkspaceId ?? editorSessionWorkspaceId,
        _ownsRuntimeOutputBuffer = runtimeOutputBuffer == null,
        languageServiceStatus =
            languageServiceStatus ??
@@ -545,6 +549,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   semanticPanelEventStateController;
   final SemanticSnapshotPanelEventStore? semanticPanelEventStore;
   final String semanticPanelEventWorkspaceId;
+  final WorkspaceQuickFixTelemetryStore? workspaceQuickFixTelemetryStore;
+  final String workspaceQuickFixTelemetryWorkspaceId;
   final bool _ownsLanguageServiceStatus;
   final bool _ownsAgentCodingController;
   final bool _ownsCommandPalettePreferenceController;
@@ -590,6 +596,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   AgentCommandResultContext? _lastAgentIdeCommandResult;
   WorkspaceEditPreview? _lastWorkspaceEditPreview;
   WorkspaceEditApplyResultViewModel? _lastWorkspaceEditApplyResult;
+  WorkspaceQuickFixTelemetrySnapshot? _workspaceQuickFixTelemetrySnapshot;
   WorkspaceReplacePreview? _lastWorkspaceReplacePreview;
   final List<AgentCommandResultContext> _agentIdeCommandResults =
       <AgentCommandResultContext>[];
@@ -934,6 +941,72 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
     await recordSemanticPanelEvent(panelEvent);
     return panelEvent;
+  }
+
+  Future<WorkspaceQuickFixTelemetrySnapshot> restoreWorkspaceQuickFixTelemetry({
+    String? workspaceId,
+  }) async {
+    final resolvedWorkspaceId =
+        workspaceId ?? workspaceQuickFixTelemetryWorkspaceId;
+    final store = workspaceQuickFixTelemetryStore;
+    if (store == null) {
+      final snapshot = WorkspaceQuickFixTelemetrySnapshot(
+        workspaceId: resolvedWorkspaceId,
+      );
+      _workspaceQuickFixTelemetrySnapshot = snapshot;
+      appendLog(
+        'Workspace quick-fix telemetry restore unavailable: no DataStore is wired.',
+      );
+      return snapshot;
+    }
+    final snapshot = await store.readSnapshot(workspaceId: resolvedWorkspaceId);
+    _workspaceQuickFixTelemetrySnapshot = snapshot;
+    appendLog(
+      'Workspace quick-fix telemetry restored: '
+      '${snapshot.outcomes.length} outcome(s).',
+    );
+    notifyListeners();
+    return snapshot;
+  }
+
+  Future<WorkspaceQuickFixTelemetrySnapshot> recordWorkspaceQuickFixOutcome(
+    WorkspaceQuickFixReviewOutcome outcome, {
+    int maxOutcomes = 50,
+  }) async {
+    final resolvedWorkspaceId = outcome.workspaceId.isEmpty
+        ? workspaceQuickFixTelemetryWorkspaceId
+        : outcome.workspaceId;
+    final normalizedOutcome = outcome.workspaceId == resolvedWorkspaceId
+        ? outcome
+        : WorkspaceQuickFixReviewOutcome(
+            workspaceId: resolvedWorkspaceId,
+            producerId: outcome.producerId,
+            documentId: outcome.documentId,
+            diagnosticCode: outcome.diagnosticCode,
+            quickFixIndex: outcome.quickFixIndex,
+            planId: outcome.planId,
+            outcomeKind: outcome.outcomeKind,
+            confirmationStatus: outcome.confirmationStatus,
+            ready: outcome.ready,
+            message: outcome.message,
+            timestamp: outcome.timestamp,
+            affectedDocumentIds: outcome.affectedDocumentIds,
+            missingDocumentIds: outcome.missingDocumentIds,
+          );
+    final store = workspaceQuickFixTelemetryStore;
+    final base =
+        _workspaceQuickFixTelemetrySnapshot ??
+        WorkspaceQuickFixTelemetrySnapshot(workspaceId: resolvedWorkspaceId);
+    var snapshot = base.record(normalizedOutcome, maxOutcomes: maxOutcomes);
+    if (store != null) {
+      snapshot = await store.recordOutcome(
+        outcome: normalizedOutcome,
+        maxOutcomes: maxOutcomes,
+      );
+    }
+    _workspaceQuickFixTelemetrySnapshot = snapshot;
+    notifyListeners();
+    return snapshot;
   }
 
   SourceControlStatusSnapshot _localDirtySourceControlStatusSnapshot() {
@@ -1586,6 +1659,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceEditPreview;
   WorkspaceEditApplyResultViewModel? get lastWorkspaceEditApplyResult =>
       _lastWorkspaceEditApplyResult;
+  WorkspaceQuickFixTelemetrySnapshot? get workspaceQuickFixTelemetrySnapshot =>
+      _workspaceQuickFixTelemetrySnapshot;
   WorkspaceReplacePreview? get lastWorkspaceReplacePreview =>
       _lastWorkspaceReplacePreview;
   EditorCloseRequestSurface? get closeRequestSurface {

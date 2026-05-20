@@ -262,6 +262,7 @@ class VityoShellScaffold extends StatelessWidget {
             },
             workspaceEditPreview: shell.lastWorkspaceEditPreview,
             workspaceEditApplyResult: shell.lastWorkspaceEditApplyResult,
+            quickFixTelemetry: shell.workspaceQuickFixTelemetrySnapshot,
             semanticSnapshotPanelViewModel:
                 shell.semanticProblemsPanelViewModel,
             onRefreshWorkspaceDiagnostics: () {

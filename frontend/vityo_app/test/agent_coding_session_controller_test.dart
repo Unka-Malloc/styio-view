@@ -16,6 +16,7 @@ import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -56,6 +57,44 @@ void main() {
     ]);
     expect(controller.lastError, isNull);
   });
+
+  test(
+    'agent coding session publishes runtime output activity event',
+    () async {
+      final buffer = RuntimeOutputLiveBuffer();
+      addTearDown(buffer.dispose);
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-output',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(
+              kind: AgentContentPartKind.text,
+              text: 'Patch plan ready.',
+            ),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+        runtimeOutputBuffer: buffer,
+      );
+
+      controller.updatePrompt('Plan a fix.');
+      await controller.sendPrompt();
+
+      final event = buffer.snapshot.events.single;
+      expect(event.channelId, 'agent.activity');
+      expect(event.kind, RuntimeOutputChannelKind.agent);
+      expect(event.message, 'Patch plan ready.');
+      expect(event.metadata['requestId'], 'agent-request-output');
+      expect(event.metadata['outcome'], 'succeeded');
+      expect(event.metadata['contentPartCount'], 1);
+    },
+  );
 
   test('agent coding session persists successful prompt history', () async {
     final tempRoot = await Directory.systemTemp.createTemp(

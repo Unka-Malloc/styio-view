@@ -149,6 +149,7 @@ class VityoShellScaffold extends StatelessWidget {
           executionSession: shell.lastExecutionSession,
           runtimeEvents: shell.lastRuntimeEvents,
           nativeToolResults: shell.nativeToolResults,
+          outputSnapshot: shell.runtimeOutputBuffer.snapshot,
           onOpenNativeToolDiagnostics: shell.openFirstNativeToolDiagnostic,
         );
       case BottomSurfaceTab.terminal:

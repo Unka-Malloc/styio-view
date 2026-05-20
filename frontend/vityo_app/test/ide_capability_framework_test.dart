@@ -76,6 +76,10 @@ void main() {
       contains('Output Channels'),
     );
     expect(
+      entriesById['presentation.output-panel']?.summary,
+      contains('live RuntimeOutputLiveBuffer agent activity'),
+    );
+    expect(
       entriesById['interaction.diagnostics']?.dependencies,
       contains('workspace.diagnostics'),
     );
@@ -210,6 +214,10 @@ void main() {
     expect(
       entriesById['agent.coding-loop']?.summary,
       contains('checkpoint result prompt replay'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('RuntimeOutputLiveBuffer agent activity publishing'),
     );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);

@@ -418,9 +418,12 @@ class ShellRuntimeModel extends ChangeNotifier {
     this.debugRuntimeTaskHistoryStore,
     this.debugRuntimeTaskHistoryWorkspaceId = 'default',
     this.debugRuntimeTaskHistoryMaxEntries = 50,
+    RuntimeOutputLiveBuffer? runtimeOutputBuffer,
   }) : _activeDocumentPath = workspaceController.activeFilePath,
        projectLanguageService =
            projectLanguageService ?? const ProjectStyioLanguageService(),
+       runtimeOutputBuffer = runtimeOutputBuffer ?? RuntimeOutputLiveBuffer(),
+       _ownsRuntimeOutputBuffer = runtimeOutputBuffer == null,
        languageServiceStatus =
            languageServiceStatus ??
            ValueNotifier<LanguageServiceStatusSurface>(
@@ -468,6 +471,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           profile: AgentPromptProfile.defaultForPlatform(platformTarget),
           adapter: const LocalOnlyAgentProviderAdapter(),
           contextProvider: () => agentSessionContext,
+          runtimeOutputBuffer: this.runtimeOutputBuffer,
         );
     this.agentCodingController.contextProvider = () => agentSessionContext;
     this.agentCodingController.addListener(_handleAgentCodingSessionChanged);
@@ -523,9 +527,11 @@ class ShellRuntimeModel extends ChangeNotifier {
   final RuntimeTaskHistoryStore? debugRuntimeTaskHistoryStore;
   final String debugRuntimeTaskHistoryWorkspaceId;
   final int debugRuntimeTaskHistoryMaxEntries;
+  final RuntimeOutputLiveBuffer runtimeOutputBuffer;
   final bool _ownsLanguageServiceStatus;
   final bool _ownsAgentCodingController;
   final bool _ownsCommandPalettePreferenceController;
+  final bool _ownsRuntimeOutputBuffer;
   StreamSubscription<DocumentResourceBindingSnapshot>?
   _editorFileBindingSubscription;
   late final StreamSubscription<CommandPaletteLivePreferenceState>
@@ -5958,6 +5964,9 @@ class ShellRuntimeModel extends ChangeNotifier {
     unawaited(_commandPalettePreferenceSubscription.cancel());
     if (_ownsCommandPalettePreferenceController) {
       unawaited(commandPalettePreferenceController.dispose());
+    }
+    if (_ownsRuntimeOutputBuffer) {
+      unawaited(runtimeOutputBuffer.dispose());
     }
     if (_ownsLanguageServiceStatus &&
         languageServiceStatus is ValueNotifier<LanguageServiceStatusSurface>) {

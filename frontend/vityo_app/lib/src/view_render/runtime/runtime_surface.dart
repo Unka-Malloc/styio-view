@@ -32,6 +32,7 @@ class RuntimeSurface extends StatelessWidget {
     required this.executionSession,
     required this.runtimeEvents,
     this.nativeToolResults = const <NativeToolResultRecord>[],
+    this.outputSnapshot,
     this.outputChannelFilter = const RuntimeOutputChannelFilterState(),
     this.onOpenNativeToolDiagnostics,
   });
@@ -46,6 +47,7 @@ class RuntimeSurface extends StatelessWidget {
   final ExecutionSession? executionSession;
   final List<RuntimeEventEnvelope> runtimeEvents;
   final List<NativeToolResultRecord> nativeToolResults;
+  final RuntimeOutputPanelSnapshot? outputSnapshot;
   final RuntimeOutputChannelFilterState outputChannelFilter;
   final ValueChanged<AppCommandId>? onOpenNativeToolDiagnostics;
 
@@ -122,6 +124,7 @@ class RuntimeSurface extends StatelessWidget {
                   executionSession: executionSession,
                   runtimeEvents: runtimeEvents,
                   nativeToolResults: nativeToolResults,
+                  outputSnapshot: outputSnapshot,
                   filter: outputChannelFilter,
                 ),
                 SizedBox(height: cardSpacing),
@@ -192,6 +195,7 @@ class RuntimeSurface extends StatelessWidget {
                   executionSession: executionSession,
                   runtimeEvents: runtimeEvents,
                   nativeToolResults: nativeToolResults,
+                  outputSnapshot: outputSnapshot,
                   filter: outputChannelFilter,
                 ),
                 SizedBox(height: cardSpacing),
@@ -627,21 +631,26 @@ class _OutputChannelSection extends StatelessWidget {
     required this.executionSession,
     required this.runtimeEvents,
     required this.nativeToolResults,
+    required this.outputSnapshot,
     required this.filter,
   });
 
   final ExecutionSession? executionSession;
   final List<RuntimeEventEnvelope> runtimeEvents;
   final List<NativeToolResultRecord> nativeToolResults;
+  final RuntimeOutputPanelSnapshot? outputSnapshot;
   final RuntimeOutputChannelFilterState filter;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final channels = _outputChannels(
-      executionSession: executionSession,
-      runtimeEvents: runtimeEvents,
-      nativeToolResults: nativeToolResults,
+    final channels = _mergedOutputChannels(
+      baseChannels: _outputChannels(
+        executionSession: executionSession,
+        runtimeEvents: runtimeEvents,
+        nativeToolResults: nativeToolResults,
+      ),
+      liveSnapshot: outputSnapshot,
     );
     final snapshot = RuntimeOutputChannelSnapshot(
       channels: channels,
@@ -672,7 +681,7 @@ class _OutputChannelSection extends StatelessWidget {
           Text('Output Channels', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'Filtered output channel summary for runtime events, process streams, native tool activity, and RuntimeOutputLiveBuffer snapshots. TODO: connect language-service, debug, and agent producers to live streams.',
+            'Filtered output channel summary for runtime events, process streams, native tool activity, and RuntimeOutputLiveBuffer snapshots including agent activity. TODO: connect language-service and debug producers to live streams.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 6),
@@ -713,6 +722,32 @@ class _OutputChannelSection extends StatelessWidget {
       ),
     );
   }
+}
+
+List<RuntimeOutputChannelSummary> _mergedOutputChannels({
+  required List<RuntimeOutputChannelSummary> baseChannels,
+  required RuntimeOutputPanelSnapshot? liveSnapshot,
+}) {
+  final channels = <String, RuntimeOutputChannelSummary>{
+    for (final channel in baseChannels) channel.id: channel,
+  };
+  for (final channel
+      in liveSnapshot?.channelSnapshot.channels ??
+          const <RuntimeOutputChannelSummary>[]) {
+    final existing = channels[channel.id];
+    channels[channel.id] = existing == null
+        ? channel
+        : RuntimeOutputChannelSummary(
+            id: channel.id,
+            label: channel.label,
+            kind: channel.kind,
+            eventCount: existing.eventCount + channel.eventCount,
+            latestMessage: channel.latestMessage.isEmpty
+                ? existing.latestMessage
+                : channel.latestMessage,
+          );
+  }
+  return channels.values.toList(growable: false);
 }
 
 List<RuntimeOutputChannelSummary> _outputChannels({

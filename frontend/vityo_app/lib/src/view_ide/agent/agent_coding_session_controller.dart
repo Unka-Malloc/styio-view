@@ -9,6 +9,7 @@ import 'agent_provider_adapter.dart';
 import 'agent_provider_route_executor.dart';
 import 'agent_session_context.dart';
 import 'agent_workspace_edit_adapter.dart';
+import '../runtime/runtime.dart';
 
 typedef AgentSessionContextProvider = AgentSessionContext Function();
 
@@ -33,8 +34,10 @@ class AgentCodingSessionController extends ChangeNotifier {
     this.sessionHistoryStore,
     this.sessionHistoryWorkspaceId = 'default',
     this.sessionHistoryMaxEntries = 50,
+    RuntimeOutputLiveBuffer? runtimeOutputBuffer,
     AgentProviderExecutionResolution? providerExecutionResolution,
-  }) : _providerExecutionResolution = providerExecutionResolution;
+  }) : _runtimeOutputBuffer = runtimeOutputBuffer,
+       _providerExecutionResolution = providerExecutionResolution;
 
   AgentPromptProfile profile;
   AgentProviderAdapter adapter;
@@ -45,6 +48,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   final AgentCodingSessionHistoryStore? sessionHistoryStore;
   final String sessionHistoryWorkspaceId;
   final int sessionHistoryMaxEntries;
+  final RuntimeOutputLiveBuffer? _runtimeOutputBuffer;
 
   int _requestSequence = 0;
   int _activeRequestSerial = 0;
@@ -372,6 +376,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   Future<void> _appendAgentCodingSessionHistory(
     AgentCodingSessionHistoryRecord record,
   ) async {
+    _runtimeOutputBuffer?.addEvent(_agentRuntimeOutputEvent(record));
     final store = sessionHistoryStore;
     if (store == null) {
       return;
@@ -385,6 +390,38 @@ class AgentCodingSessionController extends ChangeNotifier {
     } on Object {
       // TODO: surface agent history persistence failures in the output panel.
     }
+  }
+
+  RuntimeOutputEvent _agentRuntimeOutputEvent(
+    AgentCodingSessionHistoryRecord record,
+  ) {
+    final summary = switch (record.outcome) {
+      AgentCodingSessionOutcome.succeeded =>
+        record.responseTextSample.trim().isEmpty
+            ? 'Agent completed ${record.contentPartCount} content part(s).'
+            : record.responseTextSample.trim(),
+      AgentCodingSessionOutcome.failed =>
+        record.errorMessage ?? 'Agent request failed.',
+      AgentCodingSessionOutcome.cancelled => 'Agent request cancelled.',
+    };
+    return RuntimeOutputEvent(
+      channelId: 'agent.activity',
+      label: 'Agent Activity',
+      kind: RuntimeOutputChannelKind.agent,
+      message: summary,
+      timestamp: record.completedAt,
+      metadata: <String, Object?>{
+        'requestId': record.requestId,
+        'profileId': record.profileId,
+        'providerKind': record.providerKind,
+        'outcome': record.outcome.wireValue,
+        'contentPartCount': record.contentPartCount,
+        'patchCount': record.patchCount,
+        'ideCommandCount': record.ideCommandCount,
+        'planCount': record.planCount,
+        'diagnosticSummaryCount': record.diagnosticSummaryCount,
+      },
+    );
   }
 
   void clearPendingPatch() {

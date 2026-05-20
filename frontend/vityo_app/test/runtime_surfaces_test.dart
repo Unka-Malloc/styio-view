@@ -308,6 +308,45 @@ void main() {
     );
   });
 
+  testWidgets('runtime surface renders live agent activity output channel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RuntimeSurface(
+          platformTarget: PlatformTarget.macos,
+          viewportProfile: const ViewportProfile(
+            family: ViewportFamily.desktop,
+            width: 1440,
+            height: 900,
+          ),
+          projectGraph: _projectGraph(),
+          toolchainStatus: ToolchainStatusSurface.fromProjectToolchain(
+            _projectGraph().toolchain,
+          ),
+          mountedModules: const [],
+          adapterCapabilities: const <AdapterCapabilitySnapshot>[],
+          executionSession: null,
+          runtimeEvents: const <RuntimeEventEnvelope>[],
+          outputSnapshot: RuntimeOutputPanelSnapshot(
+            events: <RuntimeOutputEvent>[
+              RuntimeOutputEvent(
+                channelId: 'agent.activity',
+                label: 'Agent Activity',
+                kind: RuntimeOutputChannelKind.agent,
+                message: 'Patch plan ready.',
+                timestamp: DateTime.utc(2026, 5, 20),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('agent.activity 1'), findsOneWidget);
+    expect(find.text('Agent Activity: Patch plan ready.'), findsOneWidget);
+  });
+
   testWidgets('runtime surface renders native tool result history', (
     tester,
   ) async {

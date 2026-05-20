@@ -492,7 +492,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/workspace/workspace_edit.dart',
           summary:
-              'WorkspaceEditPlan, WorkspaceEditPreview, WorkspaceEditDiffWindow, WorkspaceEditDiffPaginationStore, WorkspaceEditConfirmationPlan, WorkspaceEditReviewControls, WorkspaceEditReviewResultTelemetry, WorkspaceEditApplyResultViewModel, file create/delete operations, Problems diff-window rendering, Problems apply-result rendering, ShellRuntime quick-fix result projection, serializable application results, and WorkspaceEditApplier provide a shared preview, confirmation, review-control, result telemetry, and edit application path for agent patches, code actions, rename, and formatting.',
+              'WorkspaceEditPlan, WorkspaceEditPreview, WorkspaceEditDiffWindow, WorkspaceEditDiffPaginationStore, WorkspaceEditConfirmationPlan risk levels and blocking reasons, WorkspaceEditReviewControls, WorkspaceEditReviewResultTelemetry, WorkspaceEditApplyResultViewModel, file create/delete operations, Problems diff-window rendering, Problems apply-result rendering, ShellRuntime quick-fix result projection, serializable application results, and WorkspaceEditApplier provide a shared preview, confirmation, review-control, result telemetry, and edit application path for agent patches, code actions, rename, and formatting.',
           dependencies: <String>[
             'foundation.registry',
             'workspace.project-model',

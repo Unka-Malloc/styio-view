@@ -298,6 +298,12 @@ void main() {
       contains('WorkspaceEditDiffPaginationStore'),
     );
     expect(
+      entriesById['workspace.edit-application']?.summary,
+      contains(
+        'WorkspaceEditConfirmationPlan risk levels and blocking reasons',
+      ),
+    );
+    expect(
       entriesById['workspace.edit-application']?.todo,
       isNot(contains('add preview')),
     );

@@ -60,6 +60,12 @@ void main() {
       isTrue,
     );
     expect(
+      result.featureMatrix
+          .supportFor(SemanticSnapshotConsumerFeature.definition)
+          .confidence,
+      SemanticSnapshotFeatureConfidence.serviceBacked,
+    );
+    expect(
       result.featureMatrix.supportsFeature(
         SemanticSnapshotConsumerFeature.renameSafety,
       ),
@@ -114,12 +120,34 @@ void main() {
         isTrue,
       );
       expect(
+        result.featureMatrix
+            .supportFor(SemanticSnapshotConsumerFeature.references)
+            .confidence,
+        SemanticSnapshotFeatureConfidence.localFallback,
+      );
+      expect(
         result.featureMatrix.supportsFeature(
           SemanticSnapshotConsumerFeature.renameSafety,
         ),
         isFalse,
       );
+      expect(
+        result.featureMatrix
+            .supportFor(SemanticSnapshotConsumerFeature.renameSafety)
+            .confidence,
+        SemanticSnapshotFeatureConfidence.unavailable,
+      );
       expect(result.toJson()['usedFallback'], isTrue);
+      expect(
+        (((result.toJson()['featureMatrix']!
+                    as Map<String, Object?>)['supports']!
+                as List<Object?>)
+            .cast<Map<String, Object?>>()
+            .singleWhere(
+              (entry) => entry['feature'] == 'references',
+            ))['confidence'],
+        'local-fallback',
+      );
     },
   );
 

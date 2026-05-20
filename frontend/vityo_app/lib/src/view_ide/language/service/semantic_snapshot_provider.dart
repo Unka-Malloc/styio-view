@@ -25,6 +25,12 @@ enum SemanticSnapshotConsumerFeature {
   codeActions,
 }
 
+enum SemanticSnapshotFeatureConfidence {
+  serviceBacked,
+  localFallback,
+  unavailable,
+}
+
 extension SemanticSnapshotProviderSourceX on SemanticSnapshotProviderSource {
   String get wireValue {
     return switch (this) {
@@ -71,6 +77,17 @@ extension SemanticSnapshotConsumerFeatureX on SemanticSnapshotConsumerFeature {
   }
 }
 
+extension SemanticSnapshotFeatureConfidenceX
+    on SemanticSnapshotFeatureConfidence {
+  String get wireValue {
+    return switch (this) {
+      SemanticSnapshotFeatureConfidence.serviceBacked => 'service-backed',
+      SemanticSnapshotFeatureConfidence.localFallback => 'local-fallback',
+      SemanticSnapshotFeatureConfidence.unavailable => 'unavailable',
+    };
+  }
+}
+
 class SemanticSnapshotProviderResult {
   const SemanticSnapshotProviderResult({
     required this.snapshot,
@@ -111,17 +128,20 @@ class SemanticSnapshotFeatureSupport {
   const SemanticSnapshotFeatureSupport({
     required this.feature,
     required this.available,
+    required this.confidence,
     required this.reason,
   });
 
   final SemanticSnapshotConsumerFeature feature;
   final bool available;
+  final SemanticSnapshotFeatureConfidence confidence;
   final String reason;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'feature': feature.wireValue,
       'available': available,
+      'confidence': confidence.wireValue,
       'reason': reason,
     };
   }
@@ -142,12 +162,18 @@ class SemanticSnapshotFeatureMatrix {
     final hasReferences = snapshot.references.isNotEmpty;
     final serviceBacked =
         source == SemanticSnapshotProviderSource.serviceAnalysis;
+    final availableConfidence = serviceBacked
+        ? SemanticSnapshotFeatureConfidence.serviceBacked
+        : SemanticSnapshotFeatureConfidence.localFallback;
     return SemanticSnapshotFeatureMatrix(
       source: source,
       supports: <SemanticSnapshotFeatureSupport>[
         SemanticSnapshotFeatureSupport(
           feature: SemanticSnapshotConsumerFeature.hover,
           available: hasElements,
+          confidence: hasElements
+              ? availableConfidence
+              : SemanticSnapshotFeatureConfidence.unavailable,
           reason: hasElements
               ? 'Resolved elements are available.'
               : 'Hover needs resolved element facts.',
@@ -155,6 +181,9 @@ class SemanticSnapshotFeatureMatrix {
         SemanticSnapshotFeatureSupport(
           feature: SemanticSnapshotConsumerFeature.definition,
           available: hasReferences,
+          confidence: hasReferences
+              ? availableConfidence
+              : SemanticSnapshotFeatureConfidence.unavailable,
           reason: hasReferences
               ? 'Resolved references are available.'
               : 'Definition needs resolved reference facts.',
@@ -162,6 +191,9 @@ class SemanticSnapshotFeatureMatrix {
         SemanticSnapshotFeatureSupport(
           feature: SemanticSnapshotConsumerFeature.references,
           available: hasReferences,
+          confidence: hasReferences
+              ? availableConfidence
+              : SemanticSnapshotFeatureConfidence.unavailable,
           reason: hasReferences
               ? 'Resolved references are available.'
               : 'Find references needs resolved reference facts.',
@@ -169,6 +201,9 @@ class SemanticSnapshotFeatureMatrix {
         SemanticSnapshotFeatureSupport(
           feature: SemanticSnapshotConsumerFeature.completion,
           available: hasElements,
+          confidence: hasElements
+              ? availableConfidence
+              : SemanticSnapshotFeatureConfidence.unavailable,
           reason: hasElements
               ? 'Resolved elements can seed completion candidates.'
               : 'Completion needs symbols or semantic candidates.',
@@ -176,6 +211,9 @@ class SemanticSnapshotFeatureMatrix {
         SemanticSnapshotFeatureSupport(
           feature: SemanticSnapshotConsumerFeature.semanticTokens,
           available: hasTokens,
+          confidence: hasTokens
+              ? availableConfidence
+              : SemanticSnapshotFeatureConfidence.unavailable,
           reason: hasTokens
               ? 'Semantic or syntax token spans are available.'
               : 'Semantic highlighting needs token spans.',
@@ -183,6 +221,9 @@ class SemanticSnapshotFeatureMatrix {
         SemanticSnapshotFeatureSupport(
           feature: SemanticSnapshotConsumerFeature.renameSafety,
           available: serviceBacked && hasElements && hasReferences,
+          confidence: serviceBacked && hasElements && hasReferences
+              ? SemanticSnapshotFeatureConfidence.serviceBacked
+              : SemanticSnapshotFeatureConfidence.unavailable,
           reason: serviceBacked && hasElements && hasReferences
               ? 'StyioService-backed resolved elements and references are available.'
               : 'Rename safety must come from StyioService semantic facts.',
@@ -190,6 +231,7 @@ class SemanticSnapshotFeatureMatrix {
         const SemanticSnapshotFeatureSupport(
           feature: SemanticSnapshotConsumerFeature.codeActions,
           available: false,
+          confidence: SemanticSnapshotFeatureConfidence.unavailable,
           reason:
               'Code actions require StyioService raw edit facts, not just snapshot facts.',
         ),
@@ -201,12 +243,23 @@ class SemanticSnapshotFeatureMatrix {
   final List<SemanticSnapshotFeatureSupport> supports;
 
   bool supportsFeature(SemanticSnapshotConsumerFeature feature) {
+    return supportFor(feature).available;
+  }
+
+  SemanticSnapshotFeatureSupport supportFor(
+    SemanticSnapshotConsumerFeature feature,
+  ) {
     for (final support in supports) {
       if (support.feature == feature) {
-        return support.available;
+        return support;
       }
     }
-    return false;
+    return SemanticSnapshotFeatureSupport(
+      feature: feature,
+      available: false,
+      confidence: SemanticSnapshotFeatureConfidence.unavailable,
+      reason: 'Feature is not represented in the semantic snapshot matrix.',
+    );
   }
 
   List<SemanticSnapshotConsumerFeature> get unavailableFeatures {

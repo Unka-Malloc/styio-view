@@ -398,7 +398,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/testing',
           summary:
-              'Testing surface is wired to runTests, native tool testResult records, TestRunProvider registry, TestDiscoveryProvider registry, test run configurations, persisted run configuration sets, run/debug selected configuration controls, test tree model, persisted test run history, runtime task lifecycle snapshots, persisted runtime task history, output stream subscription plans, RuntimeOutputLiveBuffer test-result publishing, failed-test rerun planning, failed-test interaction, rerun-failed handoff, failed-test DebugLaunchRoutePlan bridge, debug launch route plans, failure navigation actions, and CTest result parsing.',
+              'Testing surface is wired to runTests, native tool testResult records, TestRunProvider registry, TestDiscoveryProvider registry, TestingProviderCatalog controller fallback, test run configurations, persisted run configuration sets, run/debug selected configuration controls, test tree model, persisted test run history, runtime task lifecycle snapshots, persisted runtime task history, output stream subscription plans, RuntimeOutputLiveBuffer test-result publishing, failed-test rerun planning, failed-test interaction, rerun-failed handoff, failed-test DebugLaunchRoutePlan bridge, debug launch route plans, failure navigation actions, and CTest result parsing.',
           todo:
               'TODO: bind provider-specific debug route execution into the live Debug panel and adapter launcher telemetry.',
           dependencies: <String>['foundation.registry', 'runtime.execution'],

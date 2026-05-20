@@ -10,6 +10,7 @@ class TestingSessionController extends ChangeNotifier {
   TestingSessionController({
     this.discoveryProvider,
     this.runProvider,
+    this.providerCatalog,
     this.rerunPlanner = const FailedTestRerunPlanner(),
     RuntimeTaskLifecycleController? runtimeTaskLifecycleController,
     RuntimeTaskHistoryStore? runtimeTaskHistoryStore,
@@ -28,6 +29,7 @@ class TestingSessionController extends ChangeNotifier {
 
   final TestDiscoveryProvider? discoveryProvider;
   final TestRunProvider? runProvider;
+  final TestingProviderCatalog? providerCatalog;
   final FailedTestRerunPlanner rerunPlanner;
   final RuntimeTaskLifecycleController? _runtimeTaskLifecycleController;
   final RuntimeTaskHistoryStore? _runtimeTaskHistoryStore;
@@ -88,7 +90,7 @@ class TestingSessionController extends ChangeNotifier {
   }
 
   Future<TestDiscoveryResult> discover(TestDiscoveryRequest request) async {
-    final provider = discoveryProvider;
+    final provider = discoveryProvider ?? providerCatalog?.discoveryProvider();
     final generation = ++_discoveryGeneration;
     if (provider == null) {
       final result = const TestDiscoveryResult(
@@ -96,7 +98,7 @@ class TestingSessionController extends ChangeNotifier {
         roots: <TestNode>[],
         message:
             'Test discovery provider is not configured. '
-            'TODO: register Styio test discovery and external runner adapters.',
+            'TODO: register Styio test discovery and external runner adapters in TestingProviderCatalog.',
       );
       _storeDiscovery(result, generation);
       return result;
@@ -120,7 +122,7 @@ class TestingSessionController extends ChangeNotifier {
   }
 
   Future<TestRunResult> run(TestRunRequest request) async {
-    final provider = runProvider;
+    final provider = runProvider ?? providerCatalog?.runProvider();
     final generation = ++_runGeneration;
     _lastRunRequest = request;
     _lastRunConfiguration = null;
@@ -142,7 +144,7 @@ class TestingSessionController extends ChangeNotifier {
           status: TestRunStatus.error,
           message:
               'Test run provider is not configured. '
-              'TODO: register Styio, CTest, and custom task adapters.',
+              'TODO: register Styio, CTest, and custom task adapters in TestingProviderCatalog.',
         ),
         finishedTask,
       );

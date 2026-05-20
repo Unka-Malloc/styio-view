@@ -58,6 +58,81 @@ void main() {
     },
   );
 
+  test(
+    'testing provider catalog supplies discovery and run providers',
+    () async {
+      final catalog = TestingProviderCatalog()
+        ..registerDiscoveryProvider(
+          const TestingDiscoveryProviderRegistration(
+            id: 'styio-discovery',
+            provider: StaticTestDiscoveryProvider(
+              providerId: 'styio-discovery',
+              result: TestDiscoveryResult(
+                providerId: 'styio-discovery',
+                roots: <TestNode>[
+                  TestNode(
+                    id: 'suite:styio',
+                    label: 'Styio',
+                    kind: TestNodeKind.suite,
+                    children: <TestNode>[
+                      TestNode(
+                        id: 'test:syntax',
+                        label: 'syntax',
+                        kind: TestNodeKind.test,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            state: FoundationRegistryEntryState.active,
+          ),
+        )
+        ..registerRunProvider(
+          const TestingProviderRegistration(
+            id: 'ctest-runner',
+            provider: StaticTestRunProvider(
+              providerId: 'ctest-runner',
+              result: TestRunResult(
+                providerId: 'ctest-runner',
+                runner: 'ctest',
+                status: TestRunStatus.passed,
+                message: 'CTest passed.',
+                totalCount: 1,
+                passedCount: 1,
+              ),
+            ),
+            state: FoundationRegistryEntryState.active,
+          ),
+        );
+      final controller = TestingSessionController(providerCatalog: catalog);
+      addTearDown(controller.dispose);
+
+      final discovery = await controller.discover(
+        const TestDiscoveryRequest(workspaceRoot: '/workspace/vityo'),
+      );
+      final run = await controller.run(
+        const TestRunRequest(workspaceRoot: '/workspace/vityo'),
+      );
+      final manifest = catalog.manifest();
+
+      expect(discovery.providerId, 'styio-discovery');
+      expect(discovery.testCount, 1);
+      expect(run.providerId, 'ctest-runner');
+      expect(run.runner, 'ctest');
+      expect(
+        ((manifest['run']! as Map<String, Object?>)['entries']!
+            as List<Object?>),
+        hasLength(1),
+      );
+      expect(
+        ((manifest['discovery']! as Map<String, Object?>)['entries']!
+            as List<Object?>),
+        hasLength(1),
+      );
+    },
+  );
+
   test('static testing provider returns configured result', () async {
     const provider = StaticTestRunProvider(
       providerId: 'static',

@@ -792,6 +792,44 @@ class TestingDiscoveryProviderRegistry {
   }
 }
 
+class TestingProviderCatalog {
+  TestingProviderCatalog({
+    TestingProviderRegistry? runRegistry,
+    TestingDiscoveryProviderRegistry? discoveryRegistry,
+  }) : runRegistry = runRegistry ?? TestingProviderRegistry(),
+       discoveryRegistry =
+           discoveryRegistry ?? TestingDiscoveryProviderRegistry();
+
+  final TestingProviderRegistry runRegistry;
+  final TestingDiscoveryProviderRegistry discoveryRegistry;
+
+  void registerRunProvider(TestingProviderRegistration registration) {
+    runRegistry.register(registration);
+  }
+
+  void registerDiscoveryProvider(
+    TestingDiscoveryProviderRegistration registration,
+  ) {
+    discoveryRegistry.register(registration);
+  }
+
+  TestRunProvider? runProvider({bool activeOnly = true}) {
+    return runRegistry.provider(activeOnly: activeOnly);
+  }
+
+  TestDiscoveryProvider? discoveryProvider({bool activeOnly = true}) {
+    return discoveryRegistry.provider(activeOnly: activeOnly);
+  }
+
+  Map<String, Object?> manifest({FoundationRegistryEntryState? state}) {
+    return <String, Object?>{
+      'owner': TestingProviderRegistry.owner,
+      'run': runRegistry.manifest(state: state).toJson(),
+      'discovery': discoveryRegistry.manifest(state: state).toJson(),
+    };
+  }
+}
+
 class CTestOutputParser {
   const CTestOutputParser();
 

@@ -155,6 +155,54 @@ void main() {
     },
   );
 
+  test(
+    'workspace diagnostics producer lifecycle reports progress and cancellation',
+    () {
+      const request = WorkspaceDiagnosticsRequest(
+        documentIds: <String>['src/main.styio', 'src/lib.styio'],
+        activeDocumentId: 'src/main.styio',
+      );
+      final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+        providerId: 'styio-project-diagnostics',
+        request: request,
+        command: 'styio',
+        arguments: const <String>['check', '.'],
+        workingDirectory: '/workspace/vityo',
+      );
+      final controller = WorkspaceDiagnosticsProducerLifecycleController();
+
+      final queued = controller.register(plan);
+      final running = controller.start(
+        plan,
+        message: 'Styio diagnostics started.',
+      );
+      final progress = controller.reportProgress(
+        plan,
+        progress: 0.5,
+        message: 'Scanned 1 of 2 documents.',
+      );
+      final cancelled = controller.requestCancellation(
+        plan,
+        reason: 'User cancelled diagnostics.',
+      );
+
+      expect(queued.status, RuntimeTaskStatus.queued);
+      expect(queued.canCancel, isTrue);
+      expect(running.status, RuntimeTaskStatus.running);
+      expect(progress.progress, 0.5);
+      expect(progress.message, 'Scanned 1 of 2 documents.');
+      expect(progress.toJson()['canCancel'], isTrue);
+      expect(cancelled.status, RuntimeTaskStatus.cancelled);
+      expect(cancelled.cancellationRequested, isTrue);
+      expect(cancelled.canCancel, isFalse);
+      expect(controller.snapshots, hasLength(1));
+      expect(
+        controller.snapshotForProvider('styio-project-diagnostics')?.taskId,
+        'diagnostics.styio-project-diagnostics',
+      );
+    },
+  );
+
   test('workspace diagnostics view applies serializable filters', () {
     const snapshot = WorkspaceDiagnosticsSnapshot(
       providerId: 'language',

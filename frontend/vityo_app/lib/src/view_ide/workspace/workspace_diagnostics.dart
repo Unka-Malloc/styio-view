@@ -103,6 +103,201 @@ class WorkspaceDiagnosticsProducerExecutionPlan {
   }
 }
 
+class WorkspaceDiagnosticsProducerLifecycleSnapshot {
+  const WorkspaceDiagnosticsProducerLifecycleSnapshot({
+    required this.providerId,
+    required this.taskSnapshot,
+    this.progress,
+    this.cancellationRequested = false,
+    this.message = '',
+  });
+
+  factory WorkspaceDiagnosticsProducerLifecycleSnapshot.fromTask({
+    required String providerId,
+    required RuntimeTaskSnapshot taskSnapshot,
+    double? progress,
+    bool cancellationRequested = false,
+    String message = '',
+  }) {
+    final normalizedMessage = message.trim();
+    return WorkspaceDiagnosticsProducerLifecycleSnapshot(
+      providerId: providerId,
+      taskSnapshot: taskSnapshot,
+      progress: _normalizeDiagnosticsProducerProgress(progress),
+      cancellationRequested: cancellationRequested,
+      message: normalizedMessage.isEmpty
+          ? taskSnapshot.statusMessage
+          : normalizedMessage,
+    );
+  }
+
+  final String providerId;
+  final RuntimeTaskSnapshot taskSnapshot;
+  final double? progress;
+  final bool cancellationRequested;
+  final String message;
+
+  String get taskId => taskSnapshot.definition.id;
+  RuntimeTaskStatus get status => taskSnapshot.status;
+  bool get active => taskSnapshot.active;
+  bool get terminal => taskSnapshot.terminal;
+  bool get canCancel => active && !cancellationRequested;
+  bool get hasProgress => progress != null;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerId': providerId,
+      'taskId': taskId,
+      'status': status.wireValue,
+      'active': active,
+      'terminal': terminal,
+      'canCancel': canCancel,
+      'cancellationRequested': cancellationRequested,
+      if (hasProgress) 'progress': progress,
+      if (message.isNotEmpty) 'message': message,
+      'task': taskSnapshot.toJson(),
+    };
+  }
+}
+
+class WorkspaceDiagnosticsProducerLifecycleController {
+  WorkspaceDiagnosticsProducerLifecycleController({
+    RuntimeTaskLifecycleController? taskLifecycleController,
+  }) : _taskLifecycleController =
+           taskLifecycleController ?? RuntimeTaskLifecycleController();
+
+  final RuntimeTaskLifecycleController _taskLifecycleController;
+  final Map<String, WorkspaceDiagnosticsProducerLifecycleSnapshot>
+  _snapshotsByProvider =
+      <String, WorkspaceDiagnosticsProducerLifecycleSnapshot>{};
+
+  List<WorkspaceDiagnosticsProducerLifecycleSnapshot> get snapshots {
+    return List<WorkspaceDiagnosticsProducerLifecycleSnapshot>.unmodifiable(
+      _snapshotsByProvider.values,
+    );
+  }
+
+  WorkspaceDiagnosticsProducerLifecycleSnapshot? snapshotForProvider(
+    String providerId,
+  ) {
+    return _snapshotsByProvider[providerId];
+  }
+
+  WorkspaceDiagnosticsProducerLifecycleSnapshot register(
+    WorkspaceDiagnosticsProducerExecutionPlan plan, {
+    String message = '',
+  }) {
+    final task = plan.executionPlan.applyTo(_taskLifecycleController);
+    return _record(plan, task, message: message);
+  }
+
+  WorkspaceDiagnosticsProducerLifecycleSnapshot start(
+    WorkspaceDiagnosticsProducerExecutionPlan plan, {
+    String message = '',
+  }) {
+    _ensureRegistered(plan);
+    final task = _taskLifecycleController.start(
+      plan.definition.id,
+      message: message.trim().isEmpty ? null : message.trim(),
+    );
+    return _record(plan, task, message: message);
+  }
+
+  WorkspaceDiagnosticsProducerLifecycleSnapshot reportProgress(
+    WorkspaceDiagnosticsProducerExecutionPlan plan, {
+    double? progress,
+    String message = '',
+  }) {
+    final current = _ensureRegistered(plan);
+    return _record(
+      plan,
+      current.taskSnapshot,
+      progress: progress,
+      cancellationRequested: current.cancellationRequested,
+      message: message,
+    );
+  }
+
+  WorkspaceDiagnosticsProducerLifecycleSnapshot complete(
+    WorkspaceDiagnosticsProducerExecutionPlan plan, {
+    int exitCode = 0,
+    String message = '',
+  }) {
+    final current = _ensureRegistered(plan);
+    final task = _taskLifecycleController.complete(
+      plan.definition.id,
+      exitCode: exitCode,
+      message: message.trim().isEmpty ? null : message.trim(),
+    );
+    return _record(
+      plan,
+      task,
+      progress: exitCode == 0 ? 1 : current.progress,
+      cancellationRequested: current.cancellationRequested,
+      message: message,
+    );
+  }
+
+  WorkspaceDiagnosticsProducerLifecycleSnapshot requestCancellation(
+    WorkspaceDiagnosticsProducerExecutionPlan plan, {
+    String reason = '',
+  }) {
+    final current = _ensureRegistered(plan);
+    final task = _taskLifecycleController.cancel(
+      plan.definition.id,
+      message: reason.trim().isEmpty ? null : reason.trim(),
+    );
+    return _record(
+      plan,
+      task,
+      progress: current.progress,
+      cancellationRequested: true,
+      message: reason,
+    );
+  }
+
+  WorkspaceDiagnosticsProducerLifecycleSnapshot _ensureRegistered(
+    WorkspaceDiagnosticsProducerExecutionPlan plan,
+  ) {
+    final existing = _snapshotsByProvider[plan.providerId];
+    if (existing != null) {
+      return existing;
+    }
+    return register(plan);
+  }
+
+  WorkspaceDiagnosticsProducerLifecycleSnapshot _record(
+    WorkspaceDiagnosticsProducerExecutionPlan plan,
+    RuntimeTaskSnapshot task, {
+    double? progress,
+    bool cancellationRequested = false,
+    String message = '',
+  }) {
+    final snapshot = WorkspaceDiagnosticsProducerLifecycleSnapshot.fromTask(
+      providerId: plan.providerId,
+      taskSnapshot: task,
+      progress: progress,
+      cancellationRequested: cancellationRequested,
+      message: message,
+    );
+    _snapshotsByProvider[plan.providerId] = snapshot;
+    return snapshot;
+  }
+}
+
+double? _normalizeDiagnosticsProducerProgress(double? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value <= 0) {
+    return 0;
+  }
+  if (value >= 1) {
+    return 1;
+  }
+  return value;
+}
+
 class WorkspaceDiagnostic {
   const WorkspaceDiagnostic({
     required this.documentId,

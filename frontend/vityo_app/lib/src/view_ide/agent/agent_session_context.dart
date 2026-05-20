@@ -161,7 +161,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 51,
+      schemaVersion: 52,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -437,6 +437,7 @@ class AgentSessionContext {
         diagnosticCommands: commands.diagnosticCommands,
         languageServiceCommands: commands.languageServiceCommands,
         sourceControlCommands: commands.sourceControlCommands,
+        workspaceFileCommands: commands.workspaceFileCommands,
         codingCommands: commands.codingCommands,
         navigationCommands: commands.navigationCommands,
         refactorCommands: commands.refactorCommands,
@@ -3503,6 +3504,7 @@ class AgentCommandCatalogContext {
     required this.diagnosticCommands,
     required this.languageServiceCommands,
     required this.sourceControlCommands,
+    required this.workspaceFileCommands,
     required this.codingCommands,
     required this.navigationCommands,
     required this.refactorCommands,
@@ -3520,6 +3522,7 @@ class AgentCommandCatalogContext {
   final List<AgentCommandContext> diagnosticCommands;
   final List<AgentCommandContext> languageServiceCommands;
   final List<AgentCommandContext> sourceControlCommands;
+  final List<AgentCommandContext> workspaceFileCommands;
   final List<AgentCommandContext> codingCommands;
   final List<AgentCommandContext> navigationCommands;
   final List<AgentCommandContext> refactorCommands;
@@ -3567,6 +3570,9 @@ class AgentCommandCatalogContext {
       sourceControlCommands: StyioCommandRegistry.sourceControlCommands
           .map(AgentCommandContext.fromDescriptor)
           .toList(growable: false),
+      workspaceFileCommands: StyioCommandRegistry.workspaceFileCommands
+          .map(AgentCommandContext.fromDescriptor)
+          .toList(growable: false),
       codingCommands: StyioCommandRegistry.agentCodingCommands
           .map(AgentCommandContext.fromDescriptor)
           .toList(growable: false),
@@ -3612,6 +3618,9 @@ class AgentCommandCatalogContext {
           .map((command) => command.toJson())
           .toList(growable: false),
       'sourceControlCommands': sourceControlCommands
+          .map((command) => command.toJson())
+          .toList(growable: false),
+      'workspaceFileCommands': workspaceFileCommands
           .map((command) => command.toJson())
           .toList(growable: false),
       'codingCommands': codingCommands

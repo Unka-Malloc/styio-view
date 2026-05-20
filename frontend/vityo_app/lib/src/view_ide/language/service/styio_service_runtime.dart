@@ -81,6 +81,19 @@ class StyioServiceRuntimeStatusSnapshot {
         .length;
   }
 
+  String get capabilityHealth {
+    return capabilitySnapshot?.healthSummary.health.wireValue ??
+        StyioServiceCapabilityHealth.unavailable.wireValue;
+  }
+
+  int get missingCapabilityCount {
+    return capabilitySnapshot?.healthSummary.missingCapabilities.length ?? 0;
+  }
+
+  int get blockedCapabilityCount {
+    return capabilitySnapshot?.healthSummary.blockedCapabilities.length ?? 0;
+  }
+
   Map<String, String> get primaryCapabilityStates {
     return <String, String>{
       for (final capability in primaryCapabilities)
@@ -95,6 +108,9 @@ class StyioServiceRuntimeStatusSnapshot {
       'allowLocalFallback': allowLocalFallback,
       'usableCapabilityCount': usableCapabilityCount,
       'freshCapabilityCount': freshCapabilityCount,
+      'capabilityHealth': capabilityHealth,
+      'missingCapabilityCount': missingCapabilityCount,
+      'blockedCapabilityCount': blockedCapabilityCount,
       'primaryCapabilityStates': primaryCapabilityStates,
       'providerManifest': providerManifest.toJson(),
       if (capabilitySnapshot != null)
@@ -120,7 +136,7 @@ class StyioServiceRuntimeOutputBinding {
         label: label,
         kind: RuntimeOutputChannelKind.languageService,
         message:
-            'StyioService ${snapshot.state.name}: ${snapshot.usableCapabilityCount} usable primary capability/capabilities.',
+            'StyioService ${snapshot.state.name}: ${snapshot.usableCapabilityCount} usable primary capability/capabilities; health ${snapshot.capabilityHealth}.',
         timestamp: resolvedTimestamp,
         metadata: <String, Object?>{
           'state': snapshot.state.name,
@@ -128,6 +144,9 @@ class StyioServiceRuntimeOutputBinding {
           'allowLocalFallback': snapshot.allowLocalFallback,
           'usableCapabilityCount': snapshot.usableCapabilityCount,
           'freshCapabilityCount': snapshot.freshCapabilityCount,
+          'capabilityHealth': snapshot.capabilityHealth,
+          'missingCapabilityCount': snapshot.missingCapabilityCount,
+          'blockedCapabilityCount': snapshot.blockedCapabilityCount,
           'providerCount': snapshot.providerManifest.entries.length,
         },
       ),
@@ -176,6 +195,9 @@ class StyioServiceRuntimeOutputBinding {
       'state': snapshot.state.name,
       'usableCapabilityCount': snapshot.usableCapabilityCount,
       'freshCapabilityCount': snapshot.freshCapabilityCount,
+      'capabilityHealth': snapshot.capabilityHealth,
+      'missingCapabilityCount': snapshot.missingCapabilityCount,
+      'blockedCapabilityCount': snapshot.blockedCapabilityCount,
       'outputEventCount': outputSnapshot.events.length,
       'outputSnapshot': outputSnapshot.toJson(),
     };

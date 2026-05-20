@@ -145,7 +145,16 @@ void main() {
       RuntimeOutputChannelKind.languageService,
     );
     expect(outputSnapshot.events.first.metadata['usableCapabilityCount'], 2);
+    expect(
+      outputSnapshot.events.first.metadata['capabilityHealth'],
+      'degraded',
+    );
+    expect(
+      outputSnapshot.events.first.metadata['missingCapabilityCount'],
+      greaterThan(0),
+    );
     expect(outputSnapshot.events.first.metadata['allowLocalFallback'], isFalse);
+    expect(outputSnapshot.events.first.message, contains('health degraded'));
     expect(
       outputSnapshot.events.map((event) => event.message),
       containsAll(<String>[
@@ -155,6 +164,7 @@ void main() {
       ]),
     );
     expect(binding.toJson()['outputEventCount'], 4);
+    expect(binding.toJson()['capabilityHealth'], 'degraded');
   });
 
   test('language service status surface treats clean diagnostics as ready', () {

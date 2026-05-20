@@ -4975,6 +4975,25 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result;
   }
 
+  Future<AgentProviderConfigurationResult?> failoverAgentProviderProfile(
+    String profileKey,
+  ) async {
+    final configurator = agentProviderConfigurator;
+    if (configurator == null) {
+      appendLog(
+        'Agent provider failover unavailable: no configurator is wired.',
+      );
+      return null;
+    }
+    final result = await configurator.mountSavedProfile(
+      key: profileKey,
+      controller: agentCodingController,
+      retryTelemetrySink: _publishAgentProviderRetryTelemetry,
+    );
+    appendLog(result.message);
+    return result;
+  }
+
   void _publishAgentProviderRetryTelemetry(
     AgentProviderRequest request,
     AgentProviderRetryExecution<AgentProviderResponseEnvelope> execution,
@@ -5998,22 +6017,26 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
         return;
       case AppCommandId.failoverAgentProvider:
+        final suggestion = AgentIdeCommandSuggestion(
+          commandId: commandId.name,
+          input: normalizedInput,
+        );
+        final result = await failoverAgentProviderProfile(normalizedInput);
         final message =
-            'Fail Over Agent Provider prepared for $normalizedInput; TODO: bind Agent provider failover execution.';
+            result?.message ??
+            'Agent provider failover unavailable: no configurator is wired.';
         _recordAgentIdeCommandResult(
-          AgentIdeCommandSuggestion(
-            commandId: commandId.name,
-            input: normalizedInput,
-          ),
-          applied: false,
+          suggestion,
+          applied: result?.mounted ?? false,
           message: message,
           metadata: <String, Object?>{
-            'targetProviderProfileId': normalizedInput,
-            'TODO':
-                'Bind Agent provider failover execution to configured provider profiles.',
+            'targetProviderProfileId': result?.profile.profileId,
+            'targetProviderProfileKey': normalizedInput,
+            'adapterKind': result?.adapterKind.wireValue,
+            'adapterId': result?.adapterId,
+            'retryEnabled': result?.retryEnabled,
           },
         );
-        appendLog(message);
         return;
       case AppCommandId.createWorkspaceFile:
       case AppCommandId.renameWorkspaceFile:

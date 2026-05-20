@@ -15,6 +15,12 @@ typedef AgentPromptProfileSaver =
       required AgentPromptProfile profile,
     });
 
+typedef AgentPromptProfileLoader =
+    Future<AgentPromptProfile?> Function({
+      required String workspaceId,
+      required String key,
+    });
+
 typedef AgentProviderAdapterCreator =
     Future<AgentProviderAdapter> Function(AgentPromptProfile profile);
 
@@ -72,6 +78,7 @@ class AgentProviderConfigurator {
     required this.workspaceId,
     required AgentPromptProfileSaver saveProfile,
     required AgentProviderAdapterCreator createAdapter,
+    AgentPromptProfileLoader? loadProfile,
     AgentProviderSelectionPlanner? selectProvider,
     AgentProviderExecutionResolver? resolveExecution,
     AgentPromptProfileSync? syncProfile,
@@ -79,6 +86,7 @@ class AgentProviderConfigurator {
     AgentProviderRetryExecutor? retryExecutor,
     AgentProviderResponseRetryTelemetrySink? retryTelemetrySink,
   }) : _saveProfile = saveProfile,
+       _loadProfile = loadProfile,
        _createAdapter = createAdapter,
        _selectProvider = selectProvider,
        _resolveExecution = resolveExecution,
@@ -105,6 +113,9 @@ class AgentProviderConfigurator {
           key: key,
           profile: profile,
         );
+      },
+      loadProfile: ({required workspaceId, required key}) {
+        return profileStore.readProfile(workspaceId: workspaceId, key: key);
       },
       createAdapter: registry.createAdapter,
       selectProvider: registry.selectionPlan,
@@ -149,6 +160,7 @@ class AgentProviderConfigurator {
 
   final String workspaceId;
   final AgentPromptProfileSaver _saveProfile;
+  final AgentPromptProfileLoader? _loadProfile;
   final AgentProviderAdapterCreator _createAdapter;
   final AgentProviderSelectionPlanner? _selectProvider;
   final AgentProviderExecutionResolver? _resolveExecution;
@@ -227,6 +239,112 @@ class AgentProviderConfigurator {
         adapterId: adapter.adapterId,
         message: message,
         synced: synced,
+        selectionPlan: selectionPlan,
+        executionResolution: executionResolution,
+        retryEnabled: false,
+      );
+    }
+  }
+
+  Future<AgentPromptProfile?> loadProfile({String key = 'default'}) async {
+    final loader = _loadProfile;
+    if (loader == null) {
+      return null;
+    }
+    final normalizedKey = key.trim().isEmpty ? 'default' : key.trim();
+    final direct = await loader(workspaceId: workspaceId, key: normalizedKey);
+    if (direct != null) {
+      return direct;
+    }
+    if (normalizedKey == 'default') {
+      return null;
+    }
+    final defaultProfile = await loader(
+      workspaceId: workspaceId,
+      key: 'default',
+    );
+    return defaultProfile?.profileId == normalizedKey ? defaultProfile : null;
+  }
+
+  Future<AgentProviderConfigurationResult> mountSavedProfile({
+    required String key,
+    required AgentCodingSessionController controller,
+    AgentProviderResponseRetryTelemetrySink? retryTelemetrySink,
+  }) async {
+    final profile = await loadProfile(key: key);
+    if (profile == null) {
+      const adapter = LocalOnlyAgentProviderAdapter();
+      return AgentProviderConfigurationResult(
+        saved: false,
+        mounted: false,
+        profile: controller.profile,
+        adapterKind: adapter.kind,
+        adapterId: adapter.adapterId,
+        message:
+            'Agent provider failover skipped: no saved provider profile matched the requested id.',
+        retryEnabled: false,
+      );
+    }
+    return mountProfile(
+      profile: profile,
+      controller: controller,
+      successMessage: 'Agent provider failover mounted ${profile.profileId}.',
+      failurePrefix: 'Agent provider failover mount failed',
+      retryTelemetrySink: retryTelemetrySink,
+    );
+  }
+
+  Future<AgentProviderConfigurationResult> mountProfile({
+    required AgentPromptProfile profile,
+    required AgentCodingSessionController controller,
+    String? successMessage,
+    String failurePrefix = 'Agent provider profile mount failed',
+    AgentProviderResponseRetryTelemetrySink? retryTelemetrySink,
+  }) async {
+    final selectionPlan = _selectionPlanFor(profile);
+    final executionResolution = await _resolveExecutionFor(profile);
+    try {
+      final createdAdapter = await _createAdapter(profile);
+      final adapter = _adapterWithRetry(
+        createdAdapter,
+        retryTelemetrySink: retryTelemetrySink,
+      );
+      final message = successMessage ?? 'Agent provider profile mounted.';
+      controller.mountProvider(
+        profile: profile,
+        adapter: adapter,
+        message: message,
+        selectionPlan: selectionPlan,
+        executionResolution: executionResolution,
+      );
+      return AgentProviderConfigurationResult(
+        saved: false,
+        mounted: true,
+        profile: profile,
+        adapterKind: adapter.kind,
+        adapterId: adapter.adapterId,
+        message: message,
+        selectionPlan: selectionPlan,
+        executionResolution: executionResolution,
+        retryEnabled: _retryExecutor != null,
+      );
+    } on Object catch (error) {
+      const adapter = LocalOnlyAgentProviderAdapter();
+      final message = '$failurePrefix: $error';
+      controller.mountProvider(
+        profile: profile,
+        adapter: adapter,
+        message: message,
+        selectionPlan: selectionPlan,
+        executionResolution: executionResolution,
+      );
+      return AgentProviderConfigurationResult(
+        saved: false,
+        mounted: false,
+        profile: profile,
+        adapterKind: adapter.kind,
+        adapterId: adapter.adapterId,
+        message: message,
         selectionPlan: selectionPlan,
         executionResolution: executionResolution,
         retryEnabled: false,

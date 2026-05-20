@@ -195,6 +195,48 @@ void main() {
   });
 
   test(
+    'agent provider configurator mounts saved profile by profile id',
+    () async {
+      final loadedKeys = <String>[];
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+      final configurator = AgentProviderConfigurator(
+        workspaceId: 'workspace-1',
+        saveProfile:
+            ({required workspaceId, required key, required profile}) async {},
+        loadProfile: ({required workspaceId, required key}) async {
+          loadedKeys.add(key);
+          if (key != 'default') {
+            return null;
+          }
+          return _profile('cloud');
+        },
+        createAdapter: (_) async => const _FakeAgentProviderAdapter(
+          kind: AgentProviderKind.cloudOpenAICompatible,
+        ),
+      );
+
+      final result = await configurator.mountSavedProfile(
+        key: 'cloud',
+        controller: controller,
+      );
+
+      expect(result.saved, isFalse);
+      expect(result.mounted, isTrue);
+      expect(loadedKeys, <String>['cloud', 'default']);
+      expect(controller.profile.profileId, 'cloud');
+      expect(
+        controller.providerMountMessage,
+        'Agent provider failover mounted cloud.',
+      );
+    },
+  );
+
+  test(
     'agent provider configurator writes token to preferred OpenAI credential',
     () async {
       final savedProfiles = <AgentPromptProfile>[];

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_configurator.dart';
 import 'package:vityo_app/src/interaction/document_resource_binding.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/adapter_contracts.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/dependency_source_adapter.dart';
@@ -1943,6 +1944,108 @@ void main() {
     await shell.executeCommand(AppCommandId.refreshLanguageService);
 
     expect(refreshCount, 2);
+  });
+
+  test('shell failoverAgentProvider mounts saved provider profile', () async {
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/demo',
+      activeFilePath: 'src/main.styio',
+      title: 'Demo',
+      notes: const <String>[],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value := 1\n',
+      revision: 1,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+      },
+    );
+    final loadedKeys = <String>[];
+    final agentController = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.macos),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: () => throw StateError(
+        'ShellRuntimeModel should replace the agent context provider.',
+      ),
+    );
+    final configurator = AgentProviderConfigurator(
+      workspaceId: 'demo',
+      saveProfile:
+          ({required workspaceId, required key, required profile}) async {},
+      loadProfile: ({required workspaceId, required key}) async {
+        loadedKeys.add(key);
+        if (key != 'default') {
+          return null;
+        }
+        return const AgentPromptProfile(
+          profileId: 'cloud',
+          displayName: 'Cloud Agent',
+          systemPrompt: 'Use IDE context.',
+          endpoint: AgentProviderEndpoint(
+            route: AgentProviderRoute.webHosted,
+            baseUrl: 'https://agent.example.test/v1',
+            model: 'gpt-test',
+            requiresCredential: false,
+          ),
+        );
+      },
+      createAdapter: (_) async => const _StaticAgentProviderAdapter(
+        response: AgentProviderResponseEnvelope(
+          requestId: 'failover-mounted',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[],
+        ),
+      ),
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+      agentCodingController: agentController,
+      agentProviderConfigurator: configurator,
+    );
+    addTearDown(() {
+      shell.dispose();
+      agentController.dispose();
+    });
+
+    await shell.executeCommandWithInput(
+      AppCommandId.failoverAgentProvider,
+      'cloud',
+    );
+
+    final lastResult = shell.agentSessionContext.commands.lastResult;
+    expect(loadedKeys, <String>['cloud', 'default']);
+    expect(agentController.profile.profileId, 'cloud');
+    expect(agentController.providerMountMessage, contains('cloud'));
+    expect(lastResult?.commandId, 'failoverAgentProvider');
+    expect(lastResult?.applied, isTrue);
+    expect(lastResult?.metadata['targetProviderProfileId'], 'cloud');
+    expect(lastResult?.metadata['targetProviderProfileKey'], 'cloud');
   });
 
   test('shell controls StyioService document subscription', () async {

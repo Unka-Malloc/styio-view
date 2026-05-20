@@ -258,6 +258,48 @@ class WorkspaceEditPreview {
 
   int get changeCount => editCount + fileOperations.length;
 
+  WorkspaceEditDiffWindow diffWindow({
+    int documentOffset = 0,
+    int documentLimit = 20,
+    int fileOperationOffset = 0,
+    int fileOperationLimit = 20,
+  }) {
+    final normalizedDocumentOffset = documentOffset.clamp(0, documents.length);
+    final normalizedDocumentLimit = documentLimit <= 0 ? 20 : documentLimit;
+    final normalizedFileOperationOffset = fileOperationOffset.clamp(
+      0,
+      fileOperations.length,
+    );
+    final normalizedFileOperationLimit = fileOperationLimit <= 0
+        ? 20
+        : fileOperationLimit;
+    final documentEnd = (normalizedDocumentOffset + normalizedDocumentLimit)
+        .clamp(0, documents.length);
+    final fileOperationEnd =
+        (normalizedFileOperationOffset + normalizedFileOperationLimit).clamp(
+          0,
+          fileOperations.length,
+        );
+
+    return WorkspaceEditDiffWindow(
+      planId: planId,
+      summary: summary,
+      source: source,
+      documentOffset: normalizedDocumentOffset,
+      documentLimit: normalizedDocumentLimit,
+      fileOperationOffset: normalizedFileOperationOffset,
+      fileOperationLimit: normalizedFileOperationLimit,
+      totalDocumentCount: documents.length,
+      totalFileOperationCount: fileOperations.length,
+      documents: documents
+          .sublist(normalizedDocumentOffset, documentEnd)
+          .toList(growable: false),
+      fileOperations: fileOperations
+          .sublist(normalizedFileOperationOffset, fileOperationEnd)
+          .toList(growable: false),
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'planId': planId,
@@ -280,6 +322,66 @@ class WorkspaceEditPreview {
       'fileOperations': fileOperations
           .map((operation) => operation.toJson())
           .toList(growable: false),
+    };
+  }
+}
+
+class WorkspaceEditDiffWindow {
+  const WorkspaceEditDiffWindow({
+    required this.planId,
+    required this.summary,
+    required this.source,
+    required this.documentOffset,
+    required this.documentLimit,
+    required this.fileOperationOffset,
+    required this.fileOperationLimit,
+    required this.totalDocumentCount,
+    required this.totalFileOperationCount,
+    required this.documents,
+    required this.fileOperations,
+  });
+
+  final String planId;
+  final String summary;
+  final WorkspaceEditSource source;
+  final int documentOffset;
+  final int documentLimit;
+  final int fileOperationOffset;
+  final int fileOperationLimit;
+  final int totalDocumentCount;
+  final int totalFileOperationCount;
+  final List<WorkspaceEditDocumentPreview> documents;
+  final List<WorkspaceFileOperationPreview> fileOperations;
+
+  bool get hasMoreDocuments =>
+      documentOffset + documents.length < totalDocumentCount;
+
+  bool get hasMoreFileOperations =>
+      fileOperationOffset + fileOperations.length < totalFileOperationCount;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'summary': summary,
+      'source': source.wireValue,
+      'documentOffset': documentOffset,
+      'documentLimit': documentLimit,
+      'fileOperationOffset': fileOperationOffset,
+      'fileOperationLimit': fileOperationLimit,
+      'totalDocumentCount': totalDocumentCount,
+      'totalFileOperationCount': totalFileOperationCount,
+      'windowDocumentCount': documents.length,
+      'windowFileOperationCount': fileOperations.length,
+      'hasMoreDocuments': hasMoreDocuments,
+      'hasMoreFileOperations': hasMoreFileOperations,
+      'documents': documents
+          .map((document) => document.toJson())
+          .toList(growable: false),
+      'fileOperations': fileOperations
+          .map((operation) => operation.toJson())
+          .toList(growable: false),
+      'todo':
+          'TODO: bind this virtualized diff window to the concrete multi-file diff UI.',
     };
   }
 }
@@ -697,6 +799,109 @@ class WorkspaceEditApplicationResult {
       'skippedNoOpDocumentIds': skippedNoOpDocumentIds,
       'rollbackApplied': rollbackApplied,
       'rollbackMessages': rollbackMessages,
+    };
+  }
+}
+
+enum WorkspaceEditReviewResultStatus { applied, canceled, blocked, failed }
+
+extension WorkspaceEditReviewResultStatusX on WorkspaceEditReviewResultStatus {
+  String get wireValue => switch (this) {
+    WorkspaceEditReviewResultStatus.applied => 'applied',
+    WorkspaceEditReviewResultStatus.canceled => 'canceled',
+    WorkspaceEditReviewResultStatus.blocked => 'blocked',
+    WorkspaceEditReviewResultStatus.failed => 'failed',
+  };
+}
+
+class WorkspaceEditReviewResultTelemetry {
+  const WorkspaceEditReviewResultTelemetry({
+    required this.planId,
+    required this.source,
+    required this.status,
+    required this.message,
+    required this.recordedAt,
+    this.appliedEditCount = 0,
+    this.appliedDocumentIds = const <String>[],
+    this.createdDocumentIds = const <String>[],
+    this.deletedDocumentIds = const <String>[],
+    this.rollbackApplied = false,
+  });
+
+  factory WorkspaceEditReviewResultTelemetry.fromApplicationResult({
+    required WorkspaceEditConfirmationPlan confirmationPlan,
+    required WorkspaceEditApplicationResult result,
+    DateTime? recordedAt,
+  }) {
+    return WorkspaceEditReviewResultTelemetry(
+      planId: confirmationPlan.planId,
+      source: confirmationPlan.source,
+      status: result.applied
+          ? WorkspaceEditReviewResultStatus.applied
+          : WorkspaceEditReviewResultStatus.failed,
+      message: result.message,
+      recordedAt: (recordedAt ?? DateTime.now()).toUtc(),
+      appliedEditCount: result.appliedEditCount,
+      appliedDocumentIds: result.appliedDocumentIds,
+      createdDocumentIds: result.createdDocumentIds,
+      deletedDocumentIds: result.deletedDocumentIds,
+      rollbackApplied: result.rollbackApplied,
+    );
+  }
+
+  factory WorkspaceEditReviewResultTelemetry.canceled({
+    required WorkspaceEditConfirmationPlan confirmationPlan,
+    String message = 'Workspace edit review was canceled by user.',
+    DateTime? recordedAt,
+  }) {
+    return WorkspaceEditReviewResultTelemetry(
+      planId: confirmationPlan.planId,
+      source: confirmationPlan.source,
+      status: WorkspaceEditReviewResultStatus.canceled,
+      message: message,
+      recordedAt: (recordedAt ?? DateTime.now()).toUtc(),
+    );
+  }
+
+  factory WorkspaceEditReviewResultTelemetry.blocked({
+    required WorkspaceEditConfirmationPlan confirmationPlan,
+    DateTime? recordedAt,
+  }) {
+    return WorkspaceEditReviewResultTelemetry(
+      planId: confirmationPlan.planId,
+      source: confirmationPlan.source,
+      status: WorkspaceEditReviewResultStatus.blocked,
+      message: confirmationPlan.message,
+      recordedAt: (recordedAt ?? DateTime.now()).toUtc(),
+    );
+  }
+
+  final String planId;
+  final WorkspaceEditSource source;
+  final WorkspaceEditReviewResultStatus status;
+  final String message;
+  final DateTime recordedAt;
+  final int appliedEditCount;
+  final List<String> appliedDocumentIds;
+  final List<String> createdDocumentIds;
+  final List<String> deletedDocumentIds;
+  final bool rollbackApplied;
+
+  bool get successful => status == WorkspaceEditReviewResultStatus.applied;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'source': source.wireValue,
+      'status': status.wireValue,
+      'successful': successful,
+      'message': message,
+      'recordedAt': recordedAt.toIso8601String(),
+      'appliedEditCount': appliedEditCount,
+      'appliedDocumentIds': appliedDocumentIds,
+      'createdDocumentIds': createdDocumentIds,
+      'deletedDocumentIds': deletedDocumentIds,
+      'rollbackApplied': rollbackApplied,
     };
   }
 }

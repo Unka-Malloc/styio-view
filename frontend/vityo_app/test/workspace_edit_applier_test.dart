@@ -451,6 +451,78 @@ void main() {
     },
   );
 
+  test('workspace edit review exposes diff windows and result telemetry', () {
+    const preview = WorkspaceEditPreview(
+      planId: 'multi-file',
+      summary: 'Multi-file edit.',
+      source: WorkspaceEditSource.agent,
+      documents: <WorkspaceEditDocumentPreview>[
+        WorkspaceEditDocumentPreview(
+          documentId: 'a.styio',
+          revision: 1,
+          beforeText: 'a',
+          afterText: 'aa',
+          edits: <FormattingEdit>[
+            FormattingEdit(range: SourceRange(start: 1, end: 1), newText: 'a'),
+          ],
+        ),
+        WorkspaceEditDocumentPreview(
+          documentId: 'b.styio',
+          revision: 1,
+          beforeText: 'b',
+          afterText: 'bb',
+          edits: <FormattingEdit>[
+            FormattingEdit(range: SourceRange(start: 1, end: 1), newText: 'b'),
+          ],
+        ),
+      ],
+      fileOperations: <WorkspaceFileOperationPreview>[
+        WorkspaceFileOperationPreview(
+          operation: WorkspaceFileOperation.create(
+            documentId: 'c.styio',
+            text: 'c',
+          ),
+          status: WorkspaceFileOperationPreviewStatus.ready,
+          message: 'Create c.styio.',
+          afterText: 'c',
+        ),
+      ],
+    );
+    final window = preview.diffWindow(
+      documentOffset: 1,
+      documentLimit: 1,
+      fileOperationLimit: 1,
+    );
+    final confirmation = WorkspaceEditConfirmationPlan.fromPreview(preview);
+    final appliedTelemetry =
+        WorkspaceEditReviewResultTelemetry.fromApplicationResult(
+          confirmationPlan: confirmation,
+          recordedAt: DateTime.utc(2026, 5, 20),
+          result: const WorkspaceEditApplicationResult(
+            applied: true,
+            message: 'Applied.',
+            appliedEditCount: 2,
+            appliedDocumentIds: <String>['a.styio', 'b.styio'],
+            createdDocumentIds: <String>['c.styio'],
+          ),
+        );
+    final canceledTelemetry = WorkspaceEditReviewResultTelemetry.canceled(
+      confirmationPlan: confirmation,
+      recordedAt: DateTime.utc(2026, 5, 20, 1),
+    );
+
+    expect(window.documents.single.documentId, 'b.styio');
+    expect(window.fileOperations.single.operation.documentId, 'c.styio');
+    expect(window.hasMoreDocuments, isFalse);
+    expect(window.toJson()['totalDocumentCount'], 2);
+    expect(window.toJson()['todo'], contains('virtualized diff window'));
+    expect(appliedTelemetry.successful, isTrue);
+    expect(appliedTelemetry.toJson()['status'], 'applied');
+    expect(appliedTelemetry.toJson()['recordedAt'], '2026-05-20T00:00:00.000Z');
+    expect(canceledTelemetry.successful, isFalse);
+    expect(canceledTelemetry.toJson()['status'], 'canceled');
+  });
+
   test('workspace edit plan can be created from rename plan', () {
     const renamePlan = RenamePlan(
       target: DocumentSymbol(

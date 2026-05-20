@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/foundation/foundation.dart';
 import '../../view_ide/toolchain/toolchain_catalog.dart';
+import '../../view_ide/toolchain/toolchain_manager.dart';
 import '../platform/viewport_profile.dart';
 import '../theme/theme.dart';
 
@@ -14,7 +15,9 @@ class SettingsSurface extends StatelessWidget {
     this.toolchainSettings,
     this.toolchainInstallPlan,
     this.toolchainInstallExecution,
+    this.toolchainBootstrapSummary,
     this.onToolchainRecoveryAction,
+    this.onToolchainBootstrapAction,
     this.onSelectToolchain,
     this.onSelectClangCppVersion,
     this.onClearToolchain,
@@ -29,8 +32,10 @@ class SettingsSurface extends StatelessWidget {
   final ToolchainSettingsSurface? toolchainSettings;
   final ToolchainInstallPlanSurface? toolchainInstallPlan;
   final ToolchainInstallExecutionSurface? toolchainInstallExecution;
+  final ToolchainManagerBootstrapSummary? toolchainBootstrapSummary;
   final Future<void> Function(ToolchainRecoveryAction action)?
   onToolchainRecoveryAction;
+  final Future<void> Function(String actionId)? onToolchainBootstrapAction;
   final Future<void> Function(String id)? onSelectToolchain;
   final Future<void> Function(String versionId, String cppStandard)?
   onSelectClangCppVersion;
@@ -69,7 +74,9 @@ class SettingsSurface extends StatelessWidget {
                 settings: settings,
                 installPlan: toolchainInstallPlan,
                 installExecution: toolchainInstallExecution,
+                bootstrapSummary: toolchainBootstrapSummary,
                 onRecoveryAction: onToolchainRecoveryAction,
+                onBootstrapAction: onToolchainBootstrapAction,
                 onSelectToolchain: onSelectToolchain,
                 onSelectClangCppVersion: onSelectClangCppVersion,
                 onClearToolchain: onClearToolchain,
@@ -342,7 +349,9 @@ class _ToolchainSettingsCard extends StatelessWidget {
     required this.settings,
     required this.installPlan,
     required this.installExecution,
+    required this.bootstrapSummary,
     required this.onRecoveryAction,
+    required this.onBootstrapAction,
     required this.onSelectToolchain,
     required this.onSelectClangCppVersion,
     required this.onClearToolchain,
@@ -352,7 +361,9 @@ class _ToolchainSettingsCard extends StatelessWidget {
   final ToolchainSettingsSurface settings;
   final ToolchainInstallPlanSurface? installPlan;
   final ToolchainInstallExecutionSurface? installExecution;
+  final ToolchainManagerBootstrapSummary? bootstrapSummary;
   final Future<void> Function(ToolchainRecoveryAction action)? onRecoveryAction;
+  final Future<void> Function(String actionId)? onBootstrapAction;
   final Future<void> Function(String id)? onSelectToolchain;
   final Future<void> Function(String versionId, String cppStandard)?
   onSelectClangCppVersion;
@@ -430,6 +441,13 @@ class _ToolchainSettingsCard extends StatelessWidget {
                   .toList(growable: false),
             ),
           ],
+          if (bootstrapSummary != null) ...[
+            const SizedBox(height: 12),
+            _ToolchainBootstrapSummaryView(
+              summary: bootstrapSummary!,
+              onBootstrapAction: onBootstrapAction,
+            ),
+          ],
           if (settings.clangCppVersions != null) ...[
             const SizedBox(height: 14),
             _ClangCppVersionManagerView(
@@ -460,6 +478,119 @@ class _ToolchainSettingsCard extends StatelessWidget {
             const SizedBox(height: 14),
             _ToolchainInstallExecutionView(result: installExecution!),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolchainBootstrapSummaryView extends StatelessWidget {
+  const _ToolchainBootstrapSummaryView({
+    required this.summary,
+    required this.onBootstrapAction,
+  });
+
+  final ToolchainManagerBootstrapSummary summary;
+  final Future<void> Function(String actionId)? onBootstrapAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('settings-toolchain-bootstrap-summary'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Toolchain Bootstrap', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 6),
+          Text(
+            summary.styioLifecycle.message,
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text(summary.ready ? 'ready' : 'actionable')),
+              Chip(label: Text('manager ${summary.managerReport.status.name}')),
+              Chip(label: Text('styio ${summary.styioLifecycle.state.name}')),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _ToolchainBootstrapActionGroup(
+            label: 'Settings',
+            keyPrefix: 'settings-toolchain-bootstrap-settings',
+            actionIds: summary.settingsActionIds,
+            onBootstrapAction: onBootstrapAction,
+          ),
+          _ToolchainBootstrapActionGroup(
+            label: 'Installer',
+            keyPrefix: 'settings-toolchain-bootstrap-installer',
+            actionIds: summary.installerActionIds,
+            onBootstrapAction: onBootstrapAction,
+          ),
+          _ToolchainBootstrapActionGroup(
+            label: 'Project Bootstrap',
+            keyPrefix: 'settings-toolchain-bootstrap-project',
+            actionIds: summary.projectBootstrapActionIds,
+            onBootstrapAction: onBootstrapAction,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolchainBootstrapActionGroup extends StatelessWidget {
+  const _ToolchainBootstrapActionGroup({
+    required this.label,
+    required this.keyPrefix,
+    required this.actionIds,
+    required this.onBootstrapAction,
+  });
+
+  final String label;
+  final String keyPrefix;
+  final List<String> actionIds;
+  final Future<void> Function(String actionId)? onBootstrapAction;
+
+  @override
+  Widget build(BuildContext context) {
+    if (actionIds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: theme.textTheme.labelLarge),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final actionId in actionIds)
+                OutlinedButton(
+                  key: ValueKey('$keyPrefix-$actionId'),
+                  onPressed: onBootstrapAction == null
+                      ? null
+                      : () {
+                          onBootstrapAction!(actionId);
+                        },
+                  child: Text(actionId),
+                ),
+            ],
+          ),
         ],
       ),
     );

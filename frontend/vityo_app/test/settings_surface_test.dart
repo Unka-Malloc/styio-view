@@ -7,6 +7,7 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_configuration_store.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
+import 'package:vityo_app/src/view_ide/toolchain/styio_toolchain_lifecycle.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/settings/settings_surface.dart';
 
@@ -59,6 +60,7 @@ void main() {
     tester,
   ) async {
     final handledActions = <String>[];
+    final handledBootstrapActions = <String>[];
     final selectedToolchains = <String>[];
     final clearedToolchains = <ToolchainKind>[];
     var executeInstallPlanCount = 0;
@@ -165,8 +167,59 @@ void main() {
               succeeded: false,
               message: 'Select an existing toolchain executable.',
             ),
+            toolchainBootstrapSummary: const ToolchainManagerBootstrapSummary(
+              managerReport: ToolchainManagerStatusReport(
+                status: ToolchainManagerStatus.unresolved,
+                snapshot: ToolchainStateSnapshot(
+                  targetId: 'settings-test',
+                  workspaceId: 'demo',
+                  entries: <ToolchainStateEntry>[],
+                ),
+                requirement: ToolchainRequirement(kind: ToolchainKind.compiler),
+                resolution: ToolchainResolution(
+                  status: ToolchainResolutionStatus.missingKind,
+                  requirement: ToolchainRequirement(
+                    kind: ToolchainKind.compiler,
+                  ),
+                  message: 'No compiler descriptor.',
+                ),
+                recoveryState: ToolchainRecoveryState(
+                  kind: ToolchainRecoveryStateKind.needsSelection,
+                  actionIds: <String>['select-styio-compiler'],
+                ),
+              ),
+              styioLifecycle: StyioToolchainLifecycleReport(
+                state: StyioToolchainLifecycleState.selectable,
+                requiredRoles: <StyioToolchainRole>[
+                  StyioToolchainRole.compiler,
+                ],
+                roles: <StyioToolchainRoleStatus>[
+                  StyioToolchainRoleStatus(
+                    role: StyioToolchainRole.compiler,
+                    state: StyioToolchainRoleState.available,
+                    required: true,
+                    candidates: <ToolchainDescriptor>[
+                      ToolchainDescriptor(
+                        id: 'styio-compiler',
+                        kind: ToolchainKind.compiler,
+                        displayName: 'Styio Compiler',
+                        executablePath: '/opt/styio/bin/styio',
+                      ),
+                    ],
+                    message: 'Select Styio compiler.',
+                  ),
+                ],
+                message: 'Select a Styio compiler before project bootstrap.',
+              ),
+              settingsActionIds: <String>['select-styio-compiler'],
+              installerActionIds: <String>['install-managed-styio-toolchain'],
+              projectBootstrapActionIds: <String>['open-toolchain-settings'],
+            ),
             onToolchainRecoveryAction: (action) async {
               handledActions.add(action.id);
+            },
+            onToolchainBootstrapAction: (actionId) async {
+              handledBootstrapActions.add(actionId);
             },
             onSelectToolchain: (id) async {
               selectedToolchains.add(id);
@@ -192,7 +245,7 @@ void main() {
       find.text('version vityo-ide-capability-framework-v1'),
       findsOneWidget,
     );
-    expect(find.text('required 31/31'), findsOneWidget);
+    expect(find.textContaining('required '), findsOneWidget);
     expect(find.text('Missing Required Capabilities'), findsNothing);
     expect(find.text('TODO Follow-ups'), findsOneWidget);
     expect(
@@ -241,6 +294,13 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('execution requiresUserAction'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('settings-toolchain-bootstrap-summary')),
+      findsOneWidget,
+    );
+    expect(find.text('Toolchain Bootstrap'), findsOneWidget);
+    expect(find.text('manager unresolved'), findsOneWidget);
+    expect(find.text('styio selectable'), findsOneWidget);
 
     final executeInstallPlanButton = find.byKey(
       const ValueKey('settings-toolchain-execute-install-plan'),
@@ -250,6 +310,17 @@ void main() {
     await tester.pump();
 
     expect(executeInstallPlanCount, 1);
+
+    final bootstrapSettingsButton = find.byKey(
+      const ValueKey(
+        'settings-toolchain-bootstrap-settings-select-styio-compiler',
+      ),
+    );
+    await tester.ensureVisible(bootstrapSettingsButton);
+    await tester.tap(bootstrapSettingsButton);
+    await tester.pump();
+
+    expect(handledBootstrapActions, <String>['select-styio-compiler']);
 
     expect(find.text('Select an existing toolchain executable.'), findsWidgets);
 

@@ -1170,6 +1170,115 @@ class WorkspaceEditReviewResultTelemetry {
   }
 }
 
+class WorkspaceEditApplyResultViewModel {
+  const WorkspaceEditApplyResultViewModel({
+    required this.planId,
+    required this.source,
+    required this.status,
+    required this.severity,
+    required this.title,
+    required this.message,
+    required this.successful,
+    required this.appliedEditCount,
+    required this.appliedDocumentIds,
+    required this.createdDocumentIds,
+    required this.deletedDocumentIds,
+    required this.rollbackApplied,
+    this.diffWindow,
+    this.paginationState,
+  });
+
+  factory WorkspaceEditApplyResultViewModel.fromTelemetry({
+    required WorkspaceEditConfirmationPlan confirmationPlan,
+    required WorkspaceEditReviewResultTelemetry telemetry,
+    WorkspaceEditDiffWindow? diffWindow,
+    WorkspaceEditDiffPaginationState? paginationState,
+  }) {
+    return WorkspaceEditApplyResultViewModel(
+      planId: confirmationPlan.planId,
+      source: confirmationPlan.source,
+      status: telemetry.status,
+      severity: _workspaceEditResultSeverity(telemetry.status),
+      title: _workspaceEditResultTitle(telemetry.status),
+      message: telemetry.message,
+      successful: telemetry.successful,
+      appliedEditCount: telemetry.appliedEditCount,
+      appliedDocumentIds: telemetry.appliedDocumentIds,
+      createdDocumentIds: telemetry.createdDocumentIds,
+      deletedDocumentIds: telemetry.deletedDocumentIds,
+      rollbackApplied: telemetry.rollbackApplied,
+      diffWindow: diffWindow,
+      paginationState: paginationState,
+    );
+  }
+
+  final String planId;
+  final WorkspaceEditSource source;
+  final WorkspaceEditReviewResultStatus status;
+  final String severity;
+  final String title;
+  final String message;
+  final bool successful;
+  final int appliedEditCount;
+  final List<String> appliedDocumentIds;
+  final List<String> createdDocumentIds;
+  final List<String> deletedDocumentIds;
+  final bool rollbackApplied;
+  final WorkspaceEditDiffWindow? diffWindow;
+  final WorkspaceEditDiffPaginationState? paginationState;
+
+  int get affectedDocumentCount {
+    return <String>{
+      ...appliedDocumentIds,
+      ...createdDocumentIds,
+      ...deletedDocumentIds,
+    }.length;
+  }
+
+  bool get hasDiffWindow => diffWindow != null;
+  bool get hasPaginationState => paginationState != null;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'source': source.wireValue,
+      'status': status.wireValue,
+      'severity': severity,
+      'title': title,
+      'message': message,
+      'successful': successful,
+      'appliedEditCount': appliedEditCount,
+      'affectedDocumentCount': affectedDocumentCount,
+      'appliedDocumentIds': appliedDocumentIds,
+      'createdDocumentIds': createdDocumentIds,
+      'deletedDocumentIds': deletedDocumentIds,
+      'rollbackApplied': rollbackApplied,
+      'hasDiffWindow': hasDiffWindow,
+      'hasPaginationState': hasPaginationState,
+      if (diffWindow != null) 'diffWindow': diffWindow!.toJson(),
+      if (paginationState != null) 'paginationState': paginationState!.toJson(),
+    };
+  }
+}
+
+String _workspaceEditResultSeverity(WorkspaceEditReviewResultStatus status) {
+  return switch (status) {
+    WorkspaceEditReviewResultStatus.applied => 'success',
+    WorkspaceEditReviewResultStatus.canceled => 'info',
+    WorkspaceEditReviewResultStatus.blocked => 'warning',
+    WorkspaceEditReviewResultStatus.failed => 'error',
+  };
+}
+
+String _workspaceEditResultTitle(WorkspaceEditReviewResultStatus status) {
+  return switch (status) {
+    WorkspaceEditReviewResultStatus.applied => 'Workspace edit applied',
+    WorkspaceEditReviewResultStatus.canceled => 'Workspace edit canceled',
+    WorkspaceEditReviewResultStatus.blocked => 'Workspace edit blocked',
+    WorkspaceEditReviewResultStatus.failed => 'Workspace edit failed',
+  };
+}
+
 class WorkspaceEditApplier {
   const WorkspaceEditApplier({
     required this.workspaceDocumentStore,

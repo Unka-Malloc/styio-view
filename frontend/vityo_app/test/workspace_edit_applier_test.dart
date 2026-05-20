@@ -514,6 +514,16 @@ void main() {
       confirmationPlan: confirmation,
       recordedAt: DateTime.utc(2026, 5, 20, 1),
     );
+    final applyResultView = WorkspaceEditApplyResultViewModel.fromTelemetry(
+      confirmationPlan: confirmation,
+      telemetry: appliedTelemetry,
+      diffWindow: window,
+      paginationState: WorkspaceEditDiffPaginationState.fromWindow(
+        workspaceId: 'demo',
+        window: window,
+        updatedAt: DateTime.utc(2026, 5, 20, 2),
+      ),
+    );
 
     expect(window.documents.single.documentId, 'b.styio');
     expect(window.fileOperations.single.operation.documentId, 'c.styio');
@@ -525,6 +535,11 @@ void main() {
     expect(appliedTelemetry.toJson()['recordedAt'], '2026-05-20T00:00:00.000Z');
     expect(canceledTelemetry.successful, isFalse);
     expect(canceledTelemetry.toJson()['status'], 'canceled');
+    expect(applyResultView.title, 'Workspace edit applied');
+    expect(applyResultView.severity, 'success');
+    expect(applyResultView.affectedDocumentCount, 3);
+    expect(applyResultView.toJson()['hasDiffWindow'], isTrue);
+    expect(applyResultView.toJson()['hasPaginationState'], isTrue);
   });
 
   test('workspace edit diff pagination store persists window state', () async {

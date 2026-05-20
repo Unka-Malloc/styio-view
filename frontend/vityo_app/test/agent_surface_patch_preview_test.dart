@@ -95,6 +95,7 @@ void main() {
     tester,
   ) async {
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    AgentIdeCommandSuggestion? appliedRecoveryCommand;
     final history = AgentCodingSessionHistory(
       workspaceId: 'demo',
       records: <AgentCodingSessionHistoryRecord>[
@@ -137,6 +138,10 @@ void main() {
               sessionContext: _context(),
               codingController: controller,
               onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) async {
+                appliedRecoveryCommand = command;
+                return true;
+              },
               onSaveProviderProfile: (profile, {bearerToken}) async {},
             ),
           ),
@@ -149,7 +154,12 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Recovery Available'), findsOneWidget);
-    expect(find.text('Retry same provider'), findsOneWidget);
+    expect(find.text('Retry same provider'), findsWidgets);
+    expect(find.text('Fail over provider'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('agent-recovery-command-failoverProvider')),
+      findsOneWidget,
+    );
 
     await _tapVisible(
       tester,
@@ -167,6 +177,15 @@ void main() {
           ?.text,
       'Recover this failed prompt.',
     );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-recovery-command-failoverProvider')),
+    );
+    await tester.pump();
+
+    expect(appliedRecoveryCommand?.commandId, 'failoverAgentProvider');
+    expect(appliedRecoveryCommand?.input, profile.profileId);
   });
 
   testWidgets('agent surface dispatches confirmed recovery action', (

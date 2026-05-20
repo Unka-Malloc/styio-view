@@ -1373,6 +1373,18 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     });
   }
 
+  AgentIdeCommandSuggestion _recoveryCommandSuggestion(
+    AgentCodingSessionRecoveryCommandPlan command,
+  ) {
+    return AgentIdeCommandSuggestion(
+      commandId: command.commandId,
+      input: command.requiresProviderSelection
+          ? widget.controller.profile.profileId
+          : null,
+      reason: 'Run ${command.label} recovery.',
+    );
+  }
+
   String _appliedIdeCommandMessage(AgentIdeCommandSuggestion command) {
     final prerequisiteForCommandId = command.prerequisiteForCommandId;
     if (prerequisiteForCommandId == null) {
@@ -1545,6 +1557,13 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
             recoveryPlan.status == AgentCodingSessionRecoveryStatus.available
             ? recoveryPlan.commandFor(recoveryPlan.recommendedAction)
             : null;
+        final recoveryCommands =
+            recoveryPlan.status == AgentCodingSessionRecoveryStatus.available
+            ? recoveryPlan.availableActions
+                  .map(recoveryPlan.commandFor)
+                  .whereType<AgentCodingSessionRecoveryCommandPlan>()
+                  .toList(growable: false)
+            : const <AgentCodingSessionRecoveryCommandPlan>[];
 
         return Container(
           key: const ValueKey('agent-prompt-section'),
@@ -1761,6 +1780,47 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                         recoveryCommand.label,
                         style: theme.textTheme.bodySmall,
                       ),
+                      if (recoveryCommands.length > 1) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Available recovery commands',
+                          style: theme.textTheme.labelMedium,
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final command in recoveryCommands)
+                              OutlinedButton(
+                                key: ValueKey(
+                                  'agent-recovery-command-${command.action.wireValue}',
+                                ),
+                                onPressed:
+                                    widget.onApplyIdeCommandSuggestion ==
+                                            null ||
+                                        applyingAction ||
+                                        controller.sending
+                                    ? null
+                                    : () => unawaited(
+                                        _applyIdeCommandSuggestion(
+                                          _recoveryCommandSuggestion(command),
+                                        ),
+                                      ),
+                                child: Text(command.label),
+                              ),
+                          ],
+                        ),
+                        if (recoveryCommands.any(
+                          (command) => command.requiresProviderSelection,
+                        )) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Provider-selection commands use the current mounted profile id: ${controller.profile.profileId}. TODO: replace this with a saved-profile picker.',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ],
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,

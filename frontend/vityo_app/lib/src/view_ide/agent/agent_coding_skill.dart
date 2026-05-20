@@ -362,6 +362,10 @@ class AgentCodingSkillCatalog {
     required String activeDocumentId,
     required Iterable<String> workspaceFiles,
     bool styioServiceAvailable = false,
+    String? styioServiceCapabilityHealth,
+    int styioServiceMissingCapabilityCount = 0,
+    int styioServiceBlockedCapabilityCount = 0,
+    bool styioSemanticFactsReady = false,
   }) {
     final normalizedPaths = <String>[
       activeDocumentId,
@@ -413,6 +417,10 @@ class AgentCodingSkillCatalog {
         hasStyio
             ? 'Styio source files require StyioService-backed syntax and semantic facts instead of Vityo-side grammar guesses.'
             : 'StyioService status is available, so Agent coding should prefer real language facts over generic editing guesses.',
+        if (styioServiceCapabilityHealth != null)
+          'StyioService capability health is $styioServiceCapabilityHealth with $styioServiceMissingCapabilityCount missing and $styioServiceBlockedCapabilityCount blocked capability/capabilities.',
+        if (!styioSemanticFactsReady)
+          'Styio semantic facts are not ready, so avoid symbol-sensitive edits unless resolvedElement, resolvedReference, or semantic panel facts are present.',
       ]);
       activate('styio-ide-feature-loop', <String>[
         hasStyio

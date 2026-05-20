@@ -146,6 +146,18 @@ void main() {
     );
     expect(
       decoded.systemPrompt,
+      contains('language.serviceStatus.capabilityHealth'),
+    );
+    expect(
+      decoded.systemPrompt,
+      contains('language.serviceStatus.missingCapabilityCount'),
+    );
+    expect(
+      decoded.systemPrompt,
+      contains('language.serviceStatus.blockedCapabilityCount'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('language.serviceStatus.syntaxValidationReady'),
     );
     expect(

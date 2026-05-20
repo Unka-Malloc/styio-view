@@ -519,6 +519,9 @@ void main() {
               'severity': 'ready',
               'syntaxValidationReady': true,
               'semanticFactsReady': false,
+              'capabilityHealth': 'degraded',
+              'missingCapabilityCount': 3,
+              'blockedCapabilityCount': 1,
             },
             'testing': <String, Object?>{
               'hasLastRun': true,
@@ -595,7 +598,7 @@ void main() {
         commandResultTurn.text,
         contains(
           'languageServiceStatus: severity=ready, syntaxReady=true, '
-          'semanticReady=false',
+          'semanticReady=false, health=degraded, missing=3, blocked=1',
         ),
       );
       expect(

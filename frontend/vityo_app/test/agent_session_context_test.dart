@@ -2402,6 +2402,18 @@ void main() {
         'StyioService status is available, so Agent coding should prefer real language facts over generic editing guesses.',
       ),
     );
+    expect(
+      activationReasons['styio-language-service-truth'],
+      contains(
+        'StyioService capability health is degraded with 1 missing and 1 blocked capability/capabilities.',
+      ),
+    );
+    expect(
+      activationReasons['styio-language-service-truth'],
+      contains(
+        'Styio semantic facts are not ready, so avoid symbol-sensitive edits unless resolvedElement, resolvedReference, or semantic panel facts are present.',
+      ),
+    );
   });
 
   test(

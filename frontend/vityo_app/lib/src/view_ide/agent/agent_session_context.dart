@@ -244,6 +244,13 @@ class AgentSessionContext {
             (languageServiceStatus.usableCapabilityCount > 0 ||
                 languageServiceStatus.toolchainId.isNotEmpty ||
                 languageServiceStatus.primaryCapabilityStates.isNotEmpty),
+        styioServiceCapabilityHealth: languageServiceStatus?.capabilityHealth,
+        styioServiceMissingCapabilityCount:
+            languageServiceStatus?.missingCapabilityCount ?? 0,
+        styioServiceBlockedCapabilityCount:
+            languageServiceStatus?.blockedCapabilityCount ?? 0,
+        styioSemanticFactsReady:
+            languageServiceStatus?.semanticFactsReady ?? false,
       ),
       testing: AgentTestingContext.fromState(
         discovery: testDiscovery,

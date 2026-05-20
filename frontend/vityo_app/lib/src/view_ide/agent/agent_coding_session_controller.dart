@@ -1178,10 +1178,22 @@ List<String> _ideCommandMetadataConversationLines(
     final semanticReady = _conversationMetadataScalarText(
       languageServiceStatus['semanticFactsReady'],
     );
+    final health = _conversationMetadataScalarText(
+      languageServiceStatus['capabilityHealth'],
+    );
+    final missing = _conversationMetadataScalarText(
+      languageServiceStatus['missingCapabilityCount'],
+    );
+    final blocked = _conversationMetadataScalarText(
+      languageServiceStatus['blockedCapabilityCount'],
+    );
     lines.add(
       'languageServiceStatus: severity=${severity ?? 'unknown'}, '
       'syntaxReady=${syntaxReady ?? 'unknown'}, '
-      'semanticReady=${semanticReady ?? 'unknown'}',
+      'semanticReady=${semanticReady ?? 'unknown'}, '
+      'health=${health ?? 'unknown'}, '
+      'missing=${missing ?? 'unknown'}, '
+      'blocked=${blocked ?? 'unknown'}',
     );
   }
   final testing = metadata['testing'];

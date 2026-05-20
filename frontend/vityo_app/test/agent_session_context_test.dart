@@ -917,6 +917,9 @@ void main() {
     expect(languageServiceStatus['capabilityHealth'], 'degraded');
     expect(languageServiceStatus['missingCapabilityCount'], 1);
     expect(languageServiceStatus['blockedCapabilityCount'], 1);
+    expect(languageServiceStatus['providerReadiness'], 'degraded');
+    expect(languageServiceStatus['providerReadinessSummary'], contains('8/10'));
+    expect(languageServiceStatus['providerMissingCapabilityCount'], 2);
     expect(languageServiceStatus['localFallbackEnabled'], isTrue);
     expect(languageServiceStatus['syntaxValidationReady'], isTrue);
     expect(languageServiceStatus['semanticFactsReady'], isFalse);
@@ -2411,6 +2414,12 @@ void main() {
     expect(
       activationReasons['styio-language-service-truth'],
       contains(
+        'Styio language provider readiness is degraded with 2 missing IDE language capability/capabilities.',
+      ),
+    );
+    expect(
+      activationReasons['styio-language-service-truth'],
+      contains(
         'Styio semantic facts are not ready, so avoid symbol-sensitive edits unless resolvedElement, resolvedReference, or semantic panel facts are present.',
       ),
     );
@@ -2711,6 +2720,10 @@ const _agentLanguageServiceStatus = LanguageServiceStatusSurface(
   capabilityHealth: 'degraded',
   missingCapabilityCount: 1,
   blockedCapabilityCount: 1,
+  providerReadiness: 'degraded',
+  providerReadinessSummary:
+      'Styio language providers cover 8/10 required IDE capabilities.',
+  providerMissingCapabilityCount: 2,
   primaryCapabilityStates: <String, String>{
     'diagnostics': 'available',
     'completion': 'derived',

@@ -249,6 +249,9 @@ class AgentSessionContext {
             languageServiceStatus?.missingCapabilityCount ?? 0,
         styioServiceBlockedCapabilityCount:
             languageServiceStatus?.blockedCapabilityCount ?? 0,
+        styioProviderReadiness: languageServiceStatus?.providerReadiness,
+        styioProviderMissingCapabilityCount:
+            languageServiceStatus?.providerMissingCapabilityCount ?? 0,
         styioSemanticFactsReady:
             languageServiceStatus?.semanticFactsReady ?? false,
       ),
@@ -2674,6 +2677,9 @@ class AgentLanguageServiceStatusContext {
     required this.capabilityHealth,
     required this.missingCapabilityCount,
     required this.blockedCapabilityCount,
+    required this.providerReadiness,
+    required this.providerMissingCapabilityCount,
+    this.providerReadinessSummary = '',
     this.toolchainId = '',
     this.parserEngine,
     this.grammarVersion,
@@ -2698,6 +2704,9 @@ class AgentLanguageServiceStatusContext {
   final String capabilityHealth;
   final int missingCapabilityCount;
   final int blockedCapabilityCount;
+  final String providerReadiness;
+  final String providerReadinessSummary;
+  final int providerMissingCapabilityCount;
 
   factory AgentLanguageServiceStatusContext.fromSurface(
     LanguageServiceStatusSurface surface,
@@ -2726,6 +2735,9 @@ class AgentLanguageServiceStatusContext {
       capabilityHealth: surface.capabilityHealth,
       missingCapabilityCount: surface.missingCapabilityCount,
       blockedCapabilityCount: surface.blockedCapabilityCount,
+      providerReadiness: surface.providerReadiness,
+      providerReadinessSummary: surface.providerReadinessSummary,
+      providerMissingCapabilityCount: surface.providerMissingCapabilityCount,
     );
   }
 
@@ -2752,6 +2764,10 @@ class AgentLanguageServiceStatusContext {
       'capabilityHealth': capabilityHealth,
       'missingCapabilityCount': missingCapabilityCount,
       'blockedCapabilityCount': blockedCapabilityCount,
+      'providerReadiness': providerReadiness,
+      if (providerReadinessSummary.isNotEmpty)
+        'providerReadinessSummary': providerReadinessSummary,
+      'providerMissingCapabilityCount': providerMissingCapabilityCount,
     };
   }
 }

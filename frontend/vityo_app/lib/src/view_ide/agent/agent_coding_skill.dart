@@ -365,6 +365,8 @@ class AgentCodingSkillCatalog {
     String? styioServiceCapabilityHealth,
     int styioServiceMissingCapabilityCount = 0,
     int styioServiceBlockedCapabilityCount = 0,
+    String? styioProviderReadiness,
+    int styioProviderMissingCapabilityCount = 0,
     bool styioSemanticFactsReady = false,
   }) {
     final normalizedPaths = <String>[
@@ -419,6 +421,8 @@ class AgentCodingSkillCatalog {
             : 'StyioService status is available, so Agent coding should prefer real language facts over generic editing guesses.',
         if (styioServiceCapabilityHealth != null)
           'StyioService capability health is $styioServiceCapabilityHealth with $styioServiceMissingCapabilityCount missing and $styioServiceBlockedCapabilityCount blocked capability/capabilities.',
+        if (styioProviderReadiness != null)
+          'Styio language provider readiness is $styioProviderReadiness with $styioProviderMissingCapabilityCount missing IDE language capability/capabilities.',
         if (!styioSemanticFactsReady)
           'Styio semantic facts are not ready, so avoid symbol-sensitive edits unless resolvedElement, resolvedReference, or semantic panel facts are present.',
       ]);

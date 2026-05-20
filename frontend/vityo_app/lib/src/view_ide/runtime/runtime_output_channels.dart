@@ -484,6 +484,142 @@ class RuntimeOutputProducerAdapterRegistry {
   }
 }
 
+class RuntimeOutputProducerBindingState {
+  const RuntimeOutputProducerBindingState({
+    required this.producerId,
+    required this.status,
+    this.managerId = '',
+    this.routeKind = '',
+    this.defaultChannelId = '',
+    this.message = '',
+    this.todo = '',
+  });
+
+  final String producerId;
+  final RuntimeOutputSubscriptionStatus status;
+  final String managerId;
+  final String routeKind;
+  final String defaultChannelId;
+  final String message;
+  final String todo;
+
+  bool get active => status == RuntimeOutputSubscriptionStatus.active;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'producerId': producerId,
+      'status': status.wireValue,
+      if (managerId.isNotEmpty) 'managerId': managerId,
+      if (routeKind.isNotEmpty) 'routeKind': routeKind,
+      if (defaultChannelId.isNotEmpty) 'defaultChannelId': defaultChannelId,
+      if (message.isNotEmpty) 'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class RuntimeOutputProducerBindingController {
+  RuntimeOutputProducerBindingController({
+    required RuntimeOutputProducerAdapterRegistry adapters,
+    required RuntimeOutputLiveBuffer buffer,
+  }) : _adapters = adapters,
+       _buffer = buffer;
+
+  final RuntimeOutputProducerAdapterRegistry _adapters;
+  final RuntimeOutputLiveBuffer _buffer;
+  final Map<String, StreamSubscription<RuntimeOutputProducerEmission>>
+  _subscriptions =
+      <String, StreamSubscription<RuntimeOutputProducerEmission>>{};
+  final Map<String, RuntimeOutputProducerBindingState> _states =
+      <String, RuntimeOutputProducerBindingState>{};
+
+  List<RuntimeOutputProducerBindingState> get bindings {
+    final values = _states.values.toList(growable: false);
+    values.sort((left, right) => left.producerId.compareTo(right.producerId));
+    return values;
+  }
+
+  bool get hasActiveBindings {
+    return bindings.any((binding) => binding.active);
+  }
+
+  RuntimeOutputProducerBindingState? lookup(String producerId) {
+    return _states[producerId];
+  }
+
+  RuntimeOutputProducerBindingState bindProducer({
+    required String producerId,
+    required Stream<RuntimeOutputProducerEmission> emissions,
+  }) {
+    final adapter = _adapters.lookup(producerId);
+    if (adapter == null) {
+      final blocked = RuntimeOutputProducerBindingState(
+        producerId: producerId,
+        status: RuntimeOutputSubscriptionStatus.blocked,
+        message: 'No RuntimeOutputProducerAdapter registered.',
+        todo:
+            'TODO: register this producer before wiring concrete manager streams.',
+      );
+      _states[producerId] = blocked;
+      return blocked;
+    }
+
+    final previousSubscription = _subscriptions.remove(producerId);
+    previousSubscription?.cancel();
+    _subscriptions[producerId] = adapter.bind(emissions, _buffer);
+    final active = RuntimeOutputProducerBindingState(
+      producerId: producerId,
+      status: RuntimeOutputSubscriptionStatus.active,
+      managerId: adapter.descriptor.managerId,
+      routeKind: adapter.descriptor.routeKind,
+      defaultChannelId: adapter.defaultChannelId,
+      message: 'Runtime output producer stream bound.',
+      todo: adapter.descriptor.todo,
+    );
+    _states[producerId] = active;
+    return active;
+  }
+
+  Future<bool> unbindProducer(String producerId) async {
+    final subscription = _subscriptions.remove(producerId);
+    if (subscription == null) {
+      return false;
+    }
+    await subscription.cancel();
+    final existing = _states[producerId];
+    _states[producerId] = RuntimeOutputProducerBindingState(
+      producerId: producerId,
+      status: RuntimeOutputSubscriptionStatus.pending,
+      managerId: existing?.managerId ?? '',
+      routeKind: existing?.routeKind ?? '',
+      defaultChannelId: existing?.defaultChannelId ?? '',
+      message: 'Runtime output producer stream detached.',
+      todo:
+          existing?.todo ??
+          'TODO: reconnect this producer when the manager stream restarts.',
+    );
+    return true;
+  }
+
+  Future<void> dispose() async {
+    final subscriptions = _subscriptions.values.toList(growable: false);
+    _subscriptions.clear();
+    for (final subscription in subscriptions) {
+      await subscription.cancel();
+    }
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'bindingCount': bindings.length,
+      'activeBindingCount': bindings.where((binding) => binding.active).length,
+      'bindings': bindings
+          .map((binding) => binding.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
 class RuntimeOutputChannelFilterState {
   const RuntimeOutputChannelFilterState({
     this.channelIds = const <String>[],

@@ -314,6 +314,51 @@ void main() {
   );
 
   test(
+    'runtime output producer binding controller manages live producer streams',
+    () async {
+      final bindingController = RuntimeOutputProducerBindingController(
+        adapters: RuntimeOutputProducerAdapterRegistry.defaultAdapters(),
+        buffer: RuntimeOutputLiveBuffer(),
+      );
+      final shellStream = StreamController<RuntimeOutputProducerEmission>();
+      addTearDown(shellStream.close);
+      addTearDown(bindingController.dispose);
+
+      final active = bindingController.bindProducer(
+        producerId: 'shell-manager',
+        emissions: shellStream.stream,
+      );
+      final blocked = bindingController.bindProducer(
+        producerId: 'unknown-manager',
+        emissions: const Stream<RuntimeOutputProducerEmission>.empty(),
+      );
+
+      shellStream.add(
+        RuntimeOutputProducerEmission.stdout(
+          message: 'shell manager ready',
+          timestamp: DateTime.utc(2026, 5, 20, 12),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(active.active, isTrue);
+      expect(active.defaultChannelId, 'runtime.shell');
+      expect(blocked.status, RuntimeOutputSubscriptionStatus.blocked);
+      expect(bindingController.hasActiveBindings, isTrue);
+      expect(
+        bindingController.lookup('shell-manager')?.managerId,
+        'shell-manager',
+      );
+      expect(bindingController.toJson()['activeBindingCount'], 1);
+      expect(await bindingController.unbindProducer('shell-manager'), isTrue);
+      expect(
+        bindingController.lookup('shell-manager')?.status,
+        RuntimeOutputSubscriptionStatus.pending,
+      );
+    },
+  );
+
+  test(
     'runtime output live buffer binds streams and emits snapshots',
     () async {
       final plan = RuntimeOutputStreamSubscriptionPlan.forManager(

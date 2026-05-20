@@ -117,6 +117,12 @@ void main() {
     );
     expect(
       entriesById['presentation.output-panel']?.summary,
+      contains(
+        'RuntimeOutputProducerBindingController multi-producer live binding',
+      ),
+    );
+    expect(
+      entriesById['presentation.output-panel']?.summary,
       contains('live RuntimeOutputLiveBuffer agent activity'),
     );
     expect(

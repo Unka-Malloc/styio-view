@@ -473,6 +473,13 @@ void main() {
       expect(agentRefreshApplied, isTrue);
       expect(agentRefreshResult?.commandId, 'refreshSourceControl');
       expect(agentRefreshResult?.message, contains('Source control refreshed'));
+
+      await shell.executeCommand(AppCommandId.previewQuickFix);
+      final semanticLanguageJson =
+          shell.agentSessionContext.toJson()['language']!
+              as Map<String, Object?>;
+      expect(shell.semanticProblemsPanelViewModel?.codeActionCount, 1);
+      expect(semanticLanguageJson['semanticPanelViewModelCount'], 1);
     },
   );
 
@@ -904,6 +911,7 @@ void main() {
       expect(renamedLibrary.text, contains('#combine := () =>'));
       expect(renamedLibrary.text, isNot(contains('#blend := () =>')));
       expect(shell.dirtyDocumentPaths, contains(mainPath));
+      expect(shell.semanticRefactorPanelViewModel?.renameSafetyCount, 1);
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Project rename applied: blend -> combine'),
@@ -981,6 +989,7 @@ void main() {
     final previewResult = commandShell.agentSessionContext.commands.lastResult;
     expect(previewResult?.commandId, 'previewQuickFix');
     expect(previewResult?.applied, isTrue);
+    expect(commandShell.semanticProblemsPanelViewModel?.codeActionCount, 1);
     expect(
       previewResult?.metadata['workspaceEditPreview'],
       isA<Map<String, Object?>>(),
@@ -994,6 +1003,7 @@ void main() {
     await commandShell.executeCommand(AppCommandId.applyQuickFix);
 
     expect(commandShell.lastWorkspaceEditApplyResult?.successful, isTrue);
+    expect(commandShell.semanticProblemsPanelViewModel?.codeActionCount, 2);
     expect(
       commandShell.lastWorkspaceEditApplyResult?.appliedEditCount,
       greaterThan(0),

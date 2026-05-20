@@ -1277,19 +1277,45 @@ class ShellRuntimeModel extends ChangeNotifier {
     required String message,
     Map<String, Object?> metadata = const <String, Object?>{},
   }) {
+    final timestamp = DateTime.now().toUtc();
     runtimeOutputBuffer.addEvent(
       RuntimeOutputEvent(
         channelId: 'diagnostics.activity',
         label: 'Diagnostics Activity',
         kind: RuntimeOutputChannelKind.languageService,
         message: message,
-        timestamp: DateTime.now().toUtc(),
+        timestamp: timestamp,
         metadata: <String, Object?>{
           'action': action,
           'succeeded': succeeded,
           'activeDocumentPath': _activeDocumentPath,
           ...metadata,
         },
+      ),
+    );
+    final semanticKind = switch (action) {
+      'previewQuickFix' => SemanticSnapshotTelemetryEventKind
+          .codeActionDiscovery,
+      'applyQuickFix' => SemanticSnapshotTelemetryEventKind.codeActionApply,
+      _ => null,
+    };
+    if (semanticKind == null) {
+      return;
+    }
+    unawaited(
+      recordSemanticPanelEvent(
+        SemanticSnapshotPanelEvent(
+          target: SemanticSnapshotPanelEventTarget.problems,
+          kind: semanticKind,
+          documentId: _activeDocumentPath,
+          message: message,
+          payload: <String, Object?>{
+            'action': action,
+            'succeeded': succeeded,
+            ...metadata,
+          },
+          timestamp: timestamp,
+        ),
       ),
     );
   }
@@ -1723,18 +1749,69 @@ class ShellRuntimeModel extends ChangeNotifier {
       newName: newName,
     );
     if (projectPreview != null) {
-      return _applyProjectRenamePreview(projectPreview);
+      final applied = await _applyProjectRenamePreview(projectPreview);
+      await _recordRenameSafetyTelemetry(
+        safe: applied,
+        newName: projectPreview.newName,
+        targetName: projectPreview.oldName,
+        message: applied
+            ? 'Rename ${projectPreview.oldName} to ${projectPreview.newName} is safe.'
+            : 'Rename ${projectPreview.oldName} to ${projectPreview.newName} is blocked.',
+        metadata: <String, Object?>{
+          'editCount': projectPreview.editCount,
+          'documentCount': projectPreview.editsByDocument.length,
+          if (projectPreview.conflict != null)
+            'conflict': projectPreview.conflict,
+        },
+      );
+      return applied;
     }
     if (editorController.applyRename(newName)) {
       _cacheDocument(_activeDocumentPath, editorController.document);
       _dirtyDocumentPaths.add(_activeDocumentPath);
       appendLog('Rename symbol applied at editor selection.');
+      await _recordRenameSafetyTelemetry(
+        safe: true,
+        newName: newName,
+        message: 'Rename to $newName is safe at editor selection.',
+        metadata: const <String, Object?>{'scope': 'editor-selection'},
+      );
       notifyListeners();
       return true;
     }
     appendLog('Rename symbol skipped: no safe rename available at selection.');
+    await _recordRenameSafetyTelemetry(
+      safe: false,
+      newName: newName,
+      message: 'Rename to $newName is blocked at editor selection.',
+      metadata: const <String, Object?>{'scope': 'editor-selection'},
+    );
     notifyListeners();
     return false;
+  }
+
+  Future<void> _recordRenameSafetyTelemetry({
+    required bool safe,
+    required String newName,
+    required String message,
+    String targetName = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return recordSemanticPanelEvent(
+      SemanticSnapshotPanelEvent(
+        target: SemanticSnapshotPanelEventTarget.refactor,
+        kind: SemanticSnapshotTelemetryEventKind.renameSafety,
+        documentId: _activeDocumentPath,
+        message: message,
+        payload: <String, Object?>{
+          'safe': safe,
+          if (targetName.isNotEmpty) 'targetName': targetName,
+          'newName': newName,
+          ...metadata,
+        },
+        timestamp: DateTime.now().toUtc(),
+      ),
+    );
   }
 
   Future<bool> _applyProjectRenamePreview(

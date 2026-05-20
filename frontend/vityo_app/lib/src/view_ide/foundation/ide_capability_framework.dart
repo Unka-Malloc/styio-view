@@ -292,7 +292,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'SemanticSnapshotProvider converts StyioService analysis into resolved elements/references, exposes StyioService-backed code action raw edit facts, code action apply/result telemetry, document rename safety facts, workspace rename safety facts, SemanticSnapshotEventBridge runtime-output events, Problems/Refactor panel event sink dispatching, SemanticSnapshotPanelEventStateController, SemanticSnapshotPanelViewModel Problems/Refactor projections, concrete Problems and Refactor panel projection rendering, SemanticSnapshotPanelEventStore persisted telemetry with retention policy, ShellRuntimeModel lifecycle hydration, Agent context projection, publishes a feature coverage matrix for hover/definition/references/completion/rename/code action consumers, and only falls back to local snapshots when service semantic facts are missing.',
           todo:
-              'TODO: connect every production StyioService rename/code-action telemetry emitter to semantic panel recording.',
+              'TODO: connect remaining production StyioService semantic-token and diagnostics telemetry emitters to panel recording.',
           references: <String>[
             'LSP textDocument/semanticTokens',
             'IntelliJ PSI and symbol resolve',

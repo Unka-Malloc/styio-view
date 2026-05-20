@@ -937,6 +937,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       sourceControlContext: sourceControlStatusController?.agentContextSnapshot,
       testDiscovery: testDiscovery,
       lastTestRun: lastTestRun,
+      testRunConfigurationSet: testRunConfigurationSet,
       workspaceRoot: workspaceController.activeProject.workspaceRoot,
       activeFilePath: workspaceController.activeFilePath,
       toolchainSnapshot:
@@ -1416,6 +1417,19 @@ class ShellRuntimeModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  TestRunConfiguration? _testRunConfigurationForId(String configurationId) {
+    final normalizedId = configurationId.trim();
+    if (normalizedId.isEmpty) {
+      return null;
+    }
+    for (final configuration in testRunConfigurationSet.configurations) {
+      if (configuration.id == normalizedId) {
+        return configuration;
+      }
+    }
+    return null;
+  }
+
   void selectTestRunConfiguration(TestRunConfiguration configuration) {
     _selectedTestRunConfigurationId = configuration.id;
     appendLog('Selected test run configuration ${configuration.id}.');
@@ -1493,6 +1507,19 @@ class ShellRuntimeModel extends ChangeNotifier {
       'failedRetryHistory': failedTestRetryHistory
           .map((record) => record.toJson())
           .toList(growable: false),
+    };
+  }
+
+  Map<String, Object?> _testConfigurationCommandMetadata({
+    TestRunConfiguration? configuration,
+    TestRunResult? result,
+  }) {
+    return <String, Object?>{
+      'availableConfigurationIds': testRunConfigurationSet.configurations
+          .map((configuration) => configuration.id)
+          .toList(growable: false),
+      if (configuration != null) 'configuration': configuration.toJson(),
+      ..._agentTestingCommandMetadata(result),
     };
   }
 
@@ -3237,6 +3264,47 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: _agentTestingCommandMetadata(result),
         );
         return applied;
+      case 'runTestConfiguration':
+      case 'debugTestConfiguration':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        final input = suggestion.input?.trim();
+        final configuration = input == null || input.isEmpty
+            ? null
+            : _testRunConfigurationForId(input);
+        if (configuration == null) {
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message:
+                'Agent command ${suggestion.commandId} skipped: valid test configuration id input is required.',
+            metadata: _testConfigurationCommandMetadata(),
+          );
+          return false;
+        }
+        if (suggestion.commandId == 'debugTestConfiguration') {
+          await debugTestConfiguration(configuration);
+        } else {
+          await runTestConfiguration(configuration);
+        }
+        final result = lastTestRun;
+        final applied = _agentTestingCommandApplied(result);
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: applied,
+          message: result == null
+              ? 'Agent command ${suggestion.commandId} skipped: no test result is available.'
+              : _testRunResultMessage(
+                  'Agent command ${suggestion.commandId}',
+                  result,
+                ),
+          metadata: _testConfigurationCommandMetadata(
+            configuration: configuration,
+            result: result,
+          ),
+        );
+        return applied;
       default:
         _recordAgentIdeCommandResult(
           suggestion,
@@ -3891,6 +3959,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.applyWorkspaceReplace:
       case AppCommandId.rerunFailedTests:
       case AppCommandId.debugFailedTests:
+      case AppCommandId.runTestConfiguration:
+      case AppCommandId.debugTestConfiguration:
       case AppCommandId.goToDefinition:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
@@ -3930,6 +4000,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.run:
       case AppCommandId.rerunFailedTests:
       case AppCommandId.debugFailedTests:
+      case AppCommandId.runTestConfiguration:
+      case AppCommandId.debugTestConfiguration:
       case AppCommandId.fetchDependencies:
       case AppCommandId.vendorDependencies:
       case AppCommandId.useActiveCompiler:
@@ -6720,6 +6792,16 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: _agentTestingCommandMetadata(result),
         );
         return;
+      case AppCommandId.runTestConfiguration:
+      case AppCommandId.debugTestConfiguration:
+        _recordAgentIdeCommandResult(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+          applied: false,
+          message:
+              '${StyioCommandRegistry.descriptorFor(commandId).label} requires test configuration id input.',
+          metadata: _testConfigurationCommandMetadata(),
+        );
+        return;
       case AppCommandId.renameSymbol:
         appendLog('Rename Symbol requires caller-provided input.');
         return;
@@ -6801,6 +6883,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.planSourceControlBranchSwitch:
       case AppCommandId.planSourceControlCommitDraft:
       case AppCommandId.selectClangCppVersion:
+      case AppCommandId.runTestConfiguration:
+      case AppCommandId.debugTestConfiguration:
         await applyAgentIdeCommandSuggestion(
           AgentIdeCommandSuggestion(
             commandId: commandId.name,
@@ -7117,6 +7201,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.runTests:
       case AppCommandId.rerunFailedTests:
       case AppCommandId.debugFailedTests:
+      case AppCommandId.runTestConfiguration:
+      case AppCommandId.debugTestConfiguration:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
       case AppCommandId.renameSymbol:

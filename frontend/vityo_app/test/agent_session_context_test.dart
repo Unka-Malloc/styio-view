@@ -376,6 +376,18 @@ void main() {
           TestCaseResult(name: 'syntax contract', status: TestRunStatus.failed),
         ],
       ),
+      testRunConfigurationSet: const TestRunConfigurationSet(
+        workspaceId: '/workspace/demo',
+        selectedConfigurationId: 'all-tests',
+        configurations: <TestRunConfiguration>[
+          TestRunConfiguration(
+            id: 'all-tests',
+            label: 'All Tests',
+            workspaceRoot: '/workspace/demo',
+            providerId: 'ctest',
+          ),
+        ],
+      ),
       toolchainSnapshot: const ToolchainStateSnapshot(
         targetId: 'agent-toolchain',
         entries: <ToolchainStateEntry>[
@@ -487,8 +499,10 @@ void main() {
         testingJson['debugFailed']! as Map<String, Object?>;
     final testingDebugRoute =
         testingJson['debugFailedRoutePlan']! as Map<String, Object?>;
+    final testingConfigurationSet =
+        testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 56);
+    expect(json['schemaVersion'], 57);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -522,6 +536,8 @@ void main() {
     expect(testingDiscovery['testCount'], 1);
     expect(testingLastRun['status'], 'failed');
     expect(testingLastRun['failedCount'], 1);
+    expect(testingConfigurationSet['configurationCount'], 1);
+    expect(testingConfigurationSet['selectedConfigurationId'], 'all-tests');
     expect(testingRerunFailed['id'], 'rerun-failed');
     expect(testingRerunFailed['workspaceRoot'], '/workspace/demo');
     expect(testingRerunFailed['filter'], contains('syntax contract'));
@@ -1126,7 +1142,12 @@ void main() {
       testingCommands.map(
         (command) => (command! as Map<String, Object?>)['id'],
       ),
-      <String>['rerunFailedTests', 'debugFailedTests'],
+      <String>[
+        'rerunFailedTests',
+        'debugFailedTests',
+        'runTestConfiguration',
+        'debugTestConfiguration',
+      ],
     );
     expect(
       (debugCommands.first! as Map<String, Object?>)['id'],
@@ -1581,7 +1602,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 56);
+    expect(json['schemaVersion'], 57);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1856,7 +1877,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 56);
+    expect(context.schemaVersion, 57);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

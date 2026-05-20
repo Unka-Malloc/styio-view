@@ -148,6 +148,8 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.runTests:
       case AppCommandId.rerunFailedTests:
       case AppCommandId.debugFailedTests:
+      case AppCommandId.runTestConfiguration:
+      case AppCommandId.debugTestConfiguration:
       case AppCommandId.nextReference:
       case AppCommandId.previousReference:
       case AppCommandId.renameSymbol:

@@ -591,6 +591,57 @@ void main() {
       );
       expect(shell.failedTestRetryHistory, hasLength(2));
 
+      final missingRunConfigurationApplied = await shell
+          .applyAgentIdeCommandSuggestion(
+            const AgentIdeCommandSuggestion(commandId: 'runTestConfiguration'),
+          );
+      final missingRunConfigurationResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(missingRunConfigurationApplied, isFalse);
+      expect(
+        missingRunConfigurationResult?.metadata['availableConfigurationIds'],
+        <String>['all-tests'],
+      );
+
+      final agentRunConfigurationApplied = await shell
+          .applyAgentIdeCommandSuggestion(
+            const AgentIdeCommandSuggestion(
+              commandId: 'runTestConfiguration',
+              input: 'all-tests',
+            ),
+          );
+      final agentRunConfigurationResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(agentRunConfigurationApplied, isTrue);
+      expect(agentRunConfigurationResult?.commandId, 'runTestConfiguration');
+      final runConfiguration =
+          agentRunConfigurationResult?.metadata['configuration']!
+              as Map<String, Object?>;
+      final runConfigurationResult =
+          agentRunConfigurationResult?.metadata['testResult']!
+              as Map<String, Object?>;
+      expect(runConfiguration['id'], 'all-tests');
+      expect(runConfigurationResult['status'], 'passed');
+
+      final agentDebugConfigurationApplied = await shell
+          .applyAgentIdeCommandSuggestion(
+            const AgentIdeCommandSuggestion(
+              commandId: 'debugTestConfiguration',
+              input: 'all-tests',
+            ),
+          );
+      final agentDebugConfigurationResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(agentDebugConfigurationApplied, isTrue);
+      expect(
+        agentDebugConfigurationResult?.commandId,
+        'debugTestConfiguration',
+      );
+      final debugConfiguration =
+          agentDebugConfigurationResult?.metadata['configuration']!
+              as Map<String, Object?>;
+      expect(debugConfiguration['id'], 'all-tests');
+
       await shell.executeCommand(AppCommandId.collectAgentCodingCheckpoint);
       final checkpointCommandResult =
           shell.agentSessionContext.commands.lastResult;
@@ -617,7 +668,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        56,
+        57,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],

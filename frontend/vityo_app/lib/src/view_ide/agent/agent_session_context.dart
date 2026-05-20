@@ -84,6 +84,7 @@ class AgentSessionContext {
     SourceControlAgentContextSnapshot? sourceControlContext,
     TestDiscoveryResult? testDiscovery,
     TestRunResult? lastTestRun,
+    TestRunConfigurationSet? testRunConfigurationSet,
     TokenSpan? focusToken,
     SemanticKind? focusSemanticKind,
     HoverPayload? hover,
@@ -161,7 +162,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 56,
+      schemaVersion: 57,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -268,6 +269,7 @@ class AgentSessionContext {
       testing: AgentTestingContext.fromState(
         discovery: testDiscovery,
         lastRun: lastTestRun,
+        configurationSet: testRunConfigurationSet,
         workspaceRoot: workspaceRoot,
       ),
       toolchains: toolchainContext,
@@ -4435,6 +4437,7 @@ class AgentTestingContext {
   const AgentTestingContext({
     this.discovery,
     this.lastRun,
+    this.configurationSet,
     this.rerunFailed,
     this.debugFailed,
     this.debugFailedRoutePlan,
@@ -4443,6 +4446,7 @@ class AgentTestingContext {
   factory AgentTestingContext.fromState({
     TestDiscoveryResult? discovery,
     TestRunResult? lastRun,
+    TestRunConfigurationSet? configurationSet,
     String workspaceRoot = '',
     FailedTestRerunPlanner rerunPlanner = const FailedTestRerunPlanner(),
   }) {
@@ -4454,6 +4458,7 @@ class AgentTestingContext {
     return AgentTestingContext(
       discovery: discovery,
       lastRun: lastRun,
+      configurationSet: configurationSet,
       rerunFailed: rerunPlanner.plan(
         lastRun: lastRun,
         workspaceRoot: workspaceRoot,
@@ -4467,6 +4472,7 @@ class AgentTestingContext {
 
   final TestDiscoveryResult? discovery;
   final TestRunResult? lastRun;
+  final TestRunConfigurationSet? configurationSet;
   final TestRunConfiguration? rerunFailed;
   final TestRunConfiguration? debugFailed;
   final DebugLaunchRoutePlan? debugFailedRoutePlan;
@@ -4483,6 +4489,8 @@ class AgentTestingContext {
       'hasFailingTests': hasFailingTests,
       if (discovery != null) 'discovered': discovery!.toJson(),
       if (lastRun != null) 'lastRun': lastRun!.toJson(),
+      if (configurationSet != null)
+        'configurationSet': configurationSet!.toJson(),
       if (rerunFailed != null) 'rerunFailed': rerunFailed!.toJson(),
       if (debugFailed != null) 'debugFailed': debugFailed!.toJson(),
       if (debugFailedRoutePlan != null)

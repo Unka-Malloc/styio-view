@@ -50,6 +50,8 @@ enum AppCommandId {
   runTests,
   rerunFailedTests,
   debugFailedTests,
+  runTestConfiguration,
+  debugTestConfiguration,
   goToDefinition,
   nextReference,
   previousReference,
@@ -167,7 +169,9 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.runStaticAnalysis ||
       AppCommandId.runTests => AppCommandCategory.execution,
       AppCommandId.rerunFailedTests ||
-      AppCommandId.debugFailedTests => AppCommandCategory.testing,
+      AppCommandId.debugFailedTests ||
+      AppCommandId.runTestConfiguration ||
+      AppCommandId.debugTestConfiguration => AppCommandCategory.testing,
       AppCommandId.refreshModules => AppCommandCategory.module,
       AppCommandId.openSettings => AppCommandCategory.settings,
     };
@@ -665,6 +669,22 @@ class StyioCommandRegistry {
       shortcutHint: 'Route',
       description:
           'Start the debug test route for failed tests from the latest IDE test session.',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.runTestConfiguration,
+      label: 'Run Test Configuration',
+      shortcutHint: 'Route',
+      description: 'Run an IDE test configuration by id.',
+      requiresInput: true,
+      inputLabel: 'Test configuration id',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.debugTestConfiguration,
+      label: 'Debug Test Configuration',
+      shortcutHint: 'Route',
+      description: 'Start the debug route for an IDE test configuration by id.',
+      requiresInput: true,
+      inputLabel: 'Test configuration id',
     ),
     AppCommandDescriptor(
       id: AppCommandId.nextReference,

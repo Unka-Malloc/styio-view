@@ -87,6 +87,12 @@ void main() {
       final debugFailedTests = StyioCommandRegistry.descriptorFor(
         AppCommandId.debugFailedTests,
       );
+      final runTestConfiguration = StyioCommandRegistry.descriptorFor(
+        AppCommandId.runTestConfiguration,
+      );
+      final debugTestConfiguration = StyioCommandRegistry.descriptorFor(
+        AppCommandId.debugTestConfiguration,
+      );
       final toggleBreakpoint = StyioCommandRegistry.descriptorFor(
         AppCommandId.toggleBreakpoint,
       );
@@ -248,6 +254,14 @@ void main() {
       expect(debugFailedTests.label, 'Debug Failed Tests');
       expect(debugFailedTests.category, AppCommandCategory.testing);
       expect(debugFailedTests.shortcutHint, 'Route');
+      expect(runTestConfiguration.label, 'Run Test Configuration');
+      expect(runTestConfiguration.category, AppCommandCategory.testing);
+      expect(runTestConfiguration.requiresInput, isTrue);
+      expect(runTestConfiguration.inputLabel, 'Test configuration id');
+      expect(debugTestConfiguration.label, 'Debug Test Configuration');
+      expect(debugTestConfiguration.category, AppCommandCategory.testing);
+      expect(debugTestConfiguration.requiresInput, isTrue);
+      expect(debugTestConfiguration.inputLabel, 'Test configuration id');
       expect(toggleBreakpoint.label, 'Toggle Breakpoint');
       expect(toggleBreakpoint.shortcutHint, 'F9');
       expect(startDebugging.label, 'Start Debugging');
@@ -445,6 +459,8 @@ void main() {
       <AppCommandId>[
         AppCommandId.rerunFailedTests,
         AppCommandId.debugFailedTests,
+        AppCommandId.runTestConfiguration,
+        AppCommandId.debugTestConfiguration,
       ],
     );
     expect(

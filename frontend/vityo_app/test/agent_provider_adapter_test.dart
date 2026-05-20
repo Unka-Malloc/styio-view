@@ -203,7 +203,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      56,
+      57,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -327,7 +327,7 @@ void main() {
       7,
     );
     expect((json['usage']! as Map<String, Object?>)['refactorCommandCount'], 3);
-    expect((json['usage']! as Map<String, Object?>)['testingCommandCount'], 2);
+    expect((json['usage']! as Map<String, Object?>)['testingCommandCount'], 4);
     expect((json['usage']! as Map<String, Object?>)['debugCommandCount'], 7);
     expect(
       (json['usage']! as Map<String, Object?>)['debugReadyCommandCount'],
@@ -751,6 +751,8 @@ void main() {
       expect(systemMessage['content'], contains('commands.testingCommands'));
       expect(systemMessage['content'], contains('rerunFailedTests'));
       expect(systemMessage['content'], contains('debugFailedTests'));
+      expect(systemMessage['content'], contains('runTestConfiguration'));
+      expect(systemMessage['content'], contains('debugTestConfiguration'));
       expect(
         systemMessage['content'],
         contains('commands.nativeToolCommandReadiness'),
@@ -913,7 +915,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 56);
+      expect(metadata['contextSchemaVersion'], 57);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);
@@ -965,7 +967,7 @@ void main() {
       expect(metadata['nativeToolCommandCount'], 4);
       expect(metadata['nativeToolReadyCommandCount'], 1);
       expect(metadata['nativeToolBlockedCommandCount'], 3);
-      expect(metadata['testingCommandCount'], 2);
+      expect(metadata['testingCommandCount'], 4);
       expect(metadata['debugReadyCommandCount'], 1);
       expect(metadata['debugBlockedCommandCount'], 6);
       expect(metadata['activeCompilerId'], 'native-clang-cpp-compiler');
@@ -1024,7 +1026,7 @@ void main() {
       expect(metadata['languageServiceCommandCount'], 1);
       expect(metadata['navigationCommandCount'], 7);
       expect(metadata['refactorCommandCount'], 3);
-      expect(metadata['testingCommandCount'], 2);
+      expect(metadata['testingCommandCount'], 4);
       expect(metadata['debugCommandCount'], 7);
       expect(metadata['settingsCommandCount'], 1);
       expect(metadata['recentCommandResultCount'], 1);

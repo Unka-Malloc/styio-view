@@ -1,4 +1,5 @@
 export 'diagnostics_interaction_model.dart';
+export 'diagnostics_panel_state_store.dart';
 export 'document_resource_binding.dart';
 export 'editor_close_request_surface.dart';
 export 'language_service_status_surface.dart';

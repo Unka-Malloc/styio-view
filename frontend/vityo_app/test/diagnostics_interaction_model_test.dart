@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
@@ -86,4 +90,62 @@ void main() {
     expect(json['actions'], isNotEmpty);
     expect(json['sourceGroups'], isNotEmpty);
   });
+
+  test('diagnostics panel state persists selected problem context', () async {
+    final store = DiagnosticsPanelStateStore.fromDataStore(
+      dataStore: await _createDataStore(),
+    );
+    const diagnostic = WorkspaceDiagnostic(
+      documentId: 'src/main.styio',
+      source: 'styio',
+      diagnostic: Diagnostic(
+        severity: DiagnosticSeverity.warning,
+        code: 'unused-value',
+        message: 'Unused value.',
+        range: SourceRange(start: 12, end: 18),
+      ),
+    );
+    final state = DiagnosticsPanelState.fromDiagnostic(
+      workspaceId: 'demo',
+      diagnostic: diagnostic,
+      filterState: const WorkspaceDiagnosticsFilterState(
+        severities: <DiagnosticSeverity>[DiagnosticSeverity.warning],
+        sources: <String>['styio'],
+      ),
+      updatedAt: DateTime.utc(2026, 5, 20),
+    );
+
+    await store.saveState(state: state);
+    final restored = await store.readState(workspaceId: 'demo');
+
+    expect(restored.hasSelection, isTrue);
+    expect(restored.selectedDocumentId, 'src/main.styio');
+    expect(restored.selectedDiagnosticCode, 'unused-value');
+    expect(restored.selectedRangeStart, 12);
+    expect(restored.selectedRangeEnd, 18);
+    expect(restored.filterState.summary, 'warning · source styio');
+    expect(await store.deleteState(workspaceId: 'demo'), isTrue);
+    expect((await store.readState(workspaceId: 'demo')).hasSelection, isFalse);
+  });
+}
+
+Future<FoundationDataStore> _createDataStore() async {
+  final tempRoot = await Directory.systemTemp.createTemp(
+    'vityo_diagnostics_panel_state_test_',
+  );
+  addTearDown(() => tempRoot.delete(recursive: true));
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: tempRoot.path,
+      homePath: tempRoot.path,
+    ),
+  );
+  return FoundationDataStore(
+    resourceCoordinator: FoundationResourceCoordinator(
+      resourceManager: resourceManager,
+      fileSystemManager: fileSystemManager,
+    ),
+    fileSystemManager: fileSystemManager,
+  );
 }

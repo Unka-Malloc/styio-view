@@ -53,6 +53,133 @@ class TestRunHistory {
   }
 }
 
+class FailedTestRetryRecord {
+  const FailedTestRetryRecord({
+    required this.providerId,
+    required this.status,
+    this.runner = '',
+    this.configurationId = '',
+    this.filter = '',
+    this.debug = false,
+    this.failedCount = 0,
+    this.message = '',
+    this.attemptedAt,
+  });
+
+  factory FailedTestRetryRecord.fromJson(Map<String, Object?> json) {
+    return FailedTestRetryRecord(
+      providerId: json['providerId'] as String? ?? '',
+      runner: json['runner'] as String? ?? '',
+      configurationId: json['configurationId'] as String? ?? '',
+      filter: json['filter'] as String? ?? '',
+      debug: json['debug'] as bool? ?? false,
+      failedCount: json['failedCount'] as int? ?? 0,
+      status: testRunStatusFromWireValue(json['status'] as String?),
+      message: json['message'] as String? ?? '',
+      attemptedAt: DateTime.tryParse(
+        json['attemptedAt'] as String? ?? '',
+      )?.toUtc(),
+    );
+  }
+
+  factory FailedTestRetryRecord.fromResult({
+    required TestRunResult result,
+    TestRunConfiguration? configuration,
+    DateTime? attemptedAt,
+  }) {
+    return FailedTestRetryRecord(
+      providerId: result.providerId,
+      runner: result.runner,
+      configurationId: configuration?.id ?? '',
+      filter: configuration?.filter ?? '',
+      debug: configuration?.debug ?? false,
+      failedCount: result.failedCount,
+      status: result.status,
+      message: result.message,
+      attemptedAt: attemptedAt,
+    );
+  }
+
+  final String providerId;
+  final String runner;
+  final String configurationId;
+  final String filter;
+  final bool debug;
+  final int failedCount;
+  final TestRunStatus status;
+  final String message;
+  final DateTime? attemptedAt;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerId': providerId,
+      if (runner.isNotEmpty) 'runner': runner,
+      if (configurationId.isNotEmpty) 'configurationId': configurationId,
+      if (filter.isNotEmpty) 'filter': filter,
+      'debug': debug,
+      'failedCount': failedCount,
+      'status': status.wireValue,
+      if (message.isNotEmpty) 'message': message,
+      if (attemptedAt != null) 'attemptedAt': attemptedAt!.toIso8601String(),
+    };
+  }
+}
+
+class FailedTestRetryHistory {
+  const FailedTestRetryHistory({
+    required this.workspaceId,
+    this.records = const <FailedTestRetryRecord>[],
+    this.updatedAt,
+  });
+
+  factory FailedTestRetryHistory.fromJson(Map<String, Object?> json) {
+    return FailedTestRetryHistory(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      records: _jsonFailedRetryRecords(json['records']),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final List<FailedTestRetryRecord> records;
+  final DateTime? updatedAt;
+
+  FailedTestRetryHistory append(
+    FailedTestRetryRecord record, {
+    int maxEntries = 30,
+  }) {
+    return FailedTestRetryHistory(
+      workspaceId: workspaceId,
+      records: <FailedTestRetryRecord>[
+        record,
+        ...records,
+      ].take(maxEntries).toList(growable: false),
+      updatedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  FailedTestRetryHistory copyWith({
+    String? workspaceId,
+    List<FailedTestRetryRecord>? records,
+    DateTime? updatedAt,
+  }) {
+    return FailedTestRetryHistory(
+      workspaceId: workspaceId ?? this.workspaceId,
+      records: records ?? this.records,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'retryCount': records.length,
+      'records': records.map((record) => record.toJson()).toList(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
 class TestRunHistoryStore {
   TestRunHistoryStore.fromDataStore({required FoundationDataStore dataStore})
     : this(
@@ -73,6 +200,7 @@ class TestRunHistoryStore {
   static const int schemaVersion = 1;
   static const String _namespaceName = 'interaction.testing.run-history';
   static const String _key = 'runs';
+  static const String _retryKey = 'failed-test-retries';
 
   final FoundationDataStoreOwner _owner;
 
@@ -115,6 +243,47 @@ class TestRunHistoryStore {
     return next;
   }
 
+  Future<void> saveFailedRetryHistory(FailedTestRetryHistory history) {
+    return _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _retryKey,
+      value: history.copyWith(updatedAt: DateTime.now().toUtc()).toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: history.workspaceId,
+    );
+  }
+
+  Future<FailedTestRetryHistory> readFailedRetryHistory({
+    required String workspaceId,
+  }) async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _retryKey,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return FailedTestRetryHistory(workspaceId: workspaceId);
+    }
+    final history = FailedTestRetryHistory.fromJson(value);
+    return history.workspaceId.isEmpty
+        ? history.copyWith(workspaceId: workspaceId)
+        : history;
+  }
+
+  Future<FailedTestRetryHistory> appendFailedRetry({
+    required String workspaceId,
+    required FailedTestRetryRecord record,
+    int maxEntries = 30,
+  }) async {
+    final current = await readFailedRetryHistory(workspaceId: workspaceId);
+    final next = current.append(record, maxEntries: maxEntries);
+    await saveFailedRetryHistory(next);
+    return next;
+  }
+
   Future<bool> deleteHistory({required String workspaceId}) {
     return _owner.delete(
       namespaceName: _namespaceName,
@@ -136,6 +305,22 @@ class TestRunHistoryStore {
       workspaceId: workspaceId,
     );
   }
+}
+
+List<FailedTestRetryRecord> _jsonFailedRetryRecords(Object? value) {
+  if (value is! List) {
+    return const <FailedTestRetryRecord>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (record) => FailedTestRetryRecord.fromJson(
+          record.map(
+            (key, value) => MapEntry<String, Object?>(key.toString(), value),
+          ),
+        ),
+      )
+      .toList(growable: false);
 }
 
 List<TestRunResult> _jsonTestRuns(Object? value) {

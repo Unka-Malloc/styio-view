@@ -620,6 +620,9 @@ class ShellRuntimeModel extends ChangeNotifier {
   TestRunResult? get lastTestRun => testingSessionController?.lastRun;
   List<TestRunResult> get testRunHistory =>
       testingSessionController?.runHistory ?? const <TestRunResult>[];
+  List<FailedTestRetryRecord> get failedTestRetryHistory =>
+      testingSessionController?.failedRetryHistory ??
+      const <FailedTestRetryRecord>[];
   TestRunConfigurationSet get testRunConfigurationSet {
     final workspaceRoot = workspaceController.activeProject.workspaceRoot;
     final lastRun = lastTestRun;

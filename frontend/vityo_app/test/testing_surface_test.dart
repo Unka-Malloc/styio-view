@@ -72,6 +72,18 @@ void main() {
                 failedCount: 1,
               ),
             ],
+            failedRetryHistory: const <FailedTestRetryRecord>[
+              FailedTestRetryRecord(
+                providerId: 'ctest',
+                runner: 'ctest',
+                status: TestRunStatus.failed,
+                configurationId: 'rerun-failed',
+                filter: 'parser rejects invalid resource',
+                debug: true,
+                failedCount: 1,
+                message: 'Retry failed.',
+              ),
+            ],
             configurationSet: const TestRunConfigurationSet(
               workspaceId: 'demo',
               selectedConfigurationId: 'all',
@@ -123,6 +135,7 @@ void main() {
     expect(find.text('Testing'), findsOneWidget);
     expect(find.text('test-runs 1'), findsOneWidget);
     expect(find.text('history 1'), findsOneWidget);
+    expect(find.text('retries 1'), findsOneWidget);
     expect(find.text('configs 2'), findsOneWidget);
     expect(find.text('selected all'), findsOneWidget);
     expect(find.text('config ready'), findsOneWidget);
@@ -132,6 +145,22 @@ void main() {
     expect(find.text('passed 1'), findsOneWidget);
     expect(find.text('failed 1'), findsOneWidget);
     expect(find.text('Run History'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Failed Retry History'),
+      120,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.pump();
+
+    expect(find.text('Failed Retry History'), findsOneWidget);
+    expect(find.text('Debug failed tests'), findsOneWidget);
+    expect(
+      find.text(
+        'failed · ctest · filter parser rejects invalid resource · failed 1',
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('testing-run-tests')));
     await tester.tap(

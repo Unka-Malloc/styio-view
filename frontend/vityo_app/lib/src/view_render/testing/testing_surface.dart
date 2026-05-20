@@ -14,6 +14,7 @@ class TestingSurface extends StatelessWidget {
     this.discovery,
     this.lastRun,
     this.runHistory = const <TestRunResult>[],
+    this.failedRetryHistory = const <FailedTestRetryRecord>[],
     this.configurationSet,
     this.onRunTests,
     this.onRunConfiguration,
@@ -29,6 +30,7 @@ class TestingSurface extends StatelessWidget {
   final TestDiscoveryResult? discovery;
   final TestRunResult? lastRun;
   final List<TestRunResult> runHistory;
+  final List<FailedTestRetryRecord> failedRetryHistory;
   final TestRunConfigurationSet? configurationSet;
   final Future<void> Function()? onRunTests;
   final Future<void> Function(TestRunConfiguration configuration)?
@@ -73,6 +75,7 @@ class TestingSurface extends StatelessWidget {
               children: [
                 Chip(label: Text('test-runs ${testResults.length}')),
                 Chip(label: Text('history ${runHistory.length}')),
+                Chip(label: Text('retries ${failedRetryHistory.length}')),
                 if (configurationSet != null)
                   Chip(
                     label: Text(
@@ -237,6 +240,38 @@ class TestingSurface extends StatelessWidget {
                           ),
                         ),
                     ],
+                    if (failedRetryHistory.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          top: 8,
+                          bottom: 4,
+                        ),
+                        child: Text(
+                          'Failed Retry History',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      ),
+                      for (final record in failedRetryHistory.take(5))
+                        ListTile(
+                          key: ValueKey(
+                            'testing-failed-retry-${record.providerId}-${record.status.wireValue}-${record.debug ? 'debug' : 'run'}',
+                          ),
+                          dense: true,
+                          leading: Icon(
+                            record.debug
+                                ? Icons.bug_report_outlined
+                                : Icons.replay_rounded,
+                          ),
+                          title: Text(
+                            record.debug
+                                ? 'Debug failed tests'
+                                : 'Rerun failed tests',
+                          ),
+                          subtitle: Text(_failedRetrySummary(record)),
+                        ),
+                    ],
                     if (configurationSet?.configurations.isNotEmpty ==
                         true) ...[
                       Padding(
@@ -310,6 +345,16 @@ class TestingSurface extends StatelessWidget {
       ),
     );
   }
+}
+
+String _failedRetrySummary(FailedTestRetryRecord record) {
+  final parts = <String>[
+    record.status.wireValue,
+    if (record.providerId.isNotEmpty) record.providerId,
+    if (record.filter.isNotEmpty) 'filter ${record.filter}',
+    'failed ${record.failedCount}',
+  ];
+  return parts.join(' · ');
 }
 
 String _configurationSummary(TestRunConfiguration configuration) {

@@ -47,6 +47,8 @@ class TestingSessionController extends ChangeNotifier {
   TestRunConfiguration? _lastRunConfiguration;
   RuntimeTaskSnapshot? _lastRuntimeTask;
   final List<TestRunResult> _runHistory = <TestRunResult>[];
+  final List<FailedTestRetryRecord> _failedRetryHistory =
+      <FailedTestRetryRecord>[];
   int _discoveryGeneration = 0;
   int _runGeneration = 0;
 
@@ -57,6 +59,8 @@ class TestingSessionController extends ChangeNotifier {
   RuntimeTaskSnapshot? get lastRuntimeTask => _lastRuntimeTask;
   List<TestRunResult> get runHistory =>
       List<TestRunResult>.unmodifiable(_runHistory);
+  List<FailedTestRetryRecord> get failedRetryHistory =>
+      List<FailedTestRetryRecord>.unmodifiable(_failedRetryHistory);
   bool get hasDiscovery => _discovery != null;
   bool get hasLastRun => _lastRun != null;
 
@@ -85,6 +89,12 @@ class TestingSessionController extends ChangeNotifier {
     _runHistory
       ..clear()
       ..addAll(history.runs.take(20));
+    final failedRetryHistory = await store.readFailedRetryHistory(
+      workspaceId: testRunHistoryWorkspaceId,
+    );
+    _failedRetryHistory
+      ..clear()
+      ..addAll(failedRetryHistory.records.take(20));
     _lastRun = _runHistory.isEmpty ? null : _runHistory.first;
     notifyListeners();
   }
@@ -237,10 +247,21 @@ class TestingSessionController extends ChangeNotifier {
       );
       _storeRunResult(result);
       await _persistTestRunResult(result);
+      await _persistFailedRetryRecord(
+        FailedTestRetryRecord.fromResult(result: result, attemptedAt: _clock()),
+      );
       notifyListeners();
       return result;
     }
-    return runConfiguration(configuration);
+    final result = await runConfiguration(configuration);
+    await _persistFailedRetryRecord(
+      FailedTestRetryRecord.fromResult(
+        result: result,
+        configuration: configuration,
+        attemptedAt: _clock(),
+      ),
+    );
+    return result;
   }
 
   void clear() {
@@ -255,6 +276,7 @@ class TestingSessionController extends ChangeNotifier {
     _lastRunConfiguration = null;
     _lastRuntimeTask = null;
     _runHistory.clear();
+    _failedRetryHistory.clear();
     notifyListeners();
   }
 
@@ -436,5 +458,24 @@ class TestingSessionController extends ChangeNotifier {
       result: result,
       maxEntries: testRunHistoryMaxEntries,
     );
+  }
+
+  Future<void> _persistFailedRetryRecord(FailedTestRetryRecord record) async {
+    _failedRetryHistory.insert(0, record);
+    if (_failedRetryHistory.length > testRunHistoryMaxEntries) {
+      _failedRetryHistory.removeRange(
+        testRunHistoryMaxEntries,
+        _failedRetryHistory.length,
+      );
+    }
+    final store = _testRunHistoryStore;
+    if (store != null) {
+      await store.appendFailedRetry(
+        workspaceId: testRunHistoryWorkspaceId,
+        record: record,
+        maxEntries: testRunHistoryMaxEntries,
+      );
+    }
+    notifyListeners();
   }
 }

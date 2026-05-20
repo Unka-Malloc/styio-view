@@ -558,6 +558,19 @@ void main() {
         (transport.lastBody['reasoning']! as Map<String, Object?>)['effort'],
         'high',
       );
+      final tools = transport.lastBody['tools']! as List<Object?>;
+      final toolNames = tools
+          .whereType<Map<String, Object?>>()
+          .map((tool) => tool['name'])
+          .toList(growable: false);
+      expect(toolNames, contains('vityo_code_patch'));
+      expect(toolNames, contains('vityo_ide_command'));
+      expect(toolNames, contains('vityo_coding_plan'));
+      expect(toolNames, contains('vityo_diagnostic_summary'));
+      expect(transport.lastBody['tool_choice'], 'auto');
+      final firstTool = tools.first! as Map<String, Object?>;
+      final parameters = firstTool['parameters']! as Map<String, Object?>;
+      expect(parameters['required'], contains('contentParts'));
       expect(transport.lastBody['instructions'], contains('contentParts'));
       expect(transport.lastBody['input'], isA<List<Object?>>());
       expect(

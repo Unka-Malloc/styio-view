@@ -1175,11 +1175,99 @@ Map<String, Object?> _openAIResponsesRequestBody(
     'model': compatibleBody['model'],
     'instructions': systemMessage['content']?.toString() ?? '',
     'input': inputMessages,
+    'tools': _openAIResponsesToolDefinitions(),
+    'tool_choice': 'auto',
     if (reasoningEffort != null && reasoningEffort.isNotEmpty)
       'reasoning': <String, Object?>{'effort': reasoningEffort},
     'metadata': _openAIStringMetadata(
       compatibleBody['metadata'] as Map<String, Object?>,
     ),
+  };
+}
+
+List<Map<String, Object?>> _openAIResponsesToolDefinitions() {
+  return <Map<String, Object?>>[
+    _openAIResponsesStructuredTool(
+      name: 'vityo_code_patch',
+      description:
+          'Return a structured Vityo contentParts envelope containing one or more code_patch parts and any supporting plan or text parts.',
+    ),
+    _openAIResponsesStructuredTool(
+      name: 'vityo_ide_command',
+      description:
+          'Return a structured Vityo contentParts envelope containing registered ide_command parts from the IDE command catalog.',
+    ),
+    _openAIResponsesStructuredTool(
+      name: 'vityo_coding_plan',
+      description:
+          'Return a structured Vityo contentParts envelope containing plan parts before edits or IDE commands.',
+    ),
+    _openAIResponsesStructuredTool(
+      name: 'vityo_diagnostic_summary',
+      description:
+          'Return a structured Vityo contentParts envelope containing diagnostic_summary parts for diagnostic triage.',
+    ),
+  ];
+}
+
+Map<String, Object?> _openAIResponsesStructuredTool({
+  required String name,
+  required String description,
+}) {
+  return <String, Object?>{
+    'type': 'function',
+    'name': name,
+    'description': description,
+    'parameters': _vityoStructuredContentPartsSchema(),
+  };
+}
+
+Map<String, Object?> _vityoStructuredContentPartsSchema() {
+  return <String, Object?>{
+    'type': 'object',
+    'additionalProperties': false,
+    'properties': <String, Object?>{
+      'contentParts': <String, Object?>{
+        'type': 'array',
+        'description':
+            'Vityo structured response parts. Use code_patch for file edits, ide_command for registered IDE actions, plan for planning, and diagnostic_summary for diagnostic triage.',
+        'items': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': true,
+          'properties': <String, Object?>{
+            'kind': <String, Object?>{
+              'type': 'string',
+              'enum': <String>[
+                'text',
+                'plan',
+                'code_patch',
+                'ide_command',
+                'diagnostic_summary',
+              ],
+            },
+            'text': <String, Object?>{'type': 'string'},
+            'patch': <String, Object?>{
+              'type': 'object',
+              'additionalProperties': true,
+            },
+            'command': <String, Object?>{
+              'type': 'object',
+              'additionalProperties': true,
+            },
+            'plan': <String, Object?>{
+              'type': 'object',
+              'additionalProperties': true,
+            },
+            'diagnosticSummary': <String, Object?>{
+              'type': 'object',
+              'additionalProperties': true,
+            },
+          },
+          'required': <String>['kind'],
+        },
+      },
+    },
+    'required': <String>['contentParts'],
   };
 }
 

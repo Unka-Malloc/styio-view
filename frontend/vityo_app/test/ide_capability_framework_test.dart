@@ -120,6 +120,10 @@ void main() {
       contains('runtime.execution'),
     );
     expect(
+      entriesById['interaction.language-service-status']?.summary,
+      contains('syntax-validation readiness'),
+    );
+    expect(
       entriesById['interaction.source-control']?.status,
       IdeCapabilityStatus.scaffolded,
     );

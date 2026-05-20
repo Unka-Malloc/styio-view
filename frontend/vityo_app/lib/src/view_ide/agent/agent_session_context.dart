@@ -2438,6 +2438,9 @@ class AgentLanguageServiceStatusContext {
     required this.capabilities,
     required this.localFallbackEnabled,
     required this.actionable,
+    required this.syntaxValidationReady,
+    required this.semanticFactsReady,
+    required this.unavailablePrimaryCapabilities,
     this.toolchainId = '',
     this.parserEngine,
     this.grammarVersion,
@@ -2456,6 +2459,9 @@ class AgentLanguageServiceStatusContext {
   final List<AgentLanguageCapabilityStatusContext> capabilities;
   final bool localFallbackEnabled;
   final bool actionable;
+  final bool syntaxValidationReady;
+  final bool semanticFactsReady;
+  final List<String> unavailablePrimaryCapabilities;
 
   factory AgentLanguageServiceStatusContext.fromSurface(
     LanguageServiceStatusSurface surface,
@@ -2478,6 +2484,9 @@ class AgentLanguageServiceStatusContext {
           .toList(growable: false),
       localFallbackEnabled: surface.localFallbackEnabled,
       actionable: surface.actionable,
+      syntaxValidationReady: surface.syntaxValidationReady,
+      semanticFactsReady: surface.semanticFactsReady,
+      unavailablePrimaryCapabilities: surface.unavailablePrimaryCapabilities,
     );
   }
 
@@ -2498,6 +2507,9 @@ class AgentLanguageServiceStatusContext {
           .toList(growable: false),
       'localFallbackEnabled': localFallbackEnabled,
       'actionable': actionable,
+      'syntaxValidationReady': syntaxValidationReady,
+      'semanticFactsReady': semanticFactsReady,
+      'unavailablePrimaryCapabilities': unavailablePrimaryCapabilities,
     };
   }
 }

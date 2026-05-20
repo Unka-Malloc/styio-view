@@ -85,6 +85,12 @@ void main() {
     expect(surface.toJson()['localFallbackEnabled'], isFalse);
     expect(surface.toJson()['parserEngine'], 'nightly');
     expect(surface.toJson()['grammarVersion'], '2026.05');
+    expect(surface.toJson()['syntaxValidationReady'], isTrue);
+    expect(surface.toJson()['semanticFactsReady'], isFalse);
+    expect(
+      surface.toJson()['unavailablePrimaryCapabilities'],
+      contains(StyioServiceCapability.definition.wireValue),
+    );
   });
 
   test('language service status surface treats clean diagnostics as ready', () {
@@ -117,6 +123,8 @@ void main() {
     expect(surface.severity, LanguageServiceStatusSeverity.ready);
     expect(surface.usableCapabilityCount, 1);
     expect(surface.freshCapabilityCount, 1);
+    expect(surface.syntaxValidationReady, isTrue);
+    expect(surface.semanticFactsReady, isFalse);
     expect(
       surface.primaryCapabilityStates[StyioServiceCapability
           .diagnostics

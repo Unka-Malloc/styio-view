@@ -908,6 +908,12 @@ void main() {
     expect(languageServiceStatus['usableCapabilityCount'], 2);
     expect(languageServiceStatus['freshCapabilityCount'], 1);
     expect(languageServiceStatus['localFallbackEnabled'], isTrue);
+    expect(languageServiceStatus['syntaxValidationReady'], isTrue);
+    expect(languageServiceStatus['semanticFactsReady'], isFalse);
+    expect(
+      languageServiceStatus['unavailablePrimaryCapabilities'],
+      contains('hover'),
+    );
     expect(languagePrimaryCapabilityStates['diagnostics'], 'available');
     expect(languagePrimaryCapabilityStates['completion'], 'derived');
     expect(languagePrimaryCapabilityStates['hover'], 'unsupported');

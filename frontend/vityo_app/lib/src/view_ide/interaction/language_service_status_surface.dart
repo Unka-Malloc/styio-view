@@ -151,6 +151,36 @@ class LanguageServiceStatusSurface {
         severity == LanguageServiceStatusSeverity.failed;
   }
 
+  bool get syntaxValidationReady {
+    return _stateUsable(
+          primaryCapabilityStates[StyioServiceCapability.diagnostics.wireValue],
+        ) ||
+        _stateUsable(
+          primaryCapabilityStates[StyioServiceCapability.syntax.wireValue],
+        );
+  }
+
+  bool get semanticFactsReady {
+    return _stateUsable(
+          primaryCapabilityStates[StyioServiceCapability
+              .semanticTokens
+              .wireValue],
+        ) ||
+        _stateUsable(
+          primaryCapabilityStates[StyioServiceCapability.definition.wireValue],
+        ) ||
+        _stateUsable(
+          primaryCapabilityStates[StyioServiceCapability.references.wireValue],
+        );
+  }
+
+  List<String> get unavailablePrimaryCapabilities {
+    return primaryCapabilityStates.entries
+        .where((entry) => !_stateUsable(entry.value))
+        .map((entry) => entry.key)
+        .toList(growable: false);
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'runtimeState': runtimeState,
@@ -168,7 +198,15 @@ class LanguageServiceStatusSurface {
           .map((capability) => capability.toJson())
           .toList(growable: false),
       'actionable': actionable,
+      'syntaxValidationReady': syntaxValidationReady,
+      'semanticFactsReady': semanticFactsReady,
+      'unavailablePrimaryCapabilities': unavailablePrimaryCapabilities,
     };
+  }
+
+  static bool _stateUsable(String? state) {
+    return state == StyioServiceCapabilityState.available.name ||
+        state == StyioServiceCapabilityState.derived.name;
   }
 
   static LanguageServiceCapabilityStatusItem _capabilityItem(

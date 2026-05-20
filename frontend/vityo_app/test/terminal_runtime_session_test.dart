@@ -49,6 +49,74 @@ void main() {
   });
 
   test(
+    'terminal runtime output binding combines start plan and session events',
+    () {
+      final startPlan = TerminalRuntimeStartPlan(
+        profileId: 'sh',
+        executablePath: '/bin/sh',
+        workingDirectory: '/workspace/vityo',
+        rows: 24,
+        cols: 80,
+        ptyPlan:
+            PtyAdapter(
+              PtyFacts.linuxDebianArm(scriptUtilityPath: '/script'),
+            ).plan(
+              const PtySessionRequest(
+                executablePath: '/bin/sh',
+                workingDirectory: '/workspace/vityo',
+              ),
+            ),
+      );
+      final sessionSnapshot = TerminalSessionSnapshot(
+        sessionId: 'pty-1',
+        state: PtySessionState.running,
+        outputLines: const <String>['hello\n'],
+        events: <TerminalInteractionEvent>[
+          TerminalInteractionEvent(
+            sequence: 1,
+            kind: TerminalInteractionEventKind.started,
+            sessionId: 'pty-1',
+            timestamp: DateTime.utc(2026, 5, 20, 8),
+            rows: 24,
+            cols: 80,
+          ),
+          TerminalInteractionEvent(
+            sequence: 2,
+            kind: TerminalInteractionEventKind.output,
+            sessionId: 'pty-1',
+            timestamp: DateTime.utc(2026, 5, 20, 8, 0, 1),
+            message: 'hello\n',
+          ),
+        ],
+      );
+      final binding = TerminalRuntimeOutputBinding(
+        startPlan: startPlan,
+        sessionSnapshot: sessionSnapshot,
+      );
+
+      final outputSnapshot = binding.outputPanelSnapshot(
+        timestamp: DateTime.utc(2026, 5, 20, 8),
+        channelId: 'terminal.sh',
+        label: 'Shell Terminal',
+      );
+
+      expect(outputSnapshot.events, hasLength(3));
+      expect(
+        outputSnapshot.events.first.message,
+        'Terminal start plan ready for sh.',
+      );
+      expect(
+        outputSnapshot.events.first.metadata['providerKind'],
+        startPlan.providerKind,
+      );
+      expect(outputSnapshot.events[1].metadata['terminalEventKind'], 'started');
+      expect(outputSnapshot.events[2].kind, RuntimeOutputChannelKind.stdout);
+      expect(outputSnapshot.events[2].message, 'hello\n');
+      expect(binding.toJson()['outputEventCount'], 3);
+    },
+  );
+
+  test(
     'terminal interaction controller records output input and resize',
     () async {
       final tempRoot = await Directory.systemTemp.createTemp(

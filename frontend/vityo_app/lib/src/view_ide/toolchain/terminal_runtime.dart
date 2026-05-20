@@ -528,6 +528,80 @@ class TerminalRuntimeStartPlan {
   }
 }
 
+class TerminalRuntimeOutputBinding {
+  const TerminalRuntimeOutputBinding({this.startPlan, this.sessionSnapshot});
+
+  final TerminalRuntimeStartPlan? startPlan;
+  final TerminalSessionSnapshot? sessionSnapshot;
+
+  List<RuntimeOutputEvent> runtimeOutputEvents({
+    DateTime? timestamp,
+    String channelId = 'terminal.runtime',
+    String label = 'Terminal',
+  }) {
+    final resolvedTimestamp = timestamp ?? DateTime.now().toUtc();
+    return <RuntimeOutputEvent>[
+      if (startPlan != null)
+        RuntimeOutputEvent(
+          channelId: channelId,
+          label: label,
+          kind: RuntimeOutputChannelKind.runtimeEvents,
+          message:
+              'Terminal start plan ${startPlan!.supported ? 'ready' : 'blocked'} for ${startPlan!.profileId}.',
+          timestamp: resolvedTimestamp,
+          metadata: <String, Object?>{
+            'terminalStartPlan': true,
+            'profileId': startPlan!.profileId,
+            'executablePath': startPlan!.executablePath,
+            'workingDirectory': startPlan!.workingDirectory,
+            'rows': startPlan!.rows,
+            'cols': startPlan!.cols,
+            'supported': startPlan!.supported,
+            'providerKind': startPlan!.providerKind,
+            'backendExecutablePath': startPlan!.backendExecutablePath,
+            'backendArguments': startPlan!.backendArguments,
+            if (startPlan!.unsupportedMessage != null)
+              'unsupportedMessage': startPlan!.unsupportedMessage,
+          },
+        ),
+      if (sessionSnapshot != null)
+        ...sessionSnapshot!.runtimeOutputEvents(
+          channelId: channelId,
+          label: label,
+        ),
+    ];
+  }
+
+  RuntimeOutputPanelSnapshot outputPanelSnapshot({
+    DateTime? timestamp,
+    String channelId = 'terminal.runtime',
+    String label = 'Terminal',
+    RuntimeOutputChannelFilterState filter =
+        const RuntimeOutputChannelFilterState(),
+  }) {
+    return RuntimeOutputPanelSnapshot(
+      events: runtimeOutputEvents(
+        timestamp: timestamp,
+        channelId: channelId,
+        label: label,
+      ),
+      filter: filter,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    final snapshot = outputPanelSnapshot();
+    return <String, Object?>{
+      'hasStartPlan': startPlan != null,
+      'hasSessionSnapshot': sessionSnapshot != null,
+      'outputEventCount': snapshot.events.length,
+      if (startPlan != null) 'startPlan': startPlan!.toJson(),
+      if (sessionSnapshot != null) 'sessionSnapshot': sessionSnapshot!.toJson(),
+      'outputSnapshot': snapshot.toJson(),
+    };
+  }
+}
+
 class TerminalInteractionController extends ChangeNotifier {
   TerminalInteractionController({
     required this.runtime,

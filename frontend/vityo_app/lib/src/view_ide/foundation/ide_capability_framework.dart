@@ -280,7 +280,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/language/service',
           summary:
-              'Styio-first parser, diagnostics, semantic facts, grammar-version facts, runtime status snapshots, StyioServiceRuntimeOutputBinding language-service output events, and extension language route consumption.',
+              'Styio-first parser, diagnostics, semantic facts, grammar-version facts, runtime status snapshots, StyioServiceRuntimeOutputBinding language-service output events, extension language route consumption, and structured missing capability facts for provider binding.',
           references: <String>['Language Server Protocol'],
         ),
         IdeCapabilityDescriptor(

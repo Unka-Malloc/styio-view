@@ -150,11 +150,36 @@ void main() {
       isNot(contains(StyioLanguageProviderCapability.rename)),
     );
     expect(plan.missingServiceCapabilities, isNotEmpty);
+    expect(
+      plan.missingCapabilityFacts.map((fact) => fact.providerCapability),
+      contains(StyioLanguageProviderCapability.rename),
+    );
+    final missingRename = plan.missingCapabilityFacts.singleWhere(
+      (fact) =>
+          fact.providerCapability == StyioLanguageProviderCapability.rename,
+    );
+    expect(
+      missingRename.requiredServiceCapabilities,
+      contains(StyioServiceCapability.rename),
+    );
     expect(plan.toJson()['todo'], startsWith('TODO:'));
+    final missingFacts =
+        plan.toJson()['missingCapabilityFacts']! as List<Object?>;
+    expect(
+      (missingFacts.first! as Map<String, Object?>).containsKey(
+        'providerCapability',
+      ),
+      isTrue,
+    );
     expect(
       registry.resolve(StyioLanguageProviderCapability.completion)?.id,
       'styio-service',
     );
-    expect(registry.manifest().toJson()['entries'], isA<List<Object?>>());
+    final manifestEntries =
+        registry.manifest().toJson()['entries']! as List<Object?>;
+    final manifestMetadata =
+        (manifestEntries.single! as Map<String, Object?>)['metadata']!
+            as Map<String, Object?>;
+    expect(manifestMetadata['missingCapabilityFacts'], isA<List<Object?>>());
   });
 }

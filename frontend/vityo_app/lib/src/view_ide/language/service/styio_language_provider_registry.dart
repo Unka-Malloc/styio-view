@@ -70,6 +70,25 @@ class StyioLanguageProviderRegistration {
   final String todo;
 }
 
+class StyioLanguageProviderMissingCapabilityFact {
+  const StyioLanguageProviderMissingCapabilityFact({
+    required this.providerCapability,
+    required this.requiredServiceCapabilities,
+  });
+
+  final StyioLanguageProviderCapability providerCapability;
+  final List<StyioServiceCapability> requiredServiceCapabilities;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerCapability': providerCapability.wireValue,
+      'requiredServiceCapabilities': requiredServiceCapabilities
+          .map((capability) => capability.wireValue)
+          .toList(growable: false),
+    };
+  }
+}
+
 class StyioLanguageProviderBindingPlan {
   const StyioLanguageProviderBindingPlan({
     required this.providerId,
@@ -79,6 +98,8 @@ class StyioLanguageProviderBindingPlan {
     this.priority = 0,
     this.metadata = const <String, Object?>{},
     this.missingServiceCapabilities = const <String>[],
+    this.missingCapabilityFacts =
+        const <StyioLanguageProviderMissingCapabilityFact>[],
     this.todo = '',
   });
 
@@ -91,6 +112,8 @@ class StyioLanguageProviderBindingPlan {
   }) {
     final mappedCapabilities = <StyioLanguageProviderCapability>[];
     final missingServiceCapabilities = <String>[];
+    final missingCapabilityFacts =
+        <StyioLanguageProviderMissingCapabilityFact>[];
     for (final entry in _styioServiceCapabilityBindings.entries) {
       final providerCapability = entry.key;
       final serviceCapabilities = entry.value;
@@ -106,6 +129,13 @@ class StyioLanguageProviderBindingPlan {
         missingServiceCapabilities.add(
           '${providerCapability.wireValue}:'
           '${serviceCapabilities.map((capability) => capability.wireValue).join('|')}',
+        );
+        missingCapabilityFacts.add(
+          StyioLanguageProviderMissingCapabilityFact(
+            providerCapability: providerCapability,
+            requiredServiceCapabilities:
+                List<StyioServiceCapability>.unmodifiable(serviceCapabilities),
+          ),
         );
       }
     }
@@ -123,6 +153,10 @@ class StyioLanguageProviderBindingPlan {
       missingServiceCapabilities: List<String>.unmodifiable(
         missingServiceCapabilities,
       ),
+      missingCapabilityFacts:
+          List<StyioLanguageProviderMissingCapabilityFact>.unmodifiable(
+            missingCapabilityFacts,
+          ),
       metadata: <String, Object?>{
         'language': 'styio',
         'source': 'StyioServiceCapabilitySnapshot',
@@ -149,6 +183,7 @@ class StyioLanguageProviderBindingPlan {
   final List<StyioLanguageProviderCapability> capabilities;
   final Map<String, Object?> metadata;
   final List<String> missingServiceCapabilities;
+  final List<StyioLanguageProviderMissingCapabilityFact> missingCapabilityFacts;
   final String todo;
 
   bool get active => state == FoundationRegistryEntryState.active;
@@ -167,6 +202,10 @@ class StyioLanguageProviderBindingPlan {
         'displayName': displayName,
         if (missingServiceCapabilities.isNotEmpty)
           'missingServiceCapabilities': missingServiceCapabilities,
+        if (missingCapabilityFacts.isNotEmpty)
+          'missingCapabilityFacts': missingCapabilityFacts
+              .map((fact) => fact.toJson())
+              .toList(growable: false),
       },
       todo: todo,
     );
@@ -185,6 +224,10 @@ class StyioLanguageProviderBindingPlan {
       if (metadata.isNotEmpty) 'metadata': metadata,
       if (missingServiceCapabilities.isNotEmpty)
         'missingServiceCapabilities': missingServiceCapabilities,
+      if (missingCapabilityFacts.isNotEmpty)
+        'missingCapabilityFacts': missingCapabilityFacts
+            .map((fact) => fact.toJson())
+            .toList(growable: false),
       if (todo.isNotEmpty) 'todo': todo,
     };
   }

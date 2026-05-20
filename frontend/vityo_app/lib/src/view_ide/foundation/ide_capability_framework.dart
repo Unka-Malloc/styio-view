@@ -562,7 +562,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'OpenAI-compatible and OpenAI Responses providers, explicit OpenAI Codex Spark preset, serializable client credential policy, Credential DataStore-backed bearer token references, credential-backed routes, AgentProviderSelectionPlan registry selection, configurator selection result propagation, fallback readiness, provider execution context, checkpoint-aware prompt rules, structured response tool definitions, streaming provider event contracts, streaming response collection, and extension agent provider contribution manifests.',
+              'OpenAI-compatible and OpenAI Responses providers, explicit OpenAI Codex Spark preset, serializable client credential policy, Credential DataStore-backed bearer token references, credential-backed routes, AgentProviderSelectionPlan registry selection, configurator selection result propagation, fallback readiness, provider execution context, checkpoint-aware prompt rules, structured response tool definitions, streaming provider event contracts, streaming response collection, streaming runtime output binding, and extension agent provider contribution manifests.',
         ),
         IdeCapabilityDescriptor(
           id: 'agent.coding-loop',

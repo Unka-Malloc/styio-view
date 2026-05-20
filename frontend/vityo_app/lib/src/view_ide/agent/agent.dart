@@ -13,6 +13,7 @@ export 'agent_provider_health_history_store.dart';
 export 'agent_provider_network_transport.dart';
 export 'agent_provider_retry_policy.dart';
 export 'agent_provider_route_executor.dart';
+export 'agent_provider_streaming_runtime.dart';
 export 'agent_provider_registry.dart';
 export 'agent_prompt_profile_store.dart';
 export 'agent_provider_adapter.dart';

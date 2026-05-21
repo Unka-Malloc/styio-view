@@ -2630,6 +2630,22 @@ void main() {
         isTrue,
       );
 
+      await shell.executeCommand(AppCommandId.bootstrapStyioToolchain);
+
+      expect(
+        shell.lastAgentIdeCommandResult?.commandId,
+        'bootstrapStyioToolchain',
+      );
+      expect(shell.lastAgentIdeCommandResult?.applied, isTrue);
+      expect(
+        shell.lastAgentIdeCommandResult?.metadata,
+        contains('toolchainBootstrapActionDispatch'),
+      );
+      expect(
+        shell.lastAgentIdeCommandResult?.metadata,
+        contains('toolchainBootstrap'),
+      );
+
       await shell.handleToolchainRecoveryAction(
         const ToolchainRecoveryAction(
           id: 'install-managed-toolchain',

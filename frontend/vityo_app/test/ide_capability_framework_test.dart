@@ -338,6 +338,10 @@ void main() {
     );
     expect(
       entriesById['toolchain.manager']?.summary,
+      contains('bootstrapStyioToolchain registered command routing'),
+    );
+    expect(
+      entriesById['toolchain.manager']?.summary,
       contains('ToolchainBootstrapExecutionPlan'),
     );
     expect(

@@ -160,6 +160,7 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.useActiveCompiler:
       case AppCommandId.pinActiveCompiler:
       case AppCommandId.clearPinnedCompiler:
+      case AppCommandId.bootstrapStyioToolchain:
       case AppCommandId.selectClangCppVersion:
       case AppCommandId.packProject:
       case AppCommandId.preparePublish:

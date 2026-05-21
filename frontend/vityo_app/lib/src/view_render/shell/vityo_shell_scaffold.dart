@@ -2085,6 +2085,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.push_pin_outlined;
     case AppCommandId.clearPinnedCompiler:
       return Icons.push_pin_rounded;
+    case AppCommandId.bootstrapStyioToolchain:
+      return Icons.build_circle_outlined;
     case AppCommandId.selectClangCppVersion:
       return Icons.developer_board_rounded;
     case AppCommandId.packProject:

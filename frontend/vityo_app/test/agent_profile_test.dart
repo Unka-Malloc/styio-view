@@ -124,6 +124,8 @@ void main() {
     expect(decoded.systemPrompt, contains('metadata.toolchainCommand'));
     expect(decoded.systemPrompt, contains('useActiveCompiler'));
     expect(decoded.systemPrompt, contains('requiresInput true'));
+    expect(decoded.systemPrompt, contains('inputContract'));
+    expect(decoded.systemPrompt, contains('inputExamples'));
     expect(decoded.systemPrompt, contains('missing-input commands'));
     expect(decoded.systemPrompt, contains('selectClangCppVersion'));
     expect(decoded.systemPrompt, contains('metadata.formatResult'));

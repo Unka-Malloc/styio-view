@@ -12,6 +12,7 @@ import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
 import 'agent_provider_streaming_runtime.dart';
 import 'agent_session_context.dart';
+import 'agent_tool_call_dispatcher.dart';
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_stream_bridge.dart';
@@ -569,6 +570,21 @@ class AgentCodingSessionController extends ChangeNotifier {
     _toolCallReviewDecisions[call.callId] = buildDecision(call);
     notifyListeners();
     return true;
+  }
+
+  Future<AgentToolCallDispatchReport> dispatchReadyToolCalls(
+    AgentToolCallExecutor executor, {
+    AgentToolCallDispatcher dispatcher = const AgentToolCallDispatcher(),
+  }) async {
+    final report = await dispatcher.dispatchReady(
+      executionPlan: toolCallExecutionPlan,
+      timeline: _toolCallTimeline,
+      executor: executor,
+    );
+    if (report.events.isNotEmpty) {
+      recordToolCallEvents(report.events);
+    }
+    return report;
   }
 
   Future<AgentProviderResponseEnvelope?> sendPrompt() async {

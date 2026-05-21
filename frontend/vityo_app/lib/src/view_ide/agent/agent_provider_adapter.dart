@@ -996,6 +996,7 @@ class OpenAIResponsesAgentProviderAdapter
     required this.transport,
     required this.endpoint,
     this.authorizationToken,
+    this.toolRegistry,
     this.adapterId = 'openai-responses',
     this.providerKind = AgentProviderKind.cloudOpenAICompatible,
   });
@@ -1003,6 +1004,7 @@ class OpenAIResponsesAgentProviderAdapter
   final AgentProviderTransport transport;
   final AgentProviderEndpoint endpoint;
   final String? authorizationToken;
+  final AgentToolRegistry? toolRegistry;
   final AgentProviderKind providerKind;
 
   @override
@@ -1023,6 +1025,7 @@ class OpenAIResponsesAgentProviderAdapter
     final body = _openAIResponsesRequestBody(
       request,
       endpointOverride: endpoint,
+      toolRegistry: toolRegistry,
     );
     final endpointUri = _responsesEndpoint(endpoint.baseUrl);
     final cancellableTransport = transport is CancellableAgentProviderTransport
@@ -1043,6 +1046,11 @@ class OpenAIResponsesAgentProviderAdapter
     return _responseEnvelopeFromOpenAICompatibleResponse(
       requestId: request.requestId,
       response: response,
+      executableAgentToolIds: _selectedAgentToolIds(
+        profile: request.profile,
+        providerKind: providerKind,
+        toolRegistry: toolRegistry,
+      ),
     );
   }
 
@@ -1051,6 +1059,7 @@ class OpenAIResponsesAgentProviderAdapter
     final body = _openAIResponsesRequestBody(
       request,
       endpointOverride: endpoint,
+      toolRegistry: toolRegistry,
     );
     return _streamFromTransportOrFallback(
       request: request,
@@ -1502,6 +1511,7 @@ Map<String, Object?> _openAICompatibleRequestBody(
 Map<String, Object?> _openAIResponsesRequestBody(
   AgentProviderRequest request, {
   AgentProviderEndpoint? endpointOverride,
+  AgentToolRegistry? toolRegistry,
 }) {
   final compatibleBody = _openAICompatibleRequestBody(
     request,
@@ -1522,7 +1532,10 @@ Map<String, Object?> _openAIResponsesRequestBody(
     'model': compatibleBody['model'],
     'instructions': systemMessage['content']?.toString() ?? '',
     'input': inputMessages,
-    'tools': _openAIResponsesToolDefinitions(request.profile),
+    'tools': _openAIResponsesToolDefinitions(
+      request.profile,
+      toolRegistry: toolRegistry,
+    ),
     'tool_choice': 'auto',
     if (reasoningEffort != null && reasoningEffort.isNotEmpty)
       'reasoning': <String, Object?>{'effort': reasoningEffort},
@@ -1533,8 +1546,9 @@ Map<String, Object?> _openAIResponsesRequestBody(
 }
 
 List<Map<String, Object?>> _openAIResponsesToolDefinitions(
-  AgentPromptProfile profile,
-) {
+  AgentPromptProfile profile, {
+  AgentToolRegistry? toolRegistry,
+}) {
   return <Map<String, Object?>>[
     _openAIResponsesStructuredTool(
       name: 'vityo_code_patch',
@@ -1556,14 +1570,18 @@ List<Map<String, Object?>> _openAIResponsesToolDefinitions(
       description:
           'Return a structured Vityo contentParts envelope containing diagnostic_summary parts for diagnostic triage.',
     ),
-    ..._openAIResponsesExecutableToolDefinitions(profile),
+    ..._openAIResponsesExecutableToolDefinitions(
+      profile,
+      toolRegistry: toolRegistry,
+    ),
   ];
 }
 
 List<Map<String, Object?>> _openAIResponsesExecutableToolDefinitions(
-  AgentPromptProfile profile,
-) {
-  final selection = AgentToolRegistry().selectForProfile(
+  AgentPromptProfile profile, {
+  AgentToolRegistry? toolRegistry,
+}) {
+  final selection = (toolRegistry ?? AgentToolRegistry()).selectForProfile(
     profile: profile,
     providerKind: AgentProviderKind.cloudOpenAICompatible,
   );
@@ -2312,12 +2330,14 @@ Vityo structured response contract:
 AgentProviderResponseEnvelope _responseEnvelopeFromOpenAICompatibleResponse({
   required String requestId,
   required Map<String, Object?> response,
+  Set<String> executableAgentToolIds = _defaultExecutableAgentToolIds,
 }) {
   final choices = response['choices'];
   if (choices is! List || choices.isEmpty) {
     return _responseEnvelopeFromOpenAIOutputResponse(
       requestId: requestId,
       response: response,
+      executableAgentToolIds: executableAgentToolIds,
     );
   }
   final firstChoice = choices.first;
@@ -2335,7 +2355,10 @@ AgentProviderResponseEnvelope _responseEnvelopeFromOpenAICompatibleResponse({
   final usage = response['usage'];
 
   final contentParts = _contentPartsFromAssistantMessage(messageMap);
-  final toolCallEvents = _toolCallEventsFromAssistantMessage(messageMap);
+  final toolCallEvents = _toolCallEventsFromAssistantMessage(
+    messageMap,
+    executableAgentToolIds,
+  );
   return AgentProviderResponseEnvelope(
     requestId: requestId,
     providerMessageId: response['id'] as String?,
@@ -2358,6 +2381,7 @@ AgentProviderResponseEnvelope _responseEnvelopeFromOpenAICompatibleResponse({
 AgentProviderResponseEnvelope _responseEnvelopeFromOpenAIOutputResponse({
   required String requestId,
   required Map<String, Object?> response,
+  Set<String> executableAgentToolIds = _defaultExecutableAgentToolIds,
 }) {
   final parts = <AgentContentPart>[];
   final toolCallEvents = <AgentToolCallEvent>[];
@@ -2376,7 +2400,11 @@ AgentProviderResponseEnvelope _responseEnvelopeFromOpenAIOutputResponse({
       role = itemMap['role'] as String? ?? role;
       parts.addAll(_contentPartsFromAssistantMessage(itemMap));
       toolCallEvents.addAll(
-        _toolCallEventsFromOpenAIOutputItem(itemMap, outputIndex),
+        _toolCallEventsFromOpenAIOutputItem(
+          itemMap,
+          outputIndex,
+          executableAgentToolIds,
+        ),
       );
       for (final arguments in _openAIOutputArgumentCandidates(itemMap)) {
         final structuredParts = _structuredContentPartsFromString(arguments);
@@ -2439,7 +2467,7 @@ List<AgentContentPart> _contentPartsFromAssistantMessage(
   return _contentPartsFromAssistantContent(content);
 }
 
-const Set<String> _executableAgentToolIds = <String>{
+const Set<String> _defaultExecutableAgentToolIds = <String>{
   'readWorkspaceFile',
   'previewWorkspaceEdit',
   'applyWorkspacePatch',
@@ -2449,8 +2477,20 @@ const Set<String> _executableAgentToolIds = <String>{
   'collectAgentCodingCheckpoint',
 };
 
+Set<String> _selectedAgentToolIds({
+  required AgentPromptProfile profile,
+  required AgentProviderKind providerKind,
+  AgentToolRegistry? toolRegistry,
+}) {
+  return (toolRegistry ?? AgentToolRegistry())
+      .selectForProfile(profile: profile, providerKind: providerKind)
+      .toolIds
+      .toSet();
+}
+
 List<AgentToolCallEvent> _toolCallEventsFromAssistantMessage(
   Map<String, Object?> messageMap,
+  Set<String> executableAgentToolIds,
 ) {
   final toolCalls = messageMap['tool_calls'];
   if (toolCalls is! List || toolCalls.isEmpty) {
@@ -2469,7 +2509,7 @@ List<AgentToolCallEvent> _toolCallEventsFromAssistantMessage(
       continue;
     }
     final toolId = _stringFromObject(function['name']);
-    if (!_executableAgentToolIds.contains(toolId)) {
+    if (!executableAgentToolIds.contains(toolId)) {
       index += 1;
       continue;
     }
@@ -2492,13 +2532,14 @@ List<AgentToolCallEvent> _toolCallEventsFromAssistantMessage(
 List<AgentToolCallEvent> _toolCallEventsFromOpenAIOutputItem(
   Map<String, Object?> outputItem,
   int index,
+  Set<String> executableAgentToolIds,
 ) {
   final function = outputItem['function'];
   final functionMap = function is Map ? function : const <Object?, Object?>{};
   final toolId =
       _stringFromObject(outputItem['name']) ??
       _stringFromObject(functionMap['name']);
-  if (!_executableAgentToolIds.contains(toolId)) {
+  if (!executableAgentToolIds.contains(toolId)) {
     return const <AgentToolCallEvent>[];
   }
   final argumentCandidates = _openAIOutputArgumentCandidates(outputItem);

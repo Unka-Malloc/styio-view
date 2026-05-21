@@ -325,6 +325,66 @@ void main() {
     expect(event.metadata['source'], 'openai-compatible-tool-call');
   });
 
+  test('OpenAI Responses adapter exposes injected registry tools', () async {
+    final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+      PlatformTarget.linux,
+    );
+    final transport = _CustomExecutableToolCallTransport();
+    final adapter = OpenAIResponsesAgentProviderAdapter(
+      transport: transport,
+      endpoint: profile.endpoint,
+      toolRegistry: AgentToolRegistry(
+        tools: const <AgentToolDefinition>[
+          ...AgentToolRegistry.defaultAgentTools,
+          AgentToolDefinition(
+            toolId: 'collectExtensionContext',
+            displayName: 'Collect Extension Context',
+            description: 'Collect context provided by an extension tool.',
+            priority: 55,
+            permissionMode: AgentToolPermissionMode.never,
+            capabilities: <String>['extension.context'],
+            schema: <AgentToolSchemaProperty>[
+              AgentToolSchemaProperty(
+                name: 'extensionId',
+                type: 'string',
+                required: true,
+                description: 'Extension id.',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    final response = await adapter.send(
+      AgentProviderRequest(
+        requestId: 'agent-request-custom-tool',
+        profile: profile,
+        context: AgentSessionContext.fromEditorState(
+          document: const DocumentState(
+            documentId: '/workspace/demo/src/main.styio',
+            text: 'value = 1\n',
+            revision: 1,
+          ),
+          selection: const SelectionState.collapsed(0),
+          diagnostics: const [],
+        ),
+        userPrompt: 'Collect extension context.',
+      ),
+    );
+
+    final tools = transport.body['tools']! as List<Object?>;
+    final customTool = tools.cast<Map<String, Object?>>().firstWhere(
+      (tool) => tool['name'] == 'collectExtensionContext',
+    );
+    final parameters = customTool['parameters']! as Map<String, Object?>;
+    final event = response.toolCallEvents.single;
+
+    expect(parameters['required'], <String>['extensionId']);
+    expect(event.toolId, 'collectExtensionContext');
+    expect(event.input, '{"extensionId":"demo"}');
+  });
+
   test('agent code patch edit parses delete operation from JSON', () {
     final edit = AgentCodePatchEdit.fromJson(<String, Object?>{
       'documentId': 'obsolete.txt',
@@ -2771,6 +2831,30 @@ class _ExecutableToolCallTransport implements AgentProviderTransport {
               },
             ],
           },
+        },
+      ],
+    };
+  }
+}
+
+class _CustomExecutableToolCallTransport implements AgentProviderTransport {
+  late Map<String, Object?> body;
+
+  @override
+  Future<Map<String, Object?>> postJson({
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  }) async {
+    this.body = body;
+    return <String, Object?>{
+      'id': 'resp-custom-tool-call',
+      'output': <Object?>[
+        <String, Object?>{
+          'type': 'function_call',
+          'call_id': 'call-extension',
+          'name': 'collectExtensionContext',
+          'arguments': '{"extensionId":"demo"}',
         },
       ],
     };

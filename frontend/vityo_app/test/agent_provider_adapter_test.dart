@@ -153,9 +153,26 @@ void main() {
     );
 
     final tools = transport.body['tools']! as List<Object?>;
+    final toolNames = tools
+        .cast<Map<String, Object?>>()
+        .map((tool) => tool['name'])
+        .toSet();
+    expect(toolNames, contains('readWorkspaceFile'));
+    expect(toolNames, contains('runIdeCommand'));
+    expect(toolNames, contains('collectAgentCodingCheckpoint'));
+    expect(toolNames, isNot(contains('previewWorkspaceEdit')));
+    expect(toolNames, isNot(contains('applyWorkspacePatch')));
     final ideTool = tools.cast<Map<String, Object?>>().firstWhere(
       (tool) => tool['name'] == 'vityo_ide_command',
     );
+    final readTool = tools.cast<Map<String, Object?>>().firstWhere(
+      (tool) => tool['name'] == 'readWorkspaceFile',
+    );
+    final readParameters = readTool['parameters']! as Map<String, Object?>;
+    final readProperties =
+        readParameters['properties']! as Map<String, Object?>;
+    expect(readParameters['required'], <String>['path']);
+    expect(readProperties['path'], isA<Map<String, Object?>>());
     final parameters = ideTool['parameters']! as Map<String, Object?>;
     final properties = parameters['properties']! as Map<String, Object?>;
     final contentParts = properties['contentParts']! as Map<String, Object?>;

@@ -1558,7 +1558,74 @@ List<Map<String, Object?>> _openAIResponsesToolDefinitions() {
       description:
           'Return a structured Vityo contentParts envelope containing diagnostic_summary parts for diagnostic triage.',
     ),
+    ..._openAIResponsesExecutableToolDefinitions(),
   ];
+}
+
+List<Map<String, Object?>> _openAIResponsesExecutableToolDefinitions() {
+  // TODO(agent-tool-registry): derive these schemas from AgentToolRegistry after
+  // AgentProviderKind is moved out of agent_provider_adapter.dart and the import
+  // cycle can be removed cleanly.
+  return <Map<String, Object?>>[
+    _openAIResponsesFunctionTool(
+      name: 'readWorkspaceFile',
+      description:
+          'Read a Vityo workspace-relative file through the IDE workspace binding.',
+      properties: <String, Object?>{
+        'path': <String, Object?>{
+          'type': 'string',
+          'description': 'Workspace-relative file path.',
+        },
+      },
+      required: <String>['path'],
+    ),
+    _openAIResponsesFunctionTool(
+      name: 'runIdeCommand',
+      description:
+          'Run a registered Vityo IDE command after the Vityo review gate approves it.',
+      properties: <String, Object?>{
+        'commandId': <String, Object?>{
+          'type': 'string',
+          'description': 'Registered Vityo IDE command id.',
+        },
+        'input': <String, Object?>{
+          'description':
+              'Command input matching the registered command contract.',
+          'oneOf': <Map<String, Object?>>[
+            <String, Object?>{'type': 'string'},
+            <String, Object?>{'type': 'object', 'additionalProperties': true},
+          ],
+        },
+      },
+      required: <String>['commandId'],
+    ),
+    _openAIResponsesFunctionTool(
+      name: 'collectAgentCodingCheckpoint',
+      description:
+          'Collect current IDE, language, testing, toolchain, and agent loop facts.',
+      properties: const <String, Object?>{},
+      required: const <String>[],
+    ),
+  ];
+}
+
+Map<String, Object?> _openAIResponsesFunctionTool({
+  required String name,
+  required String description,
+  required Map<String, Object?> properties,
+  required List<String> required,
+}) {
+  return <String, Object?>{
+    'type': 'function',
+    'name': name,
+    'description': description,
+    'parameters': <String, Object?>{
+      'type': 'object',
+      'additionalProperties': false,
+      'properties': properties,
+      'required': required,
+    },
+  };
 }
 
 Map<String, Object?> _openAIResponsesStructuredTool({

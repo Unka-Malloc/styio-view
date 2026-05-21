@@ -348,6 +348,61 @@ void main() {
   );
 
   test(
+    'agent coding session forwards replay metadata to provider follow-up',
+    () async {
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-replay-follow-up',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(kind: AgentContentPartKind.text, text: 'Followed.'),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-read',
+          toolId: 'readWorkspaceFile',
+          input: '{"path":"main.styio"}',
+        ),
+      );
+      await controller.dispatchReadyToolCalls((request) {
+        return AgentToolCallDispatchResult.failure(
+          callId: request.callId,
+          toolId: request.toolId,
+          message: 'temporary read failure',
+        );
+      });
+      await controller.replayToolCallJournal((request) {
+        return AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: '{"text":"value = 1"}',
+        );
+      });
+      controller.updatePrompt('Continue after replay.');
+      await controller.sendPrompt();
+
+      final replayedResult = adapter.requests.single.toolCallResults
+          .firstWhere(
+            (result) => result.metadata['replayedFromJournal'] == true,
+          );
+
+      expect(replayedResult.callId, 'call-read');
+      expect(replayedResult.metadata['replayToolId'], 'readWorkspaceFile');
+      expect(replayedResult.success, isTrue);
+    },
+  );
+
+  test(
     'agent coding session feeds blocked tool input errors back to provider',
     () async {
       final controller = AgentCodingSessionController(

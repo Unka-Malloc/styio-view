@@ -221,6 +221,12 @@ void main() {
       AgentToolCallExecutionStatus.completed,
     );
     expect(controller.toolCallReplayPlan.status, AgentToolCallReplayPlanStatus.blocked);
+    expect(
+      controller.recentToolCallResultContexts.any(
+        (result) => result.metadata['replayedFromJournal'] == true,
+      ),
+      isTrue,
+    );
   });
 
   test('agent builtin executor reads sampled workspace files', () async {

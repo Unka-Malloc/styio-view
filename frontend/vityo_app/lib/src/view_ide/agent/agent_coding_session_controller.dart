@@ -655,14 +655,16 @@ class AgentCodingSessionController extends ChangeNotifier {
     for (final request in plan.requests) {
       late final AgentToolCallDispatchResult result;
       try {
-        result = await Future<AgentToolCallDispatchResult>.value(
+        final rawResult = await Future<AgentToolCallDispatchResult>.value(
           executor(request),
         );
+        result = _toolReplayResultWithMetadata(rawResult, request);
       } on Object catch (error) {
         result = AgentToolCallDispatchResult.failure(
           callId: request.callId,
           toolId: request.toolId,
           message: 'Agent tool replay ${request.callId} failed: $error',
+          metadata: _toolReplayMetadata(request),
         );
       }
       results.add(result);
@@ -683,6 +685,32 @@ class AgentCodingSessionController extends ChangeNotifier {
     );
     await _persistLatestAgentToolReplayReport(report);
     return report;
+  }
+
+  AgentToolCallDispatchResult _toolReplayResultWithMetadata(
+    AgentToolCallDispatchResult result,
+    AgentToolCallDispatchRequest request,
+  ) {
+    final metadata = <String, Object?>{
+      ...result.metadata,
+      ..._toolReplayMetadata(request),
+    };
+    return AgentToolCallDispatchResult(
+      callId: result.callId,
+      toolId: result.toolId,
+      success: result.success,
+      message: result.message,
+      output: result.output,
+      metadata: metadata,
+    );
+  }
+
+  Map<String, Object?> _toolReplayMetadata(AgentToolCallDispatchRequest request) {
+    return <String, Object?>{
+      'replayedFromJournal': true,
+      'replayCallId': request.callId,
+      'replayToolId': request.toolId,
+    };
   }
 
   void _refreshToolCallExecutionJournal({

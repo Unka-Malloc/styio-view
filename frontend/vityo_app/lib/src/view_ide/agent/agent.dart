@@ -22,6 +22,7 @@ export 'agent_profile.dart';
 export 'agent_provider_credential_resolver.dart';
 export 'agent_provider_configurator.dart';
 export 'agent_provider_health_history_store.dart';
+export 'agent_provider_kind.dart';
 export 'agent_provider_network_transport.dart';
 export 'agent_provider_retry_policy.dart';
 export 'agent_provider_route_executor.dart';

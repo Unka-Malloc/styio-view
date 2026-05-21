@@ -1,5 +1,5 @@
 import 'agent_profile.dart';
-import 'agent_provider_adapter.dart';
+import 'agent_provider_kind.dart';
 
 enum AgentToolPermissionMode { never, review, always }
 

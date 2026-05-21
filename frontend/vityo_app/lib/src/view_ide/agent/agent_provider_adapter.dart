@@ -3,26 +3,15 @@ import 'dart:convert';
 import '../commands/app_commands.dart';
 import 'agent_command_metadata.dart';
 import 'agent_profile.dart';
+import 'agent_provider_kind.dart';
 import 'agent_session_context.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
+import 'agent_tool_registry.dart';
+
+export 'agent_provider_kind.dart';
 
 const int _maxAgentAttachmentContentLength = 20000;
-
-enum AgentProviderKind { cloudOpenAICompatible, localBridge, localOnlyFallback }
-
-extension AgentProviderKindX on AgentProviderKind {
-  String get wireValue {
-    switch (this) {
-      case AgentProviderKind.cloudOpenAICompatible:
-        return 'cloud_openai_compatible';
-      case AgentProviderKind.localBridge:
-        return 'local_bridge';
-      case AgentProviderKind.localOnlyFallback:
-        return 'local_only_fallback';
-    }
-  }
-}
 
 enum AgentContentPartKind {
   text,
@@ -1533,7 +1522,7 @@ Map<String, Object?> _openAIResponsesRequestBody(
     'model': compatibleBody['model'],
     'instructions': systemMessage['content']?.toString() ?? '',
     'input': inputMessages,
-    'tools': _openAIResponsesToolDefinitions(),
+    'tools': _openAIResponsesToolDefinitions(request.profile),
     'tool_choice': 'auto',
     if (reasoningEffort != null && reasoningEffort.isNotEmpty)
       'reasoning': <String, Object?>{'effort': reasoningEffort},
@@ -1543,7 +1532,9 @@ Map<String, Object?> _openAIResponsesRequestBody(
   };
 }
 
-List<Map<String, Object?>> _openAIResponsesToolDefinitions() {
+List<Map<String, Object?>> _openAIResponsesToolDefinitions(
+  AgentPromptProfile profile,
+) {
   return <Map<String, Object?>>[
     _openAIResponsesStructuredTool(
       name: 'vityo_code_patch',
@@ -1565,117 +1556,80 @@ List<Map<String, Object?>> _openAIResponsesToolDefinitions() {
       description:
           'Return a structured Vityo contentParts envelope containing diagnostic_summary parts for diagnostic triage.',
     ),
-    ..._openAIResponsesExecutableToolDefinitions(),
+    ..._openAIResponsesExecutableToolDefinitions(profile),
   ];
 }
 
-List<Map<String, Object?>> _openAIResponsesExecutableToolDefinitions() {
-  // TODO(agent-tool-registry): derive these schemas from AgentToolRegistry after
-  // AgentProviderKind is moved out of agent_provider_adapter.dart and the import
-  // cycle can be removed cleanly.
-  return <Map<String, Object?>>[
-    _openAIResponsesFunctionTool(
-      name: 'readWorkspaceFile',
-      description:
-          'Read a Vityo workspace-relative file through the IDE workspace binding.',
-      properties: <String, Object?>{
-        'path': <String, Object?>{
-          'type': 'string',
-          'description': 'Workspace-relative file path.',
-        },
+List<Map<String, Object?>> _openAIResponsesExecutableToolDefinitions(
+  AgentPromptProfile profile,
+) {
+  final selection = AgentToolRegistry().selectForProfile(
+    profile: profile,
+    providerKind: AgentProviderKind.cloudOpenAICompatible,
+  );
+  return selection.tools
+      .map(_openAIResponsesExecutableToolDefinition)
+      .toList(growable: false);
+}
+
+Map<String, Object?> _openAIResponsesExecutableToolDefinition(
+  AgentToolDefinition tool,
+) {
+  return _openAIResponsesFunctionTool(
+    name: tool.toolId,
+    description: tool.description,
+    properties: <String, Object?>{
+      for (final property in tool.schema)
+        property.name: _openAIResponsesPropertySchema(property),
+    },
+    required: tool.schema
+        .where((property) => property.required)
+        .map((property) => property.name)
+        .toList(growable: false),
+  );
+}
+
+Map<String, Object?> _openAIResponsesPropertySchema(
+  AgentToolSchemaProperty property,
+) {
+  final schema = _openAIResponsesPropertyTypeSchema(property.type);
+  if (property.description.isNotEmpty) {
+    schema['description'] = property.description;
+  }
+  return schema;
+}
+
+Map<String, Object?> _openAIResponsesPropertyTypeSchema(String type) {
+  final types = type
+      .split('|')
+      .map((item) => item.trim().toLowerCase())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+  if (types.length > 1) {
+    return <String, Object?>{
+      'oneOf': types.map(_openAIResponsesPropertyTypeSchema).toList(),
+    };
+  }
+  final normalized = types.isEmpty ? 'object' : types.single;
+  return switch (normalized) {
+    'string' => <String, Object?>{'type': 'string'},
+    'array' => <String, Object?>{
+      'type': 'array',
+      'items': <String, Object?>{
+        'type': 'object',
+        'additionalProperties': true,
       },
-      required: <String>['path'],
-    ),
-    _openAIResponsesFunctionTool(
-      name: 'previewWorkspaceEdit',
-      description:
-          'Build a reviewable Vityo workspace edit preview. This does not apply changes.',
-      properties: <String, Object?>{
-        'patch': <String, Object?>{
-          'description':
-              'Structured patch object or JSON string. If omitted, the top-level object may contain edits directly.',
-          'oneOf': <Map<String, Object?>>[
-            <String, Object?>{'type': 'object', 'additionalProperties': true},
-            <String, Object?>{'type': 'string'},
-          ],
-        },
-        'edits': <String, Object?>{
-          'type': 'array',
-          'description': 'Structured workspace edits when patch is omitted.',
-          'items': <String, Object?>{
-            'type': 'object',
-            'additionalProperties': true,
-          },
-        },
-      },
-      required: const <String>[],
-    ),
-    _openAIResponsesFunctionTool(
-      name: 'applyWorkspacePatch',
-      description:
-          'Apply a structured Vityo workspace patch after Vityo review approval. Requires an attached workspace patch runner.',
-      properties: <String, Object?>{
-        'patch': <String, Object?>{
-          'description':
-              'Structured patch object or JSON string. If omitted, the top-level object may contain edits directly.',
-          'oneOf': <Map<String, Object?>>[
-            <String, Object?>{'type': 'object', 'additionalProperties': true},
-            <String, Object?>{'type': 'string'},
-          ],
-        },
-        'edits': <String, Object?>{
-          'type': 'array',
-          'description': 'Structured workspace edits when patch is omitted.',
-          'items': <String, Object?>{
-            'type': 'object',
-            'additionalProperties': true,
-          },
-        },
-      },
-      required: const <String>[],
-    ),
-    _openAIResponsesFunctionTool(
-      name: 'runIdeCommand',
-      description:
-          'Run a registered Vityo IDE command after the Vityo review gate approves it.',
-      properties: <String, Object?>{
-        'commandId': <String, Object?>{
-          'type': 'string',
-          'description': 'Registered Vityo IDE command id.',
-        },
-        'input': <String, Object?>{
-          'description':
-              'Command input matching the registered command contract.',
-          'oneOf': <Map<String, Object?>>[
-            <String, Object?>{'type': 'string'},
-            <String, Object?>{'type': 'object', 'additionalProperties': true},
-          ],
-        },
-      },
-      required: <String>['commandId'],
-    ),
-    _openAIResponsesFunctionTool(
-      name: 'collectStyioLanguageContext',
-      description:
-          'Collect the current Styio language facts already present in the Vityo IDE context.',
-      properties: const <String, Object?>{},
-      required: const <String>[],
-    ),
-    _openAIResponsesFunctionTool(
-      name: 'collectAgentValidationContext',
-      description:
-          'Collect the current Vityo agent validation plan, pipeline, runnable IDE command ids, command results, and testing context.',
-      properties: const <String, Object?>{},
-      required: const <String>[],
-    ),
-    _openAIResponsesFunctionTool(
-      name: 'collectAgentCodingCheckpoint',
-      description:
-          'Collect current IDE, language, testing, toolchain, and agent loop facts.',
-      properties: const <String, Object?>{},
-      required: const <String>[],
-    ),
-  ];
+    },
+    'boolean' || 'bool' => <String, Object?>{'type': 'boolean'},
+    'number' => <String, Object?>{'type': 'number'},
+    'integer' || 'int' => <String, Object?>{'type': 'integer'},
+    'object' => <String, Object?>{
+      'type': 'object',
+      'additionalProperties': true,
+    },
+    'any' || 'json' => <String, Object?>{'additionalProperties': true},
+    _ => <String, Object?>{'additionalProperties': true},
+  };
 }
 
 Map<String, Object?> _openAIResponsesFunctionTool({

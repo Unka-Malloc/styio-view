@@ -9,6 +9,7 @@ import 'package:vityo_app/src/agent/agent_provider_credential_resolver.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_result_context.dart';
+import 'package:vityo_app/src/agent/agent_tool_registry.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
@@ -158,6 +159,13 @@ void main() {
         .cast<Map<String, Object?>>()
         .map((tool) => tool['name'])
         .toSet();
+    final registryToolNames = AgentToolRegistry()
+        .selectForProfile(
+          profile: profile,
+          providerKind: AgentProviderKind.cloudOpenAICompatible,
+        )
+        .toolIds
+        .toSet();
     expect(toolNames, contains('readWorkspaceFile'));
     expect(toolNames, contains('previewWorkspaceEdit'));
     expect(toolNames, contains('applyWorkspacePatch'));
@@ -165,6 +173,7 @@ void main() {
     expect(toolNames, contains('collectStyioLanguageContext'));
     expect(toolNames, contains('collectAgentValidationContext'));
     expect(toolNames, contains('collectAgentCodingCheckpoint'));
+    expect(toolNames, containsAll(registryToolNames));
     final ideTool = tools.cast<Map<String, Object?>>().firstWhere(
       (tool) => tool['name'] == 'vityo_ide_command',
     );
@@ -176,6 +185,11 @@ void main() {
         readParameters['properties']! as Map<String, Object?>;
     expect(readParameters['required'], <String>['path']);
     expect(readProperties['path'], isA<Map<String, Object?>>());
+    final applyTool = tools.cast<Map<String, Object?>>().firstWhere(
+      (tool) => tool['name'] == 'applyWorkspacePatch',
+    );
+    final applyParameters = applyTool['parameters']! as Map<String, Object?>;
+    expect(applyParameters['required'], isEmpty);
     final parameters = ideTool['parameters']! as Map<String, Object?>;
     final properties = parameters['properties']! as Map<String, Object?>;
     final contentParts = properties['contentParts']! as Map<String, Object?>;

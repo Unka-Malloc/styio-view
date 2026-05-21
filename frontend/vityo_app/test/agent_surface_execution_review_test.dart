@@ -543,6 +543,76 @@ void main() {
     expect(controller.lastWorkspaceRevertPlan, isNull);
   });
 
+  testWidgets('agent surface marks restored workspace snapshot revert plan', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+
+    const patch = AgentCodePatch(
+      patchId: 'restored-snapshot-revert-patch',
+      summary: 'Restore value.',
+      edits: <AgentCodePatchEdit>[
+        AgentCodePatchEdit(
+          documentId: 'main.styio',
+          start: 0,
+          end: 10,
+          replacementText: 'value = 1\n',
+        ),
+      ],
+    );
+    final snapshot = AgentWorkspaceChangeSnapshot(
+      snapshotId: 'restored-snapshot',
+      patchId: 'restored-snapshot-patch',
+      activeDocumentId: 'main.styio',
+      capturedAt: DateTime.utc(2026, 1, 1),
+      documents: const <AgentWorkspaceSnapshotDocument>[
+        AgentWorkspaceSnapshotDocument(
+          documentId: 'main.styio',
+          existed: true,
+          text: 'value = 1\n',
+          revision: 1,
+        ),
+      ],
+    );
+    controller.recordWorkspaceSnapshotCaptureResult(
+      AgentWorkspaceSnapshotCaptureResult(
+        status: AgentWorkspaceSnapshotCaptureStatus.captured,
+        message: 'Restored workspace snapshot restored-snapshot.',
+        restored: true,
+        snapshot: snapshot,
+      ),
+    );
+    controller.recordWorkspaceRevertPlan(
+      const AgentWorkspaceRevertPlan(
+        status: AgentWorkspaceRevertPlanStatus.ready,
+        message: 'Ready to restore.',
+        snapshotId: 'restored-snapshot',
+        patch: patch,
+        diffSummary: AgentWorkspaceSnapshotDiffSummary(
+          modifiedDocumentIds: <String>['main.styio'],
+        ),
+      ),
+    );
+
+    await _pumpSurface(tester, controller);
+
+    expect(
+      find.byKey(const ValueKey('agent-workspace-snapshot-restored-warning')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Restored from previous session. Review before applying this revert plan.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent surface runs approved workspace patch tools', (
     tester,
   ) async {

@@ -240,11 +240,13 @@ class AgentWorkspaceSnapshotCaptureResult {
   const AgentWorkspaceSnapshotCaptureResult({
     required this.status,
     required this.message,
+    this.restored = false,
     this.snapshot,
   });
 
   final AgentWorkspaceSnapshotCaptureStatus status;
   final String message;
+  final bool restored;
   final AgentWorkspaceChangeSnapshot? snapshot;
 
   bool get captured =>
@@ -256,6 +258,7 @@ class AgentWorkspaceSnapshotCaptureResult {
       'status': status.wireValue,
       'captured': captured,
       'message': message,
+      'restored': restored,
       if (snapshot != null) 'snapshot': snapshot!.toJson(),
     };
   }

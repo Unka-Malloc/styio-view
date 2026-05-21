@@ -2276,6 +2276,7 @@ void main() {
       second.lastWorkspaceSnapshotCaptureResult?.message,
       contains('Restored workspace snapshot'),
     );
+    expect(second.lastWorkspaceSnapshotCaptureResult?.restored, isTrue);
     expect(second.lastWorkspaceSnapshot?.patchId, 'patch-persisted-snapshot');
     expect(
       second.lastWorkspaceSnapshot?.documentFor('main.styio')?.text,

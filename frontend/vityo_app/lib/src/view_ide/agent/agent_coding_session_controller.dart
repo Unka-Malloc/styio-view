@@ -713,6 +713,7 @@ class AgentCodingSessionController extends ChangeNotifier {
             : AgentWorkspaceSnapshotCaptureStatus.partial,
         message:
             'Restored workspace snapshot ${snapshot.snapshotId} from Foundation DataStore.',
+        restored: true,
         snapshot: snapshot,
       );
       _lastWorkspaceRevertPlan = snapshotService == null

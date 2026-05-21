@@ -3664,6 +3664,18 @@ class _AgentWorkspaceSnapshotReviewSurface extends StatelessWidget {
                   : 'Workspace snapshot: ${capture.status.wireValue}',
               style: theme.textTheme.titleSmall,
             ),
+            if (capture?.restored ?? false) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Restored from previous session. Review before applying this revert plan.',
+                key: const ValueKey(
+                  'agent-workspace-snapshot-restored-warning',
+                ),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
             if (snapshot != null) ...[
               const SizedBox(height: 4),
               Text(

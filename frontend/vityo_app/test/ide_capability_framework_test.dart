@@ -128,9 +128,14 @@ void main() {
       entriesById['presentation.shell']?.summary,
       contains('collapsed bottom-panel state'),
     );
+    expect(entriesById['presentation.shell']?.runtimeMaturityBlocking, isFalse);
     expect(
       entriesById['presentation.problems-panel']?.summary,
       contains('workspace diagnostics grouping'),
+    );
+    expect(
+      entriesById['presentation.problems-panel']?.runtimeMaturityBlocking,
+      isFalse,
     );
     expect(
       entriesById['workspace.diagnostics']?.status,
@@ -256,6 +261,10 @@ void main() {
     expect(
       entriesById['presentation.output-panel']?.summary,
       contains('live RuntimeOutputLiveBuffer agent activity'),
+    );
+    expect(
+      entriesById['presentation.output-panel']?.runtimeMaturityBlocking,
+      isFalse,
     );
     expect(
       entriesById['interaction.diagnostics']?.dependencies,

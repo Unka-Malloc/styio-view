@@ -9,7 +9,7 @@ void main() {
 
     expect(report.isFrameworkClosed, isTrue);
     expect(report.isRuntimeMature, isFalse);
-    expect(report.isRuntimeContractMature, isFalse);
+    expect(report.isRuntimeContractMature, isTrue);
     expect(report.hasHardFailures, isFalse);
     expect(report.missingRequiredCapabilityIds, isEmpty);
     expect(report.dependencyGaps, isEmpty);
@@ -23,11 +23,8 @@ void main() {
     expect(report.failedItems, isEmpty);
     expect(json['isFrameworkClosed'], isTrue);
     expect(json['isRuntimeMature'], isFalse);
-    expect(json['isRuntimeContractMature'], isFalse);
-    expect(
-      report.nonBlockingTodoCapabilityIds,
-      contains('runtime.execution'),
-    );
+    expect(json['isRuntimeContractMature'], isTrue);
+    expect(report.nonBlockingTodoCapabilityIds, contains('runtime.execution'));
     expect(
       report.runtimeMaturityBlockerCapabilityIds,
       isNot(contains('runtime.execution')),
@@ -66,17 +63,11 @@ void main() {
     expect(report.isRuntimeMature, isFalse);
     expect(report.isRuntimeContractMature, isTrue);
     expect(report.todoCapabilityIds, isNotEmpty);
-    expect(
-      report.nonBlockingTodoCapabilityIds,
-      contains('runtime.execution'),
-    );
+    expect(report.nonBlockingTodoCapabilityIds, contains('runtime.execution'));
     expect(report.runtimeMaturityBlockingTodoCapabilityIds, isEmpty);
     expect(report.runtimeMaturityBlockerCapabilityIds, isEmpty);
     expect(json['isRuntimeContractMature'], isTrue);
-    expect(
-      json['nonBlockingTodoCapabilityIds'],
-      contains('runtime.execution'),
-    );
+    expect(json['nonBlockingTodoCapabilityIds'], contains('runtime.execution'));
   });
 
   test('IDE capability closure gate fails missing required capabilities', () {

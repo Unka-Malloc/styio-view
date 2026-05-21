@@ -644,6 +644,7 @@ class VityoIdeCapabilityFramework {
               'Shell model, bottom tab routing, serializable shell layout plans, ShellLayoutPreferenceController live scaffold binding, ShellLayoutRenderBinding, and Foundation DataStore-backed shell layout preferences define top bar, activity rail, editor, bottom panel, active panel keys, panel visibility, pinned panels, collapsed bottom-panel state, and status bar contracts for desktop and compact viewports.',
           todo:
               'TODO: mature panels for diagnostics, search, settings, extensions, debug, and agent activity.',
+          runtimeMaturityBlocking: false,
           references: <String>['VS Code workbench', 'IntelliJ tool windows'],
         ),
         IdeCapabilityDescriptor(
@@ -655,6 +656,7 @@ class VityoIdeCapabilityFramework {
           summary:
               'Active document diagnostics panel is wired into the IDE shell and has workspace diagnostics grouping, source grouping, severity filter, provider contract, per-diagnostic quick-fix selection, per-fix preview/apply command routing, quick-fix confirmation planning, WorkspaceQuickFixReviewPlan preview/control contracts, concrete diff/apply controls, persisted quick-fix telemetry Shell hydration and outcome row rendering, preview, and navigation available.',
           todo: 'TODO: add virtualized multi-file diff expansion.',
+          runtimeMaturityBlocking: false,
           dependencies: <String>['workspace.diagnostics'],
           references: <String>[
             'VS Code Problems panel',
@@ -671,6 +673,7 @@ class VityoIdeCapabilityFramework {
               'Runtime Surface exposes Output Channels for runtime events, stdout, stderr, native tool activity, live output event previews, live RuntimeOutputLiveBuffer agent activity, language-service logs, debug events, serializable output channel filters, event-level output panel snapshots, reusable output channel snapshots, stream subscription plans, retention policies, RuntimeOutputProducerRegistry contracts, RuntimeOutputProducerAdapterRegistry event adapters for shell, terminal, toolchain, hosted, language-service, debug-adapter, and agent producers, RuntimeOutputProducerBindingController multi-producer live binding, RuntimeOutputLiveBuffer stream binding, ShellManagerRuntimeExecutionAdapter streams, ToolchainManagerRuntimeExecutionAdapter, ToolchainInstallRuntimeExecutionAdapter streams, HostedRuntimeExecutionAdapter streams, WorkspaceDiagnosticsRuntimeOutputBinding streams, DebugLaunchRuntimeOutputBinding streams, StyioServiceRuntimeOutputBinding streams, TerminalRuntimeOutputBinding streams, and persisted output history.',
           todo:
               'TODO: wire native OS PTY signal delivery telemetry and production stream cancellation telemetry.',
+          runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code Output panel',
             'IntelliJ Run and Event Log tool windows',

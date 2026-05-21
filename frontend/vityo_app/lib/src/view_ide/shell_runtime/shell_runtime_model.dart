@@ -2539,6 +2539,22 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result;
   }
 
+  Future<AgentCodePatchApplicationResult> applyAgentWorkspacePatchTool(
+    AgentCodePatch patch,
+  ) async {
+    final result = await AgentWorkspaceCodePatchApplier(
+      editorController: editorController,
+      workspaceDocumentStore: workspaceDocumentStore,
+      dirtyDocumentIds: dirtyDocumentPaths,
+      sampledDocumentIds: _agentWorkspaceDocumentSamples.map(
+        (document) => document.documentId,
+      ),
+    ).apply(patch);
+    _syncAgentPatchDocumentCache(result);
+    appendLog(result.message);
+    return result;
+  }
+
   Future<bool> renameSymbolAtSelection(String newName) async {
     final documents = await _loadProjectLanguageDocuments();
     final projectPreview = projectLanguageService.renamePreviewAt(

@@ -16,6 +16,10 @@ typedef AgentIdeCommandToolRunner =
     );
 typedef AgentWorkspacePatchToolRunner =
     Future<AgentCodePatchApplicationResult> Function(AgentCodePatch patch);
+typedef AgentWorkspaceSnapshotCaptureRecorder =
+    void Function(AgentWorkspaceSnapshotCaptureResult result);
+typedef AgentWorkspaceRevertPlanRecorder =
+    void Function(AgentWorkspaceRevertPlan plan);
 typedef AgentValidationContextProvider =
     AgentCodingValidationToolContext Function();
 typedef AgentRecoveryContextProvider =
@@ -110,6 +114,8 @@ class AgentBuiltinToolExecutor {
     this.ideCommandRunner,
     this.workspacePatchRunner,
     this.workspaceSnapshotService,
+    this.workspaceSnapshotCaptureRecorder,
+    this.workspaceRevertPlanRecorder,
     this.validationContextProvider,
     this.recoveryContextProvider,
     this.extensionToolRunner,
@@ -133,6 +139,8 @@ class AgentBuiltinToolExecutor {
   final AgentIdeCommandToolRunner? ideCommandRunner;
   final AgentWorkspacePatchToolRunner? workspacePatchRunner;
   final AgentWorkspaceSnapshotService? workspaceSnapshotService;
+  final AgentWorkspaceSnapshotCaptureRecorder? workspaceSnapshotCaptureRecorder;
+  final AgentWorkspaceRevertPlanRecorder? workspaceRevertPlanRecorder;
   final AgentValidationContextProvider? validationContextProvider;
   final AgentRecoveryContextProvider? recoveryContextProvider;
   final AgentExtensionToolRunner? extensionToolRunner;
@@ -328,6 +336,9 @@ class AgentBuiltinToolExecutor {
       );
     }
     final snapshotCapture = await _captureWorkspaceSnapshot(request, patch);
+    if (snapshotCapture != null) {
+      workspaceSnapshotCaptureRecorder?.call(snapshotCapture);
+    }
     if (snapshotCapture != null && !snapshotCapture.captured) {
       return AgentToolCallDispatchResult.failure(
         callId: request.callId,
@@ -369,6 +380,7 @@ class AgentBuiltinToolExecutor {
         },
       );
     }
+    final revertPlan = await _buildWorkspaceRevertPlan(snapshotCapture);
     return AgentToolCallDispatchResult.success(
       callId: request.callId,
       toolId: request.toolId,
@@ -378,6 +390,7 @@ class AgentBuiltinToolExecutor {
         'result': _patchApplicationResultPayload(result),
         if (snapshotCapture != null)
           'workspaceSnapshot': snapshotCapture.toJson(),
+        if (revertPlan != null) 'workspaceRevertPlan': revertPlan.toJson(),
       }),
       metadata: <String, Object?>{
         'patchId': patch.patchId,
@@ -389,6 +402,12 @@ class AgentBuiltinToolExecutor {
           if (snapshotCapture.snapshot != null)
             'workspaceSnapshotDocumentCount':
                 snapshotCapture.snapshot!.documents.length,
+        },
+        if (revertPlan != null) ...<String, Object?>{
+          'workspaceRevertPlanStatus': revertPlan.status.wireValue,
+          'workspaceRevertPlanReady': revertPlan.ready,
+          'workspaceRevertChangedDocumentCount':
+              revertPlan.diffSummary.changedDocumentCount,
         },
       },
     );
@@ -412,6 +431,23 @@ class AgentBuiltinToolExecutor {
         status: AgentWorkspaceSnapshotCaptureStatus.empty,
         message: 'Failed to capture workspace snapshot: $error',
       );
+    }
+  }
+
+  Future<AgentWorkspaceRevertPlan?> _buildWorkspaceRevertPlan(
+    AgentWorkspaceSnapshotCaptureResult? capture,
+  ) async {
+    final service = workspaceSnapshotService;
+    final snapshot = capture?.snapshot;
+    if (service == null || snapshot == null) {
+      return null;
+    }
+    try {
+      final plan = await service.buildRevertPlan(snapshot);
+      workspaceRevertPlanRecorder?.call(plan);
+      return plan;
+    } on Object {
+      return null;
     }
   }
 

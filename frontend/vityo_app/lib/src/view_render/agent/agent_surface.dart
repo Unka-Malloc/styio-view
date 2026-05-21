@@ -2010,6 +2010,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
           : _runIdeCommandTool,
       workspacePatchRunner: widget.onApplyAgentWorkspacePatch,
       workspaceSnapshotService: widget.workspaceSnapshotService,
+      workspaceSnapshotCaptureRecorder:
+          widget.controller.recordWorkspaceSnapshotCaptureResult,
+      workspaceRevertPlanRecorder: widget.controller.recordWorkspaceRevertPlan,
       extensionToolRunner: widget.onRunAgentExtensionTool,
       validationContextProvider: () =>
           AgentCodingValidationToolContext.fromSessionContext(

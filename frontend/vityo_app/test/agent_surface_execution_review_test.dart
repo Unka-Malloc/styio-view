@@ -8,6 +8,7 @@ import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_render/agent/agent_surface.dart';
 import 'package:vityo_app/src/view_render/platform/viewport_profile.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
@@ -206,6 +207,11 @@ void main() {
       ),
       languageService: const SimpleStyioLanguageService(),
     );
+    final workspaceStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: <String, DocumentState>{
+        'main.styio': editorController.document,
+      },
+    );
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.openAICodexSparkForPlatform(
         PlatformTarget.linux,
@@ -230,16 +236,14 @@ void main() {
       controller,
       onApplyAgentWorkspacePatch: (patch) async {
         appliedPatch = patch;
-        return const AgentCodePatchApplicationResult(
-          applied: true,
-          message: 'workspace patch applied',
-          appliedEditCount: 1,
-          appliedOperationCounts: <String, int>{'replace': 1},
-          appliedDocumentIds: <String>['main.styio'],
-        );
+        return AgentWorkspaceCodePatchApplier(
+          editorController: editorController,
+          workspaceDocumentStore: workspaceStore,
+        ).apply(patch);
       },
       workspaceSnapshotService: AgentWorkspaceSnapshotService(
         editorController: editorController,
+        workspaceDocumentStore: workspaceStore,
       ),
     );
 
@@ -262,6 +266,10 @@ void main() {
           .metadata['workspaceSnapshotCaptured'],
       isTrue,
     );
+    expect(editorController.document.text, 'value = 2\n');
+    expect(controller.workspaceCheckpointContext?.captureStatus, 'captured');
+    expect(controller.workspaceCheckpointContext?.revertPlanStatus, 'ready');
+    expect(controller.workspaceCheckpointContext?.revertReady, isTrue);
     expect(
       controller.toolCallTimeline.status,
       AgentToolCallTimelineStatus.complete,

@@ -1125,6 +1125,15 @@ class AgentCodingSessionController extends ChangeNotifier {
     );
   }
 
+  void recordWorkspaceSnapshotCaptureResult(
+    AgentWorkspaceSnapshotCaptureResult result,
+  ) {
+    _lastWorkspaceSnapshotCaptureResult = result;
+    _lastWorkspaceSnapshot = result.snapshot;
+    _lastWorkspaceRevertPlan = null;
+    notifyListeners();
+  }
+
   Future<AgentWorkspaceRevertPlan?> buildWorkspaceRevertPlan(
     AgentWorkspaceSnapshotService snapshotService,
   ) async {
@@ -1136,6 +1145,11 @@ class AgentCodingSessionController extends ChangeNotifier {
     _lastWorkspaceRevertPlan = plan;
     notifyListeners();
     return plan;
+  }
+
+  void recordWorkspaceRevertPlan(AgentWorkspaceRevertPlan plan) {
+    _lastWorkspaceRevertPlan = plan;
+    notifyListeners();
   }
 
   AgentCodePatchApplicationResult? applyLastWorkspaceRevertPlan(

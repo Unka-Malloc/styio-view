@@ -188,6 +188,9 @@ class VityoShellScaffold extends StatelessWidget {
             editorController: shell.editorController,
             workspaceDocumentStore: shell.workspaceDocumentStore,
           ),
+          onApplyAgentWorkspacePatch: (patch) async {
+            return shell.applyAgentWorkspacePatchTool(patch);
+          },
           onApplyIdeCommandSuggestion: (suggestion) async {
             return shell.applyAgentIdeCommandSuggestion(suggestion);
           },

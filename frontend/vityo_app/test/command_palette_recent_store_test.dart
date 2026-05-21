@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
@@ -173,9 +174,21 @@ void main() {
 
   test('command shortcut capture policy blocks reserved shortcuts', () {
     const policy = CommandShortcutCapturePolicy();
+    final browserPolicy = CommandShortcutCapturePolicy.forPlatform(
+      PlatformTarget.web,
+    );
+    final macosPolicy = CommandShortcutCapturePolicy.forPlatform(
+      PlatformTarget.macos,
+    );
 
     final reserved = policy.evaluate(
       const AppCommandShortcutSpec('tab', control: true),
+    );
+    final browserRefresh = browserPolicy.evaluate(
+      const AppCommandShortcutSpec('keyR', control: true),
+    );
+    final macosQuit = macosPolicy.evaluate(
+      const AppCommandShortcutSpec('keyQ', meta: true),
     );
     final hinted = policy.evaluate(const AppCommandShortcutSpec('keyK'));
     final allowed = policy.evaluate(
@@ -185,11 +198,16 @@ void main() {
     expect(reserved.allowed, isFalse);
     expect(reserved.decision, CommandShortcutCaptureDecision.reserved);
     expect(reserved.message, contains('reserved'));
+    expect(browserRefresh.allowed, isFalse);
+    expect(browserRefresh.message, contains('web-browser'));
+    expect(macosQuit.allowed, isFalse);
+    expect(macosQuit.message, contains('macos-desktop'));
     expect(hinted.allowed, isTrue);
     expect(hinted.decision, CommandShortcutCaptureDecision.needsModifierHint);
     expect(hinted.accessibilityHint, contains('text input'));
     expect(allowed.allowed, isTrue);
     expect(allowed.toJson()['decision'], 'allowed');
+    expect(browserPolicy.hostPolicy.toJson()['kind'], 'web-browser');
   });
 }
 

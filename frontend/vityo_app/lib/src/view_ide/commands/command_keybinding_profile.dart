@@ -1,4 +1,5 @@
 import '../foundation/foundation.dart';
+import '../platform/platform_target.dart';
 import 'app_commands.dart';
 
 class CommandKeybindingOverride {
@@ -239,21 +240,138 @@ class CommandShortcutCapturePolicyResult {
   }
 }
 
-class CommandShortcutCapturePolicy {
-  const CommandShortcutCapturePolicy({
-    this.reservedSignatures = _defaultReservedSignatures,
+enum CommandShortcutHostPolicyKind {
+  generic,
+  macosDesktop,
+  windowsLinuxDesktop,
+  webBrowser,
+  mobile,
+}
+
+extension CommandShortcutHostPolicyKindX on CommandShortcutHostPolicyKind {
+  String get wireValue {
+    return switch (this) {
+      CommandShortcutHostPolicyKind.generic => 'generic',
+      CommandShortcutHostPolicyKind.macosDesktop => 'macos-desktop',
+      CommandShortcutHostPolicyKind.windowsLinuxDesktop =>
+        'windows-linux-desktop',
+      CommandShortcutHostPolicyKind.webBrowser => 'web-browser',
+      CommandShortcutHostPolicyKind.mobile => 'mobile',
+    };
+  }
+}
+
+class CommandShortcutHostPolicy {
+  const CommandShortcutHostPolicy({
+    required this.kind,
+    required this.reservedSignatures,
+    required this.message,
   });
 
-  static const Set<String> _defaultReservedSignatures = <String>{
-    'ctrl+tab',
-    'ctrl+shift+tab',
-    'meta+tab',
-    'meta+shift+tab',
-    'meta+space',
-    'meta+keyQ',
-  };
+  factory CommandShortcutHostPolicy.forPlatform(PlatformTarget platformTarget) {
+    return switch (platformTarget) {
+      PlatformTarget.macos => CommandShortcutHostPolicy.macosDesktop,
+      PlatformTarget.windows ||
+      PlatformTarget.linux => CommandShortcutHostPolicy.windowsLinuxDesktop,
+      PlatformTarget.web => CommandShortcutHostPolicy.webBrowser,
+      PlatformTarget.android ||
+      PlatformTarget.ios => CommandShortcutHostPolicy.mobile,
+      PlatformTarget.unknown => CommandShortcutHostPolicy.generic,
+    };
+  }
 
+  static const CommandShortcutHostPolicy generic = CommandShortcutHostPolicy(
+    kind: CommandShortcutHostPolicyKind.generic,
+    reservedSignatures: <String>{
+      'ctrl+tab',
+      'ctrl+shift+tab',
+      'meta+tab',
+      'meta+shift+tab',
+      'meta+space',
+      'meta+keyQ',
+    },
+    message: 'Generic host policy protects common system shortcuts.',
+  );
+
+  static const CommandShortcutHostPolicy macosDesktop =
+      CommandShortcutHostPolicy(
+        kind: CommandShortcutHostPolicyKind.macosDesktop,
+        reservedSignatures: <String>{
+          'meta+tab',
+          'meta+shift+tab',
+          'meta+space',
+          'meta+keyQ',
+          'meta+keyW',
+        },
+        message: 'macOS host policy protects application and system shortcuts.',
+      );
+
+  static const CommandShortcutHostPolicy
+  windowsLinuxDesktop = CommandShortcutHostPolicy(
+    kind: CommandShortcutHostPolicyKind.windowsLinuxDesktop,
+    reservedSignatures: <String>{
+      'ctrl+tab',
+      'ctrl+shift+tab',
+      'ctrl+keyW',
+      'ctrl+keyL',
+    },
+    message:
+        'Windows/Linux host policy protects tab navigation and shell/browser shortcuts.',
+  );
+
+  static const CommandShortcutHostPolicy webBrowser = CommandShortcutHostPolicy(
+    kind: CommandShortcutHostPolicyKind.webBrowser,
+    reservedSignatures: <String>{
+      'ctrl+tab',
+      'ctrl+shift+tab',
+      'ctrl+keyL',
+      'ctrl+keyR',
+      'ctrl+keyW',
+      'meta+tab',
+      'meta+shift+tab',
+      'meta+keyL',
+      'meta+keyR',
+      'meta+keyW',
+    },
+    message: 'Web browser host policy protects browser-owned shortcuts.',
+  );
+
+  static const CommandShortcutHostPolicy mobile = CommandShortcutHostPolicy(
+    kind: CommandShortcutHostPolicyKind.mobile,
+    reservedSignatures: <String>{'meta+space'},
+    message:
+        'Mobile host policy keeps external keyboard shortcuts conservative.',
+  );
+
+  final CommandShortcutHostPolicyKind kind;
   final Set<String> reservedSignatures;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'reservedSignatures': reservedSignatures.toList(growable: false),
+      'message': message,
+    };
+  }
+}
+
+class CommandShortcutCapturePolicy {
+  const CommandShortcutCapturePolicy({
+    this.hostPolicy = CommandShortcutHostPolicy.generic,
+  });
+
+  factory CommandShortcutCapturePolicy.forPlatform(
+    PlatformTarget platformTarget,
+  ) {
+    return CommandShortcutCapturePolicy(
+      hostPolicy: CommandShortcutHostPolicy.forPlatform(platformTarget),
+    );
+  }
+
+  final CommandShortcutHostPolicy hostPolicy;
+
+  Set<String> get reservedSignatures => hostPolicy.reservedSignatures;
 
   CommandShortcutCapturePolicyResult evaluate(
     AppCommandShortcutSpec? shortcut,
@@ -271,9 +389,10 @@ class CommandShortcutCapturePolicy {
       return CommandShortcutCapturePolicyResult(
         decision: CommandShortcutCaptureDecision.reserved,
         shortcut: shortcut,
-        message: '$signature is reserved by the platform or application host.',
+        message:
+            '$signature is reserved by the ${hostPolicy.kind.wireValue} host policy.',
         accessibilityHint:
-            'Choose a shortcut that does not override system navigation or application quit shortcuts.',
+            '${hostPolicy.message} Choose a shortcut that does not override system navigation or application quit shortcuts.',
       );
     }
     if (!shortcut.control &&
@@ -290,7 +409,8 @@ class CommandShortcutCapturePolicy {
     return CommandShortcutCapturePolicyResult(
       decision: CommandShortcutCaptureDecision.allowed,
       shortcut: shortcut,
-      message: '$signature is available for this workspace profile.',
+      message:
+          '$signature is available for this ${hostPolicy.kind.wireValue} workspace profile.',
       accessibilityHint:
           'Shortcut capture uses physical key identity so the binding remains stable across keyboard layouts.',
     );

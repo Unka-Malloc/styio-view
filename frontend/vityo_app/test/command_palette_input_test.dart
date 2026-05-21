@@ -160,13 +160,69 @@ void main() {
     await tester.pump();
     await tester.tap(shortcutInput);
     await tester.pump();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.tab);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.tab);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
     await tester.pump();
 
     expect(find.textContaining('reserved'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('command-palette-keybinding-save')),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(savedOverride, isNull);
+  });
+
+  testWidgets('command palette applies web host shortcut policy', (
+    tester,
+  ) async {
+    CommandKeybindingOverride? savedOverride;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPaletteSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.web,
+              width: 1200,
+              height: 800,
+            ),
+            commands: const <AppCommandDescriptor>[
+              AppCommandDescriptor(
+                id: AppCommandId.save,
+                label: 'Save',
+                shortcutHint: 'Cmd/Ctrl+S',
+                description: 'Save current file.',
+              ),
+            ],
+            keybindingProfile: CommandKeybindingProfile(workspaceId: 'demo'),
+            onSaveKeybindingOverride: (override) async {
+              savedOverride = override;
+            },
+          ),
+        ),
+      ),
+    );
+
+    final shortcutInput = find.byKey(
+      const ValueKey('command-palette-keybinding-shortcut-input'),
+    );
+    await tester.ensureVisible(shortcutInput);
+    await tester.pump();
+    await tester.tap(shortcutInput);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyR);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyR);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(find.textContaining('web-browser'), findsOneWidget);
     expect(
       tester
           .widget<FilledButton>(

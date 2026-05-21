@@ -646,15 +646,11 @@ void main() {
     );
     expect(
       entriesById['interaction.command-palette']?.summary,
-      contains('reserved shortcut capture policy'),
+      contains('platform-specific reserved shortcut host policies'),
     );
     expect(
       entriesById['interaction.command-palette']?.summary,
       contains('accessibility hints'),
-    );
-    expect(
-      entriesById['interaction.command-palette']?.todo,
-      contains('platform-specific host policies'),
     );
     expect(
       entriesById['editor.rendering']?.summary,

@@ -61,6 +61,12 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   CommandShortcutCapturePolicyResult _keybindingCapturePolicyResult =
       const CommandShortcutCapturePolicy().evaluate(null);
 
+  CommandShortcutCapturePolicy get _shortcutCapturePolicy {
+    return CommandShortcutCapturePolicy.forPlatform(
+      widget.viewportProfile.platformTarget,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -416,7 +422,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     final policyResult =
         _sameShortcut(_keybindingCapturePolicyResult.shortcut, parsedShortcut)
         ? _keybindingCapturePolicyResult
-        : const CommandShortcutCapturePolicy().evaluate(parsedShortcut);
+        : _shortcutCapturePolicy.evaluate(parsedShortcut);
     return Container(
       key: const ValueKey('command-palette-keybinding-editor'),
       padding: const EdgeInsets.all(12),
@@ -664,9 +670,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     if (shortcut == null) {
       return;
     }
-    final policyResult = const CommandShortcutCapturePolicy().evaluate(
-      shortcut,
-    );
+    final policyResult = _shortcutCapturePolicy.evaluate(shortcut);
     if (!policyResult.allowed) {
       setState(() {
         _keybindingCapturePolicyResult = policyResult;
@@ -688,9 +692,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     if (shortcut == null) {
       return KeyEventResult.ignored;
     }
-    final policyResult = const CommandShortcutCapturePolicy().evaluate(
-      shortcut,
-    );
+    final policyResult = _shortcutCapturePolicy.evaluate(shortcut);
     setState(() {
       _keybindingController.text = commandShortcutSignature(shortcut);
       _keybindingCapturePolicyResult = policyResult;

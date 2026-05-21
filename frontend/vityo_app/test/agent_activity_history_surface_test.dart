@@ -197,6 +197,48 @@ void main() {
     );
   });
 
+  testWidgets('agent activity history surface restores prompt from record', (
+    tester,
+  ) async {
+    AgentCodingSessionHistoryRecord? restoredRecord;
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord(
+          requestId: 'agent-restore',
+          profileId: 'default-agent',
+          providerKind: 'local_only_fallback',
+          prompt: 'Replay this prompt.',
+          outcome: AgentCodingSessionOutcome.failed,
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+          errorMessage: 'provider failed',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AgentActivityHistorySurface(
+            history: history,
+            onRestorePrompt: (record) {
+              restoredRecord = record;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('agent-activity-restore-prompt-agent-restore')),
+    );
+    await tester.pump();
+
+    expect(restoredRecord?.requestId, 'agent-restore');
+    expect(restoredRecord?.prompt, 'Replay this prompt.');
+  });
+
   testWidgets('agent activity history surface renders blocked validation plan', (
     tester,
   ) async {
@@ -351,6 +393,16 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Use controller history.'), findsOneWidget);
+
+    final restorePromptButton = find.byKey(
+      const ValueKey('agent-activity-restore-prompt-agent-controller-history'),
+    );
+    await tester.ensureVisible(restorePromptButton);
+    await tester.pumpAndSettle();
+    await tester.tap(restorePromptButton);
+    await tester.pump();
+
+    expect(controller.draftPrompt, 'Use controller history.');
   });
 }
 

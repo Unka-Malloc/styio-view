@@ -7,10 +7,12 @@ class AgentActivityHistorySurface extends StatelessWidget {
     super.key,
     required this.history,
     this.maxVisibleRecords = 8,
+    this.onRestorePrompt,
   });
 
   final AgentCodingSessionHistory history;
   final int maxVisibleRecords;
+  final void Function(AgentCodingSessionHistoryRecord record)? onRestorePrompt;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +39,11 @@ class AgentActivityHistorySurface extends StatelessWidget {
             if (records.isEmpty)
               const _AgentActivityEmptyState()
             else
-              for (final record in records) _AgentActivityRecordTile(record),
+              for (final record in records)
+                _AgentActivityRecordTile(
+                  record,
+                  onRestorePrompt: onRestorePrompt,
+                ),
           ],
         ),
       ),
@@ -68,9 +74,10 @@ class _AgentActivityEmptyState extends StatelessWidget {
 }
 
 class _AgentActivityRecordTile extends StatelessWidget {
-  const _AgentActivityRecordTile(this.record);
+  const _AgentActivityRecordTile(this.record, {this.onRestorePrompt});
 
   final AgentCodingSessionHistoryRecord record;
+  final void Function(AgentCodingSessionHistoryRecord record)? onRestorePrompt;
 
   @override
   Widget build(BuildContext context) {
@@ -205,6 +212,17 @@ class _AgentActivityRecordTile extends StatelessWidget {
               ),
             ],
           ),
+          if (onRestorePrompt != null && record.prompt.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: ValueKey(
+                'agent-activity-restore-prompt-${record.requestId}',
+              ),
+              onPressed: () => onRestorePrompt!(record),
+              icon: const Icon(Icons.replay),
+              label: const Text('Restore Prompt'),
+            ),
+          ],
         ],
       ),
     );

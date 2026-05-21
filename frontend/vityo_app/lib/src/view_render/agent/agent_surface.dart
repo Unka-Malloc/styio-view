@@ -133,6 +133,7 @@ class AgentSurface extends StatelessWidget {
                   controller: codingController,
                   activityHistory: activityHistory,
                   topGap: 12,
+                  onRestorePrompt: codingController.updatePrompt,
                 ),
                 const SizedBox(height: 12),
                 _AdapterSection(adapterCapabilities: adapterCapabilities),
@@ -184,6 +185,7 @@ class AgentSurface extends StatelessWidget {
                   controller: codingController,
                   activityHistory: activityHistory,
                   topGap: 14,
+                  onRestorePrompt: codingController.updatePrompt,
                 ),
                 const SizedBox(height: 14),
                 _AdapterSection(adapterCapabilities: adapterCapabilities),
@@ -555,11 +557,13 @@ class _AgentActivityHistoryBinding extends StatelessWidget {
     required this.controller,
     required this.topGap,
     this.activityHistory,
+    this.onRestorePrompt,
   });
 
   final AgentCodingSessionController controller;
   final AgentCodingSessionHistory? activityHistory;
   final double topGap;
+  final void Function(String prompt)? onRestorePrompt;
 
   @override
   Widget build(BuildContext context) {
@@ -574,7 +578,12 @@ class _AgentActivityHistoryBinding extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(height: topGap),
-            AgentActivityHistorySurface(history: history),
+            AgentActivityHistorySurface(
+              history: history,
+              onRestorePrompt: onRestorePrompt == null
+                  ? null
+                  : (record) => onRestorePrompt!(record.prompt),
+            ),
           ],
         );
       },

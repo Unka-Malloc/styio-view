@@ -860,6 +860,101 @@ class AgentCodingSessionController extends ChangeNotifier {
     return plan;
   }
 
+  AgentCodePatchApplicationResult? applyLastWorkspaceRevertPlan(
+    AgentCodePatchApplier applier,
+  ) {
+    final plan = _lastWorkspaceRevertPlan;
+    if (plan == null) {
+      return null;
+    }
+    final patch = plan.patch;
+    if (!plan.ready) {
+      final result = _revertPlanNotReadyResult(plan);
+      _recordPatchApplicationResult(patch, result);
+      notifyListeners();
+      return result;
+    }
+    if (_applyingPatch) {
+      final result = const AgentCodePatchApplicationResult(
+        applied: false,
+        message: 'Agent patch application is already in progress.',
+      );
+      _recordPatchApplicationResult(patch, result);
+      notifyListeners();
+      return result;
+    }
+
+    final applicationSerial = _patchApplicationSerial + 1;
+    _patchApplicationSerial = applicationSerial;
+    _applyingPatch = true;
+    notifyListeners();
+    late final AgentCodePatchApplicationResult result;
+    try {
+      result = applier.apply(patch);
+    } finally {
+      if (applicationSerial == _patchApplicationSerial) {
+        _applyingPatch = false;
+      }
+    }
+    if (applicationSerial != _patchApplicationSerial) {
+      notifyListeners();
+      return null;
+    }
+    _recordPatchApplicationResult(patch, result);
+    if (result.applied) {
+      _clearWorkspaceSnapshotState();
+    }
+    notifyListeners();
+    return result;
+  }
+
+  Future<AgentCodePatchApplicationResult?>
+  applyLastWorkspaceRevertPlanToWorkspace(
+    AgentWorkspaceCodePatchApplier applier,
+  ) async {
+    final plan = _lastWorkspaceRevertPlan;
+    if (plan == null) {
+      return null;
+    }
+    final patch = plan.patch;
+    if (!plan.ready) {
+      final result = _revertPlanNotReadyResult(plan);
+      _recordPatchApplicationResult(patch, result);
+      notifyListeners();
+      return result;
+    }
+    if (_applyingPatch) {
+      final result = const AgentCodePatchApplicationResult(
+        applied: false,
+        message: 'Agent patch application is already in progress.',
+      );
+      _recordPatchApplicationResult(patch, result);
+      notifyListeners();
+      return result;
+    }
+
+    final applicationSerial = _patchApplicationSerial + 1;
+    _patchApplicationSerial = applicationSerial;
+    _applyingPatch = true;
+    notifyListeners();
+    try {
+      final result = await applier.apply(patch);
+      if (applicationSerial != _patchApplicationSerial) {
+        return null;
+      }
+      _recordPatchApplicationResult(patch, result);
+      if (result.applied) {
+        _clearWorkspaceSnapshotState();
+      }
+      return result;
+    } finally {
+      if (applicationSerial == _patchApplicationSerial) {
+        _applyingPatch = false;
+        notifyListeners();
+      }
+    }
+  }
+
   AgentCodePatchApplicationResult? applyPendingPatch(
     AgentCodePatchApplier applier,
   ) {
@@ -1090,6 +1185,16 @@ class AgentCodingSessionController extends ChangeNotifier {
       applied: false,
       message:
           'Agent patch ${patch.patchId} was not applied because workspace snapshot capture was incomplete: ${result.message}',
+    );
+  }
+
+  AgentCodePatchApplicationResult _revertPlanNotReadyResult(
+    AgentWorkspaceRevertPlan plan,
+  ) {
+    return AgentCodePatchApplicationResult(
+      applied: false,
+      message:
+          'Agent workspace revert plan ${plan.snapshotId} is not ready: ${plan.status.wireValue}.',
     );
   }
 

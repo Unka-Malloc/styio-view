@@ -1475,6 +1475,15 @@ void main() {
       expect(revertEdit.documentId, 'main.styio');
       expect(revertEdit.replacementText, 'value = 1\n');
       expect(editorController.document.text, 'value = 2\n');
+
+      final revertResult = controller.applyLastWorkspaceRevertPlan(
+        AgentCodePatchApplier(editorController: editorController),
+      );
+
+      expect(revertResult?.applied, isTrue);
+      expect(editorController.document.text, 'value = 1\n');
+      expect(controller.lastWorkspaceRevertPlan, isNull);
+      expect(controller.lastWorkspaceSnapshot, isNull);
     },
   );
 
@@ -1619,6 +1628,22 @@ void main() {
     );
     expect(editorController.document.text, 'value = 2\n');
     expect(otherDocument.text, 'name = new\n');
+
+    final revertResult = await controller
+        .applyLastWorkspaceRevertPlanToWorkspace(
+          AgentWorkspaceCodePatchApplier(
+            editorController: editorController,
+            workspaceDocumentStore: workspaceStore,
+          ),
+        );
+    final revertedOtherDocument = await workspaceStore.loadDocument(
+      'other.styio',
+    );
+
+    expect(revertResult?.applied, isTrue);
+    expect(editorController.document.text, 'value = 1\n');
+    expect(revertedOtherDocument.text, 'name = old\n');
+    expect(controller.lastWorkspaceRevertPlan, isNull);
   });
 
   test(

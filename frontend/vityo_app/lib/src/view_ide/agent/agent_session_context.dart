@@ -582,6 +582,134 @@ class AgentCodingAutonomyPolicy {
   }
 }
 
+enum AgentCodingValidationPlanStatus {
+  notNeeded,
+  waitingForReview,
+  ready,
+  blocked,
+}
+
+extension AgentCodingValidationPlanStatusX on AgentCodingValidationPlanStatus {
+  String get wireValue => switch (this) {
+    AgentCodingValidationPlanStatus.notNeeded => 'notNeeded',
+    AgentCodingValidationPlanStatus.waitingForReview => 'waitingForReview',
+    AgentCodingValidationPlanStatus.ready => 'ready',
+    AgentCodingValidationPlanStatus.blocked => 'blocked',
+  };
+}
+
+class AgentCodingValidationPlan {
+  const AgentCodingValidationPlan({
+    required this.status,
+    required this.shouldRun,
+    required this.reason,
+    this.requiredSteps = const <String>[],
+    this.commandHints = const <String>[],
+    this.todoItems = const <String>[],
+  });
+
+  const AgentCodingValidationPlan.notNeeded()
+    : status = AgentCodingValidationPlanStatus.notNeeded,
+      shouldRun = false,
+      reason = 'No generated code change needs validation.',
+      requiredSteps = const <String>[],
+      commandHints = const <String>[],
+      todoItems = const <String>[];
+
+  factory AgentCodingValidationPlan.fromAgentState({
+    required AgentCodingAutonomyPolicy autonomyPolicy,
+    required AgentCodingChangeReviewGate changeReviewGate,
+    required AgentPatchApplicationContext? lastPatchApplication,
+  }) {
+    if (autonomyPolicy.mode == AgentCodingAutonomyMode.blocked) {
+      return AgentCodingValidationPlan(
+        status: AgentCodingValidationPlanStatus.blocked,
+        shouldRun: false,
+        reason: 'Agent coding validation is blocked by autonomy policy.',
+        todoItems: <String>[
+          ...autonomyPolicy.todoItems,
+          'TODO: expose blocked validation state in the agent activity panel.',
+        ],
+      );
+    }
+    if (changeReviewGate.status ==
+            AgentCodingChangeReviewGateStatus.needsReview ||
+        changeReviewGate.status == AgentCodingChangeReviewGateStatus.applying) {
+      return const AgentCodingValidationPlan(
+        status: AgentCodingValidationPlanStatus.waitingForReview,
+        shouldRun: false,
+        reason: 'Generated changes must be reviewed or applied first.',
+        requiredSteps: <String>[
+          'completeChangeReviewGate',
+          'applyReviewedWorkspaceEdit',
+        ],
+        commandHints: <String>['agent.reviewChanges'],
+        todoItems: <String>[
+          'TODO: start validation automatically after reviewed apply succeeds.',
+        ],
+      );
+    }
+    if (lastPatchApplication == null) {
+      return const AgentCodingValidationPlan.notNeeded();
+    }
+    if (!lastPatchApplication.applied) {
+      return const AgentCodingValidationPlan(
+        status: AgentCodingValidationPlanStatus.blocked,
+        shouldRun: false,
+        reason: 'Last generated patch did not apply successfully.',
+        requiredSteps: <String>[
+          'inspectPatchApplicationFailure',
+          'reviseGeneratedPatch',
+        ],
+        commandHints: <String>['agent.explainPatchFailure'],
+        todoItems: <String>[
+          'TODO: link failed patch application to diagnostics and retry flow.',
+        ],
+      );
+    }
+    return const AgentCodingValidationPlan(
+      status: AgentCodingValidationPlanStatus.ready,
+      shouldRun: true,
+      reason: 'Generated code was applied and needs validation.',
+      requiredSteps: <String>[
+        'saveChangedDocuments',
+        'runStyioSyntaxValidation',
+        'refreshWorkspaceDiagnostics',
+        'runRelevantTests',
+        'captureValidationResult',
+      ],
+      commandHints: <String>[
+        'workspace.saveAll',
+        'styio.syntax.check',
+        'diagnostics.refresh',
+        'testing.runRelevant',
+      ],
+      todoItems: <String>[
+        'TODO: bind validation command hints to real command execution routes.',
+        'TODO: persist validation result beside the agent patch application record.',
+      ],
+    );
+  }
+
+  final AgentCodingValidationPlanStatus status;
+  final bool shouldRun;
+  final String reason;
+  final List<String> requiredSteps;
+  final List<String> commandHints;
+  final List<String> todoItems;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'shouldRun': shouldRun,
+      'reason': reason,
+      'requiredSteps': requiredSteps,
+      'commandHints': commandHints,
+      'todoItems': todoItems,
+    };
+  }
+}
+
 class AgentSessionContext {
   const AgentSessionContext({
     required this.schemaVersion,
@@ -1090,6 +1218,7 @@ class AgentCodingLoopContext {
       requiresUserReview: false,
     ),
     this.autonomyPolicy = const AgentCodingAutonomyPolicy.proposalOnly(),
+    this.validationPlan = const AgentCodingValidationPlan.notNeeded(),
     this.suggestedCommandIds = const <String>[],
   });
 
@@ -1138,6 +1267,13 @@ class AgentCodingLoopContext {
           applyingIdeCommand: false,
           executionReadiness: codingReadiness,
         );
+    final effectiveAutonomyPolicy = AgentCodingAutonomyPolicy.fromGates(
+      readiness: codingReadiness,
+      changeReviewGate: effectiveChangeReviewGate,
+    );
+    final effectiveLastPatchApplication = history.isEmpty
+        ? null
+        : history.first;
     return AgentCodingLoopContext(
       pendingPatch: pendingPatch,
       recentPatchProposals: recentPatchProposals.toList(growable: false),
@@ -1150,7 +1286,7 @@ class AgentCodingLoopContext {
       providerExecution: providerExecution,
       recoveryPlan: recoveryPlan,
       savedProviderProfiles: savedProviderProfileList,
-      lastPatchApplication: history.isEmpty ? null : history.first,
+      lastPatchApplication: effectiveLastPatchApplication,
       recentPatchApplications: history,
       workspaceEdit: workspaceEdit,
       recentCodingPlans: recentCodingPlans.toList(growable: false),
@@ -1158,9 +1294,11 @@ class AgentCodingLoopContext {
         growable: false,
       ),
       changeReviewGate: effectiveChangeReviewGate,
-      autonomyPolicy: AgentCodingAutonomyPolicy.fromGates(
-        readiness: codingReadiness,
+      autonomyPolicy: effectiveAutonomyPolicy,
+      validationPlan: AgentCodingValidationPlan.fromAgentState(
+        autonomyPolicy: effectiveAutonomyPolicy,
         changeReviewGate: effectiveChangeReviewGate,
+        lastPatchApplication: effectiveLastPatchApplication,
       ),
       suggestedCommandIds: _suggestedAgentCodingCommandIds(
         pendingIdeCommands: pendingIdeCommandList,
@@ -1189,6 +1327,7 @@ class AgentCodingLoopContext {
   final List<AgentDiagnosticSummaryContext> recentDiagnosticSummaries;
   final AgentCodingChangeReviewGate changeReviewGate;
   final AgentCodingAutonomyPolicy autonomyPolicy;
+  final AgentCodingValidationPlan validationPlan;
   final List<String> suggestedCommandIds;
 
   Map<String, Object?> toJson() {
@@ -1230,6 +1369,8 @@ class AgentCodingLoopContext {
       if (changeReviewGate.status != AgentCodingChangeReviewGateStatus.idle)
         'changeReviewGate': changeReviewGate.toJson(),
       'autonomyPolicy': autonomyPolicy.toJson(),
+      if (validationPlan.status != AgentCodingValidationPlanStatus.notNeeded)
+        'validationPlan': validationPlan.toJson(),
       if (recentCodingPlans.isNotEmpty)
         'recentCodingPlans': recentCodingPlans
             .map((plan) => plan.toJson())

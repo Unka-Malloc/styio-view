@@ -1971,6 +1971,8 @@ void main() {
           agentJson['recentPatchApplications']! as List<Object?>;
       final filteredJson = context.toJsonForChannels(const <String>['agent']);
       final filteredAgentJson = filteredJson['agent']! as Map<String, Object?>;
+      final validationPlan =
+          agentJson['validationPlan']! as Map<String, Object?>;
 
       expect(patchApplication['patchId'], 'patch-1');
       expect(patchApplication['summary'], 'Change value.');
@@ -2002,6 +2004,16 @@ void main() {
       expect(
         filteredAgentJson['lastPatchApplication'],
         isA<Map<String, Object?>>(),
+      );
+      expect(validationPlan['status'], 'ready');
+      expect(validationPlan['shouldRun'], isTrue);
+      expect(
+        validationPlan['commandHints'],
+        containsAll(<String>[
+          'styio.syntax.check',
+          'diagnostics.refresh',
+          'testing.runRelevant',
+        ]),
       );
       expect(filteredJson.containsKey('document'), isFalse);
     },
@@ -2067,6 +2079,7 @@ void main() {
     final changeReviewGate =
         agentJson['changeReviewGate']! as Map<String, Object?>;
     final autonomyPolicy = agentJson['autonomyPolicy']! as Map<String, Object?>;
+    final validationPlan = agentJson['validationPlan']! as Map<String, Object?>;
     final edits = pendingPatch['edits']! as List<Object?>;
     final firstEdit = edits.single! as Map<String, Object?>;
 
@@ -2100,6 +2113,15 @@ void main() {
     expect(autonomyPolicy['canProposePatches'], isTrue);
     expect(autonomyPolicy['canApplyWithoutReview'], isFalse);
     expect(autonomyPolicy['requiresExplicitUserApproval'], isTrue);
+    expect(validationPlan['status'], 'waitingForReview');
+    expect(validationPlan['shouldRun'], isFalse);
+    expect(
+      validationPlan['requiredSteps'],
+      containsAll(<String>[
+        'completeChangeReviewGate',
+        'applyReviewedWorkspaceEdit',
+      ]),
+    );
   });
 
   test('agent session context serializes pending IDE command suggestions', () {

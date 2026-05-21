@@ -275,11 +275,19 @@ void main() {
     );
     expect(
       entriesById['workspace.file-explorer']?.summary,
+      contains('WorkspaceFileExplorerIgnoreRules'),
+    );
+    expect(
+      entriesById['workspace.file-explorer']?.summary,
+      contains('WorkspaceFileExplorerWatchDebouncePolicy'),
+    );
+    expect(
+      entriesById['workspace.file-explorer']?.summary,
       contains('shell sidebar renders confirmation apply/cancel controls'),
     );
     expect(
       entriesById['workspace.file-explorer']?.todo,
-      contains('bind batch plans'),
+      contains('timer-backed watcher debounce flushing'),
     );
     expect(
       entriesById['workspace.file-explorer']?.runtimeMaturityBlocking,

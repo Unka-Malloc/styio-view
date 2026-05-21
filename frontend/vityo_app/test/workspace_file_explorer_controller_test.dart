@@ -77,6 +77,7 @@ void main() {
       plan: plan,
       baseFilePaths: const <String>[
         'README.md',
+        'build/generated.styio',
         'src/old.styio',
         'src/stale.styio',
       ],
@@ -102,6 +103,11 @@ void main() {
           path: '../outside.styio',
           timestamp: DateTime.utc(2026, 5, 20, 12, 3),
         ),
+        WorkspaceFileExplorerWatchEvent(
+          kind: WorkspaceFileExplorerWatchEventKind.created,
+          path: '.git/config',
+          timestamp: DateTime.utc(2026, 5, 20, 12, 4),
+        ),
       ],
     );
     final workspaceController = WorkspaceController(
@@ -124,12 +130,49 @@ void main() {
       'src/current.styio',
       'src/new.styio',
     ]);
-    expect(watch.toJson()['eventCount'], 4);
+    expect(watch.toJson()['eventCount'], 5);
     expect(watch.toDiscoveryResult().source, 'file-system-manager.watch');
     expect(snapshot.watch, same(watch));
     expect(snapshot.discovery?.fileCount, 3);
     expect(snapshot.fileCount, 3);
     expect(snapshot.toJson()['watch'], isA<Map<String, Object?>>());
+  });
+
+  test('workspace file explorer watcher debounce batches events', () {
+    const policy = WorkspaceFileExplorerWatchDebouncePolicy(
+      window: Duration(milliseconds: 100),
+      maxBatchEvents: 3,
+    );
+    final batcher = WorkspaceFileExplorerWatchEventBatcher(policy: policy);
+
+    final first = batcher.add(
+      WorkspaceFileExplorerWatchEvent(
+        kind: WorkspaceFileExplorerWatchEventKind.created,
+        path: 'src/a.styio',
+        timestamp: DateTime.utc(2026, 5, 20, 14),
+      ),
+    );
+    final second = batcher.add(
+      WorkspaceFileExplorerWatchEvent(
+        kind: WorkspaceFileExplorerWatchEventKind.modified,
+        path: 'src/a.styio',
+        timestamp: DateTime.utc(2026, 5, 20, 14, 0, 0, 50),
+      ),
+    );
+    final third = batcher.add(
+      WorkspaceFileExplorerWatchEvent(
+        kind: WorkspaceFileExplorerWatchEventKind.created,
+        path: 'src/b.styio',
+        timestamp: DateTime.utc(2026, 5, 20, 14, 0, 0, 90),
+      ),
+    );
+
+    expect(first, isNull);
+    expect(second, isNull);
+    expect(third?.eventCount, 3);
+    expect(batcher.pendingEventCount, 0);
+    expect(policy.toJson()['maxBatchEvents'], 3);
+    expect(third?.toJson()['eventCount'], 3);
   });
 
   test(

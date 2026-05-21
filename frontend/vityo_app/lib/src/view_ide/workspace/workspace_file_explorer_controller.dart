@@ -156,6 +156,40 @@ class WorkspaceFileExplorerDiscoveryResult {
   }
 }
 
+class WorkspaceFileExplorerIgnoreRules {
+  const WorkspaceFileExplorerIgnoreRules({
+    this.excludeGlobs = const <String>[],
+  });
+
+  final List<String> excludeGlobs;
+
+  bool ignores(String path) {
+    final normalizedPath = _normalizeWorkspaceFileExplorerPath(path);
+    if (normalizedPath.isEmpty) {
+      return true;
+    }
+    for (final glob in excludeGlobs) {
+      final normalizedGlob = _normalizeWorkspaceFileExplorerPath(glob);
+      if (normalizedGlob.isEmpty) {
+        continue;
+      }
+      if (normalizedGlob.endsWith('/**')) {
+        final prefix = normalizedGlob.substring(0, normalizedGlob.length - 3);
+        if (normalizedPath == prefix || normalizedPath.startsWith('$prefix/')) {
+          return true;
+        }
+      } else if (normalizedPath == normalizedGlob) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{'excludeGlobs': excludeGlobs};
+  }
+}
+
 enum WorkspaceFileExplorerWatchStatus { pending, active, blocked }
 
 extension WorkspaceFileExplorerWatchStatusX
@@ -190,6 +224,7 @@ class WorkspaceFileExplorerWatchPlan {
     this.recursive = true,
     this.includeGlobs = const <String>['**/*'],
     this.excludeGlobs = const <String>['.git/**', 'build/**'],
+    this.debouncePolicy = const WorkspaceFileExplorerWatchDebouncePolicy(),
     this.status = WorkspaceFileExplorerWatchStatus.pending,
     this.message = '',
   });
@@ -199,10 +234,14 @@ class WorkspaceFileExplorerWatchPlan {
   final bool recursive;
   final List<String> includeGlobs;
   final List<String> excludeGlobs;
+  final WorkspaceFileExplorerWatchDebouncePolicy debouncePolicy;
   final WorkspaceFileExplorerWatchStatus status;
   final String message;
 
   bool get active => status == WorkspaceFileExplorerWatchStatus.active;
+  WorkspaceFileExplorerIgnoreRules get ignoreRules {
+    return WorkspaceFileExplorerIgnoreRules(excludeGlobs: excludeGlobs);
+  }
 
   WorkspaceFileExplorerWatchPlan activate({String message = ''}) {
     return copyWith(
@@ -228,6 +267,7 @@ class WorkspaceFileExplorerWatchPlan {
       recursive: recursive,
       includeGlobs: includeGlobs,
       excludeGlobs: excludeGlobs,
+      debouncePolicy: debouncePolicy,
       status: status ?? this.status,
       message: message ?? this.message,
     );
@@ -240,9 +280,41 @@ class WorkspaceFileExplorerWatchPlan {
       'recursive': recursive,
       'includeGlobs': includeGlobs,
       'excludeGlobs': excludeGlobs,
+      'debouncePolicy': debouncePolicy.toJson(),
       'status': status.wireValue,
       'active': active,
       if (message.isNotEmpty) 'message': message,
+    };
+  }
+}
+
+class WorkspaceFileExplorerWatchDebouncePolicy {
+  const WorkspaceFileExplorerWatchDebouncePolicy({
+    this.window = const Duration(milliseconds: 150),
+    this.maxBatchEvents = 64,
+  });
+
+  final Duration window;
+  final int maxBatchEvents;
+
+  bool shouldFlush({
+    required DateTime firstEventAt,
+    required DateTime latestEventAt,
+    required int eventCount,
+  }) {
+    if (eventCount <= 0) {
+      return false;
+    }
+    if (maxBatchEvents > 0 && eventCount >= maxBatchEvents) {
+      return true;
+    }
+    return latestEventAt.difference(firstEventAt) >= window;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'windowMs': window.inMilliseconds,
+      'maxBatchEvents': maxBatchEvents,
     };
   }
 }
@@ -273,6 +345,72 @@ class WorkspaceFileExplorerWatchEvent {
   }
 }
 
+class WorkspaceFileExplorerWatchEventBatch {
+  const WorkspaceFileExplorerWatchEventBatch({
+    required this.events,
+    required this.firstEventAt,
+    required this.flushedAt,
+  });
+
+  final List<WorkspaceFileExplorerWatchEvent> events;
+  final DateTime firstEventAt;
+  final DateTime flushedAt;
+
+  int get eventCount => events.length;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'eventCount': eventCount,
+      'firstEventAt': firstEventAt.toIso8601String(),
+      'flushedAt': flushedAt.toIso8601String(),
+      'events': events.map((event) => event.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class WorkspaceFileExplorerWatchEventBatcher {
+  WorkspaceFileExplorerWatchEventBatcher({
+    this.policy = const WorkspaceFileExplorerWatchDebouncePolicy(),
+  });
+
+  final WorkspaceFileExplorerWatchDebouncePolicy policy;
+  final List<WorkspaceFileExplorerWatchEvent> _events =
+      <WorkspaceFileExplorerWatchEvent>[];
+  DateTime? _firstEventAt;
+
+  int get pendingEventCount => _events.length;
+
+  WorkspaceFileExplorerWatchEventBatch? add(
+    WorkspaceFileExplorerWatchEvent event,
+  ) {
+    _firstEventAt ??= event.timestamp;
+    _events.add(event);
+    if (!policy.shouldFlush(
+      firstEventAt: _firstEventAt!,
+      latestEventAt: event.timestamp,
+      eventCount: _events.length,
+    )) {
+      return null;
+    }
+    return flush(flushedAt: event.timestamp);
+  }
+
+  WorkspaceFileExplorerWatchEventBatch? flush({required DateTime flushedAt}) {
+    final firstEventAt = _firstEventAt;
+    if (firstEventAt == null || _events.isEmpty) {
+      return null;
+    }
+    final batch = WorkspaceFileExplorerWatchEventBatch(
+      events: List<WorkspaceFileExplorerWatchEvent>.unmodifiable(_events),
+      firstEventAt: firstEventAt,
+      flushedAt: flushedAt,
+    );
+    _events.clear();
+    _firstEventAt = null;
+    return batch;
+  }
+}
+
 class WorkspaceFileExplorerWatchSnapshot {
   const WorkspaceFileExplorerWatchSnapshot({
     required this.plan,
@@ -285,17 +423,20 @@ class WorkspaceFileExplorerWatchSnapshot {
   final List<WorkspaceFileExplorerWatchEvent> events;
 
   List<String> get filePaths {
+    final ignoreRules = plan.ignoreRules;
     final paths = <String>{};
     for (final basePath in baseFilePaths) {
       final normalizedPath = _normalizeWorkspaceFileExplorerPath(basePath);
-      if (_validateWorkspaceFileExplorerPath(normalizedPath) == null) {
+      if (_validateWorkspaceFileExplorerPath(normalizedPath) == null &&
+          !ignoreRules.ignores(normalizedPath)) {
         paths.add(normalizedPath);
       }
     }
     for (final event in events) {
       final path = _normalizeWorkspaceFileExplorerPath(event.path);
       final nextPath = _normalizeWorkspaceFileExplorerPath(event.nextPath);
-      if (_validateWorkspaceFileExplorerPath(path) != null) {
+      if (_validateWorkspaceFileExplorerPath(path) != null ||
+          ignoreRules.ignores(path)) {
         continue;
       }
       switch (event.kind) {
@@ -307,7 +448,8 @@ class WorkspaceFileExplorerWatchSnapshot {
           paths.remove(path);
         case WorkspaceFileExplorerWatchEventKind.renamed:
           paths.remove(path);
-          if (_validateWorkspaceFileExplorerPath(nextPath) == null) {
+          if (_validateWorkspaceFileExplorerPath(nextPath) == null &&
+              !ignoreRules.ignores(nextPath)) {
             paths.add(nextPath);
           }
       }
@@ -370,6 +512,9 @@ class WorkspaceFileExplorerFileSystemWatcherBinding {
           timestamp: clock(),
         );
         if (explorerEvent == null) {
+          continue;
+        }
+        if (activePlan.ignoreRules.ignores(explorerEvent.path)) {
           continue;
         }
         events.add(explorerEvent);

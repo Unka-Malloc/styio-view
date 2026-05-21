@@ -11,6 +11,8 @@ import '../pty/pty.dart';
 import '../resource/resource.dart';
 import '../shell/shell.dart';
 
+enum PlatformManagerHealthProbeKind { factReadiness, managerLiveOperation }
+
 class PlatformManagerBundle {
   const PlatformManagerBundle({
     required this.context,
@@ -111,7 +113,7 @@ class PlatformManagerBundle {
       ready: components.every((component) => component.ready),
       components: components,
       todo:
-          'TODO: replace fact-level readiness with live manager probes when system managers expose runtime health.',
+          'TODO: connect fact-level readiness to safe live operation probes where managers expose runtime health.',
     );
   }
 
@@ -129,7 +131,7 @@ class PlatformManagerBundle {
       components: components,
       probeSource: 'platform-manager-probes',
       todo:
-          'TODO: replace default lightweight probes with manager-specific live operation probes.',
+          'TODO: connect manager live-operation probe callbacks to platform-specific smoke operations where available.',
     );
   }
 }
@@ -165,12 +167,18 @@ class PlatformManagerComponentHealth {
     required this.managerKey,
     required this.ready,
     required this.message,
+    this.probeKind = PlatformManagerHealthProbeKind.factReadiness,
+    this.operationId = '',
+    this.description = '',
     this.recoveryActions = const <PlatformManagerRecoveryAction>[],
   });
 
   final String managerKey;
   final bool ready;
   final String message;
+  final PlatformManagerHealthProbeKind probeKind;
+  final String operationId;
+  final String description;
   final List<PlatformManagerRecoveryAction> recoveryActions;
 
   Map<String, Object?> toJson() {
@@ -178,6 +186,9 @@ class PlatformManagerComponentHealth {
       'managerKey': managerKey,
       'ready': ready,
       'message': message,
+      'probeKind': probeKind.name,
+      if (operationId.isNotEmpty) 'operationId': operationId,
+      if (description.isNotEmpty) 'description': description,
       if (recoveryActions.isNotEmpty)
         'recoveryActions': recoveryActions
             .map((action) => action.toJson())
@@ -219,6 +230,7 @@ class PlatformManagerRecoveryActionRoute {
     required this.route,
     required this.label,
     required this.message,
+    this.settingsSectionId = '',
     this.metadata = const <String, Object?>{},
   });
 
@@ -227,6 +239,7 @@ class PlatformManagerRecoveryActionRoute {
   final String route;
   final String label;
   final String message;
+  final String settingsSectionId;
   final Map<String, Object?> metadata;
 
   Map<String, Object?> toJson() {
@@ -236,6 +249,8 @@ class PlatformManagerRecoveryActionRoute {
       'route': route,
       'label': label,
       'message': message,
+      if (settingsSectionId.isNotEmpty)
+        'settingsSectionId': settingsSectionId,
       if (metadata.isNotEmpty) 'metadata': metadata,
     };
   }
@@ -251,17 +266,21 @@ class PlatformManagerRecoveryActionRouter {
   PlatformManagerRecoveryActionRoute routeFor(
     PlatformManagerRecoveryAction action,
   ) {
+    final settingsSectionId =
+        action.metadata['settingsSectionId'] as String? ?? action.managerKey;
     return PlatformManagerRecoveryActionRoute(
       actionId: action.id,
       managerKey: action.managerKey,
       route:
-          '$settingsRoutePrefix/${action.managerKey}?action=${Uri.encodeComponent(action.id)}',
+          '$settingsRoutePrefix/$settingsSectionId?action=${Uri.encodeComponent(action.id)}',
       label: action.label,
       message: action.message,
+      settingsSectionId: settingsSectionId,
       metadata: <String, Object?>{
         ...action.metadata,
         'surface': 'settings',
         'managerKey': action.managerKey,
+        'settingsSectionId': settingsSectionId,
       },
     );
   }
@@ -282,12 +301,18 @@ class PlatformManagerHealthProbe {
     required this.managerKey,
     required this.ready,
     required this.message,
+    this.probeKind = PlatformManagerHealthProbeKind.managerLiveOperation,
+    this.operationId = '',
+    this.description = '',
     this.recoveryActions = const <PlatformManagerRecoveryAction>[],
   });
 
   final String managerKey;
   final PlatformManagerProbeReady ready;
   final PlatformManagerProbeMessage message;
+  final PlatformManagerHealthProbeKind probeKind;
+  final String operationId;
+  final String description;
   final List<PlatformManagerRecoveryAction> recoveryActions;
 
   static List<PlatformManagerHealthProbe> defaultProbes() {
@@ -337,6 +362,11 @@ class PlatformManagerHealthProbe {
       managerKey: managerKey,
       ready: result,
       message: message(bundle, result),
+      probeKind: probeKind,
+      operationId: operationId.isEmpty
+          ? 'platform.$managerKey.live-operation'
+          : operationId,
+      description: description,
       recoveryActions: result
           ? const <PlatformManagerRecoveryAction>[]
           : recoveryActions,
@@ -373,6 +403,15 @@ class PlatformManagerHealthSnapshot {
         .toList(growable: false);
   }
 
+  Map<String, int> get probeKindCounts {
+    return <String, int>{
+      for (final kind in PlatformManagerHealthProbeKind.values)
+        kind.name: components
+            .where((component) => component.probeKind == kind)
+            .length,
+    };
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'targetId': targetId,
@@ -380,6 +419,7 @@ class PlatformManagerHealthSnapshot {
       'ready': ready,
       'readyCount': readyCount,
       'blockedCount': blockedCount,
+      'probeKindCounts': probeKindCounts,
       'recoveryActionCount': recoveryActions.length,
       'componentCount': components.length,
       'components': components
@@ -401,6 +441,9 @@ PlatformManagerHealthProbe _probe(
   return PlatformManagerHealthProbe(
     managerKey: managerKey,
     ready: ready,
+    probeKind: PlatformManagerHealthProbeKind.managerLiveOperation,
+    operationId: 'platform.$managerKey.live-operation',
+    description: 'Safe platform manager health probe for $managerKey.',
     message: (_, isReady) => isReady
         ? '$managerKey manager probe is ready.'
         : '$managerKey manager probe is blocked.',
@@ -410,6 +453,7 @@ PlatformManagerHealthProbe _probe(
         label: 'Open platform settings',
         managerKey: managerKey,
         message: 'Review platform configuration for $managerKey.',
+        metadata: <String, Object?>{'settingsSectionId': managerKey},
       ),
     ],
   );

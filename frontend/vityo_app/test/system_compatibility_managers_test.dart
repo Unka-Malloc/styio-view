@@ -236,6 +236,7 @@ void main() {
       expect(routes.single.route, contains('settings://platform/shell'));
       expect(routes.single.route, contains('platform.shell.open-settings'));
       expect(routes.single.toJson()['managerKey'], 'shell');
+      expect(routes.single.toJson()['settingsSectionId'], 'shell');
     },
   );
 

@@ -60,6 +60,18 @@ void main() {
       contains('PlatformManagerRecoveryActionRouter settings routes'),
     );
     expect(
+      entriesById['environment.platform']?.summary,
+      contains('manager live-operation probe metadata'),
+    );
+    expect(
+      entriesById['environment.platform']?.todo,
+      contains('platform-specific smoke operations'),
+    );
+    expect(
+      entriesById['environment.platform']?.runtimeMaturityBlocking,
+      isFalse,
+    );
+    expect(
       entriesById['presentation.problems-panel']?.status,
       IdeCapabilityStatus.scaffolded,
     );

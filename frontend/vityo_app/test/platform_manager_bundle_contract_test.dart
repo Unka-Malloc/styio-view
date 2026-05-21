@@ -66,9 +66,21 @@ void main() {
         ],
       );
       expect(health.toJson()['componentCount'], 9);
-      expect(health.toJson()['todo'], contains('live manager probes'));
+      expect(health.toJson()['todo'], contains('safe live operation probes'));
+      expect(
+        health.toJson()['probeKindCounts'],
+        containsPair('factReadiness', 9),
+      );
       expect(probeHealth.ready, isTrue);
       expect(probeHealth.toJson()['probeSource'], 'platform-manager-probes');
+      expect(
+        probeHealth.toJson()['probeKindCounts'],
+        containsPair('managerLiveOperation', 9),
+      );
+      expect(
+        probeHealth.components.first.toJson()['operationId'],
+        'platform.fileSystem.live-operation',
+      );
       expect(probeHealth.recoveryActions, isEmpty);
       expect(blockedProbeHealth.ready, isFalse);
       expect(blockedProbeHealth.blockedCount, 1);
@@ -76,6 +88,11 @@ void main() {
         blockedProbeHealth.recoveryActions.single.id,
         'platform.shell.select',
       );
+      final routes = const PlatformManagerRecoveryActionRouter().routesFor(
+        blockedProbeHealth,
+      );
+      expect(routes.single.settingsSectionId, 'shell');
+      expect(routes.single.toJson()['settingsSectionId'], 'shell');
     },
   );
 }

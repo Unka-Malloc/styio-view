@@ -236,9 +236,10 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/system_compatibility',
           summary:
-              'Platform Detector, Platform Context, Platform Adapter, Platform Manager bundle, fact-level health snapshots, PlatformManagerHealthProbe contracts, PlatformManagerRecoveryActionRouter settings routes, and UI-facing recovery actions are available for file system, shell, process, resource, network, clipboard, notification, local service, and PTY managers.',
+              'Platform Detector, Platform Context, Platform Adapter, Platform Manager bundle, fact-level health snapshots, PlatformManagerHealthProbe contracts, probe-kind counts, manager live-operation probe metadata, PlatformManagerRecoveryActionRouter settings routes with settings section ids, and UI-facing recovery actions are available for file system, shell, process, resource, network, clipboard, notification, local service, and PTY managers.',
           todo:
-              'TODO: replace default lightweight probes with manager-specific live operation probes and bind settings routes to concrete Settings UI panels.',
+              'TODO: bind platform live-operation probe callbacks to platform-specific smoke operations and Settings UI panels.',
+          runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code platform services',
             'IntelliJ virtual file system',

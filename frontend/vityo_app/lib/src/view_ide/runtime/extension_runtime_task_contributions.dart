@@ -613,6 +613,152 @@ class ExtensionRuntimeTaskCancellationRegistry {
   }
 }
 
+enum ExtensionRuntimeTaskProcessHandleBindingStatus {
+  registered,
+  missingHandle,
+  skipped,
+}
+
+class ExtensionRuntimeTaskProcessHandleBindingResult {
+  const ExtensionRuntimeTaskProcessHandleBindingResult({
+    required this.status,
+    required this.message,
+    this.handle,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const ExtensionRuntimeTaskProcessHandleBindingResult.registered({
+    required ExtensionRuntimeTaskCancellationHandle handle,
+    String message = 'Runtime task process handle registered.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         status: ExtensionRuntimeTaskProcessHandleBindingStatus.registered,
+         message: message,
+         handle: handle,
+         metadata: metadata,
+       );
+
+  const ExtensionRuntimeTaskProcessHandleBindingResult.missingHandle({
+    String message = 'Runtime task dispatch did not expose a process handle.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         status: ExtensionRuntimeTaskProcessHandleBindingStatus.missingHandle,
+         message: message,
+         metadata: metadata,
+       );
+
+  const ExtensionRuntimeTaskProcessHandleBindingResult.skipped({
+    String message =
+        'Runtime task dispatch was not eligible for handle binding.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         status: ExtensionRuntimeTaskProcessHandleBindingStatus.skipped,
+         message: message,
+         metadata: metadata,
+       );
+
+  final ExtensionRuntimeTaskProcessHandleBindingStatus status;
+  final String message;
+  final ExtensionRuntimeTaskCancellationHandle? handle;
+  final Map<String, Object?> metadata;
+
+  bool get registered =>
+      status == ExtensionRuntimeTaskProcessHandleBindingStatus.registered;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.name,
+      'registered': registered,
+      'message': message,
+      if (handle != null) 'handle': handle!.toJson(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionRuntimeTaskProcessHandleBinder {
+  const ExtensionRuntimeTaskProcessHandleBinder({
+    this.handleIdKeys = const <String>[
+      'processHandleId',
+      'processId',
+      'pid',
+      'taskHandleId',
+    ],
+  });
+
+  final List<String> handleIdKeys;
+
+  ExtensionRuntimeTaskProcessHandleBindingResult bind({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required RuntimeExecutionDispatchResult result,
+    required ExtensionRuntimeTaskCancellationRegistry registry,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    if (!result.dispatched) {
+      return ExtensionRuntimeTaskProcessHandleBindingResult.skipped(
+        message:
+            'Runtime task ${plan.executionPlan.definition.id} was not dispatched; no process handle was bound.',
+        metadata: metadata,
+      );
+    }
+    final handleId = _handleIdFromResult(result);
+    if (handleId == null) {
+      return ExtensionRuntimeTaskProcessHandleBindingResult.missingHandle(
+        message:
+            'Runtime task ${plan.executionPlan.definition.id} dispatch did not expose a process handle.',
+        metadata: metadata,
+      );
+    }
+    final handle = registry.register(
+      plan: plan,
+      processHandleId: handleId,
+      metadata: <String, Object?>{
+        'source': 'runtime-dispatch-result',
+        'managerId': result.binding.managerId,
+        'routeKind': result.binding.routeKind,
+        if (result.manager != null) 'manager': result.manager!.toJson(),
+        ...metadata,
+      },
+    );
+    return ExtensionRuntimeTaskProcessHandleBindingResult.registered(
+      handle: handle,
+      message:
+          'Runtime task ${plan.executionPlan.definition.id} process handle $handleId registered.',
+      metadata: metadata,
+    );
+  }
+
+  String? _handleIdFromResult(RuntimeExecutionDispatchResult result) {
+    for (final source in <Map<String, Object?>>[
+      result.metadata,
+      result.outputEvent.metadata,
+      result.binding.metadata,
+      result.binding.handoff.metadata,
+      result.binding.handoff.plan.metadata,
+    ]) {
+      final handleId = _handleIdFromMetadata(source);
+      if (handleId != null) {
+        return handleId;
+      }
+    }
+    return null;
+  }
+
+  String? _handleIdFromMetadata(Map<String, Object?> metadata) {
+    for (final key in handleIdKeys) {
+      final value = metadata[key];
+      if (value == null) {
+        continue;
+      }
+      final handleId = '$value'.trim();
+      if (handleId.isNotEmpty) {
+        return handleId;
+      }
+    }
+    return null;
+  }
+}
+
 class ExtensionRuntimeTaskCancellationAdapterResult {
   const ExtensionRuntimeTaskCancellationAdapterResult({
     required this.accepted,
@@ -1172,6 +1318,8 @@ class ExtensionRuntimeTaskExecutionBridge {
     RuntimeExecutionManagerRegistry? registry,
     ExtensionRuntimeTaskTelemetrySink? telemetrySink,
     ExtensionRuntimeTaskCancellationRegistry? cancellationRegistry,
+    ExtensionRuntimeTaskProcessHandleBinder processHandleBinder =
+        const ExtensionRuntimeTaskProcessHandleBinder(),
     Iterable<ExtensionRuntimeTaskCancellationAdapter> cancellationAdapters =
         const <ExtensionRuntimeTaskCancellationAdapter>[],
   }) : _registry =
@@ -1179,11 +1327,13 @@ class ExtensionRuntimeTaskExecutionBridge {
        _telemetrySink = telemetrySink,
        _cancellationRegistry =
            cancellationRegistry ?? ExtensionRuntimeTaskCancellationRegistry(),
+       _processHandleBinder = processHandleBinder,
        _cancellationAdapters = cancellationAdapters.toList(growable: false);
 
   final RuntimeExecutionManagerRegistry _registry;
   final ExtensionRuntimeTaskTelemetrySink? _telemetrySink;
   final ExtensionRuntimeTaskCancellationRegistry _cancellationRegistry;
+  final ExtensionRuntimeTaskProcessHandleBinder _processHandleBinder;
   final List<ExtensionRuntimeTaskCancellationAdapter> _cancellationAdapters;
 
   ExtensionRuntimeTaskCancellationRegistry get cancellationRegistry =>
@@ -1212,6 +1362,15 @@ class ExtensionRuntimeTaskExecutionBridge {
         result: result,
         timestamp: timestamp,
       ),
+    );
+    _processHandleBinder.bind(
+      plan: plan,
+      result: result,
+      registry: _cancellationRegistry,
+      metadata: <String, Object?>{
+        'timestamp': timestamp.toIso8601String(),
+        ...metadata,
+      },
     );
     return result;
   }

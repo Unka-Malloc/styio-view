@@ -460,6 +460,48 @@ void main() {
     },
   );
 
+  test(
+    'extension runtime task dispatch binds process handles for cancellation',
+    () async {
+      final plan = _createRuntimeTaskPlan();
+      final buffer = RuntimeOutputLiveBuffer();
+      final requests = <ExtensionRuntimeTaskTerminationRequest>[];
+      final bridge = ExtensionRuntimeTaskExecutionBridge(
+        cancellationAdapters: <ExtensionRuntimeTaskCancellationAdapter>[
+          ExtensionRuntimeTaskCancellationAdapter.processManager(
+            terminate: (request) async {
+              requests.add(request);
+              return const ExtensionRuntimeTaskTerminationResult.accepted(
+                processTerminated: true,
+                message: 'Bound process handle terminated.',
+              );
+            },
+          ),
+        ],
+      );
+
+      final dispatch = bridge.dispatchToLiveBuffer(
+        plan: plan,
+        buffer: buffer,
+        timestamp: DateTime.utc(2026, 5, 21, 6),
+        metadata: const <String, Object?>{'processHandleId': 'pid-42'},
+      );
+      final handle = bridge.cancellationRegistry.lookup(plan);
+      final cancellation = await bridge.dispatchCancellation(
+        plan: plan,
+        timestamp: DateTime.utc(2026, 5, 21, 6, 1),
+        reason: 'agent stopped validation',
+      );
+
+      expect(dispatch.dispatched, isTrue);
+      expect(handle?.processHandleId, 'pid-42');
+      expect(handle?.metadata['source'], 'runtime-dispatch-result');
+      expect(cancellation.dispatched, isTrue);
+      expect(requests.single.handle.processHandleId, 'pid-42');
+      expect(cancellation.toJson()['status'], 'dispatched');
+    },
+  );
+
   test('extension runtime task catalog reports missing command metadata', () {
     final route = const ExtensionContributionRouter().routeContribution(
       extensionId: 'broken.tasks',

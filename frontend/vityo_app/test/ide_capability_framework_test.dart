@@ -575,11 +575,15 @@ void main() {
     );
     expect(
       entriesById['runtime.execution']?.summary,
+      contains('ExtensionRuntimeTaskProcessHandleBinder'),
+    );
+    expect(
+      entriesById['runtime.execution']?.summary,
       contains('ShellManager/ProcessManager cancellation adapter factories'),
     );
     expect(
       entriesById['runtime.execution']?.todo,
-      contains('platform-specific process handles'),
+      contains('processHandleId/pid metadata'),
     );
     expect(entriesById['runtime.execution']?.runtimeMaturityBlocking, isFalse);
     expect(

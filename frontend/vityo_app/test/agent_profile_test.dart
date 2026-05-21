@@ -198,6 +198,10 @@ void main() {
     );
     expect(
       decoded.systemPrompt,
+      contains('metadata.projectLanguage.syntaxValidationReport'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('language.serviceStatus.parserEngine'),
     );
     expect(

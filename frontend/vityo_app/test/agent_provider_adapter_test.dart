@@ -955,6 +955,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('metadata.projectLanguage.syntaxValidationReport'),
+      );
+      expect(
+        systemMessage['content'],
         contains('language.serviceStatus.syntaxValidationReady'),
       );
       expect(systemMessage['content'], contains('language.completions'));

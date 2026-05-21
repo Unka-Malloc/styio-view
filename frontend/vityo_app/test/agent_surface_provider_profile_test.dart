@@ -438,6 +438,15 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('agent.provider.route.blocked'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('agent-autonomy-policy-status')),
+      findsOneWidget,
+    );
+    expect(find.text('Autonomy policy: blocked'), findsOneWidget);
+    expect(
+      find.text('Agent coding is blocked by readiness or change review gate.'),
+      findsOneWidget,
+    );
     final sendButton = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Send'),
     );

@@ -180,18 +180,24 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
   const _AgentCodingLoopGateSummary({
     required this.executionReadiness,
     required this.changeReviewGate,
+    required this.autonomyPolicy,
   });
 
   final AgentCodingExecutionReadiness executionReadiness;
   final AgentCodingChangeReviewGate changeReviewGate;
+  final AgentCodingAutonomyPolicy autonomyPolicy;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final requiresReview = changeReviewGate.requiresUserReview;
     final canApplyPreview = changeReviewGate.canApplyPreview;
+    final autonomyBlocked =
+        autonomyPolicy.mode == AgentCodingAutonomyMode.blocked;
     final statusColor = requiresReview
         ? theme.colorScheme.primary
+        : autonomyBlocked
+        ? theme.colorScheme.error
         : theme.colorScheme.onSurfaceVariant;
 
     return DecoratedBox(
@@ -236,6 +242,24 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
               'Change review: ${changeReviewGate.status.wireValue}',
               style: theme.textTheme.bodySmall,
             ),
+            Text(
+              'Autonomy policy: ${autonomyPolicy.mode.wireValue}',
+              key: const ValueKey('agent-autonomy-policy-status'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: autonomyBlocked ? theme.colorScheme.error : null,
+              ),
+            ),
+            if (autonomyPolicy.reasons.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              for (final reason in autonomyPolicy.reasons.take(3))
+                Text(
+                  reason,
+                  key: ValueKey(
+                    'agent-autonomy-policy-reason-${autonomyPolicy.reasons.indexOf(reason)}',
+                  ),
+                  style: theme.textTheme.bodySmall,
+                ),
+            ],
             if (requiresReview) ...[
               const SizedBox(height: 4),
               Text(
@@ -2238,6 +2262,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
               _AgentCodingLoopGateSummary(
                 executionReadiness: widget.sessionContext.codingReadiness,
                 changeReviewGate: widget.controller.codingChangeReviewGate,
+                autonomyPolicy: widget.controller.codingAutonomyPolicy,
               ),
               const SizedBox(height: 8),
               TextFormField(

@@ -709,6 +709,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('Agent Surface autonomy policy visibility'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains(
         'AgentCodingValidationPlan and '
         'AgentCodingValidationCommandPlan registered command routing',

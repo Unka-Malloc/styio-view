@@ -186,6 +186,10 @@ void main() {
     expect(decoded.systemPrompt, contains('Styio-first'));
     expect(
       decoded.systemPrompt,
+      contains('language.serviceStatus.suggestedCommandIds'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('language.serviceStatus.parserEngine'),
     );
     expect(

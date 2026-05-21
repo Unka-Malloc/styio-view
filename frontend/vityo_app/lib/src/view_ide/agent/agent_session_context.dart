@@ -167,7 +167,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 68,
+      schemaVersion: 69,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -2973,6 +2973,8 @@ class AgentLanguageServiceStatusContext {
     required this.capabilities,
     required this.localFallbackEnabled,
     required this.actionable,
+    required this.refreshRecommended,
+    required this.suggestedCommandIds,
     required this.syntaxValidationReady,
     required this.semanticFactsReady,
     required this.unavailablePrimaryCapabilities,
@@ -3000,6 +3002,8 @@ class AgentLanguageServiceStatusContext {
   final List<AgentLanguageCapabilityStatusContext> capabilities;
   final bool localFallbackEnabled;
   final bool actionable;
+  final bool refreshRecommended;
+  final List<String> suggestedCommandIds;
   final bool syntaxValidationReady;
   final bool semanticFactsReady;
   final List<String> unavailablePrimaryCapabilities;
@@ -3031,6 +3035,10 @@ class AgentLanguageServiceStatusContext {
           .toList(growable: false),
       localFallbackEnabled: surface.localFallbackEnabled,
       actionable: surface.actionable,
+      refreshRecommended: surface.refreshRecommended,
+      suggestedCommandIds: surface.refreshRecommended
+          ? const <String>['refreshLanguageService']
+          : const <String>[],
       syntaxValidationReady: surface.syntaxValidationReady,
       semanticFactsReady: surface.semanticFactsReady,
       unavailablePrimaryCapabilities: surface.unavailablePrimaryCapabilities,
@@ -3060,6 +3068,9 @@ class AgentLanguageServiceStatusContext {
           .toList(growable: false),
       'localFallbackEnabled': localFallbackEnabled,
       'actionable': actionable,
+      'refreshRecommended': refreshRecommended,
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
       'syntaxValidationReady': syntaxValidationReady,
       'semanticFactsReady': semanticFactsReady,
       'unavailablePrimaryCapabilities': unavailablePrimaryCapabilities,

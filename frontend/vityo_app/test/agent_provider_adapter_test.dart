@@ -253,7 +253,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      68,
+      69,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -943,6 +943,10 @@ void main() {
       expect(systemMessage['content'], contains('language.serviceStatus'));
       expect(
         systemMessage['content'],
+        contains('language.serviceStatus.suggestedCommandIds'),
+      );
+      expect(
+        systemMessage['content'],
         contains('language.serviceStatus.syntaxValidationReady'),
       );
       expect(systemMessage['content'], contains('language.completions'));
@@ -1006,7 +1010,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 68);
+      expect(metadata['contextSchemaVersion'], 69);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

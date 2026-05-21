@@ -513,7 +513,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 68);
+    expect(json['schemaVersion'], 69);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1030,6 +1030,11 @@ void main() {
     expect(languageServiceStatus['providerReadinessSummary'], contains('8/10'));
     expect(languageServiceStatus['providerMissingCapabilityCount'], 2);
     expect(languageServiceStatus['localFallbackEnabled'], isTrue);
+    expect(languageServiceStatus['refreshRecommended'], isTrue);
+    expect(
+      languageServiceStatus['suggestedCommandIds'],
+      contains('refreshLanguageService'),
+    );
     expect(languageServiceStatus['syntaxValidationReady'], isTrue);
     expect(languageServiceStatus['semanticFactsReady'], isFalse);
     expect(
@@ -1414,7 +1419,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 68);
+    expect(context.schemaVersion, 69);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1797,7 +1802,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 68);
+    expect(json['schemaVersion'], 69);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2072,7 +2077,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 68);
+    expect(context.schemaVersion, 69);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

@@ -253,7 +253,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      71,
+      72,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -847,6 +847,7 @@ void main() {
         contains('before retrying the missing-tool command'),
       );
       expect(systemMessage['content'], contains('commands.debugCommands'));
+      expect(systemMessage['content'], contains('debug.suggestedCommandIds'));
       expect(systemMessage['content'], contains('commands.settingsCommands'));
       expect(
         systemMessage['content'],
@@ -1038,7 +1039,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 71);
+      expect(metadata['contextSchemaVersion'], 72);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

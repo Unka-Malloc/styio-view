@@ -166,8 +166,19 @@ class AgentSessionContext {
     final capabilitySnapshot =
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
+    final commandContext = AgentCommandCatalogContext.fromRegistry(
+      lastResult: lastCommandResult,
+      recentResults: recentCommandResults,
+      toolchains: toolchainContext,
+      debug: debug,
+      dirtyDocumentIds: workspaceContext.dirtyDocumentIds,
+      buildFacts: workspaceContext.buildFacts,
+    );
+    final debugContext = debug.withSuggestedCommandIds(
+      _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
+    );
     return AgentSessionContext(
-      schemaVersion: 71,
+      schemaVersion: 72,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -191,7 +202,7 @@ class AgentSessionContext {
         lastExecutionSession: lastExecutionSession,
         lastRuntimeEvents: lastRuntimeEvents,
       ),
-      debug: debug,
+      debug: debugContext,
       workspace: workspaceContext,
       agent: AgentCodingLoopContext.fromPatchApplications(
         pendingPatch: pendingPatch,
@@ -218,14 +229,7 @@ class AgentSessionContext {
         recentCodingPlans: recentCodingPlans,
         recentDiagnosticSummaries: recentDiagnosticSummaries,
       ),
-      commands: AgentCommandCatalogContext.fromRegistry(
-        lastResult: lastCommandResult,
-        recentResults: recentCommandResults,
-        toolchains: toolchainContext,
-        debug: debug,
-        dirtyDocumentIds: workspaceContext.dirtyDocumentIds,
-        buildFacts: workspaceContext.buildFacts,
-      ),
+      commands: commandContext,
       language: AgentLanguageContext.fromSelection(
         document: document,
         focusToken: focusToken,
@@ -1266,6 +1270,7 @@ class AgentDebugContext {
     this.adapterSessionStatus,
     this.adapterPendingRequestCount = 0,
     this.adapterEventCount = 0,
+    this.suggestedCommandIds = const <String>[],
   });
 
   const AgentDebugContext.idle()
@@ -1284,7 +1289,8 @@ class AgentDebugContext {
       launch = null,
       adapterSessionStatus = null,
       adapterPendingRequestCount = 0,
-      adapterEventCount = 0;
+      adapterEventCount = 0,
+      suggestedCommandIds = const <String>[];
 
   final String status;
   final String message;
@@ -1302,6 +1308,32 @@ class AgentDebugContext {
   final String? adapterSessionStatus;
   final int adapterPendingRequestCount;
   final int adapterEventCount;
+  final List<String> suggestedCommandIds;
+
+  AgentDebugContext withSuggestedCommandIds(List<String> commandIds) {
+    if (commandIds.isEmpty && suggestedCommandIds.isEmpty) {
+      return this;
+    }
+    return AgentDebugContext(
+      status: status,
+      message: message,
+      debuggerId: debuggerId,
+      debuggerLabel: debuggerLabel,
+      breakpointCount: breakpointCount,
+      breakpoints: breakpoints,
+      threadCount: threadCount,
+      threads: threads,
+      stackFrameCount: stackFrameCount,
+      stackFrames: stackFrames,
+      variableCount: variableCount,
+      variables: variables,
+      launch: launch,
+      adapterSessionStatus: adapterSessionStatus,
+      adapterPendingRequestCount: adapterPendingRequestCount,
+      adapterEventCount: adapterEventCount,
+      suggestedCommandIds: commandIds,
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -1330,6 +1362,8 @@ class AgentDebugContext {
         'adapterSessionStatus': adapterSessionStatus,
       'adapterPendingRequestCount': adapterPendingRequestCount,
       'adapterEventCount': adapterEventCount,
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
     };
   }
 }
@@ -4033,6 +4067,30 @@ class AgentCommandCatalogContext {
       ),
     ];
   }
+}
+
+List<String> _suggestedDebugCommandIds(
+  Iterable<AgentDebugCommandReadinessContext> readinessEntries,
+) {
+  final commandIds = <String>[];
+  void addCommandId(String? commandId) {
+    final normalized = commandId?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return;
+    }
+    if (!commandIds.contains(normalized)) {
+      commandIds.add(normalized);
+    }
+  }
+
+  for (final readiness in readinessEntries) {
+    if (readiness.ready && readiness.registered) {
+      addCommandId(readiness.commandId);
+      continue;
+    }
+    addCommandId(readiness.requiredCommandId);
+  }
+  return commandIds;
 }
 
 List<AgentCommandResultContext> _agentCommandResultHistory({

@@ -173,11 +173,13 @@ void main() {
     );
     expect(decoded.systemPrompt, contains('buildResult'));
     expect(decoded.systemPrompt, contains('testResult'));
+    expect(decoded.systemPrompt, contains('debug.suggestedCommandIds'));
     expect(decoded.systemPrompt, contains('debug.status'));
     expect(decoded.systemPrompt, contains('debug.launch.ready'));
     expect(decoded.systemPrompt, contains('debug.threads'));
     expect(decoded.systemPrompt, contains('debug.stackFrames'));
     expect(decoded.systemPrompt, contains('commands.debugCommands'));
+    expect(decoded.systemPrompt, contains('ready debugger commands'));
     expect(decoded.systemPrompt, contains('select thread and frame ids'));
     expect(decoded.systemPrompt, contains('VS Code'));
     expect(decoded.systemPrompt, contains('IntelliJ Community'));

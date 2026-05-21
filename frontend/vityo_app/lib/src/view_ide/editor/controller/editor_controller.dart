@@ -1145,14 +1145,54 @@ class EditorSessionController extends ChangeNotifier {
     applyFormattingEdits(fix.edits);
   }
 
-  bool applyFirstQuickFixAtSelection() {
+  DiagnosticQuickFix? quickFixAtSelectionForInput(String? input) {
     final fixes = contextActionsAtSelection;
     if (fixes.isEmpty) {
+      return null;
+    }
+
+    final normalizedInput = input?.trim();
+    if (normalizedInput == null || normalizedInput.isEmpty) {
+      return fixes.first;
+    }
+
+    final requestedIndex = int.tryParse(normalizedInput);
+    if (requestedIndex != null) {
+      if (requestedIndex == 0) {
+        return fixes.first;
+      }
+      if (requestedIndex > 0 && requestedIndex <= fixes.length) {
+        return fixes[requestedIndex - 1];
+      }
+      return null;
+    }
+
+    final requestedLabel = normalizedInput.toLowerCase();
+    for (final fix in fixes) {
+      if (fix.label.trim().toLowerCase() == requestedLabel) {
+        return fix;
+      }
+    }
+
+    for (final fix in fixes) {
+      if (fix.label.trim().toLowerCase().contains(requestedLabel)) {
+        return fix;
+      }
+    }
+
+    return null;
+  }
+
+  bool applyQuickFixAtSelection({String? input}) {
+    final fix = quickFixAtSelectionForInput(input);
+    if (fix == null) {
       return false;
     }
-    applyDiagnosticQuickFix(fixes.first);
+    applyDiagnosticQuickFix(fix);
     return true;
   }
+
+  bool applyFirstQuickFixAtSelection() => applyQuickFixAtSelection();
 
   bool applyRename(String newName) {
     final plan = renamePlanAtSelection(newName);

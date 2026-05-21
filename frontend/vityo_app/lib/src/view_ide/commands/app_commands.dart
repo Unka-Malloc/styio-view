@@ -438,7 +438,8 @@ class StyioCommandRegistry {
       id: AppCommandId.applyQuickFix,
       label: 'Quick Fix',
       shortcutHint: 'Cmd/Ctrl+.',
-      description: 'Apply the first available quick fix or code action.',
+      description:
+          'Apply the first available quick fix/code action, or select one by 1-based index or label.',
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('period', control: true),
         AppCommandShortcutSpec('period', meta: true),

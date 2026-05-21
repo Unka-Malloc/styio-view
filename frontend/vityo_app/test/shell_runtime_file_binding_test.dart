@@ -1464,6 +1464,106 @@ void main() {
     expect(telemetry.metadata['succeeded'], isTrue);
   });
 
+  test('shell runtime applies selected agent quick fix by input', () async {
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/demo',
+      activeFilePath: 'src/main.styio',
+      title: 'Demo',
+      notes: const <String>[],
+    );
+    const text = 'value = 1\n';
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: text,
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        initialSelection: const SelectionState.collapsed(2),
+        languageService: const _NoopStyioLanguageService(
+          analysisDiagnostics: <Diagnostic>[
+            Diagnostic(
+              severity: DiagnosticSeverity.warning,
+              code: 'replace-value',
+              message: 'Value can be replaced.',
+              range: SourceRange(start: 0, end: 5),
+            ),
+          ],
+          quickFixes: <DiagnosticQuickFix>[
+            DiagnosticQuickFix(
+              label: 'Replace with first',
+              detail: 'Use the first candidate.',
+              edits: <FormattingEdit>[
+                FormattingEdit(
+                  range: SourceRange(start: 0, end: 5),
+                  newText: 'first',
+                ),
+              ],
+            ),
+            DiagnosticQuickFix(
+              label: 'Replace with second',
+              detail: 'Use the second candidate.',
+              edits: <FormattingEdit>[
+                FormattingEdit(
+                  range: SourceRange(start: 0, end: 5),
+                  newText: 'second',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    expect(
+      await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'applyQuickFix',
+          input: '2',
+        ),
+      ),
+      isTrue,
+    );
+
+    expect(shell.editorController.document.text, 'second = 1\n');
+    expect(shell.dirtyDocumentPaths, contains('src/main.styio'));
+    final telemetry = shell.runtimeOutputBuffer.snapshot.events.singleWhere(
+      (event) => event.metadata['action'] == 'agent.applyQuickFix',
+    );
+    expect(
+      telemetry.message,
+      'Agent command applyQuickFix applied matching "2" at editor selection.',
+    );
+    expect(telemetry.metadata['selectionMode'], 'input');
+    expect(telemetry.metadata['input'], '2');
+  });
+
   test('shell runtime applies agent navigation command suggestions', () async {
     final projectGraph = ProjectGraphSnapshot.scratch(
       workspaceRoot: '/workspace/demo',

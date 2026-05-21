@@ -2616,20 +2616,33 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
         return applied;
       case 'applyQuickFix':
-        if (editorController.applyFirstQuickFixAtSelection()) {
+        final quickFixInput = suggestion.input?.trim();
+        if (editorController.applyQuickFixAtSelection(input: quickFixInput)) {
+          final quickFixMessage =
+              quickFixInput == null || quickFixInput.isEmpty
+                  ? 'Agent command applyQuickFix applied at editor selection.'
+                  : 'Agent command applyQuickFix applied matching "$quickFixInput" at editor selection.';
           _cacheDocument(_activeDocumentPath, editorController.document);
           _dirtyDocumentPaths.add(_activeDocumentPath);
-          appendLog('Agent command applyQuickFix applied at editor selection.');
+          appendLog(quickFixMessage);
           _publishDiagnosticActionTelemetry(
             action: 'agent.applyQuickFix',
             succeeded: true,
-            message: 'Agent command applyQuickFix applied at editor selection.',
-            metadata: const <String, Object?>{'scope': 'selection'},
+            message: quickFixMessage,
+            metadata: <String, Object?>{
+              'scope': 'selection',
+              'selectionMode':
+                  quickFixInput == null || quickFixInput.isEmpty
+                      ? 'first'
+                      : 'input',
+              if (quickFixInput != null && quickFixInput.isNotEmpty)
+                'input': quickFixInput,
+            },
           );
           _recordAgentIdeCommandResult(
             suggestion,
             applied: true,
-            message: 'Agent command applyQuickFix applied at editor selection.',
+            message: quickFixMessage,
           );
           notifyListeners();
           return true;

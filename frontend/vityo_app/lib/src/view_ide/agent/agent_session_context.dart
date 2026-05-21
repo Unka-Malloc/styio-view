@@ -167,7 +167,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 65,
+      schemaVersion: 66,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -2738,6 +2738,7 @@ class AgentSemanticFeatureMatrixContext {
 class AgentRefactorPreviewContext {
   const AgentRefactorPreviewContext({
     required this.kind,
+    required this.agentCommandId,
     required this.target,
     required this.referenceCount,
     required this.references,
@@ -2753,6 +2754,7 @@ class AgentRefactorPreviewContext {
   });
 
   final String kind;
+  final String agentCommandId;
   final AgentDocumentSymbolContext target;
   final int referenceCount;
   final List<AgentReferenceContext> references;
@@ -2775,6 +2777,7 @@ class AgentRefactorPreviewContext {
   }) {
     return AgentRefactorPreviewContext(
       kind: 'safeDelete',
+      agentCommandId: 'safeDelete',
       target: AgentDocumentSymbolContext.fromDocumentSymbol(
         plan.target,
         document: document,
@@ -2818,6 +2821,7 @@ class AgentRefactorPreviewContext {
   }) {
     return AgentRefactorPreviewContext(
       kind: 'inlineVariable',
+      agentCommandId: 'inlineVariable',
       target: AgentDocumentSymbolContext.fromDocumentSymbol(
         plan.target,
         document: document,
@@ -2858,6 +2862,7 @@ class AgentRefactorPreviewContext {
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'kind': kind,
+      'agentCommandId': agentCommandId,
       'target': target.toJson(),
       'referenceCount': referenceCount,
       'references': references

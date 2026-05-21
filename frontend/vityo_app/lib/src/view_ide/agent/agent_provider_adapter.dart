@@ -1886,7 +1886,7 @@ Vityo structured response contract:
 - If the IDE context includes language.documentSymbols, use them as the current document outline before planning broad edits.
 - If the IDE context includes language.inlayHints, use them as language-derived parameter/type hint facts before changing calls or inferred values.
 - If the IDE context includes language.semanticBlocks, use them as structural block ranges before extract, move, fold, or broad rewrite operations.
-- If the IDE context includes language.refactorPreviews, treat safeDelete and inlineVariable previews as IDE-produced refactor edit facts before suggesting those commands or equivalent patches.
+- If the IDE context includes language.refactorPreviews, use agentCommandId and treat safeDelete and inlineVariable previews as IDE-produced refactor command previews before suggesting those commands or equivalent patches.
 - If the IDE context includes language.surroundTemplates, use those IDE-produced templates before inventing surround-with edits for the current selection.
 - If the IDE context includes language.hoverMarkdown, language.definition, language.references, language.completions, language.codeActions, language.semanticSpans, language.documentSymbols, language.inlayHints, language.semanticBlocks, language.refactorPreviews, or language.surroundTemplates, treat them as compiler-derived facts for the current selection or document.
 - If the IDE context includes language.serviceStatus, inspect capability states before using language facts; treat derived or fallback-backed facts as weaker evidence than available StyioService payloads, and do not present unsupported or unavailable capabilities as real compiler truth.

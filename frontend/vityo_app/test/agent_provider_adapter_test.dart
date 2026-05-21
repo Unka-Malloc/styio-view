@@ -253,7 +253,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      65,
+      66,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -949,6 +949,7 @@ void main() {
       expect(systemMessage['content'], contains('language.inlayHints'));
       expect(systemMessage['content'], contains('language.semanticBlocks'));
       expect(systemMessage['content'], contains('language.refactorPreviews'));
+      expect(systemMessage['content'], contains('agentCommandId'));
       expect(systemMessage['content'], contains('language.surroundTemplates'));
       expect(systemMessage['content'], contains('workspace.lastSymbolSearch'));
       expect(
@@ -996,7 +997,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 65);
+      expect(metadata['contextSchemaVersion'], 66);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

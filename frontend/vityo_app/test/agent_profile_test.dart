@@ -105,6 +105,7 @@ void main() {
     expect(decoded.systemPrompt, contains('language.semanticBlocks'));
     expect(decoded.systemPrompt, contains('structural block ranges'));
     expect(decoded.systemPrompt, contains('language.refactorPreviews'));
+    expect(decoded.systemPrompt, contains('agentCommandId'));
     expect(decoded.systemPrompt, contains('safeDelete and inlineVariable'));
     expect(decoded.systemPrompt, contains('language.surroundTemplates'));
     expect(decoded.systemPrompt, contains('surround-with templates'));

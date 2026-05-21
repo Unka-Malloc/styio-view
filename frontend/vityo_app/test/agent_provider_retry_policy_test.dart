@@ -107,6 +107,53 @@ void main() {
     expect(telemetry.single.attemptCount, 2);
     expect(telemetry.single.attempts.first.retryScheduled, isTrue);
   });
+
+  test(
+    'hosted backend retry endpoints include reopen export and settings',
+    () async {
+      final sentPlans = <HostedBackendRetryEndpointPlan>[];
+      final executor = HostedBackendRetryActionExecutor(
+        transport: (plan) async {
+          sentPlans.add(plan);
+          return HostedBackendRetryActionResult.accepted(
+            statusCode: 202,
+            metadata: <String, Object?>{'path': plan.path},
+          );
+        },
+      );
+      final endpoints =
+          HostedBackendRetryEndpointPlan.defaultControlPlaneEndpoints();
+      final reopen = endpoints.singleWhere(
+        (endpoint) =>
+            endpoint.kind == HostedBackendRetryEndpointKind.reopenWorkspace,
+      );
+      final export = endpoints.singleWhere(
+        (endpoint) =>
+            endpoint.kind == HostedBackendRetryEndpointKind.exportWorkspace,
+      );
+      final settings = endpoints.singleWhere(
+        (endpoint) =>
+            endpoint.kind == HostedBackendRetryEndpointKind.openSettings,
+      );
+
+      final dispatch = await executor.execute(export);
+      final metadata = const HostedBackendRetryRuntimeOutputBinding()
+          .metadataFor(dispatch);
+
+      expect(endpoints.map((endpoint) => endpoint.kind), contains(reopen.kind));
+      expect(reopen.requiresConfirmation, isTrue);
+      expect(export.path, '/api/vityo/hosted/v1/workspaces/export');
+      expect(settings.settingsSectionId, 'agent-provider');
+      expect(dispatch.accepted, isTrue);
+      expect(
+        sentPlans.single.kind,
+        HostedBackendRetryEndpointKind.exportWorkspace,
+      );
+      expect(metadata['endpointKind'], 'export-workspace');
+      expect(metadata['settingsSectionId'], isNull);
+      expect(dispatch.toJson()['result'], isA<Map<String, Object?>>());
+    },
+  );
 }
 
 AgentPromptProfile _profile() {

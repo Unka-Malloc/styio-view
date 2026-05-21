@@ -250,11 +250,15 @@ void main() {
     );
     expect(
       entriesById['service.remote-service']?.summary,
+      contains('retry/reopen/export/settings route contracts'),
+    );
+    expect(
+      entriesById['service.remote-service']?.summary,
       contains('HostedControlPlaneRetryTransport'),
     );
     expect(
       entriesById['service.remote-service']?.todo,
-      contains('reopen/export control-plane endpoints'),
+      contains('hosted settings recovery handlers'),
     );
     expect(
       entriesById['service.remote-service']?.runtimeMaturityBlocking,

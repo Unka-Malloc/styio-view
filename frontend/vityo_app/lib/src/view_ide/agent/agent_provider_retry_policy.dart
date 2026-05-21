@@ -3,6 +3,10 @@ import 'agent_provider_adapter.dart';
 typedef AgentProviderRetryOperation<T> = Future<T> Function(int attempt);
 typedef AgentProviderRetryDelay = Future<void> Function(Duration delay);
 typedef AgentProviderRetryClock = DateTime Function();
+typedef HostedControlPlaneRetryTransport =
+    Future<HostedBackendRetryActionResult> Function(
+      HostedBackendRetryEndpointPlan plan,
+    );
 typedef AgentProviderResponseRetryTelemetrySink =
     void Function(
       AgentProviderRequest request,
@@ -273,3 +277,216 @@ class RetryingAgentProviderAdapter
 }
 
 Future<void> _noDelay(Duration delay) async {}
+
+enum HostedBackendRetryEndpointKind {
+  retryAgentProvider,
+  reopenWorkspace,
+  exportWorkspace,
+  openSettings,
+}
+
+extension HostedBackendRetryEndpointKindX on HostedBackendRetryEndpointKind {
+  String get wireValue {
+    return switch (this) {
+      HostedBackendRetryEndpointKind.retryAgentProvider =>
+        'retry-agent-provider',
+      HostedBackendRetryEndpointKind.reopenWorkspace => 'reopen-workspace',
+      HostedBackendRetryEndpointKind.exportWorkspace => 'export-workspace',
+      HostedBackendRetryEndpointKind.openSettings => 'open-settings',
+    };
+  }
+}
+
+class HostedBackendRetryEndpointPlan {
+  const HostedBackendRetryEndpointPlan({
+    required this.kind,
+    required this.method,
+    required this.path,
+    required this.label,
+    required this.message,
+    this.settingsSectionId = '',
+    this.requiresConfirmation = false,
+    this.metadata = const <String, Object?>{},
+  });
+
+  static List<HostedBackendRetryEndpointPlan> defaultControlPlaneEndpoints({
+    String basePath = '/api/vityo/hosted/v1',
+  }) {
+    final root = basePath.endsWith('/')
+        ? basePath.substring(0, basePath.length - 1)
+        : basePath;
+    return <HostedBackendRetryEndpointPlan>[
+      HostedBackendRetryEndpointPlan(
+        kind: HostedBackendRetryEndpointKind.retryAgentProvider,
+        method: 'POST',
+        path: '$root/agent/retry',
+        label: 'Retry hosted agent provider',
+        message:
+            'Retry the current hosted agent provider request through the control plane.',
+      ),
+      HostedBackendRetryEndpointPlan(
+        kind: HostedBackendRetryEndpointKind.reopenWorkspace,
+        method: 'POST',
+        path: '$root/workspaces/reopen',
+        label: 'Reopen hosted workspace',
+        message:
+            'Ask the hosted control plane to reopen the current workspace session.',
+        requiresConfirmation: true,
+      ),
+      HostedBackendRetryEndpointPlan(
+        kind: HostedBackendRetryEndpointKind.exportWorkspace,
+        method: 'POST',
+        path: '$root/workspaces/export',
+        label: 'Export hosted workspace',
+        message:
+            'Export workspace state before changing hosted provider or session settings.',
+        requiresConfirmation: true,
+      ),
+      HostedBackendRetryEndpointPlan(
+        kind: HostedBackendRetryEndpointKind.openSettings,
+        method: 'GET',
+        path: '$root/settings/agent-provider',
+        label: 'Open hosted provider settings',
+        message:
+            'Open the hosted provider settings recovery route for credential or endpoint repair.',
+        settingsSectionId: 'agent-provider',
+      ),
+    ];
+  }
+
+  final HostedBackendRetryEndpointKind kind;
+  final String method;
+  final String path;
+  final String label;
+  final String message;
+  final String settingsSectionId;
+  final bool requiresConfirmation;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'method': method,
+      'path': path,
+      'label': label,
+      'message': message,
+      'requiresConfirmation': requiresConfirmation,
+      if (settingsSectionId.isNotEmpty) 'settingsSectionId': settingsSectionId,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class HostedBackendRetryActionResult {
+  const HostedBackendRetryActionResult({
+    required this.accepted,
+    required this.message,
+    this.statusCode,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const HostedBackendRetryActionResult.accepted({
+    String message = 'Hosted backend control-plane action accepted.',
+    int? statusCode,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: true,
+         message: message,
+         statusCode: statusCode,
+         metadata: metadata,
+       );
+
+  const HostedBackendRetryActionResult.rejected({
+    String message = 'Hosted backend control-plane action rejected.',
+    int? statusCode,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: false,
+         message: message,
+         statusCode: statusCode,
+         metadata: metadata,
+       );
+
+  final bool accepted;
+  final String message;
+  final int? statusCode;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'accepted': accepted,
+      'message': message,
+      if (statusCode != null) 'statusCode': statusCode,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class HostedBackendRetryActionExecutor {
+  const HostedBackendRetryActionExecutor({required this.transport});
+
+  final HostedControlPlaneRetryTransport transport;
+
+  Future<HostedBackendRetryActionDispatch> execute(
+    HostedBackendRetryEndpointPlan plan,
+  ) async {
+    try {
+      final result = await transport(plan);
+      return HostedBackendRetryActionDispatch(
+        plan: plan,
+        result: result,
+        message: result.message,
+      );
+    } on Object catch (error) {
+      return HostedBackendRetryActionDispatch(
+        plan: plan,
+        result: HostedBackendRetryActionResult.rejected(
+          message: 'Hosted backend control-plane action failed: $error',
+        ),
+        message: 'Hosted backend control-plane action failed: $error',
+      );
+    }
+  }
+}
+
+class HostedBackendRetryActionDispatch {
+  const HostedBackendRetryActionDispatch({
+    required this.plan,
+    required this.result,
+    required this.message,
+  });
+
+  final HostedBackendRetryEndpointPlan plan;
+  final HostedBackendRetryActionResult result;
+  final String message;
+
+  bool get accepted => result.accepted;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'accepted': accepted,
+      'message': message,
+      'plan': plan.toJson(),
+      'result': result.toJson(),
+    };
+  }
+}
+
+class HostedBackendRetryRuntimeOutputBinding {
+  const HostedBackendRetryRuntimeOutputBinding();
+
+  Map<String, Object?> metadataFor(HostedBackendRetryActionDispatch dispatch) {
+    return <String, Object?>{
+      'producerId': 'service.remote-service.hosted-retry',
+      'kind': 'hosted-backend-retry',
+      'accepted': dispatch.accepted,
+      'endpointKind': dispatch.plan.kind.wireValue,
+      'method': dispatch.plan.method,
+      'path': dispatch.plan.path,
+      'requiresConfirmation': dispatch.plan.requiresConfirmation,
+      if (dispatch.plan.settingsSectionId.isNotEmpty)
+        'settingsSectionId': dispatch.plan.settingsSectionId,
+      'result': dispatch.result.toJson(),
+    };
+  }
+}

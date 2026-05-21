@@ -326,9 +326,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'Agent provider route selection, user-managed OpenAI API credential references for Codex/Codex Spark profiles, AgentSurface preset credential binding and credential-reference visibility, preferred credential writes through AgentProviderConfigurator, credential readiness, endpoint probing, fallback selection, retry policy execution, remote service health reports, Foundation DataStore-backed health history, OpenAI-compatible/Responses provider routing, hosted backend connector parity action plans, HostedBackendRetryEndpointPlan route contracts, HostedBackendRetryActionExecutor, HostedControlPlaneRetryTransport, and HostedBackendRetryRuntimeOutputBinding telemetry snapshots are wired.',
+              'Agent provider route selection, user-managed OpenAI API credential references for Codex/Codex Spark profiles, AgentSurface preset credential binding and credential-reference visibility, preferred credential writes through AgentProviderConfigurator, credential readiness, endpoint probing, fallback selection, retry policy execution, remote service health reports, Foundation DataStore-backed health history, OpenAI-compatible/Responses provider routing, hosted backend connector parity action plans, HostedBackendRetryEndpointPlan retry/reopen/export/settings route contracts, HostedBackendRetryActionExecutor, HostedControlPlaneRetryTransport, and HostedBackendRetryRuntimeOutputBinding telemetry snapshots are wired.',
           todo:
-              'TODO: publish hosted reopen/export control-plane endpoints and bind settings recovery handlers to concrete Settings UI.',
+              'TODO: bind hosted settings recovery handlers to concrete Settings UI.',
           runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code remote authority and extension host services',

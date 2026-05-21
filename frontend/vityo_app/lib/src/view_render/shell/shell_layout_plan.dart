@@ -86,6 +86,213 @@ class ShellPanelDescriptor {
   }
 }
 
+enum ShellPanelContributionStatus { scaffolded, wired, production }
+
+extension ShellPanelContributionStatusX on ShellPanelContributionStatus {
+  String get wireValue => switch (this) {
+    ShellPanelContributionStatus.scaffolded => 'scaffolded',
+    ShellPanelContributionStatus.wired => 'wired',
+    ShellPanelContributionStatus.production => 'production',
+  };
+}
+
+class ShellPanelContribution {
+  const ShellPanelContribution({
+    required this.id,
+    required this.title,
+    required this.region,
+    required this.surfaceId,
+    required this.capabilities,
+    required this.status,
+    this.bottomTab,
+    this.defaultVisible = true,
+    this.metadata = const <String, Object?>{},
+    this.todo = '',
+  });
+
+  factory ShellPanelContribution.bottomPanel({
+    required BottomSurfaceTab tab,
+    required String title,
+    required String surfaceId,
+    required List<String> capabilities,
+    ShellPanelContributionStatus status = ShellPanelContributionStatus.wired,
+    Map<String, Object?> metadata = const <String, Object?>{},
+    String todo = '',
+  }) {
+    return ShellPanelContribution(
+      id: 'bottom.${tab.name}',
+      title: title,
+      region: ShellLayoutRegion.bottomPanel,
+      surfaceId: surfaceId,
+      capabilities: capabilities,
+      status: status,
+      bottomTab: tab,
+      metadata: metadata,
+      todo: todo,
+    );
+  }
+
+  final String id;
+  final String title;
+  final ShellLayoutRegion region;
+  final String surfaceId;
+  final List<String> capabilities;
+  final ShellPanelContributionStatus status;
+  final BottomSurfaceTab? bottomTab;
+  final bool defaultVisible;
+  final Map<String, Object?> metadata;
+  final String todo;
+
+  ShellPanelDescriptor toPanelDescriptor({
+    required BottomSurfaceTab activeBottomTab,
+  }) {
+    return ShellPanelDescriptor(
+      id: id,
+      title: title,
+      region: region,
+      visible: defaultVisible,
+      active: bottomTab == activeBottomTab,
+      metadata: <String, Object?>{
+        ...metadata,
+        'surfaceId': surfaceId,
+        'capabilities': capabilities,
+        'contributionStatus': status.wireValue,
+        if (bottomTab != null) 'bottomTab': bottomTab!.name,
+      },
+      todo: todo,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'title': title,
+      'region': region.wireValue,
+      'surfaceId': surfaceId,
+      'capabilities': capabilities,
+      'status': status.wireValue,
+      'defaultVisible': defaultVisible,
+      if (bottomTab != null) 'bottomTab': bottomTab!.name,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class ShellPanelContributionCoverage {
+  const ShellPanelContributionCoverage({
+    required this.requiredPanelIds,
+    required this.registeredPanelIds,
+    required this.missingPanelIds,
+  });
+
+  final List<String> requiredPanelIds;
+  final List<String> registeredPanelIds;
+  final List<String> missingPanelIds;
+
+  bool get complete => missingPanelIds.isEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'complete': complete,
+      'requiredPanelIds': requiredPanelIds,
+      'registeredPanelIds': registeredPanelIds,
+      'missingPanelIds': missingPanelIds,
+    };
+  }
+}
+
+class ShellPanelContributionRegistry {
+  ShellPanelContributionRegistry({
+    Iterable<ShellPanelContribution> contributions =
+        const <ShellPanelContribution>[],
+  }) {
+    for (final contribution in contributions) {
+      register(contribution);
+    }
+  }
+
+  factory ShellPanelContributionRegistry.defaultIdePanels() {
+    return ShellPanelContributionRegistry(
+      contributions: _defaultBottomPanelContributions(),
+    );
+  }
+
+  static const List<String> coreIdePanelIds = <String>[
+    'bottom.problems',
+    'bottom.search',
+    'bottom.settings',
+    'bottom.extensions',
+    'bottom.debug',
+    'bottom.agent',
+  ];
+
+  final List<ShellPanelContribution> _contributions =
+      <ShellPanelContribution>[];
+
+  List<ShellPanelContribution> get contributions {
+    return List<ShellPanelContribution>.unmodifiable(_contributions);
+  }
+
+  void register(ShellPanelContribution contribution) {
+    _contributions.removeWhere((candidate) => candidate.id == contribution.id);
+    _contributions.add(contribution);
+  }
+
+  ShellPanelContribution? panelById(String panelId) {
+    for (final contribution in _contributions) {
+      if (contribution.id == panelId) {
+        return contribution;
+      }
+    }
+    return null;
+  }
+
+  List<ShellPanelDescriptor> descriptorsForRegion({
+    required ShellLayoutRegion region,
+    required BottomSurfaceTab activeBottomTab,
+  }) {
+    return _contributions
+        .where((contribution) => contribution.region == region)
+        .map(
+          (contribution) =>
+              contribution.toPanelDescriptor(activeBottomTab: activeBottomTab),
+        )
+        .toList(growable: false);
+  }
+
+  ShellPanelContributionCoverage coverageForCoreIdePanels() {
+    return coverageFor(requiredPanelIds: coreIdePanelIds);
+  }
+
+  ShellPanelContributionCoverage coverageFor({
+    required List<String> requiredPanelIds,
+  }) {
+    final registered = _contributions
+        .map((contribution) => contribution.id)
+        .toSet();
+    return ShellPanelContributionCoverage(
+      requiredPanelIds: requiredPanelIds,
+      registeredPanelIds: _contributions
+          .map((contribution) => contribution.id)
+          .toList(growable: false),
+      missingPanelIds: requiredPanelIds
+          .where((panelId) => !registered.contains(panelId))
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'contributionCount': _contributions.length,
+      'coreIdeCoverage': coverageForCoreIdePanels().toJson(),
+      'contributions': _contributions
+          .map((contribution) => contribution.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
 class ShellLayoutPlan {
   const ShellLayoutPlan({
     required this.mode,
@@ -106,8 +313,11 @@ class ShellLayoutPlan {
   factory ShellLayoutPlan.forViewport({
     required BottomSurfaceTab activeBottomTab,
     required bool compact,
+    ShellPanelContributionRegistry? panelRegistry,
   }) {
     final mode = compact ? ShellLayoutMode.compact : ShellLayoutMode.desktop;
+    final contributions =
+        panelRegistry ?? ShellPanelContributionRegistry.defaultIdePanels();
     final panels = <ShellPanelDescriptor>[
       const ShellPanelDescriptor(
         id: 'top-bar',
@@ -131,14 +341,9 @@ class ShellLayoutPlan {
         visible: true,
         active: true,
       ),
-      ...BottomSurfaceTab.values.map(
-        (tab) => ShellPanelDescriptor(
-          id: 'bottom.${tab.name}',
-          title: _bottomTabTitle(tab),
-          region: ShellLayoutRegion.bottomPanel,
-          visible: true,
-          active: tab == activeBottomTab,
-        ),
+      ...contributions.descriptorsForRegion(
+        region: ShellLayoutRegion.bottomPanel,
+        activeBottomTab: activeBottomTab,
       ),
       const ShellPanelDescriptor(
         id: 'status-bar',
@@ -152,7 +357,7 @@ class ShellLayoutPlan {
       activeBottomTab: activeBottomTab,
       panels: panels,
       todo:
-          'TODO: mature diagnostics, search, settings, extensions, debug, and agent panel internals behind this layout contract.',
+          'TODO: mature diagnostics, search, settings, extensions, debug, and agent panel internals behind ShellPanelContributionRegistry renderers.',
     );
   }
 
@@ -204,6 +409,26 @@ class ShellLayoutPlan {
       if (todo.isNotEmpty) 'todo': todo,
     };
   }
+}
+
+List<ShellPanelContribution> _defaultBottomPanelContributions() {
+  return BottomSurfaceTab.values
+      .map((tab) {
+        final panelId = 'bottom.${tab.name}';
+        final metadata = <String, Object?>{
+          'coreIdePanel': ShellPanelContributionRegistry.coreIdePanelIds
+              .contains(panelId),
+        };
+        return ShellPanelContribution.bottomPanel(
+          tab: tab,
+          title: _bottomTabTitle(tab),
+          surfaceId: _bottomTabSurfaceId(tab),
+          capabilities: _bottomTabCapabilities(tab),
+          metadata: metadata,
+          todo: _bottomTabPanelTodo(tab),
+        );
+      })
+      .toList(growable: false);
 }
 
 class ShellLayoutPreferences {
@@ -543,6 +768,80 @@ String _bottomTabTitle(BottomSurfaceTab tab) {
     BottomSurfaceTab.extensions => 'Extensions',
     BottomSurfaceTab.debug => 'Debug',
     BottomSurfaceTab.settings => 'Settings',
+  };
+}
+
+String _bottomTabSurfaceId(BottomSurfaceTab tab) {
+  return switch (tab) {
+    BottomSurfaceTab.runtime => 'runtime.output',
+    BottomSurfaceTab.terminal => 'terminal.session',
+    BottomSurfaceTab.commandPalette => 'commands.palette',
+    BottomSurfaceTab.agent => 'agent.activity',
+    BottomSurfaceTab.sourceControl => 'source-control.changes',
+    BottomSurfaceTab.search => 'workspace.search',
+    BottomSurfaceTab.problems => 'workspace.problems',
+    BottomSurfaceTab.testing => 'testing.results',
+    BottomSurfaceTab.extensions => 'extensions.marketplace',
+    BottomSurfaceTab.debug => 'debug.console',
+    BottomSurfaceTab.settings => 'settings.workspace',
+  };
+}
+
+List<String> _bottomTabCapabilities(BottomSurfaceTab tab) {
+  return switch (tab) {
+    BottomSurfaceTab.runtime => const <String>[
+      'runtime-output',
+      'task-activity',
+    ],
+    BottomSurfaceTab.terminal => const <String>['terminal', 'pty-session'],
+    BottomSurfaceTab.commandPalette => const <String>[
+      'command-search',
+      'command-execution',
+    ],
+    BottomSurfaceTab.agent => const <String>[
+      'agent-activity',
+      'coding-session-history',
+    ],
+    BottomSurfaceTab.sourceControl => const <String>[
+      'source-control',
+      'diff-preview',
+    ],
+    BottomSurfaceTab.search => const <String>[
+      'workspace-search',
+      'replace-preview',
+    ],
+    BottomSurfaceTab.problems => const <String>['diagnostics', 'quick-fix'],
+    BottomSurfaceTab.testing => const <String>[
+      'test-results',
+      'failed-test-debug',
+    ],
+    BottomSurfaceTab.extensions => const <String>[
+      'extension-management',
+      'marketplace',
+    ],
+    BottomSurfaceTab.debug => const <String>['debug-console', 'debug-session'],
+    BottomSurfaceTab.settings => const <String>[
+      'settings',
+      'toolchain-configuration',
+    ],
+  };
+}
+
+String _bottomTabPanelTodo(BottomSurfaceTab tab) {
+  return switch (tab) {
+    BottomSurfaceTab.search =>
+      'TODO: add production-scale virtualized search result rendering.',
+    BottomSurfaceTab.problems =>
+      'TODO: add virtualized multi-file diagnostics diff expansion.',
+    BottomSurfaceTab.settings =>
+      'TODO: bind all recovery and credential configuration routes.',
+    BottomSurfaceTab.extensions =>
+      'TODO: render marketplace IO progress and lifecycle policy persistence.',
+    BottomSurfaceTab.debug =>
+      'TODO: expose launch configuration editing and adapter process controls.',
+    BottomSurfaceTab.agent =>
+      'TODO: add long-running coding session timeline virtualization.',
+    _ => '',
   };
 }
 

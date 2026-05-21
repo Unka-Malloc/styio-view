@@ -138,4 +138,37 @@ void main() {
       isTrue,
     );
   });
+
+  test('shell panel contribution registry covers core IDE panels', () {
+    final registry = ShellPanelContributionRegistry.defaultIdePanels();
+    final coverage = registry.coverageForCoreIdePanels();
+    final plan = ShellLayoutPlan.forViewport(
+      activeBottomTab: BottomSurfaceTab.problems,
+      compact: false,
+      panelRegistry: registry,
+    );
+
+    expect(coverage.complete, isTrue);
+    expect(
+      coverage.requiredPanelIds,
+      ShellPanelContributionRegistry.coreIdePanelIds,
+    );
+    expect(
+      registry.panelById('bottom.problems')?.capabilities,
+      contains('diagnostics'),
+    );
+    expect(
+      registry.panelById('bottom.agent')?.toJson()['surfaceId'],
+      'agent.activity',
+    );
+    expect(
+      plan.panelById('bottom.problems')?.metadata['surfaceId'],
+      'workspace.problems',
+    );
+    expect(
+      plan.panelById('bottom.extensions')?.todo,
+      contains('marketplace IO progress'),
+    );
+    expect(registry.toJson()['coreIdeCoverage'], isA<Map<String, Object?>>());
+  });
 }

@@ -513,7 +513,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 70);
+    expect(json['schemaVersion'], 71);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -544,6 +544,15 @@ void main() {
     expect(testingJson['hasDiscovery'], isTrue);
     expect(testingJson['hasLastRun'], isTrue);
     expect(testingJson['hasFailingTests'], isTrue);
+    expect(
+      testingJson['suggestedCommandIds'],
+      containsAll(<String>[
+        'rerunFailedTests',
+        'debugFailedTests',
+        'runTestConfiguration',
+        'debugTestConfiguration',
+      ]),
+    );
     expect(testingDiscovery['testCount'], 1);
     expect(testingLastRun['status'], 'failed');
     expect(testingLastRun['failedCount'], 1);
@@ -1420,7 +1429,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 70);
+    expect(context.schemaVersion, 71);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1803,7 +1812,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 70);
+    expect(json['schemaVersion'], 71);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2078,7 +2087,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 70);
+    expect(context.schemaVersion, 71);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

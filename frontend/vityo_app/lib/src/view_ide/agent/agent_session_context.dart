@@ -167,7 +167,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 70,
+      schemaVersion: 71,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -4600,6 +4600,7 @@ class AgentTestingContext {
     this.rerunFailed,
     this.debugFailed,
     this.debugFailedRoutePlan,
+    this.suggestedCommandIds = const <String>[],
   });
 
   factory AgentTestingContext.fromState({
@@ -4609,23 +4610,33 @@ class AgentTestingContext {
     String workspaceRoot = '',
     FailedTestRerunPlanner rerunPlanner = const FailedTestRerunPlanner(),
   }) {
+    final rerunFailed = rerunPlanner.plan(
+      lastRun: lastRun,
+      workspaceRoot: workspaceRoot,
+    );
     final debugFailed = rerunPlanner.plan(
       lastRun: lastRun,
       workspaceRoot: workspaceRoot,
       debug: true,
     );
+    final hasConfigurations =
+        configurationSet != null && configurationSet.configurations.isNotEmpty;
     return AgentTestingContext(
       discovery: discovery,
       lastRun: lastRun,
       configurationSet: configurationSet,
-      rerunFailed: rerunPlanner.plan(
-        lastRun: lastRun,
-        workspaceRoot: workspaceRoot,
-      ),
+      rerunFailed: rerunFailed,
       debugFailed: debugFailed,
       debugFailedRoutePlan: debugFailed == null
           ? null
           : const TestDebugLaunchRoutePlanner().plan(debugFailed),
+      suggestedCommandIds: <String>[
+        if (rerunFailed != null) 'rerunFailedTests',
+        if (debugFailed != null) 'debugFailedTests',
+        if (hasConfigurations) 'runTestConfiguration',
+        if (hasConfigurations) 'debugTestConfiguration',
+        if (lastRun == null && discovery != null) 'runTests',
+      ],
     );
   }
 
@@ -4635,6 +4646,7 @@ class AgentTestingContext {
   final TestRunConfiguration? rerunFailed;
   final TestRunConfiguration? debugFailed;
   final DebugLaunchRoutePlan? debugFailedRoutePlan;
+  final List<String> suggestedCommandIds;
 
   bool get hasFailingTests {
     return lastRun != null &&
@@ -4654,6 +4666,8 @@ class AgentTestingContext {
       if (debugFailed != null) 'debugFailed': debugFailed!.toJson(),
       if (debugFailedRoutePlan != null)
         'debugFailedRoutePlan': debugFailedRoutePlan!.toJson(),
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
     };
   }
 }

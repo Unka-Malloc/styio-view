@@ -1,16 +1,21 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
+import 'package:vityo_app/src/agent/agent_prompt_profile_store.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_configurator.dart';
+import 'package:vityo_app/src/agent/agent_provider_credential_resolver.dart';
 import 'package:vityo_app/src/agent/agent_provider_registry.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/agent/agent_provider_retry_policy.dart';
-import 'package:vityo_app/src/view_ide/environment/configuration/configuration.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 
 void main() {
   test(
@@ -232,6 +237,57 @@ void main() {
       expect(
         controller.providerMountMessage,
         'Agent provider failover mounted cloud.',
+      );
+    },
+  );
+
+  test(
+    'agent provider configurator from stores mounts saved profile by manifest id',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_provider_configurator_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final dataStore = _createFoundationDataStore(tempRoot);
+      final credentialDataStore = InMemoryCredentialDataStore();
+      final profileStore = AgentPromptProfileStore.fromDataStore(
+        dataStore: dataStore,
+      );
+      final configurationStore = ConfigurationStore(
+        dataStore: dataStore,
+        credentialDataStore: credentialDataStore,
+      );
+      await profileStore.saveProfile(
+        workspaceId: 'workspace-1',
+        key: 'cloud-key',
+        profile: _profile('cloud-profile'),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+      final configurator = AgentProviderConfigurator.fromStores(
+        workspaceId: 'workspace-1',
+        profileStore: profileStore,
+        providerFactory: ConfiguredAgentProviderAdapterFactory(
+          configurationStore: configurationStore,
+          transport: const _NoopAgentProviderTransport(),
+        ),
+        credentialDataStore: credentialDataStore,
+      );
+
+      final result = await configurator.mountSavedProfile(
+        key: 'cloud-profile',
+        controller: controller,
+      );
+
+      expect(result.mounted, isTrue);
+      expect(controller.profile.profileId, 'cloud-profile');
+      expect(
+        controller.providerMountMessage,
+        'Agent provider failover mounted cloud-profile.',
       );
     },
   );
@@ -592,6 +648,36 @@ AgentSessionContext _context() {
     selection: const SelectionState.collapsed(0),
     diagnostics: const [],
   );
+}
+
+FoundationDataStore _createFoundationDataStore(Directory root) {
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: root.path,
+      homePath: root.path,
+    ),
+  );
+  return FoundationDataStore(
+    resourceCoordinator: FoundationResourceCoordinator(
+      resourceManager: resourceManager,
+      fileSystemManager: fileSystemManager,
+    ),
+    fileSystemManager: fileSystemManager,
+  );
+}
+
+class _NoopAgentProviderTransport implements AgentProviderTransport {
+  const _NoopAgentProviderTransport();
+
+  @override
+  Future<Map<String, Object?>> postJson({
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  }) {
+    throw UnimplementedError('No network call expected.');
+  }
 }
 
 class _FakeAgentProviderAdapter implements AgentProviderAdapter {

@@ -115,7 +115,11 @@ class AgentProviderConfigurator {
         );
       },
       loadProfile: ({required workspaceId, required key}) {
-        return profileStore.readProfile(workspaceId: workspaceId, key: key);
+        return _readProfileByKeyOrProfileId(
+          profileStore: profileStore,
+          workspaceId: workspaceId,
+          keyOrProfileId: key,
+        );
       },
       createAdapter: registry.createAdapter,
       selectProvider: registry.selectionPlan,
@@ -448,4 +452,26 @@ class AgentProviderConfigurator {
       contextChannels: profile.contextChannels,
     );
   }
+}
+
+Future<AgentPromptProfile?> _readProfileByKeyOrProfileId({
+  required AgentPromptProfileStore profileStore,
+  required String workspaceId,
+  required String keyOrProfileId,
+}) async {
+  final direct = await profileStore.readProfile(
+    workspaceId: workspaceId,
+    key: keyOrProfileId,
+  );
+  if (direct != null) {
+    return direct;
+  }
+  final manifest = await profileStore.readProfileManifest(
+    workspaceId: workspaceId,
+  );
+  final profileKey = manifest.keyForProfileId(keyOrProfileId);
+  if (profileKey == null || profileKey == keyOrProfileId) {
+    return null;
+  }
+  return profileStore.readProfile(workspaceId: workspaceId, key: profileKey);
 }

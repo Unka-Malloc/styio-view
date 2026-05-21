@@ -32,20 +32,31 @@ void main() {
       fileSystemManager: fileSystemManager,
     );
     final store = AgentPromptProfileStore.fromDataStore(dataStore: dataStore);
-    final profile = AgentPromptProfile.defaultForPlatform(
-      PlatformTarget.macos,
-    );
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.macos);
 
     await store.saveProfile(workspaceId: 'demo', profile: profile);
     final restored = await store.readProfile(workspaceId: 'demo');
+    final manifest = await store.readProfileManifest(workspaceId: 'demo');
 
     expect(restored, isNotNull);
     expect(restored!.profileId, profile.profileId);
     expect(restored.endpoint.route, AgentProviderRoute.desktopLocalBridge);
     expect(restored.contextChannels, profile.contextChannels);
+    expect(manifest.entries.single.key, 'default');
+    expect(manifest.entries.single.profileId, profile.profileId);
+    expect(manifest.entries.single.displayName, profile.displayName);
+    expect(manifest.entries.single.route, 'desktop-local-bridge');
+    expect(manifest.entries.single.protocol, 'openai-compatible');
+    expect(manifest.entries.single.model, profile.endpoint.model);
+    expect(manifest.entries.single.requiresCredential, isTrue);
+    expect(manifest.keyForProfileId(profile.profileId), 'default');
 
     final deleted = await store.deleteProfile(workspaceId: 'demo');
     expect(deleted, isTrue);
     expect(await store.readProfile(workspaceId: 'demo'), isNull);
+    expect(
+      (await store.readProfileManifest(workspaceId: 'demo')).entries,
+      isEmpty,
+    );
   });
 }

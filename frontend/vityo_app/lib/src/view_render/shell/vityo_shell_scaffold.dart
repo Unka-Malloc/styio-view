@@ -396,9 +396,11 @@ class VityoShellScaffold extends StatelessWidget {
           toolchainSettings: shell.toolchainSettingsSurface,
           toolchainInstallPlan: shell.toolchainInstallPlanSurface,
           toolchainInstallExecution: shell.toolchainInstallExecutionSurface,
+          toolchainBootstrapSummary: shell.toolchainBootstrapSummary,
           themeOverride: shell.themeOverride,
           commandPalettePreferences: shell.commandPalettePreferences,
           onToolchainRecoveryAction: shell.handleToolchainRecoveryAction,
+          onToolchainBootstrapAction: shell.handleToolchainBootstrapAction,
           onSelectToolchain: shell.selectToolchainCandidate,
           onSelectClangCppVersion: (versionId, cppStandard) {
             return shell.selectClangCppVersion(

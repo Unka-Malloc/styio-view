@@ -570,7 +570,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/toolchain',
           summary:
-              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, managed downloads, Styio-first toolchain lifecycle reports, bootstrap summaries for settings/project/agent consumers, ToolchainBootstrapExecutionPlan settings/installer/project action steps, ToolchainBootstrapActionRouter dispatch contracts, settings bootstrap action controls, and extension toolchain route consumption are wired.',
+              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, managed downloads, Styio-first toolchain lifecycle reports, bootstrap summaries for settings/project/agent consumers, ToolchainBootstrapExecutionPlan settings/installer/project action steps, ToolchainBootstrapActionRouter dispatch contracts, ShellRuntimeModel bootstrap action dispatch, settings bootstrap action controls, and extension toolchain route consumption are wired.',
           todo:
               'TODO: connect ToolchainBootstrapExecutionPlan steps to concrete installer UX and project bootstrap execution.',
           runtimeMaturityBlocking: false,

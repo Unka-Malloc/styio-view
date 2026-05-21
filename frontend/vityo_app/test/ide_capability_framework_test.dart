@@ -341,6 +341,10 @@ void main() {
       contains('ToolchainBootstrapActionRouter dispatch contracts'),
     );
     expect(
+      entriesById['toolchain.manager']?.summary,
+      contains('ShellRuntimeModel bootstrap action dispatch'),
+    );
+    expect(
       entriesById['toolchain.manager']?.todo,
       contains('concrete installer UX'),
     );

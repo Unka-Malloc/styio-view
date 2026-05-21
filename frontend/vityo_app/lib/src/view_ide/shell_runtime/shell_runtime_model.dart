@@ -28,6 +28,7 @@ import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_install_executor.dart'
     hide ToolchainRecoveryAction;
 import '../toolchain/toolchain_install_policy.dart';
+import '../toolchain/styio_toolchain_lifecycle.dart';
 import '../toolchain/toolchain_manager.dart';
 import '../toolchain/toolchain_resolver.dart';
 import '../toolchain/toolchain_runtime.dart';
@@ -539,6 +540,9 @@ class ShellRuntimeModel extends ChangeNotifier {
           _handleStyioServiceSubscriptionEvent,
         );
     toolchainStatusReport?.addListener(_handleToolchainStatusReportChanged);
+    if (toolchainManager != null) {
+      unawaited(refreshToolchainBootstrapSummary());
+    }
     _editorFileBindingSubscription = _editorFileBinding.snapshotEvents.listen(
       _handleEditorFileBindingSnapshot,
     );
@@ -631,6 +635,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   ToolchainStateSnapshot? _lastToolchainSnapshot;
   ToolchainInstallPlan? _lastToolchainInstallPlan;
   ToolchainInstallExecutionResult? _lastToolchainInstallExecutionResult;
+  ToolchainManagerBootstrapSummary? _toolchainBootstrapSummary;
+  ToolchainBootstrapActionDispatchResult? _lastToolchainBootstrapActionDispatch;
   DebugSessionSnapshot _debugSession = const DebugSessionSnapshot(
     status: DebugSessionStatus.idle,
     message: 'No debug session has been started.',
@@ -2214,6 +2220,11 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastToolchainInstallPlan;
   ToolchainInstallExecutionResult? get lastToolchainInstallExecutionResult =>
       _lastToolchainInstallExecutionResult;
+  ToolchainManagerBootstrapSummary? get toolchainBootstrapSummary =>
+      _toolchainBootstrapSummary;
+  ToolchainBootstrapActionDispatchResult?
+  get lastToolchainBootstrapActionDispatch =>
+      _lastToolchainBootstrapActionDispatch;
   WorkspaceFileCloseRequestResult? get lastCloseRequestResult =>
       _lastCloseRequestResult;
   WorkspaceEditPreview? get lastWorkspaceEditPreview =>
@@ -6611,6 +6622,190 @@ class ShellRuntimeModel extends ChangeNotifier {
     await _refreshToolchainStatusReportAfterInstall(result);
     notifyListeners();
     return result;
+  }
+
+  Future<ToolchainManagerBootstrapSummary?> refreshToolchainBootstrapSummary({
+    String reason = 'toolchain bootstrap refresh',
+  }) async {
+    final manager = toolchainManager;
+    if (manager == null) {
+      appendLog(
+        'Toolchain bootstrap summary unavailable: no ToolchainManager is wired.',
+      );
+      notifyListeners();
+      return null;
+    }
+    final summary = await manager.bootstrapSummary();
+    _toolchainBootstrapSummary = summary;
+    appendLog(
+      'Toolchain bootstrap summary refreshed: '
+      '${summary.ready ? 'ready' : 'actionable'} ($reason).',
+    );
+    notifyListeners();
+    return summary;
+  }
+
+  Future<ToolchainBootstrapActionDispatchResult?>
+  handleToolchainBootstrapAction(String actionId) async {
+    final summary =
+        _toolchainBootstrapSummary ??
+        await refreshToolchainBootstrapSummary(reason: 'action $actionId');
+    if (summary == null) {
+      final result = ToolchainBootstrapActionDispatchResult(
+        status: ToolchainBootstrapActionDispatchStatus.blocked,
+        actionId: actionId,
+        message:
+            'Toolchain bootstrap action blocked: no bootstrap summary is available.',
+        todo:
+            'TODO: provide a ToolchainManager before routing bootstrap actions.',
+      );
+      _lastToolchainBootstrapActionDispatch = result;
+      notifyListeners();
+      return result;
+    }
+
+    final fallbackInstallKind =
+        _firstMissingStyioToolchainKind(summary) ?? ToolchainKind.languageService;
+    final router = ToolchainBootstrapActionRouter(
+      onSettingsAction: _dispatchToolchainBootstrapSettingsAction,
+      onInstallerAction: (step) {
+        return _dispatchToolchainBootstrapInstallerAction(
+          step,
+          fallbackInstallKind: fallbackInstallKind,
+        );
+      },
+      onProjectAction: _dispatchToolchainBootstrapProjectAction,
+    );
+    final result = await router.dispatch(summary.executionPlan(), actionId);
+    _lastToolchainBootstrapActionDispatch = result;
+    appendLog(
+      'Toolchain bootstrap action ${result.status.wireValue}: '
+      '${result.actionId}${result.message.isEmpty ? '' : ' (${result.message})'}.',
+    );
+    notifyListeners();
+    return result;
+  }
+
+  Future<ToolchainBootstrapActionDispatchResult>
+  _dispatchToolchainBootstrapSettingsAction(
+    ToolchainBootstrapActionStep step,
+  ) async {
+    if (step.actionId.startsWith('select-styio-')) {
+      appendLog('Toolchain bootstrap selection route requested: ${step.actionId}.');
+      return ToolchainBootstrapActionDispatchResult.dispatched(
+        step,
+        message: 'Selection route requested.',
+      );
+    }
+    if (step.actionId.startsWith('install-styio-')) {
+      final kind =
+          _toolchainKindForStyioBootstrapAction(step.actionId) ??
+          ToolchainKind.languageService;
+      final plan = planManagedToolchainInstallation(kind: kind);
+      if (plan == null) {
+        return ToolchainBootstrapActionDispatchResult.blocked(
+          step,
+          message: 'No managed install plan could be prepared.',
+          todo:
+              'TODO: bind Styio role install actions to the production installer flow.',
+        );
+      }
+      return ToolchainBootstrapActionDispatchResult.dispatched(
+        step,
+        message: 'Managed install plan prepared for ${kind.wireValue}.',
+      );
+    }
+    if (step.actionId == 'open-toolchain-settings') {
+      return ToolchainBootstrapActionDispatchResult.dispatched(
+        step,
+        message: 'Toolchain settings route requested.',
+      );
+    }
+    return ToolchainBootstrapActionDispatchResult.blocked(
+      step,
+      message: 'Settings bootstrap action is not implemented.',
+      todo:
+          'TODO: bind ${step.actionId} to the concrete Settings UI action.',
+    );
+  }
+
+  Future<ToolchainBootstrapActionDispatchResult>
+  _dispatchToolchainBootstrapInstallerAction(
+    ToolchainBootstrapActionStep step, {
+    required ToolchainKind fallbackInstallKind,
+  }) async {
+    if (step.actionId == 'install-managed-styio-toolchain') {
+      final plan = planManagedToolchainInstallation(kind: fallbackInstallKind);
+      if (plan == null) {
+        return ToolchainBootstrapActionDispatchResult.blocked(
+          step,
+          message: 'No managed install plan could be prepared.',
+          todo: 'TODO: bind managed Styio installer to production installer UX.',
+        );
+      }
+      return ToolchainBootstrapActionDispatchResult.dispatched(
+        step,
+        message:
+            'Managed install plan prepared for ${fallbackInstallKind.wireValue}.',
+      );
+    }
+    if (step.actionId == 'verify-styio-toolchain') {
+      await refreshToolchainBootstrapSummary(reason: 'verify action');
+      return ToolchainBootstrapActionDispatchResult.dispatched(
+        step,
+        message: 'Styio toolchain verification refreshed.',
+      );
+    }
+    return ToolchainBootstrapActionDispatchResult.blocked(
+      step,
+      message: 'Installer bootstrap action is not implemented.',
+      todo:
+          'TODO: bind ${step.actionId} to the concrete installer executor.',
+    );
+  }
+
+  Future<ToolchainBootstrapActionDispatchResult>
+  _dispatchToolchainBootstrapProjectAction(
+    ToolchainBootstrapActionStep step,
+  ) async {
+    if (step.actionId == 'open-toolchain-settings') {
+      return ToolchainBootstrapActionDispatchResult.dispatched(
+        step,
+        message: 'Toolchain settings panel should stay focused.',
+      );
+    }
+    if (step.actionId == 'bootstrap-styio-toolchain' ||
+        step.actionId == 'validate-project-toolchain') {
+      await refreshToolchainBootstrapSummary(reason: step.actionId);
+      return ToolchainBootstrapActionDispatchResult.dispatched(
+        step,
+        message: 'Project toolchain bootstrap facts refreshed.',
+      );
+    }
+    return ToolchainBootstrapActionDispatchResult.blocked(
+      step,
+      message: 'Project bootstrap action is not implemented.',
+      todo:
+          'TODO: bind ${step.actionId} to the concrete project bootstrap runner.',
+    );
+  }
+
+  ToolchainKind? _toolchainKindForStyioBootstrapAction(String actionId) {
+    for (final role in StyioToolchainRole.values) {
+      if (actionId.endsWith(role.wireValue)) {
+        return role.toolchainKind;
+      }
+    }
+    return null;
+  }
+
+  ToolchainKind? _firstMissingStyioToolchainKind(
+    ToolchainManagerBootstrapSummary summary,
+  ) {
+    for (final role in summary.styioLifecycle.missingRequiredRoles) {
+      return role.role.toolchainKind;
+    }
+    return null;
   }
 
   Future<void> _refreshToolchainStatusReportAfterInstall(

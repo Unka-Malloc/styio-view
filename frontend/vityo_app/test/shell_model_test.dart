@@ -2599,6 +2599,37 @@ void main() {
         isTrue,
       );
 
+      final bootstrapSummary = await shell.refreshToolchainBootstrapSummary(
+        reason: 'test',
+      );
+      expect(bootstrapSummary?.executionPlan().canExecute, isTrue);
+      expect(shell.toolchainBootstrapSummary, same(bootstrapSummary));
+
+      final bootstrapInstall = await shell.handleToolchainBootstrapAction(
+        'install-managed-styio-toolchain',
+      );
+
+      expect(
+        bootstrapInstall?.status,
+        ToolchainBootstrapActionDispatchStatus.dispatched,
+      );
+      expect(
+        shell.lastToolchainBootstrapActionDispatch?.actionId,
+        'install-managed-styio-toolchain',
+      );
+      expect(
+        shell.lastToolchainInstallPlan?.status,
+        ToolchainInstallPlanStatus.planned,
+      );
+      expect(
+        shell.debugLog.any(
+          (entry) =>
+              entry.contains('Toolchain bootstrap action dispatched') &&
+              entry.contains('install-managed-styio-toolchain'),
+        ),
+        isTrue,
+      );
+
       await shell.handleToolchainRecoveryAction(
         const ToolchainRecoveryAction(
           id: 'install-managed-toolchain',

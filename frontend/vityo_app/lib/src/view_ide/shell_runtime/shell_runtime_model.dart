@@ -3236,6 +3236,30 @@ class ShellRuntimeModel extends ChangeNotifier {
           return false;
         }
         return _applyAgentDeploymentCommand(suggestion, () => preparePublish());
+      case 'useActiveCompiler':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        return _applyAgentToolchainCommand(
+          suggestion,
+          AppCommandId.useActiveCompiler,
+        );
+      case 'pinActiveCompiler':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        return _applyAgentToolchainCommand(
+          suggestion,
+          AppCommandId.pinActiveCompiler,
+        );
+      case 'clearPinnedCompiler':
+        if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
+          return false;
+        }
+        return _applyAgentToolchainCommand(
+          suggestion,
+          AppCommandId.clearPinnedCompiler,
+        );
       case 'runBuild':
         if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
           return false;
@@ -3629,6 +3653,43 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result.succeeded;
   }
 
+  Future<bool> _applyAgentToolchainCommand(
+    AgentIdeCommandSuggestion suggestion,
+    AppCommandId commandId,
+  ) async {
+    final blockedReason = blockedReasonForCommand(commandId);
+    if (blockedReason != null) {
+      final message =
+          'Agent command ${suggestion.commandId} blocked: $blockedReason';
+      _recordAgentIdeCommandResult(
+        suggestion,
+        applied: false,
+        message: message,
+        metadata: <String, Object?>{
+          'blockedReason': blockedReason,
+          'requiredCommand': 'openSettings',
+        },
+      );
+      appendLog(message);
+      return false;
+    }
+    await executeCommand(commandId);
+    final result = _lastToolchainCommand;
+    final applied = result?.succeeded ?? false;
+    _recordAgentIdeCommandResult(
+      suggestion,
+      applied: applied,
+      message: result == null
+          ? 'Agent command ${suggestion.commandId} skipped: no toolchain command result was produced.'
+          : 'Agent command ${suggestion.commandId} ${result.status.name}: ${result.statusMessage}',
+      metadata: <String, Object?>{
+        if (result != null)
+          'toolchainCommand': _toolchainCommandResultMetadata(result),
+      },
+    );
+    return applied;
+  }
+
   Map<String, Object?> _dependencySourceCommandResultMetadata(
     DependencySourceCommandResult result,
   ) {
@@ -3656,6 +3717,21 @@ class ShellRuntimeModel extends ChangeNotifier {
       if (result.errorPayload != null) 'errorPayload': result.errorPayload,
       // TODO(agent-project-lifecycle): add publish recovery hints once
       // registry/auth failure kinds are normalized.
+    };
+  }
+
+  Map<String, Object?> _toolchainCommandResultMetadata(
+    ToolchainCommandResult result,
+  ) {
+    return <String, Object?>{
+      'command': result.command,
+      'status': result.status.name,
+      'statusMessage': result.statusMessage,
+      'succeeded': result.succeeded,
+      if (result.payload != null) 'payload': result.payload,
+      if (result.errorPayload != null) 'errorPayload': result.errorPayload,
+      // TODO(agent-toolchain): add bounded stdout/stderr summaries once
+      // toolchain results expose stable log slicing.
     };
   }
 

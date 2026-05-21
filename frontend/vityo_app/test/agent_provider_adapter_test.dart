@@ -759,6 +759,11 @@ void main() {
       expect(systemMessage['content'], contains('commands.deploymentCommands'));
       expect(systemMessage['content'], contains('commands.refactorCommands'));
       expect(systemMessage['content'], contains('commands.toolchainCommands'));
+      expect(
+        systemMessage['content'],
+        contains('commands.lastResult.metadata.toolchainCommand'),
+      );
+      expect(systemMessage['content'], contains('useActiveCompiler'));
       expect(systemMessage['content'], contains('requiresInput true'));
       expect(systemMessage['content'], contains('missing-input commands'));
       expect(systemMessage['content'], contains('selectClangCppVersion'));

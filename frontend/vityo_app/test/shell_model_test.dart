@@ -2046,6 +2046,88 @@ void main() {
     },
   );
 
+  test(
+    'agent toolchain lifecycle commands dispatch through shell adapters',
+    () async {
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final refreshedGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final shell = ShellModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[
+            refreshedGraph,
+            refreshedGraph,
+            refreshedGraph,
+          ],
+        ),
+        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: EditorSessionController.seedDocumentForPath(
+            initialGraph.editorFiles.first,
+          ),
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: _RefreshAwareExecutionAdapter(
+          projectGraph: initialGraph,
+        ),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            _RefreshAwareExecutionAdapter(projectGraph: projectGraph),
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        toolchainManagementAdapter:
+            const _SuccessfulToolchainManagementAdapter(),
+      );
+      addTearDown(shell.dispose);
+
+      final useApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'useActiveCompiler'),
+      );
+      final useResult = shell.agentSessionContext.commands.lastResult;
+      final useCommand =
+          useResult?.metadata['toolchainCommand']! as Map<String, Object?>;
+      expect(useApplied, isTrue);
+      expect(useCommand['command'], 'tool use');
+      expect(useCommand['status'], 'succeeded');
+
+      final pinApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'pinActiveCompiler'),
+      );
+      final pinResult = shell.agentSessionContext.commands.lastResult;
+      final pinCommand =
+          pinResult?.metadata['toolchainCommand']! as Map<String, Object?>;
+      expect(pinApplied, isTrue);
+      expect(pinCommand['command'], 'tool pin');
+      expect(pinCommand['succeeded'], isTrue);
+
+      final clearApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'clearPinnedCompiler'),
+      );
+      final clearResult = shell.agentSessionContext.commands.lastResult;
+      expect(clearApplied, isFalse);
+      expect(clearResult?.commandId, 'clearPinnedCompiler');
+      expect(clearResult?.metadata['requiredCommand'], 'openSettings');
+      expect(clearResult?.metadata['blockedReason'], isA<String>());
+    },
+  );
+
   test('open settings command selects the settings bottom surface', () async {
     final initialGraph = _projectGraph(
       compilerVersion: '0.0.5',

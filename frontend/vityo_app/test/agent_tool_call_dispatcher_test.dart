@@ -212,6 +212,103 @@ void main() {
     expect(output['checkpoint']['workspace'], isA<Map<Object?, Object?>>());
   });
 
+  test('agent builtin executor previews workspace edits', () async {
+    final executor = AgentBuiltinToolExecutor(context: _context());
+    final result = await executor.execute(
+      AgentToolCallDispatchRequest(
+        callId: 'call-preview',
+        toolId: 'previewWorkspaceEdit',
+        inputText: jsonEncode(<String, Object?>{
+          'edits': <Object?>[
+            <String, Object?>{
+              'documentId': 'main.styio',
+              'start': 8,
+              'end': 9,
+              'replacementText': '2',
+            },
+          ],
+        }),
+      ),
+    );
+    final output = jsonDecode(result.output);
+
+    expect(result.success, isTrue);
+    expect(output['source'], 'agent-workspace-edit-preview');
+    expect(output['patch']['patchId'], 'agent-tool-call-preview');
+    expect(output['conversion']['converted'], isTrue);
+    expect(output['conversion']['plan']['id'], 'agent-tool-call-preview');
+  });
+
+  test('agent builtin executor requires workspace patch runner', () async {
+    final executor = AgentBuiltinToolExecutor(context: _context());
+    final result = await executor.execute(
+      AgentToolCallDispatchRequest(
+        callId: 'call-apply',
+        toolId: 'applyWorkspacePatch',
+        inputText: jsonEncode(<String, Object?>{
+          'edits': <Object?>[
+            <String, Object?>{
+              'documentId': 'main.styio',
+              'start': 8,
+              'end': 9,
+              'replacementText': '2',
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.message, contains('no AgentWorkspacePatchToolRunner'));
+  });
+
+  test(
+    'agent builtin executor applies workspace patches through runner',
+    () async {
+      AgentCodePatch? receivedPatch;
+      final executor = AgentBuiltinToolExecutor(
+        context: _context(),
+        workspacePatchRunner: (patch) async {
+          receivedPatch = patch;
+          return const AgentCodePatchApplicationResult(
+            applied: true,
+            message: 'patch applied through review gate',
+            appliedEditCount: 1,
+            appliedOperationCounts: <String, int>{'replace': 1},
+            appliedDocumentIds: <String>['main.styio'],
+          );
+        },
+      );
+      final result = await executor.execute(
+        AgentToolCallDispatchRequest(
+          callId: 'call-apply',
+          toolId: 'applyWorkspacePatch',
+          inputText: jsonEncode(<String, Object?>{
+            'patch': <String, Object?>{
+              'patchId': 'patch-from-tool',
+              'summary': 'Change value.',
+              'edits': <Object?>[
+                <String, Object?>{
+                  'documentId': 'main.styio',
+                  'start': 8,
+                  'end': 9,
+                  'replacementText': '2',
+                },
+              ],
+            },
+          }),
+        ),
+      );
+      final output = jsonDecode(result.output);
+
+      expect(result.success, isTrue);
+      expect(receivedPatch?.patchId, 'patch-from-tool');
+      expect(output['source'], 'agent-workspace-patch-runner');
+      expect(output['result']['applied'], isTrue);
+      expect(output['result']['appliedDocumentIds'], <String>['main.styio']);
+    },
+  );
+
   test('agent builtin executor runs registered IDE commands', () async {
     AgentIdeCommandSuggestion? suggestion;
     final executor = AgentBuiltinToolExecutor(

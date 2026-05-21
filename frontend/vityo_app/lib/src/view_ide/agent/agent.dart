@@ -18,6 +18,7 @@ export 'agent_tool_registry.dart';
 export 'agent_workspace_snapshot.dart';
 export 'agent_command_metadata.dart';
 export 'extension_agent_provider_contributions.dart';
+export 'extension_agent_tool_contributions.dart';
 export 'agent_profile.dart';
 export 'agent_provider_credential_resolver.dart';
 export 'agent_provider_configurator.dart';

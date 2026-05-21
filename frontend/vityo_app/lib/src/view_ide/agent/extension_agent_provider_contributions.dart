@@ -113,6 +113,7 @@ class ExtensionAgentProviderContributionCatalog {
     return ExtensionAgentProviderContributionCatalog(
       contributions: routes
           .routesFor(ExtensionContributionRegistryKind.agentProviderRegistry)
+          .where((route) => route.registryTargetId == 'agent.providers')
           .map(ExtensionAgentProviderContribution.fromRoute)
           .toList(growable: false),
     );

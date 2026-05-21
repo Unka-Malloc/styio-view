@@ -176,6 +176,47 @@ void main() {
   });
 
   test(
+    'workspace file explorer watcher stream batcher flushes by timer',
+    () async {
+      final events = StreamController<WorkspaceFileExplorerWatchEvent>();
+      final batches = <WorkspaceFileExplorerWatchEventBatch>[];
+      final subscription = const WorkspaceFileExplorerWatchStreamBatcher(
+        policy: WorkspaceFileExplorerWatchDebouncePolicy(
+          window: Duration(milliseconds: 5),
+          maxBatchEvents: 10,
+        ),
+      ).bind(events.stream).listen(batches.add);
+      addTearDown(subscription.cancel);
+      addTearDown(events.close);
+
+      events
+        ..add(
+          WorkspaceFileExplorerWatchEvent(
+            kind: WorkspaceFileExplorerWatchEventKind.created,
+            path: 'src/a.styio',
+            timestamp: DateTime.utc(2026, 5, 20, 14),
+          ),
+        )
+        ..add(
+          WorkspaceFileExplorerWatchEvent(
+            kind: WorkspaceFileExplorerWatchEventKind.modified,
+            path: 'src/b.styio',
+            timestamp: DateTime.utc(2026, 5, 20, 14, 0, 0, 1),
+          ),
+        );
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+
+      expect(batches, hasLength(1));
+      expect(batches.single.eventCount, 2);
+      expect(batches.single.events.map((event) => event.path), <String>[
+        'src/a.styio',
+        'src/b.styio',
+      ]);
+      expect(batches.single.toJson()['eventCount'], 2);
+    },
+  );
+
+  test(
     'workspace file explorer watcher binding consumes file system manager events',
     () async {
       final events = StreamController<FileSystemManagerEvent>();
@@ -222,6 +263,7 @@ void main() {
       expect(fileSystemManager.watchedRecursive, isTrue);
       expect(snapshots.first.plan.active, isTrue);
       expect(snapshots.last.filePaths, <String>['src/new.styio']);
+      expect(snapshots.last.eventCount, 2);
       expect(snapshots.last.events.map((event) => event.source).toSet(), {
         'file-system-manager.watch',
       });

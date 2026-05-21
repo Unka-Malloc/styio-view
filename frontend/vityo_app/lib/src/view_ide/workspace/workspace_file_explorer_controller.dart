@@ -411,6 +411,73 @@ class WorkspaceFileExplorerWatchEventBatcher {
   }
 }
 
+class WorkspaceFileExplorerWatchStreamBatcher {
+  const WorkspaceFileExplorerWatchStreamBatcher({
+    this.policy = const WorkspaceFileExplorerWatchDebouncePolicy(),
+    DateTime Function()? clock,
+  }) : _clock = clock ?? _defaultWorkspaceFileExplorerWatchClock;
+
+  final WorkspaceFileExplorerWatchDebouncePolicy policy;
+  final DateTime Function() _clock;
+
+  Stream<WorkspaceFileExplorerWatchEventBatch> bind(
+    Stream<WorkspaceFileExplorerWatchEvent> events,
+  ) {
+    final batcher = WorkspaceFileExplorerWatchEventBatcher(policy: policy);
+    late final StreamController<WorkspaceFileExplorerWatchEventBatch> output;
+    StreamSubscription<WorkspaceFileExplorerWatchEvent>? subscription;
+    Timer? timer;
+
+    void cancelTimer() {
+      timer?.cancel();
+      timer = null;
+    }
+
+    void flush(DateTime flushedAt) {
+      final batch = batcher.flush(flushedAt: flushedAt);
+      if (batch != null && !output.isClosed) {
+        output.add(batch);
+      }
+    }
+
+    void scheduleFlush() {
+      cancelTimer();
+      timer = Timer(policy.window, () {
+        cancelTimer();
+        flush(_clock());
+      });
+    }
+
+    output = StreamController<WorkspaceFileExplorerWatchEventBatch>(
+      onListen: () {
+        subscription = events.listen(
+          (event) {
+            final batch = batcher.add(event);
+            if (batch != null) {
+              cancelTimer();
+              output.add(batch);
+              return;
+            }
+            scheduleFlush();
+          },
+          onError: output.addError,
+          onDone: () async {
+            cancelTimer();
+            flush(_clock());
+            await output.close();
+          },
+        );
+      },
+      onCancel: () async {
+        cancelTimer();
+        await subscription?.cancel();
+      },
+    );
+
+    return output.stream;
+  }
+}
+
 class WorkspaceFileExplorerWatchSnapshot {
   const WorkspaceFileExplorerWatchSnapshot({
     required this.plan,
@@ -501,23 +568,12 @@ class WorkspaceFileExplorerFileSystemWatcherBinding {
       baseFilePaths: baseFilePaths,
     );
     try {
-      await for (final event in fileSystemManager.watch(
-        plan.rootPath,
-        recursive: plan.recursive,
-      )) {
-        final explorerEvent = _workspaceFileExplorerEventFromFileSystem(
-          event,
-          rootPath: plan.rootPath,
-          fileSystemManager: fileSystemManager,
-          timestamp: clock(),
-        );
-        if (explorerEvent == null) {
-          continue;
-        }
-        if (activePlan.ignoreRules.ignores(explorerEvent.path)) {
-          continue;
-        }
-        events.add(explorerEvent);
+      final batches = WorkspaceFileExplorerWatchStreamBatcher(
+        policy: plan.debouncePolicy,
+        clock: clock,
+      ).bind(_watchExplorerEvents(activePlan));
+      await for (final batch in batches) {
+        events.addAll(batch.events);
         yield WorkspaceFileExplorerWatchSnapshot(
           plan: activePlan,
           baseFilePaths: baseFilePaths,
@@ -530,6 +586,29 @@ class WorkspaceFileExplorerFileSystemWatcherBinding {
         baseFilePaths: baseFilePaths,
         events: List<WorkspaceFileExplorerWatchEvent>.unmodifiable(events),
       );
+    }
+  }
+
+  Stream<WorkspaceFileExplorerWatchEvent> _watchExplorerEvents(
+    WorkspaceFileExplorerWatchPlan activePlan,
+  ) async* {
+    await for (final event in fileSystemManager.watch(
+      plan.rootPath,
+      recursive: plan.recursive,
+    )) {
+      final explorerEvent = _workspaceFileExplorerEventFromFileSystem(
+        event,
+        rootPath: plan.rootPath,
+        fileSystemManager: fileSystemManager,
+        timestamp: clock(),
+      );
+      if (explorerEvent == null) {
+        continue;
+      }
+      if (activePlan.ignoreRules.ignores(explorerEvent.path)) {
+        continue;
+      }
+      yield explorerEvent;
     }
   }
 }

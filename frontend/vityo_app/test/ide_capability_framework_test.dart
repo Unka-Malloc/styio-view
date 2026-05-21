@@ -303,11 +303,15 @@ void main() {
     );
     expect(
       entriesById['workspace.file-explorer']?.summary,
+      contains('WorkspaceFileExplorerWatchStreamBatcher'),
+    );
+    expect(
+      entriesById['workspace.file-explorer']?.summary,
       contains('shell sidebar renders confirmation apply/cancel controls'),
     );
     expect(
       entriesById['workspace.file-explorer']?.todo,
-      contains('timer-backed watcher debounce flushing'),
+      contains('watcher overflow/backpressure telemetry'),
     );
     expect(
       entriesById['workspace.file-explorer']?.runtimeMaturityBlocking,

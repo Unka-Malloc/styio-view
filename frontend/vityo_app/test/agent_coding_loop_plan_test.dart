@@ -69,7 +69,10 @@ void main() {
     expect(dispatch.status, AgentCodingLoopStepStatus.ready);
     expect(review.status, AgentCodingLoopStepStatus.waiting);
     expect(validation.status, AgentCodingLoopStepStatus.waiting);
-    expect(plan.todoItems.join('\n'), contains('extension-host execution'));
+    expect(
+      plan.todoItems.join('\n'),
+      contains('ExtensionAgentToolHostBridge'),
+    );
     expect(
       plan.todoItems.join('\n'),
       contains('restored workspace snapshot recovery'),

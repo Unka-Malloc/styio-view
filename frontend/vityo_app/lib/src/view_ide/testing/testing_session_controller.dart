@@ -95,7 +95,7 @@ class FailedTestDebugCancellationRoute {
       'processHandleBound': processHandleBound,
       if (processHandleId.isNotEmpty) 'processHandleId': processHandleId,
       'todo':
-          'TODO: populate failed-test debug cancellation handle registry from concrete debug adapter and test runner processes.',
+          'TODO: ensure concrete debug adapter and test runner runtime snapshots expose processHandleId/pid metadata.',
     };
   }
 }
@@ -153,6 +153,44 @@ typedef FailedTestDebugCancellationHandler =
       required String reason,
     });
 
+typedef FailedTestDebugProcessTerminator =
+    Future<FailedTestDebugCancellationResult> Function(
+      FailedTestDebugProcessTerminationRequest request,
+    );
+
+class FailedTestDebugProcessTerminationRequest {
+  const FailedTestDebugProcessTerminationRequest({
+    required this.route,
+    required this.runtimeTask,
+    required this.configuration,
+    required this.failedTest,
+    required this.reason,
+    required this.processHandleId,
+    required this.kind,
+  });
+
+  final FailedTestDebugCancellationRoute route;
+  final RuntimeTaskSnapshot runtimeTask;
+  final TestRunConfiguration? configuration;
+  final Map<String, Object?> failedTest;
+  final String reason;
+  final String processHandleId;
+  final FailedTestDebugCancellationHandleKind kind;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'taskId': runtimeTask.definition.id,
+      'providerId': route.providerId,
+      'configurationId': route.configurationId,
+      'failedTestName': route.failedTestName,
+      'failedTestId': route.failedTestId,
+      'reason': reason,
+      'processHandleId': processHandleId,
+      'kind': kind.name,
+    };
+  }
+}
+
 abstract class FailedTestDebugProcessCancellationHandle {
   const FailedTestDebugProcessCancellationHandle();
 
@@ -165,6 +203,53 @@ abstract class FailedTestDebugProcessCancellationHandle {
     required Map<String, Object?> failedTest,
     required String reason,
   });
+}
+
+class FailedTestDebugRuntimeProcessCancellationHandle
+    extends FailedTestDebugProcessCancellationHandle {
+  const FailedTestDebugRuntimeProcessCancellationHandle({
+    required this.handleId,
+    required this.kind,
+    required FailedTestDebugProcessTerminator terminate,
+  }) : _terminate = terminate;
+
+  @override
+  final String handleId;
+  final FailedTestDebugCancellationHandleKind kind;
+  final FailedTestDebugProcessTerminator _terminate;
+
+  @override
+  Future<FailedTestDebugCancellationResult> cancelFailedTestDebug({
+    required FailedTestDebugCancellationRoute route,
+    required RuntimeTaskSnapshot runtimeTask,
+    required TestRunConfiguration? configuration,
+    required Map<String, Object?> failedTest,
+    required String reason,
+  }) async {
+    final request = FailedTestDebugProcessTerminationRequest(
+      route: route,
+      runtimeTask: runtimeTask,
+      configuration: configuration,
+      failedTest: failedTest,
+      reason: reason,
+      processHandleId: handleId,
+      kind: kind,
+    );
+    final result = await _terminate(request);
+    return FailedTestDebugCancellationResult(
+      accepted: result.accepted,
+      processTerminated: result.processTerminated,
+      message: result.message,
+      metadata: <String, Object?>{
+        ...result.metadata,
+        'terminationRequest': request.toJson(),
+      },
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{'processHandleId': handleId, 'kind': kind.name};
+  }
 }
 
 class FailedTestDebugCancellationAdapter {
@@ -227,6 +312,161 @@ class FailedTestDebugCancellationAdapter {
 }
 
 enum FailedTestDebugCancellationHandleKind { debugAdapter, testRunner }
+
+enum FailedTestDebugProcessHandleBindingStatus {
+  registered,
+  missingHandle,
+  skipped,
+}
+
+class FailedTestDebugProcessHandleBindingResult {
+  const FailedTestDebugProcessHandleBindingResult({
+    required this.status,
+    required this.message,
+    this.processHandleId = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  const FailedTestDebugProcessHandleBindingResult.registered({
+    required String processHandleId,
+    String message = 'Failed-test debug process handle registered.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         status: FailedTestDebugProcessHandleBindingStatus.registered,
+         processHandleId: processHandleId,
+         message: message,
+         metadata: metadata,
+       );
+
+  const FailedTestDebugProcessHandleBindingResult.missingHandle({
+    String message =
+        'Failed-test debug runtime task did not expose a process handle.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         status: FailedTestDebugProcessHandleBindingStatus.missingHandle,
+         message: message,
+         metadata: metadata,
+       );
+
+  const FailedTestDebugProcessHandleBindingResult.skipped({
+    String message =
+        'Failed-test debug runtime task was not eligible for handle binding.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         status: FailedTestDebugProcessHandleBindingStatus.skipped,
+         message: message,
+         metadata: metadata,
+       );
+
+  final FailedTestDebugProcessHandleBindingStatus status;
+  final String message;
+  final String processHandleId;
+  final Map<String, Object?> metadata;
+
+  bool get registered =>
+      status == FailedTestDebugProcessHandleBindingStatus.registered;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.name,
+      'registered': registered,
+      'message': message,
+      if (processHandleId.isNotEmpty) 'processHandleId': processHandleId,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class FailedTestDebugProcessHandleBinder {
+  const FailedTestDebugProcessHandleBinder({
+    this.handleIdKeys = const <String>[
+      'processHandleId',
+      'processId',
+      'pid',
+      'debugProcessHandleId',
+    ],
+  });
+
+  final List<String> handleIdKeys;
+
+  FailedTestDebugProcessHandleBindingResult bind({
+    required RuntimeTaskSnapshot runtimeTask,
+    required FailedTestDebugCancellationHandleRegistry registry,
+    required FailedTestDebugProcessTerminator terminate,
+    required String providerId,
+    String configurationId = '',
+    FailedTestDebugCancellationHandleKind kind =
+        FailedTestDebugCancellationHandleKind.debugAdapter,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    if (runtimeTask.definition.kind != RuntimeTaskKind.debug) {
+      return FailedTestDebugProcessHandleBindingResult.skipped(
+        message:
+            'Runtime task ${runtimeTask.definition.id} is not a debug task; no failed-test debug handle was bound.',
+        metadata: metadata,
+      );
+    }
+    final handleId = _handleIdFromRuntimeTask(runtimeTask);
+    if (handleId == null) {
+      return FailedTestDebugProcessHandleBindingResult.missingHandle(
+        message:
+            'Runtime task ${runtimeTask.definition.id} did not expose a failed-test debug process handle.',
+        metadata: metadata,
+      );
+    }
+    registry.register(
+      FailedTestDebugCancellationHandleRegistration(
+        kind: kind,
+        providerId: providerId,
+        configurationId: configurationId,
+        handle: FailedTestDebugRuntimeProcessCancellationHandle(
+          handleId: handleId,
+          kind: kind,
+          terminate: terminate,
+        ),
+      ),
+    );
+    return FailedTestDebugProcessHandleBindingResult.registered(
+      processHandleId: handleId,
+      message:
+          'Failed-test debug process handle $handleId registered for ${runtimeTask.definition.id}.',
+      metadata: <String, Object?>{
+        'source': 'runtime-task-snapshot',
+        'providerId': providerId,
+        if (configurationId.isNotEmpty) 'configurationId': configurationId,
+        ...metadata,
+      },
+    );
+  }
+
+  String? _handleIdFromRuntimeTask(RuntimeTaskSnapshot runtimeTask) {
+    for (final source in <Map<String, Object?>>[
+      runtimeTask.definition.metadata,
+      if (runtimeTask.lastEvent != null) runtimeTask.lastEvent!.metadata,
+      for (final event in runtimeTask.events.reversed) event.metadata,
+    ]) {
+      final handleId = _handleIdFromMetadata(source);
+      if (handleId != null) {
+        return handleId;
+      }
+    }
+    return null;
+  }
+
+  String? _handleIdFromMetadata(Map<String, Object?> metadata) {
+    for (final key in handleIdKeys) {
+      final value = metadata[key];
+      if (value == null) {
+        continue;
+      }
+      final handleId = '$value'.trim();
+      if (handleId.isNotEmpty) {
+        return handleId;
+      }
+    }
+    return null;
+  }
+}
 
 class FailedTestDebugCancellationHandleRegistration {
   const FailedTestDebugCancellationHandleRegistration({

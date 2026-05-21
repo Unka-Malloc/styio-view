@@ -556,8 +556,12 @@ void main() {
       contains('FailedTestDebugCancellationHandleRegistry'),
     );
     expect(
+      entriesById['interaction.testing']?.summary,
+      contains('FailedTestDebugProcessHandleBinder'),
+    );
+    expect(
       entriesById['interaction.testing']?.todo,
-      contains('production debug adapter and test runner processes'),
+      contains('processHandleId/pid metadata'),
     );
     expect(
       entriesById['interaction.testing']?.runtimeMaturityBlocking,

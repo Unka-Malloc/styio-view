@@ -244,6 +244,92 @@ void main() {
     },
   );
 
+  test(
+    'testing failed-test debug process binder registers runtime snapshot handles',
+    () async {
+      const configuration = TestRunConfiguration(
+        id: 'rerun-failed',
+        label: 'Rerun Failed',
+        workspaceRoot: '/workspace/vityo',
+        providerId: 'fixture-runner',
+        debug: true,
+      );
+      final runtimeTask = RuntimeTaskSnapshot(
+        definition: const RuntimeTaskDefinition(
+          id: 'test.fixture-runner.1',
+          label: 'Debug tests',
+          kind: RuntimeTaskKind.debug,
+          command: 'fixture-runner',
+        ),
+        status: RuntimeTaskStatus.running,
+        statusMessage: 'Debug test task is running.',
+        startedAt: DateTime.utc(2026, 5, 21, 8),
+        events: <RuntimeTaskLifecycleEvent>[
+          RuntimeTaskLifecycleEvent(
+            taskId: 'test.fixture-runner.1',
+            sequence: 1,
+            status: RuntimeTaskStatus.running,
+            timestamp: DateTime.utc(2026, 5, 21, 8),
+            message: 'Debug adapter started.',
+            metadata: const <String, Object?>{
+              'processHandleId': 'debug-runtime-42',
+            },
+          ),
+        ],
+      );
+      final registry = FailedTestDebugCancellationHandleRegistry();
+      final terminationRequests = <FailedTestDebugProcessTerminationRequest>[];
+      final binding = const FailedTestDebugProcessHandleBinder().bind(
+        runtimeTask: runtimeTask,
+        registry: registry,
+        providerId: configuration.providerId,
+        configurationId: configuration.id,
+        terminate: (request) async {
+          terminationRequests.add(request);
+          return const FailedTestDebugCancellationResult.accepted(
+            processTerminated: true,
+            message: 'Bound failed-test debug process terminated.',
+          );
+        },
+      );
+      final adapter = registry.adapterFor(
+        providerId: configuration.providerId,
+        configurationId: configuration.id,
+      );
+      final route = FailedTestDebugCancellationRoute.fromState(
+        runtimeTask: runtimeTask,
+        configuration: configuration,
+        failedTest: const <String, Object?>{
+          'id': 'parser.syntax',
+          'name': 'parser syntax',
+        },
+        processHandleId: adapter?.processHandleId ?? '',
+      );
+
+      final cancelled = await adapter!.cancel(
+        route: route,
+        runtimeTask: runtimeTask,
+        configuration: configuration,
+        failedTest: const <String, Object?>{
+          'id': 'parser.syntax',
+          'name': 'parser syntax',
+        },
+        reason: 'agent cancelled failed-test debug',
+      );
+
+      expect(binding.registered, isTrue);
+      expect(binding.processHandleId, 'debug-runtime-42');
+      expect(route.processHandleBound, isTrue);
+      expect(cancelled.processTerminated, isTrue);
+      expect(terminationRequests.single.processHandleId, 'debug-runtime-42');
+      expect(
+        terminationRequests.single.kind,
+        FailedTestDebugCancellationHandleKind.debugAdapter,
+      );
+      expect(cancelled.toJson()['metadata'], isA<Map<String, Object?>>());
+    },
+  );
+
   testWidgets('testing surface emits failed-test debug cancellation action', (
     tester,
   ) async {

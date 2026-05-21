@@ -2180,6 +2180,21 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
           workspaceCheckpoint.revertChangedDocumentCount,
     });
   }
+  final conversationCompaction = agent.conversationCompaction;
+  if (conversationCompaction != null && conversationCompaction.active) {
+    metadata.addAll(<String, Object?>{
+      'agentConversationCompactionStatus':
+          conversationCompaction.status.wireValue,
+      'agentConversationCompactionRetainedTurnCount':
+          conversationCompaction.retainedTurnCount,
+      'agentConversationCompactionSentTurnCount':
+          conversationCompaction.sentTurnCount,
+      'agentConversationCompactionOmittedTurnCount':
+          conversationCompaction.omittedTurnCount,
+      'agentConversationCompactionTruncatedRetainedTurnCount':
+          conversationCompaction.truncatedRetainedTurnCount,
+    });
+  }
   final toolCallTimeline = agent.toolCallTimeline;
   if (toolCallTimeline != null &&
       toolCallTimeline.status != AgentToolCallTimelineStatus.idle) {
@@ -2379,6 +2394,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.workspaceEdit.suggestedCommandIds, prefer those command ids for ready workspace-edit follow-up actions before inventing patch application steps.
 - If the IDE context includes agent.suggestedCommandIds, prefer those command ids for pending IDE actions, workspace-edit follow-up actions, or provider recovery commands before inventing manual recovery steps.
 - If the IDE context includes agent.workspaceCheckpoint, treat it as the current OpenCode-style workspace restore anchor. Read snapshotId, captureStatus, revertPlanStatus, and revertReady before proposing apply, replay, recovery, or revert actions; do not assume the checkpoint contains full document text.
+- If the IDE context includes agent.conversationCompaction, inspect status, omittedTurnCount, and truncatedRetainedTurnCount before relying on earlier dialogue. Treat omitted or truncated turns as weaker evidence unless the IDE provides a compaction summary.
 - If the IDE context includes agent.toolCallTimeline, agent.toolCallExecutionJournal, or agent.toolReplayPlan, inspect status, callIds, blockedCallIds, replayCandidateCount, and ready before retrying or replaying any tool chain. Do not replay completed or blocked calls unless the IDE/user explicitly asks for replay.
 - If the IDE context includes agent.toolCatalog, inspect toolIds, rejectedToolIds, capabilities, schemas, and permissionMode before choosing executable tools. Prefer listed tools over invented tool names.
 - If the IDE context includes agent.toolPermissions, inspect allowedToolIds, reviewToolIds, deniedToolIds, and blockingIssueCodes before choosing executable tools. Tools in reviewToolIds may require explicit user approval; tools in deniedToolIds must not be requested.

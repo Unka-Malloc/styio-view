@@ -167,6 +167,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
   final List<AgentConversationTurn> _conversationTurns =
       <AgentConversationTurn>[];
+  int _omittedConversationTurnCount = 0;
 
   String get draftPrompt => _draftPrompt;
   bool get sending => _sending;
@@ -230,6 +231,10 @@ class AgentCodingSessionController extends ChangeNotifier {
       List<AgentRequestAttachment>.unmodifiable(_attachments);
   List<AgentConversationTurn> get conversationTurns =>
       List<AgentConversationTurn>.unmodifiable(_conversationTurns);
+  AgentConversationCompactionContext get conversationCompaction =>
+      _conversationCompactionContext(
+        sentTurnCount: _conversationWindow().length,
+      );
   AgentToolCallTimeline get toolCallTimeline => _toolCallTimeline;
   AgentToolCallExecutionJournal get toolCallExecutionJournal =>
       _toolCallExecutionJournal;
@@ -372,6 +377,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _toolCallReviewDecisions.clear();
     _attachments.clear();
     _conversationTurns.clear();
+    _omittedConversationTurnCount = 0;
     notifyListeners();
   }
 
@@ -1031,6 +1037,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         _recentPatchApplicationContexts.isEmpty &&
         _recentPatchProposalContexts.isEmpty &&
         _recentIdeCommandSuggestionContexts.isEmpty &&
+        _omittedConversationTurnCount == 0 &&
         _toolCallTimeline.status == AgentToolCallTimelineStatus.idle &&
         _toolCallReviewDecisions.isEmpty &&
         _lastError == null &&
@@ -1043,6 +1050,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
     _applyingIdeCommand = false;
     _conversationTurns.clear();
+    _omittedConversationTurnCount = 0;
     _lastResponse = null;
     _pendingPatch = null;
     _lastPatchApplicationResult = null;
@@ -1529,6 +1537,9 @@ class AgentCodingSessionController extends ChangeNotifier {
       providerExecutionResolution: _providerExecutionResolution,
       recoveryPlan: sessionRecoveryPlan,
       loopGuard: _currentCodingLoopGuard(),
+      conversationCompaction: _conversationCompactionContext(
+        sentTurnCount: _conversationWindow().length,
+      ),
       workspaceCheckpoint: _workspaceCheckpointContext(),
       toolCallTimeline: _toolCallTimeline,
       toolCallExecutionJournal: _toolCallExecutionJournal,
@@ -1855,6 +1866,9 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   List<AgentConversationTurn> _conversationWindow() {
+    if (maxConversationTurns <= 0) {
+      return const <AgentConversationTurn>[];
+    }
     if (_conversationTurns.length <= maxConversationTurns) {
       return conversationTurns;
     }
@@ -1862,6 +1876,18 @@ class AgentCodingSessionController extends ChangeNotifier {
       _conversationTurns.sublist(
         _conversationTurns.length - maxConversationTurns,
       ),
+    );
+  }
+
+  AgentConversationCompactionContext _conversationCompactionContext({
+    required int sentTurnCount,
+  }) {
+    return AgentConversationCompactionContext.fromConversationState(
+      retainedTurnTexts: _conversationTurns.map((turn) => turn.text),
+      omittedTurnCount: _omittedConversationTurnCount,
+      sentTurnCount: sentTurnCount,
+      maxRetainedTurnCount: maxConversationTurns,
+      maxTurnTextLength: maxConversationTurnTextLength,
     );
   }
 
@@ -1929,13 +1955,17 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   void _trimConversationWindow() {
+    if (maxConversationTurns <= 0) {
+      _omittedConversationTurnCount += _conversationTurns.length;
+      _conversationTurns.clear();
+      return;
+    }
     if (_conversationTurns.length <= maxConversationTurns) {
       return;
     }
-    _conversationTurns.removeRange(
-      0,
-      _conversationTurns.length - maxConversationTurns,
-    );
+    final omittedCount = _conversationTurns.length - maxConversationTurns;
+    _omittedConversationTurnCount += omittedCount;
+    _conversationTurns.removeRange(0, omittedCount);
   }
 
   void _trimAttachments() {

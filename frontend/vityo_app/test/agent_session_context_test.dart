@@ -196,6 +196,27 @@ void main() {
     expect(toolReplayJson['status'], 'ready');
     expect(toolReplayJson['ready'], isTrue);
 
+    final compactionContext = context.withAgentCodingState(
+      conversationCompaction: const AgentConversationCompactionContext(
+        status: AgentConversationCompactionStatus.windowedAndTruncated,
+        retainedTurnCount: 2,
+        sentTurnCount: 2,
+        omittedTurnCount: 4,
+        maxRetainedTurnCount: 2,
+        maxTurnTextLength: 10,
+        truncatedRetainedTurnCount: 1,
+      ),
+    );
+    final compactionAgent =
+        compactionContext.toJsonForChannels(const <String>['agent'])['agent']!
+            as Map<String, Object?>;
+    final conversationCompaction =
+        compactionAgent['conversationCompaction']! as Map<String, Object?>;
+    expect(conversationCompaction['status'], 'windowedAndTruncated');
+    expect(conversationCompaction['active'], isTrue);
+    expect(conversationCompaction['omittedTurnCount'], 4);
+    expect(conversationCompaction['truncatedRetainedTurnCount'], 1);
+
     final permissionContext = context.withAgentCodingState(
       toolPermissionPlan: const AgentToolPermissionPlan(
         status: AgentToolPermissionPlanStatus.reviewRequired,
@@ -714,7 +735,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 84);
+    expect(json['schemaVersion'], 85);
     final registeredCommandIds =
         commandsJson['registeredCommandIds']! as List<Object?>;
     expect(commandsJson['commandCount'], registeredCommandIds.length);
@@ -1702,7 +1723,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 84);
+    expect(context.schemaVersion, 85);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -2085,7 +2106,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 84);
+    expect(json['schemaVersion'], 85);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2572,7 +2593,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 84);
+    expect(context.schemaVersion, 85);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

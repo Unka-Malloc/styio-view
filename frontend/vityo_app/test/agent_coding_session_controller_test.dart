@@ -1466,6 +1466,64 @@ void main() {
       expect(controller.conversationTurns.first.text, 'three');
       expect(adapter.requests.last.conversationTurns.length, 2);
       expect(adapter.requests.last.conversationTurns.first.text, 'two');
+      expect(
+        adapter.requests.last.context.agent.conversationCompaction?.status,
+        AgentConversationCompactionStatus.windowed,
+      );
+      expect(
+        adapter
+            .requests
+            .last
+            .context
+            .agent
+            .conversationCompaction
+            ?.omittedTurnCount,
+        2,
+      );
+    },
+  );
+
+  test(
+    'agent coding session supports zero retained conversation turns',
+    () async {
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-zero-window',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(kind: AgentContentPartKind.text, text: 'ok'),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+        maxConversationTurns: 0,
+      );
+
+      controller.updatePrompt('one');
+      await controller.sendPrompt();
+      controller.updatePrompt('two');
+      await controller.sendPrompt();
+
+      expect(controller.conversationTurns, isEmpty);
+      expect(adapter.requests.last.conversationTurns, isEmpty);
+      expect(
+        adapter.requests.last.context.agent.conversationCompaction?.status,
+        AgentConversationCompactionStatus.windowed,
+      );
+      expect(
+        adapter
+            .requests
+            .last
+            .context
+            .agent
+            .conversationCompaction
+            ?.omittedTurnCount,
+        2,
+      );
     },
   );
 
@@ -1508,6 +1566,20 @@ void main() {
       expect(
         adapter.requests.last.conversationTurns.first.text,
         '0123456789\n[truncated 6 char(s)]',
+      );
+      expect(
+        adapter.requests.last.context.agent.conversationCompaction?.status,
+        AgentConversationCompactionStatus.truncated,
+      );
+      expect(
+        adapter
+            .requests
+            .last
+            .context
+            .agent
+            .conversationCompaction
+            ?.truncatedRetainedTurnCount,
+        2,
       );
     },
   );

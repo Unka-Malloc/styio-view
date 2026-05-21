@@ -1317,6 +1317,7 @@ class AgentSessionContext {
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
+    AgentConversationCompactionContext? conversationCompaction,
     AgentWorkspaceCheckpointContext? workspaceCheckpoint,
     AgentToolCallTimeline? toolCallTimeline,
     AgentToolCallExecutionJournal? toolCallExecutionJournal,
@@ -1388,7 +1389,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 84,
+      schemaVersion: 85,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -1430,6 +1431,7 @@ class AgentSessionContext {
               ),
         recoveryPlan: recoveryPlan,
         loopGuard: loopGuard,
+        conversationCompaction: conversationCompaction,
         workspaceCheckpoint: workspaceCheckpoint,
         toolCallTimeline: toolCallTimeline,
         toolCallExecutionJournal: toolCallExecutionJournal,
@@ -1589,6 +1591,7 @@ class AgentSessionContext {
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard? loopGuard,
+    AgentConversationCompactionContext? conversationCompaction,
     AgentWorkspaceCheckpointContext? workspaceCheckpoint,
     AgentToolCallTimeline? toolCallTimeline,
     AgentToolCallExecutionJournal? toolCallExecutionJournal,
@@ -1637,6 +1640,7 @@ class AgentSessionContext {
         providerExecutionResolution == null &&
         recoveryPlan == null &&
         loopGuard == null &&
+        conversationCompaction == null &&
         workspaceCheckpoint == null &&
         toolCallTimeline == null &&
         toolCallExecutionJournal == null &&
@@ -1691,6 +1695,8 @@ class AgentSessionContext {
               ),
         recoveryPlan: recoveryPlan ?? agent.recoveryPlan,
         loopGuard: loopGuard ?? agent.loopGuard,
+        conversationCompaction:
+            conversationCompaction ?? agent.conversationCompaction,
         workspaceCheckpoint: workspaceCheckpoint ?? agent.workspaceCheckpoint,
         toolCallTimeline: toolCallTimeline ?? agent.toolCallTimeline,
         toolCallExecutionJournal:
@@ -1743,6 +1749,103 @@ class AgentSessionContext {
       codingReadiness: effectiveCodingReadiness,
     );
   }
+}
+
+enum AgentConversationCompactionStatus {
+  clear,
+  windowed,
+  truncated,
+  windowedAndTruncated,
+}
+
+extension AgentConversationCompactionStatusX
+    on AgentConversationCompactionStatus {
+  String get wireValue => switch (this) {
+    AgentConversationCompactionStatus.clear => 'clear',
+    AgentConversationCompactionStatus.windowed => 'windowed',
+    AgentConversationCompactionStatus.truncated => 'truncated',
+    AgentConversationCompactionStatus.windowedAndTruncated =>
+      'windowedAndTruncated',
+  };
+}
+
+class AgentConversationCompactionContext {
+  const AgentConversationCompactionContext({
+    required this.status,
+    required this.retainedTurnCount,
+    required this.sentTurnCount,
+    required this.omittedTurnCount,
+    required this.maxRetainedTurnCount,
+    required this.maxTurnTextLength,
+    this.truncatedRetainedTurnCount = 0,
+    this.todoItems = const <String>[
+      'TODO: replace window-only conversation retention with an OpenCode-style anchored compaction summary before long autonomous coding sessions.',
+    ],
+  });
+
+  factory AgentConversationCompactionContext.fromConversationState({
+    required Iterable<String> retainedTurnTexts,
+    required int omittedTurnCount,
+    required int sentTurnCount,
+    required int maxRetainedTurnCount,
+    required int maxTurnTextLength,
+  }) {
+    final retainedTexts = retainedTurnTexts.toList(growable: false);
+    final truncatedCount = retainedTexts
+        .where(_conversationTurnTextWasTruncated)
+        .length;
+    final hasOmittedTurns = omittedTurnCount > 0;
+    final hasTruncatedTurns = truncatedCount > 0;
+    final status = hasOmittedTurns && hasTruncatedTurns
+        ? AgentConversationCompactionStatus.windowedAndTruncated
+        : hasOmittedTurns
+        ? AgentConversationCompactionStatus.windowed
+        : hasTruncatedTurns
+        ? AgentConversationCompactionStatus.truncated
+        : AgentConversationCompactionStatus.clear;
+    return AgentConversationCompactionContext(
+      status: status,
+      retainedTurnCount: retainedTexts.length,
+      sentTurnCount: sentTurnCount,
+      omittedTurnCount: omittedTurnCount,
+      maxRetainedTurnCount: maxRetainedTurnCount,
+      maxTurnTextLength: maxTurnTextLength,
+      truncatedRetainedTurnCount: truncatedCount,
+    );
+  }
+
+  final AgentConversationCompactionStatus status;
+  final int retainedTurnCount;
+  final int sentTurnCount;
+  final int omittedTurnCount;
+  final int maxRetainedTurnCount;
+  final int maxTurnTextLength;
+  final int truncatedRetainedTurnCount;
+  final List<String> todoItems;
+
+  bool get hasOmittedTurns => omittedTurnCount > 0;
+  bool get hasTruncatedTurns => truncatedRetainedTurnCount > 0;
+  bool get active => status != AgentConversationCompactionStatus.clear;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'active': active,
+      'retainedTurnCount': retainedTurnCount,
+      'sentTurnCount': sentTurnCount,
+      'omittedTurnCount': omittedTurnCount,
+      'hasOmittedTurns': hasOmittedTurns,
+      'maxRetainedTurnCount': maxRetainedTurnCount,
+      'maxTurnTextLength': maxTurnTextLength,
+      'truncatedRetainedTurnCount': truncatedRetainedTurnCount,
+      'hasTruncatedTurns': hasTruncatedTurns,
+      if (todoItems.isNotEmpty) 'todoItems': todoItems,
+    };
+  }
+}
+
+bool _conversationTurnTextWasTruncated(String text) {
+  return text.contains('\n[truncated ') && text.endsWith(' char(s)]');
 }
 
 class AgentWorkspaceCheckpointContext {
@@ -1818,6 +1921,7 @@ class AgentCodingLoopContext {
     this.providerExecution,
     this.recoveryPlan,
     this.loopGuard = const AgentCodingLoopGuard.clear(),
+    this.conversationCompaction,
     this.workspaceCheckpoint,
     this.toolCallTimeline,
     this.toolCallExecutionJournal,
@@ -1855,6 +1959,7 @@ class AgentCodingLoopContext {
     AgentProviderExecutionContext? providerExecution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
+    AgentConversationCompactionContext? conversationCompaction,
     AgentWorkspaceCheckpointContext? workspaceCheckpoint,
     AgentToolCallTimeline? toolCallTimeline,
     AgentToolCallExecutionJournal? toolCallExecutionJournal,
@@ -1947,6 +2052,7 @@ class AgentCodingLoopContext {
       providerExecution: providerExecution,
       recoveryPlan: recoveryPlan,
       loopGuard: loopGuard,
+      conversationCompaction: conversationCompaction,
       workspaceCheckpoint: workspaceCheckpoint,
       toolCallTimeline: toolCallTimeline,
       toolCallExecutionJournal: toolCallExecutionJournal,
@@ -1987,6 +2093,7 @@ class AgentCodingLoopContext {
   final AgentProviderExecutionContext? providerExecution;
   final AgentCodingSessionRecoveryPlan? recoveryPlan;
   final AgentCodingLoopGuard loopGuard;
+  final AgentConversationCompactionContext? conversationCompaction;
   final AgentWorkspaceCheckpointContext? workspaceCheckpoint;
   final AgentToolCallTimeline? toolCallTimeline;
   final AgentToolCallExecutionJournal? toolCallExecutionJournal;
@@ -2032,6 +2139,8 @@ class AgentCodingLoopContext {
       if (recoveryPlan != null) 'recoveryPlan': recoveryPlan!.toJson(),
       if (loopGuard.status != AgentCodingLoopGuardStatus.clear)
         'loopGuard': loopGuard.toJson(),
+      if (conversationCompaction != null)
+        'conversationCompaction': conversationCompaction!.toJson(),
       if (workspaceCheckpoint != null)
         'workspaceCheckpoint': workspaceCheckpoint!.toJson(),
       if (toolCallTimeline != null)

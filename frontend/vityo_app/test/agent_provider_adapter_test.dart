@@ -310,6 +310,15 @@ void main() {
               selection: const SelectionState.collapsed(0),
               diagnostics: const [],
             ).withAgentCodingState(
+              conversationCompaction: const AgentConversationCompactionContext(
+                status: AgentConversationCompactionStatus.windowedAndTruncated,
+                retainedTurnCount: 2,
+                sentTurnCount: 2,
+                omittedTurnCount: 3,
+                maxRetainedTurnCount: 2,
+                maxTurnTextLength: 10,
+                truncatedRetainedTurnCount: 1,
+              ),
               toolCallTimeline: toolCallTimeline,
               toolCallExecutionJournal: toolCallJournal,
               toolReplayPlan: toolReplayPlan,
@@ -395,6 +404,17 @@ void main() {
     expect(metadata['toolCallResultIds'], <String>['call-read']);
     expect(metadata['toolCallResultTruncatedCount'], 1);
     expect(metadata['toolCallResultTruncatedIds'], <String>['call-read']);
+    expect(
+      metadata['agentConversationCompactionStatus'],
+      'windowedAndTruncated',
+    );
+    expect(metadata['agentConversationCompactionRetainedTurnCount'], 2);
+    expect(metadata['agentConversationCompactionSentTurnCount'], 2);
+    expect(metadata['agentConversationCompactionOmittedTurnCount'], 3);
+    expect(
+      metadata['agentConversationCompactionTruncatedRetainedTurnCount'],
+      1,
+    );
     expect(metadata['agentToolCallTimelineStatus'], 'running');
     expect(metadata['agentToolCallTimelineCallCount'], 1);
     expect(metadata['agentToolCallTimelineCallIds'], <String>['call-read']);
@@ -734,7 +754,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      84,
+      85,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -1350,6 +1370,10 @@ void main() {
       expect(systemMessage['content'], contains('agent.pendingPatch'));
       expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
       expect(systemMessage['content'], contains('agent.workspaceCheckpoint'));
+      expect(
+        systemMessage['content'],
+        contains('agent.conversationCompaction'),
+      );
       expect(systemMessage['content'], contains('agent.toolCallTimeline'));
       expect(
         systemMessage['content'],
@@ -1576,7 +1600,7 @@ void main() {
         contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 84);
+      expect(metadata['contextSchemaVersion'], 85);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

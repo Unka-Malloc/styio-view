@@ -457,6 +457,11 @@ class AgentCodingSkillCatalog {
             ? 'Styio IDE features should adapt completion, hover, diagnostics, semantic tokens, definition, references, and rename from language facts.'
             : 'Active language-service status can provide diagnostics, completion, hover, semantic token, and definition readiness for Agent decisions.',
       ]);
+      activate('styio-agent-command-loop', <String>[
+        hasStyio
+            ? 'Styio source editing should prefer language-service refresh, project language context, diagnostics, and quick-fix commands before manual patches.'
+            : 'StyioService status is present, so Agent coding should use language service suggestedCommandIds and registered command loops before speculative edits.',
+      ]);
     }
 
     if (hasStyio) {

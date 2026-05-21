@@ -1290,7 +1290,8 @@ void main() {
       contains('reference-grounded-ide-development'),
     );
     expect(skillsJson['skillIds'], contains('styio-cpp-compiler-project'));
-    expect(skillsJson['skillCount'], 14);
+    expect(skillsJson['skillIds'], contains('styio-agent-command-loop'));
+    expect(skillsJson['skillCount'], 15);
     final skills = skillsJson['skills']! as List<Object?>;
     final referenceSkill = skills.whereType<Map<String, Object?>>().singleWhere(
       (skill) => skill['skillId'] == 'reference-grounded-ide-development',
@@ -2663,6 +2664,7 @@ void main() {
           skillsJson['activationReasons']! as Map<String, Object?>;
 
       expect(activeSkillIds.first, 'styio-language-service-truth');
+      expect(activeSkillIds, contains('styio-agent-command-loop'));
       expect(activeSkillIds, contains('styio-ide-feature-loop'));
       expect(activeSkillIds, contains('styio-fixture-confidence-matrix'));
       expect(activeSkillIds, isNot(contains('styio-cpp-compiler-project')));
@@ -2732,6 +2734,7 @@ void main() {
         skillsJson['activationReasons']! as Map<String, Object?>;
 
     expect(activeSkillIds, contains('styio-language-service-truth'));
+    expect(activeSkillIds, contains('styio-agent-command-loop'));
     expect(activeSkillIds, contains('styio-ide-feature-loop'));
     expect(activeSkillIds, isNot(contains('styio-fixture-confidence-matrix')));
     expect(activeSkillIds, isNot(contains('cpp-clang-toolchain-defaults')));

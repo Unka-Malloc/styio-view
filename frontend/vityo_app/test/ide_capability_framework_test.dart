@@ -220,6 +220,14 @@ void main() {
       contains('runtime.execution'),
     );
     expect(
+      entriesById['runtime.execution']?.summary,
+      contains('ExtensionRuntimeTaskDataStoreTelemetrySink'),
+    );
+    expect(
+      entriesById['runtime.execution']?.todo,
+      contains('retry policy'),
+    );
+    expect(
       entriesById['interaction.language-service-status']?.summary,
       contains('syntax-validation readiness'),
     );

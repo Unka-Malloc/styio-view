@@ -509,9 +509,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/execution',
           summary:
-              'ExecutionSession, runtime events, native tool results, runtime execution plans, dependency readiness checks, runtime execution handoff contracts, manager binding routes, default RuntimeExecutionManagerRegistry registrations, dispatch-to-live-output-buffer results, ShellManagerRuntimeExecutionAdapter local shell execution, ToolchainManagerRuntimeExecutionAdapter, ToolchainInstallRuntimeExecutionAdapter managed tool execution, HostedRuntimeExecutionAdapter hosted workflow execution, output-channel attachment contracts, runtime task lifecycle snapshots, persisted runtime task history, and extension task contribution definitions, ExtensionRuntimeTaskExecutionPlan, and ExtensionRuntimeTaskExecutionBridge dispatch expose stable serializable execution contracts for UI and Agent consumers.',
+              'ExecutionSession, runtime events, native tool results, runtime execution plans, dependency readiness checks, runtime execution handoff contracts, manager binding routes, default RuntimeExecutionManagerRegistry registrations, dispatch-to-live-output-buffer results, ShellManagerRuntimeExecutionAdapter local shell execution, ToolchainManagerRuntimeExecutionAdapter, ToolchainInstallRuntimeExecutionAdapter managed tool execution, HostedRuntimeExecutionAdapter hosted workflow execution, output-channel attachment contracts, runtime task lifecycle snapshots, persisted runtime task history, and extension task contribution definitions, ExtensionRuntimeTaskExecutionPlan, ExtensionRuntimeTaskExecutionBridge dispatch, ExtensionRuntimeTaskTelemetrySnapshot, and ExtensionRuntimeTaskDataStoreTelemetrySink expose stable serializable execution contracts for UI and Agent consumers.',
           todo:
-              'TODO: bind ExtensionRuntimeTaskTelemetrySink to production storage, retry policy, and cancellation process handles.',
+              'TODO: bind extension task retry policy to user-configurable backoff and cancellation process handles.',
           references: <String>['VS Code tasks', 'Theia task service'],
         ),
         IdeCapabilityDescriptor(

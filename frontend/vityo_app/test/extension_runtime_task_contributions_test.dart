@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 
@@ -136,6 +140,74 @@ void main() {
     },
   );
 
+  test('extension runtime task telemetry persists through DataStore', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_extension_runtime_task_telemetry_test_',
+    );
+    addTearDown(() async {
+      if (await tempRoot.exists()) {
+        await tempRoot.delete(recursive: true);
+      }
+    });
+    final sink = ExtensionRuntimeTaskDataStoreTelemetrySink.fromDataStore(
+      dataStore: _createDataStore(tempRoot),
+      workspaceId: 'demo',
+      maxRecords: 2,
+    );
+    final plan = ExtensionRuntimeTaskExecutionPlan.fromContribution(
+      const ExtensionRuntimeTaskContribution(
+        extensionId: 'styio.tasks',
+        contributionId: 'build',
+        target: 'runtime.tasks',
+        status: ExtensionRuntimeTaskContributionStatus.ready,
+        message: 'ready',
+        definition: RuntimeTaskDefinition(
+          id: 'build',
+          label: 'Build',
+          kind: RuntimeTaskKind.build,
+          command: 'styio',
+          arguments: <String>['build'],
+        ),
+      ),
+    );
+
+    sink
+      ..record(
+        ExtensionRuntimeTaskTelemetryRecord.retry(
+          plan: plan,
+          timestamp: DateTime.utc(2026, 5, 21, 1),
+          reason: 'first retry',
+        ),
+      )
+      ..record(
+        ExtensionRuntimeTaskTelemetryRecord.retry(
+          plan: plan,
+          timestamp: DateTime.utc(2026, 5, 21, 1, 1),
+          reason: 'retry after failure',
+        ),
+      )
+      ..record(
+        ExtensionRuntimeTaskTelemetryRecord.cancellation(
+          plan: plan,
+          timestamp: DateTime.utc(2026, 5, 21, 1, 2),
+          reason: 'cancelled by user',
+          metadata: const <String, Object?>{'processHandleId': 'task-1'},
+        ),
+      );
+
+    await sink.flush();
+    final snapshot = await sink.readTelemetry();
+
+    expect(snapshot.workspaceId, 'demo');
+    expect(snapshot.records, hasLength(2));
+    expect(snapshot.records.map((record) => record.kind), <Object>[
+      ExtensionRuntimeTaskTelemetryKind.cancellation,
+      ExtensionRuntimeTaskTelemetryKind.retry,
+    ]);
+    expect(snapshot.records.first.metadata['processHandleId'], 'task-1');
+    expect(snapshot.toJson()['recordCount'], 2);
+  });
+
   test('extension runtime task catalog reports missing command metadata', () {
     final route = const ExtensionContributionRouter().routeContribution(
       extensionId: 'broken.tasks',
@@ -158,4 +230,21 @@ void main() {
       ExtensionRuntimeTaskContributionStatus.missingCommand,
     );
   });
+}
+
+FoundationDataStore _createDataStore(Directory tempRoot) {
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: tempRoot.path,
+      homePath: tempRoot.path,
+    ),
+  );
+  return FoundationDataStore(
+    resourceCoordinator: FoundationResourceCoordinator(
+      resourceManager: resourceManager,
+      fileSystemManager: fileSystemManager,
+    ),
+    fileSystemManager: fileSystemManager,
+  );
 }

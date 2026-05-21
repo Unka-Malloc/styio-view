@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import '../foundation/foundation.dart';
 import '../module_host/module_host.dart';
 import 'runtime_execution_plan.dart';
 import 'runtime_output_channels.dart';
@@ -237,6 +240,30 @@ class ExtensionRuntimeTaskTelemetryRecord {
     this.metadata = const <String, Object?>{},
   });
 
+  factory ExtensionRuntimeTaskTelemetryRecord.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return ExtensionRuntimeTaskTelemetryRecord(
+      kind: _extensionRuntimeTaskTelemetryKindFromWire(json['kind']),
+      extensionId: json['extensionId'] as String? ?? '',
+      contributionId: json['contributionId'] as String? ?? '',
+      taskId: json['taskId'] as String? ?? '',
+      timestamp:
+          DateTime.tryParse(json['timestamp'] as String? ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      dispatchStatus: json['dispatchStatus'] as String? ?? '',
+      message: json['message'] as String? ?? '',
+      metadata: json['metadata'] is Map
+          ? (json['metadata']! as Map).map(
+              (key, value) => MapEntry<String, Object?>(
+                key.toString(),
+                value,
+              ),
+            )
+          : const <String, Object?>{},
+    );
+  }
+
   factory ExtensionRuntimeTaskTelemetryRecord.dispatch({
     required ExtensionRuntimeTaskExecutionPlan plan,
     required RuntimeExecutionDispatchResult result,
@@ -317,6 +344,66 @@ abstract class ExtensionRuntimeTaskTelemetrySink {
   void record(ExtensionRuntimeTaskTelemetryRecord record);
 }
 
+class ExtensionRuntimeTaskTelemetrySnapshot {
+  const ExtensionRuntimeTaskTelemetrySnapshot({
+    required this.workspaceId,
+    this.records = const <ExtensionRuntimeTaskTelemetryRecord>[],
+    this.updatedAt,
+  });
+
+  factory ExtensionRuntimeTaskTelemetrySnapshot.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return ExtensionRuntimeTaskTelemetrySnapshot(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      records: _extensionRuntimeTaskTelemetryRecords(json['records']),
+      updatedAt: DateTime.tryParse(
+        json['updatedAt'] as String? ?? '',
+      )?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final List<ExtensionRuntimeTaskTelemetryRecord> records;
+  final DateTime? updatedAt;
+
+  ExtensionRuntimeTaskTelemetrySnapshot append(
+    ExtensionRuntimeTaskTelemetryRecord record, {
+    int maxRecords = 50,
+    DateTime? updatedAt,
+  }) {
+    return ExtensionRuntimeTaskTelemetrySnapshot(
+      workspaceId: workspaceId,
+      records: <ExtensionRuntimeTaskTelemetryRecord>[
+        record,
+        ...records,
+      ].take(maxRecords).toList(growable: false),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
+    );
+  }
+
+  ExtensionRuntimeTaskTelemetrySnapshot copyWith({
+    String? workspaceId,
+    List<ExtensionRuntimeTaskTelemetryRecord>? records,
+    DateTime? updatedAt,
+  }) {
+    return ExtensionRuntimeTaskTelemetrySnapshot(
+      workspaceId: workspaceId ?? this.workspaceId,
+      records: records ?? this.records,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'recordCount': records.length,
+      'records': records.map((record) => record.toJson()).toList(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
 class ExtensionRuntimeTaskInMemoryTelemetrySink
     extends ExtensionRuntimeTaskTelemetrySink {
   ExtensionRuntimeTaskInMemoryTelemetrySink();
@@ -330,6 +417,81 @@ class ExtensionRuntimeTaskInMemoryTelemetrySink
   @override
   void record(ExtensionRuntimeTaskTelemetryRecord record) {
     _records.add(record);
+  }
+}
+
+class ExtensionRuntimeTaskDataStoreTelemetrySink
+    extends ExtensionRuntimeTaskTelemetrySink {
+  ExtensionRuntimeTaskDataStoreTelemetrySink.fromDataStore({
+    required FoundationDataStore dataStore,
+    required this.workspaceId,
+    this.maxRecords = 50,
+  }) : _owner = FoundationDataStoreOwner(
+         descriptor: const FoundationDataStoreOwnerDescriptor(
+           ownerId: 'runtime.extension-task-telemetry',
+           layer: 'runtime',
+           stateFamily: 'extension-task-telemetry',
+           allowedNamespaces: <String>{_namespaceName},
+         ),
+         dataStore: dataStore,
+       );
+
+  ExtensionRuntimeTaskDataStoreTelemetrySink({
+    required FoundationDataStoreOwner owner,
+    required this.workspaceId,
+    this.maxRecords = 50,
+  }) : _owner = owner;
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'runtime.extension-task-telemetry';
+  static const String _key = 'records';
+
+  final FoundationDataStoreOwner _owner;
+  final String workspaceId;
+  final int maxRecords;
+  Future<void> _appendQueue = Future<void>.value();
+
+  @override
+  void record(ExtensionRuntimeTaskTelemetryRecord record) {
+    _appendQueue = _appendQueue.then((_) => _append(record));
+    unawaited(_appendQueue);
+  }
+
+  Future<void> flush() => _appendQueue;
+
+  Future<ExtensionRuntimeTaskTelemetrySnapshot> readTelemetry() async {
+    final value = await _owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return ExtensionRuntimeTaskTelemetrySnapshot(workspaceId: workspaceId);
+    }
+    final snapshot = ExtensionRuntimeTaskTelemetrySnapshot.fromJson(value);
+    return snapshot.workspaceId.isEmpty
+        ? snapshot.copyWith(workspaceId: workspaceId)
+        : snapshot;
+  }
+
+  Future<void> saveTelemetry(
+    ExtensionRuntimeTaskTelemetrySnapshot snapshot,
+  ) {
+    return _owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: snapshot.copyWith(updatedAt: DateTime.now().toUtc()).toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+
+  Future<void> _append(ExtensionRuntimeTaskTelemetryRecord record) async {
+    final current = await readTelemetry();
+    await saveTelemetry(current.append(record, maxRecords: maxRecords));
   }
 }
 
@@ -402,6 +564,33 @@ class ExtensionRuntimeTaskExecutionBridge {
     _telemetrySink?.record(record);
     return record;
   }
+}
+
+ExtensionRuntimeTaskTelemetryKind _extensionRuntimeTaskTelemetryKindFromWire(
+  Object? value,
+) {
+  return switch (value) {
+    'retry' => ExtensionRuntimeTaskTelemetryKind.retry,
+    'cancellation' => ExtensionRuntimeTaskTelemetryKind.cancellation,
+    _ => ExtensionRuntimeTaskTelemetryKind.dispatch,
+  };
+}
+
+List<ExtensionRuntimeTaskTelemetryRecord>
+_extensionRuntimeTaskTelemetryRecords(Object? value) {
+  if (value is! List) {
+    return const <ExtensionRuntimeTaskTelemetryRecord>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (record) => ExtensionRuntimeTaskTelemetryRecord.fromJson(
+          record.map(
+            (key, value) => MapEntry<String, Object?>(key.toString(), value),
+          ),
+        ),
+      )
+      .toList(growable: false);
 }
 
 RuntimeTaskKind _runtimeTaskKindFromMetadata(Map<String, Object?> metadata) {

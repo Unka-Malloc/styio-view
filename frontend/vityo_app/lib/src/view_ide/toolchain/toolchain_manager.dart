@@ -383,7 +383,7 @@ class ToolchainBootstrapExecutionPlan {
         ],
       ),
       todo:
-          'TODO: bind toolchain bootstrap execution steps to installer UX and project bootstrap runners.',
+          'TODO: bind concrete installer UX and project bootstrap runners to ToolchainBootstrapExecutionBridge handlers.',
     );
   }
 
@@ -430,7 +430,8 @@ extension ToolchainBootstrapActionDispatchStatusX
     return switch (this) {
       ToolchainBootstrapActionDispatchStatus.dispatched => 'dispatched',
       ToolchainBootstrapActionDispatchStatus.blocked => 'blocked',
-      ToolchainBootstrapActionDispatchStatus.missingHandler => 'missing-handler',
+      ToolchainBootstrapActionDispatchStatus.missingHandler =>
+        'missing-handler',
       ToolchainBootstrapActionDispatchStatus.unknownAction => 'unknown-action',
       ToolchainBootstrapActionDispatchStatus.alreadyReady => 'already-ready',
     };
@@ -496,9 +497,7 @@ class ToolchainBootstrapActionDispatchResult {
     );
   }
 
-  factory ToolchainBootstrapActionDispatchResult.alreadyReady(
-    String actionId,
-  ) {
+  factory ToolchainBootstrapActionDispatchResult.alreadyReady(String actionId) {
     return ToolchainBootstrapActionDispatchResult(
       status: ToolchainBootstrapActionDispatchStatus.alreadyReady,
       actionId: actionId,
@@ -573,6 +572,118 @@ class ToolchainBootstrapActionRouter {
     }
 
     return handler(matchedStep);
+  }
+}
+
+class ToolchainBootstrapExecutionResult {
+  const ToolchainBootstrapExecutionResult({
+    required this.plan,
+    required this.dispatches,
+  });
+
+  final ToolchainBootstrapExecutionPlan plan;
+  final List<ToolchainBootstrapActionDispatchResult> dispatches;
+
+  bool get completed {
+    return plan.ready ||
+        (dispatches.isNotEmpty &&
+            dispatches.every(
+              (dispatch) =>
+                  dispatch.status ==
+                      ToolchainBootstrapActionDispatchStatus.dispatched ||
+                  dispatch.status ==
+                      ToolchainBootstrapActionDispatchStatus.alreadyReady,
+            ));
+  }
+
+  bool get blocked {
+    return dispatches.any(
+      (dispatch) =>
+          dispatch.status == ToolchainBootstrapActionDispatchStatus.blocked ||
+          dispatch.status ==
+              ToolchainBootstrapActionDispatchStatus.missingHandler ||
+          dispatch.status ==
+              ToolchainBootstrapActionDispatchStatus.unknownAction,
+    );
+  }
+
+  int get dispatchedCount {
+    return dispatches
+        .where(
+          (dispatch) =>
+              dispatch.status ==
+              ToolchainBootstrapActionDispatchStatus.dispatched,
+        )
+        .length;
+  }
+
+  List<String> get blockedActionIds {
+    return dispatches
+        .where(
+          (dispatch) =>
+              dispatch.status ==
+                  ToolchainBootstrapActionDispatchStatus.blocked ||
+              dispatch.status ==
+                  ToolchainBootstrapActionDispatchStatus.missingHandler ||
+              dispatch.status ==
+                  ToolchainBootstrapActionDispatchStatus.unknownAction,
+        )
+        .map((dispatch) => dispatch.actionId)
+        .toList(growable: false);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'completed': completed,
+      'blocked': blocked,
+      'dispatchedCount': dispatchedCount,
+      'blockedActionIds': blockedActionIds,
+      'dispatches': dispatches
+          .map((dispatch) => dispatch.toJson())
+          .toList(growable: false),
+      'plan': plan.toJson(),
+    };
+  }
+}
+
+class ToolchainBootstrapExecutionBridge {
+  const ToolchainBootstrapExecutionBridge({
+    required this.router,
+    this.stopOnBlocked = true,
+  });
+
+  final ToolchainBootstrapActionRouter router;
+  final bool stopOnBlocked;
+
+  Future<ToolchainBootstrapExecutionResult> execute(
+    ToolchainBootstrapExecutionPlan plan, {
+    bool requiredOnly = true,
+    Iterable<String> actionIds = const <String>[],
+  }) async {
+    final filter = actionIds
+        .map((actionId) => actionId.trim())
+        .where((actionId) => actionId.isNotEmpty)
+        .toSet();
+    final dispatches = <ToolchainBootstrapActionDispatchResult>[];
+    for (final step in plan.steps) {
+      if (requiredOnly && !step.required) {
+        continue;
+      }
+      if (filter.isNotEmpty && !filter.contains(step.actionId)) {
+        continue;
+      }
+      final dispatch = await router.dispatch(plan, step.actionId);
+      dispatches.add(dispatch);
+      if (stopOnBlocked && !dispatch.dispatched) {
+        break;
+      }
+    }
+    return ToolchainBootstrapExecutionResult(
+      plan: plan,
+      dispatches: List<ToolchainBootstrapActionDispatchResult>.unmodifiable(
+        dispatches,
+      ),
+    );
   }
 }
 

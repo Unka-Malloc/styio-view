@@ -475,6 +475,10 @@ void main() {
     );
     expect(
       entriesById['toolchain.manager']?.summary,
+      contains('ToolchainBootstrapExecutionBridge'),
+    );
+    expect(
+      entriesById['toolchain.manager']?.summary,
       contains('project bootstrap managed install planning'),
     );
     expect(

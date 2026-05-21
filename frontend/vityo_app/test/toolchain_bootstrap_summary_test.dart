@@ -121,7 +121,10 @@ void main() {
         );
       },
     );
-    final routed = await router.dispatch(executionPlan, 'select-styio-compiler');
+    final routed = await router.dispatch(
+      executionPlan,
+      'select-styio-compiler',
+    );
     final missing = await const ToolchainBootstrapActionRouter().dispatch(
       executionPlan,
       'select-styio-compiler',
@@ -142,5 +145,60 @@ void main() {
       unknown.status,
       ToolchainBootstrapActionDispatchStatus.unknownAction,
     );
+  });
+
+  test('toolchain bootstrap execution bridge runs required steps', () async {
+    const executionPlan = ToolchainBootstrapExecutionPlan(
+      ready: false,
+      steps: <ToolchainBootstrapActionStep>[
+        ToolchainBootstrapActionStep(
+          stepId: 'toolchain-bootstrap.1',
+          actionId: 'open-toolchain-settings',
+          surface: ToolchainBootstrapActionSurface.settings,
+          required: true,
+        ),
+        ToolchainBootstrapActionStep(
+          stepId: 'toolchain-bootstrap.2',
+          actionId: 'install-managed-styio-toolchain',
+          surface: ToolchainBootstrapActionSurface.installer,
+          required: true,
+        ),
+        ToolchainBootstrapActionStep(
+          stepId: 'toolchain-bootstrap.3',
+          actionId: 'validate-project-toolchain',
+          surface: ToolchainBootstrapActionSurface.project,
+          required: true,
+        ),
+      ],
+    );
+    final routed = <String>[];
+    final bridge = ToolchainBootstrapExecutionBridge(
+      router: ToolchainBootstrapActionRouter(
+        onSettingsAction: (step) async {
+          routed.add(step.actionId);
+          return ToolchainBootstrapActionDispatchResult.dispatched(step);
+        },
+        onInstallerAction: (step) async {
+          routed.add(step.actionId);
+          return ToolchainBootstrapActionDispatchResult.dispatched(step);
+        },
+        onProjectAction: (step) async {
+          routed.add(step.actionId);
+          return ToolchainBootstrapActionDispatchResult.dispatched(step);
+        },
+      ),
+    );
+
+    final result = await bridge.execute(executionPlan);
+
+    expect(result.completed, isTrue);
+    expect(result.blocked, isFalse);
+    expect(result.dispatchedCount, 3);
+    expect(routed, <String>[
+      'open-toolchain-settings',
+      'install-managed-styio-toolchain',
+      'validate-project-toolchain',
+    ]);
+    expect(result.toJson()['completed'], isTrue);
   });
 }

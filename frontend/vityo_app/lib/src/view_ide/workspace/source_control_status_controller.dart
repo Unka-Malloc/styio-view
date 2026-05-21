@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
+import 'source_control_diff_session_store.dart';
 import 'source_control_status.dart';
 
 class SourceControlStatusController extends ChangeNotifier {
@@ -12,6 +15,7 @@ class SourceControlStatusController extends ChangeNotifier {
     this.branchProvider,
     this.branchActionProvider,
     this.historyProvider,
+    this.diffSessionStore,
   });
 
   final SourceControlStatusProvider provider;
@@ -21,6 +25,7 @@ class SourceControlStatusController extends ChangeNotifier {
   final SourceControlBranchProvider? branchProvider;
   final SourceControlBranchActionProvider? branchActionProvider;
   final SourceControlHistoryProvider? historyProvider;
+  final SourceControlDiffSessionStore? diffSessionStore;
   final String workspaceRoot;
 
   SourceControlStatusSnapshot? _snapshot;
@@ -34,6 +39,7 @@ class SourceControlStatusController extends ChangeNotifier {
   SourceControlBranchSwitchResult? _lastBranchSwitchResult;
   SourceControlHistorySnapshot? _historySnapshot;
   SourceControlActionPlan? _pendingActionPlan;
+  SourceControlDiffSessionState? _diffSessionState;
   int _generation = 0;
   int _diffGeneration = 0;
   int _actionGeneration = 0;
@@ -58,6 +64,7 @@ class SourceControlStatusController extends ChangeNotifier {
       _lastBranchSwitchResult;
   SourceControlHistorySnapshot? get historySnapshot => _historySnapshot;
   SourceControlActionPlan? get pendingActionPlan => _pendingActionPlan;
+  SourceControlDiffSessionState? get diffSessionState => _diffSessionState;
   bool get hasSnapshot => _snapshot != null;
   bool get hasDiffPreview => _diffPreview != null;
   SourceControlAgentContextSnapshot get agentContextSnapshot {
@@ -130,6 +137,24 @@ class SourceControlStatusController extends ChangeNotifier {
     return nextSnapshot;
   }
 
+  Future<SourceControlDiffSessionState> restoreDiffSession() async {
+    final store = diffSessionStore;
+    if (store == null) {
+      final empty = SourceControlDiffSessionState(workspaceId: workspaceRoot);
+      _diffSessionState = empty;
+      return empty;
+    }
+    final session = await store.readSession(workspaceId: workspaceRoot);
+    _diffSessionState = session;
+    _restoreHunkSelectionFromSession(session);
+    notifyListeners();
+    return session;
+  }
+
+  Future<void> persistDiffSession({SourceControlDiffWindowBinding? binding}) {
+    return _persistDiffSession(binding: binding);
+  }
+
   Future<SourceControlActionResult> runAction(
     SourceControlActionRequest request,
   ) async {
@@ -193,6 +218,7 @@ class SourceControlStatusController extends ChangeNotifier {
     );
     _hunkSelectionState = selection;
     _pendingHunkDiscardConfirmation = null;
+    unawaited(_persistDiffSession());
     notifyListeners();
     return selection;
   }
@@ -205,6 +231,7 @@ class SourceControlStatusController extends ChangeNotifier {
     final next = current.toggle(hunkIndex);
     _hunkSelectionState = next;
     _pendingHunkDiscardConfirmation = null;
+    unawaited(_persistDiffSession());
     notifyListeners();
     return next;
   }
@@ -218,6 +245,7 @@ class SourceControlStatusController extends ChangeNotifier {
     final next = SourceControlHunkSelectionState.all(activeSnapshot);
     _hunkSelectionState = next;
     _pendingHunkDiscardConfirmation = null;
+    unawaited(_persistDiffSession());
     notifyListeners();
     return next;
   }
@@ -233,6 +261,7 @@ class SourceControlStatusController extends ChangeNotifier {
     );
     _hunkSelectionState = next;
     _pendingHunkDiscardConfirmation = null;
+    unawaited(_persistDiffSession());
     notifyListeners();
     return next;
   }
@@ -413,10 +442,15 @@ class SourceControlStatusController extends ChangeNotifier {
           );
     if (generation == _diffGeneration) {
       _diffPreview = nextSnapshot;
+      final restoredIndexes = _diffSessionState?.path == nextSnapshot.path
+          ? _diffSessionState!.selectedHunkIndexes
+          : const <int>[];
       _hunkSelectionState = SourceControlHunkSelectionState.fromDiff(
         snapshot: nextSnapshot,
+        selectedHunkIndexes: restoredIndexes,
       );
       _pendingHunkDiscardConfirmation = null;
+      await _persistDiffSession();
       notifyListeners();
     }
     return nextSnapshot;
@@ -444,6 +478,55 @@ class SourceControlStatusController extends ChangeNotifier {
     _lastBranchSwitchResult = null;
     _historySnapshot = null;
     _pendingActionPlan = null;
+    _diffSessionState = null;
+    unawaited(
+      diffSessionStore
+              ?.deleteSession(workspaceId: workspaceRoot)
+              .then((_) {}) ??
+          Future<void>.value(),
+    );
     notifyListeners();
+  }
+
+  void _restoreHunkSelectionFromSession(SourceControlDiffSessionState session) {
+    final diff = _diffPreview;
+    if (diff == null || diff.path != session.path) {
+      return;
+    }
+    _hunkSelectionState = SourceControlHunkSelectionState.fromDiff(
+      snapshot: diff,
+      selectedHunkIndexes: session.selectedHunkIndexes,
+    );
+    _pendingHunkDiscardConfirmation = null;
+  }
+
+  Future<void> _persistDiffSession({
+    SourceControlDiffWindowBinding? binding,
+  }) async {
+    final store = diffSessionStore;
+    final diff =
+        binding?.snapshot ?? _hunkSelectionState?.snapshot ?? _diffPreview;
+    if (diff == null) {
+      return;
+    }
+    final session = SourceControlDiffSessionState.fromDiffWindow(
+      workspaceId: workspaceRoot,
+      binding:
+          binding ??
+          SourceControlDiffWindowBinding(
+            snapshot: diff,
+            startLine: _diffSessionState?.path == diff.path
+                ? _diffSessionState!.windowStartLine
+                : 0,
+            lineLimit: _diffSessionState?.path == diff.path
+                ? _diffSessionState!.windowLineLimit
+                : 200,
+          ),
+      hunkSelectionState: _hunkSelectionState,
+    );
+    _diffSessionState = session;
+    if (store != null) {
+      await store.saveSession(session);
+    }
   }
 }

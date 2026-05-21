@@ -1,7 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/view_ide/environment/system_compatibility/process/process_adapter.dart';
-import 'package:vityo_app/src/view_ide/environment/system_compatibility/process/process_facts.dart';
-import 'package:vityo_app/src/view_ide/environment/system_compatibility/process/process_manager.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -793,6 +794,90 @@ diff --git a/src/main.styio b/src/main.styio
             as Map<String, Object?>)['applied'],
         isTrue,
       );
+    },
+  );
+
+  test(
+    'source control status controller restores diff session state',
+    () async {
+      const diff = SourceControlDiffSnapshot(
+        providerKind: SourceControlProviderKind.git,
+        path: 'src/main.styio',
+        unifiedDiff: '''
+diff --git a/src/main.styio b/src/main.styio
+--- a/src/main.styio
++++ b/src/main.styio
+@@ -1,1 +1,1 @@
+-old
++new
+@@ -8,1 +8,1 @@
+-before
++after
+''',
+      );
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_source_control_controller_diff_session_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final dataStore = FoundationDataStore(
+        resourceCoordinator: FoundationResourceCoordinator(
+          resourceManager: resourceManager,
+          fileSystemManager: fileSystemManager,
+        ),
+        fileSystemManager: fileSystemManager,
+      );
+      final store = SourceControlDiffSessionStore.fromDataStore(
+        dataStore: dataStore,
+      );
+      final controller = SourceControlStatusController(
+        provider: const StaticSourceControlStatusProvider(
+          SourceControlStatusSnapshot(
+            providerKind: SourceControlProviderKind.git,
+            changes: <SourceControlFileChange>[],
+          ),
+        ),
+        diffProvider: const StaticSourceControlDiffProvider(diff),
+        diffSessionStore: store,
+        workspaceRoot: '/workspace/vityo',
+      );
+      addTearDown(controller.dispose);
+
+      await controller.previewDiff('src/main.styio');
+      controller.toggleHunkSelection(1);
+      await controller.persistDiffSession();
+
+      final restoredController = SourceControlStatusController(
+        provider: const StaticSourceControlStatusProvider(
+          SourceControlStatusSnapshot(
+            providerKind: SourceControlProviderKind.git,
+            changes: <SourceControlFileChange>[],
+          ),
+        ),
+        diffProvider: const StaticSourceControlDiffProvider(diff),
+        diffSessionStore: store,
+        workspaceRoot: '/workspace/vityo',
+      );
+      addTearDown(restoredController.dispose);
+
+      final restoredSession = await restoredController.restoreDiffSession();
+      await restoredController.previewDiff('src/main.styio');
+
+      expect(restoredSession.selectedHunkIndexes, <int>[1]);
+      expect(restoredController.diffSessionState?.path, 'src/main.styio');
+      expect(restoredController.hunkSelectionState?.selectedHunkIndexes, <int>[
+        1,
+      ]);
     },
   );
 

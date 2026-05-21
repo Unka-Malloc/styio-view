@@ -90,8 +90,12 @@ void main() {
       contains('SourceControlDiffSessionStore'),
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('diff-session restore/persist hooks'),
+    );
+    expect(
       entriesById['interaction.source-control']?.todo,
-      contains('restore SourceControlDiffSessionStore state'),
+      contains('concrete modal UI'),
     );
     expect(
       entriesById['interaction.source-control']?.runtimeMaturityBlocking,

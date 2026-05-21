@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'agent_coding_session_history_store.dart';
 import 'agent_coding_dispatch_plan.dart';
+import 'agent_coding_loop_plan.dart';
 import 'agent_code_patch_applier.dart';
 import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
@@ -230,6 +231,16 @@ class AgentCodingSessionController extends ChangeNotifier {
         plan: codingValidationPlan,
         result: codingValidationResult,
       );
+
+  AgentCodingLoopPlan get codingLoopPlan {
+    return AgentCodingLoopPlan.fromState(
+      dispatchPlan: previewDispatchPlan(),
+      changeReviewGate: codingChangeReviewGate,
+      validationPlan: codingValidationPlan,
+      validationPipeline: codingValidationPipeline,
+      hasProviderFailure: _lastProviderFailure != null,
+    );
+  }
 
   AgentCodingDispatchPlan previewDispatchPlan() {
     final prompt = _draftPrompt.trim();

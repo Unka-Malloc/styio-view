@@ -172,8 +172,12 @@ void main() {
       contains('StyioServiceDaemonRestartPlan'),
     );
     expect(
+      entriesById['service.semantic-snapshot']?.summary,
+      contains('StyioServiceDaemonRestartDispatchResult'),
+    );
+    expect(
       entriesById['service.semantic-snapshot']?.todo,
-      contains('production daemon process controls'),
+      contains('production process supervisor controls'),
     );
     expect(
       entriesById['service.semantic-snapshot']?.runtimeMaturityBlocking,

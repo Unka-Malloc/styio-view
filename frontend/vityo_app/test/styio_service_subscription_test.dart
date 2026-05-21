@@ -231,6 +231,65 @@ void main() {
     expect(exhausted.nextAttempt, 3);
     expect(exhausted.delayBeforeRestart, Duration.zero);
   });
+
+  test('StyioService daemon restart dispatch records handler outcome', () async {
+    final connector = _FactoryStyioServiceConnector(
+      (request) => StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: request.documentId,
+        revision: request.revision,
+      ),
+    );
+    final controller = StyioServiceSubscriptionController(
+      driver: StyioServiceAnalysisDriver(connector: connector),
+    );
+    addTearDown(controller.dispose);
+    final daemonEvents = StreamController<StyioServiceDaemonEvent>();
+    addTearDown(daemonEvents.close);
+    controller.bindDaemonEventStream(
+      providerId: 'styio-daemon.fixture',
+      events: daemonEvents.stream,
+    );
+    final failedEvent = controller.events.firstWhere(
+      (event) => event.kind == StyioServiceSubscriptionEventKind.failed,
+    );
+
+    daemonEvents.addError(StateError('daemon crashed'));
+    await failedEvent;
+    final scheduled = await controller.dispatchDaemonRestart(
+      failedAttempt: 0,
+      reason: StyioServiceDaemonRestartReason.manual,
+      policy: const StyioServiceDaemonRestartPolicy(
+        initialDelay: Duration.zero,
+      ),
+    );
+    final dispatched = await controller.dispatchDaemonRestart(
+      failedAttempt: 0,
+      reason: StyioServiceDaemonRestartReason.manual,
+      policy: const StyioServiceDaemonRestartPolicy(
+        initialDelay: Duration.zero,
+      ),
+      restart: (plan) async => StyioServiceDaemonLifecycleSnapshot(
+        state: StyioServiceDaemonLifecycleState.active,
+        providerId: plan.providerId,
+        message: 'StyioService daemon restart handler ran.',
+      ),
+    );
+    final blocked = await controller.dispatchDaemonRestart(
+      failedAttempt: 3,
+      reason: StyioServiceDaemonRestartReason.streamFailed,
+      policy: const StyioServiceDaemonRestartPolicy(maxAttempts: 3),
+    );
+
+    expect(scheduled.status, StyioServiceDaemonRestartDispatchStatus.scheduled);
+    expect(scheduled.toJson()['dispatched'], isFalse);
+    expect(dispatched.status, StyioServiceDaemonRestartDispatchStatus.dispatched);
+    expect(dispatched.dispatched, isTrue);
+    expect(dispatched.lifecycle?.active, isTrue);
+    expect(controller.daemonLifecycle.state, StyioServiceDaemonLifecycleState.active);
+    expect(blocked.status, StyioServiceDaemonRestartDispatchStatus.blocked);
+    expect(blocked.plan.restartable, isFalse);
+  });
 }
 
 typedef _StyioServiceResponseFactory =

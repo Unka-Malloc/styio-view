@@ -24,8 +24,20 @@ enum StyioServiceDaemonRestartReason {
   manual,
 }
 
+enum StyioServiceDaemonRestartDispatchStatus {
+  blocked,
+  scheduled,
+  dispatched,
+  failed,
+}
+
 typedef StyioServiceDocumentContextResolver =
     String? Function(DocumentState document);
+
+typedef StyioServiceDaemonRestartHandler =
+    Future<StyioServiceDaemonLifecycleSnapshot> Function(
+      StyioServiceDaemonRestartPlan plan,
+    );
 
 class StyioServiceSubscriptionEvent {
   StyioServiceSubscriptionEvent({
@@ -281,6 +293,36 @@ class StyioServiceDaemonRestartPlan {
   }
 }
 
+class StyioServiceDaemonRestartDispatchResult {
+  const StyioServiceDaemonRestartDispatchResult({
+    required this.status,
+    required this.plan,
+    required this.message,
+    this.lifecycle,
+    this.error,
+  });
+
+  final StyioServiceDaemonRestartDispatchStatus status;
+  final StyioServiceDaemonRestartPlan plan;
+  final String message;
+  final StyioServiceDaemonLifecycleSnapshot? lifecycle;
+  final String? error;
+
+  bool get dispatched =>
+      status == StyioServiceDaemonRestartDispatchStatus.dispatched;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.name,
+      'dispatched': dispatched,
+      'message': message,
+      'plan': plan.toJson(),
+      if (lifecycle != null) 'lifecycle': lifecycle!.toJson(),
+      if (error != null) 'error': error,
+    };
+  }
+}
+
 class StyioServiceSubscriptionController {
   StyioServiceSubscriptionController({required this.driver});
 
@@ -402,6 +444,63 @@ class StyioServiceSubscriptionController {
       reason: reason,
       policy: policy,
     );
+  }
+
+  Future<StyioServiceDaemonRestartDispatchResult> dispatchDaemonRestart({
+    required int failedAttempt,
+    required StyioServiceDaemonRestartReason reason,
+    StyioServiceDaemonRestartPolicy policy =
+        const StyioServiceDaemonRestartPolicy(),
+    StyioServiceDaemonRestartHandler? restart,
+  }) async {
+    final plan = planDaemonRestart(
+      failedAttempt: failedAttempt,
+      reason: reason,
+      policy: policy,
+    );
+    if (!plan.restartable) {
+      return StyioServiceDaemonRestartDispatchResult(
+        status: StyioServiceDaemonRestartDispatchStatus.blocked,
+        plan: plan,
+        message: plan.message,
+      );
+    }
+    if (restart == null) {
+      return StyioServiceDaemonRestartDispatchResult(
+        status: StyioServiceDaemonRestartDispatchStatus.scheduled,
+        plan: plan,
+        message:
+            'StyioService daemon restart scheduled; no process handler is attached.',
+      );
+    }
+    try {
+      if (plan.delayBeforeRestart > Duration.zero) {
+        await Future<void>.delayed(plan.delayBeforeRestart);
+      }
+      final lifecycle = await restart(plan);
+      _daemonLifecycle = lifecycle;
+      return StyioServiceDaemonRestartDispatchResult(
+        status: StyioServiceDaemonRestartDispatchStatus.dispatched,
+        plan: plan,
+        lifecycle: lifecycle,
+        message: lifecycle.message.isEmpty
+            ? 'StyioService daemon restart dispatched.'
+            : lifecycle.message,
+      );
+    } on Object catch (error) {
+      _daemonLifecycle = StyioServiceDaemonLifecycleSnapshot(
+        state: StyioServiceDaemonLifecycleState.failed,
+        providerId: plan.providerId,
+        message: 'StyioService daemon restart failed: $error',
+      );
+      return StyioServiceDaemonRestartDispatchResult(
+        status: StyioServiceDaemonRestartDispatchStatus.failed,
+        plan: plan,
+        lifecycle: _daemonLifecycle,
+        message: _daemonLifecycle.message,
+        error: error.toString(),
+      );
+    }
   }
 
   Future<StyioServiceSubscriptionEvent> refresh(

@@ -238,6 +238,88 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
   }
 }
 
+class _AgentCodingValidationPlanSummary extends StatelessWidget {
+  const _AgentCodingValidationPlanSummary({
+    required this.validationPlan,
+    required this.applyingIdeCommand,
+    this.onApplyCommand,
+  });
+
+  final AgentCodingValidationPlan validationPlan;
+  final bool applyingIdeCommand;
+  final void Function(AgentIdeCommandSuggestion suggestion)? onApplyCommand;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final commandPlanText = validationPlan.commandPlans
+        .map((commandPlan) => commandPlan.commandId)
+        .join(' -> ');
+    final runnableCommandPlans = validationPlan.commandPlans
+        .where((commandPlan) => !commandPlan.requiresInput)
+        .take(5)
+        .toList(growable: false);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Validation plan: ${validationPlan.status.wireValue}',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: validationPlan.shouldRun
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(validationPlan.reason, style: theme.textTheme.bodySmall),
+            if (commandPlanText.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Command plan: $commandPlanText',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+            if (runnableCommandPlans.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final commandPlan in runnableCommandPlans)
+                    OutlinedButton(
+                      key: ValueKey(
+                        'agent-validation-command-${commandPlan.commandId}',
+                      ),
+                      onPressed: applyingIdeCommand || onApplyCommand == null
+                          ? null
+                          : () => onApplyCommand!(
+                              AgentIdeCommandSuggestion(
+                                commandId: commandPlan.commandId,
+                                reason:
+                                    'Run ${commandPlan.phase} validation after agent patch application.',
+                              ),
+                            ),
+                      child: Text(commandPlan.commandId),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AgentActivityHistoryBinding extends StatelessWidget {
   const _AgentActivityHistoryBinding({
     required this.controller,
@@ -2573,6 +2655,19 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   Text(
                     'Skipped no-op files: ${_documentListSummary(patchResult.skippedNoOpDocumentIds)}',
                     style: theme.textTheme.bodySmall,
+                  ),
+                ],
+                if (widget.controller.codingValidationPlan.status !=
+                    AgentCodingValidationPlanStatus.notNeeded) ...[
+                  const SizedBox(height: 8),
+                  _AgentCodingValidationPlanSummary(
+                    validationPlan: widget.controller.codingValidationPlan,
+                    applyingIdeCommand: applyingIdeCommand,
+                    onApplyCommand: widget.onApplyIdeCommandSuggestion == null
+                        ? null
+                        : (suggestion) => unawaited(
+                            _applyIdeCommandSuggestion(suggestion),
+                          ),
                   ),
                 ],
               ],

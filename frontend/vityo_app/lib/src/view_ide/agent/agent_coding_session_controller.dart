@@ -212,6 +212,17 @@ class AgentCodingSessionController extends ChangeNotifier {
         applyingIdeCommand: _applyingIdeCommand,
         executionReadiness: codingExecutionReadiness,
       );
+  AgentCodingAutonomyPolicy get codingAutonomyPolicy =>
+      AgentCodingAutonomyPolicy.fromGates(
+        readiness: codingExecutionReadiness,
+        changeReviewGate: codingChangeReviewGate,
+      );
+  AgentCodingValidationPlan get codingValidationPlan =>
+      AgentCodingValidationPlan.fromAgentState(
+        autonomyPolicy: codingAutonomyPolicy,
+        changeReviewGate: codingChangeReviewGate,
+        lastPatchApplication: _lastPatchApplicationContext,
+      );
 
   void mountProvider({
     required AgentPromptProfile profile,

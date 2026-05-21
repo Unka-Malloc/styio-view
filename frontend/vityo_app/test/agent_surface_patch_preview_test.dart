@@ -2212,6 +2212,7 @@ void main() {
     expect(patchApplicationTurn.text, contains('pendingPatchRetained: false'));
     expect(patchApplicationTurn.text, contains('operationCounts: replace 1'));
     expect(patchApplicationTurn.text, contains('changedDocuments: main.styio'));
+    final appliedCommandIds = <String>[];
 
     await tester.pumpWidget(
       MaterialApp(
@@ -2231,6 +2232,10 @@ void main() {
               sessionContext: _context(),
               codingController: controller,
               onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) async {
+                appliedCommandIds.add(command.commandId);
+                return true;
+              },
               onSaveProviderProfile: (profile, {bearerToken}) async {},
             ),
           ),
@@ -2243,6 +2248,24 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Changed files: main.styio'), findsOneWidget);
+    expect(find.text('Validation plan: ready'), findsOneWidget);
+    expect(
+      find.text('Generated code was applied and needs validation.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Command plan: saveAll -> refreshLanguageService',
+      ),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(OutlinedButton, 'saveAll'), findsOneWidget);
+
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'saveAll'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'saveAll'));
+    await tester.pump();
+
+    expect(appliedCommandIds, <String>['saveAll']);
   });
 
   testWidgets('agent surface renders skipped no-op patch files', (

@@ -955,6 +955,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('metadata.projectLanguage.syntaxValidationAuthority'),
+      );
+      expect(
+        systemMessage['content'],
         contains('metadata.projectLanguage.workspaceQuickFixes'),
       );
       expect(

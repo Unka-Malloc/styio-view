@@ -184,6 +184,12 @@ void main() {
       errorMessage: 'Tool call interrupted.',
       createdAt: DateTime.utc(2026, 5, 22),
       completedAt: DateTime.utc(2026, 5, 22, 0, 1),
+      metadata: const <String, Object?>{
+        'toolCallExecutionJournal': <String, Object?>{
+          'status': 'failed',
+          'replayCandidateCount': 1,
+        },
+      },
     );
     final history = AgentCodingSessionHistory(
       workspaceId: 'demo',
@@ -206,6 +212,10 @@ void main() {
     ]);
     expect(recoveryContext.requestDrafts.length, 3);
     expect(payload['hasReplayDraft'], isTrue);
+    expect(
+      payload['toolCallExecutionJournal'],
+      <String, Object?>{'status': 'failed', 'replayCandidateCount': 1},
+    );
     expect(payload['latestRecord'], isA<Map<Object?, Object?>>());
     expect(
       (payload['latestRecord'] as Map<Object?, Object?>)['errorMessage'],

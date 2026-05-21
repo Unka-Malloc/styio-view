@@ -672,6 +672,9 @@ class AgentCodingSessionController extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+    final toolCallJournalForHistory = _recentToolCallResultContexts.isEmpty
+        ? null
+        : _toolCallExecutionJournal;
 
     final requestSerial = _activeRequestSerial + 1;
     _activeRequestSerial = requestSerial;
@@ -737,7 +740,10 @@ class AgentCodingSessionController extends ChangeNotifier {
           response: response,
           createdAt: requestStartedAt,
           completedAt: DateTime.now().toUtc(),
-          metadata: _agentCodingHistoryMetadata(requestContext),
+          metadata: _agentCodingHistoryMetadata(
+            requestContext,
+            toolCallExecutionJournal: toolCallJournalForHistory,
+          ),
         ),
       );
       return response;
@@ -757,6 +763,10 @@ class AgentCodingSessionController extends ChangeNotifier {
             errorMessage: _lastError!,
             createdAt: requestStartedAt,
             completedAt: DateTime.now().toUtc(),
+            metadata: _agentCodingHistoryMetadata(
+              requestContext,
+              toolCallExecutionJournal: toolCallJournalForHistory,
+            ),
           ),
         );
       }
@@ -1764,9 +1774,16 @@ String _blockedToolInputMessage(
       '$detail Please rewrite the input so it satisfies the expected schema.';
 }
 
-Map<String, Object?> _agentCodingHistoryMetadata(AgentSessionContext context) {
+Map<String, Object?> _agentCodingHistoryMetadata(
+  AgentSessionContext context, {
+  AgentToolCallExecutionJournal? toolCallExecutionJournal,
+}) {
   final agent = context.agent;
   final metadata = <String, Object?>{};
+  if (toolCallExecutionJournal != null &&
+      toolCallExecutionJournal.entries.isNotEmpty) {
+    metadata['toolCallExecutionJournal'] = toolCallExecutionJournal.toJson();
+  }
   final lastPatchApplication = agent.lastPatchApplication;
   if (lastPatchApplication != null) {
     metadata['lastPatchApplication'] = <String, Object?>{

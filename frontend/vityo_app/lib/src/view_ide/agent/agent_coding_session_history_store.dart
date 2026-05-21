@@ -141,6 +141,7 @@ class AgentCodingSessionHistoryRecord {
     required DateTime createdAt,
     required DateTime completedAt,
     AgentCodingSessionOutcome outcome = AgentCodingSessionOutcome.failed,
+    Map<String, Object?> metadata = const <String, Object?>{},
   }) {
     return AgentCodingSessionHistoryRecord(
       requestId: requestId,
@@ -151,6 +152,7 @@ class AgentCodingSessionHistoryRecord {
       createdAt: createdAt.toUtc(),
       completedAt: completedAt.toUtc(),
       errorMessage: errorMessage,
+      metadata: metadata,
     );
   }
 
@@ -619,6 +621,8 @@ class AgentCodingSessionRecoveryContext {
       requestDrafts.any((draft) => draft.readyToDispatch);
 
   Map<String, Object?> toJson() {
+    final toolCallExecutionJournal =
+        latestRecord?.metadata['toolCallExecutionJournal'];
     return <String, Object?>{
       'workspaceId': workspaceId,
       'hasRecoverableSession': hasRecoverableSession,
@@ -627,6 +631,8 @@ class AgentCodingSessionRecoveryContext {
       'checkpoint': checkpoint.toJson(),
       'recoveryPlan': recoveryPlan.toJson(),
       if (latestRecord != null) 'latestRecord': _latestRecordPayload(),
+      if (toolCallExecutionJournal != null)
+        'toolCallExecutionJournal': toolCallExecutionJournal,
       'commandPlans': commandPlans
           .map((commandPlan) => commandPlan.toJson())
           .toList(growable: false),

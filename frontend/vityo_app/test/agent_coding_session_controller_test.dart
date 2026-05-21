@@ -228,6 +228,61 @@ void main() {
   );
 
   test(
+    'agent coding session persists tool execution journal in history metadata',
+    () async {
+      final historyStore = _MemoryAgentCodingSessionHistoryStore(
+        AgentCodingSessionHistory(workspaceId: 'demo'),
+      );
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-tool-journal',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(kind: AgentContentPartKind.text, text: 'Done.'),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+        sessionHistoryStore: historyStore,
+        sessionHistoryWorkspaceId: 'demo',
+      );
+      addTearDown(controller.dispose);
+
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-read',
+          toolId: 'readWorkspaceFile',
+          input: '{"path":"main.styio"}',
+        ),
+      );
+      await controller.dispatchReadyToolCalls(
+        (request) => AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: '{"text":"value = 1"}',
+        ),
+      );
+      controller.updatePrompt('Continue with persisted tool journal.');
+      await controller.sendPrompt();
+
+      final history = await historyStore.readHistory(workspaceId: 'demo');
+      final metadata = history.records.single.metadata;
+      final journal =
+          metadata['toolCallExecutionJournal'] as Map<String, Object?>;
+      final recoveryPayload = history.toRecoveryContext().toJson();
+
+      expect(journal['status'], 'complete');
+      expect(journal['entryCount'], 1);
+      expect(journal['replayCandidateCount'], 0);
+      expect(recoveryPayload['toolCallExecutionJournal'], journal);
+    },
+  );
+
+  test(
     'agent coding session feeds blocked tool input errors back to provider',
     () async {
       final controller = AgentCodingSessionController(

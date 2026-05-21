@@ -168,6 +168,19 @@ void main() {
     final editItems = edits['items']! as Map<String, Object?>;
     final editProperties = editItems['properties']! as Map<String, Object?>;
     final operation = editProperties['operation']! as Map<String, Object?>;
+    final plan = itemProperties['plan']! as Map<String, Object?>;
+    final planProperties = plan['properties']! as Map<String, Object?>;
+    final diagnosticSummary =
+        itemProperties['diagnosticSummary']! as Map<String, Object?>;
+    final diagnosticProperties =
+        diagnosticSummary['properties']! as Map<String, Object?>;
+    final diagnosticSeverity =
+        diagnosticProperties['severity']! as Map<String, Object?>;
+    final diagnosticSuggestedCommandIds =
+        diagnosticProperties['suggestedCommandIds']!
+            as Map<String, Object?>;
+    final diagnosticSuggestedCommandItem =
+        diagnosticSuggestedCommandIds['items']! as Map<String, Object?>;
 
     expect(commandId['enum'], contains('renameSymbol'));
     expect(commandId['enum'], contains('runBuild'));
@@ -179,6 +192,15 @@ void main() {
     expect(editItems['required'], contains('start'));
     expect(editItems['required'], contains('end'));
     expect(editItems['required'], contains('replacementText'));
+    expect(plan['required'], contains('summary'));
+    expect(plan['required'], contains('steps'));
+    expect(planProperties['acceptanceCriteria'], isA<Map<String, Object?>>());
+    expect(diagnosticSummary['required'], contains('severity'));
+    expect(
+      diagnosticSeverity['enum'],
+      <String>['info', 'warning', 'error'],
+    );
+    expect(diagnosticSuggestedCommandItem['enum'], commandId['enum']);
   });
 
   test('agent code patch edit parses delete operation from JSON', () {

@@ -1672,10 +1672,68 @@ Map<String, Object?> _vityoStructuredContentPartsSchema() {
             'plan': <String, Object?>{
               'type': 'object',
               'additionalProperties': true,
+              'properties': <String, Object?>{
+                'summary': <String, Object?>{
+                  'type': 'string',
+                  'description': 'Short summary of the planned IDE action.',
+                },
+                'steps': <String, Object?>{
+                  'type': 'array',
+                  'description': 'Ordered implementation or verification steps.',
+                  'items': <String, Object?>{'type': 'string'},
+                },
+                'acceptanceCriteria': <String, Object?>{
+                  'type': 'array',
+                  'description':
+                      'Concrete checks that should pass before the plan is considered done.',
+                  'items': <String, Object?>{'type': 'string'},
+                },
+                'risks': <String, Object?>{
+                  'type': 'array',
+                  'description': 'Known risks or TODO-level follow-up notes.',
+                  'items': <String, Object?>{'type': 'string'},
+                },
+              },
+              'required': <String>['summary', 'steps'],
             },
             'diagnosticSummary': <String, Object?>{
               'type': 'object',
               'additionalProperties': true,
+              'properties': <String, Object?>{
+                'title': <String, Object?>{
+                  'type': 'string',
+                  'description': 'Short diagnostic triage title.',
+                },
+                'summary': <String, Object?>{
+                  'type': 'string',
+                  'description':
+                      'Concise explanation of the diagnostic finding.',
+                },
+                'severity': <String, Object?>{
+                  'type': 'string',
+                  'enum': <String>['info', 'warning', 'error'],
+                  'description': 'Diagnostic severity for UI grouping.',
+                },
+                'diagnosticCount': <String, Object?>{
+                  'type': 'integer',
+                  'description': 'Number of diagnostics covered.',
+                },
+                'affectedDocuments': <String, Object?>{
+                  'type': 'array',
+                  'description': 'Workspace document ids affected.',
+                  'items': <String, Object?>{'type': 'string'},
+                },
+                'suggestedCommandIds': <String, Object?>{
+                  'type': 'array',
+                  'description':
+                      'Registered IDE commands that can continue triage or remediation.',
+                  'items': <String, Object?>{
+                    'type': 'string',
+                    'enum': registeredCommandIds,
+                  },
+                },
+              },
+              'required': <String>['title', 'summary', 'severity'],
             },
           },
           'required': <String>['kind'],

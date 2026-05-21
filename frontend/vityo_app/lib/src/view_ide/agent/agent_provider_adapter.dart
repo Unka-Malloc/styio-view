@@ -1544,6 +1544,9 @@ Map<String, Object?> _openAIResponsesStructuredTool({
 }
 
 Map<String, Object?> _vityoStructuredContentPartsSchema() {
+  final registeredCommandIds = StyioCommandRegistry.commands
+      .map((command) => command.id.name)
+      .toList(growable: false);
   return <String, Object?>{
     'type': 'object',
     'additionalProperties': false,
@@ -1574,6 +1577,30 @@ Map<String, Object?> _vityoStructuredContentPartsSchema() {
             'command': <String, Object?>{
               'type': 'object',
               'additionalProperties': true,
+              'properties': <String, Object?>{
+                'commandId': <String, Object?>{
+                  'type': 'string',
+                  'enum': registeredCommandIds,
+                  'description':
+                      'Registered Vityo IDE command id from the IDE command catalog.',
+                },
+                'input': <String, Object?>{
+                  'type': 'string',
+                  'description':
+                      'Command input matching the registered command input contract when required.',
+                },
+                'reason': <String, Object?>{
+                  'type': 'string',
+                  'description':
+                      'Short reason for suggesting this IDE command.',
+                },
+                'prerequisiteForCommandId': <String, Object?>{
+                  'type': 'string',
+                  'enum': registeredCommandIds,
+                  'description':
+                      'Registered command id that this command should unblock, when this command is only a prerequisite.',
+                },
+              },
             },
             'plan': <String, Object?>{
               'type': 'object',

@@ -119,6 +119,56 @@ void main() {
     },
   );
 
+  test('OpenAI Responses tool schema constrains IDE command ids', () async {
+    final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+      PlatformTarget.linux,
+    );
+    final transport = _RecordingAgentProviderTransport();
+    final adapter = OpenAIResponsesAgentProviderAdapter(
+      transport: transport,
+      endpoint: profile.endpoint,
+    );
+
+    await adapter.send(
+      AgentProviderRequest(
+        requestId: 'agent-request-responses-schema',
+        profile: profile,
+        context: AgentSessionContext.fromEditorState(
+          document: const DocumentState(
+            documentId: '/workspace/demo/src/main.styio',
+            text: 'value = 1\n',
+            revision: 1,
+          ),
+          selection: const SelectionState.collapsed(0),
+          diagnostics: const [],
+        ),
+        userPrompt: 'Suggest a safe IDE command.',
+      ),
+    );
+
+    final tools = transport.body['tools']! as List<Object?>;
+    final ideTool = tools.cast<Map<String, Object?>>().firstWhere(
+      (tool) => tool['name'] == 'vityo_ide_command',
+    );
+    final parameters = ideTool['parameters']! as Map<String, Object?>;
+    final properties = parameters['properties']! as Map<String, Object?>;
+    final contentParts = properties['contentParts']! as Map<String, Object?>;
+    final items = contentParts['items']! as Map<String, Object?>;
+    final itemProperties = items['properties']! as Map<String, Object?>;
+    final command = itemProperties['command']! as Map<String, Object?>;
+    final commandProperties =
+        command['properties']! as Map<String, Object?>;
+    final commandId = commandProperties['commandId']! as Map<String, Object?>;
+    final prerequisiteForCommandId =
+        commandProperties['prerequisiteForCommandId']!
+            as Map<String, Object?>;
+
+    expect(commandId['enum'], contains('renameSymbol'));
+    expect(commandId['enum'], contains('runBuild'));
+    expect(commandId['enum'], isNot(contains('deleteWorkspace')));
+    expect(prerequisiteForCommandId['enum'], commandId['enum']);
+  });
+
   test('agent code patch edit parses delete operation from JSON', () {
     final edit = AgentCodePatchEdit.fromJson(<String, Object?>{
       'documentId': 'obsolete.txt',

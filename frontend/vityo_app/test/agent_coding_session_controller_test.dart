@@ -9,6 +9,8 @@ import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -81,6 +83,69 @@ void main() {
       ),
     );
     expect(readyToSend.toJson()['status'], 'needsAttention');
+  });
+
+  test('agent coding session exposes tool call execution plan', () {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+
+    controller.recordToolCallEvents(const <AgentToolCallEvent>[
+      AgentToolCallEvent.callStarted(
+        callId: 'call-read',
+        toolId: 'readWorkspaceFile',
+        input: '{"path":"main.styio"}',
+      ),
+      AgentToolCallEvent.result(
+        callId: 'call-read',
+        toolId: 'readWorkspaceFile',
+        result: 'value = 1',
+      ),
+    ]);
+    final timeline = controller.toolCallTimeline;
+    final executionPlan = controller.toolCallExecutionPlan;
+
+    expect(timeline.status, AgentToolCallTimelineStatus.complete);
+    expect(timeline.callIds, <String>['call-read']);
+    expect(executionPlan.status, AgentToolCallExecutionPlanStatus.complete);
+    expect(
+      executionPlan.executionFor('call-read')!.status,
+      AgentToolCallExecutionStatus.completed,
+    );
+    expect(executionPlan.blockingIssueCodes, isEmpty);
+  });
+
+  test('agent coding session clears tool call timeline with conversation', () {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-read',
+        toolId: 'readWorkspaceFile',
+        input: '{"path":"main.styio"}',
+      ),
+    );
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.running,
+    );
+
+    controller.clearConversation();
+
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.idle,
+    );
+    expect(
+      controller.toolCallExecutionPlan.status,
+      AgentToolCallExecutionPlanStatus.idle,
+    );
   });
 
   test(

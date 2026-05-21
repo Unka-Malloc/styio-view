@@ -12,6 +12,8 @@ import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
 import 'agent_provider_streaming_runtime.dart';
 import 'agent_session_context.dart';
+import 'agent_tool_call_execution_plan.dart';
+import 'agent_tool_call_lifecycle.dart';
 import 'agent_workspace_edit_adapter.dart';
 import '../runtime/runtime.dart';
 
@@ -134,6 +136,9 @@ class AgentCodingSessionController extends ChangeNotifier {
   String? _activeProviderPrompt;
   DateTime? _activeProviderStartedAt;
   AgentCodingSessionHistory? _sessionHistorySnapshot;
+  final AgentToolCallLifecycleTracker _toolCallLifecycleTracker =
+      const AgentToolCallLifecycleTracker();
+  AgentToolCallTimeline _toolCallTimeline = AgentToolCallTimeline.empty();
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
   final List<AgentConversationTurn> _conversationTurns =
       <AgentConversationTurn>[];
@@ -194,6 +199,16 @@ class AgentCodingSessionController extends ChangeNotifier {
       List<AgentRequestAttachment>.unmodifiable(_attachments);
   List<AgentConversationTurn> get conversationTurns =>
       List<AgentConversationTurn>.unmodifiable(_conversationTurns);
+  AgentToolCallTimeline get toolCallTimeline => _toolCallTimeline;
+  AgentToolCallExecutionPlan get toolCallExecutionPlan {
+    final dispatchPlan = previewDispatchPlan();
+    return AgentToolCallExecutionPlan.fromTimeline(
+      toolSelection: dispatchPlan.toolSelection,
+      permissionPlan: dispatchPlan.toolPermissionPlan,
+      timeline: _toolCallTimeline,
+    );
+  }
+
   bool get canSend => codingExecutionReadiness.canDispatchProviderRequest;
   AgentCodingExecutionReadiness get codingExecutionReadiness =>
       _contextForProviderRequest().codingReadiness.withControllerState(
@@ -466,6 +481,35 @@ class AgentCodingSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void recordToolCallEvent(AgentToolCallEvent event) {
+    final next = _toolCallLifecycleTracker.apply(_toolCallTimeline, event);
+    if (identical(next, _toolCallTimeline)) {
+      return;
+    }
+    _toolCallTimeline = next;
+    notifyListeners();
+  }
+
+  void recordToolCallEvents(Iterable<AgentToolCallEvent> events) {
+    var next = _toolCallTimeline;
+    for (final event in events) {
+      next = _toolCallLifecycleTracker.apply(next, event);
+    }
+    if (identical(next, _toolCallTimeline)) {
+      return;
+    }
+    _toolCallTimeline = next;
+    notifyListeners();
+  }
+
+  void clearToolCallTimeline() {
+    if (_toolCallTimeline.status == AgentToolCallTimelineStatus.idle) {
+      return;
+    }
+    _toolCallTimeline = AgentToolCallTimeline.empty();
+    notifyListeners();
+  }
+
   Future<AgentProviderResponseEnvelope?> sendPrompt() async {
     final prompt = _draftPrompt.trim();
     if (_sending || _applyingPatch || _applyingIdeCommand || prompt.isEmpty) {
@@ -507,6 +551,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _lastResponse = null;
     _pendingPatch = null;
     _lastPatchApplicationResult = null;
+    _toolCallTimeline = AgentToolCallTimeline.empty();
     notifyListeners();
 
     final requestId = _nextRequestId();
@@ -738,6 +783,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         _recentPatchApplicationContexts.isEmpty &&
         _recentPatchProposalContexts.isEmpty &&
         _recentIdeCommandSuggestionContexts.isEmpty &&
+        _toolCallTimeline.status == AgentToolCallTimelineStatus.idle &&
         _lastError == null &&
         _lastProviderFailure == null) {
       return;
@@ -759,6 +805,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _recentPatchApplicationContexts.clear();
     _recentPatchProposalContexts.clear();
     _recentIdeCommandSuggestionContexts.clear();
+    _toolCallTimeline = AgentToolCallTimeline.empty();
     _lastError = null;
     _lastProviderFailure = null;
     notifyListeners();

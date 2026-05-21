@@ -623,6 +623,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   String _activeDocumentPath;
   bool _suppressWorkspaceChangedLoad = false;
   bool _suppressSelectionTracking = false;
+  bool _disposed = false;
   int _workspaceDocumentLoadGeneration = 0;
   String _selectedTestRunConfigurationId = '';
   ExecutionSession? _lastExecutionSession;
@@ -6774,20 +6775,30 @@ class ShellRuntimeModel extends ChangeNotifier {
   }) async {
     final manager = toolchainManager;
     if (manager == null) {
-      appendLog(
-        'Toolchain bootstrap summary unavailable: no ToolchainManager is wired.',
-      );
-      notifyListeners();
+      if (!_disposed) {
+        appendLog(
+          'Toolchain bootstrap summary unavailable: no ToolchainManager is wired.',
+        );
+      }
       return null;
     }
-    final summary = await manager.bootstrapSummary();
-    _toolchainBootstrapSummary = summary;
-    appendLog(
-      'Toolchain bootstrap summary refreshed: '
-      '${summary.ready ? 'ready' : 'actionable'} ($reason).',
-    );
-    notifyListeners();
-    return summary;
+    try {
+      final summary = await manager.bootstrapSummary();
+      if (_disposed) {
+        return summary;
+      }
+      _toolchainBootstrapSummary = summary;
+      appendLog(
+        'Toolchain bootstrap summary refreshed: '
+        '${summary.ready ? 'ready' : 'actionable'} ($reason).',
+      );
+      return summary;
+    } on Object catch (error) {
+      if (!_disposed) {
+        appendLog('Toolchain bootstrap summary refresh failed: $error');
+      }
+      return null;
+    }
   }
 
   Future<ToolchainBootstrapActionDispatchResult?>
@@ -8793,6 +8804,7 @@ class ShellRuntimeModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     agentCodingController.removeListener(_handleAgentCodingSessionChanged);
     workspaceController.removeListener(_handleWorkspaceChanged);
     editorController.removeListener(_handleDocumentChanged);

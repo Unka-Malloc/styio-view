@@ -161,12 +161,10 @@ void main() {
     final items = contentParts['items']! as Map<String, Object?>;
     final itemProperties = items['properties']! as Map<String, Object?>;
     final command = itemProperties['command']! as Map<String, Object?>;
-    final commandProperties =
-        command['properties']! as Map<String, Object?>;
+    final commandProperties = command['properties']! as Map<String, Object?>;
     final commandId = commandProperties['commandId']! as Map<String, Object?>;
     final prerequisiteForCommandId =
-        commandProperties['prerequisiteForCommandId']!
-            as Map<String, Object?>;
+        commandProperties['prerequisiteForCommandId']! as Map<String, Object?>;
     final patch = itemProperties['patch']! as Map<String, Object?>;
     final patchProperties = patch['properties']! as Map<String, Object?>;
     final edits = patchProperties['edits']! as Map<String, Object?>;
@@ -182,8 +180,7 @@ void main() {
     final diagnosticSeverity =
         diagnosticProperties['severity']! as Map<String, Object?>;
     final diagnosticSuggestedCommandIds =
-        diagnosticProperties['suggestedCommandIds']!
-            as Map<String, Object?>;
+        diagnosticProperties['suggestedCommandIds']! as Map<String, Object?>;
     final diagnosticSuggestedCommandItem =
         diagnosticSuggestedCommandIds['items']! as Map<String, Object?>;
 
@@ -201,10 +198,7 @@ void main() {
     expect(plan['required'], contains('steps'));
     expect(planProperties['acceptanceCriteria'], isA<Map<String, Object?>>());
     expect(diagnosticSummary['required'], contains('severity'));
-    expect(
-      diagnosticSeverity['enum'],
-      <String>['info', 'warning', 'error'],
-    );
+    expect(diagnosticSeverity['enum'], <String>['info', 'warning', 'error']);
     expect(diagnosticSuggestedCommandItem['enum'], commandId['enum']);
   });
 
@@ -252,12 +246,10 @@ void main() {
     expect(missingInputJson['inputContract'], contains('active language'));
     expect(missingInputJson['inputExamples'], contains('newName'));
 
-    final unknownCommand = AgentIdeCommandSuggestion.fromJson(
-      <String, Object?>{
-        'commandId': 'deleteWorkspace',
-        'reason': 'This command is not registered.',
-      },
-    );
+    final unknownCommand = AgentIdeCommandSuggestion.fromJson(<String, Object?>{
+      'commandId': 'deleteWorkspace',
+      'reason': 'This command is not registered.',
+    });
     final unknownCommandJson = unknownCommand.toJson();
 
     expect(unknownCommand.registered, isFalse);
@@ -989,7 +981,21 @@ void main() {
       );
       expect(systemMessage['content'], contains('agent.pendingPatch'));
       expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
-      expect(systemMessage['content'], contains('commands.registeredCommandIds'));
+      expect(systemMessage['content'], contains('agent.changeReviewGate'));
+      expect(systemMessage['content'], contains('agent.autonomyPolicy'));
+      expect(systemMessage['content'], contains('agent.validationPlan'));
+      expect(
+        systemMessage['content'],
+        contains('agent.validationPlan.registeredCommandIds'),
+      );
+      expect(
+        systemMessage['content'],
+        contains('agent.validationPlan.commandPlans'),
+      );
+      expect(
+        systemMessage['content'],
+        contains('commands.registeredCommandIds'),
+      );
       expect(systemMessage['content'], contains('agent.recentPatchProposals'));
       expect(systemMessage['content'], contains('agent.pendingIdeCommands'));
       expect(systemMessage['content'], contains('inputMissing'));
@@ -1084,7 +1090,9 @@ void main() {
       );
       expect(
         systemMessage['content'],
-        contains('metadata.ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
+        contains(
+          'metadata.ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds',
+        ),
       );
       expect(
         systemMessage['content'],
@@ -1348,9 +1356,10 @@ void main() {
       expect(metadata['pendingPatchEditCount'], 1);
       expect(metadata['pendingPatchDocumentCount'], 1);
       expect(metadata['pendingPatchEditsTruncated'], isFalse);
-      expect(metadata['agentSuggestedCommandCount'], 3);
+      expect(metadata['agentSuggestedCommandCount'], 4);
       expect(metadata['agentSuggestedCommandIds'], <String>[
         'runBuild',
+        'collectAgentCodingCheckpoint',
         'retryAgentProvider',
         'replayAgentPrompt',
       ]);

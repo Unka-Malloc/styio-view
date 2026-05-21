@@ -623,9 +623,8 @@ class AgentIdeCommandSuggestion {
   final String reason;
   final String? prerequisiteForCommandId;
 
-  AppCommandDescriptor? get descriptor => _appCommandDescriptorForName(
-    commandId,
-  );
+  AppCommandDescriptor? get descriptor =>
+      _appCommandDescriptorForName(commandId);
 
   bool get registered => descriptor != null;
 
@@ -1679,7 +1678,8 @@ Map<String, Object?> _vityoStructuredContentPartsSchema() {
                 },
                 'steps': <String, Object?>{
                   'type': 'array',
-                  'description': 'Ordered implementation or verification steps.',
+                  'description':
+                      'Ordered implementation or verification steps.',
                   'items': <String, Object?>{'type': 'string'},
                 },
                 'acceptanceCriteria': <String, Object?>{
@@ -2071,6 +2071,7 @@ Vityo structured response contract:
 - If commands.diagnosticCommands includes previewQuickFix, suggest previewQuickFix before applyQuickFix for cross-file quick fixes and inspect commands.lastResult.metadata.workspaceEditPreview before applying.
 - If the IDE context includes agent.workspaceEdit.suggestedCommandIds, prefer those command ids for ready workspace-edit follow-up actions before inventing patch application steps.
 - If the IDE context includes agent.suggestedCommandIds, prefer those command ids for pending IDE actions, workspace-edit follow-up actions, or provider recovery commands before inventing manual recovery steps.
+- If the IDE context includes agent.changeReviewGate, agent.autonomyPolicy, or agent.validationPlan, inspect them before applying, revising, or validating generated changes. Use agent.validationPlan.registeredCommandIds and agent.validationPlan.commandPlans for IDE-owned validation commands and required inputs.
 - If the IDE context includes commands.registeredCommandIds, verify ide_command.commandId against that list before emitting any IDE command suggestion.
 - If the IDE context includes language.documentSymbols, use them as the current document outline before planning broad edits.
 - If the IDE context includes language.inlayHints, use them as language-derived parameter/type hint facts before changing calls or inferred values.

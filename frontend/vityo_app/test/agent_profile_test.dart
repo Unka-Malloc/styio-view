@@ -190,6 +190,10 @@ void main() {
     );
     expect(
       decoded.systemPrompt,
+      contains('metadata.projectLanguage.suggestedCommandIds'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('language.serviceStatus.parserEngine'),
     );
     expect(

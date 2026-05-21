@@ -401,7 +401,7 @@ void main() {
       (json['usage']! as Map<String, Object?>)['debugBlockedCommandCount'],
       6,
     );
-    expect((json['usage']! as Map<String, Object?>)['skillCount'], 14);
+    expect((json['usage']! as Map<String, Object?>)['skillCount'], 15);
     expect(
       (json['usage']! as Map<String, Object?>)['activeSkillCount'],
       greaterThan(0),
@@ -947,6 +947,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('metadata.projectLanguage.suggestedCommandIds'),
+      );
+      expect(
+        systemMessage['content'],
         contains('language.serviceStatus.syntaxValidationReady'),
       );
       expect(systemMessage['content'], contains('language.completions'));
@@ -1015,7 +1019,7 @@ void main() {
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);
       expect(metadata['selectionEndColumn'], 0);
-      expect(metadata['skillCount'], 14);
+      expect(metadata['skillCount'], 15);
       expect(metadata['activeSkillCount'], greaterThan(0));
       expect(
         metadata['activeSkillIds'],

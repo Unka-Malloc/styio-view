@@ -491,8 +491,55 @@ void main() {
         controller.searchCached(query: 'next').matches.single.documentId,
         'main.styio',
       );
+      expect(
+        snapshots
+            .where((snapshot) => snapshot.ready)
+            .single
+            .refreshPlan
+            ?.eventCount,
+        1,
+      );
       expect(snapshots.last.status, WorkspaceSearchIndexWatcherStatus.stopped);
       expect(snapshots.last.toJson()['status'], 'stopped');
+    },
+  );
+
+  test(
+    'workspace search watcher stream batcher flushes on debounce timer',
+    () async {
+      final events = StreamController<FileSystemManagerEvent>();
+      final batches = <WorkspaceSearchWatcherEventBatch>[];
+      final subscription = const WorkspaceSearchWatcherStreamBatcher(
+        policy: WorkspaceSearchWatcherPolicy(
+          debounceWindow: Duration(milliseconds: 5),
+          maxEventsPerBatch: 10,
+        ),
+      ).bind(events.stream).listen(batches.add);
+      addTearDown(subscription.cancel);
+      addTearDown(events.close);
+
+      events
+        ..add(
+          const FileSystemManagerEvent(
+            kind: FileSystemManagerEventKind.modified,
+            path: '/workspace/vityo/src/a.styio',
+            normalizedPath: '/workspace/vityo/src/a.styio',
+          ),
+        )
+        ..add(
+          const FileSystemManagerEvent(
+            kind: FileSystemManagerEventKind.modified,
+            path: '/workspace/vityo/src/b.styio',
+            normalizedPath: '/workspace/vityo/src/b.styio',
+          ),
+        );
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+
+      expect(batches, hasLength(1));
+      expect(batches.single.eventCount, 2);
+      expect(batches.single.shouldRefresh, isTrue);
+      expect(batches.single.refreshPlan.refreshEventCount, 2);
+      expect(batches.single.toJson()['eventCount'], 2);
     },
   );
 

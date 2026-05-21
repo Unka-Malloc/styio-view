@@ -672,6 +672,76 @@ class WorkspaceSearchWatcherEventBatchController {
   }
 }
 
+class WorkspaceSearchWatcherStreamBatcher {
+  const WorkspaceSearchWatcherStreamBatcher({
+    this.policy = const WorkspaceSearchWatcherPolicy(),
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
+
+  final WorkspaceSearchWatcherPolicy policy;
+  final DateTime Function() _now;
+
+  Stream<WorkspaceSearchWatcherEventBatch> bind(
+    Stream<FileSystemManagerEvent> events,
+  ) {
+    final batchController = WorkspaceSearchWatcherEventBatchController(
+      policy: policy,
+    );
+    late final StreamController<WorkspaceSearchWatcherEventBatch> output;
+    StreamSubscription<FileSystemManagerEvent>? subscription;
+    Timer? timer;
+
+    void cancelTimer() {
+      timer?.cancel();
+      timer = null;
+    }
+
+    void flush(DateTime flushedAt) {
+      final batch = batchController.flush(flushedAt: flushedAt);
+      if (batch != null && !output.isClosed) {
+        output.add(batch);
+      }
+    }
+
+    void scheduleFlush() {
+      cancelTimer();
+      timer = Timer(policy.debounceWindow, () {
+        cancelTimer();
+        flush(_now().toUtc());
+      });
+    }
+
+    output = StreamController<WorkspaceSearchWatcherEventBatch>(
+      onListen: () {
+        subscription = events.listen(
+          (event) {
+            final receivedAt = _now().toUtc();
+            final batch = batchController.add(event, receivedAt: receivedAt);
+            if (batch != null) {
+              cancelTimer();
+              output.add(batch);
+              return;
+            }
+            scheduleFlush();
+          },
+          onError: output.addError,
+          onDone: () async {
+            cancelTimer();
+            flush(_now().toUtc());
+            await output.close();
+          },
+        );
+      },
+      onCancel: () async {
+        cancelTimer();
+        await subscription?.cancel();
+      },
+    );
+
+    return output.stream;
+  }
+}
+
 class WorkspaceSearchIndexWatcherSnapshot {
   const WorkspaceSearchIndexWatcherSnapshot({
     required this.status,
@@ -792,11 +862,11 @@ class WorkspaceSearchIndexFileSystemWatcherBinding {
       message: 'Workspace search index watcher attached.',
     );
     try {
-      await for (final event in fileSystemManager.watch(
-        workspaceRoot,
-        recursive: recursive,
-      )) {
-        yield await refreshFromEvent(event);
+      final batches = WorkspaceSearchWatcherStreamBatcher(
+        policy: watcherPolicy,
+      ).bind(fileSystemManager.watch(workspaceRoot, recursive: recursive));
+      await for (final batch in batches) {
+        yield await refreshFromBatch(batch);
       }
       yield WorkspaceSearchIndexWatcherSnapshot(
         status: WorkspaceSearchIndexWatcherStatus.stopped,
@@ -817,10 +887,23 @@ class WorkspaceSearchIndexFileSystemWatcherBinding {
   Future<WorkspaceSearchIndexWatcherSnapshot> refreshFromEvent(
     FileSystemManagerEvent event,
   ) async {
-    final refreshPlan = WorkspaceSearchWatcherRefreshPlan.fromEvents(
+    final batch = WorkspaceSearchWatcherEventBatch(
       events: <FileSystemManagerEvent>[event],
-      policy: watcherPolicy,
+      receivedAt: DateTime.now().toUtc(),
+      flushedAt: DateTime.now().toUtc(),
+      refreshPlan: WorkspaceSearchWatcherRefreshPlan.fromEvents(
+        events: <FileSystemManagerEvent>[event],
+        policy: watcherPolicy,
+      ),
     );
+    return refreshFromBatch(batch);
+  }
+
+  Future<WorkspaceSearchIndexWatcherSnapshot> refreshFromBatch(
+    WorkspaceSearchWatcherEventBatch batch,
+  ) async {
+    final refreshPlan = batch.refreshPlan;
+    final event = batch.events.isEmpty ? null : batch.events.first;
     if (!refreshPlan.shouldRefresh) {
       return WorkspaceSearchIndexWatcherSnapshot(
         status: WorkspaceSearchIndexWatcherStatus.listening,
@@ -843,7 +926,7 @@ class WorkspaceSearchIndexFileSystemWatcherBinding {
       refreshPlan: refreshPlan,
       refreshSnapshot: refresh,
       message:
-          'Workspace search index refreshed from file system ${event.kind.name} event.',
+          'Workspace search index refreshed from ${batch.eventCount} file system event(s).',
     );
   }
 }

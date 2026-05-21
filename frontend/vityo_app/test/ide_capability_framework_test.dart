@@ -77,8 +77,12 @@ void main() {
       contains('WorkspaceSearchWatcherRecoveryStore'),
     );
     expect(
+      entriesById['interaction.search']?.summary,
+      contains('WorkspaceSearchWatcherStreamBatcher'),
+    );
+    expect(
       entriesById['interaction.search']?.todo,
-      contains('timer-backed watcher stream flushing'),
+      contains('production watcher backpressure telemetry'),
     );
     expect(entriesById['interaction.search']?.runtimeMaturityBlocking, isFalse);
     expect(

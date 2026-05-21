@@ -166,6 +166,9 @@ class AgentSessionContext {
     final capabilitySnapshot =
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
+    final ideCapabilityClosure = const IdeCapabilityClosureGate().evaluate(
+      capabilitySnapshot,
+    );
     final commandContext = AgentCommandCatalogContext.fromRegistry(
       lastResult: lastCommandResult,
       recentResults: recentCommandResults,
@@ -228,6 +231,7 @@ class AgentSessionContext {
         ),
         recentCodingPlans: recentCodingPlans,
         recentDiagnosticSummaries: recentDiagnosticSummaries,
+        ideCapabilityClosure: ideCapabilityClosure,
       ),
       commands: commandContext,
       language: AgentLanguageContext.fromSelection(
@@ -285,9 +289,7 @@ class AgentSessionContext {
       ),
       toolchains: toolchainContext,
       ideCapabilities: capabilitySnapshot,
-      ideCapabilityClosure: const IdeCapabilityClosureGate().evaluate(
-        capabilitySnapshot,
-      ),
+      ideCapabilityClosure: ideCapabilityClosure,
     );
   }
 
@@ -376,6 +378,7 @@ class AgentSessionContext {
         const <AgentCodingPlanContext>[],
     Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
         const <AgentDiagnosticSummaryContext>[],
+    IdeCapabilityClosureReport? ideCapabilityClosure,
   }) {
     final pendingIdeCommandList = pendingIdeCommands.toList(growable: false);
     final recentPatchProposalList = recentPatchProposals.toList(
@@ -456,6 +459,7 @@ class AgentSessionContext {
         workspaceEdit: workspaceEdit ?? agent.workspaceEdit,
         recentCodingPlans: recentCodingPlanList,
         recentDiagnosticSummaries: recentDiagnosticSummaryList,
+        ideCapabilityClosure: ideCapabilityClosure ?? this.ideCapabilityClosure,
       ),
       commands: AgentCommandCatalogContext(
         persistenceCommands: commands.persistenceCommands,
@@ -486,7 +490,7 @@ class AgentSessionContext {
       testing: testing,
       toolchains: toolchains,
       ideCapabilities: ideCapabilities,
-      ideCapabilityClosure: ideCapabilityClosure,
+      ideCapabilityClosure: ideCapabilityClosure ?? this.ideCapabilityClosure,
     );
   }
 }
@@ -532,6 +536,7 @@ class AgentCodingLoopContext {
         const <AgentCodingPlanContext>[],
     Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
         const <AgentDiagnosticSummaryContext>[],
+    IdeCapabilityClosureReport? ideCapabilityClosure,
   }) {
     final history = _agentPatchApplicationHistory(
       lastPatchApplication: lastPatchApplication,
@@ -566,6 +571,7 @@ class AgentCodingLoopContext {
         recoveryPlan: recoveryPlan,
         savedProviderProfiles: savedProviderProfileList,
         workspaceEdit: workspaceEdit,
+        ideCapabilityClosure: ideCapabilityClosure,
       ),
     );
   }
@@ -640,6 +646,7 @@ List<String> _suggestedAgentCodingCommandIds({
   required AgentCodingSessionRecoveryPlan? recoveryPlan,
   required List<AgentPromptProfileManifestEntry> savedProviderProfiles,
   required AgentWorkspaceEditContext? workspaceEdit,
+  required IdeCapabilityClosureReport? ideCapabilityClosure,
 }) {
   final commandIds = <String>[];
   void addCommandId(String? commandId) {
@@ -671,6 +678,9 @@ List<String> _suggestedAgentCodingCommandIds({
       }
       addCommandId(commandPlan.commandId);
     }
+    if (commandIds.isEmpty && ideCapabilityClosure?.isRuntimeMature == false) {
+      addCommandId(AppCommandId.collectAgentCodingCheckpoint.name);
+    }
     return commandIds;
   }
   if (lastProviderFailure != null) {
@@ -679,6 +689,9 @@ List<String> _suggestedAgentCodingCommandIds({
       addCommandId(AppCommandId.failoverAgentProvider.name);
     }
     addCommandId(AppCommandId.replayAgentPrompt.name);
+  }
+  if (commandIds.isEmpty && ideCapabilityClosure?.isRuntimeMature == false) {
+    addCommandId(AppCommandId.collectAgentCodingCheckpoint.name);
   }
   return commandIds;
 }

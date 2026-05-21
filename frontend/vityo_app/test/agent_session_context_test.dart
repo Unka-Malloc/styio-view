@@ -587,6 +587,10 @@ void main() {
       contains('runtime.execution'),
     );
     expect(
+      agentJson['suggestedCommandIds'],
+      contains('collectAgentCodingCheckpoint'),
+    );
+    expect(
       (ideCapabilitiesJson['statusCounts']!
           as Map<String, Object?>)['scaffolded'],
       greaterThan(0),

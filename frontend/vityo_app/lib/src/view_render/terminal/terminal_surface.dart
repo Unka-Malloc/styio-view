@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../view_ide/environment/environment.dart';
 import '../../view_ide/runtime/runtime.dart';
 import '../../view_ide/toolchain/toolchain.dart';
 import '../platform/viewport_profile.dart';
@@ -17,7 +18,10 @@ class TerminalSurface extends StatelessWidget {
     this.onStartSession,
     this.onSendInput,
     this.onResizeSession,
+    this.onSendSignal,
     this.onCloseSession,
+    this.recoveryPlan,
+    this.onApplyRecovery,
   });
 
   final ViewportProfile viewportProfile;
@@ -30,7 +34,11 @@ class TerminalSurface extends StatelessWidget {
   final Future<void> Function()? onStartSession;
   final Future<void> Function(String input)? onSendInput;
   final Future<void> Function(int rows, int cols)? onResizeSession;
+  final Future<void> Function(PtySignal signal)? onSendSignal;
   final Future<void> Function()? onCloseSession;
+  final TerminalSessionRecoveryPlan? recoveryPlan;
+  final Future<void> Function(TerminalSessionRecoveryPlan plan)?
+  onApplyRecovery;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +65,7 @@ class TerminalSurface extends StatelessWidget {
               Text('Integrated Terminal', style: theme.textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                'Shell/runtime output entry backed by Vityo execution logs, TerminalRuntime session snapshots, RuntimeOutputLiveBuffer panel snapshots, explicit start/resize/close controls, and PTY start-plan readiness. TODO: connect native OS PTY resize/signals.',
+                'Shell/runtime output entry backed by Vityo execution logs, TerminalRuntime session snapshots, RuntimeOutputLiveBuffer panel snapshots, explicit start/resize/signal/close controls, recovery action controls, and PTY start-plan readiness. TODO: connect native OS PTY resize/signals.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),
@@ -98,6 +106,10 @@ class TerminalSurface extends StatelessWidget {
                       ),
                     ),
                   ],
+                  if (recoveryPlan != null)
+                    Chip(
+                      label: Text('recovery ${recoveryPlan!.action.wireValue}'),
+                    ),
                   if (sessionSnapshot == null)
                     const Chip(label: Text('pty scaffolded'))
                   else ...[
@@ -147,13 +159,66 @@ class TerminalSurface extends StatelessWidget {
                     label: const Text('Resize 24x80'),
                   ),
                   OutlinedButton.icon(
+                    key: const ValueKey('terminal-send-interrupt'),
+                    onPressed: sessionSnapshot == null || onSendSignal == null
+                        ? null
+                        : () {
+                            onSendSignal!(PtySignal.interrupt);
+                          },
+                    icon: const Icon(Icons.keyboard_command_key_rounded),
+                    label: const Text('Send Ctrl-C'),
+                  ),
+                  OutlinedButton.icon(
                     key: const ValueKey('terminal-close-session'),
                     onPressed: sessionSnapshot == null ? null : onCloseSession,
                     icon: const Icon(Icons.stop_circle_outlined),
                     label: const Text('Close Terminal'),
                   ),
+                  if (recoveryPlan?.hasRecoveryAction == true)
+                    FilledButton.icon(
+                      key: const ValueKey('terminal-apply-recovery-action'),
+                      onPressed: onApplyRecovery == null
+                          ? null
+                          : () {
+                              onApplyRecovery!(recoveryPlan!);
+                            },
+                      icon: const Icon(Icons.restart_alt_rounded),
+                      label: Text(_recoveryActionLabel(recoveryPlan!)),
+                    ),
                 ],
               ),
+              if (recoveryPlan?.hasRecoveryAction == true) ...[
+                const SizedBox(height: 12),
+                Container(
+                  key: const ValueKey('terminal-recovery-plan'),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.errorContainer.withValues(
+                      alpha: 0.42,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Recovery action',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        recoveryPlan!.message,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      Text(
+                        'action ${recoveryPlan!.action.wireValue}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (startPlan != null) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -267,4 +332,14 @@ class TerminalSurface extends StatelessWidget {
       ),
     );
   }
+}
+
+String _recoveryActionLabel(TerminalSessionRecoveryPlan plan) {
+  return switch (plan.action) {
+    TerminalSessionRecoveryAction.replayStartPlan => 'Replay Terminal',
+    TerminalSessionRecoveryAction.rebindOutputSubscription => 'Rebind Output',
+    TerminalSessionRecoveryAction.closeStaleSession => 'Close Stale',
+    TerminalSessionRecoveryAction.markUnsupported => 'Mark Unsupported',
+    TerminalSessionRecoveryAction.none => 'No Recovery',
+  };
 }

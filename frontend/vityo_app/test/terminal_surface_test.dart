@@ -17,6 +17,8 @@ void main() {
     int? resizeRows;
     int? resizeCols;
     String? sentInput;
+    PtySignal? sentSignal;
+    TerminalSessionRecoveryPlan? appliedRecovery;
     final startPlan = TerminalRuntimeStartPlan(
       profileId: 'sh',
       executablePath: '/bin/sh',
@@ -64,8 +66,21 @@ void main() {
               resizeRows = rows;
               resizeCols = cols;
             },
+            onSendSignal: (signal) async {
+              sentSignal = signal;
+            },
             onCloseSession: () async {
               closeCount += 1;
+            },
+            recoveryPlan: const TerminalSessionRecoveryPlan(
+              action: TerminalSessionRecoveryAction.rebindOutputSubscription,
+              sessionId: 'pty-1',
+              profileId: 'sh',
+              canRetry: true,
+              message: 'Output subscription is detached.',
+            ),
+            onApplyRecovery: (plan) async {
+              appliedRecovery = plan;
             },
           ),
         ),
@@ -85,6 +100,11 @@ void main() {
     expect(find.text('pty-state running'), findsOneWidget);
     expect(find.text('pty-lines 1'), findsOneWidget);
     expect(find.text('pty-events 0'), findsOneWidget);
+    expect(find.text('recovery rebind-output-subscription'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('terminal-recovery-plan')),
+      findsOneWidget,
+    );
     expect(find.textContaining('shell booted'), findsOneWidget);
     expect(find.textContaining('runtime  stdout: ok'), findsOneWidget);
     expect(find.textContaining('pty      interactive ok'), findsOneWidget);
@@ -109,6 +129,11 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('terminal-resize-session')));
     await tester.ensureVisible(
+      find.byKey(const ValueKey('terminal-send-interrupt')),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('terminal-send-interrupt')));
+    await tester.ensureVisible(
       find.byKey(const ValueKey('terminal-close-session')),
     );
     await tester.pump();
@@ -118,14 +143,26 @@ void main() {
     );
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('terminal-run-active-target')));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('terminal-apply-recovery-action')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('terminal-apply-recovery-action')),
+    );
     await tester.pump();
 
     expect(sentInput, 'echo ok');
     expect(startCount, 1);
     expect(resizeRows, 24);
     expect(resizeCols, 80);
+    expect(sentSignal, PtySignal.interrupt);
     expect(closeCount, 1);
     expect(runCount, 1);
+    expect(
+      appliedRecovery?.action,
+      TerminalSessionRecoveryAction.rebindOutputSubscription,
+    );
   });
 
   testWidgets('terminal surface renders live output snapshot events', (

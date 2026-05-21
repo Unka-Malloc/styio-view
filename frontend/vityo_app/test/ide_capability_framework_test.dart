@@ -365,7 +365,11 @@ void main() {
     );
     expect(
       entriesById['runtime.terminal']?.todo,
-      contains('recovery actions to UI controls'),
+      contains('native OS process signal delivery'),
+    );
+    expect(
+      entriesById['runtime.terminal']?.summary,
+      contains('recovery action controls'),
     );
     expect(entriesById['runtime.terminal']?.runtimeMaturityBlocking, isFalse);
     expect(

@@ -66,6 +66,43 @@ void main() {
     },
   );
 
+  test(
+    'DAP debug session termination plan chooses graceful and forced routes',
+    () async {
+      final launcher = DapDebugAdapterLauncher(
+        transportFactory: (launch) async => _FakeDapByteTransport(),
+      );
+      final handle = await launcher.launch(_readyLaunch());
+
+      final graceful = handle.terminationPlan();
+      final forced = handle.terminationPlan(
+        force: true,
+        processHandleAvailable: true,
+      );
+      final finished = DebugSessionTerminationPlan.fromSnapshot(
+        debuggerId: 'lldb-dap',
+        snapshot: const DapSessionSnapshot(
+          status: DapSessionStatus.terminated,
+          nextSeq: 1,
+          pendingRequests: <DapPendingRequest>[],
+          events: <DapObservedEvent>[],
+          threads: <DapThread>[],
+          stackFrames: <DapStackFrame>[],
+          scopes: <DapScope>[],
+          variables: <DapVariable>[],
+        ),
+      );
+
+      expect(graceful.action, DebugSessionTerminationAction.dapDisconnect);
+      expect(graceful.requiresConfirmation, isFalse);
+      expect(forced.action, DebugSessionTerminationAction.killProcess);
+      expect(forced.requiresConfirmation, isTrue);
+      expect(forced.toJson()['processHandleAvailable'], isTrue);
+      expect(finished.canTerminate, isFalse);
+      await handle.close();
+    },
+  );
+
   test('DAP debug launch telemetry store persists execution records', () async {
     final store = DebugLaunchTelemetryStore.fromDataStore(
       dataStore: await _createDataStore(),

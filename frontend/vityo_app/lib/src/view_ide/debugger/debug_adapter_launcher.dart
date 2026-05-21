@@ -141,6 +141,107 @@ class DapDebugSessionHandle {
   Future<void> close() {
     return bridge.close();
   }
+
+  DebugSessionTerminationPlan terminationPlan({
+    bool force = false,
+    bool processHandleAvailable = false,
+  }) {
+    return DebugSessionTerminationPlan.fromSnapshot(
+      debuggerId: launchConfiguration.debuggerId,
+      snapshot: snapshot,
+      force: force,
+      processHandleAvailable: processHandleAvailable,
+    );
+  }
+}
+
+enum DebugSessionTerminationAction {
+  none,
+  dapDisconnect,
+  dapTerminate,
+  killProcess,
+  markFinished,
+}
+
+extension DebugSessionTerminationActionX on DebugSessionTerminationAction {
+  String get wireValue {
+    return switch (this) {
+      DebugSessionTerminationAction.none => 'none',
+      DebugSessionTerminationAction.dapDisconnect => 'dap-disconnect',
+      DebugSessionTerminationAction.dapTerminate => 'dap-terminate',
+      DebugSessionTerminationAction.killProcess => 'kill-process',
+      DebugSessionTerminationAction.markFinished => 'mark-finished',
+    };
+  }
+}
+
+class DebugSessionTerminationPlan {
+  const DebugSessionTerminationPlan({
+    required this.debuggerId,
+    required this.sessionStatus,
+    required this.action,
+    required this.canTerminate,
+    required this.requiresConfirmation,
+    required this.message,
+    this.processHandleAvailable = false,
+  });
+
+  factory DebugSessionTerminationPlan.fromSnapshot({
+    required String debuggerId,
+    required DapSessionSnapshot snapshot,
+    bool force = false,
+    bool processHandleAvailable = false,
+  }) {
+    final action = switch (snapshot.status) {
+      DapSessionStatus.idle ||
+      DapSessionStatus.terminated => DebugSessionTerminationAction.none,
+      DapSessionStatus.failed => DebugSessionTerminationAction.markFinished,
+      DapSessionStatus.initializing || DapSessionStatus.launching =>
+        force && processHandleAvailable
+            ? DebugSessionTerminationAction.killProcess
+            : DebugSessionTerminationAction.dapDisconnect,
+      DapSessionStatus.running || DapSessionStatus.paused =>
+        force && processHandleAvailable
+            ? DebugSessionTerminationAction.killProcess
+            : force
+            ? DebugSessionTerminationAction.dapTerminate
+            : DebugSessionTerminationAction.dapDisconnect,
+    };
+    final canTerminate = action != DebugSessionTerminationAction.none;
+    return DebugSessionTerminationPlan(
+      debuggerId: debuggerId,
+      sessionStatus: snapshot.status,
+      action: action,
+      canTerminate: canTerminate,
+      requiresConfirmation:
+          action == DebugSessionTerminationAction.killProcess ||
+          action == DebugSessionTerminationAction.dapTerminate,
+      processHandleAvailable: processHandleAvailable,
+      message: canTerminate
+          ? 'Debug session termination action ${action.wireValue} is planned.'
+          : 'Debug session does not need termination.',
+    );
+  }
+
+  final String debuggerId;
+  final DapSessionStatus sessionStatus;
+  final DebugSessionTerminationAction action;
+  final bool canTerminate;
+  final bool requiresConfirmation;
+  final bool processHandleAvailable;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'debuggerId': debuggerId,
+      'sessionStatus': sessionStatus.name,
+      'action': action.wireValue,
+      'canTerminate': canTerminate,
+      'requiresConfirmation': requiresConfirmation,
+      'processHandleAvailable': processHandleAvailable,
+      'message': message,
+    };
+  }
 }
 
 class DapDebugAdapterLauncher {

@@ -315,6 +315,15 @@ void main() {
       contains('line-chunked ShellCommandResult stdout/stderr events'),
     );
     expect(
+      entriesById['debugger.dap']?.summary,
+      contains('DebugSessionTerminationPlan'),
+    );
+    expect(
+      entriesById['debugger.dap']?.todo,
+      contains('concrete debug process termination execution'),
+    );
+    expect(entriesById['debugger.dap']?.runtimeMaturityBlocking, isFalse);
+    expect(
       entriesById['interaction.testing']?.status,
       IdeCapabilityStatus.scaffolded,
     );

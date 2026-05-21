@@ -10,6 +10,7 @@ import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/agent/agent_coding_session_history_store.dart';
+import 'package:vityo_app/src/agent/agent_tool_registry.dart';
 import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
@@ -127,6 +128,30 @@ void main() {
     expect(workspaceCheckpoint['revertPlanStatus'], 'ready');
     expect(workspaceCheckpoint['revertReady'], isTrue);
     expect(workspaceCheckpoint['revertChangedDocumentCount'], 1);
+
+    final permissionContext = context.withAgentCodingState(
+      toolPermissionPlan: const AgentToolPermissionPlan(
+        status: AgentToolPermissionPlanStatus.reviewRequired,
+        decisions: <AgentToolPermissionDecision>[
+          AgentToolPermissionDecision(
+            toolId: 'applyWorkspacePatch',
+            displayName: 'Apply Workspace Patch',
+            permissionMode: AgentToolPermissionMode.review,
+            action: AgentToolPermissionAction.ask,
+            status: AgentToolPermissionDecisionStatus.reviewRequired,
+            source: 'tool-default',
+            reason: 'Tool applyWorkspacePatch requires review.',
+          ),
+        ],
+      ),
+    );
+    final permissionAgent =
+        permissionContext.toJsonForChannels(const <String>['agent'])['agent']!
+            as Map<String, Object?>;
+    final toolPermissions =
+        permissionAgent['toolPermissions']! as Map<String, Object?>;
+    expect(toolPermissions['status'], 'review_required');
+    expect(toolPermissions['reviewToolIds'], <String>['applyWorkspacePatch']);
   });
 
   test('agent session context serializes editor and runtime facts', () {
@@ -622,7 +647,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 81);
+    expect(json['schemaVersion'], 82);
     final registeredCommandIds =
         commandsJson['registeredCommandIds']! as List<Object?>;
     expect(commandsJson['commandCount'], registeredCommandIds.length);
@@ -1610,7 +1635,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 81);
+    expect(context.schemaVersion, 82);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1993,7 +2018,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 81);
+    expect(json['schemaVersion'], 82);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2480,7 +2505,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 81);
+    expect(context.schemaVersion, 82);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

@@ -23,6 +23,7 @@ import 'agent_prompt_profile_store.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
+import 'agent_tool_permission.dart';
 
 const int _maxAgentCommandResultHistory = 12;
 const int _maxAgentPatchApplicationHistory = 12;
@@ -1314,6 +1315,7 @@ class AgentSessionContext {
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
     AgentWorkspaceCheckpointContext? workspaceCheckpoint,
+    AgentToolPermissionPlan? toolPermissionPlan,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
         const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
@@ -1379,7 +1381,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 81,
+      schemaVersion: 82,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -1422,6 +1424,7 @@ class AgentSessionContext {
         recoveryPlan: recoveryPlan,
         loopGuard: loopGuard,
         workspaceCheckpoint: workspaceCheckpoint,
+        toolPermissionPlan: toolPermissionPlan,
         savedProviderProfiles: savedProviderProfiles,
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
@@ -1576,6 +1579,7 @@ class AgentSessionContext {
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard? loopGuard,
     AgentWorkspaceCheckpointContext? workspaceCheckpoint,
+    AgentToolPermissionPlan? toolPermissionPlan,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
         const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
@@ -1619,6 +1623,7 @@ class AgentSessionContext {
         recoveryPlan == null &&
         loopGuard == null &&
         workspaceCheckpoint == null &&
+        toolPermissionPlan == null &&
         savedProviderProfileList.isEmpty &&
         lastPatchApplication == null &&
         workspaceEdit == null) {
@@ -1668,6 +1673,7 @@ class AgentSessionContext {
         recoveryPlan: recoveryPlan ?? agent.recoveryPlan,
         loopGuard: loopGuard ?? agent.loopGuard,
         workspaceCheckpoint: workspaceCheckpoint ?? agent.workspaceCheckpoint,
+        toolPermissionPlan: toolPermissionPlan ?? agent.toolPermissionPlan,
         savedProviderProfiles: savedProviderProfileList.isEmpty
             ? agent.savedProviderProfiles
             : savedProviderProfileList,
@@ -1789,6 +1795,7 @@ class AgentCodingLoopContext {
     this.recoveryPlan,
     this.loopGuard = const AgentCodingLoopGuard.clear(),
     this.workspaceCheckpoint,
+    this.toolPermissionPlan,
     this.savedProviderProfiles = const <AgentPromptProfileManifestEntry>[],
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
@@ -1821,6 +1828,7 @@ class AgentCodingLoopContext {
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
     AgentWorkspaceCheckpointContext? workspaceCheckpoint,
+    AgentToolPermissionPlan? toolPermissionPlan,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
         const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
@@ -1908,6 +1916,7 @@ class AgentCodingLoopContext {
       recoveryPlan: recoveryPlan,
       loopGuard: loopGuard,
       workspaceCheckpoint: workspaceCheckpoint,
+      toolPermissionPlan: toolPermissionPlan,
       savedProviderProfiles: savedProviderProfileList,
       lastPatchApplication: effectiveLastPatchApplicationWithValidation,
       recentPatchApplications: effectiveHistory,
@@ -1943,6 +1952,7 @@ class AgentCodingLoopContext {
   final AgentCodingSessionRecoveryPlan? recoveryPlan;
   final AgentCodingLoopGuard loopGuard;
   final AgentWorkspaceCheckpointContext? workspaceCheckpoint;
+  final AgentToolPermissionPlan? toolPermissionPlan;
   final List<AgentPromptProfileManifestEntry> savedProviderProfiles;
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
@@ -1984,6 +1994,8 @@ class AgentCodingLoopContext {
         'loopGuard': loopGuard.toJson(),
       if (workspaceCheckpoint != null)
         'workspaceCheckpoint': workspaceCheckpoint!.toJson(),
+      if (toolPermissionPlan != null)
+        'toolPermissions': toolPermissionPlan!.toJson(),
       'savedProviderProfileCount': savedProviderProfiles.length,
       if (savedProviderProfiles.isNotEmpty)
         'savedProviderProfiles': savedProviderProfiles

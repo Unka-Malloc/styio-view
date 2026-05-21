@@ -50,6 +50,10 @@ void main() {
     expect(response, isNotNull);
     expect(adapter.requests.single.userPrompt, 'Explain this file.');
     expect(adapter.requests.single.context.document.documentId, 'main.styio');
+    expect(
+      adapter.requests.single.context.agent.toolPermissionPlan?.reviewToolIds,
+      contains('previewWorkspaceEdit'),
+    );
     expect(controller.draftPrompt, '');
     expect(
       controller.lastResponse?.contentParts.single.text,

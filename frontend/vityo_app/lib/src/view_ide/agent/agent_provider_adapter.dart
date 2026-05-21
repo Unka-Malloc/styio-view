@@ -8,6 +8,7 @@ import 'agent_provider_kind.dart';
 import 'agent_session_context.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
+import 'agent_tool_permission.dart';
 import 'agent_tool_registry.dart';
 
 export 'agent_provider_kind.dart';
@@ -2178,6 +2179,17 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
           workspaceCheckpoint.revertChangedDocumentCount,
     });
   }
+  final toolPermissions = agent.toolPermissionPlan;
+  if (toolPermissions != null) {
+    metadata.addAll(<String, Object?>{
+      'agentToolPermissionStatus': toolPermissions.status.wireValue,
+      'agentToolPermissionAllowedToolIds': toolPermissions.allowedToolIds,
+      'agentToolPermissionReviewToolIds': toolPermissions.reviewToolIds,
+      'agentToolPermissionDeniedToolIds': toolPermissions.deniedToolIds,
+      'agentToolPermissionBlockingIssueCodes':
+          toolPermissions.blockingIssueCodes,
+    });
+  }
   metadata.addAll(<String, Object?>{
     'agentAutonomyMode': agent.autonomyPolicy.mode.wireValue,
     'agentAutonomyCanProposePatches': agent.autonomyPolicy.canProposePatches,
@@ -2325,6 +2337,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.workspaceEdit.suggestedCommandIds, prefer those command ids for ready workspace-edit follow-up actions before inventing patch application steps.
 - If the IDE context includes agent.suggestedCommandIds, prefer those command ids for pending IDE actions, workspace-edit follow-up actions, or provider recovery commands before inventing manual recovery steps.
 - If the IDE context includes agent.workspaceCheckpoint, treat it as the current OpenCode-style workspace restore anchor. Read snapshotId, captureStatus, revertPlanStatus, and revertReady before proposing apply, replay, recovery, or revert actions; do not assume the checkpoint contains full document text.
+- If the IDE context includes agent.toolPermissions, inspect allowedToolIds, reviewToolIds, deniedToolIds, and blockingIssueCodes before choosing executable tools. Tools in reviewToolIds may require explicit user approval; tools in deniedToolIds must not be requested.
 - If the IDE context includes agent.changeReviewGate, agent.autonomyPolicy, agent.loopGuard, or agent.validationPlan, inspect them before applying, revising, replaying tools, or validating generated changes. If agent.loopGuard.blocked is true, stop autonomous retry loops and propose user review or recovery instead of another tool replay. Use agent.validationPlan.registeredCommandIds and agent.validationPlan.commandPlans for IDE-owned validation commands and required inputs.
 - If the IDE context includes commands.registeredCommandIds, verify ide_command.commandId against that list before emitting any IDE command suggestion.
 - If the IDE context includes language.documentSymbols, use them as the current document outline before planning broad edits.

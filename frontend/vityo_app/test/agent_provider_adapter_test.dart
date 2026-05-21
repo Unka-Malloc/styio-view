@@ -141,15 +141,31 @@ void main() {
       AgentProviderRequest(
         requestId: 'agent-request-responses-schema',
         profile: profile,
-        context: AgentSessionContext.fromEditorState(
-          document: const DocumentState(
-            documentId: '/workspace/demo/src/main.styio',
-            text: 'value = 1\n',
-            revision: 1,
-          ),
-          selection: const SelectionState.collapsed(0),
-          diagnostics: const [],
-        ),
+        context:
+            AgentSessionContext.fromEditorState(
+              document: const DocumentState(
+                documentId: '/workspace/demo/src/main.styio',
+                text: 'value = 1\n',
+                revision: 1,
+              ),
+              selection: const SelectionState.collapsed(0),
+              diagnostics: const [],
+            ).withAgentCodingState(
+              toolPermissionPlan: const AgentToolPermissionPlan(
+                status: AgentToolPermissionPlanStatus.reviewRequired,
+                decisions: <AgentToolPermissionDecision>[
+                  AgentToolPermissionDecision(
+                    toolId: 'applyWorkspacePatch',
+                    displayName: 'Apply Workspace Patch',
+                    permissionMode: AgentToolPermissionMode.review,
+                    action: AgentToolPermissionAction.ask,
+                    status: AgentToolPermissionDecisionStatus.reviewRequired,
+                    source: 'tool-default',
+                    reason: 'Tool applyWorkspacePatch requires review.',
+                  ),
+                ],
+              ),
+            ),
         userPrompt: 'Suggest a safe IDE command.',
       ),
     );
@@ -249,15 +265,31 @@ void main() {
       AgentProviderRequest(
         requestId: 'agent-request-tool-results',
         profile: profile,
-        context: AgentSessionContext.fromEditorState(
-          document: const DocumentState(
-            documentId: '/workspace/demo/src/main.styio',
-            text: 'value = 1\n',
-            revision: 1,
-          ),
-          selection: const SelectionState.collapsed(0),
-          diagnostics: const [],
-        ),
+        context:
+            AgentSessionContext.fromEditorState(
+              document: const DocumentState(
+                documentId: '/workspace/demo/src/main.styio',
+                text: 'value = 1\n',
+                revision: 1,
+              ),
+              selection: const SelectionState.collapsed(0),
+              diagnostics: const [],
+            ).withAgentCodingState(
+              toolPermissionPlan: const AgentToolPermissionPlan(
+                status: AgentToolPermissionPlanStatus.reviewRequired,
+                decisions: <AgentToolPermissionDecision>[
+                  AgentToolPermissionDecision(
+                    toolId: 'applyWorkspacePatch',
+                    displayName: 'Apply Workspace Patch',
+                    permissionMode: AgentToolPermissionMode.review,
+                    action: AgentToolPermissionAction.ask,
+                    status: AgentToolPermissionDecisionStatus.reviewRequired,
+                    source: 'tool-default',
+                    reason: 'Tool applyWorkspacePatch requires review.',
+                  ),
+                ],
+              ),
+            ),
         userPrompt: 'Continue after tool execution.',
         toolCallResults: <AgentToolCallResultContext>[
           AgentToolCallResultContext(
@@ -301,6 +333,10 @@ void main() {
     expect(metadata['toolCallResultIds'], <String>['call-read']);
     expect(metadata['toolCallResultTruncatedCount'], 1);
     expect(metadata['toolCallResultTruncatedIds'], <String>['call-read']);
+    expect(metadata['agentToolPermissionStatus'], 'review_required');
+    expect(metadata['agentToolPermissionReviewToolIds'], <String>[
+      'applyWorkspacePatch',
+    ]);
   });
 
   test('OpenAI compatible provider sends replay follow-up summary', () async {
@@ -619,7 +655,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      81,
+      82,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -1235,6 +1271,7 @@ void main() {
       expect(systemMessage['content'], contains('agent.pendingPatch'));
       expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
       expect(systemMessage['content'], contains('agent.workspaceCheckpoint'));
+      expect(systemMessage['content'], contains('agent.toolPermissions'));
       expect(systemMessage['content'], contains('outputTruncated true'));
       expect(systemMessage['content'], contains('agent.changeReviewGate'));
       expect(systemMessage['content'], contains('agent.autonomyPolicy'));
@@ -1453,7 +1490,7 @@ void main() {
         contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 81);
+      expect(metadata['contextSchemaVersion'], 82);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

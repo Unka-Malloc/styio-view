@@ -19,6 +19,7 @@ import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
 import 'agent_tool_call_stream_bridge.dart';
+import 'agent_tool_permission.dart';
 import 'agent_tool_registry.dart';
 import 'agent_workspace_snapshot.dart';
 import 'agent_workspace_edit_adapter.dart';
@@ -292,6 +293,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentCodingLoopGuard get codingLoopGuard => _currentCodingLoopGuard();
   AgentWorkspaceCheckpointContext? get workspaceCheckpointContext =>
       _workspaceCheckpointContext();
+  AgentToolPermissionPlan get toolPermissionPlan =>
+      _currentToolPermissionPlan();
 
   AgentCodingLoopPlan get codingLoopPlan {
     return AgentCodingLoopPlan.fromState(
@@ -1526,6 +1529,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       recoveryPlan: sessionRecoveryPlan,
       loopGuard: _currentCodingLoopGuard(),
       workspaceCheckpoint: _workspaceCheckpointContext(),
+      toolPermissionPlan: _currentToolPermissionPlan(),
       lastPatchApplication: _lastPatchApplicationContext,
       recentPatchApplications: _recentPatchApplicationContexts,
       recentCodingPlans: _recentCodingPlanContexts,
@@ -1718,6 +1722,14 @@ class AgentCodingSessionController extends ChangeNotifier {
         ...?revertPlan?.todoItems,
       }.toList(growable: false),
     );
+  }
+
+  AgentToolPermissionPlan _currentToolPermissionPlan() {
+    final selection = _toolRegistry.selectForProfile(
+      profile: profile,
+      providerKind: adapter.kind,
+    );
+    return AgentToolPermissionPlan.fromSelection(selection);
   }
 
   void _recordRecentPatchProposalContext(AgentCodePatch? patch) {

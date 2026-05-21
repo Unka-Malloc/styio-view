@@ -3,6 +3,7 @@ import 'agent_provider_adapter.dart';
 import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
 import 'agent_session_context.dart';
+import 'agent_tool_registry.dart';
 
 enum AgentCodingDispatchStatus { ready, blocked }
 
@@ -29,6 +30,7 @@ class AgentCodingDispatchPlan {
     required this.promptPreview,
     required this.attachmentCount,
     required this.conversationTurnCount,
+    required this.toolSelection,
     required this.todoItems,
     this.providerSelectionPlan,
     this.providerExecutionResolution,
@@ -53,6 +55,11 @@ class AgentCodingDispatchPlan {
           providerSelectionPlan.todo.isNotEmpty)
         providerSelectionPlan.todo,
     };
+    final toolSelection = AgentToolRegistry().selectForProfile(
+      profile: profile,
+      providerKind: adapter.kind,
+    );
+    todos.addAll(toolSelection.todoItems);
     return AgentCodingDispatchPlan(
       status: readiness.canDispatchProviderRequest
           ? AgentCodingDispatchStatus.ready
@@ -70,6 +77,7 @@ class AgentCodingDispatchPlan {
       promptPreview: _promptPreview(prompt),
       attachmentCount: attachmentCount,
       conversationTurnCount: conversationTurnCount,
+      toolSelection: toolSelection,
       providerSelectionPlan: providerSelectionPlan,
       providerExecutionResolution: providerExecutionResolution,
       todoItems: List<String>.unmodifiable(todos),
@@ -90,6 +98,7 @@ class AgentCodingDispatchPlan {
   final String promptPreview;
   final int attachmentCount;
   final int conversationTurnCount;
+  final AgentToolSelection toolSelection;
   final AgentProviderSelectionPlan? providerSelectionPlan;
   final AgentProviderExecutionResolution? providerExecutionResolution;
   final List<String> todoItems;
@@ -131,6 +140,7 @@ class AgentCodingDispatchPlan {
         'providerSelection': providerSelectionPlan!.toJson(),
       if (providerExecutionResolution != null)
         'providerExecution': providerExecutionResolution!.toJson(),
+      'tools': toolSelection.toJson(),
       'skills': <String, Object?>{
         'activeSkillCount': activeSkillIds.length,
         'activeSkillIds': activeSkillIds,

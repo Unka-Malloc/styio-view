@@ -1,0 +1,362 @@
+import 'agent_profile.dart';
+import 'agent_provider_adapter.dart';
+
+enum AgentToolPermissionMode { never, review, always }
+
+extension AgentToolPermissionModeX on AgentToolPermissionMode {
+  String get wireValue => switch (this) {
+    AgentToolPermissionMode.never => 'never',
+    AgentToolPermissionMode.review => 'review',
+    AgentToolPermissionMode.always => 'always',
+  };
+}
+
+class AgentToolSchemaProperty {
+  const AgentToolSchemaProperty({
+    required this.name,
+    required this.type,
+    this.description = '',
+    this.required = false,
+  });
+
+  final String name;
+  final String type;
+  final String description;
+  final bool required;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'name': name,
+      'type': type,
+      'required': required,
+      if (description.isNotEmpty) 'description': description,
+    };
+  }
+}
+
+class AgentToolDefinition {
+  const AgentToolDefinition({
+    required this.toolId,
+    required this.displayName,
+    required this.description,
+    this.priority = 0,
+    this.builtin = true,
+    this.supportedProviderKinds = const <AgentProviderKind>[],
+    this.supportedProtocols = const <String>[],
+    this.supportedModelPatterns = const <String>[],
+    this.capabilities = const <String>[],
+    this.schema = const <AgentToolSchemaProperty>[],
+    this.permissionMode = AgentToolPermissionMode.review,
+    this.todo = '',
+  });
+
+  final String toolId;
+  final String displayName;
+  final String description;
+  final int priority;
+  final bool builtin;
+  final List<AgentProviderKind> supportedProviderKinds;
+  final List<String> supportedProtocols;
+  final List<String> supportedModelPatterns;
+  final List<String> capabilities;
+  final List<AgentToolSchemaProperty> schema;
+  final AgentToolPermissionMode permissionMode;
+  final String todo;
+
+  bool supports(AgentToolSelectionContext context) {
+    return _providerKindMatches(context) &&
+        _protocolMatches(context) &&
+        _modelMatches(context);
+  }
+
+  bool _providerKindMatches(AgentToolSelectionContext context) {
+    return supportedProviderKinds.isEmpty ||
+        supportedProviderKinds.contains(context.providerKind);
+  }
+
+  bool _protocolMatches(AgentToolSelectionContext context) {
+    final protocols = supportedProtocols
+        .map((protocol) => protocol.trim().toLowerCase())
+        .where((protocol) => protocol.isNotEmpty)
+        .toSet();
+    return protocols.isEmpty || protocols.contains(context.protocol);
+  }
+
+  bool _modelMatches(AgentToolSelectionContext context) {
+    final patterns = supportedModelPatterns
+        .map((pattern) => pattern.trim().toLowerCase())
+        .where((pattern) => pattern.isNotEmpty)
+        .toList(growable: false);
+    return patterns.isEmpty ||
+        patterns.any((pattern) => context.model.contains(pattern));
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'toolId': toolId,
+      'displayName': displayName,
+      'description': description,
+      'priority': priority,
+      'builtin': builtin,
+      'permissionMode': permissionMode.wireValue,
+      'supportedProviderKinds': supportedProviderKinds
+          .map((kind) => kind.wireValue)
+          .toList(growable: false),
+      'supportedProtocols': supportedProtocols,
+      'supportedModelPatterns': supportedModelPatterns,
+      'capabilities': capabilities,
+      'schema': schema.map((property) => property.toJson()).toList(),
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class AgentToolSelectionContext {
+  const AgentToolSelectionContext({
+    required this.providerKind,
+    required this.protocol,
+    required this.model,
+  });
+
+  factory AgentToolSelectionContext.fromProfile({
+    required AgentPromptProfile profile,
+    required AgentProviderKind providerKind,
+  }) {
+    return AgentToolSelectionContext(
+      providerKind: providerKind,
+      protocol: profile.endpoint.protocol.trim().toLowerCase(),
+      model: profile.endpoint.model.trim().toLowerCase(),
+    );
+  }
+
+  final AgentProviderKind providerKind;
+  final String protocol;
+  final String model;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerKind': providerKind.wireValue,
+      'protocol': protocol,
+      'model': model,
+    };
+  }
+}
+
+class AgentToolSelection {
+  const AgentToolSelection({
+    required this.context,
+    required this.tools,
+    this.rejectedToolIds = const <String>[],
+    this.todoItems = const <String>[],
+  });
+
+  final AgentToolSelectionContext context;
+  final List<AgentToolDefinition> tools;
+  final List<String> rejectedToolIds;
+  final List<String> todoItems;
+
+  List<String> get toolIds {
+    return tools.map((tool) => tool.toolId).toList(growable: false);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'context': context.toJson(),
+      'toolCount': tools.length,
+      'toolIds': toolIds,
+      'rejectedToolIds': rejectedToolIds,
+      'tools': tools.map((tool) => tool.toJson()).toList(growable: false),
+      'todoItems': todoItems,
+    };
+  }
+}
+
+class AgentToolRegistry {
+  AgentToolRegistry({Iterable<AgentToolDefinition> tools = defaultAgentTools}) {
+    for (final tool in tools) {
+      register(tool);
+    }
+  }
+
+  final Map<String, AgentToolDefinition> _tools =
+      <String, AgentToolDefinition>{};
+
+  static const List<AgentToolDefinition>
+  defaultAgentTools = <AgentToolDefinition>[
+    AgentToolDefinition(
+      toolId: 'readWorkspaceFile',
+      displayName: 'Read Workspace File',
+      description:
+          'Read an IDE-owned workspace file through Vityo workspace/file binding.',
+      priority: 100,
+      permissionMode: AgentToolPermissionMode.never,
+      capabilities: <String>['workspace.read', 'context.file'],
+      schema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(
+          name: 'path',
+          type: 'string',
+          required: true,
+          description: 'Workspace-relative file path.',
+        ),
+      ],
+      todo:
+          'TODO: bind to File System Manager through Editor File Binding instead of raw disk reads.',
+    ),
+    AgentToolDefinition(
+      toolId: 'previewWorkspaceEdit',
+      displayName: 'Preview Workspace Edit',
+      description:
+          'Build a reviewable workspace edit preview before applying generated changes.',
+      priority: 90,
+      permissionMode: AgentToolPermissionMode.review,
+      capabilities: <String>['workspace.edit.preview', 'change.review'],
+      schema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(
+          name: 'edits',
+          type: 'array',
+          required: true,
+          description: 'Structured workspace edit operations.',
+        ),
+      ],
+    ),
+    AgentToolDefinition(
+      toolId: 'applyWorkspacePatch',
+      displayName: 'Apply Workspace Patch',
+      description:
+          'Apply a structured patch after preview and review gates pass.',
+      priority: 80,
+      supportedProtocols: <String>['openai-responses'],
+      supportedModelPatterns: <String>['gpt'],
+      permissionMode: AgentToolPermissionMode.review,
+      capabilities: <String>['workspace.patch.apply'],
+      schema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(
+          name: 'patch',
+          type: 'string',
+          required: true,
+          description: 'Unified or structured patch content.',
+        ),
+      ],
+      todo:
+          'TODO: route patch application through AgentWorkspaceEditPlanAdapter and conflict review.',
+    ),
+    AgentToolDefinition(
+      toolId: 'runIdeCommand',
+      displayName: 'Run IDE Command',
+      description:
+          'Request a registered Vityo IDE command by command id and typed input.',
+      priority: 70,
+      permissionMode: AgentToolPermissionMode.review,
+      capabilities: <String>['ide.command'],
+      schema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(
+          name: 'commandId',
+          type: 'string',
+          required: true,
+          description: 'Registered Vityo command id.',
+        ),
+        AgentToolSchemaProperty(
+          name: 'input',
+          type: 'object',
+          description: 'Command input matching the command contract.',
+        ),
+      ],
+    ),
+    AgentToolDefinition(
+      toolId: 'collectAgentCodingCheckpoint',
+      displayName: 'Collect Agent Coding Checkpoint',
+      description:
+          'Collect current IDE, language, testing, toolchain, and agent loop facts.',
+      priority: 60,
+      permissionMode: AgentToolPermissionMode.never,
+      capabilities: <String>['agent.checkpoint'],
+    ),
+    AgentToolDefinition(
+      toolId: 'openLocalShell',
+      displayName: 'Open Local Shell',
+      description:
+          'Request a local shell-backed execution route when the provider uses a local bridge.',
+      priority: 10,
+      supportedProviderKinds: <AgentProviderKind>[
+        AgentProviderKind.localBridge,
+      ],
+      permissionMode: AgentToolPermissionMode.review,
+      capabilities: <String>['runtime.shell'],
+      schema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(
+          name: 'command',
+          type: 'string',
+          required: true,
+          description: 'Command to run through the local execution route.',
+        ),
+      ],
+      todo:
+          'TODO: bind to Execution Manager and PTY Manager with local bridge safety review.',
+    ),
+  ];
+
+  List<AgentToolDefinition> get tools {
+    final values = _tools.values.toList(growable: false);
+    values.sort(_compareTools);
+    return List<AgentToolDefinition>.unmodifiable(values);
+  }
+
+  void register(AgentToolDefinition tool) {
+    final toolId = tool.toolId.trim();
+    if (toolId.isEmpty) {
+      throw ArgumentError.value(tool.toolId, 'toolId', 'Tool id is required.');
+    }
+    _tools[toolId] = tool;
+  }
+
+  AgentToolSelection select(AgentToolSelectionContext context) {
+    final accepted = <AgentToolDefinition>[];
+    final rejected = <String>[];
+    final todos = <String>{
+      'TODO: bind selected AgentToolDefinition entries to real execution handlers and per-tool permission prompts.',
+    };
+    for (final tool in tools) {
+      if (tool.supports(context)) {
+        accepted.add(tool);
+        if (tool.todo.isNotEmpty) {
+          todos.add(tool.todo);
+        }
+      } else {
+        rejected.add(tool.toolId);
+      }
+    }
+    return AgentToolSelection(
+      context: context,
+      tools: List<AgentToolDefinition>.unmodifiable(accepted),
+      rejectedToolIds: List<String>.unmodifiable(rejected),
+      todoItems: List<String>.unmodifiable(todos),
+    );
+  }
+
+  AgentToolSelection selectForProfile({
+    required AgentPromptProfile profile,
+    required AgentProviderKind providerKind,
+  }) {
+    return select(
+      AgentToolSelectionContext.fromProfile(
+        profile: profile,
+        providerKind: providerKind,
+      ),
+    );
+  }
+
+  Map<String, Object?> manifest() {
+    return <String, Object?>{
+      'toolCount': tools.length,
+      'tools': tools.map((tool) => tool.toJson()).toList(growable: false),
+    };
+  }
+}
+
+int _compareTools(AgentToolDefinition left, AgentToolDefinition right) {
+  final priority = right.priority.compareTo(left.priority);
+  if (priority != 0) {
+    return priority;
+  }
+  return left.toolId.compareTo(right.toolId);
+}

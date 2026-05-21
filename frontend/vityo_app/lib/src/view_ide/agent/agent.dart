@@ -6,6 +6,7 @@ export 'agent_coding_session_controller.dart';
 export 'agent_coding_session_history_store.dart';
 export 'agent_coding_skill.dart';
 export 'agent_coding_skill_registry.dart';
+export 'agent_tool_registry.dart';
 export 'agent_command_metadata.dart';
 export 'extension_agent_provider_contributions.dart';
 export 'agent_profile.dart';

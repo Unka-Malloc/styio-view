@@ -20,6 +20,7 @@ void main() {
     final plan = controller.previewDispatchPlan();
     final json = plan.toJson();
     final providerJson = json['provider']! as Map<String, Object?>;
+    final toolsJson = json['tools']! as Map<String, Object?>;
     final skillsJson = json['skills']! as Map<String, Object?>;
 
     expect(plan.status, AgentCodingDispatchStatus.ready);
@@ -37,6 +38,9 @@ void main() {
     expect(json['promptPreview'], 'Refactor this Styio diagnostic flow.');
     expect(providerJson['profileId'], 'default-web');
     expect(providerJson['kind'], 'local_only_fallback');
+    expect(toolsJson['toolIds'], contains('readWorkspaceFile'));
+    expect(toolsJson['toolIds'], contains('previewWorkspaceEdit'));
+    expect(toolsJson['todoItems'], isA<List<Object?>>());
     expect(
       skillsJson['activeSkillIds'],
       contains('styio-language-service-truth'),

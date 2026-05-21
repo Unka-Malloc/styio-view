@@ -6027,11 +6027,11 @@ class ShellRuntimeModel extends ChangeNotifier {
   Future<bool> _dispatchAgentRecoveryCommand({
     required AgentIdeCommandSuggestion suggestion,
     required AgentCodingSessionRecoveryAction action,
-    String? targetProviderProfileId,
+    String? targetProviderProfileKey,
   }) async {
     final result = await agentCodingController.dispatchRecoveryRequestDraft(
       action,
-      targetProviderProfileId: targetProviderProfileId,
+      targetProviderProfileKey: targetProviderProfileKey,
       confirmed: true,
     );
     _recordAgentIdeCommandResult(
@@ -6051,7 +6051,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     final profileKey = suggestion.input?.trim() ?? '';
     if (profileKey.isEmpty) {
       const message =
-          'Agent provider failover skipped: missing provider profile id.';
+          'Agent provider failover skipped: missing provider profile key.';
       _recordAgentIdeCommandResult(
         suggestion,
         applied: false,

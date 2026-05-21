@@ -2070,7 +2070,7 @@ void main() {
           ({required workspaceId, required key, required profile}) async {},
       loadProfile: ({required workspaceId, required key}) async {
         loadedKeys.add(key);
-        if (key != 'default') {
+        if (key != 'cloud-key') {
           return null;
         }
         return const AgentPromptProfile(
@@ -2128,17 +2128,18 @@ void main() {
 
     await shell.executeCommandWithInput(
       AppCommandId.failoverAgentProvider,
-      'cloud',
+      'cloud-key',
     );
 
     final lastResult = shell.agentSessionContext.commands.lastResult;
-    expect(loadedKeys, <String>['cloud', 'default']);
+    expect(loadedKeys, <String>['cloud-key']);
     expect(agentController.profile.profileId, 'cloud');
+    expect(agentController.mountedProviderProfileKey, 'cloud-key');
     expect(agentController.providerMountMessage, contains('cloud'));
     expect(lastResult?.commandId, 'failoverAgentProvider');
     expect(lastResult?.applied, isTrue);
     expect(lastResult?.metadata['targetProviderProfileId'], 'cloud');
-    expect(lastResult?.metadata['targetProviderProfileKey'], 'cloud');
+    expect(lastResult?.metadata['targetProviderProfileKey'], 'cloud-key');
   });
 
   test('shell controls StyioService document subscription', () async {

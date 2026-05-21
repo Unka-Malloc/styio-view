@@ -460,8 +460,9 @@ class AgentCodingSessionRecoveryCommandPlan {
       requiresProviderSelection:
           action == AgentCodingSessionRecoveryAction.failoverProvider,
       promptSample: checkpoint.latestPromptSample,
-      todo:
-          'TODO: replace failover free-form profile input with a saved-provider profile picker.',
+      todo: action == AgentCodingSessionRecoveryAction.failoverProvider
+          ? 'TODO: when Agent Surface is unavailable, command input must use targetProviderProfileKey from agent.savedProviderProfiles.'
+          : null,
     );
   }
 
@@ -492,19 +493,22 @@ class AgentCodingSessionRecoveryRequestDraft {
   const AgentCodingSessionRecoveryRequestDraft({
     required this.commandPlan,
     required this.prompt,
-    this.targetProviderProfileId,
-  });
+    String? targetProviderProfileKey,
+    String? targetProviderProfileId,
+  }) : targetProviderProfileKey =
+           targetProviderProfileKey ?? targetProviderProfileId;
 
   final AgentCodingSessionRecoveryCommandPlan commandPlan;
   final String prompt;
-  final String? targetProviderProfileId;
+  final String? targetProviderProfileKey;
+  String? get targetProviderProfileId => targetProviderProfileKey;
 
   AgentCodingSessionRecoveryAction get action => commandPlan.action;
   bool get requiresProviderSelection => commandPlan.requiresProviderSelection;
   bool get readyToDispatch =>
       prompt.trim().isNotEmpty &&
       (!requiresProviderSelection ||
-          (targetProviderProfileId?.trim().isNotEmpty ?? false));
+          (targetProviderProfileKey?.trim().isNotEmpty ?? false));
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -513,8 +517,10 @@ class AgentCodingSessionRecoveryRequestDraft {
       'prompt': prompt,
       'requiresProviderSelection': requiresProviderSelection,
       'readyToDispatch': readyToDispatch,
-      if (targetProviderProfileId != null)
-        'targetProviderProfileId': targetProviderProfileId,
+      if (targetProviderProfileKey != null)
+        'targetProviderProfileKey': targetProviderProfileKey,
+      if (targetProviderProfileKey != null)
+        'targetProviderProfileId': targetProviderProfileKey,
       'TODO':
           'Bind this recovery request draft to explicit user confirmation before dispatching provider retry, failover, or replay.',
     };
@@ -565,6 +571,7 @@ class AgentCodingSessionHistory {
 
   AgentCodingSessionRecoveryRequestDraft? toRecoveryRequestDraft(
     AgentCodingSessionRecoveryAction action, {
+    String? targetProviderProfileKey,
     String? targetProviderProfileId,
   }) {
     if (records.isEmpty) {
@@ -578,7 +585,8 @@ class AgentCodingSessionHistory {
     return AgentCodingSessionRecoveryRequestDraft(
       commandPlan: commandPlan,
       prompt: records.first.prompt,
-      targetProviderProfileId: targetProviderProfileId,
+      targetProviderProfileKey:
+          targetProviderProfileKey ?? targetProviderProfileId,
     );
   }
 

@@ -153,19 +153,24 @@ void main() {
     expect(failoverCommand?.requiresProviderSelection, isTrue);
     expect(
       failoverCommand?.toJson()['todo'],
-      contains('saved-provider profile picker'),
+      contains('targetProviderProfileKey'),
     );
     final retryDraft = history.toRecoveryRequestDraft(
       AgentCodingSessionRecoveryAction.retrySameProvider,
     );
     final failoverDraft = history.toRecoveryRequestDraft(
       AgentCodingSessionRecoveryAction.failoverProvider,
-      targetProviderProfileId: 'backup-provider',
+      targetProviderProfileKey: 'backup-provider-key',
     );
     expect(retryDraft?.prompt, 'Apply patch');
     expect(retryDraft?.readyToDispatch, isTrue);
-    expect(failoverDraft?.targetProviderProfileId, 'backup-provider');
+    expect(failoverDraft?.targetProviderProfileKey, 'backup-provider-key');
+    expect(failoverDraft?.targetProviderProfileId, 'backup-provider-key');
     expect(failoverDraft?.readyToDispatch, isTrue);
+    expect(
+      failoverDraft?.toJson()['targetProviderProfileKey'],
+      'backup-provider-key',
+    );
     expect(failoverDraft?.toJson()['TODO'], contains('confirmation'));
   });
 }

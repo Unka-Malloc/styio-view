@@ -79,7 +79,8 @@ class AgentCodingSessionController extends ChangeNotifier {
     AgentProviderExecutionResolution? providerExecutionResolution,
   }) : _runtimeOutputBuffer = runtimeOutputBuffer,
        _providerSelectionPlan = providerSelectionPlan,
-       _providerExecutionResolution = providerExecutionResolution;
+       _providerExecutionResolution = providerExecutionResolution,
+       _mountedProviderProfileKey = profile.profileId;
 
   AgentPromptProfile profile;
   AgentProviderAdapter adapter;
@@ -122,6 +123,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   final List<AgentDiagnosticSummaryContext> _recentDiagnosticSummaryContexts =
       <AgentDiagnosticSummaryContext>[];
   String? _providerMountMessage;
+  String? _mountedProviderProfileKey;
   AgentProviderSelectionPlan? _providerSelectionPlan;
   AgentProviderExecutionResolution? _providerExecutionResolution;
   String? _lastError;
@@ -155,6 +157,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         _recentPatchApplicationContexts,
       );
   String? get providerMountMessage => _providerMountMessage;
+  String? get mountedProviderProfileKey => _mountedProviderProfileKey;
   AgentProviderSelectionPlan? get providerSelectionPlan =>
       _providerSelectionPlan;
   AgentProviderExecutionResolution? get providerExecutionResolution =>
@@ -172,11 +175,13 @@ class AgentCodingSessionController extends ChangeNotifier {
       sessionHistorySnapshot.toRecoveryPlan();
   AgentCodingSessionRecoveryRequestDraft? recoveryRequestDraftFor(
     AgentCodingSessionRecoveryAction action, {
+    String? targetProviderProfileKey,
     String? targetProviderProfileId,
   }) {
     return sessionHistorySnapshot.toRecoveryRequestDraft(
       action,
-      targetProviderProfileId: targetProviderProfileId,
+      targetProviderProfileKey:
+          targetProviderProfileKey ?? targetProviderProfileId,
     );
   }
 
@@ -197,11 +202,13 @@ class AgentCodingSessionController extends ChangeNotifier {
     required AgentPromptProfile profile,
     required AgentProviderAdapter adapter,
     String? message,
+    String? profileKey,
     AgentProviderSelectionPlan? selectionPlan,
     AgentProviderExecutionResolution? executionResolution,
   }) {
     this.profile = profile;
     this.adapter = adapter;
+    _mountedProviderProfileKey = profileKey ?? profile.profileId;
     _providerSelectionPlan = selectionPlan;
     _providerExecutionResolution = executionResolution;
     _activeRequestSerial += 1;
@@ -269,11 +276,13 @@ class AgentCodingSessionController extends ChangeNotifier {
 
   bool restoreRecoveryDraft(
     AgentCodingSessionRecoveryAction action, {
+    String? targetProviderProfileKey,
     String? targetProviderProfileId,
   }) {
     final draft = recoveryRequestDraftFor(
       action,
-      targetProviderProfileId: targetProviderProfileId,
+      targetProviderProfileKey:
+          targetProviderProfileKey ?? targetProviderProfileId,
     );
     if (draft == null || draft.prompt.trim().isEmpty) {
       return false;
@@ -284,12 +293,15 @@ class AgentCodingSessionController extends ChangeNotifier {
 
   Future<AgentCodingSessionRecoveryDispatchResult> dispatchRecoveryRequestDraft(
     AgentCodingSessionRecoveryAction action, {
+    String? targetProviderProfileKey,
     String? targetProviderProfileId,
     bool confirmed = false,
   }) async {
+    final normalizedTargetProviderProfileKey =
+        (targetProviderProfileKey ?? targetProviderProfileId)?.trim();
     final draft = recoveryRequestDraftFor(
       action,
-      targetProviderProfileId: targetProviderProfileId,
+      targetProviderProfileKey: normalizedTargetProviderProfileKey,
     );
     if (draft == null) {
       return const AgentCodingSessionRecoveryDispatchResult(
@@ -314,7 +326,10 @@ class AgentCodingSessionController extends ChangeNotifier {
       );
     }
     if (action == AgentCodingSessionRecoveryAction.failoverProvider &&
-        targetProviderProfileId?.trim() != profile.profileId) {
+        normalizedTargetProviderProfileKey != null &&
+        normalizedTargetProviderProfileKey.isNotEmpty &&
+        normalizedTargetProviderProfileKey != mountedProviderProfileKey &&
+        normalizedTargetProviderProfileKey != profile.profileId) {
       return AgentCodingSessionRecoveryDispatchResult(
         status: AgentCodingSessionRecoveryDispatchStatus.blocked,
         message:

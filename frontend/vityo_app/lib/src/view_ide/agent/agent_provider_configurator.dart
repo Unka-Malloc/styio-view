@@ -217,6 +217,7 @@ class AgentProviderConfigurator {
         profile: profileToSave,
         adapter: adapter,
         message: message,
+        profileKey: key,
         selectionPlan: selectionPlan,
         executionResolution: executionResolution,
       );
@@ -241,6 +242,7 @@ class AgentProviderConfigurator {
         profile: profileToSave,
         adapter: adapter,
         message: message,
+        profileKey: key,
         selectionPlan: selectionPlan,
         executionResolution: executionResolution,
       );
@@ -294,13 +296,14 @@ class AgentProviderConfigurator {
         adapterKind: adapter.kind,
         adapterId: adapter.adapterId,
         message:
-            'Agent provider failover skipped: no saved provider profile matched the requested id.',
+            'Agent provider failover skipped: no saved provider profile matched the requested key.',
         retryEnabled: false,
       );
     }
     return mountProfile(
       profile: profile,
       controller: controller,
+      profileKey: key,
       successMessage: 'Agent provider failover mounted ${profile.profileId}.',
       failurePrefix: 'Agent provider failover mount failed',
       retryTelemetrySink: retryTelemetrySink,
@@ -310,6 +313,7 @@ class AgentProviderConfigurator {
   Future<AgentProviderConfigurationResult> mountProfile({
     required AgentPromptProfile profile,
     required AgentCodingSessionController controller,
+    String? profileKey,
     String? successMessage,
     String failurePrefix = 'Agent provider profile mount failed',
     AgentProviderResponseRetryTelemetrySink? retryTelemetrySink,
@@ -327,6 +331,7 @@ class AgentProviderConfigurator {
         profile: profile,
         adapter: adapter,
         message: message,
+        profileKey: profileKey,
         selectionPlan: selectionPlan,
         executionResolution: executionResolution,
       );
@@ -348,6 +353,7 @@ class AgentProviderConfigurator {
         profile: profile,
         adapter: adapter,
         message: message,
+        profileKey: profileKey,
         selectionPlan: selectionPlan,
         executionResolution: executionResolution,
       );

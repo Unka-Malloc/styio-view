@@ -4,6 +4,7 @@ import '../commands/app_commands.dart';
 import 'agent_command_metadata.dart';
 import 'agent_profile.dart';
 import 'agent_session_context.dart';
+import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
 
 const int _maxAgentAttachmentContentLength = 20000;
@@ -221,6 +222,7 @@ class AgentProviderResponseEnvelope {
     required this.contentParts,
     required this.finishReason,
     this.providerMessageId,
+    this.toolCallEvents = const <AgentToolCallEvent>[],
     this.usage,
   });
 
@@ -229,6 +231,7 @@ class AgentProviderResponseEnvelope {
   final String role;
   final List<AgentContentPart> contentParts;
   final String finishReason;
+  final List<AgentToolCallEvent> toolCallEvents;
   final Map<String, Object?>? usage;
 
   Map<String, Object?> toJson() {
@@ -240,6 +243,10 @@ class AgentProviderResponseEnvelope {
           .map((part) => part.toJson())
           .toList(growable: false),
       'finishReason': finishReason,
+      if (toolCallEvents.isNotEmpty)
+        'toolCallEvents': toolCallEvents
+            .map((event) => event.toJson())
+            .toList(growable: false),
       if (usage != null) 'usage': usage,
     };
   }
@@ -2312,6 +2319,7 @@ AgentProviderResponseEnvelope _responseEnvelopeFromOpenAICompatibleResponse({
   final usage = response['usage'];
 
   final contentParts = _contentPartsFromAssistantMessage(messageMap);
+  final toolCallEvents = _toolCallEventsFromAssistantMessage(messageMap);
   return AgentProviderResponseEnvelope(
     requestId: requestId,
     providerMessageId: response['id'] as String?,
@@ -2322,6 +2330,7 @@ AgentProviderResponseEnvelope _responseEnvelopeFromOpenAICompatibleResponse({
             AgentContentPart(kind: AgentContentPartKind.text, text: ''),
           ]
         : contentParts,
+    toolCallEvents: toolCallEvents,
     usage: usage is Map
         ? usage.map(
             (key, value) => MapEntry<String, Object?>(key.toString(), value),
@@ -2335,11 +2344,14 @@ AgentProviderResponseEnvelope _responseEnvelopeFromOpenAIOutputResponse({
   required Map<String, Object?> response,
 }) {
   final parts = <AgentContentPart>[];
+  final toolCallEvents = <AgentToolCallEvent>[];
   var role = 'assistant';
   final output = response['output'];
   if (output is List) {
+    var outputIndex = 0;
     for (final item in output) {
       if (item is! Map) {
+        outputIndex += 1;
         continue;
       }
       final itemMap = item.map(
@@ -2347,12 +2359,16 @@ AgentProviderResponseEnvelope _responseEnvelopeFromOpenAIOutputResponse({
       );
       role = itemMap['role'] as String? ?? role;
       parts.addAll(_contentPartsFromAssistantMessage(itemMap));
+      toolCallEvents.addAll(
+        _toolCallEventsFromOpenAIOutputItem(itemMap, outputIndex),
+      );
       for (final arguments in _openAIOutputArgumentCandidates(itemMap)) {
         final structuredParts = _structuredContentPartsFromString(arguments);
         if (structuredParts != null) {
           parts.addAll(structuredParts);
         }
       }
+      outputIndex += 1;
     }
   }
   if (parts.isEmpty) {
@@ -2373,6 +2389,7 @@ AgentProviderResponseEnvelope _responseEnvelopeFromOpenAIOutputResponse({
             AgentContentPart(kind: AgentContentPartKind.text, text: ''),
           ]
         : parts,
+    toolCallEvents: List<AgentToolCallEvent>.unmodifiable(toolCallEvents),
     usage: usage is Map
         ? usage.map(
             (key, value) => MapEntry<String, Object?>(key.toString(), value),
@@ -2404,6 +2421,97 @@ List<AgentContentPart> _contentPartsFromAssistantMessage(
     return const <AgentContentPart>[];
   }
   return _contentPartsFromAssistantContent(content);
+}
+
+const Set<String> _executableAgentToolIds = <String>{
+  'readWorkspaceFile',
+  'runIdeCommand',
+  'collectAgentCodingCheckpoint',
+};
+
+List<AgentToolCallEvent> _toolCallEventsFromAssistantMessage(
+  Map<String, Object?> messageMap,
+) {
+  final toolCalls = messageMap['tool_calls'];
+  if (toolCalls is! List || toolCalls.isEmpty) {
+    return const <AgentToolCallEvent>[];
+  }
+  final events = <AgentToolCallEvent>[];
+  var index = 0;
+  for (final toolCall in toolCalls) {
+    if (toolCall is! Map) {
+      index += 1;
+      continue;
+    }
+    final function = toolCall['function'];
+    if (function is! Map) {
+      index += 1;
+      continue;
+    }
+    final toolId = _stringFromObject(function['name']);
+    if (!_executableAgentToolIds.contains(toolId)) {
+      index += 1;
+      continue;
+    }
+    events.add(
+      AgentToolCallEvent.callStarted(
+        callId: _providerToolCallId(toolCall['id'], toolId, index),
+        toolId: toolId!,
+        input: _stringFromObject(function['arguments']) ?? '',
+        metadata: <String, Object?>{
+          'source': 'openai-compatible-tool-call',
+          'providerToolCallIndex': index,
+        },
+      ),
+    );
+    index += 1;
+  }
+  return List<AgentToolCallEvent>.unmodifiable(events);
+}
+
+List<AgentToolCallEvent> _toolCallEventsFromOpenAIOutputItem(
+  Map<String, Object?> outputItem,
+  int index,
+) {
+  final function = outputItem['function'];
+  final functionMap = function is Map ? function : const <Object?, Object?>{};
+  final toolId =
+      _stringFromObject(outputItem['name']) ??
+      _stringFromObject(functionMap['name']);
+  if (!_executableAgentToolIds.contains(toolId)) {
+    return const <AgentToolCallEvent>[];
+  }
+  final argumentCandidates = _openAIOutputArgumentCandidates(outputItem);
+  return <AgentToolCallEvent>[
+    AgentToolCallEvent.callStarted(
+      callId: _providerToolCallId(
+        outputItem['call_id'] ?? outputItem['id'],
+        toolId,
+        index,
+      ),
+      toolId: toolId!,
+      input: argumentCandidates.isEmpty ? '' : argumentCandidates.first,
+      metadata: <String, Object?>{
+        'source': 'openai-responses-function-call',
+        'providerOutputIndex': index,
+      },
+    ),
+  ];
+}
+
+String _providerToolCallId(Object? value, String? toolId, int index) {
+  final id = _stringFromObject(value);
+  if (id != null && id.isNotEmpty) {
+    return id;
+  }
+  return '${toolId ?? 'tool'}-$index';
+}
+
+String? _stringFromObject(Object? value) {
+  if (value is String && value.trim().isNotEmpty) {
+    return value.trim();
+  }
+  return null;
 }
 
 List<String> _assistantToolCallArgumentCandidates(

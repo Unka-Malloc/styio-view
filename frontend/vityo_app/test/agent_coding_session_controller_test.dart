@@ -227,6 +227,44 @@ void main() {
     },
   );
 
+  test('agent coding session records provider executable tool calls', () async {
+    final adapter = _FakeAgentProviderAdapter(
+      response: const AgentProviderResponseEnvelope(
+        requestId: 'agent-request-provider-tool-call',
+        role: 'assistant',
+        finishReason: 'tool_calls',
+        contentParts: <AgentContentPart>[
+          AgentContentPart(kind: AgentContentPartKind.text, text: ''),
+        ],
+        toolCallEvents: <AgentToolCallEvent>[
+          AgentToolCallEvent.callStarted(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            input: '{"path":"main.styio"}',
+          ),
+        ],
+      ),
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: adapter,
+      contextProvider: _context,
+    );
+
+    controller.updatePrompt('Read current file.');
+    await controller.sendPrompt();
+
+    expect(controller.toolCallTimeline.callIds, <String>['call-read']);
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.running,
+    );
+    expect(
+      controller.toolCallExecutionPlan.status,
+      AgentToolCallExecutionPlanStatus.ready,
+    );
+  });
+
   test(
     'agent coding session blocks provider dispatch when route is blocked',
     () async {

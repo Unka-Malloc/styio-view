@@ -663,6 +663,9 @@ class AgentCodingSessionController extends ChangeNotifier {
       if (requestSerial != _activeRequestSerial) {
         return null;
       }
+      if (response.toolCallEvents.isNotEmpty) {
+        recordToolCallEvents(response.toolCallEvents);
+      }
       _lastResponse = response;
       _completedIdeCommandSuggestionKeys.clear();
       _pendingPatch = _firstPatch(response);

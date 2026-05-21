@@ -7,6 +7,7 @@ import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_credential_resolver.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_result_context.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -274,6 +275,38 @@ void main() {
     expect(result['output'], '{"text":"value = 1"}');
     expect(metadata['toolCallResultCount'], 1);
     expect(metadata['toolCallResultIds'], <String>['call-read']);
+  });
+
+  test('OpenAI-compatible adapter preserves executable tool calls', () async {
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    final adapter = OpenAICompatibleAgentProviderAdapter(
+      transport: _ExecutableToolCallTransport(),
+      endpoint: profile.endpoint,
+    );
+
+    final response = await adapter.send(
+      AgentProviderRequest(
+        requestId: 'agent-request-executable-tool-call',
+        profile: profile,
+        context: AgentSessionContext.fromEditorState(
+          document: const DocumentState(
+            documentId: '/workspace/demo/src/main.styio',
+            text: 'value = 1\n',
+            revision: 1,
+          ),
+          selection: const SelectionState.collapsed(0),
+          diagnostics: const [],
+        ),
+        userPrompt: 'Read main.styio.',
+      ),
+    );
+
+    final event = response.toolCallEvents.single;
+    expect(event.kind, AgentToolCallEventKind.callStarted);
+    expect(event.callId, 'call-read');
+    expect(event.toolId, 'readWorkspaceFile');
+    expect(event.input, '{"path":"main.styio"}');
+    expect(event.metadata['source'], 'openai-compatible-tool-call');
   });
 
   test('agent code patch edit parses delete operation from JSON', () {
@@ -2689,6 +2722,38 @@ Here is the patch:
   ]
 }
 ''',
+          },
+        },
+      ],
+    };
+  }
+}
+
+class _ExecutableToolCallTransport implements AgentProviderTransport {
+  @override
+  Future<Map<String, Object?>> postJson({
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  }) async {
+    return <String, Object?>{
+      'id': 'chatcmpl-executable-tool-call',
+      'choices': <Object?>[
+        <String, Object?>{
+          'finish_reason': 'tool_calls',
+          'message': <String, Object?>{
+            'role': 'assistant',
+            'content': null,
+            'tool_calls': <Object?>[
+              <String, Object?>{
+                'id': 'call-read',
+                'type': 'function',
+                'function': <String, Object?>{
+                  'name': 'readWorkspaceFile',
+                  'arguments': '{"path":"main.styio"}',
+                },
+              },
+            ],
           },
         },
       ],

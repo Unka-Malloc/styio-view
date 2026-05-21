@@ -11,6 +11,7 @@ import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_dispatcher.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
+import 'package:vityo_app/src/agent/agent_tool_registry.dart';
 import 'package:vityo_app/src/agent/agent_tool_permission_policy_store.dart';
 import 'package:vityo_app/src/agent/agent_workspace_snapshot.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
@@ -503,6 +504,55 @@ void main() {
       );
       expect(request.toJson()['toolCallResults'], isA<List<Object?>>());
       expect(controller.recentToolCallResultContexts, isEmpty);
+    },
+  );
+
+  test(
+    'agent coding session applies provider-specific tool output budgets',
+    () async {
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
+        toolRegistry: AgentToolRegistry(
+          tools: const <AgentToolDefinition>[
+            AgentToolDefinition(
+              toolId: 'readWorkspaceFile',
+              displayName: 'Read Workspace File',
+              description: 'Read a workspace file.',
+              permissionMode: AgentToolPermissionMode.never,
+              providerOutputLimits: <AgentProviderKind, int>{
+                AgentProviderKind.localOnlyFallback: 10,
+              },
+            ),
+          ],
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-budgeted-read',
+          toolId: 'readWorkspaceFile',
+          input: '{"path":"main.styio"}',
+        ),
+      );
+      await controller.dispatchReadyToolCalls(
+        (request) => AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: '0123456789abcdef',
+        ),
+      );
+
+      final result = controller.recentToolCallResultContexts.single;
+      expect(result.outputTruncated, isTrue);
+      expect(result.outputLimit, 10);
+      expect(result.outputOmittedLength, 6);
+      expect(
+        result.output,
+        contains('[tool output truncated: 6 char(s) omitted]'),
+      );
     },
   );
 

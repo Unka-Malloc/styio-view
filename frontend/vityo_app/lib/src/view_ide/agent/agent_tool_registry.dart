@@ -47,6 +47,8 @@ class AgentToolDefinition {
     this.capabilities = const <String>[],
     this.schema = const <AgentToolSchemaProperty>[],
     this.permissionMode = AgentToolPermissionMode.review,
+    this.outputLimit,
+    this.providerOutputLimits = const <AgentProviderKind, int>{},
     this.todo = '',
   });
 
@@ -61,6 +63,8 @@ class AgentToolDefinition {
   final List<String> capabilities;
   final List<AgentToolSchemaProperty> schema;
   final AgentToolPermissionMode permissionMode;
+  final int? outputLimit;
+  final Map<AgentProviderKind, int> providerOutputLimits;
   final String todo;
 
   bool supports(AgentToolSelectionContext context) {
@@ -91,6 +95,11 @@ class AgentToolDefinition {
         patterns.any((pattern) => context.model.contains(pattern));
   }
 
+  int? outputLimitFor(AgentToolSelectionContext context) {
+    return _positiveLimit(providerOutputLimits[context.providerKind]) ??
+        _positiveLimit(outputLimit);
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'toolId': toolId,
@@ -106,6 +115,11 @@ class AgentToolDefinition {
       'supportedModelPatterns': supportedModelPatterns,
       'capabilities': capabilities,
       'schema': schema.map((property) => property.toJson()).toList(),
+      if (outputLimit != null) 'outputLimit': outputLimit,
+      if (providerOutputLimits.isNotEmpty)
+        'providerOutputLimits': providerOutputLimits.map(
+          (kind, limit) => MapEntry(kind.wireValue, limit),
+        ),
       if (todo.isNotEmpty) 'todo': todo,
     };
   }
@@ -398,12 +412,27 @@ class AgentToolRegistry {
     );
   }
 
+  int? outputLimitForTool({
+    required String toolId,
+    required AgentToolSelectionContext context,
+  }) {
+    final tool = _tools[toolId.trim()];
+    if (tool == null || !tool.supports(context)) {
+      return null;
+    }
+    return tool.outputLimitFor(context);
+  }
+
   Map<String, Object?> manifest() {
     return <String, Object?>{
       'toolCount': tools.length,
       'tools': tools.map((tool) => tool.toJson()).toList(growable: false),
     };
   }
+}
+
+int? _positiveLimit(int? value) {
+  return value == null || value <= 0 ? null : value;
 }
 
 int _compareTools(AgentToolDefinition left, AgentToolDefinition right) {

@@ -132,7 +132,7 @@ class AgentCodingLoopPlan {
         label: 'Resolve agent tool contracts',
         commandIds: const <String>['collectAgentCodingCheckpoint'],
         todoItems: const <String>[
-          'TODO: add plugin-discovered tools and provider-specific output budget tuning to AgentToolRegistry.',
+          'TODO: bind extension-discovered agent tools into workspace activation and extension-host execution flow.',
         ],
       ),
       AgentCodingLoopStep(

@@ -2159,13 +2159,27 @@ class AgentCodingSessionController extends ChangeNotifier {
     Iterable<AgentToolCallDispatchResult> results,
   ) {
     final createdAt = DateTime.now().toUtc();
+    final selectionContext = AgentToolSelectionContext.fromProfile(
+      profile: profile,
+      providerKind: adapter.kind,
+    );
     _recentToolCallResultContexts.addAll(
-      results.map(
-        (result) => AgentToolCallResultContext.fromDispatchResult(
-          result,
-          createdAt: createdAt,
-        ),
-      ),
+      results.map((result) {
+        final outputLimit = _toolRegistry.outputLimitForTool(
+          toolId: result.toolId,
+          context: selectionContext,
+        );
+        return outputLimit == null
+            ? AgentToolCallResultContext.fromDispatchResult(
+                result,
+                createdAt: createdAt,
+              )
+            : AgentToolCallResultContext.fromDispatchResult(
+                result,
+                createdAt: createdAt,
+                outputLimit: outputLimit,
+              );
+      }),
     );
     if (_recentToolCallResultContexts.length >
         _maxAgentToolCallResultContextHistory) {

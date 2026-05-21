@@ -54,4 +54,42 @@ void main() {
     expect(readTool.containsKey('execute'), isFalse);
     expect(readTool['permissionMode'], 'never');
   });
+
+  test('agent tool registry resolves provider-specific output budgets', () {
+    final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+      PlatformTarget.linux,
+    );
+    final context = AgentToolSelectionContext.fromProfile(
+      profile: profile,
+      providerKind: AgentProviderKind.cloudOpenAICompatible,
+    );
+    final registry = AgentToolRegistry(
+      tools: const <AgentToolDefinition>[
+        AgentToolDefinition(
+          toolId: 'collectExtensionContext',
+          displayName: 'Collect Extension Context',
+          description: 'Collect context from an extension.',
+          outputLimit: 12000,
+          providerOutputLimits: <AgentProviderKind, int>{
+            AgentProviderKind.cloudOpenAICompatible: 4096,
+          },
+        ),
+      ],
+    );
+    final manifestTool = (registry.manifest()['tools']! as List<Object?>)
+        .whereType<Map<String, Object?>>()
+        .single;
+
+    expect(
+      registry.outputLimitForTool(
+        toolId: 'collectExtensionContext',
+        context: context,
+      ),
+      4096,
+    );
+    expect(manifestTool['outputLimit'], 12000);
+    expect(manifestTool['providerOutputLimits'], <String, Object?>{
+      'cloud_openai_compatible': 4096,
+    });
+  });
 }

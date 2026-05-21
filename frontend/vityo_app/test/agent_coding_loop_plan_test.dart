@@ -71,7 +71,10 @@ void main() {
     expect(dispatch.status, AgentCodingLoopStepStatus.ready);
     expect(review.status, AgentCodingLoopStepStatus.waiting);
     expect(validation.status, AgentCodingLoopStepStatus.waiting);
-    expect(plan.todoItems.join('\n'), contains('plugin-discovered tools'));
+    expect(
+      plan.todoItems.join('\n'),
+      contains('extension-discovered agent tools'),
+    );
     expect(plan.todoItems.join('\n'), contains('workspace snapshot/revert'));
     expect(plan.todoItems.join('\n'), isNot(contains('result truncation')));
   });

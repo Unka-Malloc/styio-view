@@ -92,10 +92,12 @@ void main() {
                 'toolId': 'collectExtensionContext',
                 'description': 'Collect context from an extension.',
                 'permissionMode': 'never',
-                'supportedProviderKinds': <String>[
-                  'cloud_openai_compatible',
-                ],
+                'supportedProviderKinds': <String>['cloud_openai_compatible'],
                 'supportedProtocols': <String>['openai-responses'],
+                'outputLimit': 4096,
+                'providerOutputLimits': <String, Object?>{
+                  'cloud_openai_compatible': 2048,
+                },
                 'capabilities': <String>['extension.context'],
                 'schema': <Object?>[
                   <String, Object?>{
@@ -114,18 +116,20 @@ void main() {
 
     final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(routes);
     final tool = catalog.readyTools.single;
-    final selection = catalog
-        .toRegistry()
-        .selectForProfile(
-          profile: AgentPromptProfile.openAICodexSparkForPlatform(
-            PlatformTarget.linux,
-          ),
-          providerKind: AgentProviderKind.cloudOpenAICompatible,
-        );
+    final selection = catalog.toRegistry().selectForProfile(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      providerKind: AgentProviderKind.cloudOpenAICompatible,
+    );
 
     expect(tool.toolId, 'collectExtensionContext');
     expect(tool.builtin, isFalse);
     expect(tool.permissionMode, AgentToolPermissionMode.never);
+    expect(tool.outputLimit, 4096);
+    expect(tool.providerOutputLimits, <AgentProviderKind, int>{
+      AgentProviderKind.cloudOpenAICompatible: 2048,
+    });
     expect(tool.schema.single.name, 'extensionId');
     expect(selection.toolIds, contains('collectExtensionContext'));
     expect(catalog.toJson()['readyToolCount'], 1);
@@ -198,39 +202,42 @@ void main() {
     expect(registry.toJson()['missingHandlerToolIds'], isEmpty);
   });
 
-  test('extension agent tool execution registry reports missing handlers', () async {
-    final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
-      ExtensionContributionRouteManifest(
-        routes: <ExtensionContributionRoute>[
-          const ExtensionContributionRouter().routeContribution(
-            extensionId: 'agent.tools',
-            contribution: const ExtensionContributionPoint(
-              kind: ExtensionContributionKind.agent,
-              id: 'collect-extension-context',
-              target: 'agent.tools',
-              metadata: <String, Object?>{
-                'toolId': 'collectExtensionContext',
-              },
+  test(
+    'extension agent tool execution registry reports missing handlers',
+    () async {
+      final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
+        ExtensionContributionRouteManifest(
+          routes: <ExtensionContributionRoute>[
+            const ExtensionContributionRouter().routeContribution(
+              extensionId: 'agent.tools',
+              contribution: const ExtensionContributionPoint(
+                kind: ExtensionContributionKind.agent,
+                id: 'collect-extension-context',
+                target: 'agent.tools',
+                metadata: <String, Object?>{
+                  'toolId': 'collectExtensionContext',
+                },
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-    final registry = ExtensionAgentToolExecutionRegistry(catalog: catalog);
+          ],
+        ),
+      );
+      final registry = ExtensionAgentToolExecutionRegistry(catalog: catalog);
 
-    final result = await registry.dispatch(
-      const AgentToolCallDispatchRequest(
-        callId: 'call-extension',
-        toolId: 'collectExtensionContext',
-        inputText: '{"extensionId":"demo"}',
-      ),
-    );
+      final result = await registry.dispatch(
+        const AgentToolCallDispatchRequest(
+          callId: 'call-extension',
+          toolId: 'collectExtensionContext',
+          inputText: '{"extensionId":"demo"}',
+        ),
+      );
 
-    expect(result.success, isFalse);
-    expect(result.message, contains('no registered execution handler'));
-    expect(result.metadata['missingHandler'], isTrue);
-    expect(registry.toJson()['missingHandlerToolIds'], <String>[
-      'collectExtensionContext',
-    ]);
-  });
+      expect(result.success, isFalse);
+      expect(result.message, contains('no registered execution handler'));
+      expect(result.metadata['missingHandler'], isTrue);
+      expect(registry.toJson()['missingHandlerToolIds'], <String>[
+        'collectExtensionContext',
+      ]);
+    },
+  );
 }

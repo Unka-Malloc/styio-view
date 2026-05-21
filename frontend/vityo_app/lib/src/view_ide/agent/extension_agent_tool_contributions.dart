@@ -3,10 +3,7 @@ import 'agent_provider_kind.dart';
 import 'agent_tool_call_dispatcher.dart';
 import 'agent_tool_registry.dart';
 
-enum ExtensionAgentToolContributionStatus {
-  ready,
-  invalidRoute,
-}
+enum ExtensionAgentToolContributionStatus { ready, invalidRoute }
 
 class ExtensionAgentToolContribution {
   const ExtensionAgentToolContribution({
@@ -30,7 +27,8 @@ class ExtensionAgentToolContribution {
         contributionId: route.contribution.id,
         target: route.registryTargetId,
         status: ExtensionAgentToolContributionStatus.invalidRoute,
-        message: 'Route ${route.contribution.id} is not a ready agent tool route.',
+        message:
+            'Route ${route.contribution.id} is not a ready agent tool route.',
       );
     }
     final toolId =
@@ -48,12 +46,14 @@ class ExtensionAgentToolContribution {
           'Extension agent tool $toolId.',
       priority: route.contribution.metadata['priority'] as int? ?? 0,
       builtin: false,
-      supportedProviderKinds: _metadataStringList(
-        route.contribution.metadata,
-        'supportedProviderKinds',
-      ).map(_agentProviderKindFromWire).whereType<AgentProviderKind>().toList(
-        growable: false,
-      ),
+      supportedProviderKinds:
+          _metadataStringList(
+                route.contribution.metadata,
+                'supportedProviderKinds',
+              )
+              .map(_agentProviderKindFromWire)
+              .whereType<AgentProviderKind>()
+              .toList(growable: false),
       supportedProtocols: _metadataStringList(
         route.contribution.metadata,
         'supportedProtocols',
@@ -72,6 +72,10 @@ class ExtensionAgentToolContribution {
             _metadataString(route.contribution.metadata, 'permissionMode'),
           ) ??
           AgentToolPermissionMode.review,
+      outputLimit: _metadataInt(route.contribution.metadata, 'outputLimit'),
+      providerOutputLimits: _metadataProviderOutputLimits(
+        route.contribution.metadata,
+      ),
       todo:
           _metadataString(route.contribution.metadata, 'todo') ??
           'TODO: bind extension agent tool $toolId to an extension-host executor.',
@@ -261,6 +265,29 @@ List<AgentToolSchemaProperty> _metadataToolSchema(
       .toList(growable: false);
 }
 
+Map<AgentProviderKind, int> _metadataProviderOutputLimits(
+  Map<String, Object?> metadata,
+) {
+  final value = metadata['providerOutputLimits'];
+  if (value is! Map) {
+    return const <AgentProviderKind, int>{};
+  }
+  final result = <AgentProviderKind, int>{};
+  for (final entry in value.entries) {
+    final key = entry.key;
+    final limit = entry.value;
+    if (key is! String || limit is! int || limit <= 0) {
+      continue;
+    }
+    final providerKind = _agentProviderKindFromWire(key);
+    if (providerKind == null) {
+      continue;
+    }
+    result[providerKind] = limit;
+  }
+  return Map<AgentProviderKind, int>.unmodifiable(result);
+}
+
 AgentToolPermissionMode? _permissionModeFromWire(String? value) {
   return switch (value) {
     'never' => AgentToolPermissionMode.never,
@@ -277,6 +304,11 @@ AgentProviderKind? _agentProviderKindFromWire(String value) {
     'local_only_fallback' => AgentProviderKind.localOnlyFallback,
     _ => null,
   };
+}
+
+int? _metadataInt(Map<String, Object?> metadata, String key) {
+  final value = metadata[key];
+  return value is int && value > 0 ? value : null;
 }
 
 String? _metadataString(Map<String, Object?> metadata, String key) {

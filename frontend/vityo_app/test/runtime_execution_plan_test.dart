@@ -177,6 +177,57 @@ void main() {
     expect(result.toJson()['outputSubscription'], isA<Map<String, Object?>>());
   });
 
+  test('runtime execution dispatch exposes process handle identity', () {
+    const definition = RuntimeTaskDefinition(
+      id: 'styio-run',
+      label: 'Run Styio',
+      kind: RuntimeTaskKind.run,
+      command: 'styio',
+      arguments: <String>['run'],
+    );
+    final binding = const RuntimeExecutionPlanner()
+        .plan(definition: definition)
+        .createHandoff(
+          target: RuntimeExecutionHandoffTarget.shellManager,
+          outputChannelId: 'run.styio',
+        )
+        .bind();
+    final registry = RuntimeExecutionManagerRegistry(
+      managers: const <RuntimeExecutionManagerRegistration>[
+        RuntimeExecutionManagerRegistration(
+          managerId: 'shell-manager',
+          label: 'Shell Manager',
+          routeKinds: <String>[],
+          metadata: <String, Object?>{
+            'managerKind': 'shell',
+            'processHandleSource': 'shell-manager',
+          },
+        ),
+      ],
+    );
+
+    final result = registry.dispatch(
+      binding,
+      timestamp: DateTime.utc(2026, 5, 21),
+      metadata: const <String, Object?>{
+        'processHandleId': 'shell-proc-1',
+        'pid': 4815,
+        'runtimeSessionId': 'runtime-session-1',
+      },
+    );
+
+    expect(result.hasProcessHandle, isTrue);
+    expect(result.processHandle?.managerId, 'shell-manager');
+    expect(result.processHandle?.processHandleId, 'shell-proc-1');
+    expect(result.processHandle?.pid, 4815);
+    expect(result.processHandle?.source, 'shell-manager');
+    expect(
+      result.processHandle?.metadata['runtimeSessionId'],
+      'runtime-session-1',
+    );
+    expect(result.toJson()['processHandle'], isA<Map<String, Object?>>());
+  });
+
   test('default runtime managers dispatch into live output buffer', () {
     const definition = RuntimeTaskDefinition(
       id: 'styio-build',

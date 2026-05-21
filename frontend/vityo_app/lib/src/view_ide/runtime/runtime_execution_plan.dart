@@ -61,6 +61,66 @@ extension RuntimeExecutionDispatchStatusX on RuntimeExecutionDispatchStatus {
   };
 }
 
+class RuntimeProcessHandleIdentity {
+  const RuntimeProcessHandleIdentity({
+    required this.managerId,
+    this.processHandleId = '',
+    this.pid,
+    this.source = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  static RuntimeProcessHandleIdentity? tryFromMetadata(
+    Map<String, Object?> metadata, {
+    required String managerId,
+  }) {
+    final processHandleId = _stringMetadata(metadata, const <String>[
+      'processHandleId',
+      'process_handle_id',
+      'handleId',
+    ]);
+    final pid = _intMetadata(metadata, const <String>['pid', 'processId']);
+    if (processHandleId.isEmpty && pid == null) {
+      return null;
+    }
+    return RuntimeProcessHandleIdentity(
+      managerId: managerId,
+      processHandleId: processHandleId,
+      pid: pid,
+      source: _stringMetadata(metadata, const <String>[
+        'processHandleSource',
+        'processSource',
+        'source',
+      ]),
+      metadata: <String, Object?>{
+        if (metadata.containsKey('processGroupId'))
+          'processGroupId': metadata['processGroupId'],
+        if (metadata.containsKey('runtimeSessionId'))
+          'runtimeSessionId': metadata['runtimeSessionId'],
+      },
+    );
+  }
+
+  final String managerId;
+  final String processHandleId;
+  final int? pid;
+  final String source;
+  final Map<String, Object?> metadata;
+
+  bool get available => processHandleId.isNotEmpty || pid != null;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'managerId': managerId,
+      if (processHandleId.isNotEmpty) 'processHandleId': processHandleId,
+      if (pid != null) 'pid': pid,
+      if (source.isNotEmpty) 'source': source,
+      'available': available,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
 class RuntimeExecutionPlan {
   const RuntimeExecutionPlan({
     required this.definition,
@@ -496,7 +556,17 @@ class RuntimeExecutionDispatchResult {
 
   bool get dispatched => status == RuntimeExecutionDispatchStatus.dispatched;
 
+  RuntimeProcessHandleIdentity? get processHandle {
+    return RuntimeProcessHandleIdentity.tryFromMetadata(
+      metadata,
+      managerId: binding.managerId,
+    );
+  }
+
+  bool get hasProcessHandle => processHandle != null;
+
   Map<String, Object?> toJson() {
+    final handle = processHandle;
     return <String, Object?>{
       'status': status.wireValue,
       'dispatched': dispatched,
@@ -507,6 +577,7 @@ class RuntimeExecutionDispatchResult {
       if (manager != null) 'manager': manager!.toJson(),
       'outputSubscription': outputSubscription.toJson(),
       'outputEvent': outputEvent.toJson(),
+      if (handle != null) 'processHandle': handle.toJson(),
       if (metadata.isNotEmpty) 'metadata': metadata,
     };
   }
@@ -700,6 +771,38 @@ RuntimeExecutionPlanStatus _planStatusFromWire(Object? value) {
       RuntimeExecutionPlanStatus.blockedMissingDependency,
     _ => RuntimeExecutionPlanStatus.blockedUnrunnable,
   };
+}
+
+String _stringMetadata(Map<String, Object?> metadata, List<String> keys) {
+  for (final key in keys) {
+    final value = metadata[key];
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+    if (value != null && value is! Iterable && value is! Map) {
+      final text = value.toString().trim();
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+  }
+  return '';
+}
+
+int? _intMetadata(Map<String, Object?> metadata, List<String> keys) {
+  for (final key in keys) {
+    final value = metadata[key];
+    if (value is int) {
+      return value;
+    }
+    if (value is String) {
+      final parsed = int.tryParse(value.trim());
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+  }
+  return null;
 }
 
 RuntimeExecutionHandoffStatus _handoffStatusFromWire(Object? value) {

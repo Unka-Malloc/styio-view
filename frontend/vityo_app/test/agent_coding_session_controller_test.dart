@@ -11,6 +11,7 @@ import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
+import 'package:vityo_app/src/agent/agent_workspace_snapshot.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -1407,6 +1408,77 @@ void main() {
   });
 
   test(
+    'agent coding session applies pending code patch with snapshot revert plan',
+    () async {
+      final editorController = EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: 'main.styio',
+          text: 'value = 1\n',
+          revision: 1,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+      );
+      const patch = AgentCodePatch(
+        patchId: 'patch-snapshot-active',
+        summary: 'Update value.',
+        edits: <AgentCodePatchEdit>[
+          AgentCodePatchEdit(
+            documentId: 'main.styio',
+            start: 8,
+            end: 9,
+            replacementText: '2',
+          ),
+        ],
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: _FakeAgentProviderAdapter(
+          response: const AgentProviderResponseEnvelope(
+            requestId: 'agent-request-snapshot',
+            role: 'assistant',
+            finishReason: 'stop',
+            contentParts: <AgentContentPart>[
+              AgentContentPart(
+                kind: AgentContentPartKind.codePatch,
+                text: 'Patch ready.',
+                patch: patch,
+              ),
+            ],
+          ),
+        ),
+        contextProvider: _context,
+      );
+
+      controller.updatePrompt('Change value with snapshot.');
+      await controller.sendPrompt();
+      final result = await controller.applyPendingPatchWithSnapshot(
+        applier: AgentCodePatchApplier(editorController: editorController),
+        snapshotService: AgentWorkspaceSnapshotService(
+          editorController: editorController,
+        ),
+      );
+      final revertEdit = controller.lastWorkspaceRevertPlan!.patch.edits.single;
+
+      expect(result?.applied, isTrue);
+      expect(
+        controller.lastWorkspaceSnapshotCaptureResult?.status,
+        AgentWorkspaceSnapshotCaptureStatus.captured,
+      );
+      expect(
+        controller.lastWorkspaceSnapshot?.documentFor('main.styio')?.text,
+        'value = 1\n',
+      );
+      expect(
+        controller.lastWorkspaceRevertPlan?.status,
+        AgentWorkspaceRevertPlanStatus.ready,
+      );
+      expect(revertEdit.documentId, 'main.styio');
+      expect(revertEdit.replacementText, 'value = 1\n');
+      expect(editorController.document.text, 'value = 2\n');
+    },
+  );
+
+  test(
     'agent coding session clears patch result when pending patch is dismissed',
     () async {
       final editorController = EditorSessionController(
@@ -1528,11 +1600,23 @@ void main() {
         editorController: editorController,
         workspaceDocumentStore: workspaceStore,
       ),
+      snapshotService: AgentWorkspaceSnapshotService(
+        editorController: editorController,
+        workspaceDocumentStore: workspaceStore,
+      ),
     );
     final otherDocument = await workspaceStore.loadDocument('other.styio');
 
     expect(result?.applied, isTrue);
     expect(controller.pendingPatch, isNull);
+    expect(
+      controller.lastWorkspaceSnapshotCaptureResult?.status,
+      AgentWorkspaceSnapshotCaptureStatus.captured,
+    );
+    expect(
+      controller.lastWorkspaceRevertPlan?.diffSummary.modifiedDocumentIds,
+      containsAll(<String>['main.styio', 'other.styio']),
+    );
     expect(editorController.document.text, 'value = 2\n');
     expect(otherDocument.text, 'name = new\n');
   });

@@ -15,6 +15,7 @@ import 'agent_session_context.dart';
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_stream_bridge.dart';
+import 'agent_workspace_snapshot.dart';
 import 'agent_workspace_edit_adapter.dart';
 import '../runtime/runtime.dart';
 
@@ -137,6 +138,9 @@ class AgentCodingSessionController extends ChangeNotifier {
   String? _activeProviderPrompt;
   DateTime? _activeProviderStartedAt;
   AgentCodingSessionHistory? _sessionHistorySnapshot;
+  AgentWorkspaceSnapshotCaptureResult? _lastWorkspaceSnapshotCaptureResult;
+  AgentWorkspaceChangeSnapshot? _lastWorkspaceSnapshot;
+  AgentWorkspaceRevertPlan? _lastWorkspaceRevertPlan;
   final AgentToolCallLifecycleTracker _toolCallLifecycleTracker =
       const AgentToolCallLifecycleTracker();
   final AgentProviderToolCallStreamBridge _toolCallStreamBridge =
@@ -160,6 +164,12 @@ class AgentCodingSessionController extends ChangeNotifier {
       _lastPatchApplicationResult;
   AgentPatchApplicationContext? get lastPatchApplicationContext =>
       _lastPatchApplicationContext;
+  AgentWorkspaceSnapshotCaptureResult? get lastWorkspaceSnapshotCaptureResult =>
+      _lastWorkspaceSnapshotCaptureResult;
+  AgentWorkspaceChangeSnapshot? get lastWorkspaceSnapshot =>
+      _lastWorkspaceSnapshot;
+  AgentWorkspaceRevertPlan? get lastWorkspaceRevertPlan =>
+      _lastWorkspaceRevertPlan;
   AgentCommandResultContext? get lastIdeCommandResultContext =>
       _lastIdeCommandResultContext;
   List<AgentPatchApplicationContext> get recentPatchApplicationContexts =>
@@ -554,6 +564,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _lastResponse = null;
     _pendingPatch = null;
     _lastPatchApplicationResult = null;
+    _clearWorkspaceSnapshotState();
     _toolCallTimeline = AgentToolCallTimeline.empty();
     notifyListeners();
 
@@ -775,6 +786,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _pendingPatch = null;
     _lastPatchApplicationResult = null;
     _lastPatchApplicationContext = null;
+    _clearWorkspaceSnapshotState();
     _clearPreservedAgentState();
     notifyListeners();
   }
@@ -785,6 +797,9 @@ class AgentCodingSessionController extends ChangeNotifier {
         _pendingPatch == null &&
         _lastPatchApplicationResult == null &&
         _lastPatchApplicationContext == null &&
+        _lastWorkspaceSnapshotCaptureResult == null &&
+        _lastWorkspaceSnapshot == null &&
+        _lastWorkspaceRevertPlan == null &&
         _lastIdeCommandResultContext == null &&
         _recentIdeCommandResultContexts.isEmpty &&
         _recentPatchApplicationContexts.isEmpty &&
@@ -805,6 +820,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _pendingPatch = null;
     _lastPatchApplicationResult = null;
     _lastPatchApplicationContext = null;
+    _clearWorkspaceSnapshotState();
     _lastIdeCommandResultContext = null;
     _clearPreservedAgentState();
     _recentIdeCommandResultContexts.clear();
@@ -816,6 +832,32 @@ class AgentCodingSessionController extends ChangeNotifier {
     _lastError = null;
     _lastProviderFailure = null;
     notifyListeners();
+  }
+
+  Future<AgentWorkspaceSnapshotCaptureResult?> capturePendingPatchSnapshot(
+    AgentWorkspaceSnapshotService snapshotService,
+  ) async {
+    final patch = _pendingPatch;
+    if (patch == null) {
+      return null;
+    }
+    return _captureWorkspaceSnapshotForPatch(
+      patch: patch,
+      snapshotService: snapshotService,
+    );
+  }
+
+  Future<AgentWorkspaceRevertPlan?> buildWorkspaceRevertPlan(
+    AgentWorkspaceSnapshotService snapshotService,
+  ) async {
+    final snapshot = _lastWorkspaceSnapshot;
+    if (snapshot == null) {
+      return null;
+    }
+    final plan = await snapshotService.buildRevertPlan(snapshot);
+    _lastWorkspaceRevertPlan = plan;
+    notifyListeners();
+    return plan;
   }
 
   AgentCodePatchApplicationResult? applyPendingPatch(
@@ -859,9 +901,40 @@ class AgentCodingSessionController extends ChangeNotifier {
     return result;
   }
 
+  Future<AgentCodePatchApplicationResult?> applyPendingPatchWithSnapshot({
+    required AgentCodePatchApplier applier,
+    required AgentWorkspaceSnapshotService snapshotService,
+  }) async {
+    final patch = _pendingPatch;
+    if (patch == null) {
+      return null;
+    }
+    if (_applyingPatch) {
+      return applyPendingPatch(applier);
+    }
+
+    final snapshotResult = await _captureWorkspaceSnapshotForPatch(
+      patch: patch,
+      snapshotService: snapshotService,
+    );
+    if (!_snapshotIsComplete(snapshotResult)) {
+      final result = _snapshotBlockedApplicationResult(patch, snapshotResult);
+      _recordPatchApplicationResult(patch, result);
+      notifyListeners();
+      return result;
+    }
+
+    final result = applyPendingPatch(applier);
+    if (result?.applied == true) {
+      await buildWorkspaceRevertPlan(snapshotService);
+    }
+    return result;
+  }
+
   Future<AgentCodePatchApplicationResult?> applyPendingWorkspacePatch(
-    AgentWorkspaceCodePatchApplier applier,
-  ) async {
+    AgentWorkspaceCodePatchApplier applier, {
+    AgentWorkspaceSnapshotService? snapshotService,
+  }) async {
     final patch = _pendingPatch;
     if (patch == null) {
       return null;
@@ -876,6 +949,19 @@ class AgentCodingSessionController extends ChangeNotifier {
       return result;
     }
 
+    if (snapshotService != null) {
+      final snapshotResult = await _captureWorkspaceSnapshotForPatch(
+        patch: patch,
+        snapshotService: snapshotService,
+      );
+      if (!_snapshotIsComplete(snapshotResult)) {
+        final result = _snapshotBlockedApplicationResult(patch, snapshotResult);
+        _recordPatchApplicationResult(patch, result);
+        notifyListeners();
+        return result;
+      }
+    }
+
     final applicationSerial = _patchApplicationSerial + 1;
     _patchApplicationSerial = applicationSerial;
     _applyingPatch = true;
@@ -888,6 +974,9 @@ class AgentCodingSessionController extends ChangeNotifier {
       _recordPatchApplicationResult(patch, result);
       if (result.applied) {
         _pendingPatch = null;
+        if (snapshotService != null) {
+          await buildWorkspaceRevertPlan(snapshotService);
+        }
       }
       return result;
     } finally {
@@ -972,6 +1061,42 @@ class AgentCodingSessionController extends ChangeNotifier {
       role: AgentConversationRole.user,
       text: _patchApplicationConversationText(patch, result),
     );
+  }
+
+  Future<AgentWorkspaceSnapshotCaptureResult>
+  _captureWorkspaceSnapshotForPatch({
+    required AgentCodePatch patch,
+    required AgentWorkspaceSnapshotService snapshotService,
+  }) async {
+    final result = await snapshotService.captureBeforePatch(patch);
+    _lastWorkspaceSnapshotCaptureResult = result;
+    _lastWorkspaceSnapshot = result.snapshot;
+    _lastWorkspaceRevertPlan = null;
+    notifyListeners();
+    return result;
+  }
+
+  bool _snapshotIsComplete(AgentWorkspaceSnapshotCaptureResult result) {
+    return result.status == AgentWorkspaceSnapshotCaptureStatus.captured &&
+        result.snapshot != null &&
+        result.snapshot!.complete;
+  }
+
+  AgentCodePatchApplicationResult _snapshotBlockedApplicationResult(
+    AgentCodePatch patch,
+    AgentWorkspaceSnapshotCaptureResult result,
+  ) {
+    return AgentCodePatchApplicationResult(
+      applied: false,
+      message:
+          'Agent patch ${patch.patchId} was not applied because workspace snapshot capture was incomplete: ${result.message}',
+    );
+  }
+
+  void _clearWorkspaceSnapshotState() {
+    _lastWorkspaceSnapshotCaptureResult = null;
+    _lastWorkspaceSnapshot = null;
+    _lastWorkspaceRevertPlan = null;
   }
 
   RuntimeOutputEvent _patchApplicationRuntimeOutputEvent({

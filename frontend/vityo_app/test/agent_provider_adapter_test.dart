@@ -159,9 +159,9 @@ void main() {
         .map((tool) => tool['name'])
         .toSet();
     expect(toolNames, contains('readWorkspaceFile'));
+    expect(toolNames, contains('previewWorkspaceEdit'));
     expect(toolNames, contains('runIdeCommand'));
     expect(toolNames, contains('collectAgentCodingCheckpoint'));
-    expect(toolNames, isNot(contains('previewWorkspaceEdit')));
     expect(toolNames, isNot(contains('applyWorkspacePatch')));
     final ideTool = tools.cast<Map<String, Object?>>().firstWhere(
       (tool) => tool['name'] == 'vityo_ide_command',

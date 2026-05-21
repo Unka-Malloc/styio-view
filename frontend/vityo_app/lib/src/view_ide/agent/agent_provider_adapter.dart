@@ -1587,6 +1587,30 @@ List<Map<String, Object?>> _openAIResponsesExecutableToolDefinitions() {
       required: <String>['path'],
     ),
     _openAIResponsesFunctionTool(
+      name: 'previewWorkspaceEdit',
+      description:
+          'Build a reviewable Vityo workspace edit preview. This does not apply changes.',
+      properties: <String, Object?>{
+        'patch': <String, Object?>{
+          'description':
+              'Structured patch object or JSON string. If omitted, the top-level object may contain edits directly.',
+          'oneOf': <Map<String, Object?>>[
+            <String, Object?>{'type': 'object', 'additionalProperties': true},
+            <String, Object?>{'type': 'string'},
+          ],
+        },
+        'edits': <String, Object?>{
+          'type': 'array',
+          'description': 'Structured workspace edits when patch is omitted.',
+          'items': <String, Object?>{
+            'type': 'object',
+            'additionalProperties': true,
+          },
+        },
+      },
+      required: const <String>[],
+    ),
+    _openAIResponsesFunctionTool(
       name: 'runIdeCommand',
       description:
           'Run a registered Vityo IDE command after the Vityo review gate approves it.',
@@ -2425,6 +2449,7 @@ List<AgentContentPart> _contentPartsFromAssistantMessage(
 
 const Set<String> _executableAgentToolIds = <String>{
   'readWorkspaceFile',
+  'previewWorkspaceEdit',
   'runIdeCommand',
   'collectAgentCodingCheckpoint',
 };

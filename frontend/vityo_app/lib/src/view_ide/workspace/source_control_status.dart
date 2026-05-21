@@ -653,6 +653,209 @@ class SourceControlMergeWorkflowPlan {
   }
 }
 
+class SourceControlConflictResolutionRequest {
+  const SourceControlConflictResolutionRequest({
+    required this.providerKind,
+    required this.path,
+    required this.kind,
+    required this.canRun,
+    required this.requiresHumanConfirmation,
+    required this.message,
+    this.blockedReason = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory SourceControlConflictResolutionRequest.fromPlan({
+    required SourceControlMergeWorkflowPlan workflowPlan,
+    required SourceControlConflictResolutionPlan conflictPlan,
+    required SourceControlConflictResolutionKind kind,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final supportedKind = conflictPlan.resolutionKinds.contains(kind);
+    final blockedReason = !workflowPlan.canOpenMergeWorkflow
+        ? 'Source control merge workflow is not openable.'
+        : !conflictPlan.canResolve
+        ? conflictPlan.blockedReason
+        : !supportedKind
+        ? 'Source control conflict resolution ${kind.wireValue} is not supported for ${conflictPlan.path}.'
+        : '';
+    return SourceControlConflictResolutionRequest(
+      providerKind: workflowPlan.providerKind,
+      path: conflictPlan.path,
+      kind: kind,
+      canRun: blockedReason.isEmpty,
+      requiresHumanConfirmation: conflictPlan.requiresHumanConfirmation,
+      blockedReason: blockedReason,
+      message: blockedReason.isEmpty
+          ? 'Resolve ${conflictPlan.path} with ${kind.wireValue}.'
+          : blockedReason,
+      metadata: metadata,
+    );
+  }
+
+  final SourceControlProviderKind providerKind;
+  final String path;
+  final SourceControlConflictResolutionKind kind;
+  final bool canRun;
+  final bool requiresHumanConfirmation;
+  final String message;
+  final String blockedReason;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerKind': providerKind.wireValue,
+      'path': path,
+      'kind': kind.wireValue,
+      'canRun': canRun,
+      'requiresHumanConfirmation': requiresHumanConfirmation,
+      'message': message,
+      if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class SourceControlConflictResolutionResult {
+  const SourceControlConflictResolutionResult({
+    required this.accepted,
+    required this.path,
+    required this.kind,
+    required this.message,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const SourceControlConflictResolutionResult.accepted({
+    required String path,
+    required SourceControlConflictResolutionKind kind,
+    String message = 'Source control conflict resolution accepted.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: true,
+         path: path,
+         kind: kind,
+         message: message,
+         metadata: metadata,
+       );
+
+  const SourceControlConflictResolutionResult.rejected({
+    required String path,
+    required SourceControlConflictResolutionKind kind,
+    String message = 'Source control conflict resolution rejected.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: false,
+         path: path,
+         kind: kind,
+         message: message,
+         metadata: metadata,
+       );
+
+  final bool accepted;
+  final String path;
+  final SourceControlConflictResolutionKind kind;
+  final String message;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'accepted': accepted,
+      'path': path,
+      'kind': kind.wireValue,
+      'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+abstract class SourceControlConflictResolutionProvider {
+  const SourceControlConflictResolutionProvider();
+
+  SourceControlProviderKind get providerKind;
+
+  bool supports(SourceControlConflictResolutionRequest request);
+
+  Future<SourceControlConflictResolutionResult> resolve(
+    SourceControlConflictResolutionRequest request,
+  );
+}
+
+class SourceControlConflictResolutionProviderRegistry {
+  SourceControlConflictResolutionProviderRegistry({
+    Iterable<SourceControlConflictResolutionProvider> providers = const [],
+  }) {
+    for (final provider in providers) {
+      register(provider);
+    }
+  }
+
+  final List<SourceControlConflictResolutionProvider> _providers =
+      <SourceControlConflictResolutionProvider>[];
+
+  List<SourceControlConflictResolutionProvider> get providers =>
+      List<SourceControlConflictResolutionProvider>.unmodifiable(_providers);
+
+  void register(SourceControlConflictResolutionProvider provider) {
+    _providers.removeWhere(
+      (candidate) => candidate.providerKind == provider.providerKind,
+    );
+    _providers.add(provider);
+  }
+
+  SourceControlConflictResolutionProvider? providerFor(
+    SourceControlConflictResolutionRequest request,
+  ) {
+    for (final provider in _providers) {
+      if (provider.supports(request)) {
+        return provider;
+      }
+    }
+    return null;
+  }
+
+  Future<SourceControlConflictResolutionResult> resolve(
+    SourceControlConflictResolutionRequest request,
+  ) async {
+    if (!request.canRun) {
+      return SourceControlConflictResolutionResult.rejected(
+        path: request.path,
+        kind: request.kind,
+        message: request.blockedReason,
+        metadata: const <String, Object?>{'reason': 'request-blocked'},
+      );
+    }
+    final provider = providerFor(request);
+    if (provider == null) {
+      return SourceControlConflictResolutionResult.rejected(
+        path: request.path,
+        kind: request.kind,
+        message:
+            'No source control conflict resolution provider is registered for ${request.providerKind.wireValue}/${request.kind.wireValue}.',
+        metadata: const <String, Object?>{'reason': 'missing-provider'},
+      );
+    }
+    try {
+      return await provider.resolve(request);
+    } on Object catch (error) {
+      return SourceControlConflictResolutionResult.rejected(
+        path: request.path,
+        kind: request.kind,
+        message: 'Source control conflict resolution failed: $error.',
+        metadata: const <String, Object?>{'reason': 'provider-error'},
+      );
+    }
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerCount': _providers.length,
+      'providers': _providers
+          .map((provider) => provider.providerKind.wireValue)
+          .toList(growable: false),
+    };
+  }
+}
+
 class SourceControlStatusSnapshot {
   const SourceControlStatusSnapshot({
     required this.providerKind,

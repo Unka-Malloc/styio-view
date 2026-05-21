@@ -122,6 +122,10 @@ void main() {
       contains('SourceControlConflictResolutionPlan'),
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('SourceControlConflictResolutionProviderRegistry'),
+    );
+    expect(
       entriesById['interaction.source-control']?.todo,
       contains('merge editor UI'),
     );

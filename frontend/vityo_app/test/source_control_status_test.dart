@@ -702,6 +702,47 @@ diff --git a/src/main.styio b/src/main.styio
     expect(plan.toJson()['conflictCount'], 1);
   });
 
+  test(
+    'source control conflict resolution registry executes provider operations',
+    () async {
+      const snapshot = SourceControlStatusSnapshot(
+        providerKind: SourceControlProviderKind.git,
+        branchName: 'ai-dev',
+        changes: <SourceControlFileChange>[
+          SourceControlFileChange(
+            path: 'src/conflict.styio',
+            unstagedStatus: SourceControlFileStatus.conflicted,
+          ),
+        ],
+      );
+      final workflowPlan = SourceControlMergeWorkflowPlan.fromStatus(snapshot);
+      final request = SourceControlConflictResolutionRequest.fromPlan(
+        workflowPlan: workflowPlan,
+        conflictPlan: workflowPlan.conflictPlans.single,
+        kind: SourceControlConflictResolutionKind.acceptCurrent,
+      );
+      final provider = _RecordingSourceControlConflictResolutionProvider();
+      final registry = SourceControlConflictResolutionProviderRegistry(
+        providers: <SourceControlConflictResolutionProvider>[provider],
+      );
+
+      final result = await registry.resolve(request);
+      final missing = await SourceControlConflictResolutionProviderRegistry()
+          .resolve(request);
+
+      expect(request.canRun, isTrue);
+      expect(result.accepted, isTrue);
+      expect(result.path, 'src/conflict.styio');
+      expect(
+        provider.requests.single.kind,
+        SourceControlConflictResolutionKind.acceptCurrent,
+      );
+      expect(missing.accepted, isFalse);
+      expect(missing.toJson()['message'], contains('No source control'));
+      expect(registry.toJson()['providerCount'], 1);
+    },
+  );
+
   test('source control status controller confirms planned action', () async {
     final controller = SourceControlStatusController(
       provider: const StaticSourceControlStatusProvider(
@@ -1045,6 +1086,32 @@ class _FakeSourceControlPartialPatchProvider
       selectedHunkIndexes: plan.selectedHunkIndexes,
       applied: true,
       message: workspaceRoot,
+    );
+  }
+}
+
+class _RecordingSourceControlConflictResolutionProvider
+    extends SourceControlConflictResolutionProvider {
+  final List<SourceControlConflictResolutionRequest> requests =
+      <SourceControlConflictResolutionRequest>[];
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  bool supports(SourceControlConflictResolutionRequest request) {
+    return request.providerKind == providerKind && request.canRun;
+  }
+
+  @override
+  Future<SourceControlConflictResolutionResult> resolve(
+    SourceControlConflictResolutionRequest request,
+  ) async {
+    requests.add(request);
+    return SourceControlConflictResolutionResult.accepted(
+      path: request.path,
+      kind: request.kind,
+      message: 'Resolved ${request.path}.',
     );
   }
 }

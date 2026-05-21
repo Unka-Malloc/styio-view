@@ -70,6 +70,7 @@ void main() {
     expect(plan.ready, isFalse);
     expect(plan.blocksDispatch, isTrue);
     expect(plan.deniedToolIds, contains('applyWorkspacePatch'));
+    expect(plan.recoveryActions, <String>['reviseToolRequest']);
     expect(
       plan.blockingIssueCodes,
       contains('agent.tool.permission.denied.applyWorkspacePatch'),
@@ -80,6 +81,8 @@ void main() {
     expect(deniedDecision.ruleId, 'deny-patches');
     expect(json['status'], 'blocked');
     expect(json['blockingIssueCodes'], contains(deniedDecision.issueCode));
+    expect(json['recoveryActions'], <String>['reviseToolRequest']);
+    expect(plan.todoItems.join('\n'), isNot(contains('denied agent tools')));
   });
 
   test('agent tool permission rules support wildcard tool ids', () {

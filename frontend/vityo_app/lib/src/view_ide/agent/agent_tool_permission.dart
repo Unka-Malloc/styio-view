@@ -204,6 +204,13 @@ class AgentToolPermissionPlan {
         .toList(growable: false);
   }
 
+  List<String> get recoveryActions {
+    if (!blocksDispatch) {
+      return const <String>[];
+    }
+    return const <String>['reviseToolRequest'];
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'status': status.wireValue,
@@ -215,6 +222,7 @@ class AgentToolPermissionPlan {
       'deniedToolIds': deniedToolIds,
       'issueCodes': issueCodes,
       'blockingIssueCodes': blockingIssueCodes,
+      if (recoveryActions.isNotEmpty) 'recoveryActions': recoveryActions,
       'decisions': decisions
           .map((decision) => decision.toJson())
           .toList(growable: false),
@@ -273,11 +281,6 @@ List<String> _todoItems(List<AgentToolPermissionDecision> decisions) {
   if (decisions.any((decision) => decision.requiresReview)) {
     todos.add(
       'TODO: add project-level permission policy import/export and bulk-edit controls to Agent settings.',
-    );
-  }
-  if (decisions.any((decision) => decision.blocksDispatch)) {
-    todos.add(
-      'TODO: surface denied agent tools as dispatch blockers with recovery actions before provider execution.',
     );
   }
   return List<String>.unmodifiable(todos);

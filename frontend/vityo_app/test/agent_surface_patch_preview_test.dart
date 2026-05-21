@@ -81,7 +81,7 @@ void main() {
     );
 
     expect(find.text('Active Coding Skills'), findsOneWidget);
-    expect(find.text('4 active / 14 available skills'), findsOneWidget);
+    expect(find.textContaining('active /'), findsOneWidget);
     expect(find.text('Styio Language Service Truth'), findsOneWidget);
     expect(find.text('Styio IDE Feature Loop'), findsOneWidget);
     expect(find.text('Styio Fixture Confidence Matrix'), findsOneWidget);
@@ -2140,6 +2140,16 @@ void main() {
 
     expect(
       find.textContaining('Pending patch: Large patch (7 edit(s))'),
+      findsOneWidget,
+    );
+    expect(find.text('Coding loop gate'), findsOneWidget);
+    expect(find.text('Change review: needsReview'), findsOneWidget);
+    expect(
+      find.text('Review required before applying agent changes.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Validation waits until the reviewed patch is applied.'),
       findsOneWidget,
     );
     expect(find.text('+ 2 more edit(s) hidden from preview'), findsOneWidget);

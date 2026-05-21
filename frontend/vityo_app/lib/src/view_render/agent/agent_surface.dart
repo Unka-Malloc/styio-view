@@ -176,6 +176,68 @@ class AgentSurface extends StatelessWidget {
   }
 }
 
+class _AgentCodingLoopGateSummary extends StatelessWidget {
+  const _AgentCodingLoopGateSummary({
+    required this.executionReadiness,
+    required this.changeReviewGate,
+  });
+
+  final AgentCodingExecutionReadiness executionReadiness;
+  final AgentCodingChangeReviewGate changeReviewGate;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final requiresReview = changeReviewGate.requiresUserReview;
+    final canApplyPreview = changeReviewGate.canApplyPreview;
+    final statusColor = requiresReview
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Coding loop gate',
+              style: theme.textTheme.labelLarge?.copyWith(color: statusColor),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Execution readiness: ${executionReadiness.status.wireValue}',
+              style: theme.textTheme.bodySmall,
+            ),
+            Text(
+              'Change review: ${changeReviewGate.status.wireValue}',
+              style: theme.textTheme.bodySmall,
+            ),
+            if (requiresReview) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Review required before applying agent changes.',
+                style: theme.textTheme.bodySmall,
+              ),
+              Text(
+                canApplyPreview
+                    ? 'Validation waits until the reviewed patch is applied.'
+                    : 'Validation blocked until a reviewable patch preview exists.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AgentActivityHistoryBinding extends StatelessWidget {
   const _AgentActivityHistoryBinding({
     required this.controller,
@@ -2407,6 +2469,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 Text(
                   'Patch ${patch.patchId}${patch.baseRevision == null ? '' : ' · base rev ${patch.baseRevision}'}',
                   style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 6),
+                _AgentCodingLoopGateSummary(
+                  executionReadiness:
+                      widget.controller.codingExecutionReadiness,
+                  changeReviewGate: widget.controller.codingChangeReviewGate,
                 ),
                 if (patchWorkspaceEditConversion != null) ...[
                   const SizedBox(height: 6),

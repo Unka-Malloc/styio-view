@@ -1676,6 +1676,15 @@ class ShellRuntimeModel extends ChangeNotifier {
       analysis: analysis,
     );
     final status = languageServiceStatus.value;
+    final syntaxValidationAuthority = <String, Object?>{
+      'preferredSource': status.syntaxValidationReady
+          ? 'styio-service'
+          : 'vityo-ide-syntax-contract',
+      'fallbackSource': 'vityo-ide-syntax-contract',
+      'fallbackActive': !status.syntaxValidationReady,
+      'conflictPolicy':
+          'Prefer StyioService syntax diagnostics when syntaxValidationReady is true; use the IDE syntax contract report only as fallback evidence.',
+    };
     final suggestedCommandIds = <String>[
       if (status.refreshRecommended) AppCommandId.refreshLanguageService.name,
       if (definitions.isNotEmpty) AppCommandId.goToDefinition.name,
@@ -1688,6 +1697,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       'offset': offset,
       'documentCount': documents.length,
       'languageServiceStatus': status.toJson(),
+      'syntaxValidationAuthority': syntaxValidationAuthority,
       'syntaxValidationReport': syntaxValidationReport.toJson(),
       if (suggestedCommandIds.isNotEmpty)
         'suggestedCommandIds': suggestedCommandIds,

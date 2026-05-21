@@ -1270,6 +1270,9 @@ void main() {
           projectLanguage['languageServiceStatus']! as Map<String, Object?>;
       final syntaxValidationReport =
           projectLanguage['syntaxValidationReport']! as Map<String, Object?>;
+      final syntaxValidationAuthority =
+          projectLanguage['syntaxValidationAuthority']!
+              as Map<String, Object?>;
       expect(projectLanguage['definitionCount'], 1);
       expect(projectLanguage['referenceCount'], 2);
       expect(
@@ -1281,6 +1284,14 @@ void main() {
         contains('nextReference'),
       );
       expect(languageServiceStatus['severity'], isA<String>());
+      expect(
+        syntaxValidationAuthority['fallbackSource'],
+        'vityo-ide-syntax-contract',
+      );
+      expect(
+        syntaxValidationAuthority['conflictPolicy'],
+        contains('Prefer StyioService'),
+      );
       expect(syntaxValidationReport['contractVersion'], '2026.05.ide');
       expect(syntaxValidationReport['source'], 'vityo-ide-syntax-contract');
       expect(
@@ -1495,6 +1506,10 @@ void main() {
     );
     expect(
       projectLanguage['syntaxValidationReport'],
+      isA<Map<String, Object?>>(),
+    );
+    expect(
+      projectLanguage['syntaxValidationAuthority'],
       isA<Map<String, Object?>>(),
     );
     final fixes = await commandShell.collectProjectWorkspaceQuickFixes();

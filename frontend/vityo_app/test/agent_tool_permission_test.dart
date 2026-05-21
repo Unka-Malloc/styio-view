@@ -36,10 +36,7 @@ void main() {
     expect(json['status'], 'review_required');
     expect(json['requiresReview'], isTrue);
     expect(json['blocksDispatch'], isFalse);
-    expect(
-      plan.todoItems.join('\n'),
-      contains('OpenCode-style per-tool ask/allow/deny'),
-    );
+    expect(plan.todoItems.join('\n'), contains('corrected-feedback'));
   });
 
   test('agent tool permission rules can deny matching tools', () {

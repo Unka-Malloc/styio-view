@@ -120,7 +120,7 @@ class AgentCodingLoopPlan {
         label: 'Capture workspace snapshot',
         commandIds: const <String>['collectAgentCodingCheckpoint'],
         todoItems: const <String>[
-          'TODO: bind OpenCode-style pre-dispatch workspace snapshot, diff summary, and revert anchor to Vityo Foundation/Workspace services.',
+          'TODO: persist workspace snapshot/revert anchors through Foundation DataStore for cross-session recovery.',
         ],
       ),
       AgentCodingLoopStep(
@@ -132,7 +132,7 @@ class AgentCodingLoopPlan {
         label: 'Resolve agent tool contracts',
         commandIds: const <String>['collectAgentCodingCheckpoint'],
         todoItems: const <String>[
-          'TODO: bind OpenCode-style tool registry, schema validation, model-specific tool filtering, plugin tools, and output truncation before provider dispatch.',
+          'TODO: add plugin-discovered tools and provider-specific output budget tuning to AgentToolRegistry.',
         ],
       ),
       AgentCodingLoopStep(
@@ -148,7 +148,7 @@ class AgentCodingLoopPlan {
         blockingReasons: dispatchPlan.toolPermissionPlan.blockingIssueCodes,
         todoItems: dispatchPlan.toolPermissionPlan.todoItems.isEmpty
             ? const <String>[
-                'TODO: bind OpenCode-style per-tool ask/allow/deny/corrected permission decisions to Vityo Agent Surface without adding a global OS permission layer.',
+                'TODO: add corrected-feedback and persisted project/session permission policy controls for review-gated tools.',
               ]
             : dispatchPlan.toolPermissionPlan.todoItems,
       ),
@@ -208,7 +208,7 @@ class AgentCodingLoopPlan {
         required: false,
         commandIds: const <String>['collectAgentCodingCheckpoint'],
         todoItems: const <String>[
-          'TODO: bind provider retry, provider failover, replay, and checkpoint recovery controls to Agent Surface.',
+          'TODO: bind provider failover and persisted checkpoint recovery controls to Agent Surface.',
         ],
       ),
     ];

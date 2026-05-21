@@ -61,7 +61,8 @@ void main() {
     expect(call.status, AgentToolCallStatus.permissionBlocked);
     expect(call.terminal, isTrue);
     expect(call.permissionReason, contains('requires review'));
-    expect(timeline.todoItems.join('\n'), contains('permission-blocked state'));
+    expect(timeline.todoItems.join('\n'), contains('progress rendering'));
+    expect(timeline.todoItems.join('\n'), isNot(contains('result truncation')));
   });
 
   test('agent tool call lifecycle tracks failures and truncates buffers', () {

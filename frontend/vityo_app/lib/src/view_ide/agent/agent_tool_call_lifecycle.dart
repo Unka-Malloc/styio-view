@@ -292,7 +292,7 @@ class AgentToolCallTimeline {
       status: AgentToolCallTimelineStatus.idle,
       calls: <AgentToolCallState>[],
       todoItems: <String>[
-        'TODO: feed provider tool-call stream events into this lifecycle tracker before executing tool results.',
+        'TODO: persist provider-native tool stream ordering across restored sessions.',
       ],
     );
   }
@@ -368,7 +368,7 @@ class AgentToolCallLifecycleTracker {
       status: _timelineStatus(calls),
       calls: List<AgentToolCallState>.unmodifiable(calls),
       todoItems: const <String>[
-        'TODO: bind OpenCode-style tool input streaming, permission-blocked state, result truncation, and tool error rendering to Agent Surface.',
+        'TODO: bind provider-native tool progress rendering and rich error details to Agent Surface.',
       ],
     );
   }

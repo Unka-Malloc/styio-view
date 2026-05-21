@@ -64,15 +64,13 @@ void main() {
     expect(tooling.status, AgentCodingLoopStepStatus.ready);
     expect(permission.status, AgentCodingLoopStepStatus.ready);
     expect(permission.blockingReasons, isEmpty);
-    expect(
-      permission.todoItems.join('\n'),
-      contains('OpenCode-style per-tool ask/allow/deny'),
-    );
+    expect(permission.todoItems.join('\n'), contains('corrected-feedback'));
     expect(dispatch.status, AgentCodingLoopStepStatus.ready);
     expect(review.status, AgentCodingLoopStepStatus.waiting);
     expect(validation.status, AgentCodingLoopStepStatus.waiting);
-    expect(plan.todoItems.join('\n'), contains('OpenCode-style tool registry'));
-    expect(plan.todoItems.join('\n'), contains('OpenCode-style per-tool'));
+    expect(plan.todoItems.join('\n'), contains('plugin-discovered tools'));
+    expect(plan.todoItems.join('\n'), contains('workspace snapshot/revert'));
+    expect(plan.todoItems.join('\n'), isNot(contains('result truncation')));
   });
 
   test('agent coding loop plan exposes recovery for blocked providers', () {
@@ -132,10 +130,7 @@ void main() {
     expect(plan.status, AgentCodingLoopPlanStatus.blocked);
     expect(plan.activeStepId, 'guard-agent-loop');
     expect(guard.status, AgentCodingLoopStepStatus.blocked);
-    expect(
-      guard.blockingReasons,
-      contains('agent.loop.replayReportLimit:3'),
-    );
+    expect(guard.blockingReasons, contains('agent.loop.replayReportLimit:3'));
   });
 }
 

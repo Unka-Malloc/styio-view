@@ -200,7 +200,7 @@ class AgentToolRegistry {
         ),
       ],
       todo:
-          'TODO: bind to File System Manager through Editor File Binding instead of raw disk reads.',
+          'TODO: route inactive document reads through File System Manager/DataStore once the backend workspace service is attached.',
     ),
     AgentToolDefinition(
       toolId: 'previewWorkspaceEdit',
@@ -248,7 +248,7 @@ class AgentToolRegistry {
         ),
       ],
       todo:
-          'TODO: route patch application through AgentWorkspaceEditPlanAdapter and conflict review.',
+          'TODO: add conflict review for patches that overlap dirty or externally modified documents.',
     ),
     AgentToolDefinition(
       toolId: 'runIdeCommand',
@@ -300,7 +300,7 @@ class AgentToolRegistry {
         'testing.context',
       ],
       todo:
-          'TODO: bind validation commands to a full OpenCode-style replayable execution log and provider-visible failure recovery plan.',
+          'TODO: persist validation command result chains with replay/recovery context.',
     ),
     AgentToolDefinition(
       toolId: 'collectAgentRecoveryContext',
@@ -315,7 +315,7 @@ class AgentToolRegistry {
         'agent.session.history',
       ],
       todo:
-          'TODO: persist tool-call result chains with the recovery context so replay can resume after provider/tool interruption.',
+          'TODO: include persisted tool-call result chains in recovery context when the history store schema supports them.',
     ),
     AgentToolDefinition(
       toolId: 'collectAgentCodingCheckpoint',
@@ -367,9 +367,7 @@ class AgentToolRegistry {
   AgentToolSelection select(AgentToolSelectionContext context) {
     final accepted = <AgentToolDefinition>[];
     final rejected = <String>[];
-    final todos = <String>{
-      'TODO: bind selected AgentToolDefinition entries to real execution handlers and per-tool permission prompts.',
-    };
+    final todos = <String>{};
     for (final tool in tools) {
       if (tool.supports(context)) {
         accepted.add(tool);

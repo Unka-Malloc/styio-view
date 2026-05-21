@@ -262,7 +262,7 @@ List<String> _todoItems(List<AgentToolPermissionDecision> decisions) {
   final todos = <String>[];
   if (decisions.any((decision) => decision.requiresReview)) {
     todos.add(
-      'TODO: bind OpenCode-style per-tool ask/allow/deny permission prompts to Vityo Agent Surface before executing review-gated tools.',
+      'TODO: add corrected-feedback and persisted project/session permission policy controls for review-gated tools.',
     );
   }
   if (decisions.any((decision) => decision.blocksDispatch)) {

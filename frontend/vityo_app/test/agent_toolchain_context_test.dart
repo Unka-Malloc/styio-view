@@ -161,10 +161,16 @@ void main() {
         bootstrap['executionPlan']! as Map<String, Object?>;
     final lastDispatch =
         json['lastBootstrapActionDispatch']! as Map<String, Object?>;
+    final suggestedCommandIds =
+        json['suggestedCommandIds']! as List<Object?>;
 
     expect(bootstrap['ready'], isFalse);
     expect(executionPlan['canExecute'], isTrue);
     expect(executionPlan['stepCount'], 3);
+    expect(
+      suggestedCommandIds,
+      containsAll(<String>['bootstrapStyioToolchain', 'openSettings']),
+    );
     expect(lastDispatch['status'], 'missing-handler');
     expect(lastDispatch['actionId'], 'install-managed-styio-toolchain');
     expect(lastDispatch['todo'], contains('TODO'));

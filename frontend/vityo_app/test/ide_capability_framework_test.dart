@@ -334,7 +334,9 @@ void main() {
     expect(entriesById['debugger.dap']?.runtimeMaturityBlocking, isFalse);
     expect(
       entriesById['toolchain.manager']?.summary,
-      contains('Agent toolchain bootstrap context facts and prompt guidance'),
+      contains(
+        'Agent toolchain bootstrap context facts, suggested command ids, and prompt guidance',
+      ),
     );
     expect(
       entriesById['toolchain.manager']?.summary,

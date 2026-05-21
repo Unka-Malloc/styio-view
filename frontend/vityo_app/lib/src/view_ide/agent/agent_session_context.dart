@@ -2852,6 +2852,18 @@ class AgentToolchainContext {
   int get entryCount => entries.length;
   bool get hasNativeCompiler =>
       activeCompiler?.metadata['defaultForNativeCode'] == true;
+  List<String> get suggestedCommandIds {
+    final commandIds = <String>[];
+    if (bootstrap?.executionPlan().canExecute ?? false) {
+      commandIds.add('bootstrapStyioToolchain');
+    }
+    if (lastBootstrapActionDispatch?.status ==
+        ToolchainBootstrapActionDispatchStatus.missingHandler) {
+      commandIds.add('openSettings');
+    }
+    return List<String>.unmodifiable(commandIds);
+  }
+
   AgentNativeToolchainSummaryContext get nativeTools {
     return AgentNativeToolchainSummaryContext.fromEntries(entries);
   }
@@ -2861,6 +2873,8 @@ class AgentToolchainContext {
       'entryCount': entryCount,
       'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
       'hasNativeCompiler': hasNativeCompiler,
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
       if (activeCompiler != null) 'activeCompiler': activeCompiler!.toJson(),
       if (clangCpp != null) 'clangCpp': clangCpp!.toJson(),
       if (bootstrap != null) 'bootstrap': bootstrap!.toJson(),

@@ -173,6 +173,10 @@ void main() {
     expect(decoded.systemPrompt, contains('commands.toolchainCommands'));
     expect(
       decoded.systemPrompt,
+      contains('toolchains.suggestedCommandIds'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('toolchains.bootstrap.executionPlan'),
     );
     expect(decoded.systemPrompt, contains('metadata.toolchainCommand'));

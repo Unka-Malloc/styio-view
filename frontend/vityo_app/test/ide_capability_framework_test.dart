@@ -736,6 +736,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('failed patch repair prompt drafting'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('patch application validation snapshot binding'),
     );
     expect(

@@ -194,13 +194,12 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Last validation: failed · pipeline failed 1/5 · next runTests'),
+      find.text(
+        'Last validation: failed · pipeline failed 1/5 · next runTests',
+      ),
       findsOneWidget,
     );
-    expect(
-      find.text('Validation failed commands: runTests'),
-      findsOneWidget,
-    );
+    expect(find.text('Validation failed commands: runTests'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-recovery-validation-failure-evidence')),
       findsOneWidget,
@@ -2332,9 +2331,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'Command plan: saveAll -> refreshLanguageService',
-      ),
+      find.textContaining('Command plan: saveAll -> refreshLanguageService'),
       findsOneWidget,
     );
     expect(
@@ -3820,6 +3817,23 @@ void main() {
       controller.lastPatchApplicationResult?.message,
       isNot(contains('secret-token')),
     );
+    expect(
+      find.byKey(const ValueKey('agent-draft-patch-repair')),
+      findsOneWidget,
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-draft-patch-repair')),
+    );
+    await tester.pump();
+
+    expect(
+      controller.draftPrompt,
+      contains('Repair the failed agent patch application.'),
+    );
+    expect(controller.draftPrompt, contains('Bearer [redacted]'));
+    expect(controller.draftPrompt, isNot(contains('secret-token')));
   });
 
   testWidgets('agent surface follows controller patch application state', (

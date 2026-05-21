@@ -2942,6 +2942,22 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
+                if (!patchResult.applied) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    key: const ValueKey('agent-draft-patch-repair'),
+                    onPressed: applyingAction || controller.sending
+                        ? null
+                        : () {
+                            controller.updatePrompt(
+                              'Repair the failed agent patch application. '
+                              'Patch result: ${patchResult.message}',
+                            );
+                          },
+                    icon: const Icon(Icons.construction_outlined),
+                    label: const Text('Draft Patch Repair'),
+                  ),
+                ],
                 if (widget.controller.codingValidationPlan.status !=
                     AgentCodingValidationPlanStatus.notNeeded) ...[
                   const SizedBox(height: 8),

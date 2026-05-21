@@ -1943,25 +1943,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
       _dispatchingToolCalls = true;
     });
     try {
-      final executor = AgentBuiltinToolExecutor(
-        context: widget.sessionContext,
-        ideCommandRunner: widget.onApplyIdeCommandSuggestion == null
-            ? null
-            : _runIdeCommandTool,
-        workspacePatchRunner: widget.onApplyAgentWorkspacePatch,
-        extensionToolRunner: widget.onRunAgentExtensionTool,
-        validationContextProvider: () =>
-            AgentCodingValidationToolContext.fromSessionContext(
-              widget.sessionContext,
-              validationPlan: widget.controller.codingValidationPlan,
-              validationResult: widget.controller.codingValidationResult,
-              validationPipeline: widget.controller.codingValidationPipeline,
-              changeReviewGate: widget.controller.codingChangeReviewGate,
-              autonomyPolicy: widget.controller.codingAutonomyPolicy,
-            ),
-        recoveryContextProvider: () =>
-            widget.controller.sessionHistorySnapshot.toRecoveryContext(),
-      );
+      final executor = _agentToolExecutor();
       await widget.controller.dispatchReadyToolCalls(executor.execute);
     } finally {
       if (mounted) {
@@ -1970,6 +1952,47 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         });
       }
     }
+  }
+
+  Future<void> _replayToolCallJournal() async {
+    if (_dispatchingToolCalls) {
+      return;
+    }
+    setState(() {
+      _dispatchingToolCalls = true;
+    });
+    try {
+      final executor = _agentToolExecutor();
+      await widget.controller.replayToolCallJournal(executor.execute);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _dispatchingToolCalls = false;
+        });
+      }
+    }
+  }
+
+  AgentBuiltinToolExecutor _agentToolExecutor() {
+    return AgentBuiltinToolExecutor(
+      context: widget.sessionContext,
+      ideCommandRunner: widget.onApplyIdeCommandSuggestion == null
+          ? null
+          : _runIdeCommandTool,
+      workspacePatchRunner: widget.onApplyAgentWorkspacePatch,
+      extensionToolRunner: widget.onRunAgentExtensionTool,
+      validationContextProvider: () =>
+          AgentCodingValidationToolContext.fromSessionContext(
+            widget.sessionContext,
+            validationPlan: widget.controller.codingValidationPlan,
+            validationResult: widget.controller.codingValidationResult,
+            validationPipeline: widget.controller.codingValidationPipeline,
+            changeReviewGate: widget.controller.codingChangeReviewGate,
+            autonomyPolicy: widget.controller.codingAutonomyPolicy,
+          ),
+      recoveryContextProvider: () =>
+          widget.controller.sessionHistorySnapshot.toRecoveryContext(),
+    );
   }
 
   Future<AgentCommandResultContext> _runIdeCommandTool(
@@ -2348,6 +2371,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
             );
         final toolCallTimeline = controller.toolCallTimeline;
         final toolCallExecutionPlan = controller.toolCallExecutionPlan;
+        final toolCallReplayPlan = controller.toolCallReplayPlan;
         final workspaceSnapshotCapture =
             controller.lastWorkspaceSnapshotCaptureResult;
         final workspaceRevertPlan = controller.lastWorkspaceRevertPlan;
@@ -2401,6 +2425,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 _AgentToolCallReviewSurface(
                   timeline: toolCallTimeline,
                   executionPlan: toolCallExecutionPlan,
+                  replayPlan: toolCallReplayPlan,
                   onApproveCall: applyingAction || controller.sending
                       ? null
                       : (callId) => controller.approveToolCallExecution(callId),
@@ -2414,6 +2439,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           !applyingAction &&
                           !controller.sending
                       ? () => unawaited(_dispatchApprovedToolCalls())
+                      : null,
+                  onReplayJournal:
+                      toolCallReplayPlan.ready &&
+                          !applyingAction &&
+                          !controller.sending
+                      ? () => unawaited(_replayToolCallJournal())
                       : null,
                   onDraftReview: applyingAction || controller.sending
                       ? null
@@ -3168,19 +3199,23 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   const _AgentToolCallReviewSurface({
     required this.timeline,
     required this.executionPlan,
+    required this.replayPlan,
     required this.dispatching,
     this.onApproveCall,
     this.onDenyCall,
     this.onRunReadyCalls,
+    this.onReplayJournal,
     this.onDraftReview,
   });
 
   final AgentToolCallTimeline timeline;
   final AgentToolCallExecutionPlan executionPlan;
+  final AgentToolCallReplayPlan replayPlan;
   final bool dispatching;
   final ValueChanged<String>? onApproveCall;
   final ValueChanged<String>? onDenyCall;
   final VoidCallback? onRunReadyCalls;
+  final VoidCallback? onReplayJournal;
   final VoidCallback? onDraftReview;
 
   @override
@@ -3215,6 +3250,11 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
               'Lifecycle: ${timeline.status.wireValue} · calls ${timeline.calls.length}',
               style: theme.textTheme.bodySmall,
             ),
+            if (replayPlan.status != AgentToolCallReplayPlanStatus.empty)
+              Text(
+                'Replay plan: ${replayPlan.status.wireValue} · requests ${replayPlan.requests.length}',
+                style: theme.textTheme.bodySmall,
+              ),
             for (final execution in executionPlan.executions.take(4)) ...[
               const SizedBox(height: 4),
               Text(
@@ -3295,6 +3335,17 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                     icon: const Icon(Icons.play_arrow),
                     label: Text(
                       dispatching ? 'Running Tools...' : 'Run Approved Tools',
+                    ),
+                  ),
+                if (replayPlan.ready)
+                  OutlinedButton.icon(
+                    key: const ValueKey('agent-tool-call-replay-journal'),
+                    onPressed: dispatching ? null : onReplayJournal,
+                    icon: const Icon(Icons.replay),
+                    label: Text(
+                      dispatching
+                          ? 'Replaying Tool Journal...'
+                          : 'Replay Tool Journal',
                     ),
                   ),
                 OutlinedButton.icon(

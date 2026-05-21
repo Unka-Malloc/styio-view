@@ -1,16 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/agent/agent_builtin_tool_executor.dart';
-import 'package:vityo_app/src/agent/agent_code_patch_applier.dart';
-import 'package:vityo_app/src/agent/agent_context.dart';
-import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
-import 'package:vityo_app/src/agent/agent_profile.dart';
-import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
-import 'package:vityo_app/src/agent/agent_tool_call_dispatcher.dart';
-import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
-import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
-import 'package:vityo_app/src/agent/agent_tool_registry.dart';
-import 'package:vityo_app/src/agent/agent_workspace_snapshot.dart';
+import 'package:vityo_app/src/agent/agent.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -356,6 +346,50 @@ void main() {
     expect(
       controller.toolCallExecutionPlan.executionFor('call-recovery')?.status,
       AgentToolCallExecutionStatus.completed,
+    );
+  });
+
+  testWidgets('agent surface replays tool execution journal', (tester) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-read',
+        toolId: 'readWorkspaceFile',
+        input: '{"path":"main.styio"}',
+      ),
+    );
+    await controller.dispatchReadyToolCalls((request) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message: 'temporary read failure',
+      );
+    });
+
+    await _pumpSurface(tester, controller);
+
+    expect(find.text('Replay plan: ready · requests 1'), findsOneWidget);
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-replay-journal')),
+    );
+    await tester.pump();
+
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.complete,
+    );
+    expect(controller.toolCallReplayPlan.status, AgentToolCallReplayPlanStatus.blocked);
+    expect(
+      controller.recentToolCallResultContexts.any(
+        (result) => result.output.contains('"source":"agent-session-context"'),
+      ),
+      isTrue,
     );
   });
 }

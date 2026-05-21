@@ -193,11 +193,13 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
     required this.executionReadiness,
     required this.changeReviewGate,
     required this.autonomyPolicy,
+    required this.loopGuard,
   });
 
   final AgentCodingExecutionReadiness executionReadiness;
   final AgentCodingChangeReviewGate changeReviewGate;
   final AgentCodingAutonomyPolicy autonomyPolicy;
+  final AgentCodingLoopGuard loopGuard;
 
   @override
   Widget build(BuildContext context) {
@@ -206,8 +208,11 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
     final canApplyPreview = changeReviewGate.canApplyPreview;
     final autonomyBlocked =
         autonomyPolicy.mode == AgentCodingAutonomyMode.blocked;
+    final loopGuardBlocked = loopGuard.blocked;
     final statusColor = requiresReview
         ? theme.colorScheme.primary
+        : loopGuardBlocked
+        ? theme.colorScheme.error
         : autonomyBlocked
         ? theme.colorScheme.error
         : theme.colorScheme.onSurfaceVariant;
@@ -261,6 +266,24 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
                 color: autonomyBlocked ? theme.colorScheme.error : null,
               ),
             ),
+            Text(
+              'Loop guard: ${loopGuard.status.wireValue}',
+              key: const ValueKey('agent-loop-guard-status'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: loopGuardBlocked ? theme.colorScheme.error : null,
+              ),
+            ),
+            if (loopGuard.blockingReasons.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              for (final reason in loopGuard.blockingReasons.take(3))
+                Text(
+                  reason,
+                  key: ValueKey('agent-loop-guard-reason-$reason'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+            ],
             if (autonomyPolicy.reasons.isNotEmpty) ...[
               const SizedBox(height: 4),
               for (final reason in autonomyPolicy.reasons.take(3))
@@ -2417,6 +2440,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 executionReadiness: widget.sessionContext.codingReadiness,
                 changeReviewGate: widget.controller.codingChangeReviewGate,
                 autonomyPolicy: widget.controller.codingAutonomyPolicy,
+                loopGuard: widget.controller.codingLoopGuard,
               ),
               if (toolCallTimeline.status != AgentToolCallTimelineStatus.idle ||
                   toolCallExecutionPlan.status !=

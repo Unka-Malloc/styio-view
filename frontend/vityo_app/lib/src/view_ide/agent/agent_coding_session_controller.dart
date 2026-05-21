@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'agent_coding_session_history_store.dart';
 import 'agent_coding_dispatch_plan.dart';
+import 'agent_coding_loop_guard.dart';
 import 'agent_coding_loop_plan.dart';
 import 'agent_code_patch_applier.dart';
 import 'agent_profile.dart';
@@ -288,6 +289,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         plan: codingValidationPlan,
         result: codingValidationResult,
       );
+  AgentCodingLoopGuard get codingLoopGuard => _currentCodingLoopGuard();
 
   AgentCodingLoopPlan get codingLoopPlan {
     return AgentCodingLoopPlan.fromState(
@@ -296,13 +298,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       validationPlan: codingValidationPlan,
       validationPipeline: codingValidationPipeline,
       hasProviderFailure: _lastProviderFailure != null,
-      loopGuard: AgentCodingLoopGuard.fromSignals(
-        toolReplayReportCount: _latestToolReplayReportCount(),
-        failedToolResultCount: _recentToolCallResultContexts
-            .where((result) => !result.success)
-            .length,
-        hasProviderFailure: _lastProviderFailure != null,
-      ),
+      loopGuard: _currentCodingLoopGuard(),
     );
   }
 
@@ -712,7 +708,9 @@ class AgentCodingSessionController extends ChangeNotifier {
     );
   }
 
-  Map<String, Object?> _toolReplayMetadata(AgentToolCallDispatchRequest request) {
+  Map<String, Object?> _toolReplayMetadata(
+    AgentToolCallDispatchRequest request,
+  ) {
     return <String, Object?>{
       'replayedFromJournal': true,
       'replayCallId': request.callId,
@@ -1524,6 +1522,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       providerSelectionPlan: _providerSelectionPlan,
       providerExecutionResolution: _providerExecutionResolution,
       recoveryPlan: sessionRecoveryPlan,
+      loopGuard: _currentCodingLoopGuard(),
       lastPatchApplication: _lastPatchApplicationContext,
       recentPatchApplications: _recentPatchApplicationContexts,
       recentCodingPlans: _recentCodingPlanContexts,
@@ -1632,8 +1631,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       }
       final latest = current.records.first;
       final replayReportPayload = report.toJson();
-      final previousReports =
-          latest.metadata['toolCallReplayReports'] is List
+      final previousReports = latest.metadata['toolCallReplayReports'] is List
           ? (latest.metadata['toolCallReplayReports'] as List)
                 .whereType<Map>()
                 .map(
@@ -1671,6 +1669,16 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
     final value = records.first.metadata['toolCallReplayReportCount'];
     return value is int ? value : 0;
+  }
+
+  AgentCodingLoopGuard _currentCodingLoopGuard() {
+    return AgentCodingLoopGuard.fromSignals(
+      toolReplayReportCount: _latestToolReplayReportCount(),
+      failedToolResultCount: _recentToolCallResultContexts
+          .where((result) => !result.success)
+          .length,
+      hasProviderFailure: _lastProviderFailure != null,
+    );
   }
 
   void _recordRecentPatchProposalContext(AgentCodePatch? patch) {
@@ -1911,9 +1919,7 @@ String _blockedToolInputMessage(
   AgentToolCallExecution execution,
   List<AgentToolCallExecutionIssue> inputIssues,
 ) {
-  final detail = inputIssues
-      .map((issue) => issue.message)
-      .join(' ');
+  final detail = inputIssues.map((issue) => issue.message).join(' ');
   return 'The ${execution.toolId} tool was called with invalid arguments: '
       '$detail Please rewrite the input so it satisfies the expected schema.';
 }

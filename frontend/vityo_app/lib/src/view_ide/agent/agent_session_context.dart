@@ -15,6 +15,7 @@ import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_manager.dart';
 import '../workspace/workspace.dart';
+import 'agent_coding_loop_guard.dart';
 import 'agent_coding_session_history_store.dart';
 import 'agent_coding_skill.dart';
 import 'agent_profile.dart';
@@ -1311,6 +1312,7 @@ class AgentSessionContext {
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
+    AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
         const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
@@ -1376,7 +1378,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 79,
+      schemaVersion: 80,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -1417,6 +1419,7 @@ class AgentSessionContext {
                 providerExecutionResolution,
               ),
         recoveryPlan: recoveryPlan,
+        loopGuard: loopGuard,
         savedProviderProfiles: savedProviderProfiles,
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
@@ -1569,6 +1572,7 @@ class AgentSessionContext {
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
+    AgentCodingLoopGuard? loopGuard,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
         const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
@@ -1610,6 +1614,7 @@ class AgentSessionContext {
         providerSelectionPlan == null &&
         providerExecutionResolution == null &&
         recoveryPlan == null &&
+        loopGuard == null &&
         savedProviderProfileList.isEmpty &&
         lastPatchApplication == null &&
         workspaceEdit == null) {
@@ -1657,6 +1662,7 @@ class AgentSessionContext {
                 providerExecutionResolution,
               ),
         recoveryPlan: recoveryPlan ?? agent.recoveryPlan,
+        loopGuard: loopGuard ?? agent.loopGuard,
         savedProviderProfiles: savedProviderProfileList.isEmpty
             ? agent.savedProviderProfiles
             : savedProviderProfileList,
@@ -1714,6 +1720,7 @@ class AgentCodingLoopContext {
     this.providerSelection,
     this.providerExecution,
     this.recoveryPlan,
+    this.loopGuard = const AgentCodingLoopGuard.clear(),
     this.savedProviderProfiles = const <AgentPromptProfileManifestEntry>[],
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
@@ -1744,6 +1751,7 @@ class AgentCodingLoopContext {
     AgentProviderSelectionContext? providerSelection,
     AgentProviderExecutionContext? providerExecution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
+    AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
         const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
@@ -1829,6 +1837,7 @@ class AgentCodingLoopContext {
       providerSelection: providerSelection,
       providerExecution: providerExecution,
       recoveryPlan: recoveryPlan,
+      loopGuard: loopGuard,
       savedProviderProfiles: savedProviderProfileList,
       lastPatchApplication: effectiveLastPatchApplicationWithValidation,
       recentPatchApplications: effectiveHistory,
@@ -1862,6 +1871,7 @@ class AgentCodingLoopContext {
   final AgentProviderSelectionContext? providerSelection;
   final AgentProviderExecutionContext? providerExecution;
   final AgentCodingSessionRecoveryPlan? recoveryPlan;
+  final AgentCodingLoopGuard loopGuard;
   final List<AgentPromptProfileManifestEntry> savedProviderProfiles;
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
@@ -1899,6 +1909,8 @@ class AgentCodingLoopContext {
       if (providerExecution != null)
         'providerExecution': providerExecution!.toJson(),
       if (recoveryPlan != null) 'recoveryPlan': recoveryPlan!.toJson(),
+      if (loopGuard.status != AgentCodingLoopGuardStatus.clear)
+        'loopGuard': loopGuard.toJson(),
       'savedProviderProfileCount': savedProviderProfiles.length,
       if (savedProviderProfiles.isNotEmpty)
         'savedProviderProfiles': savedProviderProfiles

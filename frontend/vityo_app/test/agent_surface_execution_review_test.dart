@@ -316,8 +316,9 @@ void main() {
     );
   });
 
-  testWidgets('agent surface exposes controller recovery context tools',
-      (tester) async {
+  testWidgets('agent surface exposes controller recovery context tools', (
+    tester,
+  ) async {
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
       adapter: const LocalOnlyAgentProviderAdapter(),
@@ -384,13 +385,50 @@ void main() {
       controller.toolCallTimeline.status,
       AgentToolCallTimelineStatus.complete,
     );
-    expect(controller.toolCallReplayPlan.status, AgentToolCallReplayPlanStatus.blocked);
+    expect(
+      controller.toolCallReplayPlan.status,
+      AgentToolCallReplayPlanStatus.blocked,
+    );
     expect(
       controller.recentToolCallResultContexts.any(
         (result) => result.output.contains('"source":"agent-session-context"'),
       ),
       isTrue,
     );
+  });
+
+  testWidgets('agent surface shows blocked loop guard', (tester) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    for (final callId in <String>[
+      'call-read-1',
+      'call-read-2',
+      'call-read-3',
+    ]) {
+      controller.recordToolCallEvent(
+        AgentToolCallEvent.callStarted(
+          callId: callId,
+          toolId: 'readWorkspaceFile',
+          input: '{"path":"$callId.styio"}',
+        ),
+      );
+    }
+    await controller.dispatchReadyToolCalls((request) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message: 'temporary read failure',
+      );
+    });
+
+    await _pumpSurface(tester, controller);
+
+    expect(find.text('Loop guard: blocked'), findsOneWidget);
+    expect(find.text('agent.loop.failedToolResultLimit:3'), findsOneWidget);
   });
 }
 

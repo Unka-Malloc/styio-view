@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../commands/app_commands.dart';
+import 'agent_coding_loop_guard.dart';
 import 'agent_command_metadata.dart';
 import 'agent_profile.dart';
 import 'agent_provider_kind.dart';
@@ -1326,9 +1327,7 @@ Map<String, Object?> _openAICompatibleRequestBody(
         .map((result) => result.toJson())
         .toList(growable: false),
   });
-  final replayedToolResults = _replayedToolCallResults(
-    request.toolCallResults,
-  );
+  final replayedToolResults = _replayedToolCallResults(request.toolCallResults);
   final replayFollowUpJson = jsonEncode(<String, Object?>{
     'source': 'vityo-agent-tool-replay',
     'summary':
@@ -2141,6 +2140,18 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
       'agentChangeReviewIssueCodes': agent.changeReviewGate.issueCodes,
     });
   }
+  if (agent.loopGuard.status != AgentCodingLoopGuardStatus.clear) {
+    metadata.addAll(<String, Object?>{
+      'agentLoopGuardStatus': agent.loopGuard.status.wireValue,
+      'agentLoopGuardBlocked': agent.loopGuard.blocked,
+      'agentLoopGuardToolReplayReportCount':
+          agent.loopGuard.toolReplayReportCount,
+      'agentLoopGuardFailedToolResultCount':
+          agent.loopGuard.failedToolResultCount,
+      'agentLoopGuardHasProviderFailure': agent.loopGuard.hasProviderFailure,
+      'agentLoopGuardBlockingReasons': agent.loopGuard.blockingReasons,
+    });
+  }
   metadata.addAll(<String, Object?>{
     'agentAutonomyMode': agent.autonomyPolicy.mode.wireValue,
     'agentAutonomyCanProposePatches': agent.autonomyPolicy.canProposePatches,
@@ -2287,7 +2298,7 @@ Vityo structured response contract:
 - If commands.diagnosticCommands includes previewQuickFix, suggest previewQuickFix before applyQuickFix for cross-file quick fixes and inspect commands.lastResult.metadata.workspaceEditPreview before applying.
 - If the IDE context includes agent.workspaceEdit.suggestedCommandIds, prefer those command ids for ready workspace-edit follow-up actions before inventing patch application steps.
 - If the IDE context includes agent.suggestedCommandIds, prefer those command ids for pending IDE actions, workspace-edit follow-up actions, or provider recovery commands before inventing manual recovery steps.
-- If the IDE context includes agent.changeReviewGate, agent.autonomyPolicy, or agent.validationPlan, inspect them before applying, revising, or validating generated changes. Use agent.validationPlan.registeredCommandIds and agent.validationPlan.commandPlans for IDE-owned validation commands and required inputs.
+- If the IDE context includes agent.changeReviewGate, agent.autonomyPolicy, agent.loopGuard, or agent.validationPlan, inspect them before applying, revising, replaying tools, or validating generated changes. If agent.loopGuard.blocked is true, stop autonomous retry loops and propose user review or recovery instead of another tool replay. Use agent.validationPlan.registeredCommandIds and agent.validationPlan.commandPlans for IDE-owned validation commands and required inputs.
 - If the IDE context includes commands.registeredCommandIds, verify ide_command.commandId against that list before emitting any IDE command suggestion.
 - If the IDE context includes language.documentSymbols, use them as the current document outline before planning broad edits.
 - If the IDE context includes language.inlayHints, use them as language-derived parameter/type hint facts before changing calls or inferred values.

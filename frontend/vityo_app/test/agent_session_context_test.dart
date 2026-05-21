@@ -75,6 +75,27 @@ void main() {
 
     final agentChannel = context.toJsonForChannels(const <String>['agent']);
     expect(agentChannel['codingReadiness'], isA<Map<String, Object?>>());
+
+    final guardedContext = context.withAgentCodingState(
+      loopGuard: AgentCodingLoopGuard.fromSignals(
+        toolReplayReportCount: 3,
+        failedToolResultCount: 1,
+        hasProviderFailure: true,
+      ),
+    );
+    final guardedAgent =
+        guardedContext.toJsonForChannels(const <String>['agent'])['agent']!
+            as Map<String, Object?>;
+    final loopGuard = guardedAgent['loopGuard']! as Map<String, Object?>;
+    expect(loopGuard['status'], 'blocked');
+    expect(loopGuard['blocked'], isTrue);
+    expect(loopGuard['toolReplayReportCount'], 3);
+    expect(loopGuard['failedToolResultCount'], 1);
+    expect(loopGuard['hasProviderFailure'], isTrue);
+    expect(
+      loopGuard['blockingReasons'],
+      contains('agent.loop.replayReportLimit:3'),
+    );
   });
 
   test('agent session context serializes editor and runtime facts', () {
@@ -570,7 +591,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 79);
+    expect(json['schemaVersion'], 80);
     final registeredCommandIds =
         commandsJson['registeredCommandIds']! as List<Object?>;
     expect(commandsJson['commandCount'], registeredCommandIds.length);
@@ -1558,7 +1579,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 79);
+    expect(context.schemaVersion, 80);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1941,7 +1962,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 79);
+    expect(json['schemaVersion'], 80);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2428,7 +2449,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 79);
+    expect(context.schemaVersion, 80);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

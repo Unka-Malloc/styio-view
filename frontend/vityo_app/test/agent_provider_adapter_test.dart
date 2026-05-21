@@ -337,8 +337,7 @@ void main() {
       (message) => message['name'] == 'vityo_agent_replay_follow_up',
     );
     final replayContent =
-        jsonDecode(replayMessage['content']! as String)
-            as Map<String, Object?>;
+        jsonDecode(replayMessage['content']! as String) as Map<String, Object?>;
     final replayedResults =
         replayContent['replayedToolResults']! as List<Object?>;
     final metadata = transport.body['metadata']! as Map<String, Object?>;
@@ -610,7 +609,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      79,
+      80,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -1227,6 +1226,7 @@ void main() {
       expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
       expect(systemMessage['content'], contains('agent.changeReviewGate'));
       expect(systemMessage['content'], contains('agent.autonomyPolicy'));
+      expect(systemMessage['content'], contains('agent.loopGuard'));
       expect(systemMessage['content'], contains('agent.validationPlan'));
       expect(systemMessage['content'], contains('agent.validationResult'));
       expect(systemMessage['content'], contains('agent.validationPipeline'));
@@ -1441,7 +1441,7 @@ void main() {
         contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 79);
+      expect(metadata['contextSchemaVersion'], 80);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

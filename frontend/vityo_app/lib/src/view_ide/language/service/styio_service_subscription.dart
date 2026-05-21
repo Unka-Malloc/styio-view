@@ -39,6 +39,14 @@ typedef StyioServiceDaemonRestartHandler =
       StyioServiceDaemonRestartPlan plan,
     );
 
+abstract class StyioServiceDaemonProcessSupervisor {
+  const StyioServiceDaemonProcessSupervisor();
+
+  Future<StyioServiceDaemonLifecycleSnapshot> restartStyioServiceDaemon(
+    StyioServiceDaemonRestartPlan plan,
+  );
+}
+
 class StyioServiceSubscriptionEvent {
   StyioServiceSubscriptionEvent({
     required this.kind,

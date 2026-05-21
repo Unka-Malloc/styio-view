@@ -177,6 +177,10 @@ void main() {
     );
     expect(
       entriesById['service.semantic-snapshot']?.summary,
+      contains('StyioServiceDaemonProcessSupervisor restart handler contract'),
+    );
+    expect(
+      entriesById['service.semantic-snapshot']?.summary,
       contains('restart dispatch controls'),
     );
     expect(

@@ -1157,6 +1157,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     StyioServiceDaemonRestartPolicy policy =
         const StyioServiceDaemonRestartPolicy(),
     StyioServiceDaemonRestartHandler? restart,
+    StyioServiceDaemonProcessSupervisor? processSupervisor,
   }) async {
     final controller = styioServiceSubscriptionController;
     if (controller == null) {
@@ -1167,6 +1168,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
     final restartHandler =
         restart ??
+        processSupervisor?.restartStyioServiceDaemon ??
         (refreshActiveLanguageService == null
             ? null
             : _restartStyioServiceDaemonFromLanguageRefresh);

@@ -184,6 +184,13 @@ void main() {
           message: 'StyioService daemon restart handler ran from shell.',
         ),
       );
+      final supervisor = _ShellStyioServiceDaemonProcessSupervisor();
+      final supervised = await shell.dispatchStyioServiceDaemonRestart(
+        policy: const StyioServiceDaemonRestartPolicy(
+          initialDelay: Duration.zero,
+        ),
+        processSupervisor: supervisor,
+      );
       final projectLanguage = await shell.collectProjectLanguageContext();
       final restartDispatch =
           projectLanguage['styioServiceDaemonRestartDispatch']!
@@ -199,14 +206,22 @@ void main() {
         dispatched?.status,
         StyioServiceDaemonRestartDispatchStatus.dispatched,
       );
-      expect(shell.lastStyioServiceDaemonRestartDispatch, dispatched);
+      expect(
+        supervised?.status,
+        StyioServiceDaemonRestartDispatchStatus.dispatched,
+      );
+      expect(supervisor.restartCount, 1);
+      expect(supervised?.message, contains('process supervisor'));
+      expect(shell.lastStyioServiceDaemonRestartDispatch, supervised);
       expect(restartDispatch['status'], 'dispatched');
       expect(restartDispatch['dispatched'], isTrue);
       expect(restartDispatch['lifecycle'], isA<Map<String, Object?>>());
       expect(
         shell.debugLog,
         contains(
-          contains('StyioService daemon restart handler ran from shell.'),
+          contains(
+            'StyioService daemon restart dispatched by process supervisor.',
+          ),
         ),
       );
     },
@@ -3526,6 +3541,23 @@ class _ShellStyioServiceConnector implements StyioServiceConnector {
       status: StyioServiceStatus.succeeded,
       documentId: document.documentId,
       revision: document.revision,
+    );
+  }
+}
+
+class _ShellStyioServiceDaemonProcessSupervisor
+    implements StyioServiceDaemonProcessSupervisor {
+  int restartCount = 0;
+
+  @override
+  Future<StyioServiceDaemonLifecycleSnapshot> restartStyioServiceDaemon(
+    StyioServiceDaemonRestartPlan plan,
+  ) async {
+    restartCount += 1;
+    return StyioServiceDaemonLifecycleSnapshot(
+      state: StyioServiceDaemonLifecycleState.active,
+      providerId: plan.providerId,
+      message: 'StyioService daemon restart dispatched by process supervisor.',
     );
   }
 }

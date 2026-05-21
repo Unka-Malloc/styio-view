@@ -455,10 +455,15 @@ void main() {
           ],
         ),
       );
+      final historyStore = _MemoryAgentCodingSessionHistoryStore(
+        AgentCodingSessionHistory(workspaceId: 'demo'),
+      );
       final controller = AgentCodingSessionController(
         profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
         adapter: adapter,
         contextProvider: _context,
+        sessionHistoryStore: historyStore,
+        sessionHistoryWorkspaceId: 'demo',
       );
 
       controller.recordToolCallEvent(
@@ -512,6 +517,11 @@ void main() {
         AgentToolCallReplayPlanStatus.blocked,
       );
       expect(request.toJson()['toolCallResults'], isA<List<Object?>>());
+      final metadata = historyStore.history.records.single.metadata;
+      expect(metadata['toolResultContinuation'], isTrue);
+      expect(metadata['toolResultContinuationCount'], 1);
+      expect(metadata['toolResultContinuationFailedCount'], 0);
+      expect(metadata['toolResultContinuationCallIds'], <String>['call-read']);
       expect(controller.recentToolCallResultContexts, isEmpty);
       expect(controller.restoreToolResultContinuationDraft(), isFalse);
       expect(

@@ -165,6 +165,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   String? _activeProviderRequestId;
   String? _activeProviderPrompt;
   DateTime? _activeProviderStartedAt;
+  Map<String, Object?>? _pendingToolResultContinuationMetadata;
   AgentCodingSessionHistory? _sessionHistorySnapshot;
   AgentWorkspaceSnapshotCaptureResult? _lastWorkspaceSnapshotCaptureResult;
   AgentWorkspaceChangeSnapshot? _lastWorkspaceSnapshot;
@@ -485,8 +486,13 @@ class AgentCodingSessionController extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+    _pendingToolResultContinuationMetadata = _toolResultContinuationMetadata();
     updatePrompt(prompt ?? _toolResultContinuationPrompt());
-    return sendPrompt();
+    try {
+      return await sendPrompt();
+    } finally {
+      _pendingToolResultContinuationMetadata = null;
+    }
   }
 
   Future<AgentCodingSessionRecoveryDispatchResult> dispatchRecoveryRequestDraft(
@@ -1019,6 +1025,7 @@ class AgentCodingSessionController extends ChangeNotifier {
           metadata: _agentCodingHistoryMetadata(
             requestContext,
             toolCallExecutionJournal: toolCallJournalForHistory,
+            toolResultContinuation: _pendingToolResultContinuationMetadata,
           ),
         ),
       );
@@ -1042,6 +1049,7 @@ class AgentCodingSessionController extends ChangeNotifier {
             metadata: _agentCodingHistoryMetadata(
               requestContext,
               toolCallExecutionJournal: toolCallJournalForHistory,
+              toolResultContinuation: _pendingToolResultContinuationMetadata,
             ),
           ),
         );
@@ -2271,6 +2279,20 @@ class AgentCodingSessionController extends ChangeNotifier {
         'Use the attached tool results as the source of truth, summarize the outcome, and propose the next IDE action.$failed';
   }
 
+  Map<String, Object?> _toolResultContinuationMetadata() {
+    final failedCount = _recentToolCallResultContexts
+        .where((result) => !result.success)
+        .length;
+    return <String, Object?>{
+      'toolResultContinuation': true,
+      'toolResultContinuationCount': _recentToolCallResultContexts.length,
+      'toolResultContinuationFailedCount': failedCount,
+      'toolResultContinuationCallIds': _recentToolCallResultContexts
+          .map((result) => result.callId)
+          .toList(growable: false),
+    };
+  }
+
   void _recordRecentToolCallResultContexts(
     Iterable<AgentToolCallDispatchResult> results,
   ) {
@@ -2480,9 +2502,13 @@ String _blockedToolInputMessage(
 Map<String, Object?> _agentCodingHistoryMetadata(
   AgentSessionContext context, {
   AgentToolCallExecutionJournal? toolCallExecutionJournal,
+  Map<String, Object?>? toolResultContinuation,
 }) {
   final agent = context.agent;
   final metadata = <String, Object?>{};
+  if (toolResultContinuation != null) {
+    metadata.addAll(toolResultContinuation);
+  }
   if (toolCallExecutionJournal != null &&
       toolCallExecutionJournal.entries.isNotEmpty) {
     metadata['toolCallExecutionJournal'] = toolCallExecutionJournal.toJson();

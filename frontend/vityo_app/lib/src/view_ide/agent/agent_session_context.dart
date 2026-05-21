@@ -1208,6 +1208,8 @@ class AgentSessionContext {
     IdeCapabilityFrameworkSnapshot? ideCapabilityFramework,
     ToolchainStateSnapshot? toolchainSnapshot,
     ClangCppVersionPreference? clangCppVersionPreference,
+    ToolchainManagerBootstrapSummary? toolchainBootstrapSummary,
+    ToolchainBootstrapActionDispatchResult? toolchainBootstrapActionDispatch,
     AgentCommandResultContext? lastCommandResult,
     Iterable<AgentCommandResultContext> recentCommandResults =
         const <AgentCommandResultContext>[],
@@ -1242,6 +1244,8 @@ class AgentSessionContext {
     final toolchainContext = AgentToolchainContext.fromSnapshot(
       toolchainSnapshot,
       clangCppVersionPreference: clangCppVersionPreference,
+      toolchainBootstrapSummary: toolchainBootstrapSummary,
+      toolchainBootstrapActionDispatch: toolchainBootstrapActionDispatch,
     );
     final workspaceContext = AgentWorkspaceContext.fromWorkspaceState(
       activeFilePath: activeFilePath ?? document.documentId,
@@ -1285,7 +1289,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 77,
+      schemaVersion: 78,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -2801,17 +2805,23 @@ class AgentToolchainContext {
     required this.entries,
     required this.activeCompiler,
     this.clangCpp,
+    this.bootstrap,
+    this.lastBootstrapActionDispatch,
   });
 
   factory AgentToolchainContext.fromSnapshot(
     ToolchainStateSnapshot? snapshot, {
     int maxEntries = 20,
     ClangCppVersionPreference? clangCppVersionPreference,
+    ToolchainManagerBootstrapSummary? toolchainBootstrapSummary,
+    ToolchainBootstrapActionDispatchResult? toolchainBootstrapActionDispatch,
   }) {
     if (snapshot == null) {
-      return const AgentToolchainContext(
+      return AgentToolchainContext(
         entries: <AgentToolchainEntryContext>[],
         activeCompiler: null,
+        bootstrap: toolchainBootstrapSummary,
+        lastBootstrapActionDispatch: toolchainBootstrapActionDispatch,
       );
     }
     final entries = snapshot.entries
@@ -2828,12 +2838,16 @@ class AgentToolchainContext {
         snapshot,
         preference: clangCppVersionPreference,
       ),
+      bootstrap: toolchainBootstrapSummary,
+      lastBootstrapActionDispatch: toolchainBootstrapActionDispatch,
     );
   }
 
   final List<AgentToolchainEntryContext> entries;
   final AgentToolchainEntryContext? activeCompiler;
   final AgentClangCppToolchainContext? clangCpp;
+  final ToolchainManagerBootstrapSummary? bootstrap;
+  final ToolchainBootstrapActionDispatchResult? lastBootstrapActionDispatch;
 
   int get entryCount => entries.length;
   bool get hasNativeCompiler =>
@@ -2849,6 +2863,9 @@ class AgentToolchainContext {
       'hasNativeCompiler': hasNativeCompiler,
       if (activeCompiler != null) 'activeCompiler': activeCompiler!.toJson(),
       if (clangCpp != null) 'clangCpp': clangCpp!.toJson(),
+      if (bootstrap != null) 'bootstrap': bootstrap!.toJson(),
+      if (lastBootstrapActionDispatch != null)
+        'lastBootstrapActionDispatch': lastBootstrapActionDispatch!.toJson(),
       'nativeTools': nativeTools.toJson(),
     };
   }

@@ -694,7 +694,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        77,
+        78,
       );
       final checkpointIdeCapabilities =
           checkpointCommandResult?.metadata['ideCapabilities']!

@@ -959,6 +959,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       toolchainSnapshot:
           toolchainStatusReport?.value.snapshot ?? _lastToolchainSnapshot,
       clangCppVersionPreference: _clangCppVersionPreference,
+      toolchainBootstrapSummary: _toolchainBootstrapSummary,
+      toolchainBootstrapActionDispatch: _lastToolchainBootstrapActionDispatch,
       semanticPanelViewModels: semanticPanelViewModels,
       recoveryPlan: agentCodingController.sessionRecoveryPlan,
       savedProviderProfiles: _agentProviderProfileManifest.entries,

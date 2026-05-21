@@ -99,6 +99,76 @@ void main() {
       );
     },
   );
+
+  test('agent toolchain context exposes bootstrap action facts', () {
+    const snapshot = ToolchainStateSnapshot(
+      targetId: 'agent-bootstrap',
+      workspaceId: 'demo',
+      entries: <ToolchainStateEntry>[],
+    );
+    const requirement = ToolchainRequirement(
+      kind: ToolchainKind.languageService,
+    );
+    const summary = ToolchainManagerBootstrapSummary(
+      managerReport: ToolchainManagerStatusReport(
+        status: ToolchainManagerStatus.unresolved,
+        snapshot: snapshot,
+        requirement: requirement,
+        resolution: ToolchainResolution(
+          status: ToolchainResolutionStatus.missingKind,
+          requirement: requirement,
+          message: 'No language service descriptor.',
+        ),
+        recoveryState: ToolchainRecoveryState(
+          kind: ToolchainRecoveryStateKind.needsSelection,
+          actionIds: <String>['select-styio-language-service'],
+        ),
+      ),
+      styioLifecycle: StyioToolchainLifecycleReport(
+        state: StyioToolchainLifecycleState.missing,
+        requiredRoles: <StyioToolchainRole>[
+          StyioToolchainRole.languageService,
+        ],
+        roles: <StyioToolchainRoleStatus>[
+          StyioToolchainRoleStatus(
+            role: StyioToolchainRole.languageService,
+            state: StyioToolchainRoleState.missing,
+            required: true,
+            message: 'Missing Styio language service.',
+          ),
+        ],
+        message: 'Missing Styio toolchain.',
+      ),
+      settingsActionIds: <String>['install-styio-language-service'],
+      installerActionIds: <String>['install-managed-styio-toolchain'],
+      projectBootstrapActionIds: <String>['bootstrap-styio-toolchain'],
+    );
+    const dispatch = ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.missingHandler,
+      actionId: 'install-managed-styio-toolchain',
+      message: 'No installer handler is registered.',
+      todo: 'TODO: bind installer action handler.',
+    );
+
+    final context = AgentToolchainContext.fromSnapshot(
+      snapshot,
+      toolchainBootstrapSummary: summary,
+      toolchainBootstrapActionDispatch: dispatch,
+    );
+    final json = context.toJson();
+    final bootstrap = json['bootstrap']! as Map<String, Object?>;
+    final executionPlan =
+        bootstrap['executionPlan']! as Map<String, Object?>;
+    final lastDispatch =
+        json['lastBootstrapActionDispatch']! as Map<String, Object?>;
+
+    expect(bootstrap['ready'], isFalse);
+    expect(executionPlan['canExecute'], isTrue);
+    expect(executionPlan['stepCount'], 3);
+    expect(lastDispatch['status'], 'missing-handler');
+    expect(lastDispatch['actionId'], 'install-managed-styio-toolchain');
+    expect(lastDispatch['todo'], contains('TODO'));
+  });
 }
 
 String _singleId(Object? value) {

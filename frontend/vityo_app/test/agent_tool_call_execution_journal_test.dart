@@ -57,6 +57,10 @@ void main() {
       (payload['entries'] as List<Object?>).single,
       isA<Map<Object?, Object?>>(),
     );
+    expect(
+      AgentToolCallReplayPlan.fromJournal(journal).requests.single.inputText,
+      '{"path":"main.styio"}',
+    );
   });
 
   test('agent tool call execution journal can replay completed calls on demand',
@@ -103,6 +107,16 @@ void main() {
     expect(journal.status, AgentToolCallExecutionJournalStatus.complete);
     expect(journal.replayCandidates, isEmpty);
     expect(journal.replayRequests(), isEmpty);
-    expect(journal.replayRequests(includeCompleted: true).single.callId, 'call-read');
+    expect(
+      AgentToolCallReplayPlan.fromJournal(journal).status,
+      AgentToolCallReplayPlanStatus.blocked,
+    );
+    expect(
+      AgentToolCallReplayPlan.fromJournal(
+        journal,
+        includeCompleted: true,
+      ).requests.single.callId,
+      'call-read',
+    );
   });
 }

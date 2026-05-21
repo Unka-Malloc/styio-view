@@ -231,6 +231,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentToolCallTimeline get toolCallTimeline => _toolCallTimeline;
   AgentToolCallExecutionJournal get toolCallExecutionJournal =>
       _toolCallExecutionJournal;
+  AgentToolCallReplayPlan get toolCallReplayPlan =>
+      AgentToolCallReplayPlan.fromJournal(_toolCallExecutionJournal);
   List<AgentToolCallResultContext> get recentToolCallResultContexts =>
       List<AgentToolCallResultContext>.unmodifiable(
         _recentToolCallResultContexts,
@@ -631,6 +633,54 @@ class AgentCodingSessionController extends ChangeNotifier {
     _refreshToolCallExecutionJournal(dispatchReport: report);
     notifyListeners();
     return report;
+  }
+
+  Future<AgentToolCallReplayReport> replayToolCallJournal(
+    AgentToolCallExecutor executor, {
+    bool includeCompleted = false,
+  }) async {
+    final plan = AgentToolCallReplayPlan.fromJournal(
+      _toolCallExecutionJournal,
+      includeCompleted: includeCompleted,
+    );
+    if (!plan.ready) {
+      return AgentToolCallReplayReport(
+        status: AgentToolCallReplayReportStatus.blocked,
+        plan: plan,
+      );
+    }
+
+    final results = <AgentToolCallDispatchResult>[];
+    final events = <AgentToolCallEvent>[];
+    for (final request in plan.requests) {
+      late final AgentToolCallDispatchResult result;
+      try {
+        result = await Future<AgentToolCallDispatchResult>.value(
+          executor(request),
+        );
+      } on Object catch (error) {
+        result = AgentToolCallDispatchResult.failure(
+          callId: request.callId,
+          toolId: request.toolId,
+          message: 'Agent tool replay ${request.callId} failed: $error',
+        );
+      }
+      results.add(result);
+      events.add(result.toLifecycleEvent());
+    }
+    if (events.isNotEmpty) {
+      recordToolCallEvents(events);
+    }
+    if (results.isNotEmpty) {
+      _recordRecentToolCallResultContexts(results);
+    }
+    _refreshToolCallExecutionJournal();
+    notifyListeners();
+    return AgentToolCallReplayReport.fromResults(
+      plan: plan,
+      results: results,
+      events: events,
+    );
   }
 
   void _refreshToolCallExecutionJournal({

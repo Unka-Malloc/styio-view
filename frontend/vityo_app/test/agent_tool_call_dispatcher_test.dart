@@ -183,6 +183,46 @@ void main() {
     expect(journal.replayRequests().single.inputText, '{"path":"missing.styio"}');
   });
 
+  test('agent coding session replays tool execution journal', () async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-read',
+        toolId: 'readWorkspaceFile',
+        input: '{"path":"missing.styio"}',
+      ),
+    );
+    await controller.dispatchReadyToolCalls((request) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message: 'file missing',
+      );
+    });
+
+    final report = await controller.replayToolCallJournal((request) {
+      return AgentToolCallDispatchResult.success(
+        callId: request.callId,
+        toolId: request.toolId,
+        output: '{"text":"restored"}',
+      );
+    });
+
+    expect(report.status, AgentToolCallReplayReportStatus.replayed);
+    expect(report.replayed, isTrue);
+    expect(controller.toolCallTimeline.status, AgentToolCallTimelineStatus.complete);
+    expect(
+      controller.toolCallExecutionPlan.executionFor('call-read')?.status,
+      AgentToolCallExecutionStatus.completed,
+    );
+    expect(controller.toolCallReplayPlan.status, AgentToolCallReplayPlanStatus.blocked);
+  });
+
   test('agent builtin executor reads sampled workspace files', () async {
     final context = _context(
       workspaceFiles: const <String>['helper.styio'],

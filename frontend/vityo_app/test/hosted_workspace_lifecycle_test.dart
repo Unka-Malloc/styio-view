@@ -84,6 +84,20 @@ void main() {
       report.actionFor(HostedBackendRetryActionKind.exportCoreFiles)?.enabled,
       isTrue,
     );
+    expect(
+      report
+          .actionFor(HostedBackendRetryActionKind.exportCoreFiles)
+          ?.endpointPlan
+          ?.published,
+      isFalse,
+    );
+    expect(
+      report
+          .actionFor(HostedBackendRetryActionKind.openSettings)
+          ?.endpointPlan
+          ?.settingsRoute,
+      contains('settings://hosted-backend'),
+    );
     expect(json['status'], 'retryable-failure');
     expect(json['actions'], isA<List<Object?>>());
   });
@@ -144,6 +158,11 @@ void main() {
       ).outputPanelSnapshot(timestamp: DateTime.utc(2026, 5, 20));
       expect(output.events.single.metadata['hostedRetryStatus'], 'completed');
       expect(output.events.single.metadata['successful'], isTrue);
+      expect(
+        output.events.single.metadata['endpointRoute'],
+        contains('/project-graph'),
+      );
+      expect(output.events.single.metadata['endpointPublished'], isTrue);
     },
   );
 
@@ -166,7 +185,9 @@ void main() {
     );
 
     expect(result.status, HostedBackendRetryActionExecutionStatus.unsupported);
-    expect(result.message, contains('TODO: hosted control plane reopen'));
+    expect(result.message, contains('reopen endpoint is not published'));
+    expect(result.endpointPlan?.published, isFalse);
+    expect(result.toJson()['endpointPlan'], isA<Map<String, Object?>>());
     expect(client.projectGraphWorkspaceIds, isEmpty);
   });
 }

@@ -147,7 +147,19 @@ void main() {
     );
     expect(
       entriesById['service.remote-service']?.summary,
+      contains('HostedBackendRetryEndpointPlan'),
+    );
+    expect(
+      entriesById['service.remote-service']?.summary,
       contains('HostedControlPlaneRetryTransport'),
+    );
+    expect(
+      entriesById['service.remote-service']?.todo,
+      contains('reopen/export control-plane endpoints'),
+    );
+    expect(
+      entriesById['service.remote-service']?.runtimeMaturityBlocking,
+      isFalse,
     );
     expect(
       entriesById['workspace.file-explorer']?.summary,

@@ -29,6 +29,7 @@ class HostedBackendRetryActionExecutionResult {
     required this.kind,
     required this.status,
     required this.message,
+    this.endpointPlan,
     this.response,
   });
 
@@ -36,6 +37,7 @@ class HostedBackendRetryActionExecutionResult {
   final HostedBackendRetryActionKind kind;
   final HostedBackendRetryActionExecutionStatus status;
   final String message;
+  final HostedBackendRetryEndpointPlan? endpointPlan;
   final Map<String, dynamic>? response;
 
   bool get successful =>
@@ -48,6 +50,7 @@ class HostedBackendRetryActionExecutionResult {
       'status': status.label,
       'successful': successful,
       'message': message,
+      if (endpointPlan != null) 'endpointPlan': endpointPlan!.toJson(),
       if (response != null) 'response': response,
     };
   }
@@ -82,6 +85,10 @@ class HostedBackendRetryRuntimeOutputBinding {
         'hostedRetryKind': result.kind.label,
         'hostedRetryStatus': result.status.label,
         'successful': result.successful,
+        if (result.endpointPlan != null)
+          'endpointRoute': result.endpointPlan!.route,
+        if (result.endpointPlan != null)
+          'endpointPublished': result.endpointPlan!.published,
         if (action != null) 'actionEnabled': action!.enabled,
       },
     );
@@ -149,7 +156,7 @@ class HostedControlPlaneRetryTransport implements HostedBackendRetryTransport {
       'returncode': 78,
       'status': 'unsupported',
       'message':
-          'TODO: hosted control plane reopen endpoint is not published yet for $workspaceId on ${platformTarget.label}.',
+          'Hosted control plane reopen endpoint is not published yet for $workspaceId on ${platformTarget.label}.',
     };
   }
 
@@ -161,7 +168,7 @@ class HostedControlPlaneRetryTransport implements HostedBackendRetryTransport {
       'returncode': 78,
       'status': 'unsupported',
       'message':
-          'TODO: hosted control plane core-file export endpoint is not published yet for $workspaceId on ${platformTarget.label}.',
+          'Hosted control plane core-file export endpoint is not published yet for $workspaceId on ${platformTarget.label}.',
     };
   }
 }
@@ -175,12 +182,20 @@ class HostedBackendRetryActionExecutor {
     required HostedBackendRetryAction action,
     required HostedWorkspaceRecordSnapshot workspace,
   }) async {
+    final endpointPlan =
+        action.endpointPlan ??
+        HostedBackendRetryEndpointPlan.forAction(
+          actionId: action.id,
+          kind: action.kind,
+          workspaceId: workspace.workspaceId,
+        );
     if (!action.enabled) {
       return HostedBackendRetryActionExecutionResult(
         actionId: action.id,
         kind: action.kind,
         status: HostedBackendRetryActionExecutionStatus.blocked,
         message: action.message ?? 'Hosted backend retry action is disabled.',
+        endpointPlan: endpointPlan,
       );
     }
 
@@ -191,6 +206,7 @@ class HostedBackendRetryActionExecutor {
         kind: action.kind,
         status: _statusFromResponse(response),
         message: _messageFromResponse(response, fallback: action.message),
+        endpointPlan: endpointPlan,
         response: response,
       );
     } catch (error) {
@@ -199,6 +215,7 @@ class HostedBackendRetryActionExecutor {
         kind: action.kind,
         status: HostedBackendRetryActionExecutionStatus.failed,
         message: 'Hosted backend retry action failed: $error',
+        endpointPlan: endpointPlan,
       );
     }
   }

@@ -219,6 +219,11 @@ class HostedWorkspaceLifecycle {
         message: status == HostedBackendConnectorStatus.retryableFailure
             ? 'Retry the hosted backend connector route.'
             : 'Retry is only available for retryable connector failures.',
+        endpointPlan: HostedBackendRetryEndpointPlan.forAction(
+          actionId: 'retry-connect',
+          kind: HostedBackendRetryActionKind.retryConnect,
+          workspaceId: workspace.workspaceId,
+        ),
       ),
       HostedBackendRetryAction(
         id: 'refresh-workspace',
@@ -226,6 +231,11 @@ class HostedWorkspaceLifecycle {
         kind: HostedBackendRetryActionKind.refreshWorkspace,
         enabled: workspace.status != HostedWorkspaceStatus.deleted,
         message: 'Refresh hosted workspace state from the control plane.',
+        endpointPlan: HostedBackendRetryEndpointPlan.forAction(
+          actionId: 'refresh-workspace',
+          kind: HostedBackendRetryActionKind.refreshWorkspace,
+          workspaceId: workspace.workspaceId,
+        ),
       ),
       HostedBackendRetryAction(
         id: 'reopen-workspace',
@@ -235,6 +245,11 @@ class HostedWorkspaceLifecycle {
         message: workspace.status == HostedWorkspaceStatus.pendingDeletion
             ? 'Reopen this pending-deletion hosted workspace.'
             : 'Reopen is only available for pending-deletion workspaces.',
+        endpointPlan: HostedBackendRetryEndpointPlan.forAction(
+          actionId: 'reopen-workspace',
+          kind: HostedBackendRetryActionKind.reopenWorkspace,
+          workspaceId: workspace.workspaceId,
+        ),
       ),
       HostedBackendRetryAction(
         id: 'export-core-files',
@@ -244,12 +259,22 @@ class HostedWorkspaceLifecycle {
         message: closePlan?.exportReady == true
             ? 'Download core files before clearing or reconnecting.'
             : 'Core file export is not ready yet.',
+        endpointPlan: HostedBackendRetryEndpointPlan.forAction(
+          actionId: 'export-core-files',
+          kind: HostedBackendRetryActionKind.exportCoreFiles,
+          workspaceId: workspace.workspaceId,
+        ),
       ),
-      const HostedBackendRetryAction(
+      HostedBackendRetryAction(
         id: 'open-settings',
         label: 'Open hosted settings',
         kind: HostedBackendRetryActionKind.openSettings,
         message: 'Open hosted backend configuration and credential settings.',
+        endpointPlan: HostedBackendRetryEndpointPlan.forAction(
+          actionId: 'open-settings',
+          kind: HostedBackendRetryActionKind.openSettings,
+          workspaceId: workspace.workspaceId,
+        ),
       ),
     ];
     return List.unmodifiable(actions);
@@ -327,6 +352,7 @@ class HostedBackendRetryAction {
     required this.kind,
     this.enabled = true,
     this.message,
+    this.endpointPlan,
   });
 
   final String id;
@@ -334,6 +360,7 @@ class HostedBackendRetryAction {
   final HostedBackendRetryActionKind kind;
   final bool enabled;
   final String? message;
+  final HostedBackendRetryEndpointPlan? endpointPlan;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -342,6 +369,99 @@ class HostedBackendRetryAction {
       'kind': kind.label,
       'enabled': enabled,
       if (message != null) 'message': message,
+      if (endpointPlan != null) 'endpointPlan': endpointPlan!.toJson(),
+    };
+  }
+}
+
+class HostedBackendRetryEndpointPlan {
+  const HostedBackendRetryEndpointPlan({
+    required this.actionId,
+    required this.kind,
+    required this.workspaceId,
+    required this.method,
+    required this.route,
+    required this.published,
+    this.settingsRoute = '',
+  });
+
+  factory HostedBackendRetryEndpointPlan.forAction({
+    required String actionId,
+    required HostedBackendRetryActionKind kind,
+    required String workspaceId,
+  }) {
+    final encodedWorkspaceId = Uri.encodeComponent(workspaceId);
+    return switch (kind) {
+      HostedBackendRetryActionKind.retryConnect =>
+        HostedBackendRetryEndpointPlan(
+          actionId: actionId,
+          kind: kind,
+          workspaceId: workspaceId,
+          method: 'GET',
+          route:
+              '/hosted/workspaces/$encodedWorkspaceId/project-graph',
+          published: true,
+        ),
+      HostedBackendRetryActionKind.refreshWorkspace =>
+        HostedBackendRetryEndpointPlan(
+          actionId: actionId,
+          kind: kind,
+          workspaceId: workspaceId,
+          method: 'GET',
+          route:
+              '/hosted/workspaces/$encodedWorkspaceId/project-graph',
+          published: true,
+        ),
+      HostedBackendRetryActionKind.reopenWorkspace =>
+        HostedBackendRetryEndpointPlan(
+          actionId: actionId,
+          kind: kind,
+          workspaceId: workspaceId,
+          method: 'POST',
+          route: '/hosted/workspaces/$encodedWorkspaceId/reopen',
+          published: false,
+        ),
+      HostedBackendRetryActionKind.exportCoreFiles =>
+        HostedBackendRetryEndpointPlan(
+          actionId: actionId,
+          kind: kind,
+          workspaceId: workspaceId,
+          method: 'POST',
+          route:
+              '/hosted/workspaces/$encodedWorkspaceId/core-files/export',
+          published: false,
+        ),
+      HostedBackendRetryActionKind.openSettings =>
+        HostedBackendRetryEndpointPlan(
+          actionId: actionId,
+          kind: kind,
+          workspaceId: workspaceId,
+          method: 'OPEN',
+          route: 'settings://hosted-backend?workspaceId=$encodedWorkspaceId',
+          published: true,
+          settingsRoute:
+              'settings://hosted-backend?workspaceId=$encodedWorkspaceId',
+        ),
+    };
+  }
+
+  final String actionId;
+  final HostedBackendRetryActionKind kind;
+  final String workspaceId;
+  final String method;
+  final String route;
+  final bool published;
+  final String settingsRoute;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'actionId': actionId,
+      'kind': kind.label,
+      'workspaceId': workspaceId,
+      'method': method,
+      'route': route,
+      'published': published,
+      if (settingsRoute.isNotEmpty) 'settingsRoute': settingsRoute,
     };
   }
 }

@@ -937,6 +937,71 @@ void main() {
     expect(controller.pendingPatch, isNull);
   });
 
+  test(
+    'agent coding session exposes change review gate for pending patch',
+    () async {
+      const patch = AgentCodePatch(
+        patchId: 'patch-review-1',
+        summary: 'Update value.',
+        edits: <AgentCodePatchEdit>[
+          AgentCodePatchEdit(
+            documentId: 'main.styio',
+            start: 8,
+            end: 9,
+            replacementText: '2',
+          ),
+        ],
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: _FakeAgentProviderAdapter(
+          response: const AgentProviderResponseEnvelope(
+            requestId: 'agent-request-review',
+            role: 'assistant',
+            finishReason: 'stop',
+            contentParts: <AgentContentPart>[
+              AgentContentPart(
+                kind: AgentContentPartKind.codePatch,
+                text: 'Patch ready.',
+                patch: patch,
+              ),
+            ],
+          ),
+        ),
+        contextProvider: _context,
+      );
+
+      expect(
+        controller.codingChangeReviewGate.status,
+        AgentCodingChangeReviewGateStatus.idle,
+      );
+
+      controller.updatePrompt('Change value.');
+      await controller.sendPrompt();
+      final gate = controller.codingChangeReviewGate;
+
+      expect(gate.status, AgentCodingChangeReviewGateStatus.needsReview);
+      expect(gate.requiresUserReview, isTrue);
+      expect(gate.canApplyPreview, isTrue);
+      expect(gate.hasIssue('agent.change.requires-review'), isTrue);
+      expect(
+        gate.requiredReviewSteps,
+        containsAll(<String>[
+          'reviewWorkspaceEditPreview',
+          'confirmGeneratedPatchScope',
+          'capturePostApplyResult',
+        ]),
+      );
+      expect(
+        gate.todoItems,
+        contains(
+          'TODO: bind this gate to the concrete diff review and apply controls.',
+        ),
+      );
+      expect(gate.toJson()['status'], 'needsReview');
+    },
+  );
+
   test('agent coding session applies pending code patch to editor', () async {
     final editorController = EditorSessionController(
       initialDocument: const DocumentState(

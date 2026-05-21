@@ -318,6 +318,180 @@ class AgentCodingExecutionReadiness {
   }
 }
 
+enum AgentCodingChangeReviewGateStatus { idle, needsReview, applying, blocked }
+
+extension AgentCodingChangeReviewGateStatusX
+    on AgentCodingChangeReviewGateStatus {
+  String get wireValue => switch (this) {
+    AgentCodingChangeReviewGateStatus.idle => 'idle',
+    AgentCodingChangeReviewGateStatus.needsReview => 'needsReview',
+    AgentCodingChangeReviewGateStatus.applying => 'applying',
+    AgentCodingChangeReviewGateStatus.blocked => 'blocked',
+  };
+}
+
+class AgentCodingChangeReviewIssue {
+  const AgentCodingChangeReviewIssue({
+    required this.code,
+    required this.message,
+    required this.ownerLayer,
+    this.todo,
+  });
+
+  final String code;
+  final String message;
+  final String ownerLayer;
+  final String? todo;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'code': code,
+      'message': message,
+      'ownerLayer': ownerLayer,
+      if (todo != null) 'todo': todo,
+    };
+  }
+}
+
+class AgentCodingChangeReviewGate {
+  const AgentCodingChangeReviewGate({
+    required this.status,
+    required this.canApplyPreview,
+    required this.requiresUserReview,
+    this.issues = const <AgentCodingChangeReviewIssue>[],
+    this.requiredReviewSteps = const <String>[],
+    this.todoItems = const <String>[],
+  });
+
+  factory AgentCodingChangeReviewGate.fromControllerState({
+    required bool hasPendingPatch,
+    required bool hasWorkspaceEditPreview,
+    required bool applyingPatch,
+    required bool applyingIdeCommand,
+    required AgentCodingExecutionReadiness executionReadiness,
+  }) {
+    final issues = <AgentCodingChangeReviewIssue>[];
+    final reviewSteps = <String>[];
+    if (!hasPendingPatch) {
+      return const AgentCodingChangeReviewGate(
+        status: AgentCodingChangeReviewGateStatus.idle,
+        canApplyPreview: false,
+        requiresUserReview: false,
+      );
+    }
+    reviewSteps.addAll(const <String>[
+      'reviewWorkspaceEditPreview',
+      'confirmDirtyDocumentConflictPolicy',
+      'confirmGeneratedPatchScope',
+      'capturePostApplyResult',
+    ]);
+    if (applyingPatch || applyingIdeCommand) {
+      issues.add(
+        const AgentCodingChangeReviewIssue(
+          code: 'agent.change.apply-active',
+          message: 'An agent change application is already active.',
+          ownerLayer: 'interaction',
+        ),
+      );
+      return AgentCodingChangeReviewGate._fromIssues(
+        status: AgentCodingChangeReviewGateStatus.applying,
+        issues: issues,
+        requiredReviewSteps: reviewSteps,
+        canApplyPreview: false,
+        requiresUserReview: true,
+      );
+    }
+    if (!hasWorkspaceEditPreview) {
+      issues.add(
+        const AgentCodingChangeReviewIssue(
+          code: 'agent.change.preview-missing',
+          message: 'A pending patch exists without a workspace edit preview.',
+          ownerLayer: 'interaction',
+          todo:
+              'TODO: require AgentWorkspaceEditPlanAdapter conversion before apply.',
+        ),
+      );
+    }
+    if (executionReadiness.hasBlockingIssue) {
+      issues.add(
+        const AgentCodingChangeReviewIssue(
+          code: 'agent.execution-readiness.blocked',
+          message: 'Agent execution readiness has blocking issues.',
+          ownerLayer: 'foundation',
+          todo:
+              'TODO: surface blocking readiness issues in the patch review UI.',
+        ),
+      );
+    }
+    issues.add(
+      const AgentCodingChangeReviewIssue(
+        code: 'agent.change.requires-review',
+        message: 'Generated code changes require explicit user review.',
+        ownerLayer: 'interaction',
+        todo:
+            'TODO: bind this gate to the concrete diff review and apply controls.',
+      ),
+    );
+    final blocked = issues.any(
+      (issue) =>
+          issue.code == 'agent.change.preview-missing' ||
+          issue.code == 'agent.execution-readiness.blocked',
+    );
+    return AgentCodingChangeReviewGate._fromIssues(
+      status: blocked
+          ? AgentCodingChangeReviewGateStatus.blocked
+          : AgentCodingChangeReviewGateStatus.needsReview,
+      issues: issues,
+      requiredReviewSteps: reviewSteps,
+      canApplyPreview: !blocked,
+      requiresUserReview: true,
+    );
+  }
+
+  factory AgentCodingChangeReviewGate._fromIssues({
+    required AgentCodingChangeReviewGateStatus status,
+    required List<AgentCodingChangeReviewIssue> issues,
+    required List<String> requiredReviewSteps,
+    required bool canApplyPreview,
+    required bool requiresUserReview,
+  }) {
+    return AgentCodingChangeReviewGate(
+      status: status,
+      canApplyPreview: canApplyPreview,
+      requiresUserReview: requiresUserReview,
+      issues: List<AgentCodingChangeReviewIssue>.unmodifiable(issues),
+      requiredReviewSteps: List<String>.unmodifiable(requiredReviewSteps),
+      todoItems: List<String>.unmodifiable(
+        issues.map((issue) => issue.todo).whereType<String>(),
+      ),
+    );
+  }
+
+  final AgentCodingChangeReviewGateStatus status;
+  final bool canApplyPreview;
+  final bool requiresUserReview;
+  final List<AgentCodingChangeReviewIssue> issues;
+  final List<String> requiredReviewSteps;
+  final List<String> todoItems;
+
+  List<String> get issueCodes =>
+      issues.map((issue) => issue.code).toList(growable: false);
+
+  bool hasIssue(String code) => issueCodes.contains(code);
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'canApplyPreview': canApplyPreview,
+      'requiresUserReview': requiresUserReview,
+      'issueCodes': issueCodes,
+      'requiredReviewSteps': requiredReviewSteps,
+      'issues': issues.map((issue) => issue.toJson()).toList(growable: false),
+      'todoItems': todoItems,
+    };
+  }
+}
+
 class AgentSessionContext {
   const AgentSessionContext({
     required this.schemaVersion,

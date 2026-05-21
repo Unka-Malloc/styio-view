@@ -204,6 +204,14 @@ class AgentCodingSessionController extends ChangeNotifier {
         applyingPatch: _applyingPatch,
         applyingIdeCommand: _applyingIdeCommand,
       );
+  AgentCodingChangeReviewGate get codingChangeReviewGate =>
+      AgentCodingChangeReviewGate.fromControllerState(
+        hasPendingPatch: _pendingPatch != null,
+        hasWorkspaceEditPreview: pendingWorkspaceEditPlanConversion != null,
+        applyingPatch: _applyingPatch,
+        applyingIdeCommand: _applyingIdeCommand,
+        executionReadiness: codingExecutionReadiness,
+      );
 
   void mountProvider({
     required AgentPromptProfile profile,

@@ -531,6 +531,29 @@ void main() {
           ),
         ],
       );
+      const batchPolicy = WorkspaceSearchWatcherPolicy(
+        debounceWindow: Duration(milliseconds: 75),
+        maxEventsPerBatch: 2,
+      );
+      final batcher = WorkspaceSearchWatcherEventBatchController(
+        policy: batchPolicy,
+      );
+      final firstBatch = batcher.add(
+        const FileSystemManagerEvent(
+          kind: FileSystemManagerEventKind.modified,
+          path: '/workspace/vityo/src/a.styio',
+          normalizedPath: '/workspace/vityo/src/a.styio',
+        ),
+        receivedAt: DateTime.utc(2026, 5, 20, 10),
+      );
+      final flushedBatch = batcher.add(
+        const FileSystemManagerEvent(
+          kind: FileSystemManagerEventKind.modified,
+          path: '/workspace/vityo/src/b.styio',
+          normalizedPath: '/workspace/vityo/src/b.styio',
+        ),
+        receivedAt: DateTime.utc(2026, 5, 20, 10, 0, 0, 80),
+      );
       const failedSnapshot = WorkspaceSearchIndexWatcherSnapshot(
         status: WorkspaceSearchIndexWatcherStatus.failed,
         workspaceRoot: '/workspace/vityo',
@@ -556,6 +579,10 @@ void main() {
         (plan.toJson()['policy']! as Map<String, Object?>)['debounceMillis'],
         75,
       );
+      expect(firstBatch, isNull);
+      expect(flushedBatch?.eventCount, 2);
+      expect(flushedBatch?.shouldRefresh, isTrue);
+      expect(flushedBatch?.toJson()['shouldRefresh'], isTrue);
       expect(
         retryPlan.action,
         WorkspaceSearchWatcherRecoveryAction.restartWatcher,
@@ -566,6 +593,50 @@ void main() {
         WorkspaceSearchWatcherRecoveryAction.disableWatcher,
       );
       expect(disablePlan.canRetry, isFalse);
+    },
+  );
+
+  test(
+    'workspace search watcher recovery persists through DataStore',
+    () async {
+      final store = WorkspaceSearchWatcherRecoveryStore.fromDataStore(
+        dataStore: await _createDataStore(),
+      );
+      const failedSnapshot = WorkspaceSearchIndexWatcherSnapshot(
+        status: WorkspaceSearchIndexWatcherStatus.failed,
+        workspaceRoot: '/workspace/vityo',
+        recursive: true,
+        message: 'watch failed',
+      );
+      final retryPlan = WorkspaceSearchWatcherRecoveryPlan.fromSnapshot(
+        failedSnapshot,
+        failureCount: 1,
+      );
+      final disablePlan = WorkspaceSearchWatcherRecoveryPlan.fromSnapshot(
+        failedSnapshot,
+        failureCount: 3,
+      );
+
+      final first = await store.recordPlan(
+        workspaceId: 'demo',
+        plan: retryPlan,
+      );
+      final second = await store.recordPlan(
+        workspaceId: 'demo',
+        plan: disablePlan,
+      );
+      final restored = await store.readState(workspaceId: 'demo');
+
+      expect(first.failureCount, 1);
+      expect(second.failureCount, 2);
+      expect(
+        restored.lastPlan?.action,
+        WorkspaceSearchWatcherRecoveryAction.disableWatcher,
+      );
+      expect(restored.recoveryDisabled, isTrue);
+      expect(restored.toJson()['recoveryDisabled'], isTrue);
+      expect(await store.deleteState(workspaceId: 'demo'), isTrue);
+      expect((await store.readState(workspaceId: 'demo')).failureCount, 0);
     },
   );
 

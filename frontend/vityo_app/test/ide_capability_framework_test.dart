@@ -69,8 +69,16 @@ void main() {
       contains('WorkspaceSearchWatcherRecoveryPlan'),
     );
     expect(
+      entriesById['interaction.search']?.summary,
+      contains('WorkspaceSearchWatcherEventBatchController'),
+    );
+    expect(
+      entriesById['interaction.search']?.summary,
+      contains('WorkspaceSearchWatcherRecoveryStore'),
+    );
+    expect(
       entriesById['interaction.search']?.todo,
-      contains('timer-backed project-scale batching'),
+      contains('timer-backed watcher stream flushing'),
     );
     expect(entriesById['interaction.search']?.runtimeMaturityBlocking, isFalse);
     expect(

@@ -588,6 +588,90 @@ class WorkspaceSearchWatcherRefreshPlan {
   }
 }
 
+class WorkspaceSearchWatcherEventBatch {
+  const WorkspaceSearchWatcherEventBatch({
+    required this.events,
+    required this.receivedAt,
+    required this.flushedAt,
+    required this.refreshPlan,
+  });
+
+  final List<FileSystemManagerEvent> events;
+  final DateTime receivedAt;
+  final DateTime flushedAt;
+  final WorkspaceSearchWatcherRefreshPlan refreshPlan;
+
+  int get eventCount => events.length;
+  bool get shouldRefresh => refreshPlan.shouldRefresh;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'eventCount': eventCount,
+      'shouldRefresh': shouldRefresh,
+      'receivedAt': receivedAt.toIso8601String(),
+      'flushedAt': flushedAt.toIso8601String(),
+      'refreshPlan': refreshPlan.toJson(),
+    };
+  }
+}
+
+class WorkspaceSearchWatcherEventBatchController {
+  WorkspaceSearchWatcherEventBatchController({
+    this.policy = const WorkspaceSearchWatcherPolicy(),
+  });
+
+  final WorkspaceSearchWatcherPolicy policy;
+  final List<FileSystemManagerEvent> _events = <FileSystemManagerEvent>[];
+  DateTime? _firstReceivedAt;
+
+  int get queuedEventCount => _events.length;
+
+  WorkspaceSearchWatcherEventBatch? add(
+    FileSystemManagerEvent event, {
+    required DateTime receivedAt,
+  }) {
+    _firstReceivedAt ??= receivedAt;
+    _events.add(event);
+    if (!_shouldFlush(receivedAt)) {
+      return null;
+    }
+    return flush(flushedAt: receivedAt);
+  }
+
+  WorkspaceSearchWatcherEventBatch? flush({required DateTime flushedAt}) {
+    final firstReceivedAt = _firstReceivedAt;
+    if (firstReceivedAt == null || _events.isEmpty) {
+      return null;
+    }
+    final events = List<FileSystemManagerEvent>.unmodifiable(_events);
+    final batch = WorkspaceSearchWatcherEventBatch(
+      events: events,
+      receivedAt: firstReceivedAt,
+      flushedAt: flushedAt,
+      refreshPlan: WorkspaceSearchWatcherRefreshPlan.fromEvents(
+        events: events,
+        policy: policy,
+      ),
+    );
+    _events.clear();
+    _firstReceivedAt = null;
+    return batch;
+  }
+
+  bool _shouldFlush(DateTime latestReceivedAt) {
+    final firstReceivedAt = _firstReceivedAt;
+    if (firstReceivedAt == null || _events.isEmpty) {
+      return false;
+    }
+    if (policy.maxEventsPerBatch > 0 &&
+        _events.length >= policy.maxEventsPerBatch) {
+      return true;
+    }
+    return latestReceivedAt.difference(firstReceivedAt) >=
+        policy.debounceWindow;
+  }
+}
+
 class WorkspaceSearchIndexWatcherSnapshot {
   const WorkspaceSearchIndexWatcherSnapshot({
     required this.status,

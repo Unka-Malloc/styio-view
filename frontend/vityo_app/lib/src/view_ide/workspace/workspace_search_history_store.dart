@@ -1,4 +1,5 @@
 import '../foundation/foundation.dart';
+import 'workspace_search_service.dart';
 
 enum WorkspaceSearchHistoryMode { text, symbol, quickOpen, replacePreview }
 
@@ -464,8 +465,7 @@ class WorkspaceReplacePreviewExpansionStore {
   const WorkspaceReplacePreviewExpansionStore({required this.owner});
 
   static const int schemaVersion = 1;
-  static const String _namespaceName =
-      'workspace.replace-preview-expansion';
+  static const String _namespaceName = 'workspace.replace-preview-expansion';
   static const String _key = 'expanded-documents';
 
   final FoundationDataStoreOwner owner;
@@ -525,6 +525,152 @@ class WorkspaceReplacePreviewExpansionStore {
   }
 }
 
+class WorkspaceSearchWatcherRecoveryState {
+  const WorkspaceSearchWatcherRecoveryState({
+    required this.workspaceId,
+    this.failureCount = 0,
+    this.lastPlan,
+    this.updatedAt,
+  });
+
+  factory WorkspaceSearchWatcherRecoveryState.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return WorkspaceSearchWatcherRecoveryState(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      failureCount: json['failureCount'] as int? ?? 0,
+      lastPlan: _workspaceSearchWatcherRecoveryPlanFromJson(json['lastPlan']),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+    );
+  }
+
+  final String workspaceId;
+  final int failureCount;
+  final WorkspaceSearchWatcherRecoveryPlan? lastPlan;
+  final DateTime? updatedAt;
+
+  bool get recoveryDisabled {
+    return lastPlan?.action ==
+        WorkspaceSearchWatcherRecoveryAction.disableWatcher;
+  }
+
+  WorkspaceSearchWatcherRecoveryState recordPlan(
+    WorkspaceSearchWatcherRecoveryPlan plan, {
+    DateTime? updatedAt,
+  }) {
+    return WorkspaceSearchWatcherRecoveryState(
+      workspaceId: workspaceId,
+      failureCount: plan.action == WorkspaceSearchWatcherRecoveryAction.none
+          ? 0
+          : failureCount + 1,
+      lastPlan: plan,
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
+    );
+  }
+
+  WorkspaceSearchWatcherRecoveryState copyWith({
+    String? workspaceId,
+    int? failureCount,
+    WorkspaceSearchWatcherRecoveryPlan? lastPlan,
+    DateTime? updatedAt,
+  }) {
+    return WorkspaceSearchWatcherRecoveryState(
+      workspaceId: workspaceId ?? this.workspaceId,
+      failureCount: failureCount ?? this.failureCount,
+      lastPlan: lastPlan ?? this.lastPlan,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'failureCount': failureCount,
+      'recoveryDisabled': recoveryDisabled,
+      if (lastPlan != null) 'lastPlan': lastPlan!.toJson(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+}
+
+class WorkspaceSearchWatcherRecoveryStore {
+  WorkspaceSearchWatcherRecoveryStore.fromDataStore({
+    required FoundationDataStore dataStore,
+  }) : this(
+         owner: FoundationDataStoreOwner(
+           descriptor: const FoundationDataStoreOwnerDescriptor(
+             ownerId: 'workspace.search-watcher-recovery',
+             layer: 'interaction',
+             stateFamily: 'search-watcher-recovery',
+             allowedNamespaces: <String>{_namespaceName},
+           ),
+           dataStore: dataStore,
+         ),
+       );
+
+  const WorkspaceSearchWatcherRecoveryStore({required this.owner});
+
+  static const int schemaVersion = 1;
+  static const String _namespaceName = 'workspace.search-watcher-recovery';
+  static const String _key = 'recovery-state';
+
+  final FoundationDataStoreOwner owner;
+
+  Future<WorkspaceSearchWatcherRecoveryState> readState({
+    required String workspaceId,
+  }) async {
+    final value = await owner.readJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+    if (value == null) {
+      return WorkspaceSearchWatcherRecoveryState(workspaceId: workspaceId);
+    }
+    final state = WorkspaceSearchWatcherRecoveryState.fromJson(value);
+    return state.workspaceId.isEmpty
+        ? state.copyWith(workspaceId: workspaceId)
+        : state;
+  }
+
+  Future<WorkspaceSearchWatcherRecoveryState> saveState(
+    WorkspaceSearchWatcherRecoveryState state,
+  ) async {
+    final next = state.copyWith(updatedAt: DateTime.now().toUtc());
+    await owner.writeJson(
+      namespaceName: _namespaceName,
+      key: _key,
+      value: next.toJson(),
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: next.workspaceId,
+    );
+    return next;
+  }
+
+  Future<WorkspaceSearchWatcherRecoveryState> recordPlan({
+    required String workspaceId,
+    required WorkspaceSearchWatcherRecoveryPlan plan,
+  }) async {
+    final current = await readState(workspaceId: workspaceId);
+    final next = current.recordPlan(plan);
+    await saveState(next);
+    return next;
+  }
+
+  Future<bool> deleteState({required String workspaceId}) {
+    return owner.delete(
+      namespaceName: _namespaceName,
+      key: _key,
+      schemaVersion: schemaVersion,
+      scope: FoundationResourceScope.workspace,
+      workspaceId: workspaceId,
+    );
+  }
+}
+
 WorkspaceSearchHistoryMode _workspaceSearchHistoryModeFromWireValue(
   String value,
 ) {
@@ -534,6 +680,33 @@ WorkspaceSearchHistoryMode _workspaceSearchHistoryModeFromWireValue(
     }
   }
   return WorkspaceSearchHistoryMode.text;
+}
+
+WorkspaceSearchWatcherRecoveryPlan? _workspaceSearchWatcherRecoveryPlanFromJson(
+  Object? value,
+) {
+  if (value is! Map) {
+    return null;
+  }
+  final json = value.map(
+    (key, value) => MapEntry<String, Object?>(key.toString(), value),
+  );
+  final actionName = json['action'] as String? ?? '';
+  final action = WorkspaceSearchWatcherRecoveryAction.values.firstWhere(
+    (candidate) => candidate.name == actionName,
+    orElse: () => WorkspaceSearchWatcherRecoveryAction.none,
+  );
+  return WorkspaceSearchWatcherRecoveryPlan(
+    action: action,
+    workspaceRoot: json['workspaceRoot'] as String? ?? '',
+    persistenceKey:
+        json['persistenceKey'] as String? ?? 'workspace-search-watcher',
+    canRetry:
+        json['canRetry'] as bool? ??
+        (action == WorkspaceSearchWatcherRecoveryAction.restartWatcher ||
+            action == WorkspaceSearchWatcherRecoveryAction.rebuildIndex),
+    message: json['message'] as String? ?? '',
+  );
 }
 
 List<WorkspaceSearchHistoryRecord> _jsonSearchHistoryRecords(Object? value) {

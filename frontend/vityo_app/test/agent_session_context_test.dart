@@ -513,7 +513,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 64);
+    expect(json['schemaVersion'], 65);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -827,6 +827,23 @@ void main() {
     expect(languageJson['codeActionsTruncated'], isFalse);
     expect(
       (languageCodeActions.single! as Map<String, Object?>)['label'],
+      'Replace with value',
+    );
+    expect(
+      (languageCodeActions.single! as Map<String, Object?>)['selectionIndex'],
+      1,
+    );
+    expect(
+      (languageCodeActions.single! as Map<String, Object?>)['agentCommandId'],
+      'applyQuickFix',
+    );
+    expect(
+      (languageCodeActions.single! as Map<String, Object?>)['agentCommandInput'],
+      '1',
+    );
+    expect(
+      (languageCodeActions.single!
+          as Map<String, Object?>)['agentCommandLabelInput'],
       'Replace with value',
     );
     expect(
@@ -1377,7 +1394,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 64);
+    expect(context.schemaVersion, 65);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1760,7 +1777,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 64);
+    expect(json['schemaVersion'], 65);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2035,7 +2052,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 64);
+    expect(context.schemaVersion, 65);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

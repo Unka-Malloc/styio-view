@@ -167,7 +167,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 64,
+      schemaVersion: 65,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -1978,15 +1978,10 @@ class AgentLanguageContext {
           .toList(growable: false),
       completionsTruncated: completionList.length > maxCompletions,
       codeActionCount: codeActionList.length,
-      codeActions: codeActionList
-          .take(maxCodeActions)
-          .map(
-            (action) => AgentCodeActionContext.fromDiagnosticQuickFix(
-              action,
-              document: document,
-            ),
-          )
-          .toList(growable: false),
+      codeActions: _agentCodeActionContexts(
+        codeActionList.take(maxCodeActions).toList(growable: false),
+        document: document,
+      ),
       codeActionsTruncated: codeActionList.length > maxCodeActions,
       semanticSpanCount: semanticSpanList.length,
       semanticSpans: semanticSpanList
@@ -3108,8 +3103,26 @@ class AgentLanguageCapabilityStatusContext {
   }
 }
 
+List<AgentCodeActionContext> _agentCodeActionContexts(
+  List<DiagnosticQuickFix> actions, {
+  required DocumentState document,
+}) {
+  return <AgentCodeActionContext>[
+    for (var index = 0; index < actions.length; index += 1)
+      AgentCodeActionContext.fromDiagnosticQuickFix(
+        actions[index],
+        document: document,
+        selectionIndex: index + 1,
+      ),
+  ];
+}
+
 class AgentCodeActionContext {
   const AgentCodeActionContext({
+    required this.selectionIndex,
+    required this.agentCommandId,
+    required this.agentCommandInput,
+    required this.agentCommandLabelInput,
     required this.label,
     required this.detail,
     required this.editCount,
@@ -3120,6 +3133,10 @@ class AgentCodeActionContext {
     this.firstEditRange,
   });
 
+  final int selectionIndex;
+  final String agentCommandId;
+  final String agentCommandInput;
+  final String agentCommandLabelInput;
   final String label;
   final String detail;
   final int editCount;
@@ -3132,10 +3149,15 @@ class AgentCodeActionContext {
   factory AgentCodeActionContext.fromDiagnosticQuickFix(
     DiagnosticQuickFix action, {
     required DocumentState document,
+    required int selectionIndex,
   }) {
     const maxEdits = 24;
     final firstEdit = action.edits.isEmpty ? null : action.edits.first;
     return AgentCodeActionContext(
+      selectionIndex: selectionIndex,
+      agentCommandId: 'applyQuickFix',
+      agentCommandInput: '$selectionIndex',
+      agentCommandLabelInput: action.label,
       label: action.label,
       detail: action.detail,
       editCount: action.edits.length,
@@ -3163,6 +3185,10 @@ class AgentCodeActionContext {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'selectionIndex': selectionIndex,
+      'agentCommandId': agentCommandId,
+      'agentCommandInput': agentCommandInput,
+      'agentCommandLabelInput': agentCommandLabelInput,
       'label': label,
       'detail': detail,
       'editCount': editCount,

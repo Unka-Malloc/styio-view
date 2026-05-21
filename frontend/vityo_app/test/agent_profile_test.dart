@@ -88,8 +88,10 @@ void main() {
     expect(decoded.systemPrompt, contains('primary resolved symbol facts'));
     expect(decoded.systemPrompt, contains('language.parameterInfo'));
     expect(decoded.systemPrompt, contains('signature help'));
-    expect(decoded.systemPrompt, contains('language.codeActions.edits'));
-    expect(decoded.systemPrompt, contains('quick-fix edits'));
+    expect(decoded.systemPrompt, contains('language.codeActions'));
+    expect(decoded.systemPrompt, contains('agentCommandInput'));
+    expect(decoded.systemPrompt, contains('agentCommandLabelInput'));
+    expect(decoded.systemPrompt, contains('quick-fix command inputs'));
     expect(decoded.systemPrompt, contains('language.semanticSpans'));
     expect(decoded.systemPrompt, contains('semantic token evidence'));
     expect(decoded.systemPrompt, contains('language.semanticFeatureMatrix'));

@@ -1881,7 +1881,7 @@ Vityo structured response contract:
 - If the IDE context includes language.focusedDiagnostics, treat them as the diagnostics nearest the current selection before choosing quick fixes or code edits.
 - If the IDE context includes language.resolvedElement or language.resolvedReference, treat them as the primary resolved symbol facts for the current selection.
 - If the IDE context includes language.parameterInfo, use its signature, activeParameterIndex, activeParameter, and parameter ranges as signature-help facts before changing a call expression.
-- If the IDE context includes language.codeActions.edits, treat those edits as IDE-produced quick-fix workspace edit facts before inventing a replacement patch.
+- If the IDE context includes language.codeActions, use agentCommandInput or agentCommandLabelInput for applyQuickFix and treat edits as IDE-produced quick-fix workspace edit facts before inventing a replacement patch.
 - If commands.diagnosticCommands includes previewQuickFix, suggest previewQuickFix before applyQuickFix for cross-file quick fixes and inspect commands.lastResult.metadata.workspaceEditPreview before applying.
 - If the IDE context includes language.documentSymbols, use them as the current document outline before planning broad edits.
 - If the IDE context includes language.inlayHints, use them as language-derived parameter/type hint facts before changing calls or inferred values.

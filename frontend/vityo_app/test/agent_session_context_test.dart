@@ -2002,6 +2002,13 @@ void main() {
         'src/noop.styio',
       ]);
       expect(patchApplication['recordedAt'], recordedAt.toIso8601String());
+      final patchValidationSnapshot =
+          patchApplication['validationSnapshot']! as Map<String, Object?>;
+      expect(patchValidationSnapshot['planStatus'], 'ready');
+      expect(patchValidationSnapshot['resultStatus'], 'notStarted');
+      expect(patchValidationSnapshot['pipelineStatus'], 'ready');
+      expect(patchValidationSnapshot['nextCommandId'], 'saveAll');
+      expect(patchValidationSnapshot['missingCommandIds'], contains('runTests'));
       expect(recentPatchApplications.length, 1);
       expect(
         (recentPatchApplications.single! as Map<String, Object?>)['patchId'],
@@ -2117,10 +2124,14 @@ void main() {
     );
 
     final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final lastPatchApplication =
+        agentJson['lastPatchApplication']! as Map<String, Object?>;
     final validationResult =
         agentJson['validationResult']! as Map<String, Object?>;
     final validationPipeline =
         agentJson['validationPipeline']! as Map<String, Object?>;
+    final patchValidationSnapshot =
+        lastPatchApplication['validationSnapshot']! as Map<String, Object?>;
 
     expect(validationResult['status'], 'passed');
     expect(validationResult['summary'], 'Agent coding validation passed.');
@@ -2139,6 +2150,9 @@ void main() {
     );
     expect(validationResult['failedCommandIds'], isEmpty);
     expect(validationResult['missingCommandIds'], isEmpty);
+    expect(patchValidationSnapshot['resultStatus'], 'passed');
+    expect(patchValidationSnapshot['pipelineStatus'], 'complete');
+    expect(patchValidationSnapshot['completedCommandIds'], contains('runTests'));
   });
 
   test('agent session context serializes current pending patch', () {

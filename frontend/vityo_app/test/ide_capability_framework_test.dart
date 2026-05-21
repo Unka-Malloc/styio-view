@@ -688,6 +688,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('patch application validation snapshot binding'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('provider adapter coding gate metadata summaries'),
     );
     expect(

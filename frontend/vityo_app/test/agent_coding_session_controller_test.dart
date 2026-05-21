@@ -377,8 +377,13 @@ void main() {
         metadata['validationFailedCommandResults']! as List<Object?>;
     final lastPatchApplication =
         metadata['lastPatchApplication']! as Map<String, Object?>;
+    final patchValidationSnapshot =
+        lastPatchApplication['validationSnapshot']! as Map<String, Object?>;
 
     expect(lastPatchApplication['patchId'], 'patch-validated');
+    expect(patchValidationSnapshot['resultStatus'], 'failed');
+    expect(patchValidationSnapshot['pipelineStatus'], 'failed');
+    expect(patchValidationSnapshot['failedCommandIds'], contains('runTests'));
     expect(validationResult['status'], 'failed');
     expect(validationResult['failedCommandIds'], contains('runTests'));
     expect(validationPipeline['status'], 'failed');

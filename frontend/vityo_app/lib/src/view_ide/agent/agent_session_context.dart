@@ -1057,7 +1057,7 @@ class AgentCodingValidationPlan {
         ),
       ],
       todoItems: <String>[
-        'TODO: persist validation result beside the agent patch application record.',
+        'TODO: persist validation snapshot immediately when validation commands run, not only on the next provider request.',
       ],
     );
   }
@@ -1716,6 +1716,30 @@ class AgentCodingLoopContext {
       plan: effectiveValidationPlan,
       recentCommandResults: recentCommandResults,
     );
+    final effectiveValidationPipeline = AgentCodingValidationPipeline.fromPlan(
+      plan: effectiveValidationPlan,
+      result: effectiveValidationResult,
+    );
+    final patchValidationSnapshot = effectiveLastPatchApplication == null
+        ? null
+        : AgentPatchValidationSnapshot.fromValidation(
+            plan: effectiveValidationPlan,
+            result: effectiveValidationResult,
+            pipeline: effectiveValidationPipeline,
+          );
+    final effectiveLastPatchApplicationWithValidation =
+        effectiveLastPatchApplication == null ||
+            patchValidationSnapshot == null
+        ? effectiveLastPatchApplication
+        : effectiveLastPatchApplication.withValidationSnapshot(
+            patchValidationSnapshot,
+          );
+    final effectiveHistory = effectiveLastPatchApplicationWithValidation == null
+        ? history
+        : <AgentPatchApplicationContext>[
+            effectiveLastPatchApplicationWithValidation,
+            ...history.skip(1),
+          ];
     return AgentCodingLoopContext(
       pendingPatch: pendingPatch,
       recentPatchProposals: recentPatchProposals.toList(growable: false),
@@ -1728,8 +1752,8 @@ class AgentCodingLoopContext {
       providerExecution: providerExecution,
       recoveryPlan: recoveryPlan,
       savedProviderProfiles: savedProviderProfileList,
-      lastPatchApplication: effectiveLastPatchApplication,
-      recentPatchApplications: history,
+      lastPatchApplication: effectiveLastPatchApplicationWithValidation,
+      recentPatchApplications: effectiveHistory,
       workspaceEdit: workspaceEdit,
       recentCodingPlans: recentCodingPlans.toList(growable: false),
       recentDiagnosticSummaries: recentDiagnosticSummaries.toList(
@@ -1739,10 +1763,7 @@ class AgentCodingLoopContext {
       autonomyPolicy: effectiveAutonomyPolicy,
       validationPlan: effectiveValidationPlan,
       validationResult: effectiveValidationResult,
-      validationPipeline: AgentCodingValidationPipeline.fromPlan(
-        plan: effectiveValidationPlan,
-        result: effectiveValidationResult,
-      ),
+      validationPipeline: effectiveValidationPipeline,
       suggestedCommandIds: _suggestedAgentCodingCommandIds(
         pendingIdeCommands: pendingIdeCommandList,
         lastProviderFailure: lastProviderFailure,
@@ -2507,6 +2528,66 @@ class AgentProviderFailureContext {
   }
 }
 
+class AgentPatchValidationSnapshot {
+  const AgentPatchValidationSnapshot({
+    required this.planStatus,
+    required this.resultStatus,
+    required this.pipelineStatus,
+    required this.shouldRun,
+    required this.progressNumerator,
+    required this.progressDenominator,
+    this.nextCommandId,
+    this.completedCommandIds = const <String>[],
+    this.failedCommandIds = const <String>[],
+    this.missingCommandIds = const <String>[],
+  });
+
+  factory AgentPatchValidationSnapshot.fromValidation({
+    required AgentCodingValidationPlan plan,
+    required AgentCodingValidationResult result,
+    required AgentCodingValidationPipeline pipeline,
+  }) {
+    return AgentPatchValidationSnapshot(
+      planStatus: plan.status.wireValue,
+      resultStatus: result.status.wireValue,
+      pipelineStatus: pipeline.status.wireValue,
+      shouldRun: plan.shouldRun,
+      progressNumerator: pipeline.progressNumerator,
+      progressDenominator: pipeline.progressDenominator,
+      nextCommandId: pipeline.nextCommandId,
+      completedCommandIds: result.completedCommandIds,
+      failedCommandIds: result.failedCommandIds,
+      missingCommandIds: result.missingCommandIds,
+    );
+  }
+
+  final String planStatus;
+  final String resultStatus;
+  final String pipelineStatus;
+  final bool shouldRun;
+  final int progressNumerator;
+  final int progressDenominator;
+  final String? nextCommandId;
+  final List<String> completedCommandIds;
+  final List<String> failedCommandIds;
+  final List<String> missingCommandIds;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planStatus': planStatus,
+      'resultStatus': resultStatus,
+      'pipelineStatus': pipelineStatus,
+      'shouldRun': shouldRun,
+      'progressNumerator': progressNumerator,
+      'progressDenominator': progressDenominator,
+      if (nextCommandId != null) 'nextCommandId': nextCommandId,
+      'completedCommandIds': completedCommandIds,
+      'failedCommandIds': failedCommandIds,
+      'missingCommandIds': missingCommandIds,
+    };
+  }
+}
+
 class AgentPatchApplicationContext {
   const AgentPatchApplicationContext({
     required this.patchId,
@@ -2525,6 +2606,7 @@ class AgentPatchApplicationContext {
     this.deletedDocumentIds = const <String>[],
     this.skippedNoOpDocumentIds = const <String>[],
     this.recordedAt,
+    this.validationSnapshot,
   });
 
   final String patchId;
@@ -2543,6 +2625,31 @@ class AgentPatchApplicationContext {
   final List<String> deletedDocumentIds;
   final List<String> skippedNoOpDocumentIds;
   final DateTime? recordedAt;
+  final AgentPatchValidationSnapshot? validationSnapshot;
+
+  AgentPatchApplicationContext withValidationSnapshot(
+    AgentPatchValidationSnapshot snapshot,
+  ) {
+    return AgentPatchApplicationContext(
+      patchId: patchId,
+      applied: applied,
+      pendingPatchRetained: pendingPatchRetained,
+      message: message,
+      editCount: editCount,
+      summary: summary,
+      baseRevision: baseRevision,
+      documentIds: documentIds,
+      operationCounts: operationCounts,
+      appliedEditCount: appliedEditCount,
+      appliedOperationCounts: appliedOperationCounts,
+      changedDocumentIds: changedDocumentIds,
+      createdDocumentIds: createdDocumentIds,
+      deletedDocumentIds: deletedDocumentIds,
+      skippedNoOpDocumentIds: skippedNoOpDocumentIds,
+      recordedAt: recordedAt,
+      validationSnapshot: snapshot,
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -2563,6 +2670,8 @@ class AgentPatchApplicationContext {
       'skippedNoOpDocumentIds': skippedNoOpDocumentIds,
       if (recordedAt != null)
         'recordedAt': recordedAt!.toUtc().toIso8601String(),
+      if (validationSnapshot != null)
+        'validationSnapshot': validationSnapshot!.toJson(),
     };
   }
 }

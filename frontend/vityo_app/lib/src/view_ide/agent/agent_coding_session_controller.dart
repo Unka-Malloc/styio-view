@@ -1129,6 +1129,8 @@ Map<String, Object?> _agentCodingHistoryMetadata(
       'pendingPatchRetained': lastPatchApplication.pendingPatchRetained,
       'changedDocumentIds': lastPatchApplication.changedDocumentIds,
       'message': lastPatchApplication.message,
+      if (lastPatchApplication.validationSnapshot != null)
+        'validationSnapshot': lastPatchApplication.validationSnapshot!.toJson(),
     };
   }
   if (agent.validationPlan.status !=

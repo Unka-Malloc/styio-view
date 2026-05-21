@@ -350,6 +350,10 @@ void main() {
     );
     expect(
       entriesById['toolchain.manager']?.summary,
+      contains('install execution recovery action rendering'),
+    );
+    expect(
+      entriesById['toolchain.manager']?.summary,
       contains('ToolchainBootstrapExecutionPlan'),
     );
     expect(

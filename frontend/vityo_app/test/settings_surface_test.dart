@@ -200,6 +200,14 @@ void main() {
               kind: 'language-service',
               succeeded: false,
               message: 'Select an existing toolchain executable.',
+              recoveryActions: <ToolchainRecoveryAction>[
+                ToolchainRecoveryAction(
+                  id: 'select-existing-toolchain',
+                  label: 'Select existing toolchain',
+                  description:
+                      'Choose a local executable and register it manually.',
+                ),
+              ],
             ),
             toolchainBootstrapSummary: const ToolchainManagerBootstrapSummary(
               managerReport: ToolchainManagerStatusReport(
@@ -336,6 +344,18 @@ void main() {
     );
     expect(find.text('execution requiresUserAction'), findsOneWidget);
     expect(
+      find.byKey(
+        const ValueKey('settings-toolchain-install-execution-recovery'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Install Recovery'), findsOneWidget);
+    expect(find.text('Select existing toolchain'), findsOneWidget);
+    expect(
+      find.text('Choose a local executable and register it manually.'),
+      findsOneWidget,
+    );
+    expect(
       find.byKey(const ValueKey('settings-toolchain-bootstrap-summary')),
       findsOneWidget,
     );
@@ -368,6 +388,17 @@ void main() {
 
     expect(executeInstallPlanCount, 1);
 
+    final executionRecoveryButton = find.byKey(
+      const ValueKey(
+        'settings-toolchain-install-execution-recovery-select-existing-toolchain',
+      ),
+    );
+    await tester.ensureVisible(executionRecoveryButton);
+    await tester.tap(executionRecoveryButton);
+    await tester.pump();
+
+    expect(handledActions, <String>['select-existing-toolchain']);
+
     final bootstrapSettingsButton = find.byKey(
       const ValueKey(
         'settings-toolchain-bootstrap-settings-select-styio-compiler',
@@ -388,7 +419,10 @@ void main() {
     await tester.tap(installRecoveryButton);
     await tester.pump();
 
-    expect(handledActions, <String>['install-managed-toolchain']);
+    expect(
+      handledActions,
+      <String>['select-existing-toolchain', 'install-managed-toolchain'],
+    );
 
     final selectServiceButton = find.byTooltip('Select Styio Service');
     await tester.ensureVisible(selectServiceButton);

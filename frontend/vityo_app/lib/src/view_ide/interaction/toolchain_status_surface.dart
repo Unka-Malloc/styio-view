@@ -784,6 +784,7 @@ class ToolchainInstallExecutionSurface {
     required this.kind,
     required this.succeeded,
     this.message,
+    this.recoveryActions = const <ToolchainRecoveryAction>[],
   });
 
   factory ToolchainInstallExecutionSurface.fromResult(
@@ -795,6 +796,15 @@ class ToolchainInstallExecutionSurface {
       kind: result.plan.requirement.kind.wireValue,
       succeeded: result.succeeded,
       message: result.message,
+      recoveryActions: result.recoveryActions
+          .map(
+            (action) => ToolchainRecoveryAction(
+              id: action.id,
+              label: action.label,
+              description: action.detail,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -803,6 +813,7 @@ class ToolchainInstallExecutionSurface {
   final String kind;
   final bool succeeded;
   final String? message;
+  final List<ToolchainRecoveryAction> recoveryActions;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -811,6 +822,10 @@ class ToolchainInstallExecutionSurface {
       'kind': kind,
       'succeeded': succeeded,
       if (message != null) 'message': message,
+      if (recoveryActions.isNotEmpty)
+        'recoveryActions': recoveryActions
+            .map((action) => action.toJson())
+            .toList(growable: false),
     };
   }
 }

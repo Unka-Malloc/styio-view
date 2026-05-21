@@ -5,6 +5,9 @@ import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/toolchain/clang_cpp_version_configuration.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_configuration_store.dart';
+import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_executor.dart'
+    as install;
+import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_policy.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
 
@@ -297,5 +300,38 @@ void main() {
       'llvm',
     );
     expect(json['clangCppVersions'], isA<Map<String, Object?>>());
+  });
+
+  test('toolchain install execution surface projects recovery actions', () {
+    final surface = ToolchainInstallExecutionSurface.fromResult(
+      const install.ToolchainInstallExecutionResult(
+        status: install.ToolchainInstallExecutionStatus.requiresUserAction,
+        plan: ToolchainInstallPlan(
+          status: ToolchainInstallPlanStatus.planned,
+          mode: ToolchainInstallMode.manualSelection,
+          requirement: ToolchainRequirement(kind: ToolchainKind.languageService),
+          message: 'Select an existing toolchain executable.',
+        ),
+        recoveryActions: <install.ToolchainRecoveryAction>[
+          install.ToolchainRecoveryAction(
+            id: 'select-existing-toolchain',
+            label: 'Select existing toolchain',
+            detail: 'Choose a local executable and register it manually.',
+          ),
+        ],
+        message: 'Select an existing toolchain executable.',
+      ),
+    );
+
+    expect(surface.status, 'requiresUserAction');
+    expect(surface.recoveryActions.single.id, 'select-existing-toolchain');
+    expect(
+      surface.recoveryActions.single.description,
+      'Choose a local executable and register it manually.',
+    );
+    expect(
+      surface.toJson()['recoveryActions'],
+      isA<List<Object?>>(),
+    );
   });
 }

@@ -656,7 +656,10 @@ class _ToolchainSettingsCard extends StatelessWidget {
           ],
           if (installExecution != null) ...[
             const SizedBox(height: 14),
-            _ToolchainInstallExecutionView(result: installExecution!),
+            _ToolchainInstallExecutionView(
+              result: installExecution!,
+              onRecoveryAction: onRecoveryAction,
+            ),
           ],
         ],
       ),
@@ -1002,9 +1005,13 @@ class _ToolchainInstallPlanView extends StatelessWidget {
 }
 
 class _ToolchainInstallExecutionView extends StatelessWidget {
-  const _ToolchainInstallExecutionView({required this.result});
+  const _ToolchainInstallExecutionView({
+    required this.result,
+    required this.onRecoveryAction,
+  });
 
   final ToolchainInstallExecutionSurface result;
+  final Future<void> Function(ToolchainRecoveryAction action)? onRecoveryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -1028,6 +1035,41 @@ class _ToolchainInstallExecutionView extends StatelessWidget {
         if (result.message != null) ...[
           const SizedBox(height: 8),
           Text(result.message!, style: theme.textTheme.bodySmall),
+        ],
+        if (result.recoveryActions.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Column(
+            key: const ValueKey(
+              'settings-toolchain-install-execution-recovery',
+            ),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Install Recovery', style: theme.textTheme.labelLarge),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: result.recoveryActions
+                    .map(
+                      (action) => OutlinedButton(
+                        key: ValueKey(
+                          'settings-toolchain-install-execution-recovery-${action.id}',
+                        ),
+                        onPressed: onRecoveryAction == null
+                            ? null
+                            : () {
+                                onRecoveryAction!(action);
+                              },
+                        child: Text(action.label),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+              for (final action in result.recoveryActions)
+                if (action.description.isNotEmpty)
+                  Text(action.description, style: theme.textTheme.bodySmall),
+            ],
+          ),
         ],
       ],
     );

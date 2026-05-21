@@ -23,6 +23,8 @@ import 'agent_prompt_profile_store.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
+import 'agent_tool_call_execution_journal.dart';
+import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_permission.dart';
 import 'agent_tool_registry.dart';
 
@@ -1316,6 +1318,9 @@ class AgentSessionContext {
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
     AgentWorkspaceCheckpointContext? workspaceCheckpoint,
+    AgentToolCallTimeline? toolCallTimeline,
+    AgentToolCallExecutionJournal? toolCallExecutionJournal,
+    AgentToolCallReplayPlan? toolReplayPlan,
     AgentToolSelection? toolCatalog,
     AgentToolPermissionPlan? toolPermissionPlan,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
@@ -1383,7 +1388,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 83,
+      schemaVersion: 84,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -1426,6 +1431,9 @@ class AgentSessionContext {
         recoveryPlan: recoveryPlan,
         loopGuard: loopGuard,
         workspaceCheckpoint: workspaceCheckpoint,
+        toolCallTimeline: toolCallTimeline,
+        toolCallExecutionJournal: toolCallExecutionJournal,
+        toolReplayPlan: toolReplayPlan,
         toolCatalog: toolCatalog,
         toolPermissionPlan: toolPermissionPlan,
         savedProviderProfiles: savedProviderProfiles,
@@ -1582,6 +1590,9 @@ class AgentSessionContext {
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard? loopGuard,
     AgentWorkspaceCheckpointContext? workspaceCheckpoint,
+    AgentToolCallTimeline? toolCallTimeline,
+    AgentToolCallExecutionJournal? toolCallExecutionJournal,
+    AgentToolCallReplayPlan? toolReplayPlan,
     AgentToolSelection? toolCatalog,
     AgentToolPermissionPlan? toolPermissionPlan,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
@@ -1627,6 +1638,9 @@ class AgentSessionContext {
         recoveryPlan == null &&
         loopGuard == null &&
         workspaceCheckpoint == null &&
+        toolCallTimeline == null &&
+        toolCallExecutionJournal == null &&
+        toolReplayPlan == null &&
         toolCatalog == null &&
         toolPermissionPlan == null &&
         savedProviderProfileList.isEmpty &&
@@ -1678,6 +1692,10 @@ class AgentSessionContext {
         recoveryPlan: recoveryPlan ?? agent.recoveryPlan,
         loopGuard: loopGuard ?? agent.loopGuard,
         workspaceCheckpoint: workspaceCheckpoint ?? agent.workspaceCheckpoint,
+        toolCallTimeline: toolCallTimeline ?? agent.toolCallTimeline,
+        toolCallExecutionJournal:
+            toolCallExecutionJournal ?? agent.toolCallExecutionJournal,
+        toolReplayPlan: toolReplayPlan ?? agent.toolReplayPlan,
         toolCatalog: toolCatalog ?? agent.toolCatalog,
         toolPermissionPlan: toolPermissionPlan ?? agent.toolPermissionPlan,
         savedProviderProfiles: savedProviderProfileList.isEmpty
@@ -1801,6 +1819,9 @@ class AgentCodingLoopContext {
     this.recoveryPlan,
     this.loopGuard = const AgentCodingLoopGuard.clear(),
     this.workspaceCheckpoint,
+    this.toolCallTimeline,
+    this.toolCallExecutionJournal,
+    this.toolReplayPlan,
     this.toolCatalog,
     this.toolPermissionPlan,
     this.savedProviderProfiles = const <AgentPromptProfileManifestEntry>[],
@@ -1835,6 +1856,9 @@ class AgentCodingLoopContext {
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
     AgentWorkspaceCheckpointContext? workspaceCheckpoint,
+    AgentToolCallTimeline? toolCallTimeline,
+    AgentToolCallExecutionJournal? toolCallExecutionJournal,
+    AgentToolCallReplayPlan? toolReplayPlan,
     AgentToolSelection? toolCatalog,
     AgentToolPermissionPlan? toolPermissionPlan,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
@@ -1924,6 +1948,9 @@ class AgentCodingLoopContext {
       recoveryPlan: recoveryPlan,
       loopGuard: loopGuard,
       workspaceCheckpoint: workspaceCheckpoint,
+      toolCallTimeline: toolCallTimeline,
+      toolCallExecutionJournal: toolCallExecutionJournal,
+      toolReplayPlan: toolReplayPlan,
       toolCatalog: toolCatalog,
       toolPermissionPlan: toolPermissionPlan,
       savedProviderProfiles: savedProviderProfileList,
@@ -1961,6 +1988,9 @@ class AgentCodingLoopContext {
   final AgentCodingSessionRecoveryPlan? recoveryPlan;
   final AgentCodingLoopGuard loopGuard;
   final AgentWorkspaceCheckpointContext? workspaceCheckpoint;
+  final AgentToolCallTimeline? toolCallTimeline;
+  final AgentToolCallExecutionJournal? toolCallExecutionJournal;
+  final AgentToolCallReplayPlan? toolReplayPlan;
   final AgentToolSelection? toolCatalog;
   final AgentToolPermissionPlan? toolPermissionPlan;
   final List<AgentPromptProfileManifestEntry> savedProviderProfiles;
@@ -2004,6 +2034,11 @@ class AgentCodingLoopContext {
         'loopGuard': loopGuard.toJson(),
       if (workspaceCheckpoint != null)
         'workspaceCheckpoint': workspaceCheckpoint!.toJson(),
+      if (toolCallTimeline != null)
+        'toolCallTimeline': toolCallTimeline!.toJson(),
+      if (toolCallExecutionJournal != null)
+        'toolCallExecutionJournal': toolCallExecutionJournal!.toJson(),
+      if (toolReplayPlan != null) 'toolReplayPlan': toolReplayPlan!.toJson(),
       if (toolCatalog != null) 'toolCatalog': toolCatalog!.toJson(),
       if (toolPermissionPlan != null)
         'toolPermissions': toolPermissionPlan!.toJson(),

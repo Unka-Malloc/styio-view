@@ -7,7 +7,6 @@ import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_credential_resolver.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
-import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_result_context.dart';
 import 'package:vityo_app/src/agent/agent_tool_registry.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
@@ -284,6 +283,18 @@ void main() {
       transport: transport,
       endpoint: profile.endpoint,
     );
+    final toolCallTimeline = const AgentToolCallLifecycleTracker()
+        .track(const <AgentToolCallEvent>[
+          AgentToolCallEvent.callStarted(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            input: '{"path":"main.styio"}',
+          ),
+        ]);
+    final toolCallJournal = AgentToolCallExecutionJournal.fromTimeline(
+      timeline: toolCallTimeline,
+    );
+    final toolReplayPlan = AgentToolCallReplayPlan.fromJournal(toolCallJournal);
 
     await adapter.send(
       AgentProviderRequest(
@@ -299,6 +310,9 @@ void main() {
               selection: const SelectionState.collapsed(0),
               diagnostics: const [],
             ).withAgentCodingState(
+              toolCallTimeline: toolCallTimeline,
+              toolCallExecutionJournal: toolCallJournal,
+              toolReplayPlan: toolReplayPlan,
               toolCatalog: const AgentToolSelection(
                 context: AgentToolSelectionContext(
                   providerKind: AgentProviderKind.cloudOpenAICompatible,
@@ -381,6 +395,15 @@ void main() {
     expect(metadata['toolCallResultIds'], <String>['call-read']);
     expect(metadata['toolCallResultTruncatedCount'], 1);
     expect(metadata['toolCallResultTruncatedIds'], <String>['call-read']);
+    expect(metadata['agentToolCallTimelineStatus'], 'running');
+    expect(metadata['agentToolCallTimelineCallCount'], 1);
+    expect(metadata['agentToolCallTimelineCallIds'], <String>['call-read']);
+    expect(metadata['agentToolExecutionJournalStatus'], 'running');
+    expect(metadata['agentToolExecutionJournalEntryCount'], 1);
+    expect(metadata['agentToolExecutionJournalReplayCandidateCount'], 1);
+    expect(metadata['agentToolReplayPlanStatus'], 'ready');
+    expect(metadata['agentToolReplayPlanReady'], isTrue);
+    expect(metadata['agentToolReplayPlanRequestCount'], 1);
     expect(metadata['agentToolCatalogToolCount'], 2);
     expect(metadata['agentToolCatalogToolIds'], <String>[
       'readWorkspaceFile',
@@ -711,7 +734,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      83,
+      84,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -1327,6 +1350,12 @@ void main() {
       expect(systemMessage['content'], contains('agent.pendingPatch'));
       expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
       expect(systemMessage['content'], contains('agent.workspaceCheckpoint'));
+      expect(systemMessage['content'], contains('agent.toolCallTimeline'));
+      expect(
+        systemMessage['content'],
+        contains('agent.toolCallExecutionJournal'),
+      );
+      expect(systemMessage['content'], contains('agent.toolReplayPlan'));
       expect(systemMessage['content'], contains('agent.toolCatalog'));
       expect(systemMessage['content'], contains('agent.toolPermissions'));
       expect(systemMessage['content'], contains('outputTruncated true'));
@@ -1547,7 +1576,7 @@ void main() {
         contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 83);
+      expect(metadata['contextSchemaVersion'], 84);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

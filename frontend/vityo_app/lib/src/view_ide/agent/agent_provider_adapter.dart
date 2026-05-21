@@ -7,6 +7,7 @@ import 'agent_profile.dart';
 import 'agent_provider_kind.dart';
 import 'agent_session_context.dart';
 import 'agent_tool_call_lifecycle.dart';
+import 'agent_tool_call_execution_journal.dart';
 import 'agent_tool_call_result_context.dart';
 import 'agent_tool_permission.dart';
 import 'agent_tool_registry.dart';
@@ -2179,6 +2180,39 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
           workspaceCheckpoint.revertChangedDocumentCount,
     });
   }
+  final toolCallTimeline = agent.toolCallTimeline;
+  if (toolCallTimeline != null &&
+      toolCallTimeline.status != AgentToolCallTimelineStatus.idle) {
+    metadata.addAll(<String, Object?>{
+      'agentToolCallTimelineStatus': toolCallTimeline.status.wireValue,
+      'agentToolCallTimelineCallCount': toolCallTimeline.calls.length,
+      'agentToolCallTimelineCallIds': toolCallTimeline.callIds,
+      'agentToolCallTimelineBlockedCallIds': toolCallTimeline.blockedCallIds,
+    });
+  }
+  final toolCallExecutionJournal = agent.toolCallExecutionJournal;
+  if (toolCallExecutionJournal != null &&
+      toolCallExecutionJournal.entries.isNotEmpty) {
+    metadata.addAll(<String, Object?>{
+      'agentToolExecutionJournalStatus':
+          toolCallExecutionJournal.status.wireValue,
+      'agentToolExecutionJournalEntryCount':
+          toolCallExecutionJournal.entries.length,
+      'agentToolExecutionJournalSourceEventCount':
+          toolCallExecutionJournal.sourceEventCount,
+      'agentToolExecutionJournalReplayCandidateCount':
+          toolCallExecutionJournal.replayCandidates.length,
+    });
+  }
+  final toolReplayPlan = agent.toolReplayPlan;
+  if (toolReplayPlan != null &&
+      toolReplayPlan.status != AgentToolCallReplayPlanStatus.empty) {
+    metadata.addAll(<String, Object?>{
+      'agentToolReplayPlanStatus': toolReplayPlan.status.wireValue,
+      'agentToolReplayPlanReady': toolReplayPlan.ready,
+      'agentToolReplayPlanRequestCount': toolReplayPlan.requests.length,
+    });
+  }
   final toolPermissions = agent.toolPermissionPlan;
   final toolCatalog = agent.toolCatalog;
   if (toolCatalog != null) {
@@ -2345,6 +2379,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.workspaceEdit.suggestedCommandIds, prefer those command ids for ready workspace-edit follow-up actions before inventing patch application steps.
 - If the IDE context includes agent.suggestedCommandIds, prefer those command ids for pending IDE actions, workspace-edit follow-up actions, or provider recovery commands before inventing manual recovery steps.
 - If the IDE context includes agent.workspaceCheckpoint, treat it as the current OpenCode-style workspace restore anchor. Read snapshotId, captureStatus, revertPlanStatus, and revertReady before proposing apply, replay, recovery, or revert actions; do not assume the checkpoint contains full document text.
+- If the IDE context includes agent.toolCallTimeline, agent.toolCallExecutionJournal, or agent.toolReplayPlan, inspect status, callIds, blockedCallIds, replayCandidateCount, and ready before retrying or replaying any tool chain. Do not replay completed or blocked calls unless the IDE/user explicitly asks for replay.
 - If the IDE context includes agent.toolCatalog, inspect toolIds, rejectedToolIds, capabilities, schemas, and permissionMode before choosing executable tools. Prefer listed tools over invented tool names.
 - If the IDE context includes agent.toolPermissions, inspect allowedToolIds, reviewToolIds, deniedToolIds, and blockingIssueCodes before choosing executable tools. Tools in reviewToolIds may require explicit user approval; tools in deniedToolIds must not be requested.
 - If the IDE context includes agent.changeReviewGate, agent.autonomyPolicy, agent.loopGuard, or agent.validationPlan, inspect them before applying, revising, replaying tools, or validating generated changes. If agent.loopGuard.blocked is true, stop autonomous retry loops and propose user review or recovery instead of another tool replay. Use agent.validationPlan.registeredCommandIds and agent.validationPlan.commandPlans for IDE-owned validation commands and required inputs.

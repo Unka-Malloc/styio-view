@@ -161,6 +161,41 @@ void main() {
       'never',
     );
 
+    final toolCallTimeline = const AgentToolCallLifecycleTracker()
+        .track(const <AgentToolCallEvent>[
+          AgentToolCallEvent.callStarted(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            input: '{"path":"main.styio"}',
+          ),
+        ]);
+    final toolCallJournal = AgentToolCallExecutionJournal.fromTimeline(
+      timeline: toolCallTimeline,
+    );
+    final toolReplayPlan = AgentToolCallReplayPlan.fromJournal(toolCallJournal);
+    final toolLifecycleContext = context.withAgentCodingState(
+      toolCallTimeline: toolCallTimeline,
+      toolCallExecutionJournal: toolCallJournal,
+      toolReplayPlan: toolReplayPlan,
+    );
+    final toolLifecycleAgent =
+        toolLifecycleContext.toJsonForChannels(const <String>[
+              'agent',
+            ])['agent']!
+            as Map<String, Object?>;
+    final toolTimelineJson =
+        toolLifecycleAgent['toolCallTimeline']! as Map<String, Object?>;
+    final toolJournalJson =
+        toolLifecycleAgent['toolCallExecutionJournal']! as Map<String, Object?>;
+    final toolReplayJson =
+        toolLifecycleAgent['toolReplayPlan']! as Map<String, Object?>;
+    expect(toolTimelineJson['status'], 'running');
+    expect(toolTimelineJson['callIds'], <String>['call-read']);
+    expect(toolJournalJson['status'], 'running');
+    expect(toolJournalJson['replayCandidateCount'], 1);
+    expect(toolReplayJson['status'], 'ready');
+    expect(toolReplayJson['ready'], isTrue);
+
     final permissionContext = context.withAgentCodingState(
       toolPermissionPlan: const AgentToolPermissionPlan(
         status: AgentToolPermissionPlanStatus.reviewRequired,
@@ -679,7 +714,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 83);
+    expect(json['schemaVersion'], 84);
     final registeredCommandIds =
         commandsJson['registeredCommandIds']! as List<Object?>;
     expect(commandsJson['commandCount'], registeredCommandIds.length);
@@ -1667,7 +1702,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 83);
+    expect(context.schemaVersion, 84);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -2050,7 +2085,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 83);
+    expect(json['schemaVersion'], 84);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2537,7 +2572,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 83);
+    expect(context.schemaVersion, 84);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

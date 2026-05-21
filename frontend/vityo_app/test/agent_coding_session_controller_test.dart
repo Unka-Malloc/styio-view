@@ -11,7 +11,6 @@ import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_dispatcher.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
-import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
 import 'package:vityo_app/src/agent/agent_workspace_snapshot.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
@@ -230,6 +229,18 @@ void main() {
       expect(request.toolCallResults.single.toolId, 'readWorkspaceFile');
       expect(request.toolCallResults.single.success, isTrue);
       expect(request.toolCallResults.single.output, '{"text":"value = 1"}');
+      expect(
+        request.context.agent.toolCallTimeline?.status,
+        AgentToolCallTimelineStatus.complete,
+      );
+      expect(
+        request.context.agent.toolCallExecutionJournal?.entries.single.callId,
+        'call-read',
+      );
+      expect(
+        request.context.agent.toolReplayPlan?.status,
+        AgentToolCallReplayPlanStatus.blocked,
+      );
       expect(request.toJson()['toolCallResults'], isA<List<Object?>>());
       expect(controller.recentToolCallResultContexts, isEmpty);
     },

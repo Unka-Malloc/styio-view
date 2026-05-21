@@ -228,7 +228,7 @@ class AgentProviderRetryExecutor {
 }
 
 class RetryingAgentProviderAdapter
-    implements AgentProviderAdapter, CancellableAgentProviderAdapter {
+    implements StreamingAgentProviderAdapter, CancellableAgentProviderAdapter {
   const RetryingAgentProviderAdapter({
     required this.inner,
     this.retryExecutor = const AgentProviderRetryExecutor(),
@@ -265,6 +265,100 @@ class RetryingAgentProviderAdapter
       throw error;
     }
     throw StateError('Agent provider retry execution failed without an error.');
+  }
+
+  @override
+  Stream<AgentProviderStreamEvent> stream(AgentProviderRequest request) async* {
+    final streaming = inner is StreamingAgentProviderAdapter
+        ? inner as StreamingAgentProviderAdapter
+        : null;
+    if (streaming == null) {
+      yield* _streamFromSend(request);
+      return;
+    }
+
+    final lastAttemptEvents = <AgentProviderStreamEvent>[];
+    final successfulEvents = <AgentProviderStreamEvent>[];
+    final execution = await retryExecutor.execute<AgentProviderResponseEnvelope>(
+      operation: (_) async {
+        final attemptEvents = <AgentProviderStreamEvent>[];
+        try {
+          final response = await const AgentProviderStreamingResponseCollector()
+              .collect(
+                requestId: request.requestId,
+                events: streaming.stream(request).map((event) {
+                  attemptEvents.add(event);
+                  return event;
+                }),
+              );
+          successfulEvents
+            ..clear()
+            ..addAll(attemptEvents);
+          return response;
+        } finally {
+          lastAttemptEvents
+            ..clear()
+            ..addAll(attemptEvents);
+        }
+      },
+    );
+    telemetrySink?.call(request, execution);
+    if (execution.succeeded && execution.value != null) {
+      if (successfulEvents.isNotEmpty) {
+        yield* Stream<AgentProviderStreamEvent>.fromIterable(
+          successfulEvents,
+        );
+        return;
+      }
+      yield AgentProviderStreamEvent.completed(
+        requestId: request.requestId,
+        response: execution.value,
+        metadata: const <String, Object?>{'synthetic': true},
+      );
+      return;
+    }
+    if (lastAttemptEvents.isNotEmpty && lastAttemptEvents.last.terminal) {
+      yield* Stream<AgentProviderStreamEvent>.fromIterable(lastAttemptEvents);
+      return;
+    }
+    yield AgentProviderStreamEvent.failed(
+      requestId: request.requestId,
+      message: execution.error?.toString() ??
+          'Agent provider retry execution failed without an error.',
+      metadata: const <String, Object?>{'synthetic': true},
+    );
+  }
+
+  Stream<AgentProviderStreamEvent> _streamFromSend(
+    AgentProviderRequest request,
+  ) async* {
+    yield AgentProviderStreamEvent.started(
+      request.requestId,
+      metadata: const <String, Object?>{'synthetic': true},
+    );
+    try {
+      final response = await send(request);
+      for (final part in response.contentParts) {
+        yield AgentProviderStreamEvent.part(
+          requestId: request.requestId,
+          contentPart: part,
+          metadata: const <String, Object?>{'synthetic': true},
+        );
+      }
+      yield AgentProviderStreamEvent.completed(
+        requestId: request.requestId,
+        response: response,
+        metadata: const <String, Object?>{'synthetic': true},
+      );
+    } on Object catch (error) {
+      yield AgentProviderStreamEvent.failed(
+        requestId: request.requestId,
+        message: error is AgentProviderTransportException
+            ? error.message
+            : error.toString(),
+        metadata: const <String, Object?>{'synthetic': true},
+      );
+    }
   }
 
   @override

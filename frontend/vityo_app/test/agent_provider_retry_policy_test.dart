@@ -108,6 +108,43 @@ void main() {
     expect(telemetry.single.attempts.first.retryScheduled, isTrue);
   });
 
+  test('retrying agent provider adapter preserves streaming adapters', () async {
+    final adapter = _FlakyStreamingAgentProviderAdapter();
+    final telemetry =
+        <AgentProviderRetryExecution<AgentProviderResponseEnvelope>>[];
+    final retrying = RetryingAgentProviderAdapter(
+      inner: adapter,
+      retryExecutor: const AgentProviderRetryExecutor(
+        policy: AgentProviderRetryPolicy(maxAttempts: 2),
+      ),
+      telemetrySink: (_, execution) {
+        telemetry.add(execution);
+      },
+    );
+
+    final events = await retrying
+        .stream(
+          AgentProviderRequest(
+            requestId: 'retry-stream-request',
+            profile: _profile(),
+            context: _emptyContext(),
+            userPrompt: 'Retry stream once.',
+          ),
+        )
+        .toList();
+
+    expect(retrying, isA<StreamingAgentProviderAdapter>());
+    expect(adapter.streamCalls, 2);
+    expect(adapter.sendCalls, 0);
+    expect(events.map((event) => event.kind), <Object>[
+      AgentProviderStreamEventKind.started,
+      AgentProviderStreamEventKind.contentDelta,
+      AgentProviderStreamEventKind.completed,
+    ]);
+    expect(telemetry.single.succeeded, isTrue);
+    expect(telemetry.single.attemptCount, 2);
+  });
+
   test(
     'hosted backend retry endpoints include reopen export and settings',
     () async {
@@ -213,5 +250,46 @@ class _FlakyAgentProviderAdapter implements AgentProviderAdapter {
       ],
       finishReason: 'stop',
     );
+  }
+}
+
+class _FlakyStreamingAgentProviderAdapter
+    implements StreamingAgentProviderAdapter {
+  int streamCalls = 0;
+  int sendCalls = 0;
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.cloudOpenAICompatible;
+
+  @override
+  String get adapterId => 'flaky-streaming';
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(
+    AgentProviderRequest request,
+  ) async {
+    sendCalls += 1;
+    throw StateError('streaming retry should use stream');
+  }
+
+  @override
+  Stream<AgentProviderStreamEvent> stream(AgentProviderRequest request) async* {
+    streamCalls += 1;
+    yield AgentProviderStreamEvent.started(request.requestId);
+    if (streamCalls == 1) {
+      yield AgentProviderStreamEvent.failed(
+        requestId: request.requestId,
+        message: 'stream timeout',
+      );
+      return;
+    }
+    yield AgentProviderStreamEvent.delta(
+      requestId: request.requestId,
+      text: 'retry stream ok',
+    );
+    yield AgentProviderStreamEvent.completed(requestId: request.requestId);
   }
 }

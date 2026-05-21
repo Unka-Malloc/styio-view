@@ -636,6 +636,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('AgentCodingValidationResult validation outcome summaries'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('provider adapter coding gate metadata summaries'),
     );
     expect(

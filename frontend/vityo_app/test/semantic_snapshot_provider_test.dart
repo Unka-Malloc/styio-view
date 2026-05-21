@@ -118,7 +118,10 @@ void main() {
         SemanticSnapshotProviderSource.localBuilderFallback,
       );
       expect(result.usedFallback, isTrue);
-      expect(result.message, startsWith('TODO:'));
+      expect(
+        result.message,
+        startsWith('Using local semantic snapshot fallback'),
+      );
       expect(result.snapshot.elements.map((element) => element.name), [
         'value',
       ]);

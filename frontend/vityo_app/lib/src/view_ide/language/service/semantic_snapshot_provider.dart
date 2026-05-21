@@ -552,7 +552,7 @@ class SemanticSnapshotProvider {
       snapshot: fallbackSnapshot,
       source: SemanticSnapshotProviderSource.localBuilderFallback,
       message:
-          'TODO: replace local semantic snapshot fallback once StyioService emits complete symbol and reference facts.',
+          'Using local semantic snapshot fallback because StyioService did not provide complete symbol and reference facts.',
       codeActionFactCount: codeActionFactCount,
     );
   }

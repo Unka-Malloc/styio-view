@@ -154,8 +154,12 @@ void main() {
       contains('audit retention policies'),
     );
     expect(
+      entriesById['environment.credential-store']?.summary,
+      contains('PlatformSecureCredentialStorageAdapterRegistry'),
+    );
+    expect(
       entriesById['environment.credential-store']?.todo,
-      contains('production backends'),
+      contains('production adapters'),
     );
     expect(
       entriesById['environment.credential-store']?.runtimeMaturityBlocking,

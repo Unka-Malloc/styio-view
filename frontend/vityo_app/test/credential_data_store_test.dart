@@ -205,6 +205,61 @@ void main() {
   );
 
   test(
+    'platform secure credential storage registry selects adapters',
+    () async {
+      final registry = PlatformSecureCredentialStorageAdapterRegistry(
+        registrations: <PlatformSecureCredentialStorageAdapterRegistration>[
+          PlatformSecureCredentialStorageAdapterRegistration(
+            descriptor: const PlatformSecureCredentialBackendDescriptor(
+              backendId: 'memory-secure-fixture',
+              label: 'Memory Secure Fixture',
+              kind: PlatformSecureCredentialBackendKind.memoryFixture,
+              productionReady: false,
+              platformId: 'test',
+            ),
+            adapter: InMemoryPlatformSecureCredentialStorageAdapter(),
+          ),
+        ],
+      );
+      const key = CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'openai',
+        scope: CredentialScope.user,
+      );
+
+      final missingProduction = registry.select(platformId: 'test');
+      final selected = registry.select(
+        platformId: 'test',
+        requireProductionReady: false,
+      );
+      final store = selected.toDataStore();
+      await store!.write(
+        CredentialSecretRecord(
+          key: key,
+          kind: CredentialKind.remoteServiceCredential,
+          secretValue: 'registry-selected-secret',
+        ),
+      );
+
+      expect(
+        missingProduction.status,
+        PlatformSecureCredentialStorageSelectionStatus.missingProductionBackend,
+      );
+      expect(selected.selected, isTrue);
+      expect(
+        selected.registration?.descriptor.backendId,
+        'memory-secure-fixture',
+      );
+      expect((await store.read(key))?.secretValue, 'registry-selected-secret');
+      expect(registry.toJson()['backendCount'], 1);
+      expect(
+        selected.toJson().toString(),
+        isNot(contains('registry-selected-secret')),
+      );
+    },
+  );
+
+  test(
     'credential references can be stored in ordinary configuration safely',
     () {
       const reference = CredentialReference(

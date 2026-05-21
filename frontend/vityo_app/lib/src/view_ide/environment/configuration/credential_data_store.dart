@@ -1045,6 +1045,214 @@ abstract class PlatformSecureCredentialStorageAdapter {
   Future<CredentialDataStoreHealth> health();
 }
 
+enum PlatformSecureCredentialBackendKind {
+  vsCodeSecretStorage,
+  macosKeychain,
+  windowsCredentialManager,
+  linuxLibsecret,
+  memoryFixture,
+  custom,
+}
+
+extension PlatformSecureCredentialBackendKindX
+    on PlatformSecureCredentialBackendKind {
+  String get wireValue {
+    return switch (this) {
+      PlatformSecureCredentialBackendKind.vsCodeSecretStorage =>
+        'vscode-secret-storage',
+      PlatformSecureCredentialBackendKind.macosKeychain => 'macos-keychain',
+      PlatformSecureCredentialBackendKind.windowsCredentialManager =>
+        'windows-credential-manager',
+      PlatformSecureCredentialBackendKind.linuxLibsecret => 'linux-libsecret',
+      PlatformSecureCredentialBackendKind.memoryFixture => 'memory-fixture',
+      PlatformSecureCredentialBackendKind.custom => 'custom',
+    };
+  }
+}
+
+class PlatformSecureCredentialBackendDescriptor {
+  const PlatformSecureCredentialBackendDescriptor({
+    required this.backendId,
+    required this.label,
+    required this.kind,
+    this.available = true,
+    this.productionReady = false,
+    this.platformId = '',
+    this.message = '',
+  });
+
+  final String backendId;
+  final String label;
+  final PlatformSecureCredentialBackendKind kind;
+  final bool available;
+  final bool productionReady;
+  final String platformId;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'backendId': backendId,
+      'label': label,
+      'kind': kind.wireValue,
+      'available': available,
+      'productionReady': productionReady,
+      if (platformId.isNotEmpty) 'platformId': platformId,
+      if (message.isNotEmpty) 'message': message,
+    };
+  }
+}
+
+class PlatformSecureCredentialStorageAdapterRegistration {
+  const PlatformSecureCredentialStorageAdapterRegistration({
+    required this.descriptor,
+    required this.adapter,
+  });
+
+  final PlatformSecureCredentialBackendDescriptor descriptor;
+  final PlatformSecureCredentialStorageAdapter adapter;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'descriptor': descriptor.toJson(),
+      'adapterId': adapter.adapterId,
+    };
+  }
+}
+
+enum PlatformSecureCredentialStorageSelectionStatus {
+  selected,
+  missingBackend,
+  missingProductionBackend,
+}
+
+extension PlatformSecureCredentialStorageSelectionStatusX
+    on PlatformSecureCredentialStorageSelectionStatus {
+  String get wireValue {
+    return switch (this) {
+      PlatformSecureCredentialStorageSelectionStatus.selected => 'selected',
+      PlatformSecureCredentialStorageSelectionStatus.missingBackend =>
+        'missing-backend',
+      PlatformSecureCredentialStorageSelectionStatus.missingProductionBackend =>
+        'missing-production-backend',
+    };
+  }
+}
+
+class PlatformSecureCredentialStorageSelection {
+  const PlatformSecureCredentialStorageSelection({
+    required this.status,
+    required this.message,
+    this.registration,
+  });
+
+  final PlatformSecureCredentialStorageSelectionStatus status;
+  final String message;
+  final PlatformSecureCredentialStorageAdapterRegistration? registration;
+
+  bool get selected =>
+      status == PlatformSecureCredentialStorageSelectionStatus.selected;
+
+  PlatformSecureCredentialDataStore? toDataStore() {
+    final adapter = registration?.adapter;
+    if (adapter == null) {
+      return null;
+    }
+    return PlatformSecureCredentialDataStore(adapter: adapter);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'selected': selected,
+      'message': message,
+      if (registration != null) 'registration': registration!.toJson(),
+    };
+  }
+}
+
+class PlatformSecureCredentialStorageAdapterRegistry {
+  PlatformSecureCredentialStorageAdapterRegistry({
+    Iterable<PlatformSecureCredentialStorageAdapterRegistration> registrations =
+        const <PlatformSecureCredentialStorageAdapterRegistration>[],
+  }) {
+    for (final registration in registrations) {
+      register(registration);
+    }
+  }
+
+  final List<PlatformSecureCredentialStorageAdapterRegistration>
+  _registrations = <PlatformSecureCredentialStorageAdapterRegistration>[];
+
+  List<PlatformSecureCredentialStorageAdapterRegistration> get registrations =>
+      List<PlatformSecureCredentialStorageAdapterRegistration>.unmodifiable(
+        _registrations,
+      );
+
+  void register(
+    PlatformSecureCredentialStorageAdapterRegistration registration,
+  ) {
+    _registrations.removeWhere(
+      (candidate) =>
+          candidate.descriptor.backendId == registration.descriptor.backendId,
+    );
+    _registrations.add(registration);
+  }
+
+  PlatformSecureCredentialStorageSelection select({
+    bool requireProductionReady = true,
+    String platformId = '',
+  }) {
+    final candidates = _registrations
+        .where((registration) {
+          final descriptor = registration.descriptor;
+          final platformMatches =
+              platformId.trim().isEmpty ||
+              descriptor.platformId.isEmpty ||
+              descriptor.platformId == platformId;
+          return descriptor.available && platformMatches;
+        })
+        .toList(growable: false);
+    if (candidates.isEmpty) {
+      return const PlatformSecureCredentialStorageSelection(
+        status: PlatformSecureCredentialStorageSelectionStatus.missingBackend,
+        message: 'No platform secure credential storage backend is available.',
+      );
+    }
+    final productionCandidates = candidates
+        .where((registration) => registration.descriptor.productionReady)
+        .toList(growable: false);
+    if (requireProductionReady && productionCandidates.isEmpty) {
+      return const PlatformSecureCredentialStorageSelection(
+        status: PlatformSecureCredentialStorageSelectionStatus
+            .missingProductionBackend,
+        message:
+            'No production-ready platform secure credential storage backend is available.',
+      );
+    }
+    final selected = productionCandidates.isNotEmpty
+        ? productionCandidates.first
+        : candidates.first;
+    return PlatformSecureCredentialStorageSelection(
+      status: PlatformSecureCredentialStorageSelectionStatus.selected,
+      registration: selected,
+      message:
+          'Selected platform secure credential storage backend ${selected.descriptor.backendId}.',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'backendCount': _registrations.length,
+      'productionReadyCount': _registrations
+          .where((registration) => registration.descriptor.productionReady)
+          .length,
+      'registrations': _registrations
+          .map((registration) => registration.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
 class InMemoryPlatformSecureCredentialStorageAdapter
     extends PlatformSecureCredentialStorageAdapter {
   InMemoryPlatformSecureCredentialStorageAdapter({

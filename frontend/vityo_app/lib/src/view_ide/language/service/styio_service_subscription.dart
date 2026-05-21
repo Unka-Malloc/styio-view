@@ -17,6 +17,13 @@ enum StyioServiceDaemonEventKind { started, analyzed, failed, stopped }
 
 enum StyioServiceDaemonLifecycleState { detached, active, failed, stopped }
 
+enum StyioServiceDaemonRestartReason {
+  streamFailed,
+  streamStopped,
+  providerChanged,
+  manual,
+}
+
 typedef StyioServiceDocumentContextResolver =
     String? Function(DocumentState document);
 
@@ -157,6 +164,123 @@ class StyioServiceDaemonLifecycleSnapshot {
   }
 }
 
+class StyioServiceDaemonRestartPolicy {
+  const StyioServiceDaemonRestartPolicy({
+    this.maxAttempts = 3,
+    this.initialDelay = const Duration(milliseconds: 500),
+    this.backoffMultiplier = 2,
+  });
+
+  final int maxAttempts;
+  final Duration initialDelay;
+  final int backoffMultiplier;
+
+  bool shouldRestart({
+    required int failedAttempt,
+    required StyioServiceDaemonLifecycleState state,
+    required StyioServiceDaemonRestartReason reason,
+  }) {
+    if (failedAttempt >= maxAttempts) {
+      return false;
+    }
+    if (reason == StyioServiceDaemonRestartReason.manual ||
+        reason == StyioServiceDaemonRestartReason.providerChanged) {
+      return true;
+    }
+    return state == StyioServiceDaemonLifecycleState.failed ||
+        state == StyioServiceDaemonLifecycleState.stopped;
+  }
+
+  Duration delayForNextAttempt(int failedAttempt) {
+    if (failedAttempt <= 0) {
+      return Duration.zero;
+    }
+    var multiplier = 1;
+    for (var index = 1; index < failedAttempt; index += 1) {
+      multiplier *= backoffMultiplier;
+    }
+    return initialDelay * multiplier;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'maxAttempts': maxAttempts,
+      'initialDelayMs': initialDelay.inMilliseconds,
+      'backoffMultiplier': backoffMultiplier,
+    };
+  }
+}
+
+class StyioServiceDaemonRestartPlan {
+  const StyioServiceDaemonRestartPlan({
+    required this.providerId,
+    required this.failedAttempt,
+    required this.nextAttempt,
+    required this.restartable,
+    required this.reason,
+    required this.lifecycle,
+    required this.delayBeforeRestart,
+    required this.message,
+    required this.policy,
+  });
+
+  factory StyioServiceDaemonRestartPlan.fromLifecycle({
+    required StyioServiceDaemonLifecycleSnapshot lifecycle,
+    required int failedAttempt,
+    required StyioServiceDaemonRestartReason reason,
+    StyioServiceDaemonRestartPolicy policy =
+        const StyioServiceDaemonRestartPolicy(),
+  }) {
+    final restartable = policy.shouldRestart(
+      failedAttempt: failedAttempt,
+      state: lifecycle.state,
+      reason: reason,
+    );
+    final delay = restartable
+        ? policy.delayForNextAttempt(failedAttempt)
+        : Duration.zero;
+    final nextAttempt = restartable ? failedAttempt + 1 : failedAttempt;
+    final providerId = lifecycle.providerId;
+    return StyioServiceDaemonRestartPlan(
+      providerId: providerId,
+      failedAttempt: failedAttempt,
+      nextAttempt: nextAttempt,
+      restartable: restartable,
+      reason: reason,
+      lifecycle: lifecycle,
+      delayBeforeRestart: delay,
+      message: restartable
+          ? 'StyioService daemon $providerId can restart attempt $nextAttempt after ${delay.inMilliseconds}ms.'
+          : 'StyioService daemon $providerId cannot restart after attempt $failedAttempt.',
+      policy: policy,
+    );
+  }
+
+  final String providerId;
+  final int failedAttempt;
+  final int nextAttempt;
+  final bool restartable;
+  final StyioServiceDaemonRestartReason reason;
+  final StyioServiceDaemonLifecycleSnapshot lifecycle;
+  final Duration delayBeforeRestart;
+  final String message;
+  final StyioServiceDaemonRestartPolicy policy;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerId': providerId,
+      'failedAttempt': failedAttempt,
+      'nextAttempt': nextAttempt,
+      'restartable': restartable,
+      'reason': reason.name,
+      'lifecycle': lifecycle.toJson(),
+      'delayBeforeRestartMs': delayBeforeRestart.inMilliseconds,
+      'message': message,
+      'policy': policy.toJson(),
+    };
+  }
+}
+
 class StyioServiceSubscriptionController {
   StyioServiceSubscriptionController({required this.driver});
 
@@ -263,6 +387,21 @@ class StyioServiceSubscriptionController {
       message: message,
     );
     return _daemonLifecycle;
+  }
+
+  StyioServiceDaemonRestartPlan planDaemonRestart({
+    required int failedAttempt,
+    required StyioServiceDaemonRestartReason reason,
+    StyioServiceDaemonRestartPolicy policy =
+        const StyioServiceDaemonRestartPolicy(),
+  }) {
+    _ensureActive();
+    return StyioServiceDaemonRestartPlan.fromLifecycle(
+      lifecycle: _daemonLifecycle,
+      failedAttempt: failedAttempt,
+      reason: reason,
+      policy: policy,
+    );
   }
 
   Future<StyioServiceSubscriptionEvent> refresh(

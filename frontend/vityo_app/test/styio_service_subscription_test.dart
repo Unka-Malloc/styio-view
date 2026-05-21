@@ -177,6 +177,60 @@ void main() {
       expect(stopped.toJson()['active'], isFalse);
     },
   );
+
+  test('StyioService daemon restart plan applies backoff policy', () async {
+    final connector = _FactoryStyioServiceConnector(
+      (request) => StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: request.documentId,
+        revision: request.revision,
+      ),
+    );
+    final controller = StyioServiceSubscriptionController(
+      driver: StyioServiceAnalysisDriver(connector: connector),
+    );
+    addTearDown(controller.dispose);
+    final daemonEvents = StreamController<StyioServiceDaemonEvent>();
+    addTearDown(daemonEvents.close);
+    controller.bindDaemonEventStream(
+      providerId: 'styio-daemon.fixture',
+      events: daemonEvents.stream,
+    );
+    final failedEvent = controller.events.firstWhere(
+      (event) => event.kind == StyioServiceSubscriptionEventKind.failed,
+    );
+    const policy = StyioServiceDaemonRestartPolicy(
+      maxAttempts: 3,
+      initialDelay: Duration(milliseconds: 100),
+      backoffMultiplier: 4,
+    );
+
+    daemonEvents.addError(StateError('daemon crashed'));
+    await failedEvent;
+    final firstPlan = controller.planDaemonRestart(
+      failedAttempt: 1,
+      reason: StyioServiceDaemonRestartReason.streamFailed,
+      policy: policy,
+    );
+    final exhausted = controller.planDaemonRestart(
+      failedAttempt: 3,
+      reason: StyioServiceDaemonRestartReason.streamFailed,
+      policy: policy,
+    );
+
+    expect(
+      controller.daemonLifecycle.state,
+      StyioServiceDaemonLifecycleState.failed,
+    );
+    expect(firstPlan.restartable, isTrue);
+    expect(firstPlan.nextAttempt, 2);
+    expect(firstPlan.delayBeforeRestart, const Duration(milliseconds: 100));
+    expect(firstPlan.toJson()['reason'], 'streamFailed');
+    expect(firstPlan.toJson()['policy'], policy.toJson());
+    expect(exhausted.restartable, isFalse);
+    expect(exhausted.nextAttempt, 3);
+    expect(exhausted.delayBeforeRestart, Duration.zero);
+  });
 }
 
 typedef _StyioServiceResponseFactory =

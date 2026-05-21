@@ -2353,7 +2353,11 @@ class StyioServiceResultCacheEntry {
 }
 
 class StyioServiceResultCacheSnapshot {
-  const StyioServiceResultCacheSnapshot({required this.entries});
+  const StyioServiceResultCacheSnapshot({
+    required this.entries,
+    this.lookupHits = 0,
+    this.lookupMisses = 0,
+  });
 
   factory StyioServiceResultCacheSnapshot.fromJson(Map<String, Object?> json) {
     final entries = json['entries'];
@@ -2364,13 +2368,24 @@ class StyioServiceResultCacheSnapshot {
                 .whereType<StyioServiceResultCacheEntry>()
                 .toList(growable: false)
           : const <StyioServiceResultCacheEntry>[],
+      lookupHits: _intValue(json['lookupHits']),
+      lookupMisses: _intValue(json['lookupMisses']),
     );
   }
 
   final List<StyioServiceResultCacheEntry> entries;
+  final int lookupHits;
+  final int lookupMisses;
+
+  int get lookupCount => lookupHits + lookupMisses;
+  double get lookupHitRate => lookupCount == 0 ? 0 : lookupHits / lookupCount;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'lookupHits': lookupHits,
+      'lookupMisses': lookupMisses,
+      'lookupCount': lookupCount,
+      'lookupHitRate': lookupHitRate,
       'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
     };
   }
@@ -2387,6 +2402,19 @@ class StyioServiceResultCacheSnapshot {
       );
     }
     return null;
+  }
+
+  static int _intValue(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
   }
 }
 
@@ -2729,7 +2757,11 @@ class StyioServiceResultCache {
         right.workingDirectory ?? '',
       );
     });
-    return StyioServiceResultCacheSnapshot(entries: entries);
+    return StyioServiceResultCacheSnapshot(
+      entries: entries,
+      lookupHits: lookupHits,
+      lookupMisses: lookupMisses,
+    );
   }
 
   void _evictOverflow() {

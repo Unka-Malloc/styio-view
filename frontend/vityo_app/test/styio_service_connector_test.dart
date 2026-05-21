@@ -3577,6 +3577,63 @@ void main() {
     expect(cache.lookupCount, 0);
   });
 
+  test('result cache snapshot exposes lookup telemetry metadata', () {
+    final cache = StyioServiceResultCache();
+    cache.store(
+      const StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: 'fixture://cache-snapshot-telemetry',
+        revision: 1,
+        toolchainId: 'styio-nightly',
+      ),
+    );
+
+    expect(
+      cache.lookupDocument(
+        documentId: 'fixture://cache-snapshot-telemetry',
+        revision: 1,
+        protocolVersion: 'styio-cli-jsonl-v1',
+      ),
+      isNotNull,
+    );
+    expect(
+      cache.lookup(
+        const StyioServiceResultCacheKey(
+          documentId: 'fixture://cache-snapshot-telemetry',
+          revision: 2,
+          protocolVersion: 'styio-cli-jsonl-v1',
+          toolchainId: 'styio-nightly',
+        ),
+      ),
+      isNull,
+    );
+
+    final snapshot = cache.snapshot(
+      documentId: 'fixture://cache-snapshot-telemetry',
+    );
+    final json = snapshot.toJson();
+    final restored = StyioServiceResultCacheSnapshot.fromJson(json);
+    final legacy = StyioServiceResultCacheSnapshot.fromJson(<String, Object?>{
+      'entries': const <Object?>[],
+    });
+
+    expect(snapshot.entries, hasLength(1));
+    expect(snapshot.lookupHits, 1);
+    expect(snapshot.lookupMisses, 1);
+    expect(snapshot.lookupCount, 2);
+    expect(snapshot.lookupHitRate, 0.5);
+    expect(json['lookupHits'], 1);
+    expect(json['lookupMisses'], 1);
+    expect(json['lookupCount'], 2);
+    expect(json['lookupHitRate'], 0.5);
+    expect(restored.lookupHits, 1);
+    expect(restored.lookupMisses, 1);
+    expect(restored.lookupCount, 2);
+    expect(restored.lookupHitRate, 0.5);
+    expect(legacy.lookupCount, 0);
+    expect(legacy.lookupHitRate, 0);
+  });
+
   test('result cache snapshot exposes manifest counts without payloads', () {
     final cache = StyioServiceResultCache();
     cache.store(
@@ -3956,6 +4013,16 @@ void main() {
             ],
           ),
         );
+      cache.lookupDocument(
+        documentId: 'fixture://manifest',
+        revision: 7,
+        protocolVersion: 'styio-cli-jsonl-v1',
+      );
+      cache.lookupDocument(
+        documentId: 'fixture://manifest-missing',
+        revision: 1,
+        protocolVersion: 'styio-cli-jsonl-v1',
+      );
 
       await manifestStore.save(cache.snapshot());
       final loaded = await manifestStore.load();
@@ -3964,6 +4031,9 @@ void main() {
       expect(loaded.entries.single.documentId, 'fixture://manifest');
       expect(loaded.entries.single.toolchainId, 'styio-nightly');
       expect(loaded.entries.single.diagnosticCount, 1);
+      expect(loaded.lookupHits, 1);
+      expect(loaded.lookupMisses, 1);
+      expect(loaded.lookupCount, 2);
       expect(jsonText, isNot(contains('raw payload must not be persisted')));
       expect(jsonText, isNot(contains('styio.secret.payload')));
       expect(await manifestStore.delete(), isTrue);

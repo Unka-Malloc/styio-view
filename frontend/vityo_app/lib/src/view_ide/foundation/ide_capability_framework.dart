@@ -317,7 +317,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/language/service',
           summary:
-              'Caches StyioService results with protocol, parser engine, grammar version metadata, and hit/miss telemetry counters.',
+              'Caches StyioService results with protocol, parser engine, grammar version metadata, hit/miss telemetry counters, and snapshot metadata.',
         ),
         IdeCapabilityDescriptor(
           id: 'service.remote-service',

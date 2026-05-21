@@ -30,7 +30,7 @@ void main() {
     );
     expect(
       entriesById['service.language-result-cache']?.summary,
-      contains('hit/miss telemetry counters'),
+      contains('snapshot metadata'),
     );
     expect(
       entriesById['interaction.search']?.summary,

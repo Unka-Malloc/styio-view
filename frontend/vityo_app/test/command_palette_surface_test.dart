@@ -35,6 +35,8 @@ void main() {
                 description: 'Rename selected symbol.',
                 requiresInput: true,
                 inputLabel: 'New symbol name',
+                inputContract: 'New symbol name valid for the active language.',
+                inputExamples: <String>['renamed'],
               ),
             ],
             blockedReasonForCommand: (commandId) {
@@ -56,6 +58,11 @@ void main() {
     );
     expect(find.text('registered 2'), findsOneWidget);
     expect(find.text('selected Rename Symbol'), findsOneWidget);
+    expect(
+      find.text('New symbol name valid for the active language.'),
+      findsOneWidget,
+    );
+    expect(find.text('Examples: renamed'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const ValueKey('command-palette-query-input')),
@@ -440,10 +447,16 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.enterText(
+    await tester.tap(
       find.byKey(const ValueKey('command-palette-keybinding-shortcut-input')),
-      'ctrl+shift+keyK',
     );
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
     tester
         .widget<FilledButton>(
           find.byKey(const ValueKey('command-palette-keybinding-save')),

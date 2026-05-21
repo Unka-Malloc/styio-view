@@ -52,6 +52,8 @@ void main() {
       description: 'Rename selected symbol.',
       requiresInput: true,
       inputLabel: 'New symbol name',
+      inputContract: 'New symbol name valid for the active language.',
+      inputExamples: <String>['renamed'],
     );
     final entries =
         const CommandPaletteModel(
@@ -68,6 +70,8 @@ void main() {
     expect(entries.single.command.id, AppCommandId.renameSymbol);
     expect(emptyDraft.ready, isFalse);
     expect(readyDraft.ready, isTrue);
+    expect(emptyDraft.toJson()['inputContract'], contains('active language'));
+    expect(emptyDraft.toJson()['inputExamples'], contains('renamed'));
     expect(readyDraft.toJson()['input'], 'renamed');
   });
 
@@ -86,6 +90,8 @@ void main() {
         description: 'Rename selected symbol.',
         requiresInput: true,
         inputLabel: 'New symbol name',
+        inputContract: 'New symbol name valid for the active language.',
+        inputExamples: <String>['renamed'],
       ),
     ];
     const model = CommandPaletteModel(commands: commands);
@@ -106,6 +112,10 @@ void main() {
     expect(
       (json['selectedInputDraft']! as Map<String, Object?>)['inputLabel'],
       'New symbol name',
+    );
+    expect(
+      (json['selectedInputDraft']! as Map<String, Object?>)['inputContract'],
+      contains('active language'),
     );
   });
 

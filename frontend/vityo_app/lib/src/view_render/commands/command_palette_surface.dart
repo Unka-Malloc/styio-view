@@ -274,10 +274,29 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                         ? 'Command input'
                         : overlayState.selectedEntry!.command.inputLabel,
                     helperText:
-                        'Input is passed to the command router, for example a workspace file path.',
+                        overlayState
+                            .selectedEntry!
+                            .command
+                            .inputContract
+                            .isEmpty
+                        ? 'Input is passed to the command router, for example a workspace file path.'
+                        : overlayState.selectedEntry!.command.inputContract,
                     border: const OutlineInputBorder(),
                   ),
                 ),
+                if (overlayState.selectedEntry!.command.inputExamples.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Examples: ${overlayState.selectedEntry!.command.inputExamples.join(', ')}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 12),
               ],
               if (_showsKeybindingEditor) ...[

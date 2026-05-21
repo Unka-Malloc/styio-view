@@ -43,6 +43,10 @@ class CommandPaletteCommandEntry {
       if (recentRank != null) 'recentRank': recentRank,
       'requiresInput': command.requiresInput,
       if (command.inputLabel.isNotEmpty) 'inputLabel': command.inputLabel,
+      if (command.inputContract.isNotEmpty)
+        'inputContract': command.inputContract,
+      if (command.inputExamples.isNotEmpty)
+        'inputExamples': command.inputExamples,
     };
   }
 }
@@ -62,6 +66,10 @@ class CommandPaletteInputDraft {
       'commandId': command.id.name,
       'requiresInput': command.requiresInput,
       if (command.inputLabel.isNotEmpty) 'inputLabel': command.inputLabel,
+      if (command.inputContract.isNotEmpty)
+        'inputContract': command.inputContract,
+      if (command.inputExamples.isNotEmpty)
+        'inputExamples': command.inputExamples,
       if (input.trim().isNotEmpty) 'input': input.trim(),
       'ready': ready,
     };

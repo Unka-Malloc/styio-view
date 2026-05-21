@@ -698,6 +698,10 @@ void main() {
       entriesById['agent.coding-loop']?.summary,
       contains('validation summary visibility'),
     );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('validation failure evidence visibility'),
+    );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);
     expect(

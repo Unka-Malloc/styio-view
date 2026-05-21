@@ -10,6 +10,7 @@ export 'agent_coding_skill_registry.dart';
 export 'agent_tool_call_dispatcher.dart';
 export 'agent_tool_call_execution_plan.dart';
 export 'agent_tool_call_lifecycle.dart';
+export 'agent_tool_call_result_context.dart';
 export 'agent_tool_call_stream_bridge.dart';
 export 'agent_tool_permission.dart';
 export 'agent_tool_registry.dart';

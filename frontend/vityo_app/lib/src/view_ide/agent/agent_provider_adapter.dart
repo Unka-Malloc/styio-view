@@ -4,6 +4,7 @@ import '../commands/app_commands.dart';
 import 'agent_command_metadata.dart';
 import 'agent_profile.dart';
 import 'agent_session_context.dart';
+import 'agent_tool_call_result_context.dart';
 
 const int _maxAgentAttachmentContentLength = 20000;
 
@@ -65,6 +66,7 @@ class AgentProviderRequest {
     required this.userPrompt,
     this.attachments = const <AgentRequestAttachment>[],
     this.conversationTurns = const <AgentConversationTurn>[],
+    this.toolCallResults = const <AgentToolCallResultContext>[],
   });
 
   final String requestId;
@@ -73,6 +75,7 @@ class AgentProviderRequest {
   final String userPrompt;
   final List<AgentRequestAttachment> attachments;
   final List<AgentConversationTurn> conversationTurns;
+  final List<AgentToolCallResultContext> toolCallResults;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -86,6 +89,10 @@ class AgentProviderRequest {
       if (conversationTurns.isNotEmpty)
         'conversationTurns': conversationTurns
             .map((turn) => turn.toJson())
+            .toList(growable: false),
+      if (toolCallResults.isNotEmpty)
+        'toolCallResults': toolCallResults
+            .map((result) => result.toJson())
             .toList(growable: false),
     };
   }

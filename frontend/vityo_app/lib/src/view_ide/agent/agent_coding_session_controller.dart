@@ -15,6 +15,7 @@ import 'agent_session_context.dart';
 import 'agent_tool_call_dispatcher.dart';
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
+import 'agent_tool_call_result_context.dart';
 import 'agent_tool_call_stream_bridge.dart';
 import 'agent_workspace_snapshot.dart';
 import 'agent_workspace_edit_adapter.dart';
@@ -65,6 +66,7 @@ const int _maxAgentRecentPatchProposalContexts = 6;
 const int _maxAgentPendingPatchContextEdits = 20;
 const int _maxAgentPendingPatchReplacementTextSampleLength = 2000;
 const int _maxAgentCommandResultContextHistory = 12;
+const int _maxAgentToolCallResultContextHistory = 12;
 const int _maxAgentPendingIdeCommandContexts = 10;
 const int _maxAgentRecentIdeCommandSuggestionContexts = 12;
 const int _maxAgentRecentCodingPlanContexts = 8;
@@ -118,6 +120,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentCodePatchApplicationResult? _preservedLastPatchApplicationResult;
   final List<AgentCommandResultContext> _recentIdeCommandResultContexts =
       <AgentCommandResultContext>[];
+  final List<AgentToolCallResultContext> _recentToolCallResultContexts =
+      <AgentToolCallResultContext>[];
   final Set<String> _completedIdeCommandSuggestionKeys = <String>{};
   final List<AgentPatchApplicationContext> _recentPatchApplicationContexts =
       <AgentPatchApplicationContext>[];
@@ -216,6 +220,10 @@ class AgentCodingSessionController extends ChangeNotifier {
   List<AgentConversationTurn> get conversationTurns =>
       List<AgentConversationTurn>.unmodifiable(_conversationTurns);
   AgentToolCallTimeline get toolCallTimeline => _toolCallTimeline;
+  List<AgentToolCallResultContext> get recentToolCallResultContexts =>
+      List<AgentToolCallResultContext>.unmodifiable(
+        _recentToolCallResultContexts,
+      );
   List<AgentToolCallReviewDecision> get toolCallReviewDecisions =>
       List<AgentToolCallReviewDecision>.unmodifiable(
         _toolCallReviewDecisions.values,
@@ -584,6 +592,9 @@ class AgentCodingSessionController extends ChangeNotifier {
     if (report.events.isNotEmpty) {
       recordToolCallEvents(report.events);
     }
+    if (report.results.isNotEmpty) {
+      _recordRecentToolCallResultContexts(report.results);
+    }
     return report;
   }
 
@@ -643,6 +654,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         userPrompt: prompt,
         attachments: attachments,
         conversationTurns: _conversationWindow(),
+        toolCallResults: _toolCallResultWindow(),
       );
       _activeProviderRequestId = request.requestId;
       _activeProviderPrompt = prompt;
@@ -667,6 +679,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       }
       _appendConversationTurn(role: AgentConversationRole.user, text: prompt);
       _appendAssistantTurn(response);
+      _recentToolCallResultContexts.clear();
       _draftPrompt = '';
       _attachments.clear();
       await _appendAgentCodingSessionHistory(
@@ -1582,6 +1595,35 @@ class AgentCodingSessionController extends ChangeNotifier {
         _conversationTurns.length - maxConversationTurns,
       ),
     );
+  }
+
+  List<AgentToolCallResultContext> _toolCallResultWindow() {
+    return List<AgentToolCallResultContext>.unmodifiable(
+      _recentToolCallResultContexts,
+    );
+  }
+
+  void _recordRecentToolCallResultContexts(
+    Iterable<AgentToolCallDispatchResult> results,
+  ) {
+    final createdAt = DateTime.now().toUtc();
+    _recentToolCallResultContexts.addAll(
+      results.map(
+        (result) => AgentToolCallResultContext.fromDispatchResult(
+          result,
+          createdAt: createdAt,
+        ),
+      ),
+    );
+    if (_recentToolCallResultContexts.length >
+        _maxAgentToolCallResultContextHistory) {
+      _recentToolCallResultContexts.removeRange(
+        0,
+        _recentToolCallResultContexts.length -
+            _maxAgentToolCallResultContextHistory,
+      );
+    }
+    notifyListeners();
   }
 
   void _trimConversationWindow() {

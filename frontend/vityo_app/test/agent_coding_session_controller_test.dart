@@ -9,6 +9,7 @@ import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_dispatcher.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
 import 'package:vityo_app/src/agent/agent_workspace_snapshot.dart';
@@ -171,6 +172,60 @@ void main() {
       AgentToolCallExecutionPlanStatus.complete,
     );
   });
+
+  test(
+    'agent coding session forwards dispatched tool results to next request',
+    () async {
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-tool-result',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(kind: AgentContentPartKind.text, text: 'Done.'),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+      );
+
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-read',
+          toolId: 'readWorkspaceFile',
+          input: '{"path":"main.styio"}',
+        ),
+      );
+      controller.approveToolCallExecution('call-read');
+      await controller.dispatchReadyToolCalls(
+        (request) => AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: '{"text":"value = 1"}',
+          metadata: const <String, Object?>{'source': 'test'},
+        ),
+      );
+
+      expect(
+        controller.recentToolCallResultContexts.single.callId,
+        'call-read',
+      );
+
+      controller.updatePrompt('Continue with tool result.');
+      await controller.sendPrompt();
+
+      final request = adapter.requests.single;
+      expect(request.toolCallResults.single.callId, 'call-read');
+      expect(request.toolCallResults.single.toolId, 'readWorkspaceFile');
+      expect(request.toolCallResults.single.success, isTrue);
+      expect(request.toolCallResults.single.output, '{"text":"value = 1"}');
+      expect(request.toJson()['toolCallResults'], isA<List<Object?>>());
+      expect(controller.recentToolCallResultContexts, isEmpty);
+    },
+  );
 
   test(
     'agent coding session blocks provider dispatch when route is blocked',

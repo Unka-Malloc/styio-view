@@ -296,6 +296,13 @@ class AgentCodingSessionController extends ChangeNotifier {
       validationPlan: codingValidationPlan,
       validationPipeline: codingValidationPipeline,
       hasProviderFailure: _lastProviderFailure != null,
+      loopGuard: AgentCodingLoopGuard.fromSignals(
+        toolReplayReportCount: _latestToolReplayReportCount(),
+        failedToolResultCount: _recentToolCallResultContexts
+            .where((result) => !result.success)
+            .length,
+        hasProviderFailure: _lastProviderFailure != null,
+      ),
     );
   }
 
@@ -1655,6 +1662,15 @@ class AgentCodingSessionController extends ChangeNotifier {
             'Agent tool replay report persistence failed: ${sanitizeAgentError(error.toString())}',
       );
     }
+  }
+
+  int _latestToolReplayReportCount() {
+    final records = sessionHistorySnapshot.records;
+    if (records.isEmpty) {
+      return 0;
+    }
+    final value = records.first.metadata['toolCallReplayReportCount'];
+    return value is int ? value : 0;
   }
 
   void _recordRecentPatchProposalContext(AgentCodePatch? patch) {

@@ -104,6 +104,39 @@ void main() {
     expect(recovery.required, isFalse);
     expect(recovery.commandIds, contains('collectAgentCodingCheckpoint'));
   });
+
+  test('agent coding loop plan blocks repeated replay loops', () {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    controller.updatePrompt('Continue after repeated replay failures.');
+
+    final plan = AgentCodingLoopPlan.fromState(
+      dispatchPlan: controller.previewDispatchPlan(),
+      changeReviewGate: controller.codingChangeReviewGate,
+      validationPlan: controller.codingValidationPlan,
+      validationPipeline: controller.codingValidationPipeline,
+      hasProviderFailure: false,
+      loopGuard: AgentCodingLoopGuard.fromSignals(
+        toolReplayReportCount: 3,
+        failedToolResultCount: 0,
+        hasProviderFailure: false,
+      ),
+    );
+    final guard = plan.steps.singleWhere(
+      (step) => step.stepId == 'guard-agent-loop',
+    );
+
+    expect(plan.status, AgentCodingLoopPlanStatus.blocked);
+    expect(plan.activeStepId, 'guard-agent-loop');
+    expect(guard.status, AgentCodingLoopStepStatus.blocked);
+    expect(
+      guard.blockingReasons,
+      contains('agent.loop.replayReportLimit:3'),
+    );
+  });
 }
 
 AgentSessionContext _context() {

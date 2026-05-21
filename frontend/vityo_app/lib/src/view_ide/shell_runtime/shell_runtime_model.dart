@@ -1660,10 +1660,19 @@ class ShellRuntimeModel extends ChangeNotifier {
       documentId: documentId,
       offset: offset,
     );
+    final status = languageServiceStatus.value;
+    final suggestedCommandIds = <String>[
+      if (status.refreshRecommended) AppCommandId.refreshLanguageService.name,
+      if (definitions.isNotEmpty) AppCommandId.goToDefinition.name,
+      if (references.isNotEmpty) AppCommandId.nextReference.name,
+    ];
     final metadata = <String, Object?>{
       'documentId': documentId,
       'offset': offset,
       'documentCount': documents.length,
+      'languageServiceStatus': status.toJson(),
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
       if (hover != null)
         'hover': <String, Object?>{
           'label': hover.label,

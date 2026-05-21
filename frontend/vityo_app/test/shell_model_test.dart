@@ -1266,8 +1266,19 @@ void main() {
                   ?.metadata['projectLanguage']
               as Map<String, Object?>;
       final hover = projectLanguage['hover']! as Map<String, Object?>;
+      final languageServiceStatus =
+          projectLanguage['languageServiceStatus']! as Map<String, Object?>;
       expect(projectLanguage['definitionCount'], 1);
       expect(projectLanguage['referenceCount'], 2);
+      expect(
+        projectLanguage['suggestedCommandIds'],
+        contains('goToDefinition'),
+      );
+      expect(
+        projectLanguage['suggestedCommandIds'],
+        contains('nextReference'),
+      );
+      expect(languageServiceStatus['severity'], isA<String>());
       expect(
         shell.semanticProblemsPanelViewModel?.semanticTokenEventCount,
         greaterThanOrEqualTo(1),

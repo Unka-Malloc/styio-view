@@ -2385,6 +2385,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       'callId: ${call.callId}',
       'toolId: ${call.toolId}',
       'correctiveFeedback: $feedback',
+      'recoveryAction: reviseToolRequest',
     ].join('\n');
     return AgentToolCallDispatchResult.failure(
       callId: call.callId,
@@ -2396,6 +2397,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         'blocked': true,
         'reviewDecision': 'denied',
         'correctiveFeedback': feedback,
+        'recoveryAction': 'reviseToolRequest',
       },
     );
   }

@@ -381,10 +381,12 @@ void main() {
       );
       expect(result.metadata['source'], 'agent-tool-review');
       expect(result.metadata['reviewDecision'], 'denied');
+      expect(result.output, contains('recoveryAction: reviseToolRequest'));
       expect(
         result.metadata['correctiveFeedback'],
         'Use the validation context before running tests.',
       );
+      expect(result.metadata['recoveryAction'], 'reviseToolRequest');
     },
   );
 

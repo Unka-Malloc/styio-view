@@ -178,7 +178,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 75,
+      schemaVersion: 76,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -1233,9 +1233,28 @@ class AgentPendingIdeCommandContext {
   final String? prerequisiteForCommandId;
   final String text;
 
+  AppCommandDescriptor? get descriptor => _appCommandDescriptorForName(
+    commandId,
+  );
+
+  bool get registered => descriptor != null;
+
+  bool get requiresInput => descriptor?.requiresInput ?? false;
+
+  bool get inputMissing => requiresInput && (input?.trim().isEmpty ?? true);
+
   Map<String, Object?> toJson() {
+    final commandDescriptor = descriptor;
     return <String, Object?>{
       'commandId': commandId,
+      'registered': registered,
+      if (commandDescriptor != null) ...<String, Object?>{
+        'requiresInput': commandDescriptor.requiresInput,
+        'inputMissing': inputMissing,
+        'inputLabel': commandDescriptor.inputLabel,
+        'inputContract': commandDescriptor.inputContract,
+        'inputExamples': commandDescriptor.inputExamples,
+      },
       if (input != null) 'input': input,
       'reason': reason,
       if (prerequisiteForCommandId != null)
@@ -1243,6 +1262,19 @@ class AgentPendingIdeCommandContext {
       if (text.trim().isNotEmpty) 'text': text,
     };
   }
+}
+
+AppCommandDescriptor? _appCommandDescriptorForName(String commandId) {
+  final normalized = commandId.trim();
+  if (normalized.isEmpty) {
+    return null;
+  }
+  for (final id in AppCommandId.values) {
+    if (id.name == normalized) {
+      return StyioCommandRegistry.descriptorFor(id);
+    }
+  }
+  return null;
 }
 
 class AgentProviderFailureContext {

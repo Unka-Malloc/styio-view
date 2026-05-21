@@ -1768,6 +1768,9 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
   if (agent.pendingIdeCommands.isNotEmpty) {
     metadata.addAll(<String, Object?>{
       'pendingIdeCommandCount': agent.pendingIdeCommands.length,
+      'pendingIdeCommandMissingInputCount': agent.pendingIdeCommands
+          .where((command) => command.inputMissing)
+          .length,
       'pendingIdeCommandIds': agent.pendingIdeCommands
           .map((command) => command.commandId)
           .toList(growable: false),
@@ -1924,7 +1927,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.recentPatchProposals, read it as newest-first structured code patch proposals from recent assistant responses.
 - If the IDE context includes agent.recentCodingPlans, read it as newest-first structured plan, step, acceptance, and risk evidence from recent assistant responses.
 - If the IDE context includes agent.recentDiagnosticSummaries, read it as newest-first structured diagnostic triage from recent assistant responses.
-- If the IDE context includes agent.pendingIdeCommands, treat them as current unapplied IDE command suggestions waiting for user confirmation or revision.
+- If the IDE context includes agent.pendingIdeCommands, read registered, requiresInput, inputMissing, inputContract, and inputExamples before treating them as current unapplied IDE command suggestions waiting for user confirmation or revision.
 - If the IDE context includes agent.recentIdeCommandSuggestions, read it as newest-first structured IDE command suggestions from recent assistant responses.
 - If the IDE context includes agent.lastProviderFailure, read it as the latest structured provider transport failure before proposing retry, failover, or provider reconfiguration.
 - If the IDE context includes agent.providerExecution, read status, selectedEndpointIndex, credentialReadiness, requiresCredential, and missingCredentialEndpointCount before assuming the current assistant is backed by a real provider instead of fallback or local-only execution.

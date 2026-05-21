@@ -513,7 +513,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 75);
+    expect(json['schemaVersion'], 76);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1477,7 +1477,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 75);
+    expect(context.schemaVersion, 76);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1860,7 +1860,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 75);
+    expect(json['schemaVersion'], 76);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2038,10 +2038,10 @@ void main() {
       diagnostics: const <Diagnostic>[],
       pendingIdeCommands: const <AgentPendingIdeCommandContext>[
         AgentPendingIdeCommandContext(
-          commandId: 'runBuild',
-          reason: 'Use the registered build command.',
-          prerequisiteForCommandId: 'saveAll',
-          text: 'Run the build.',
+          commandId: 'stageSourceControl',
+          reason: 'Stage the changed file.',
+          prerequisiteForCommandId: 'planSourceControlCommitDraft',
+          text: 'Stage changed files.',
         ),
       ],
       recentIdeCommandSuggestions: const <AgentPendingIdeCommandContext>[
@@ -2063,11 +2063,20 @@ void main() {
     final recentCommand =
         recentIdeCommandSuggestions.single! as Map<String, Object?>;
 
-    expect(agentJson['suggestedCommandIds'], <String>['runBuild']);
-    expect(command['commandId'], 'runBuild');
-    expect(command['reason'], 'Use the registered build command.');
-    expect(command['prerequisiteForCommandId'], 'saveAll');
-    expect(command['text'], 'Run the build.');
+    expect(agentJson['suggestedCommandIds'], <String>['stageSourceControl']);
+    expect(command['commandId'], 'stageSourceControl');
+    expect(command['registered'], isTrue);
+    expect(command['requiresInput'], isTrue);
+    expect(command['inputMissing'], isTrue);
+    expect(command['inputLabel'], 'Changed file path(s)');
+    expect(command['inputContract'], contains('workspace-relative'));
+    expect(command['inputExamples'], contains('src/main.styio'));
+    expect(command['reason'], 'Stage the changed file.');
+    expect(
+      command['prerequisiteForCommandId'],
+      'planSourceControlCommitDraft',
+    );
+    expect(command['text'], 'Stage changed files.');
     expect(recentCommand['commandId'], 'runBuild');
   });
 
@@ -2136,7 +2145,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 75);
+    expect(context.schemaVersion, 76);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

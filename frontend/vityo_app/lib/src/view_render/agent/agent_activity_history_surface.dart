@@ -77,6 +77,9 @@ class _AgentActivityRecordTile extends StatelessWidget {
     final theme = Theme.of(context);
     final errorMessage = record.errorMessage?.trim();
     final validationSummary = _activityValidationSummary(record.metadata);
+    final validationFailureEvidence = _activityValidationFailureEvidence(
+      record.metadata,
+    );
     final statusColor = record.succeeded
         ? theme.colorScheme.primary
         : theme.colorScheme.error;
@@ -148,6 +151,20 @@ class _AgentActivityRecordTile extends StatelessWidget {
               ),
             ),
           ],
+          if (validationFailureEvidence != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              validationFailureEvidence,
+              key: const ValueKey(
+                'agent-activity-validation-failure-evidence',
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -185,6 +202,20 @@ String? _activityValidationSummary(Map<String, Object?> metadata) {
       : ' $progressNumerator/$progressDenominator';
   final next = nextCommandId == null ? '' : ' · next $nextCommandId';
   return 'Validation: $resultStatus · pipeline $pipelineStatus$progress$next';
+}
+
+String? _activityValidationFailureEvidence(Map<String, Object?> metadata) {
+  final failedResults = metadata['validationFailedCommandResults'];
+  if (failedResults is! Iterable || failedResults.isEmpty) {
+    return null;
+  }
+  final firstResult = _metadataObject(failedResults.first);
+  final commandId = firstResult['commandId'] as String?;
+  final message = firstResult['message'] as String?;
+  if (commandId == null || message == null || message.trim().isEmpty) {
+    return null;
+  }
+  return 'Failure evidence: $commandId · $message';
 }
 
 Map<String, Object?> _metadataObject(Object? value) {

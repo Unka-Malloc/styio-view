@@ -50,14 +50,22 @@ void main() {
           diagnosticSummaryCount: 1,
           metadata: const <String, Object?>{
             'validationResult': <String, Object?>{
-              'status': 'passed',
-              'completedCommandIds': <String>['saveAll', 'runTests'],
+              'status': 'failed',
+              'completedCommandIds': <String>['saveAll'],
+              'failedCommandIds': <String>['runTests'],
             },
             'validationPipeline': <String, Object?>{
-              'status': 'complete',
-              'progressNumerator': 5,
+              'status': 'failed',
+              'progressNumerator': 1,
               'progressDenominator': 5,
             },
+            'validationFailedCommandResults': <Object?>[
+              <String, Object?>{
+                'commandId': 'runTests',
+                'applied': false,
+                'message': 'runTests failed.',
+              },
+            ],
           },
         ),
       ],
@@ -80,7 +88,15 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Validation: passed · pipeline complete 5/5'),
+      find.text('Validation: failed · pipeline failed 1/5'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-activity-validation-failure-evidence')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Failure evidence: runTests · runTests failed.'),
       findsOneWidget,
     );
   });

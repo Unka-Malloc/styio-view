@@ -50,6 +50,7 @@ class AgentBuiltinToolExecutor {
       'previewWorkspaceEdit' => _previewWorkspaceEdit(request),
       'applyWorkspacePatch' => _applyWorkspacePatch(request),
       'runIdeCommand' => _runIdeCommand(request),
+      'collectStyioLanguageContext' => _collectStyioLanguageContext(request),
       'collectAgentCodingCheckpoint' => _collectAgentCodingCheckpoint(request),
       _ => AgentToolCallDispatchResult.failure(
         callId: request.callId,
@@ -58,6 +59,26 @@ class AgentBuiltinToolExecutor {
             'Agent builtin tool ${request.toolId} is not implemented by this executor.',
       ),
     };
+  }
+
+  Future<AgentToolCallDispatchResult> _collectStyioLanguageContext(
+    AgentToolCallDispatchRequest request,
+  ) async {
+    final language = context.language.toJson();
+    return AgentToolCallDispatchResult.success(
+      callId: request.callId,
+      toolId: request.toolId,
+      output: jsonEncode(<String, Object?>{
+        'source': 'agent-session-context',
+        'language': language,
+      }),
+      metadata: <String, Object?>{
+        'completionCount': context.language.completionCount,
+        'codeActionCount': context.language.codeActionCount,
+        'referenceCount': context.language.referenceCount,
+        'semanticSpanCount': context.language.semanticSpanCount,
+      },
+    );
   }
 
   Future<AgentToolCallDispatchResult> _previewWorkspaceEdit(

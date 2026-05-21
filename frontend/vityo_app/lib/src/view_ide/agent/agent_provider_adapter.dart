@@ -1655,6 +1655,13 @@ List<Map<String, Object?>> _openAIResponsesExecutableToolDefinitions() {
       required: <String>['commandId'],
     ),
     _openAIResponsesFunctionTool(
+      name: 'collectStyioLanguageContext',
+      description:
+          'Collect the current Styio language facts already present in the Vityo IDE context.',
+      properties: const <String, Object?>{},
+      required: const <String>[],
+    ),
+    _openAIResponsesFunctionTool(
       name: 'collectAgentCodingCheckpoint',
       description:
           'Collect current IDE, language, testing, toolchain, and agent loop facts.',
@@ -2476,6 +2483,7 @@ const Set<String> _executableAgentToolIds = <String>{
   'previewWorkspaceEdit',
   'applyWorkspacePatch',
   'runIdeCommand',
+  'collectStyioLanguageContext',
   'collectAgentCodingCheckpoint',
 };
 

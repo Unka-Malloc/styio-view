@@ -263,6 +263,21 @@ class AgentToolRegistry {
       ],
     ),
     AgentToolDefinition(
+      toolId: 'collectStyioLanguageContext',
+      displayName: 'Collect Styio Language Context',
+      description:
+          'Collect current Styio language facts from the IDE context without re-parsing source.',
+      priority: 65,
+      permissionMode: AgentToolPermissionMode.never,
+      capabilities: <String>[
+        'language.context',
+        'language.diagnostics',
+        'language.semantic',
+      ],
+      todo:
+          'TODO: replace local fallback facts with StyioService-authored facts when the external service exposes the full semantic contract.',
+    ),
+    AgentToolDefinition(
       toolId: 'collectAgentCodingCheckpoint',
       displayName: 'Collect Agent Coding Checkpoint',
       description:

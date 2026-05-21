@@ -212,6 +212,24 @@ void main() {
     expect(output['checkpoint']['workspace'], isA<Map<Object?, Object?>>());
   });
 
+  test('agent builtin executor collects Styio language context', () async {
+    final executor = AgentBuiltinToolExecutor(context: _context());
+    final result = await executor.execute(
+      const AgentToolCallDispatchRequest(
+        callId: 'call-language',
+        toolId: 'collectStyioLanguageContext',
+        inputText: '{}',
+      ),
+    );
+    final output = jsonDecode(result.output);
+
+    expect(result.success, isTrue);
+    expect(output['source'], 'agent-session-context');
+    expect(output['language'], isA<Map<Object?, Object?>>());
+    expect(output['language']['completionCount'], isA<int>());
+    expect(result.metadata['semanticSpanCount'], isA<int>());
+  });
+
   test('agent builtin executor previews workspace edits', () async {
     final executor = AgentBuiltinToolExecutor(context: _context());
     final result = await executor.execute(

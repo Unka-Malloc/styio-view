@@ -5,6 +5,7 @@ import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
+import 'package:vityo_app/src/agent/agent_tool_registry.dart';
 import 'package:vityo_app/src/app/app_bootstrap.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -12,6 +13,7 @@ import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/agent/agent_coding_session_history_store.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
+import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
 
 void main() {
   test(
@@ -29,6 +31,82 @@ void main() {
 
       expect(controller.profile.profileId, 'default-web');
       expect(controller.adapter, isA<LocalOnlyAgentProviderAdapter>());
+    },
+  );
+
+  test(
+    'agent bootstrap installs extension agent tools from activated routes',
+    () async {
+      final routes = ExtensionContributionRouteManifest(
+        routes: <ExtensionContributionRoute>[
+          const ExtensionContributionRouter().routeContribution(
+            extensionId: 'agent.tools',
+            contribution: const ExtensionContributionPoint(
+              kind: ExtensionContributionKind.agent,
+              id: 'collect-extension-context',
+              target: 'agent.tools',
+              metadata: <String, Object?>{
+                'toolId': 'collectExtensionContext',
+                'description': 'Collect context from an extension.',
+                'permissionMode': 'never',
+              },
+            ),
+          ),
+        ],
+      );
+
+      final controller = await AppBootstrap.createAgentCodingSessionController(
+        platformTarget: PlatformTarget.web,
+        loadPersistedProfile: () async => null,
+        createConfiguredAdapter: (_) {
+          fail('default bootstrap must not create a network provider');
+        },
+        extensionContributionRoutes: routes,
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+
+      final dispatchPlan = controller.previewDispatchPlan();
+      expect(
+        dispatchPlan.toolSelection.toolIds,
+        contains('collectExtensionContext'),
+      );
+      expect(
+        dispatchPlan.toolPermissionPlan.allowedToolIds,
+        contains('collectExtensionContext'),
+      );
+    },
+  );
+
+  test(
+    'agent bootstrap prefers explicit tool registry over extension routes',
+    () async {
+      final controller = await AppBootstrap.createAgentCodingSessionController(
+        platformTarget: PlatformTarget.web,
+        loadPersistedProfile: () async => null,
+        createConfiguredAdapter: (_) {
+          fail('default bootstrap must not create a network provider');
+        },
+        toolRegistry: AgentToolRegistry(
+          tools: const <AgentToolDefinition>[
+            AgentToolDefinition(
+              toolId: 'explicitTool',
+              displayName: 'Explicit Tool',
+              description: 'Explicitly injected test tool.',
+              permissionMode: AgentToolPermissionMode.never,
+            ),
+          ],
+        ),
+        extensionContributionRoutes: const ExtensionContributionRouteManifest(
+          routes: <ExtensionContributionRoute>[],
+        ),
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+
+      expect(controller.previewDispatchPlan().toolSelection.toolIds, <String>[
+        'explicitTool',
+      ]);
     },
   );
 

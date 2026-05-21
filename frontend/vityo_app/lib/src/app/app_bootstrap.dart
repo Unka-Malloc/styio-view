@@ -25,6 +25,7 @@ import '../view_ide/language/service/styio_service_connector.dart';
 import '../view_ide/language/service/styio_service_runtime.dart';
 import '../view_ide/language/service/styio_service_subscription.dart';
 import '../view_ide/language/service/styio_workspace_diagnostics_provider.dart';
+import '../view_ide/module_host/extension_contribution_router.dart';
 import '../view_ide/toolchain/clang_cpp_version_configuration.dart';
 import '../view_ide/toolchain/toolchain_catalog.dart';
 import '../view_ide/toolchain/toolchain_configuration_store.dart';
@@ -526,6 +527,8 @@ class AppBootstrap {
     resolveConfiguredExecution,
     AgentCodingSessionHistoryStore? sessionHistoryStore,
     String sessionHistoryWorkspaceId = 'default',
+    AgentToolRegistry? toolRegistry,
+    ExtensionContributionRouteManifest? extensionContributionRoutes,
     required AgentSessionContextProvider contextProvider,
   }) async {
     final persistedProfile = await loadPersistedProfile();
@@ -551,9 +554,26 @@ class AppBootstrap {
       contextProvider: contextProvider,
       sessionHistoryStore: sessionHistoryStore,
       sessionHistoryWorkspaceId: sessionHistoryWorkspaceId,
+      toolRegistry:
+          toolRegistry ??
+          createAgentToolRegistry(
+            extensionContributionRoutes: extensionContributionRoutes,
+          ),
     );
     await controller.loadSessionHistory();
     return controller;
+  }
+
+  @visibleForTesting
+  static AgentToolRegistry createAgentToolRegistry({
+    ExtensionContributionRouteManifest? extensionContributionRoutes,
+  }) {
+    if (extensionContributionRoutes == null) {
+      return AgentToolRegistry();
+    }
+    return ExtensionAgentToolContributionCatalog.fromRoutes(
+      extensionContributionRoutes,
+    ).toRegistry();
   }
 
   static Future<AgentProviderAdapter> _createConfiguredAgentAdapter({

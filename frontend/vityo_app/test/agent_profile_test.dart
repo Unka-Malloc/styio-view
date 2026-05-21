@@ -47,9 +47,7 @@ void main() {
     );
     expect(
       decoded.systemPrompt,
-      contains(
-        'ideCapabilityClosure.runtimeMaturityBlockingTodoCapabilityIds',
-      ),
+      contains('ideCapabilityClosure.runtimeMaturityBlockingTodoCapabilityIds'),
     );
     expect(
       decoded.systemPrompt,
@@ -112,8 +110,14 @@ void main() {
     expect(decoded.systemPrompt, contains('language.resolvedElement'));
     expect(decoded.systemPrompt, contains('language.resolvedReference'));
     expect(decoded.systemPrompt, contains('primary resolved symbol facts'));
-    expect(decoded.systemPrompt, contains('language.definition.agentCommandId'));
-    expect(decoded.systemPrompt, contains('language.references.agentCommandIds'));
+    expect(
+      decoded.systemPrompt,
+      contains('language.definition.agentCommandId'),
+    );
+    expect(
+      decoded.systemPrompt,
+      contains('language.references.agentCommandIds'),
+    );
     expect(decoded.systemPrompt, contains('language.parameterInfo'));
     expect(decoded.systemPrompt, contains('signature help'));
     expect(decoded.systemPrompt, contains('language.codeActions'));
@@ -151,6 +155,14 @@ void main() {
       contains('agent.lastPatchApplication.pendingPatchRetained'),
     );
     expect(decoded.systemPrompt, contains('agent.suggestedCommandIds'));
+    expect(decoded.systemPrompt, contains('agent.changeReviewGate'));
+    expect(decoded.systemPrompt, contains('agent.autonomyPolicy'));
+    expect(decoded.systemPrompt, contains('agent.validationPlan'));
+    expect(decoded.systemPrompt, contains('agent.validationPlan.commandPlans'));
+    expect(
+      decoded.systemPrompt,
+      contains('agent.validationPlan.registeredCommandIds'),
+    );
     expect(decoded.systemPrompt, contains('inputMissing'));
     expect(decoded.systemPrompt, contains('provider recovery commands'));
     expect(decoded.systemPrompt, contains('commands.settingsCommands'));
@@ -274,7 +286,10 @@ void main() {
       decoded.systemPrompt,
       contains('language.serviceStatus.semanticFactsReady'),
     );
-    expect(decoded.systemPrompt, contains('semanticFeatureMatrix preferredSource'));
+    expect(
+      decoded.systemPrompt,
+      contains('semanticFeatureMatrix preferredSource'),
+    );
     expect(decoded.systemPrompt, contains('fallbackActive'));
     expect(decoded.systemPrompt, contains('conflictPolicy'));
     expect(

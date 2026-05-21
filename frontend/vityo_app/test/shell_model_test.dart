@@ -1467,6 +1467,28 @@ void main() {
 
     final commandShell = createShell('shell-project-workspace-fix-command');
     addTearDown(commandShell.dispose);
+    await commandShell.executeCommand(AppCommandId.collectProjectLanguageContext);
+    final projectLanguage =
+        commandShell
+                .agentSessionContext
+                .commands
+                .lastResult
+                ?.metadata['projectLanguage']
+            as Map<String, Object?>;
+    expect(projectLanguage['diagnosticCount'], greaterThan(0));
+    expect(projectLanguage['workspaceQuickFixCount'], greaterThan(0));
+    expect(
+      projectLanguage['suggestedCommandIds'],
+      contains('previewQuickFix'),
+    );
+    expect(
+      projectLanguage['suggestedCommandIds'],
+      contains('applyQuickFix'),
+    );
+    expect(
+      (projectLanguage['workspaceQuickFixes']! as List<Object?>).first,
+      isA<Map<String, Object?>>(),
+    );
     final fixes = await commandShell.collectProjectWorkspaceQuickFixes();
     expect(fixes.map((fix) => fix.label), contains('Clean up project imports'));
     final preview = await commandShell.previewFirstProjectWorkspaceQuickFix();

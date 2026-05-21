@@ -1660,11 +1660,19 @@ class ShellRuntimeModel extends ChangeNotifier {
       documentId: documentId,
       offset: offset,
     );
+    final analysis = projectLanguageService.analyzeProject(documents);
+    final fixes = projectLanguageService.workspaceQuickFixesForProjectDiagnostics(
+      documents: documents,
+      diagnostics: analysis.diagnostics,
+      analysis: analysis,
+    );
     final status = languageServiceStatus.value;
     final suggestedCommandIds = <String>[
       if (status.refreshRecommended) AppCommandId.refreshLanguageService.name,
       if (definitions.isNotEmpty) AppCommandId.goToDefinition.name,
       if (references.isNotEmpty) AppCommandId.nextReference.name,
+      if (fixes.isNotEmpty) AppCommandId.previewQuickFix.name,
+      if (fixes.isNotEmpty) AppCommandId.applyQuickFix.name,
     ];
     final metadata = <String, Object?>{
       'documentId': documentId,
@@ -1673,6 +1681,16 @@ class ShellRuntimeModel extends ChangeNotifier {
       'languageServiceStatus': status.toJson(),
       if (suggestedCommandIds.isNotEmpty)
         'suggestedCommandIds': suggestedCommandIds,
+      'diagnosticCount': analysis.diagnostics.length,
+      'diagnostics': analysis.diagnostics
+          .take(50)
+          .map(_projectDiagnosticToJson)
+          .toList(growable: false),
+      'workspaceQuickFixCount': fixes.length,
+      'workspaceQuickFixes': fixes
+          .take(20)
+          .map(_projectWorkspaceFixToJson)
+          .toList(growable: false),
       if (hover != null)
         'hover': <String, Object?>{
           'label': hover.label,
@@ -1698,11 +1716,42 @@ class ShellRuntimeModel extends ChangeNotifier {
       'Project language context collected: '
       '${definitions.length} definition(s), '
       '${references.length} reference(s), '
-      '${completions.length} completion(s).',
+      '${completions.length} completion(s), '
+      '${analysis.diagnostics.length} diagnostic(s), '
+      '${fixes.length} quick fix candidate(s).',
     );
     _recordSemanticTokensTelemetry(documentId: documentId);
     notifyListeners();
     return metadata;
+  }
+
+  Map<String, Object?> _projectDiagnosticToJson(
+    StyioProjectDiagnostic diagnostic,
+  ) {
+    return <String, Object?>{
+      'documentId': diagnostic.documentId,
+      'severity': diagnostic.diagnostic.severity.name,
+      'code': diagnostic.diagnostic.code,
+      'message': diagnostic.diagnostic.message,
+      'range': <String, int>{
+        'start': diagnostic.diagnostic.range.start,
+        'end': diagnostic.diagnostic.range.end,
+      },
+    };
+  }
+
+  Map<String, Object?> _projectWorkspaceFixToJson(
+    StyioProjectWorkspaceFix fix,
+  ) {
+    return <String, Object?>{
+      'label': fix.label,
+      if (fix.detail.isNotEmpty) 'detail': fix.detail,
+      'affectedDocumentIds': fix.editsByDocument.keys.toList(growable: false),
+      'editCount': fix.editsByDocument.values.fold<int>(
+        0,
+        (count, edits) => count + edits.length,
+      ),
+    };
   }
 
   Future<List<StyioProjectWorkspaceFix>>

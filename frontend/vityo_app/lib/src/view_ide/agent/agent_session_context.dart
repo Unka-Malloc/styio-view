@@ -606,6 +606,7 @@ class AgentCodingValidationPlan {
     this.requiredSteps = const <String>[],
     this.commandHints = const <String>[],
     this.registeredCommandIds = const <String>[],
+    this.commandPlans = const <AgentCodingValidationCommandPlan>[],
     this.todoItems = const <String>[],
   });
 
@@ -616,6 +617,7 @@ class AgentCodingValidationPlan {
       requiredSteps = const <String>[],
       commandHints = const <String>[],
       registeredCommandIds = const <String>[],
+      commandPlans = const <AgentCodingValidationCommandPlan>[],
       todoItems = const <String>[];
 
   factory AgentCodingValidationPlan.fromAgentState({
@@ -649,6 +651,12 @@ class AgentCodingValidationPlan {
         registeredCommandIds: <String>[
           AppCommandId.collectAgentCodingCheckpoint.name,
         ],
+        commandPlans: <AgentCodingValidationCommandPlan>[
+          AgentCodingValidationCommandPlan.forCommand(
+            commandId: AppCommandId.collectAgentCodingCheckpoint,
+            phase: 'checkpoint',
+          ),
+        ],
         todoItems: <String>[
           'TODO: start validation automatically after reviewed apply succeeds.',
         ],
@@ -670,6 +678,12 @@ class AgentCodingValidationPlan {
         registeredCommandIds: <String>[
           AppCommandId.collectAgentCodingCheckpoint.name,
         ],
+        commandPlans: <AgentCodingValidationCommandPlan>[
+          AgentCodingValidationCommandPlan.forCommand(
+            commandId: AppCommandId.collectAgentCodingCheckpoint,
+            phase: 'checkpoint',
+          ),
+        ],
         todoItems: <String>[
           'TODO: link failed patch application to diagnostics and retry flow.',
         ],
@@ -690,13 +704,42 @@ class AgentCodingValidationPlan {
         AppCommandId.saveAll.name,
         AppCommandId.refreshLanguageService.name,
         AppCommandId.refreshWorkspaceDiagnostics.name,
+        AppCommandId.runTests.name,
         AppCommandId.runTestConfiguration.name,
       ],
       registeredCommandIds: <String>[
         AppCommandId.saveAll.name,
         AppCommandId.refreshLanguageService.name,
         AppCommandId.refreshWorkspaceDiagnostics.name,
+        AppCommandId.runTests.name,
         AppCommandId.runTestConfiguration.name,
+      ],
+      commandPlans: <AgentCodingValidationCommandPlan>[
+        AgentCodingValidationCommandPlan.forCommand(
+          commandId: AppCommandId.saveAll,
+          phase: 'persist',
+        ),
+        AgentCodingValidationCommandPlan.forCommand(
+          commandId: AppCommandId.refreshLanguageService,
+          phase: 'language',
+        ),
+        AgentCodingValidationCommandPlan.forCommand(
+          commandId: AppCommandId.refreshWorkspaceDiagnostics,
+          phase: 'diagnostics',
+        ),
+        AgentCodingValidationCommandPlan.forCommand(
+          commandId: AppCommandId.runTests,
+          phase: 'testing',
+        ),
+        AgentCodingValidationCommandPlan.forCommand(
+          commandId: AppCommandId.runTestConfiguration,
+          phase: 'testing',
+          required: false,
+          requiresInput: true,
+          inputSource: 'testing.configurationSet.selectedConfigurationId',
+          inputContract:
+              'Use an id from testing.configurationSet.configurations.',
+        ),
       ],
       todoItems: <String>[
         'TODO: bind validation command hints to real command execution routes.',
@@ -711,6 +754,7 @@ class AgentCodingValidationPlan {
   final List<String> requiredSteps;
   final List<String> commandHints;
   final List<String> registeredCommandIds;
+  final List<AgentCodingValidationCommandPlan> commandPlans;
   final List<String> todoItems;
 
   Map<String, Object?> toJson() {
@@ -721,7 +765,57 @@ class AgentCodingValidationPlan {
       'requiredSteps': requiredSteps,
       'commandHints': commandHints,
       'registeredCommandIds': registeredCommandIds,
+      'commandPlans': commandPlans
+          .map((commandPlan) => commandPlan.toJson())
+          .toList(growable: false),
       'todoItems': todoItems,
+    };
+  }
+}
+
+class AgentCodingValidationCommandPlan {
+  const AgentCodingValidationCommandPlan({
+    required this.commandId,
+    required this.phase,
+    required this.required,
+    required this.requiresInput,
+    this.inputSource,
+    this.inputContract,
+  });
+
+  factory AgentCodingValidationCommandPlan.forCommand({
+    required AppCommandId commandId,
+    required String phase,
+    bool required = true,
+    bool requiresInput = false,
+    String? inputSource,
+    String? inputContract,
+  }) {
+    return AgentCodingValidationCommandPlan(
+      commandId: commandId.name,
+      phase: phase,
+      required: required,
+      requiresInput: requiresInput,
+      inputSource: inputSource,
+      inputContract: inputContract,
+    );
+  }
+
+  final String commandId;
+  final String phase;
+  final bool required;
+  final bool requiresInput;
+  final String? inputSource;
+  final String? inputContract;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'commandId': commandId,
+      'phase': phase,
+      'required': required,
+      'requiresInput': requiresInput,
+      if (inputSource != null) 'inputSource': inputSource,
+      if (inputContract != null) 'inputContract': inputContract,
     };
   }
 }

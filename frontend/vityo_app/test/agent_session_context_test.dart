@@ -1973,6 +1973,8 @@ void main() {
       final filteredAgentJson = filteredJson['agent']! as Map<String, Object?>;
       final validationPlan =
           agentJson['validationPlan']! as Map<String, Object?>;
+      final validationCommandPlans =
+          validationPlan['commandPlans']! as List<Object?>;
 
       expect(patchApplication['patchId'], 'patch-1');
       expect(patchApplication['summary'], 'Change value.');
@@ -2012,6 +2014,7 @@ void main() {
         containsAll(<String>[
           AppCommandId.refreshLanguageService.name,
           AppCommandId.refreshWorkspaceDiagnostics.name,
+          AppCommandId.runTests.name,
           AppCommandId.runTestConfiguration.name,
         ]),
       );
@@ -2021,8 +2024,23 @@ void main() {
           AppCommandId.saveAll.name,
           AppCommandId.refreshLanguageService.name,
           AppCommandId.refreshWorkspaceDiagnostics.name,
+          AppCommandId.runTests.name,
           AppCommandId.runTestConfiguration.name,
         ]),
+      );
+      final runConfigurationPlan = validationCommandPlans
+          .cast<Map<String, Object?>>()
+          .singleWhere(
+            (commandPlan) =>
+                commandPlan['commandId'] ==
+                AppCommandId.runTestConfiguration.name,
+          );
+      expect(runConfigurationPlan['phase'], 'testing');
+      expect(runConfigurationPlan['required'], isFalse);
+      expect(runConfigurationPlan['requiresInput'], isTrue);
+      expect(
+        runConfigurationPlan['inputSource'],
+        'testing.configurationSet.selectedConfigurationId',
       );
       expect(filteredJson.containsKey('document'), isFalse);
     },
@@ -2089,6 +2107,8 @@ void main() {
         agentJson['changeReviewGate']! as Map<String, Object?>;
     final autonomyPolicy = agentJson['autonomyPolicy']! as Map<String, Object?>;
     final validationPlan = agentJson['validationPlan']! as Map<String, Object?>;
+    final validationCommandPlans =
+        validationPlan['commandPlans']! as List<Object?>;
     final edits = pendingPatch['edits']! as List<Object?>;
     final firstEdit = edits.single! as Map<String, Object?>;
 
@@ -2138,6 +2158,10 @@ void main() {
     expect(
       validationPlan['registeredCommandIds'],
       contains(AppCommandId.collectAgentCodingCheckpoint.name),
+    );
+    expect(
+      (validationCommandPlans.single! as Map<String, Object?>)['commandId'],
+      AppCommandId.collectAgentCodingCheckpoint.name,
     );
   });
 

@@ -58,6 +58,31 @@ void main() {
     expect(controller.lastError, isNull);
   });
 
+  test('agent coding session exposes coding execution readiness gate', () {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+
+    final emptyReadiness = controller.codingExecutionReadiness;
+    expect(emptyReadiness.hasIssue('agent.prompt.empty'), isTrue);
+    expect(emptyReadiness.canDispatchProviderRequest, isFalse);
+
+    controller.updatePrompt('Refactor this Styio file.');
+    final readyToSend = controller.codingExecutionReadiness;
+    expect(readyToSend.hasIssue('agent.prompt.empty'), isFalse);
+    expect(readyToSend.canDispatchProviderRequest, isTrue);
+    expect(readyToSend.readyForAutonomousWorkspaceEdits, isFalse);
+    expect(
+      readyToSend.todoItems,
+      contains(
+        'TODO: bind ProviderRegistry route selection to the coding assistant UI.',
+      ),
+    );
+    expect(readyToSend.toJson()['status'], 'needsAttention');
+  });
+
   test(
     'agent coding session publishes runtime output activity event',
     () async {

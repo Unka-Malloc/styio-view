@@ -20,6 +20,44 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
+  test('agent session context serializes coding execution readiness facts', () {
+    const document = DocumentState(
+      documentId: '/workspace/demo/src/main.styio',
+      text: 'value := 1\n',
+      revision: 1,
+    );
+    final context = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      dirtyDocumentIds: const <String>['/workspace/demo/src/main.styio'],
+    );
+
+    expect(
+      context.codingReadiness.hasIssue('workspace.dirty-documents'),
+      isTrue,
+    );
+    expect(
+      context.codingReadiness.hasIssue('styio.service.status.missing'),
+      isTrue,
+    );
+    expect(context.codingReadiness.canDispatchProviderRequest, isTrue);
+
+    final json = context.toJson();
+    final readiness = json['codingReadiness']! as Map<String, Object?>;
+    expect(readiness['status'], 'needsAttention');
+    expect(
+      readiness['issueCodes'],
+      containsAll(<String>[
+        'workspace.dirty-documents',
+        'styio.service.status.missing',
+      ]),
+    );
+
+    final agentChannel = context.toJsonForChannels(const <String>['agent']);
+    expect(agentChannel['codingReadiness'], isA<Map<String, Object?>>());
+  });
+
   test('agent session context serializes editor and runtime facts', () {
     const document = DocumentState(
       documentId: '/workspace/demo/src/main.styio',
@@ -892,7 +930,8 @@ void main() {
       'applyQuickFix',
     );
     expect(
-      (languageCodeActions.single! as Map<String, Object?>)['agentCommandInput'],
+      (languageCodeActions.single!
+          as Map<String, Object?>)['agentCommandInput'],
       '1',
     );
     expect(
@@ -1380,7 +1419,8 @@ void main() {
       ),
     );
 
-    final workspaceJson = context.toJson()['workspace']! as Map<String, Object?>;
+    final workspaceJson =
+        context.toJson()['workspace']! as Map<String, Object?>;
     final sourceControlContext =
         workspaceJson['sourceControlContext']! as Map<String, Object?>;
 
@@ -2090,10 +2130,7 @@ void main() {
     expect(command['inputContract'], contains('workspace-relative'));
     expect(command['inputExamples'], contains('src/main.styio'));
     expect(command['reason'], 'Stage the changed file.');
-    expect(
-      command['prerequisiteForCommandId'],
-      'planSourceControlCommitDraft',
-    );
+    expect(command['prerequisiteForCommandId'], 'planSourceControlCommitDraft');
     expect(command['text'], 'Stage changed files.');
     expect(recentCommand['commandId'], 'runBuild');
   });

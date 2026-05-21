@@ -197,6 +197,13 @@ class AgentCodingSessionController extends ChangeNotifier {
       !_applyingPatch &&
       !_applyingIdeCommand &&
       _draftPrompt.trim().isNotEmpty;
+  AgentCodingExecutionReadiness get codingExecutionReadiness =>
+      _contextForProviderRequest().codingReadiness.withControllerState(
+        hasDraftPrompt: _draftPrompt.trim().isNotEmpty,
+        sending: _sending,
+        applyingPatch: _applyingPatch,
+        applyingIdeCommand: _applyingIdeCommand,
+      );
 
   void mountProvider({
     required AgentPromptProfile profile,

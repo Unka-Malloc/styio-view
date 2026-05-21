@@ -26,6 +26,298 @@ import 'agent_provider_route_executor.dart';
 const int _maxAgentCommandResultHistory = 12;
 const int _maxAgentPatchApplicationHistory = 12;
 
+enum AgentCodingExecutionReadinessStatus {
+  ready,
+  needsAttention,
+  blocked,
+  unknown,
+}
+
+extension AgentCodingExecutionReadinessStatusX
+    on AgentCodingExecutionReadinessStatus {
+  String get wireValue => switch (this) {
+    AgentCodingExecutionReadinessStatus.ready => 'ready',
+    AgentCodingExecutionReadinessStatus.needsAttention => 'needsAttention',
+    AgentCodingExecutionReadinessStatus.blocked => 'blocked',
+    AgentCodingExecutionReadinessStatus.unknown => 'unknown',
+  };
+}
+
+enum AgentCodingExecutionReadinessIssueSeverity { attention, blocking }
+
+extension AgentCodingExecutionReadinessIssueSeverityX
+    on AgentCodingExecutionReadinessIssueSeverity {
+  String get wireValue => switch (this) {
+    AgentCodingExecutionReadinessIssueSeverity.attention => 'attention',
+    AgentCodingExecutionReadinessIssueSeverity.blocking => 'blocking',
+  };
+}
+
+class AgentCodingExecutionReadinessIssue {
+  const AgentCodingExecutionReadinessIssue({
+    required this.code,
+    required this.message,
+    required this.severity,
+    required this.ownerLayer,
+    this.todo,
+  });
+
+  final String code;
+  final String message;
+  final AgentCodingExecutionReadinessIssueSeverity severity;
+  final String ownerLayer;
+  final String? todo;
+
+  bool get isBlocking =>
+      severity == AgentCodingExecutionReadinessIssueSeverity.blocking;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'code': code,
+      'message': message,
+      'severity': severity.wireValue,
+      'ownerLayer': ownerLayer,
+      if (todo != null) 'todo': todo,
+    };
+  }
+}
+
+class AgentCodingExecutionReadiness {
+  const AgentCodingExecutionReadiness({
+    required this.status,
+    this.issues = const <AgentCodingExecutionReadinessIssue>[],
+    this.todoItems = const <String>[],
+  });
+
+  const AgentCodingExecutionReadiness.unknown()
+    : status = AgentCodingExecutionReadinessStatus.unknown,
+      issues = const <AgentCodingExecutionReadinessIssue>[],
+      todoItems = const <String>[
+        'TODO: bind the agent coding readiness gate to live IDE facts.',
+      ];
+
+  factory AgentCodingExecutionReadiness.fromIdeFacts({
+    required AgentProviderExecutionResolution? providerExecutionResolution,
+    required LanguageServiceStatusSurface? languageServiceStatus,
+    required Iterable<String> dirtyDocumentIds,
+    required bool hasPendingPatch,
+    required bool ideRuntimeContractsMature,
+  }) {
+    final issues = <AgentCodingExecutionReadinessIssue>[];
+    final todos = <String>[];
+    if (providerExecutionResolution == null) {
+      issues.add(
+        const AgentCodingExecutionReadinessIssue(
+          code: 'agent.provider.route.unresolved',
+          message:
+              'Agent provider route execution is not attached to this context.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+          ownerLayer: 'service',
+          todo:
+              'TODO: bind ProviderRegistry route selection to the coding assistant UI.',
+        ),
+      );
+    }
+    if (languageServiceStatus == null) {
+      issues.add(
+        const AgentCodingExecutionReadinessIssue(
+          code: 'styio.service.status.missing',
+          message: 'Styio language service status is not available.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+          ownerLayer: 'service',
+          todo:
+              'TODO: attach StyioService capability detector output before autonomous edits.',
+        ),
+      );
+    } else {
+      if (!languageServiceStatus.semanticFactsReady) {
+        issues.add(
+          const AgentCodingExecutionReadinessIssue(
+            code: 'styio.semantic-facts.not-ready',
+            message:
+                'Styio semantic facts are not ready; semantic edits need review.',
+            severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+            ownerLayer: 'service',
+            todo:
+                'TODO: wait for SemanticSnapshot refresh or fall back to syntax-only assistance.',
+          ),
+        );
+      }
+      if (languageServiceStatus.missingCapabilityCount > 0 ||
+          languageServiceStatus.blockedCapabilityCount > 0 ||
+          languageServiceStatus.providerMissingCapabilityCount > 0) {
+        issues.add(
+          const AgentCodingExecutionReadinessIssue(
+            code: 'styio.capabilities.incomplete',
+            message:
+                'StyioService has missing or blocked capabilities for coding assistance.',
+            severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+            ownerLayer: 'service',
+            todo:
+                'TODO: route capability recovery through Capability Detector and Settings UI.',
+          ),
+        );
+      }
+    }
+    final dirtyDocuments = dirtyDocumentIds.toList(growable: false);
+    if (dirtyDocuments.isNotEmpty) {
+      issues.add(
+        AgentCodingExecutionReadinessIssue(
+          code: 'workspace.dirty-documents',
+          message:
+              'Workspace has ${dirtyDocuments.length} dirty document(s); edits require conflict review.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+          ownerLayer: 'interaction',
+          todo:
+              'TODO: bind dirty document conflict review to Editor File Binding.',
+        ),
+      );
+    }
+    if (hasPendingPatch) {
+      issues.add(
+        const AgentCodingExecutionReadinessIssue(
+          code: 'agent.pending-patch',
+          message: 'A previous agent patch is still pending review.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+          ownerLayer: 'interaction',
+          todo:
+              'TODO: require the patch review surface to resolve pending edits first.',
+        ),
+      );
+    }
+    if (!ideRuntimeContractsMature) {
+      issues.add(
+        const AgentCodingExecutionReadinessIssue(
+          code: 'ide.runtime-contracts.blocking',
+          message:
+              'IDE runtime contracts are not mature enough for autonomous coding.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
+          ownerLayer: 'foundation',
+          todo:
+              'TODO: close runtime-contract blockers before enabling autonomous apply.',
+        ),
+      );
+    }
+    todos.addAll(
+      issues
+          .map((issue) => issue.todo)
+          .whereType<String>()
+          .toList(growable: false),
+    );
+    return AgentCodingExecutionReadiness._fromIssues(issues, todoItems: todos);
+  }
+
+  factory AgentCodingExecutionReadiness._fromIssues(
+    List<AgentCodingExecutionReadinessIssue> issues, {
+    List<String> todoItems = const <String>[],
+  }) {
+    final status = issues.any((issue) => issue.isBlocking)
+        ? AgentCodingExecutionReadinessStatus.blocked
+        : issues.isNotEmpty
+        ? AgentCodingExecutionReadinessStatus.needsAttention
+        : AgentCodingExecutionReadinessStatus.ready;
+    return AgentCodingExecutionReadiness(
+      status: status,
+      issues: List<AgentCodingExecutionReadinessIssue>.unmodifiable(issues),
+      todoItems: List<String>.unmodifiable(todoItems),
+    );
+  }
+
+  final AgentCodingExecutionReadinessStatus status;
+  final List<AgentCodingExecutionReadinessIssue> issues;
+  final List<String> todoItems;
+
+  List<String> get issueCodes =>
+      issues.map((issue) => issue.code).toList(growable: false);
+
+  bool get hasBlockingIssue => issues.any((issue) => issue.isBlocking);
+
+  bool get canDispatchProviderRequest =>
+      !hasBlockingIssue && !issueCodes.contains('agent.prompt.empty');
+
+  bool get readyForAutonomousWorkspaceEdits =>
+      status == AgentCodingExecutionReadinessStatus.ready;
+
+  bool hasIssue(String code) => issueCodes.contains(code);
+
+  AgentCodingExecutionReadiness withControllerState({
+    required bool hasDraftPrompt,
+    required bool sending,
+    required bool applyingPatch,
+    required bool applyingIdeCommand,
+  }) {
+    final nextIssues = <AgentCodingExecutionReadinessIssue>[...issues];
+    final nextTodos = <String>[...todoItems];
+    void addControllerIssue(AgentCodingExecutionReadinessIssue issue) {
+      if (nextIssues.any((candidate) => candidate.code == issue.code)) {
+        return;
+      }
+      nextIssues.add(issue);
+      if (issue.todo != null) {
+        nextTodos.add(issue.todo!);
+      }
+    }
+
+    if (!hasDraftPrompt) {
+      addControllerIssue(
+        const AgentCodingExecutionReadinessIssue(
+          code: 'agent.prompt.empty',
+          message: 'No coding prompt is ready to dispatch.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+          ownerLayer: 'interaction',
+          todo:
+              'TODO: connect prompt readiness to command palette and agent input UI.',
+        ),
+      );
+    }
+    if (sending) {
+      addControllerIssue(
+        const AgentCodingExecutionReadinessIssue(
+          code: 'agent.provider.request-active',
+          message: 'A provider request is already in progress.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
+          ownerLayer: 'service',
+        ),
+      );
+    }
+    if (applyingPatch) {
+      addControllerIssue(
+        const AgentCodingExecutionReadinessIssue(
+          code: 'agent.patch.apply-active',
+          message: 'An agent patch application is already in progress.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
+          ownerLayer: 'interaction',
+        ),
+      );
+    }
+    if (applyingIdeCommand) {
+      addControllerIssue(
+        const AgentCodingExecutionReadinessIssue(
+          code: 'agent.command.apply-active',
+          message: 'An agent IDE command is already in progress.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
+          ownerLayer: 'interaction',
+        ),
+      );
+    }
+    return AgentCodingExecutionReadiness._fromIssues(
+      nextIssues,
+      todoItems: nextTodos,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'canDispatchProviderRequest': canDispatchProviderRequest,
+      'readyForAutonomousWorkspaceEdits': readyForAutonomousWorkspaceEdits,
+      'issueCodes': issueCodes,
+      'issues': issues.map((issue) => issue.toJson()).toList(growable: false),
+      'todoItems': todoItems,
+    };
+  }
+}
+
 class AgentSessionContext {
   const AgentSessionContext({
     required this.schemaVersion,
@@ -45,6 +337,7 @@ class AgentSessionContext {
     required this.toolchains,
     required this.ideCapabilities,
     required this.ideCapabilityClosure,
+    this.codingReadiness = const AgentCodingExecutionReadiness.unknown(),
   });
 
   final int schemaVersion;
@@ -64,6 +357,7 @@ class AgentSessionContext {
   final AgentToolchainContext toolchains;
   final IdeCapabilityFrameworkSnapshot ideCapabilities;
   final IdeCapabilityClosureReport ideCapabilityClosure;
+  final AgentCodingExecutionReadiness codingReadiness;
 
   factory AgentSessionContext.fromEditorState({
     required DocumentState document,
@@ -168,6 +462,13 @@ class AgentSessionContext {
         const VityoIdeCapabilityFramework().snapshot();
     final ideCapabilityClosure = const IdeCapabilityClosureGate().evaluate(
       capabilitySnapshot,
+    );
+    final codingReadiness = AgentCodingExecutionReadiness.fromIdeFacts(
+      providerExecutionResolution: providerExecutionResolution,
+      languageServiceStatus: languageServiceStatus,
+      dirtyDocumentIds: workspaceContext.dirtyDocumentIds,
+      hasPendingPatch: pendingPatch != null,
+      ideRuntimeContractsMature: ideCapabilityClosure.isRuntimeContractMature,
     );
     final commandContext = AgentCommandCatalogContext.fromRegistry(
       lastResult: lastCommandResult,
@@ -290,6 +591,7 @@ class AgentSessionContext {
       toolchains: toolchainContext,
       ideCapabilities: capabilitySnapshot,
       ideCapabilityClosure: ideCapabilityClosure,
+      codingReadiness: codingReadiness,
     );
   }
 
@@ -314,6 +616,7 @@ class AgentSessionContext {
       'toolchains': toolchains.toJson(),
       'ideCapabilities': ideCapabilities.toJson(),
       'ideCapabilityClosure': ideCapabilityClosure.toJson(),
+      'codingReadiness': codingReadiness.toJson(),
     };
   }
 
@@ -344,6 +647,9 @@ class AgentSessionContext {
         'ideCapabilities': ideCapabilities.toJson(),
       if (channelSet.contains('ideCapabilityClosure'))
         'ideCapabilityClosure': ideCapabilityClosure.toJson(),
+      if (channelSet.contains('agent') ||
+          channelSet.contains('ideCapabilityClosure'))
+        'codingReadiness': codingReadiness.toJson(),
     };
   }
 
@@ -491,6 +797,7 @@ class AgentSessionContext {
       toolchains: toolchains,
       ideCapabilities: ideCapabilities,
       ideCapabilityClosure: ideCapabilityClosure ?? this.ideCapabilityClosure,
+      codingReadiness: codingReadiness,
     );
   }
 }
@@ -1246,9 +1553,8 @@ class AgentPendingIdeCommandContext {
   final String? prerequisiteForCommandId;
   final String text;
 
-  AppCommandDescriptor? get descriptor => _appCommandDescriptorForName(
-    commandId,
-  );
+  AppCommandDescriptor? get descriptor =>
+      _appCommandDescriptorForName(commandId);
 
   bool get registered => descriptor != null;
 
@@ -5569,10 +5875,7 @@ class AgentDiagnosticContext {
       severity: diagnostic.severity.name,
       code: diagnostic.code,
       message: diagnostic.message,
-      suggestedCommandIds: const <String>[
-        'previewQuickFix',
-        'applyQuickFix',
-      ],
+      suggestedCommandIds: const <String>['previewQuickFix', 'applyQuickFix'],
       start: start,
       end: end,
       coordinateBase: 'zero-based',

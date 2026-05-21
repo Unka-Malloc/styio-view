@@ -54,6 +54,10 @@ void main() {
       adapter.requests.single.context.agent.toolPermissionPlan?.reviewToolIds,
       contains('previewWorkspaceEdit'),
     );
+    expect(
+      adapter.requests.single.context.agent.toolCatalog?.toolIds,
+      contains('readWorkspaceFile'),
+    );
     expect(controller.draftPrompt, '');
     expect(
       controller.lastResponse?.contentParts.single.text,

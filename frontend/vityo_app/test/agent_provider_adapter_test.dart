@@ -151,6 +151,30 @@ void main() {
               selection: const SelectionState.collapsed(0),
               diagnostics: const [],
             ).withAgentCodingState(
+              toolCatalog: const AgentToolSelection(
+                context: AgentToolSelectionContext(
+                  providerKind: AgentProviderKind.cloudOpenAICompatible,
+                  protocol: 'openai-compatible',
+                  model: 'gpt-5.3-codex-spark',
+                ),
+                tools: <AgentToolDefinition>[
+                  AgentToolDefinition(
+                    toolId: 'readWorkspaceFile',
+                    displayName: 'Read Workspace File',
+                    description: 'Read an IDE-owned workspace file.',
+                    permissionMode: AgentToolPermissionMode.never,
+                    capabilities: <String>['workspace.read'],
+                  ),
+                  AgentToolDefinition(
+                    toolId: 'applyWorkspacePatch',
+                    displayName: 'Apply Workspace Patch',
+                    description: 'Apply a reviewed workspace patch.',
+                    permissionMode: AgentToolPermissionMode.review,
+                    capabilities: <String>['workspace.patch.apply'],
+                  ),
+                ],
+                rejectedToolIds: <String>['openLocalShell'],
+              ),
               toolPermissionPlan: const AgentToolPermissionPlan(
                 status: AgentToolPermissionPlanStatus.reviewRequired,
                 decisions: <AgentToolPermissionDecision>[
@@ -275,6 +299,30 @@ void main() {
               selection: const SelectionState.collapsed(0),
               diagnostics: const [],
             ).withAgentCodingState(
+              toolCatalog: const AgentToolSelection(
+                context: AgentToolSelectionContext(
+                  providerKind: AgentProviderKind.cloudOpenAICompatible,
+                  protocol: 'openai-compatible',
+                  model: 'gpt-5.3-codex-spark',
+                ),
+                tools: <AgentToolDefinition>[
+                  AgentToolDefinition(
+                    toolId: 'readWorkspaceFile',
+                    displayName: 'Read Workspace File',
+                    description: 'Read an IDE-owned workspace file.',
+                    permissionMode: AgentToolPermissionMode.never,
+                    capabilities: <String>['workspace.read'],
+                  ),
+                  AgentToolDefinition(
+                    toolId: 'applyWorkspacePatch',
+                    displayName: 'Apply Workspace Patch',
+                    description: 'Apply a reviewed workspace patch.',
+                    permissionMode: AgentToolPermissionMode.review,
+                    capabilities: <String>['workspace.patch.apply'],
+                  ),
+                ],
+                rejectedToolIds: <String>['openLocalShell'],
+              ),
               toolPermissionPlan: const AgentToolPermissionPlan(
                 status: AgentToolPermissionPlanStatus.reviewRequired,
                 decisions: <AgentToolPermissionDecision>[
@@ -333,6 +381,14 @@ void main() {
     expect(metadata['toolCallResultIds'], <String>['call-read']);
     expect(metadata['toolCallResultTruncatedCount'], 1);
     expect(metadata['toolCallResultTruncatedIds'], <String>['call-read']);
+    expect(metadata['agentToolCatalogToolCount'], 2);
+    expect(metadata['agentToolCatalogToolIds'], <String>[
+      'readWorkspaceFile',
+      'applyWorkspacePatch',
+    ]);
+    expect(metadata['agentToolCatalogRejectedToolIds'], <String>[
+      'openLocalShell',
+    ]);
     expect(metadata['agentToolPermissionStatus'], 'review_required');
     expect(metadata['agentToolPermissionReviewToolIds'], <String>[
       'applyWorkspacePatch',
@@ -655,7 +711,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      82,
+      83,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -1271,6 +1327,7 @@ void main() {
       expect(systemMessage['content'], contains('agent.pendingPatch'));
       expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
       expect(systemMessage['content'], contains('agent.workspaceCheckpoint'));
+      expect(systemMessage['content'], contains('agent.toolCatalog'));
       expect(systemMessage['content'], contains('agent.toolPermissions'));
       expect(systemMessage['content'], contains('outputTruncated true'));
       expect(systemMessage['content'], contains('agent.changeReviewGate'));
@@ -1490,7 +1547,7 @@ void main() {
         contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 82);
+      expect(metadata['contextSchemaVersion'], 83);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

@@ -293,6 +293,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentCodingLoopGuard get codingLoopGuard => _currentCodingLoopGuard();
   AgentWorkspaceCheckpointContext? get workspaceCheckpointContext =>
       _workspaceCheckpointContext();
+  AgentToolSelection get toolCatalog => _currentToolSelection();
   AgentToolPermissionPlan get toolPermissionPlan =>
       _currentToolPermissionPlan();
 
@@ -1529,6 +1530,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       recoveryPlan: sessionRecoveryPlan,
       loopGuard: _currentCodingLoopGuard(),
       workspaceCheckpoint: _workspaceCheckpointContext(),
+      toolCatalog: _currentToolSelection(),
       toolPermissionPlan: _currentToolPermissionPlan(),
       lastPatchApplication: _lastPatchApplicationContext,
       recentPatchApplications: _recentPatchApplicationContexts,
@@ -1725,11 +1727,14 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   AgentToolPermissionPlan _currentToolPermissionPlan() {
-    final selection = _toolRegistry.selectForProfile(
+    return AgentToolPermissionPlan.fromSelection(_currentToolSelection());
+  }
+
+  AgentToolSelection _currentToolSelection() {
+    return _toolRegistry.selectForProfile(
       profile: profile,
       providerKind: adapter.kind,
     );
-    return AgentToolPermissionPlan.fromSelection(selection);
   }
 
   void _recordRecentPatchProposalContext(AgentCodePatch? patch) {

@@ -129,6 +129,38 @@ void main() {
     expect(workspaceCheckpoint['revertReady'], isTrue);
     expect(workspaceCheckpoint['revertChangedDocumentCount'], 1);
 
+    final catalogContext = context.withAgentCodingState(
+      toolCatalog: const AgentToolSelection(
+        context: AgentToolSelectionContext(
+          providerKind: AgentProviderKind.cloudOpenAICompatible,
+          protocol: 'openai-compatible',
+          model: 'gpt-5.3-codex-spark',
+        ),
+        tools: <AgentToolDefinition>[
+          AgentToolDefinition(
+            toolId: 'readWorkspaceFile',
+            displayName: 'Read Workspace File',
+            description: 'Read an IDE-owned workspace file.',
+            permissionMode: AgentToolPermissionMode.never,
+            capabilities: <String>['workspace.read'],
+          ),
+        ],
+        rejectedToolIds: <String>['openLocalShell'],
+      ),
+    );
+    final catalogAgent =
+        catalogContext.toJsonForChannels(const <String>['agent'])['agent']!
+            as Map<String, Object?>;
+    final toolCatalog = catalogAgent['toolCatalog']! as Map<String, Object?>;
+    expect(toolCatalog['toolCount'], 1);
+    expect(toolCatalog['toolIds'], <String>['readWorkspaceFile']);
+    expect(toolCatalog['rejectedToolIds'], <String>['openLocalShell']);
+    expect(
+      ((toolCatalog['tools']! as List<Object?>).single!
+          as Map<String, Object?>)['permissionMode'],
+      'never',
+    );
+
     final permissionContext = context.withAgentCodingState(
       toolPermissionPlan: const AgentToolPermissionPlan(
         status: AgentToolPermissionPlanStatus.reviewRequired,
@@ -647,7 +679,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 82);
+    expect(json['schemaVersion'], 83);
     final registeredCommandIds =
         commandsJson['registeredCommandIds']! as List<Object?>;
     expect(commandsJson['commandCount'], registeredCommandIds.length);
@@ -1635,7 +1667,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 82);
+    expect(context.schemaVersion, 83);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -2018,7 +2050,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 82);
+    expect(json['schemaVersion'], 83);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2505,7 +2537,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 82);
+    expect(context.schemaVersion, 83);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

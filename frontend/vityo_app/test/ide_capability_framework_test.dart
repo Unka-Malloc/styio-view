@@ -205,6 +205,18 @@ void main() {
     );
     expect(
       entriesById['interaction.diagnostics']?.summary,
+      contains('WorkspaceDiagnosticsProducerCancellationRoute'),
+    );
+    expect(
+      entriesById['interaction.diagnostics']?.todo,
+      contains('native process handles'),
+    );
+    expect(
+      entriesById['interaction.diagnostics']?.runtimeMaturityBlocking,
+      isFalse,
+    );
+    expect(
+      entriesById['interaction.diagnostics']?.summary,
       contains('WorkspaceQuickFixTelemetryStore review outcomes'),
     );
     expect(

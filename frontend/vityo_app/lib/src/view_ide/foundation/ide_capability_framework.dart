@@ -355,9 +355,10 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/interaction',
           summary:
-              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore review outcomes, WorkspaceDiagnosticsRuntimeOutputBinding producer telemetry, WorkspaceDiagnosticsProducerExecutionPlan native toolchain handoff triggers and WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots, Problems producer lifecycle progress/cancel controls, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
+              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore review outcomes, WorkspaceDiagnosticsRuntimeOutputBinding producer telemetry, WorkspaceDiagnosticsProducerExecutionPlan native toolchain handoff triggers and WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots, WorkspaceDiagnosticsProducerCancellationRoute, Problems producer lifecycle progress/cancel controls, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
           todo:
-              'TODO: connect remaining non-agent producer cancellation paths to concrete process handles; agent provider stream cancellation and runtime telemetry are wired.',
+              'TODO: bind diagnostics producer cancellation routes to concrete native process handles where available.',
+          runtimeMaturityBlocking: false,
           dependencies: <String>['workspace.diagnostics'],
         ),
         IdeCapabilityDescriptor(

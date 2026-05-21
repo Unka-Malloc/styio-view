@@ -204,6 +204,67 @@ class WorkspaceDiagnosticsProducerCancellationResult {
   }
 }
 
+class WorkspaceDiagnosticsProducerCancellationRoute {
+  const WorkspaceDiagnosticsProducerCancellationRoute({
+    required this.providerId,
+    required this.taskId,
+    required this.managerId,
+    required this.routeKind,
+    required this.canCancel,
+    required this.processHandleBound,
+    required this.message,
+    this.processHandleId = '',
+    this.reason = '',
+  });
+
+  factory WorkspaceDiagnosticsProducerCancellationRoute.fromPlan({
+    required WorkspaceDiagnosticsProducerExecutionPlan plan,
+    required WorkspaceDiagnosticsProducerLifecycleSnapshot current,
+    String processHandleId = '',
+    String reason = '',
+  }) {
+    final handleId = processHandleId.trim();
+    final routeKind = handleId.isEmpty ? 'lifecycle' : 'process-handle';
+    return WorkspaceDiagnosticsProducerCancellationRoute(
+      providerId: plan.providerId,
+      taskId: current.taskId,
+      managerId: plan.binding.managerId,
+      routeKind: routeKind,
+      canCancel: current.canCancel,
+      processHandleBound: handleId.isNotEmpty,
+      processHandleId: handleId,
+      reason: reason.trim(),
+      message: current.canCancel
+          ? 'Diagnostics producer ${plan.providerId} can be cancelled through $routeKind.'
+          : 'Diagnostics producer ${plan.providerId} cannot be cancelled in its current state.',
+    );
+  }
+
+  final String providerId;
+  final String taskId;
+  final String managerId;
+  final String routeKind;
+  final bool canCancel;
+  final bool processHandleBound;
+  final String processHandleId;
+  final String reason;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerId': providerId,
+      'taskId': taskId,
+      'managerId': managerId,
+      'routeKind': routeKind,
+      'canCancel': canCancel,
+      'processHandleBound': processHandleBound,
+      'message': message,
+      if (processHandleId.isNotEmpty) 'processHandleId': processHandleId,
+      if (reason.isNotEmpty) 'reason': reason,
+    };
+  }
+}
+
 typedef WorkspaceDiagnosticsProducerCancellationHandler =
     Future<WorkspaceDiagnosticsProducerCancellationResult> Function({
       required WorkspaceDiagnosticsProducerExecutionPlan plan,
@@ -356,6 +417,20 @@ class WorkspaceDiagnosticsProducerLifecycleController {
       progress: current.progress,
       cancellationRequested: true,
       message: reason,
+    );
+  }
+
+  WorkspaceDiagnosticsProducerCancellationRoute cancellationRouteFor(
+    WorkspaceDiagnosticsProducerExecutionPlan plan, {
+    String processHandleId = '',
+    String reason = '',
+  }) {
+    final current = _ensureRegistered(plan);
+    return WorkspaceDiagnosticsProducerCancellationRoute.fromPlan(
+      plan: plan,
+      current: current,
+      processHandleId: processHandleId,
+      reason: reason,
     );
   }
 

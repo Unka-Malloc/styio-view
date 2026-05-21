@@ -181,6 +181,11 @@ void main() {
         progress: 0.5,
         message: 'Scanned 1 of 2 documents.',
       );
+      final route = controller.cancellationRouteFor(
+        plan,
+        processHandleId: 'styio-check-1',
+        reason: 'User cancelled diagnostics.',
+      );
       final cancelled = controller.requestCancellation(
         plan,
         reason: 'User cancelled diagnostics.',
@@ -192,6 +197,11 @@ void main() {
       expect(progress.progress, 0.5);
       expect(progress.message, 'Scanned 1 of 2 documents.');
       expect(progress.toJson()['canCancel'], isTrue);
+      expect(route.canCancel, isTrue);
+      expect(route.processHandleBound, isTrue);
+      expect(route.routeKind, 'process-handle');
+      expect(route.toJson()['managerId'], 'toolchain-manager');
+      expect(route.toJson()['processHandleId'], 'styio-check-1');
       expect(cancelled.status, RuntimeTaskStatus.cancelled);
       expect(cancelled.cancellationRequested, isTrue);
       expect(cancelled.canCancel, isFalse);

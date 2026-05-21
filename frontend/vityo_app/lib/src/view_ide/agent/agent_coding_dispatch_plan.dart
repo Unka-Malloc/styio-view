@@ -36,8 +36,6 @@ class AgentCodingDispatchPlan {
     required this.todoItems,
     this.providerSelectionPlan,
     this.providerExecutionResolution,
-    this.uiBindingTodo =
-        'TODO: bind this dispatch plan to Agent Surface provider picker, send button state, and provider recovery controls.',
   });
 
   factory AgentCodingDispatchPlan.fromContext({
@@ -115,7 +113,6 @@ class AgentCodingDispatchPlan {
   final AgentProviderSelectionPlan? providerSelectionPlan;
   final AgentProviderExecutionResolution? providerExecutionResolution;
   final List<String> todoItems;
-  final String uiBindingTodo;
 
   bool get ready => status == AgentCodingDispatchStatus.ready;
 
@@ -164,7 +161,6 @@ class AgentCodingDispatchPlan {
         'activeSkillIds': activeSkillIds,
       },
       'todoItems': todoItems,
-      'uiBindingTodo': uiBindingTodo,
     };
   }
 }

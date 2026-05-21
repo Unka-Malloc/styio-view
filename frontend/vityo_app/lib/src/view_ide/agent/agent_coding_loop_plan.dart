@@ -160,10 +160,7 @@ class AgentCodingLoopPlan {
             : AgentCodingLoopStepStatus.blocked,
         label: 'Dispatch provider request',
         blockingReasons: dispatchPlan.issueCodes,
-        todoItems: <String>[
-          ...dispatchPlan.todoItems,
-          dispatchPlan.uiBindingTodo,
-        ],
+        todoItems: dispatchPlan.todoItems,
       ),
       AgentCodingLoopStep(
         stepId: 'review-generated-change',

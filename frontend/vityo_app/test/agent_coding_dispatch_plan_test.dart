@@ -56,8 +56,12 @@ void main() {
       contains('styio-language-service-truth'),
     );
     expect(
-      json['uiBindingTodo'],
-      contains('TODO: bind this dispatch plan to Agent Surface'),
+      json.keys,
+      isNot(contains('uiBindingTodo')),
+    );
+    expect(
+      plan.todoItems.join('\n'),
+      isNot(contains('Agent Surface provider picker')),
     );
   });
 

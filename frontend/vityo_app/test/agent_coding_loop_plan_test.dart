@@ -23,10 +23,8 @@ void main() {
     expect(dispatch.blockingReasons, contains('agent.prompt.empty'));
     expect(json['activeStepId'], 'dispatch-provider-request');
     expect(
-      json['todoItems'],
-      contains(
-        'TODO: bind this dispatch plan to Agent Surface provider picker, send button state, and provider recovery controls.',
-      ),
+      (json['todoItems']! as List<Object?>).join('\n'),
+      isNot(contains('Agent Surface provider picker')),
     );
   });
 

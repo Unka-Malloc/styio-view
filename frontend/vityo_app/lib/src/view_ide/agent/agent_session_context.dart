@@ -1376,7 +1376,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 78,
+      schemaVersion: 79,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -4564,6 +4564,10 @@ class AgentLanguageServiceStatusContext {
     required this.blockedCapabilityCount,
     required this.providerReadiness,
     required this.providerMissingCapabilityCount,
+    this.cacheLookupHits = 0,
+    this.cacheLookupMisses = 0,
+    this.cacheLookupCount = 0,
+    this.cacheLookupHitRate = 0,
     this.providerReadinessSummary = '',
     this.toolchainId = '',
     this.parserEngine,
@@ -4594,6 +4598,10 @@ class AgentLanguageServiceStatusContext {
   final String providerReadiness;
   final String providerReadinessSummary;
   final int providerMissingCapabilityCount;
+  final int cacheLookupHits;
+  final int cacheLookupMisses;
+  final int cacheLookupCount;
+  final double cacheLookupHitRate;
 
   factory AgentLanguageServiceStatusContext.fromSurface(
     LanguageServiceStatusSurface surface,
@@ -4629,6 +4637,10 @@ class AgentLanguageServiceStatusContext {
       providerReadiness: surface.providerReadiness,
       providerReadinessSummary: surface.providerReadinessSummary,
       providerMissingCapabilityCount: surface.providerMissingCapabilityCount,
+      cacheLookupHits: surface.cacheLookupHits,
+      cacheLookupMisses: surface.cacheLookupMisses,
+      cacheLookupCount: surface.cacheLookupCount,
+      cacheLookupHitRate: surface.cacheLookupHitRate,
     );
   }
 
@@ -4662,6 +4674,10 @@ class AgentLanguageServiceStatusContext {
       if (providerReadinessSummary.isNotEmpty)
         'providerReadinessSummary': providerReadinessSummary,
       'providerMissingCapabilityCount': providerMissingCapabilityCount,
+      'cacheLookupHits': cacheLookupHits,
+      'cacheLookupMisses': cacheLookupMisses,
+      'cacheLookupCount': cacheLookupCount,
+      'cacheLookupHitRate': cacheLookupHitRate,
     };
   }
 }

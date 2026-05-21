@@ -732,6 +732,8 @@ void main() {
               'capabilityHealth': 'degraded',
               'missingCapabilityCount': 3,
               'blockedCapabilityCount': 1,
+              'cacheLookupCount': 4,
+              'cacheLookupHitRate': 0.75,
             },
             'testing': <String, Object?>{
               'hasLastRun': true,
@@ -808,7 +810,8 @@ void main() {
         commandResultTurn.text,
         contains(
           'languageServiceStatus: severity=ready, syntaxReady=true, '
-          'semanticReady=false, health=degraded, missing=3, blocked=1',
+          'semanticReady=false, health=degraded, missing=3, blocked=1, '
+          'cacheLookups=4, cacheHitRate=0.75',
         ),
       );
       expect(

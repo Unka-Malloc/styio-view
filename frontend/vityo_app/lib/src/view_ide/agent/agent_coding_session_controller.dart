@@ -1414,13 +1414,23 @@ List<String> _ideCommandMetadataConversationLines(
     final blocked = _conversationMetadataScalarText(
       languageServiceStatus['blockedCapabilityCount'],
     );
+    final cacheLookups = _conversationMetadataScalarText(
+      languageServiceStatus['cacheLookupCount'],
+    );
+    final cacheHitRate = _conversationMetadataScalarText(
+      languageServiceStatus['cacheLookupHitRate'],
+    );
+    final cacheSummary = cacheLookups == null && cacheHitRate == null
+        ? ''
+        : ', cacheLookups=${cacheLookups ?? 'unknown'}, '
+              'cacheHitRate=${cacheHitRate ?? 'unknown'}';
     lines.add(
       'languageServiceStatus: severity=${severity ?? 'unknown'}, '
       'syntaxReady=${syntaxReady ?? 'unknown'}, '
       'semanticReady=${semanticReady ?? 'unknown'}, '
       'health=${health ?? 'unknown'}, '
       'missing=${missing ?? 'unknown'}, '
-      'blocked=${blocked ?? 'unknown'}',
+      'blocked=${blocked ?? 'unknown'}$cacheSummary',
     );
   }
   final testing = metadata['testing'];

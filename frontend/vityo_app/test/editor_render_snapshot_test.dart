@@ -99,7 +99,12 @@ void main() {
     expect(snapshot.renderPlan.activeLayers, contains(EditorRenderLayer.text));
     expect(snapshot.tokenCount, greaterThanOrEqualTo(1));
     expect(snapshot.virtualizedRowWindow.containsLine(0), isTrue);
+    expect(snapshot.viewportBinding.boundToScrollController, isFalse);
+    expect(snapshot.renderPipelinePlan.canRender, isTrue);
+    expect(snapshot.renderPipelinePlan.rendererKind, 'virtualized-layer-stack');
     expect(restored.virtualizedRowWindow.totalLineCount, 2);
+    expect(restored.viewportBinding.viewportLineCapacity, 80);
+    expect(restored.renderPipelinePlan.renderWindow.totalLineCount, 2);
     expect(restored.selectionStart, 0);
     expect(restored.selectionEnd, 5);
     expect(
@@ -183,5 +188,31 @@ void main() {
     expect(window.containsLine(74), isTrue);
     expect(window.coversFullDocument, isFalse);
     expect(restored.viewportFirstLine, 50);
+  });
+
+  test('editor render viewport binding builds fallback pipeline plans', () {
+    const binding = EditorRenderViewportBinding(
+      viewportFirstLine: 10,
+      viewportLineCapacity: 60,
+      overscanLineCount: 20,
+      scrollOffsetPixels: 200,
+      lineHeightPixels: 20,
+      boundToScrollController: true,
+    );
+    final plan = EditorRenderPipelinePlan.fromRenderFacts(
+      renderPlan: EditorRenderPlan.foundation(),
+      lineCount: 1000,
+      viewportBinding: binding,
+      maxRenderedLines: 50,
+    );
+    final restored = EditorRenderPipelinePlan.fromJson(plan.toJson());
+
+    expect(binding.toWindow(totalLineCount: 1000).renderLineCount, 90);
+    expect(plan.canRender, isFalse);
+    expect(plan.usingFallback, isTrue);
+    expect(plan.rendererKind, 'plain-text-fallback');
+    expect(plan.toJson()['fallbackReason'], contains('above limit 50'));
+    expect(restored.renderWindow.renderLineCount, 90);
+    expect(restored.usingFallback, isTrue);
   });
 }

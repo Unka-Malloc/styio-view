@@ -195,6 +195,19 @@ void main() {
       isFalse,
     );
     expect(
+      entriesById['editor.rendering']?.summary,
+      contains('EditorRenderViewportBinding'),
+    );
+    expect(
+      entriesById['editor.rendering']?.summary,
+      contains('EditorRenderPipelinePlan'),
+    );
+    expect(
+      entriesById['editor.rendering']?.todo,
+      contains('concrete scroll controller'),
+    );
+    expect(entriesById['editor.rendering']?.runtimeMaturityBlocking, isFalse);
+    expect(
       entriesById['workspace.file-explorer']?.summary,
       contains('create, rename, delete, and reveal contracts'),
     );

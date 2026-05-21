@@ -15,6 +15,8 @@ class EditorRenderSnapshot {
     required this.semanticCount,
     required this.diagnosticCount,
     required this.virtualizedRowWindow,
+    this.viewportBinding = const EditorRenderViewportBinding.unbound(),
+    this.renderPipelinePlan = const EditorRenderPipelinePlan.unbound(),
     this.hoverAvailable = false,
     this.completionCount = 0,
     this.contextActionCount = 0,
@@ -29,6 +31,20 @@ class EditorRenderSnapshot {
   ) {
     final activeToken = controller.tokenAtSelection;
     final activeSemanticKind = controller.semanticKindAtSelection;
+    final rowWindow = EditorVirtualizedRowWindow.fromViewport(
+      totalLineCount: controller.document.lines.length,
+      firstVisibleLine: _editorLineIndexForOffset(
+        controller.document.text,
+        controller.selection.end,
+      ),
+      viewportLineCapacity: 80,
+    );
+    final viewportBinding = EditorRenderViewportBinding.fromWindow(
+      rowWindow,
+      boundToScrollController: false,
+      todo:
+          'TODO: bind viewport facts to the concrete Flutter ScrollController.',
+    );
     return EditorRenderSnapshot(
       documentId: controller.document.documentId,
       revision: controller.document.revision,
@@ -40,13 +56,12 @@ class EditorRenderSnapshot {
       tokenCount: controller.analysis.tokenCount,
       semanticCount: controller.analysis.semanticCount,
       diagnosticCount: controller.analysis.diagnosticCount,
-      virtualizedRowWindow: EditorVirtualizedRowWindow.fromViewport(
-        totalLineCount: controller.document.lines.length,
-        firstVisibleLine: _editorLineIndexForOffset(
-          controller.document.text,
-          controller.selection.end,
-        ),
-        viewportLineCapacity: 80,
+      virtualizedRowWindow: rowWindow,
+      viewportBinding: viewportBinding,
+      renderPipelinePlan: EditorRenderPipelinePlan.fromRenderFacts(
+        renderPlan: controller.renderPlan,
+        lineCount: controller.document.lines.length,
+        viewportBinding: viewportBinding,
       ),
       hoverAvailable: controller.hoverAtSelection != null,
       completionCount: controller.completionsAtSelection.length,
@@ -84,6 +99,12 @@ class EditorRenderSnapshot {
       virtualizedRowWindow: _editorVirtualizedRowWindowFromJson(
         json['virtualizedRowWindow'],
       ),
+      viewportBinding: _editorRenderViewportBindingFromJson(
+        json['viewportBinding'],
+      ),
+      renderPipelinePlan: _editorRenderPipelinePlanFromJson(
+        json['renderPipelinePlan'],
+      ),
       hoverAvailable: json['hoverAvailable'] as bool? ?? false,
       completionCount: json['completionCount'] as int? ?? 0,
       contextActionCount: json['contextActionCount'] as int? ?? 0,
@@ -107,6 +128,8 @@ class EditorRenderSnapshot {
   final int semanticCount;
   final int diagnosticCount;
   final EditorVirtualizedRowWindow virtualizedRowWindow;
+  final EditorRenderViewportBinding viewportBinding;
+  final EditorRenderPipelinePlan renderPipelinePlan;
   final bool hoverAvailable;
   final int completionCount;
   final int contextActionCount;
@@ -132,6 +155,8 @@ class EditorRenderSnapshot {
       'semanticCount': semanticCount,
       'diagnosticCount': diagnosticCount,
       'virtualizedRowWindow': virtualizedRowWindow.toJson(),
+      'viewportBinding': viewportBinding.toJson(),
+      'renderPipelinePlan': renderPipelinePlan.toJson(),
       'hoverAvailable': hoverAvailable,
       'completionCount': completionCount,
       'contextActionCount': contextActionCount,
@@ -348,6 +373,199 @@ class EditorVirtualizedRowWindow {
   }
 }
 
+class EditorRenderViewportBinding {
+  const EditorRenderViewportBinding({
+    required this.viewportFirstLine,
+    required this.viewportLineCapacity,
+    required this.overscanLineCount,
+    this.scrollOffsetPixels = 0,
+    this.lineHeightPixels = 20,
+    this.boundToScrollController = false,
+    this.todo = '',
+  });
+
+  const EditorRenderViewportBinding.unbound()
+    : viewportFirstLine = 0,
+      viewportLineCapacity = 1,
+      overscanLineCount = 0,
+      scrollOffsetPixels = 0,
+      lineHeightPixels = 20,
+      boundToScrollController = false,
+      todo = 'TODO: bind editor viewport to concrete scroll controller facts.';
+
+  factory EditorRenderViewportBinding.fromWindow(
+    EditorVirtualizedRowWindow window, {
+    double scrollOffsetPixels = 0,
+    double lineHeightPixels = 20,
+    bool boundToScrollController = false,
+    String todo = '',
+  }) {
+    return EditorRenderViewportBinding(
+      viewportFirstLine: window.viewportFirstLine,
+      viewportLineCapacity: window.viewportLineCapacity,
+      overscanLineCount: window.overscanLineCount,
+      scrollOffsetPixels: scrollOffsetPixels,
+      lineHeightPixels: lineHeightPixels,
+      boundToScrollController: boundToScrollController,
+      todo: todo,
+    );
+  }
+
+  factory EditorRenderViewportBinding.fromJson(Map<String, Object?> json) {
+    return EditorRenderViewportBinding(
+      viewportFirstLine: json['viewportFirstLine'] as int? ?? 0,
+      viewportLineCapacity: json['viewportLineCapacity'] as int? ?? 1,
+      overscanLineCount: json['overscanLineCount'] as int? ?? 0,
+      scrollOffsetPixels: _doubleFromJson(json['scrollOffsetPixels']),
+      lineHeightPixels: _doubleFromJson(json['lineHeightPixels'], fallback: 20),
+      boundToScrollController:
+          json['boundToScrollController'] as bool? ?? false,
+      todo: json['todo'] as String? ?? '',
+    );
+  }
+
+  final int viewportFirstLine;
+  final int viewportLineCapacity;
+  final int overscanLineCount;
+  final double scrollOffsetPixels;
+  final double lineHeightPixels;
+  final bool boundToScrollController;
+  final String todo;
+
+  EditorVirtualizedRowWindow toWindow({required int totalLineCount}) {
+    return EditorVirtualizedRowWindow.fromViewport(
+      totalLineCount: totalLineCount,
+      firstVisibleLine: viewportFirstLine,
+      viewportLineCapacity: viewportLineCapacity,
+      overscanLineCount: overscanLineCount,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'viewportFirstLine': viewportFirstLine,
+      'viewportLineCapacity': viewportLineCapacity,
+      'overscanLineCount': overscanLineCount,
+      'scrollOffsetPixels': scrollOffsetPixels,
+      'lineHeightPixels': lineHeightPixels,
+      'boundToScrollController': boundToScrollController,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class EditorRenderPipelinePlan {
+  const EditorRenderPipelinePlan({
+    required this.rendererKind,
+    required this.renderPlan,
+    required this.renderWindow,
+    required this.canRender,
+    required this.maxRenderedLines,
+    this.fallbackReason = '',
+    this.todo = '',
+  });
+
+  const EditorRenderPipelinePlan.unbound()
+    : rendererKind = 'unbound',
+      renderPlan = const EditorRenderPlan(
+        activeLayers: <EditorRenderLayer>{EditorRenderLayer.text},
+      ),
+      renderWindow = const EditorVirtualizedRowWindow(
+        totalLineCount: 0,
+        startLine: 0,
+        endLineExclusive: 0,
+        viewportFirstLine: 0,
+        viewportLineCapacity: 1,
+        overscanLineCount: 0,
+      ),
+      canRender = false,
+      maxRenderedLines = 0,
+      fallbackReason = 'Editor render pipeline has not been bound.',
+      todo = 'TODO: bind renderer kind to concrete editor rendering backend.';
+
+  factory EditorRenderPipelinePlan.fromRenderFacts({
+    required EditorRenderPlan renderPlan,
+    required int lineCount,
+    required EditorRenderViewportBinding viewportBinding,
+    int maxRenderedLines = 400,
+  }) {
+    final window = viewportBinding.toWindow(totalLineCount: lineCount);
+    final canRender = window.renderLineCount <= maxRenderedLines;
+    return EditorRenderPipelinePlan(
+      rendererKind: canRender
+          ? 'virtualized-layer-stack'
+          : 'plain-text-fallback',
+      renderPlan: renderPlan,
+      renderWindow: window,
+      canRender: canRender,
+      maxRenderedLines: maxRenderedLines,
+      fallbackReason: canRender
+          ? ''
+          : 'Editor render window has ${window.renderLineCount} lines, above limit $maxRenderedLines.',
+      todo:
+          'TODO: connect this plan to concrete Flutter viewport and layer renderers.',
+    );
+  }
+
+  factory EditorRenderPipelinePlan.fromJson(Map<String, Object?> json) {
+    final renderPlan = json['renderPlan'];
+    final renderWindow = json['renderWindow'];
+    return EditorRenderPipelinePlan(
+      rendererKind: json['rendererKind'] as String? ?? 'unbound',
+      renderPlan: renderPlan is Map
+          ? EditorRenderPlan.fromJson(
+              renderPlan.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : EditorRenderPlan.foundation(),
+      renderWindow: renderWindow is Map
+          ? EditorVirtualizedRowWindow.fromJson(
+              renderWindow.map(
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
+              ),
+            )
+          : const EditorVirtualizedRowWindow(
+              totalLineCount: 0,
+              startLine: 0,
+              endLineExclusive: 0,
+              viewportFirstLine: 0,
+              viewportLineCapacity: 1,
+              overscanLineCount: 0,
+            ),
+      canRender: json['canRender'] as bool? ?? false,
+      maxRenderedLines: json['maxRenderedLines'] as int? ?? 0,
+      fallbackReason: json['fallbackReason'] as String? ?? '',
+      todo: json['todo'] as String? ?? '',
+    );
+  }
+
+  final String rendererKind;
+  final EditorRenderPlan renderPlan;
+  final EditorVirtualizedRowWindow renderWindow;
+  final bool canRender;
+  final int maxRenderedLines;
+  final String fallbackReason;
+  final String todo;
+
+  bool get usingFallback => fallbackReason.isNotEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'rendererKind': rendererKind,
+      'renderPlan': renderPlan.toJson(),
+      'renderWindow': renderWindow.toJson(),
+      'canRender': canRender,
+      'maxRenderedLines': maxRenderedLines,
+      'usingFallback': usingFallback,
+      if (fallbackReason.isNotEmpty) 'fallbackReason': fallbackReason,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
 EditorCodeActionWidgetState _editorCodeActionWidgetStateFromJson(
   Object? value,
 ) {
@@ -362,6 +580,36 @@ EditorCodeActionWidgetState _editorCodeActionWidgetStateFromJson(
     );
   }
   return const EditorCodeActionWidgetState.hidden();
+}
+
+EditorRenderViewportBinding _editorRenderViewportBindingFromJson(
+  Object? value,
+) {
+  if (value is Map<String, Object?>) {
+    return EditorRenderViewportBinding.fromJson(value);
+  }
+  if (value is Map) {
+    return EditorRenderViewportBinding.fromJson(
+      value.map(
+        (key, value) => MapEntry<String, Object?>(key.toString(), value),
+      ),
+    );
+  }
+  return const EditorRenderViewportBinding.unbound();
+}
+
+EditorRenderPipelinePlan _editorRenderPipelinePlanFromJson(Object? value) {
+  if (value is Map<String, Object?>) {
+    return EditorRenderPipelinePlan.fromJson(value);
+  }
+  if (value is Map) {
+    return EditorRenderPipelinePlan.fromJson(
+      value.map(
+        (key, value) => MapEntry<String, Object?>(key.toString(), value),
+      ),
+    );
+  }
+  return const EditorRenderPipelinePlan.unbound();
 }
 
 EditorVirtualizedRowWindow _editorVirtualizedRowWindowFromJson(Object? value) {
@@ -383,6 +631,13 @@ EditorVirtualizedRowWindow _editorVirtualizedRowWindowFromJson(Object? value) {
     viewportLineCapacity: 1,
     overscanLineCount: 0,
   );
+}
+
+double _doubleFromJson(Object? value, {double fallback = 0}) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return double.tryParse('$value') ?? fallback;
 }
 
 int _editorLineIndexForOffset(String source, int offset) {

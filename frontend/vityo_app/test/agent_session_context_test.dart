@@ -2010,9 +2010,18 @@ void main() {
       expect(
         validationPlan['commandHints'],
         containsAll(<String>[
-          'styio.syntax.check',
-          'diagnostics.refresh',
-          'testing.runRelevant',
+          AppCommandId.refreshLanguageService.name,
+          AppCommandId.refreshWorkspaceDiagnostics.name,
+          AppCommandId.runTestConfiguration.name,
+        ]),
+      );
+      expect(
+        validationPlan['registeredCommandIds'],
+        containsAll(<String>[
+          AppCommandId.saveAll.name,
+          AppCommandId.refreshLanguageService.name,
+          AppCommandId.refreshWorkspaceDiagnostics.name,
+          AppCommandId.runTestConfiguration.name,
         ]),
       );
       expect(filteredJson.containsKey('document'), isFalse);
@@ -2125,6 +2134,10 @@ void main() {
         'completeChangeReviewGate',
         'applyReviewedWorkspaceEdit',
       ]),
+    );
+    expect(
+      validationPlan['registeredCommandIds'],
+      contains(AppCommandId.collectAgentCodingCheckpoint.name),
     );
   });
 

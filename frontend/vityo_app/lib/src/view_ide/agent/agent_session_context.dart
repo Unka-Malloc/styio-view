@@ -605,6 +605,7 @@ class AgentCodingValidationPlan {
     required this.reason,
     this.requiredSteps = const <String>[],
     this.commandHints = const <String>[],
+    this.registeredCommandIds = const <String>[],
     this.todoItems = const <String>[],
   });
 
@@ -614,6 +615,7 @@ class AgentCodingValidationPlan {
       reason = 'No generated code change needs validation.',
       requiredSteps = const <String>[],
       commandHints = const <String>[],
+      registeredCommandIds = const <String>[],
       todoItems = const <String>[];
 
   factory AgentCodingValidationPlan.fromAgentState({
@@ -635,7 +637,7 @@ class AgentCodingValidationPlan {
     if (changeReviewGate.status ==
             AgentCodingChangeReviewGateStatus.needsReview ||
         changeReviewGate.status == AgentCodingChangeReviewGateStatus.applying) {
-      return const AgentCodingValidationPlan(
+      return AgentCodingValidationPlan(
         status: AgentCodingValidationPlanStatus.waitingForReview,
         shouldRun: false,
         reason: 'Generated changes must be reviewed or applied first.',
@@ -644,6 +646,9 @@ class AgentCodingValidationPlan {
           'applyReviewedWorkspaceEdit',
         ],
         commandHints: <String>['agent.reviewChanges'],
+        registeredCommandIds: <String>[
+          AppCommandId.collectAgentCodingCheckpoint.name,
+        ],
         todoItems: <String>[
           'TODO: start validation automatically after reviewed apply succeeds.',
         ],
@@ -653,7 +658,7 @@ class AgentCodingValidationPlan {
       return const AgentCodingValidationPlan.notNeeded();
     }
     if (!lastPatchApplication.applied) {
-      return const AgentCodingValidationPlan(
+      return AgentCodingValidationPlan(
         status: AgentCodingValidationPlanStatus.blocked,
         shouldRun: false,
         reason: 'Last generated patch did not apply successfully.',
@@ -662,12 +667,15 @@ class AgentCodingValidationPlan {
           'reviseGeneratedPatch',
         ],
         commandHints: <String>['agent.explainPatchFailure'],
+        registeredCommandIds: <String>[
+          AppCommandId.collectAgentCodingCheckpoint.name,
+        ],
         todoItems: <String>[
           'TODO: link failed patch application to diagnostics and retry flow.',
         ],
       );
     }
-    return const AgentCodingValidationPlan(
+    return AgentCodingValidationPlan(
       status: AgentCodingValidationPlanStatus.ready,
       shouldRun: true,
       reason: 'Generated code was applied and needs validation.',
@@ -679,10 +687,16 @@ class AgentCodingValidationPlan {
         'captureValidationResult',
       ],
       commandHints: <String>[
-        'workspace.saveAll',
-        'styio.syntax.check',
-        'diagnostics.refresh',
-        'testing.runRelevant',
+        AppCommandId.saveAll.name,
+        AppCommandId.refreshLanguageService.name,
+        AppCommandId.refreshWorkspaceDiagnostics.name,
+        AppCommandId.runTestConfiguration.name,
+      ],
+      registeredCommandIds: <String>[
+        AppCommandId.saveAll.name,
+        AppCommandId.refreshLanguageService.name,
+        AppCommandId.refreshWorkspaceDiagnostics.name,
+        AppCommandId.runTestConfiguration.name,
       ],
       todoItems: <String>[
         'TODO: bind validation command hints to real command execution routes.',
@@ -696,6 +710,7 @@ class AgentCodingValidationPlan {
   final String reason;
   final List<String> requiredSteps;
   final List<String> commandHints;
+  final List<String> registeredCommandIds;
   final List<String> todoItems;
 
   Map<String, Object?> toJson() {
@@ -705,6 +720,7 @@ class AgentCodingValidationPlan {
       'reason': reason,
       'requiredSteps': requiredSteps,
       'commandHints': commandHints,
+      'registeredCommandIds': registeredCommandIds,
       'todoItems': todoItems,
     };
   }

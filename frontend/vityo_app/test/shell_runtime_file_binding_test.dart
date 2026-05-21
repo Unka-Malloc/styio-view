@@ -2646,6 +2646,14 @@ void main() {
         missingDeleteResult?.metadata['requiredInput'],
         'Workspace file path',
       );
+      expect(
+        missingDeleteResult?.metadata['inputContract'],
+        contains('Must not be the active document'),
+      );
+      expect(
+        missingDeleteResult?.metadata['inputExamples'],
+        contains('src/unused.styio'),
+      );
 
       final agentDeleteApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(
@@ -2934,6 +2942,14 @@ void main() {
     expect(
       missingPreviewResult?.metadata['requiredInput'],
       'Search query -> replacement',
+    );
+    expect(
+      missingPreviewResult?.metadata['inputContract'],
+      contains('search text -> replacement text'),
+    );
+    expect(
+      missingPreviewResult?.metadata['inputExamples'],
+      contains('oldName -> newName'),
     );
 
     final agentPreviewApplied = await shell.applyAgentIdeCommandSuggestion(

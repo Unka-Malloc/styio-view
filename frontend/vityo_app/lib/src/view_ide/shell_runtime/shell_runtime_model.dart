@@ -2505,6 +2505,9 @@ class ShellRuntimeModel extends ChangeNotifier {
             suggestion,
             applied: false,
             message: 'Agent command openWorkspaceFile skipped: missing input.',
+            metadata: _agentCommandInputMetadata(
+              AppCommandId.openWorkspaceFile,
+            ),
           );
           appendLog(_lastAgentIdeCommandResult!.message);
           return false;
@@ -2545,6 +2548,7 @@ class ShellRuntimeModel extends ChangeNotifier {
             suggestion,
             applied: false,
             message: 'Agent command searchWorkspace skipped: missing input.',
+            metadata: _agentCommandInputMetadata(AppCommandId.searchWorkspace),
           );
           appendLog(_lastAgentIdeCommandResult!.message);
           return false;
@@ -2566,9 +2570,9 @@ class ShellRuntimeModel extends ChangeNotifier {
             applied: false,
             message:
                 'Agent command previewWorkspaceReplace skipped: expected "search query -> replacement" input.',
-            metadata: const <String, Object?>{
-              'requiredInput': 'Search query -> replacement',
-            },
+            metadata: _agentCommandInputMetadata(
+              AppCommandId.previewWorkspaceReplace,
+            ),
           );
           appendLog(_lastAgentIdeCommandResult!.message);
           return false;
@@ -2602,6 +2606,7 @@ class ShellRuntimeModel extends ChangeNotifier {
             suggestion,
             applied: false,
             message: 'Agent command renameSymbol skipped: missing input.',
+            metadata: _agentCommandInputMetadata(AppCommandId.renameSymbol),
           );
           appendLog(_lastAgentIdeCommandResult!.message);
           return false;
@@ -2897,14 +2902,15 @@ class ShellRuntimeModel extends ChangeNotifier {
             .where((path) => path.isNotEmpty)
             .toList(growable: false);
         if (paths.isEmpty) {
+          final commandId = suggestion.commandId == 'stageSourceControl'
+              ? AppCommandId.stageSourceControl
+              : AppCommandId.unstageSourceControl;
           _recordAgentIdeCommandResult(
             suggestion,
             applied: false,
             message:
                 'Agent command ${suggestion.commandId} skipped: changed file path input is required.',
-            metadata: const <String, Object?>{
-              'requiredInput': 'Changed file path(s)',
-            },
+            metadata: _agentCommandInputMetadata(commandId),
           );
           return false;
         }
@@ -2934,7 +2940,9 @@ class ShellRuntimeModel extends ChangeNotifier {
             applied: false,
             message:
                 'Agent command planSourceControlBranchSwitch skipped: target branch input is required.',
-            metadata: const <String, Object?>{'requiredInput': 'Target branch'},
+            metadata: _agentCommandInputMetadata(
+              AppCommandId.planSourceControlBranchSwitch,
+            ),
           );
           return false;
         }
@@ -2963,9 +2971,9 @@ class ShellRuntimeModel extends ChangeNotifier {
             applied: false,
             message:
                 'Agent command planSourceControlCommitDraft skipped: commit message input is required.',
-            metadata: const <String, Object?>{
-              'requiredInput': 'Commit message or message -> path(s)',
-            },
+            metadata: _agentCommandInputMetadata(
+              AppCommandId.planSourceControlCommitDraft,
+            ),
           );
           return false;
         }
@@ -3126,6 +3134,9 @@ class ShellRuntimeModel extends ChangeNotifier {
             suggestion,
             applied: false,
             message: 'Agent command selectDebugThread skipped: missing input.',
+            metadata: _agentCommandInputMetadata(
+              AppCommandId.selectDebugThread,
+            ),
           );
           appendLog(_lastAgentIdeCommandResult!.message);
           return false;
@@ -3146,6 +3157,9 @@ class ShellRuntimeModel extends ChangeNotifier {
             applied: false,
             message:
                 'Agent command selectDebugStackFrame skipped: missing input.',
+            metadata: _agentCommandInputMetadata(
+              AppCommandId.selectDebugStackFrame,
+            ),
           );
           appendLog(_lastAgentIdeCommandResult!.message);
           return false;
@@ -3232,6 +3246,9 @@ class ShellRuntimeModel extends ChangeNotifier {
             applied: false,
             message:
                 'Agent command selectClangCppVersion skipped: missing input.',
+            metadata: _agentCommandInputMetadata(
+              AppCommandId.selectClangCppVersion,
+            ),
           );
           notifyListeners();
           return false;
@@ -3525,7 +3542,7 @@ class ShellRuntimeModel extends ChangeNotifier {
         applied: false,
         message:
             'Agent command ${commandId.name} skipped: ${descriptor.inputLabel} input is required.',
-        metadata: <String, Object?>{'requiredInput': descriptor.inputLabel},
+        metadata: _agentCommandInputMetadata(commandId),
       );
       appendLog(_lastAgentIdeCommandResult!.message);
       return false;
@@ -3543,6 +3560,17 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(result.message);
     notifyListeners();
     return result.applied;
+  }
+
+  Map<String, Object?> _agentCommandInputMetadata(AppCommandId commandId) {
+    final descriptor = StyioCommandRegistry.descriptorFor(commandId);
+    return <String, Object?>{
+      'reason': 'missing-input',
+      'requiredInput': descriptor.inputLabel,
+      'inputLabel': descriptor.inputLabel,
+      'inputContract': descriptor.inputContract,
+      'inputExamples': descriptor.inputExamples,
+    };
   }
 
   List<String>? _parseWorkspaceReplaceCommandInput(String? rawInput) {
@@ -6789,9 +6817,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           applied: false,
           message:
               '${StyioCommandRegistry.descriptorFor(commandId).label} requires changed file path input.',
-          metadata: const <String, Object?>{
-            'requiredInput': 'Changed file path(s)',
-          },
+          metadata: _agentCommandInputMetadata(commandId),
         );
         return;
       case AppCommandId.planSourceControlBranchSwitch:
@@ -6800,7 +6826,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           applied: false,
           message:
               '${StyioCommandRegistry.descriptorFor(commandId).label} requires target branch input.',
-          metadata: const <String, Object?>{'requiredInput': 'Target branch'},
+          metadata: _agentCommandInputMetadata(commandId),
         );
         return;
       case AppCommandId.planSourceControlCommitDraft:
@@ -6809,9 +6835,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           applied: false,
           message:
               '${StyioCommandRegistry.descriptorFor(commandId).label} requires commit message input.',
-          metadata: const <String, Object?>{
-            'requiredInput': 'Commit message or message -> path(s)',
-          },
+          metadata: _agentCommandInputMetadata(commandId),
         );
         return;
       case AppCommandId.collectAgentCodingCheckpoint:

@@ -381,6 +381,14 @@ void main() {
         missingStageResult?.metadata['requiredInput'],
         'Changed file path(s)',
       );
+      expect(
+        missingStageResult?.metadata['inputContract'],
+        contains('comma or newline'),
+      );
+      expect(
+        missingStageResult?.metadata['inputExamples'],
+        contains('src/a.styio, src/b.styio'),
+      );
 
       final agentStageApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(
@@ -442,6 +450,10 @@ void main() {
         missingBranchPlanResult?.metadata['requiredInput'],
         'Target branch',
       );
+      expect(
+        missingBranchPlanResult?.metadata['inputContract'],
+        contains('source-control facts'),
+      );
 
       final agentBranchPlanApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(
@@ -484,6 +496,10 @@ void main() {
       expect(
         missingCommitDraftResult?.metadata['requiredInput'],
         'Commit message or message -> path(s)',
+      );
+      expect(
+        missingCommitDraftResult?.metadata['inputExamples'],
+        contains('Add tests -> src/main.styio, test/main_test.dart'),
       );
 
       final agentCommitDraftApplied = await shell
@@ -668,7 +684,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        63,
+        64,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],
@@ -772,6 +788,10 @@ void main() {
       expect(
         directStageResult?.metadata['requiredInput'],
         'Changed file path(s)',
+      );
+      expect(
+        directStageResult?.metadata['inputContract'],
+        contains('comma or newline'),
       );
 
       await shell.executeCommand(AppCommandId.previewQuickFix);

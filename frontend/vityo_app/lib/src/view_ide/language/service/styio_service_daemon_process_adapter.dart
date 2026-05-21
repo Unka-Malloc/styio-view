@@ -5,6 +5,22 @@ typedef StyioServiceDaemonProcessLauncher =
       StyioServiceDaemonProcessLaunchRequest request,
     );
 
+enum StyioServiceDaemonProcessLauncherKind {
+  localProcess,
+  remoteService,
+  inProcessFixture,
+}
+
+extension StyioServiceDaemonProcessLauncherKindX
+    on StyioServiceDaemonProcessLauncherKind {
+  String get wireValue => switch (this) {
+    StyioServiceDaemonProcessLauncherKind.localProcess => 'local-process',
+    StyioServiceDaemonProcessLauncherKind.remoteService => 'remote-service',
+    StyioServiceDaemonProcessLauncherKind.inProcessFixture =>
+      'in-process-fixture',
+  };
+}
+
 class StyioServiceDaemonProcessLaunchRequest {
   StyioServiceDaemonProcessLaunchRequest({
     required this.providerId,
@@ -132,6 +148,133 @@ class StyioServiceDaemonProcessLaunchResult {
   }
 }
 
+class StyioServiceDaemonProcessLauncherRegistration {
+  StyioServiceDaemonProcessLauncherRegistration({
+    required this.launcherId,
+    required this.label,
+    required this.kind,
+    required this.launcher,
+    Iterable<String> providerIds = const <String>[],
+    this.available = true,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : providerIds = Set<String>.unmodifiable(providerIds),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final String launcherId;
+  final String label;
+  final StyioServiceDaemonProcessLauncherKind kind;
+  final StyioServiceDaemonProcessLauncher launcher;
+  final Set<String> providerIds;
+  final bool available;
+  final Map<String, Object?> metadata;
+
+  bool accepts(StyioServiceDaemonProcessLaunchRequest request) {
+    return available &&
+        (providerIds.isEmpty || providerIds.contains(request.providerId));
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'launcherId': launcherId,
+      'label': label,
+      'kind': kind.wireValue,
+      'providerIds': providerIds.toList(),
+      'available': available,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class StyioServiceDaemonProcessLauncherRegistry {
+  StyioServiceDaemonProcessLauncherRegistry({
+    Iterable<StyioServiceDaemonProcessLauncherRegistration> launchers =
+        const <StyioServiceDaemonProcessLauncherRegistration>[],
+  }) {
+    for (final launcher in launchers) {
+      register(launcher);
+    }
+  }
+
+  final List<StyioServiceDaemonProcessLauncherRegistration> _launchers =
+      <StyioServiceDaemonProcessLauncherRegistration>[];
+
+  List<StyioServiceDaemonProcessLauncherRegistration> get launchers {
+    return List<StyioServiceDaemonProcessLauncherRegistration>.unmodifiable(
+      _launchers,
+    );
+  }
+
+  void register(StyioServiceDaemonProcessLauncherRegistration launcher) {
+    _launchers.removeWhere(
+      (candidate) => candidate.launcherId == launcher.launcherId,
+    );
+    _launchers.add(launcher);
+  }
+
+  StyioServiceDaemonProcessLauncherRegistration? resolve(
+    StyioServiceDaemonProcessLaunchRequest request,
+  ) {
+    for (final launcher in _launchers) {
+      if (launcher.accepts(request)) {
+        return launcher;
+      }
+    }
+    return null;
+  }
+
+  Future<StyioServiceDaemonProcessLaunchResult> launch(
+    StyioServiceDaemonProcessLaunchRequest request,
+  ) async {
+    final registration = resolve(request);
+    if (registration == null) {
+      return StyioServiceDaemonProcessLaunchResult.failed(
+        providerId: request.providerId,
+        message:
+            'StyioService daemon process launcher is missing for provider '
+            '${request.providerId}.',
+        metadata: const <String, Object?>{'launcherMissing': true},
+      );
+    }
+    try {
+      final result = await registration.launcher(request);
+      return StyioServiceDaemonProcessLaunchResult(
+        started: result.started,
+        message: result.message,
+        providerId: result.providerId.isEmpty
+            ? request.providerId
+            : result.providerId,
+        processId: result.processId,
+        endpoint: result.endpoint,
+        metadata: <String, Object?>{
+          'launcherId': registration.launcherId,
+          'launcherKind': registration.kind.wireValue,
+          ...registration.metadata,
+          ...result.metadata,
+        },
+      );
+    } on Object catch (error) {
+      return StyioServiceDaemonProcessLaunchResult.failed(
+        providerId: request.providerId,
+        message: 'StyioService daemon process launcher failed: $error',
+        metadata: <String, Object?>{
+          'launcherId': registration.launcherId,
+          'launcherKind': registration.kind.wireValue,
+          'error': error.toString(),
+        },
+      );
+    }
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'launcherCount': _launchers.length,
+      'launchers': _launchers
+          .map((launcher) => launcher.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
 class StyioServiceDaemonProcessAdapter
     implements StyioServiceDaemonProcessSupervisor {
   StyioServiceDaemonProcessAdapter({
@@ -143,6 +286,22 @@ class StyioServiceDaemonProcessAdapter
   }) : defaultArguments = List<String>.unmodifiable(defaultArguments),
        environment = Map<String, String>.unmodifiable(environment),
        metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  factory StyioServiceDaemonProcessAdapter.fromRegistry({
+    required StyioServiceDaemonProcessLauncherRegistry registry,
+    Iterable<String> defaultArguments = const <String>[],
+    String workingDirectory = '',
+    Map<String, String> environment = const <String, String>{},
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return StyioServiceDaemonProcessAdapter(
+      launcher: registry.launch,
+      defaultArguments: defaultArguments,
+      workingDirectory: workingDirectory,
+      environment: environment,
+      metadata: <String, Object?>{'launcherRegistry': true, ...metadata},
+    );
+  }
 
   final StyioServiceDaemonProcessLauncher launcher;
   final List<String> defaultArguments;

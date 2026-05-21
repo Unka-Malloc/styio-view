@@ -88,6 +88,81 @@ void main() {
       expect(snapshot.message, contains('missing binary'));
     },
   );
+
+  test(
+    'StyioService daemon process adapter launches through registry',
+    () async {
+      const lifecycle = StyioServiceDaemonLifecycleSnapshot(
+        state: StyioServiceDaemonLifecycleState.failed,
+        providerId: 'styio-daemon.fixture',
+        message: 'daemon crashed',
+      );
+      final plan = StyioServiceDaemonRestartPlan.fromLifecycle(
+        lifecycle: lifecycle,
+        failedAttempt: 0,
+        reason: StyioServiceDaemonRestartReason.manual,
+        policy: const StyioServiceDaemonRestartPolicy(
+          initialDelay: Duration.zero,
+        ),
+      );
+      final requests = <StyioServiceDaemonProcessLaunchRequest>[];
+      final registry = StyioServiceDaemonProcessLauncherRegistry(
+        launchers: <StyioServiceDaemonProcessLauncherRegistration>[
+          StyioServiceDaemonProcessLauncherRegistration(
+            launcherId: 'fixture-local-process',
+            label: 'Fixture Local Process',
+            kind: StyioServiceDaemonProcessLauncherKind.localProcess,
+            providerIds: const <String>{'styio-daemon.fixture'},
+            metadata: const <String, Object?>{'platform': 'test'},
+            launcher: (request) async {
+              requests.add(request);
+              return StyioServiceDaemonProcessLaunchResult.started(
+                providerId: request.providerId,
+                processId: 4242,
+                endpoint: 'stdio://styio-service',
+                metadata: const <String, Object?>{
+                  'processHandleId': 'styio-service-proc-1',
+                },
+              );
+            },
+          ),
+        ],
+      );
+      final adapter = StyioServiceDaemonProcessAdapter.fromRegistry(
+        registry: registry,
+        defaultArguments: const <String>['service', '--jsonl'],
+      );
+
+      final snapshot = await adapter.restartStyioServiceDaemon(plan);
+
+      expect(snapshot.active, isTrue);
+      expect(snapshot.providerId, 'styio-daemon.fixture');
+      expect(requests.single.arguments, <String>['service', '--jsonl']);
+      expect(requests.single.metadata['launcherRegistry'], isTrue);
+      expect(registry.toJson()['launcherCount'], 1);
+    },
+  );
+
+  test(
+    'StyioService daemon process launcher registry reports missing launchers',
+    () async {
+      final registry = StyioServiceDaemonProcessLauncherRegistry();
+      final request = StyioServiceDaemonProcessLaunchRequest(
+        providerId: 'styio-daemon.missing',
+        reason: StyioServiceDaemonRestartReason.manual,
+        attempt: 1,
+        restartable: true,
+        arguments: const <String>['service'],
+      );
+
+      final result = await registry.launch(request);
+
+      expect(result.started, isFalse);
+      expect(result.providerId, 'styio-daemon.missing');
+      expect(result.message, contains('missing'));
+      expect(result.metadata['launcherMissing'], isTrue);
+    },
+  );
 }
 
 class _NoopStyioConnector implements StyioServiceConnector {

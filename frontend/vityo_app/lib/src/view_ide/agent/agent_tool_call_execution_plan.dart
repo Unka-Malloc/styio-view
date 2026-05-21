@@ -1,6 +1,5 @@
-import 'dart:convert';
-
 import 'agent_tool_call_lifecycle.dart';
+import 'agent_tool_input_validator.dart';
 import 'agent_tool_permission.dart';
 import 'agent_tool_registry.dart';
 
@@ -368,54 +367,18 @@ List<AgentToolCallExecutionIssue> _validateInput(
   AgentToolDefinition tool,
   AgentToolCallState call,
 ) {
-  final requiredProperties = tool.schema
-      .where((property) => property.required)
-      .toList(growable: false);
-  if (requiredProperties.isEmpty) {
-    return const <AgentToolCallExecutionIssue>[];
-  }
-  if (call.inputText.trim().isEmpty) {
-    return <AgentToolCallExecutionIssue>[
-      AgentToolCallExecutionIssue(
-        code: 'agent.tool.input.empty.${tool.toolId}',
-        message: 'Tool ${tool.toolId} requires structured input.',
-      ),
-    ];
-  }
-
-  late final Object? decoded;
-  try {
-    decoded = jsonDecode(call.inputText);
-  } on Object catch (error) {
-    return <AgentToolCallExecutionIssue>[
-      AgentToolCallExecutionIssue(
-        code: 'agent.tool.input.invalidJson.${tool.toolId}',
-        message: 'Tool ${tool.toolId} input is not valid JSON: $error',
-      ),
-    ];
-  }
-  if (decoded is! Map) {
-    return <AgentToolCallExecutionIssue>[
-      AgentToolCallExecutionIssue(
-        code: 'agent.tool.input.notObject.${tool.toolId}',
-        message: 'Tool ${tool.toolId} input must be a JSON object.',
-      ),
-    ];
-  }
-
-  final issues = <AgentToolCallExecutionIssue>[];
-  for (final property in requiredProperties) {
-    if (!decoded.containsKey(property.name)) {
-      issues.add(
-        AgentToolCallExecutionIssue(
-          code: 'agent.tool.input.missing.${tool.toolId}.${property.name}',
-          message:
-              'Tool ${tool.toolId} input is missing required property ${property.name}.',
+  final validation = const AgentToolInputValidator().validate(
+    tool: tool,
+    inputText: call.inputText,
+  );
+  return validation.issues
+      .map(
+        (issue) => AgentToolCallExecutionIssue(
+          code: issue.code,
+          message: issue.message,
         ),
-      );
-    }
-  }
-  return issues;
+      )
+      .toList(growable: false);
 }
 
 AgentToolCallExecutionStatus _executionStatus({

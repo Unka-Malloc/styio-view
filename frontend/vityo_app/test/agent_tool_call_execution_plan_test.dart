@@ -161,6 +161,81 @@ void main() {
     );
   });
 
+  test('agent tool call execution plan validates schema value types', () {
+    final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+      PlatformTarget.linux,
+    );
+    final selection = AgentToolRegistry().selectForProfile(
+      profile: profile,
+      providerKind: AgentProviderKind.cloudOpenAICompatible,
+    );
+    final permissions = AgentToolPermissionPlan.fromSelection(selection);
+    final timeline = const AgentToolCallLifecycleTracker()
+        .track(<AgentToolCallEvent>[
+          const AgentToolCallEvent.callStarted(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            input: '{"path":123}',
+          ),
+        ]);
+
+    final plan = AgentToolCallExecutionPlan.fromTimeline(
+      toolSelection: selection,
+      permissionPlan: permissions,
+      timeline: timeline,
+    );
+
+    expect(plan.status, AgentToolCallExecutionPlanStatus.blocked);
+    expect(
+      plan.blockingIssueCodes,
+      contains('agent.tool.input.type.readWorkspaceFile.path.string'),
+    );
+  });
+
+  test('agent tool call execution plan accepts flexible patch edit input', () {
+    final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+      PlatformTarget.linux,
+    );
+    final selection = AgentToolRegistry().selectForProfile(
+      profile: profile,
+      providerKind: AgentProviderKind.cloudOpenAICompatible,
+    );
+    final permissions = AgentToolPermissionPlan.fromSelection(selection);
+    final timeline = const AgentToolCallLifecycleTracker()
+        .track(<AgentToolCallEvent>[
+          const AgentToolCallEvent.callStarted(
+            callId: 'call-patch',
+            toolId: 'applyWorkspacePatch',
+            input:
+                '{"edits":[{"documentId":"main.styio","start":0,"end":0,"replacementText":"value = 2\\n"}]}',
+          ),
+        ]);
+
+    final plan = AgentToolCallExecutionPlan.fromTimeline(
+      toolSelection: selection,
+      permissionPlan: permissions,
+      timeline: timeline,
+    );
+
+    expect(plan.status, AgentToolCallExecutionPlanStatus.reviewRequired);
+    expect(plan.executionFor('call-patch')!.issueCodes, isEmpty);
+  });
+
+  test('agent tool input validator returns model-facing rewrite guidance', () {
+    final tool = AgentToolRegistry().tools.singleWhere(
+      (candidate) => candidate.toolId == 'readWorkspaceFile',
+    );
+    final validation = const AgentToolInputValidator().validate(
+      tool: tool,
+      inputText: '{"path":false}',
+    );
+
+    expect(validation.valid, isFalse);
+    expect(validation.issues.single.expectedType, 'string');
+    expect(validation.modelFacingMessage, contains('invalid arguments'));
+    expect(validation.modelFacingMessage, contains('Please rewrite the input'));
+  });
+
   test('agent tool call execution plan waits for streaming input', () {
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
     final selection = AgentToolRegistry().selectForProfile(

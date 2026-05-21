@@ -212,9 +212,14 @@ class AgentToolRegistry {
       capabilities: <String>['workspace.edit.preview', 'change.review'],
       schema: <AgentToolSchemaProperty>[
         AgentToolSchemaProperty(
+          name: 'patch',
+          type: 'string|object',
+          description:
+              'Structured patch object or JSON string. If omitted, top-level edits may be used.',
+        ),
+        AgentToolSchemaProperty(
           name: 'edits',
           type: 'array',
-          required: true,
           description: 'Structured workspace edit operations.',
         ),
       ],
@@ -232,9 +237,14 @@ class AgentToolRegistry {
       schema: <AgentToolSchemaProperty>[
         AgentToolSchemaProperty(
           name: 'patch',
-          type: 'string',
-          required: true,
-          description: 'Unified or structured patch content.',
+          type: 'string|object',
+          description:
+              'Structured patch object or JSON string. If omitted, top-level edits may be used.',
+        ),
+        AgentToolSchemaProperty(
+          name: 'edits',
+          type: 'array',
+          description: 'Structured workspace edit operations.',
         ),
       ],
       todo:
@@ -257,7 +267,7 @@ class AgentToolRegistry {
         ),
         AgentToolSchemaProperty(
           name: 'input',
-          type: 'object',
+          type: 'string|object',
           description: 'Command input matching the command contract.',
         ),
       ],

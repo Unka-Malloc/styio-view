@@ -1833,6 +1833,7 @@ class _AgentPromptSection extends StatefulWidget {
 class _AgentPromptSectionState extends State<_AgentPromptSection> {
   late final TextEditingController _promptController;
   bool _applyingPatch = false;
+  bool _dispatchingToolCalls = false;
   String? _lastCommandApplicationMessage;
   String? _recoveryDispatchMessage;
   AgentIdeCommandSuggestion? _lastRetryableCommandSuggestion;
@@ -1919,6 +1920,74 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
           _applyingPatch = false;
         });
       }
+    }
+  }
+
+  Future<void> _dispatchApprovedToolCalls() async {
+    if (_dispatchingToolCalls) {
+      return;
+    }
+    setState(() {
+      _dispatchingToolCalls = true;
+    });
+    try {
+      final executor = AgentBuiltinToolExecutor(
+        context: widget.sessionContext,
+        ideCommandRunner: widget.onApplyIdeCommandSuggestion == null
+            ? null
+            : _runIdeCommandTool,
+      );
+      await widget.controller.dispatchReadyToolCalls(executor.execute);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _dispatchingToolCalls = false;
+        });
+      }
+    }
+  }
+
+  Future<AgentCommandResultContext> _runIdeCommandTool(
+    AgentIdeCommandSuggestion command,
+  ) async {
+    final callback = widget.onApplyIdeCommandSuggestion;
+    if (callback == null || !widget.controller.beginIdeCommandApplication()) {
+      return AgentCommandResultContext(
+        commandId: command.commandId,
+        input: command.input,
+        applied: false,
+        message:
+            'Command ${command.commandId} cannot run because the IDE command runner is not available.',
+        metadata: const <String, Object?>{'source': 'agent-tool-call'},
+        completedAt: DateTime.now().toUtc(),
+      );
+    }
+    try {
+      final applied = await callback(command);
+      final message = applied
+          ? _appliedIdeCommandMessage(command)
+          : 'Command ${command.commandId} was not applied.';
+      final result = _resolvedIdeCommandResult(
+        command: command,
+        fallbackApplied: applied,
+        fallbackMessage: message,
+        resolver: widget.onResolveIdeCommandResult,
+      );
+      widget.controller.recordIdeCommandResult(result);
+      return result;
+    } on Object {
+      final result = AgentCommandResultContext(
+        commandId: command.commandId,
+        input: command.input,
+        applied: false,
+        message: 'Command ${command.commandId} failed.',
+        metadata: const <String, Object?>{'source': 'agent-tool-call'},
+        completedAt: DateTime.now().toUtc(),
+      );
+      widget.controller.recordIdeCommandResult(result);
+      return result;
+    } finally {
+      widget.controller.endIdeCommandApplication();
     }
   }
 
@@ -2205,7 +2274,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final attachments = controller.attachments;
         final applyingPatch = _applyingPatch || controller.applyingPatch;
         final applyingIdeCommand = controller.applyingIdeCommand;
-        final applyingAction = applyingPatch || applyingIdeCommand;
+        final applyingAction =
+            applyingPatch || applyingIdeCommand || _dispatchingToolCalls;
         final canApplyPendingPatch =
             !applyingPatch &&
             inactiveDirtyPatchTargets.isEmpty &&
@@ -2312,6 +2382,14 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   onDenyCall: applyingAction || controller.sending
                       ? null
                       : (callId) => controller.denyToolCallExecution(callId),
+                  dispatching: _dispatchingToolCalls,
+                  onRunReadyCalls:
+                      toolCallExecutionPlan.status ==
+                              AgentToolCallExecutionPlanStatus.ready &&
+                          !applyingAction &&
+                          !controller.sending
+                      ? () => unawaited(_dispatchApprovedToolCalls())
+                      : null,
                   onDraftReview: applyingAction || controller.sending
                       ? null
                       : () => controller.updatePrompt(
@@ -3065,15 +3143,19 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   const _AgentToolCallReviewSurface({
     required this.timeline,
     required this.executionPlan,
+    required this.dispatching,
     this.onApproveCall,
     this.onDenyCall,
+    this.onRunReadyCalls,
     this.onDraftReview,
   });
 
   final AgentToolCallTimeline timeline;
   final AgentToolCallExecutionPlan executionPlan;
+  final bool dispatching;
   final ValueChanged<String>? onApproveCall;
   final ValueChanged<String>? onDenyCall;
+  final VoidCallback? onRunReadyCalls;
   final VoidCallback? onDraftReview;
 
   @override
@@ -3176,11 +3258,27 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-            OutlinedButton.icon(
-              key: const ValueKey('agent-tool-call-draft-review'),
-              onPressed: onDraftReview,
-              icon: const Icon(Icons.rate_review_outlined),
-              label: const Text('Draft Tool Review'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (executionPlan.status ==
+                    AgentToolCallExecutionPlanStatus.ready)
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('agent-tool-call-run-approved'),
+                    onPressed: dispatching ? null : onRunReadyCalls,
+                    icon: const Icon(Icons.play_arrow),
+                    label: Text(
+                      dispatching ? 'Running Tools...' : 'Run Approved Tools',
+                    ),
+                  ),
+                OutlinedButton.icon(
+                  key: const ValueKey('agent-tool-call-draft-review'),
+                  onPressed: dispatching ? null : onDraftReview,
+                  icon: const Icon(Icons.rate_review_outlined),
+                  label: const Text('Draft Tool Review'),
+                ),
+              ],
             ),
           ],
         ),

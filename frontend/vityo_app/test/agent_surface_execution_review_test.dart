@@ -39,6 +39,7 @@ void main() {
       contextProvider: _context,
     );
     addTearDown(controller.dispose);
+    AgentIdeCommandSuggestion? appliedToolCommand;
     controller.recordToolCallEvent(
       const AgentToolCallEvent.callStarted(
         callId: 'call-command',
@@ -47,7 +48,14 @@ void main() {
       ),
     );
 
-    await _pumpSurface(tester, controller);
+    await _pumpSurface(
+      tester,
+      controller,
+      onApplyIdeCommandSuggestion: (command) async {
+        appliedToolCommand = command;
+        return true;
+      },
+    );
 
     expect(
       find.byKey(const ValueKey('agent-tool-call-review-card')),
@@ -71,6 +79,23 @@ void main() {
     );
     expect(find.text('runIdeCommand · ready · call-command'), findsOneWidget);
     expect(find.text('Review decision: approved'), findsOneWidget);
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-run-approved')),
+    );
+    await tester.pump();
+
+    expect(appliedToolCommand?.commandId, 'runTests');
+    expect(controller.lastIdeCommandResultContext?.commandId, 'runTests');
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.complete,
+    );
+    expect(
+      controller.toolCallExecutionPlan.executionFor('call-command')?.status,
+      AgentToolCallExecutionStatus.completed,
+    );
 
     await _tapVisible(
       tester,
@@ -180,6 +205,7 @@ Future<void> _pumpSurface(
   WidgetTester tester,
   AgentCodingSessionController controller, {
   Future<void> Function()? onApplyWorkspaceRevertPlan,
+  Future<bool> Function(AgentIdeCommandSuggestion)? onApplyIdeCommandSuggestion,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -200,6 +226,7 @@ Future<void> _pumpSurface(
             codingController: controller,
             onApplyPendingPatch: () async {},
             onApplyWorkspaceRevertPlan: onApplyWorkspaceRevertPlan,
+            onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
             onSaveProviderProfile: (profile, {bearerToken}) async {},
           ),
         ),

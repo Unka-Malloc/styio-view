@@ -2476,6 +2476,30 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                       widget.controller.codingExecutionReadiness,
                   changeReviewGate: widget.controller.codingChangeReviewGate,
                 ),
+                if (widget.onApplyIdeCommandSuggestion != null &&
+                    registeredCommandIds.contains(
+                      'collectAgentCodingCheckpoint',
+                    )) ...[
+                  const SizedBox(height: 6),
+                  OutlinedButton.icon(
+                    key: const ValueKey(
+                      'agent-coding-loop-collect-checkpoint',
+                    ),
+                    onPressed: applyingIdeCommand
+                        ? null
+                        : () => unawaited(
+                            _applyIdeCommandSuggestion(
+                              const AgentIdeCommandSuggestion(
+                                commandId: 'collectAgentCodingCheckpoint',
+                                reason:
+                                    'Collect an IDE checkpoint before applying the pending agent patch.',
+                              ),
+                            ),
+                          ),
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('Collect Checkpoint'),
+                  ),
+                ],
                 if (patchWorkspaceEditConversion != null) ...[
                   const SizedBox(height: 6),
                   Text(

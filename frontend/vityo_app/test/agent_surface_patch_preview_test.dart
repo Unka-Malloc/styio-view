@@ -2112,6 +2112,7 @@ void main() {
     addTearDown(controller.dispose);
     controller.updatePrompt('Change several values.');
     await controller.sendPrompt();
+    String? appliedCommandId;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -2131,6 +2132,10 @@ void main() {
               sessionContext: _context(),
               codingController: controller,
               onApplyPendingPatch: () async {},
+              onApplyIdeCommandSuggestion: (command) async {
+                appliedCommandId = command.commandId;
+                return true;
+              },
               onSaveProviderProfile: (profile, {bearerToken}) async {},
             ),
           ),
@@ -2152,7 +2157,19 @@ void main() {
       find.text('Validation waits until the reviewed patch is applied.'),
       findsOneWidget,
     );
+    expect(
+      find.widgetWithText(OutlinedButton, 'Collect Checkpoint'),
+      findsOneWidget,
+    );
     expect(find.text('+ 2 more edit(s) hidden from preview'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.widgetWithText(OutlinedButton, 'Collect Checkpoint'),
+    );
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Collect Checkpoint'));
+    await tester.pump();
+
+    expect(appliedCommandId, 'collectAgentCodingCheckpoint');
   });
 
   testWidgets('agent surface displays applied patch operation counts', (

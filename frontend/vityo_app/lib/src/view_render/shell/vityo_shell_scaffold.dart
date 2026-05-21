@@ -195,6 +195,9 @@ class VityoShellScaffold extends StatelessWidget {
               bearerToken: bearerToken,
             );
           },
+          onMountSavedProviderProfile: (profileKey) async {
+            await shell.failoverAgentProviderProfile(profileKey);
+          },
         );
       case BottomSurfaceTab.sourceControl:
         final sourceControlController = shell.sourceControlStatusController;

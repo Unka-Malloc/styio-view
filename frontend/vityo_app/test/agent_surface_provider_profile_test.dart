@@ -9,6 +9,7 @@ import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_prompt_profile_store.dart';
 import 'package:vityo_app/src/view_ide/environment/configuration/configuration.dart';
 import 'package:vityo_app/src/view_render/agent/agent_surface.dart';
 import 'package:vityo_app/src/view_render/platform/viewport_profile.dart';
@@ -683,6 +684,81 @@ void main() {
     expect(find.textContaining('secret-token'), findsNothing);
   });
 
+  testWidgets('agent surface renders saved provider profiles and mounts by key', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    String? mountedProfileKey;
+    const savedProfiles = <AgentPromptProfileManifestEntry>[
+      AgentPromptProfileManifestEntry(
+        key: 'agent.provider.openai-codex-spark-web',
+        profileId: 'openai-codex-spark-web',
+        displayName: 'Saved Codex Spark',
+        route: 'web-hosted',
+        protocol: 'openai-responses',
+        model: 'gpt-5.3-codex-spark',
+        requiresCredential: true,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(savedProviderProfiles: savedProfiles),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+              onMountSavedProviderProfile: (profileKey) async {
+                mountedProfileKey = profileKey;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-saved-provider-profiles')),
+      findsOneWidget,
+    );
+    expect(find.text('Saved provider profiles (1)'), findsOneWidget);
+    expect(find.text('Saved Codex Spark'), findsOneWidget);
+    expect(
+      find.text('gpt-5.3-codex-spark / openai-responses / web-hosted'),
+      findsOneWidget,
+    );
+    expect(find.text('credential required'), findsOneWidget);
+
+    await _tapProfileControl(
+      tester,
+      find.byKey(
+        const ValueKey(
+          'agent-saved-provider-profile-mount-agent.provider.openai-codex-spark-web',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(mountedProfileKey, 'agent.provider.openai-codex-spark-web');
+  });
+
   testWidgets('agent provider profile form follows mounted provider changes', (
     tester,
   ) async {
@@ -776,7 +852,10 @@ void main() {
   });
 }
 
-AgentSessionContext _context() {
+AgentSessionContext _context({
+  Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
+      const <AgentPromptProfileManifestEntry>[],
+}) {
   return AgentSessionContext.fromEditorState(
     document: const DocumentState(
       documentId: 'main.styio',
@@ -785,5 +864,6 @@ AgentSessionContext _context() {
     ),
     selection: const SelectionState.collapsed(0),
     diagnostics: const [],
+    savedProviderProfiles: savedProviderProfiles,
   );
 }

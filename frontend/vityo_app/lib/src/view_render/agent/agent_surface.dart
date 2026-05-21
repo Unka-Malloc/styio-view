@@ -25,6 +25,7 @@ class AgentSurface extends StatelessWidget {
     required this.onSaveProviderProfile,
     this.onApplyIdeCommandSuggestion,
     this.onResolveIdeCommandResult,
+    this.onMountSavedProviderProfile,
     this.activityHistory,
   });
 
@@ -43,6 +44,7 @@ class AgentSurface extends StatelessWidget {
   onResolveIdeCommandResult;
   final Future<void> Function(AgentPromptProfile profile, {String? bearerToken})
   onSaveProviderProfile;
+  final Future<void> Function(String profileKey)? onMountSavedProviderProfile;
   final AgentCodingSessionHistory? activityHistory;
 
   @override
@@ -78,7 +80,10 @@ class AgentSurface extends StatelessWidget {
               _AgentProviderProfileSection(
                 platformTarget: platformTarget,
                 controller: codingController,
+                savedProviderProfiles:
+                    sessionContext.agent.savedProviderProfiles,
                 onSaveProviderProfile: onSaveProviderProfile,
+                onMountSavedProviderProfile: onMountSavedProviderProfile,
               ),
               const SizedBox(height: 14),
               if (viewportProfile.isMobile) ...[
@@ -207,13 +212,17 @@ class _AgentProviderProfileSection extends StatefulWidget {
   const _AgentProviderProfileSection({
     required this.platformTarget,
     required this.controller,
+    required this.savedProviderProfiles,
     required this.onSaveProviderProfile,
+    this.onMountSavedProviderProfile,
   });
 
   final PlatformTarget platformTarget;
   final AgentCodingSessionController controller;
+  final List<AgentPromptProfileManifestEntry> savedProviderProfiles;
   final Future<void> Function(AgentPromptProfile profile, {String? bearerToken})
   onSaveProviderProfile;
+  final Future<void> Function(String profileKey)? onMountSavedProviderProfile;
 
   @override
   State<_AgentProviderProfileSection> createState() =>
@@ -241,6 +250,7 @@ class _AgentProviderProfileSectionState
   late String _lockSignature;
   String? _failureSignature;
   bool _saving = false;
+  String? _mountingProfileKey;
   String? _errorMessage;
 
   @override
@@ -411,6 +421,7 @@ class _AgentProviderProfileSectionState
     final executionResolution = widget.controller.providerExecutionResolution;
     final locked =
         _saving ||
+        _mountingProfileKey != null ||
         widget.controller.sending ||
         widget.controller.applyingPatch ||
         widget.controller.applyingIdeCommand;
@@ -476,6 +487,18 @@ class _AgentProviderProfileSectionState
             'Preset requires an explicit OpenAI API key or bearer token. Vityo stores the credential through Credential DataStore and does not read Codex OAuth from the host.',
             style: theme.textTheme.bodySmall,
           ),
+          if (widget.savedProviderProfiles.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _SavedProviderProfilesSection(
+              profiles: widget.savedProviderProfiles,
+              activeProfileId: widget.controller.profile.profileId,
+              mountingProfileKey: _mountingProfileKey,
+              locked: locked,
+              onMountProfile: widget.onMountSavedProviderProfile == null
+                  ? null
+                  : _mountSavedProviderProfile,
+            ),
+          ],
           if (_endpointCredentialReference != null) ...[
             const SizedBox(height: 6),
             Text(
@@ -745,6 +768,183 @@ class _AgentProviderProfileSectionState
       _setEndpointContract(selected.endpoint);
       _errorMessage = null;
     });
+  }
+
+  Future<void> _mountSavedProviderProfile(
+    AgentPromptProfileManifestEntry profile,
+  ) async {
+    final mountProfile = widget.onMountSavedProviderProfile;
+    if (mountProfile == null) {
+      return;
+    }
+    setState(() {
+      _mountingProfileKey = profile.key;
+      _errorMessage = null;
+    });
+    try {
+      await mountProfile(profile.key);
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = sanitizeAgentError(error.toString());
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _mountingProfileKey = null;
+        });
+      }
+    }
+  }
+}
+
+class _SavedProviderProfilesSection extends StatelessWidget {
+  const _SavedProviderProfilesSection({
+    required this.profiles,
+    required this.activeProfileId,
+    required this.locked,
+    this.mountingProfileKey,
+    this.onMountProfile,
+  });
+
+  final List<AgentPromptProfileManifestEntry> profiles;
+  final String activeProfileId;
+  final bool locked;
+  final String? mountingProfileKey;
+  final Future<void> Function(AgentPromptProfileManifestEntry profile)?
+  onMountProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('agent-saved-provider-profiles'),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.42,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.54),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Saved provider profiles (${profiles.length})',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          for (final profile in profiles) ...[
+            _SavedProviderProfileTile(
+              profile: profile,
+              active: profile.profileId == activeProfileId,
+              mounting: mountingProfileKey == profile.key,
+              locked: locked,
+              onMountProfile: onMountProfile,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SavedProviderProfileTile extends StatelessWidget {
+  const _SavedProviderProfileTile({
+    required this.profile,
+    required this.active,
+    required this.mounting,
+    required this.locked,
+    this.onMountProfile,
+  });
+
+  final AgentPromptProfileManifestEntry profile;
+  final bool active;
+  final bool mounting;
+  final bool locked;
+  final Future<void> Function(AgentPromptProfileManifestEntry profile)?
+  onMountProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mountAvailable = onMountProfile != null && !active && !locked;
+    return Container(
+      key: ValueKey('agent-saved-provider-profile-${profile.key}'),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.64),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.displayName.isEmpty
+                          ? profile.profileId
+                          : profile.displayName,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${profile.model} / ${profile.protocol} / ${profile.route}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'key: ${profile.key}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton(
+                key: ValueKey(
+                  'agent-saved-provider-profile-mount-${profile.key}',
+                ),
+                onPressed: mountAvailable
+                    ? () async {
+                        await onMountProfile!(profile);
+                      }
+                    : null,
+                child: Text(
+                  active ? 'Mounted' : (mounting ? 'Mounting...' : 'Mount'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              Chip(label: Text('profile ${profile.profileId}')),
+              if (profile.requiresCredential)
+                const Chip(label: Text('credential required')),
+              if (active) const Chip(label: Text('active')),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

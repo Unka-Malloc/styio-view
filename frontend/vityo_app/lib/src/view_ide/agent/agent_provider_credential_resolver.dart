@@ -6,28 +6,42 @@ import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
 
 class AgentProviderCredentialResolver {
-  const AgentProviderCredentialResolver({required this.configurationStore});
+  const AgentProviderCredentialResolver({
+    required this.configurationStore,
+    this.environment = const <String, String>{},
+  });
 
   final ConfigurationStore configurationStore;
+  final Map<String, String> environment;
 
   Future<String?> bearerTokenForEndpoint(AgentProviderEndpoint endpoint) async {
     if (!endpoint.credentialPolicy.allowsClientCredentialLookup) {
       return null;
     }
     final reference = endpoint.credentialReference;
-    if (reference == null) {
+    if (reference != null) {
+      final result = await configurationStore.injectCredential(
+        CredentialInjectionBinding(
+          targetName: 'Authorization',
+          reference: reference,
+        ),
+      );
+      if (result.injected) {
+        return result.injectedValue!.value;
+      }
+    }
+
+    final environmentName = endpoint.apiKeyEnvironmentName.trim();
+    if (environmentName.isEmpty) {
       return null;
     }
-    final result = await configurationStore.injectCredential(
-      CredentialInjectionBinding(
-        targetName: 'Authorization',
-        reference: reference,
-      ),
-    );
-    if (!result.injected) {
+    final environmentValue = environment[environmentName]?.trim();
+    if (environmentValue == null || environmentValue.isEmpty) {
       return null;
     }
-    return result.injectedValue!.value;
+    // TODO: add provider-specific OAuth/device-flow support through
+    // Configuration/CredentialDataStore only; never scrape Codex CLI auth files.
+    return environmentValue;
   }
 }
 
@@ -35,6 +49,7 @@ class ConfiguredAgentProviderAdapterFactory {
   const ConfiguredAgentProviderAdapterFactory({
     required this.configurationStore,
     required this.transport,
+    this.environment = const <String, String>{},
     this.localBridgeTransport,
     this.localServiceManager,
     this.routeExecutor,
@@ -43,6 +58,7 @@ class ConfiguredAgentProviderAdapterFactory {
 
   final ConfigurationStore configurationStore;
   final AgentProviderTransport transport;
+  final Map<String, String> environment;
   final AgentProviderTransport? localBridgeTransport;
   final LocalServiceManager? localServiceManager;
   final AgentProviderRouteExecutor? routeExecutor;
@@ -102,6 +118,7 @@ class ConfiguredAgentProviderAdapterFactory {
     final endpoint = selectedEndpoint.endpoint;
     final token = await AgentProviderCredentialResolver(
       configurationStore: configurationStore,
+      environment: environment,
     ).bearerTokenForEndpoint(endpoint);
     final transport = _transportFor(executionPlan);
     if (endpoint.protocol.trim().toLowerCase() == 'openai-responses') {
@@ -130,6 +147,7 @@ class ConfiguredAgentProviderAdapterFactory {
         AgentProviderRouteExecutor(localServiceManager: localServiceManager);
     final credentialResolver = AgentProviderCredentialResolver(
       configurationStore: configurationStore,
+      environment: environment,
     );
     return executor.resolve(
       profile,

@@ -1,14 +1,18 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_credential_resolver.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
@@ -68,6 +72,52 @@ void main() {
     expect(ideCapabilityIds, contains('interaction.search'));
     expect(ideCapabilityIds, contains('agent.coding-loop'));
   });
+
+  test(
+    'configured provider uses explicit environment API key for Codex Spark',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_provider_config_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final configurationStore = _createAgentProviderConfigurationStore(
+        tempRoot,
+      );
+      final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      );
+      final resolver = AgentProviderCredentialResolver(
+        configurationStore: configurationStore,
+        environment: const <String, String>{
+          'OPENAI_API_KEY': '  explicit-env-token  ',
+        },
+      );
+      final factory = ConfiguredAgentProviderAdapterFactory(
+        configurationStore: configurationStore,
+        transport: _RecordingAgentProviderTransport(),
+        environment: const <String, String>{
+          'OPENAI_API_KEY': '  explicit-env-token  ',
+        },
+      );
+
+      final token = await resolver.bearerTokenForEndpoint(profile.endpoint);
+      final execution = await factory.resolveExecution(profile);
+
+      expect(token, 'explicit-env-token');
+      expect(profile.endpoint.protocol, 'openai-responses');
+      expect(profile.endpoint.model, 'gpt-5.3-codex-spark');
+      expect(
+        profile.toJson().toString().toLowerCase(),
+        isNot(contains('oauth')),
+      );
+      expect(execution.status, AgentProviderExecutionResolutionStatus.ready);
+      expect(execution.selectedEndpointIndex, 0);
+      expect(
+        execution.endpoints.single.credentialReadiness,
+        AgentProviderCredentialReadiness.available,
+      );
+    },
+  );
 
   test('agent code patch edit parses delete operation from JSON', () {
     final edit = AgentCodePatchEdit.fromJson(<String, Object?>{
@@ -1974,6 +2024,26 @@ void main() {
         'https://agent.example.test/v1/chat/completions',
       );
     },
+  );
+}
+
+ConfigurationStore _createAgentProviderConfigurationStore(Directory root) {
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: root.path,
+      homePath: root.path,
+    ),
+  );
+  return ConfigurationStore(
+    dataStore: FoundationDataStore(
+      resourceCoordinator: FoundationResourceCoordinator(
+        resourceManager: resourceManager,
+        fileSystemManager: fileSystemManager,
+      ),
+      fileSystemManager: fileSystemManager,
+    ),
+    credentialDataStore: InMemoryCredentialDataStore(),
   );
 }
 

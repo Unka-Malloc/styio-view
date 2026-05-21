@@ -272,7 +272,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      76,
+      77,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -887,6 +887,7 @@ void main() {
       );
       expect(systemMessage['content'], contains('agent.pendingPatch'));
       expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
+      expect(systemMessage['content'], contains('commands.registeredCommandIds'));
       expect(systemMessage['content'], contains('agent.recentPatchProposals'));
       expect(systemMessage['content'], contains('agent.pendingIdeCommands'));
       expect(systemMessage['content'], contains('inputMissing'));
@@ -1068,7 +1069,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 76);
+      expect(metadata['contextSchemaVersion'], 77);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

@@ -513,7 +513,13 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 76);
+    expect(json['schemaVersion'], 77);
+    final registeredCommandIds =
+        commandsJson['registeredCommandIds']! as List<Object?>;
+    expect(commandsJson['commandCount'], registeredCommandIds.length);
+    expect(registeredCommandIds, contains('runBuild'));
+    expect(registeredCommandIds, contains('renameSymbol'));
+    expect(registeredCommandIds.toSet().length, registeredCommandIds.length);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1477,7 +1483,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 76);
+    expect(context.schemaVersion, 77);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1860,7 +1866,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 76);
+    expect(json['schemaVersion'], 77);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2145,7 +2151,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 76);
+    expect(context.schemaVersion, 77);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

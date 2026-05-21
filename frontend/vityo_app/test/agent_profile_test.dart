@@ -76,6 +76,7 @@ void main() {
       contains('workspace.sourceControlContext.suggestedCommandIds'),
     );
     expect(decoded.systemPrompt, contains('commands.sourceControlCommands'));
+    expect(decoded.systemPrompt, contains('commands.registeredCommandIds'));
     expect(decoded.systemPrompt, contains('stageSourceControl'));
     expect(decoded.systemPrompt, contains('unstageSourceControl'));
     expect(decoded.systemPrompt, contains('planSourceControlBranchSwitch'));

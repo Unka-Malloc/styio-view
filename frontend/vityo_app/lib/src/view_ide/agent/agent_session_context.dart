@@ -178,7 +178,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 76,
+      schemaVersion: 77,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -3900,6 +3900,8 @@ class AgentCommandCatalogContext {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'commandCount': commandCount,
+      'registeredCommandIds': registeredCommandIds,
       'persistenceCommands': persistenceCommands
           .map((command) => command.toJson())
           .toList(growable: false),
@@ -3967,6 +3969,40 @@ class AgentCommandCatalogContext {
       if (lastResult != null) 'lastResult': lastResult!.toJson(),
     };
   }
+
+  int get commandCount => registeredCommandIds.length;
+
+  List<String> get registeredCommandIds {
+    final ids = <String>[];
+    final seen = <String>{};
+    for (final command in _allCommandContexts) {
+      if (seen.add(command.id)) {
+        ids.add(command.id);
+      }
+    }
+    return ids;
+  }
+
+  List<AgentCommandContext> get _allCommandContexts => <AgentCommandContext>[
+    ...persistenceCommands,
+    ...executionCommands,
+    ...diagnosticCommands,
+    ...languageServiceCommands,
+    ...sourceControlCommands,
+    ...workspaceFileCommands,
+    ...codingCommands,
+    ...navigationCommands,
+    ...refactorCommands,
+    ...dependencyCommands,
+    ...toolchainCommands,
+    ...deploymentCommands,
+    ...moduleCommands,
+    ...surfaceCommands,
+    ...nativeToolCommands,
+    ...testingCommands,
+    ...debugCommands,
+    ...settingsCommands,
+  ];
 
   int get nativeToolReadyCommandCount {
     return nativeToolCommandReadiness

@@ -167,7 +167,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 66,
+      schemaVersion: 67,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -3305,6 +3305,7 @@ class AgentCompletionContext {
 
 class AgentDefinitionContext {
   const AgentDefinitionContext({
+    required this.agentCommandId,
     required this.name,
     required this.kind,
     required this.nameStart,
@@ -3320,6 +3321,7 @@ class AgentDefinitionContext {
     required this.documentation,
   });
 
+  final String agentCommandId;
   final String name;
   final String kind;
   final int nameStart;
@@ -3340,6 +3342,7 @@ class AgentDefinitionContext {
   }) {
     final symbol = target.symbol;
     return AgentDefinitionContext(
+      agentCommandId: 'goToDefinition',
       name: symbol.name,
       kind: symbol.kind.name,
       nameStart: symbol.nameRange.start,
@@ -3370,6 +3373,7 @@ class AgentDefinitionContext {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'agentCommandId': agentCommandId,
       'name': name,
       'kind': kind,
       'nameStart': nameStart,
@@ -3510,6 +3514,7 @@ class AgentResolvedReferenceContext {
 
 class AgentReferenceContext {
   const AgentReferenceContext({
+    required this.agentCommandIds,
     required this.name,
     required this.kind,
     required this.start,
@@ -3522,6 +3527,7 @@ class AgentReferenceContext {
     required this.access,
   });
 
+  final List<String> agentCommandIds;
   final String name;
   final String kind;
   final int start;
@@ -3538,6 +3544,7 @@ class AgentReferenceContext {
     required DocumentState document,
   }) {
     return AgentReferenceContext(
+      agentCommandIds: const <String>['nextReference', 'previousReference'],
       name: reference.name,
       kind: reference.kind.name,
       start: reference.range.start,
@@ -3561,6 +3568,7 @@ class AgentReferenceContext {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'agentCommandIds': agentCommandIds,
       'name': name,
       'kind': kind,
       'start': start,

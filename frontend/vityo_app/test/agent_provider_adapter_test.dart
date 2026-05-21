@@ -253,7 +253,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      66,
+      67,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -930,6 +930,14 @@ void main() {
       expect(systemMessage['content'], contains('language.focusedDiagnostics'));
       expect(systemMessage['content'], contains('language.resolvedElement'));
       expect(systemMessage['content'], contains('language.resolvedReference'));
+      expect(
+        systemMessage['content'],
+        contains('language.definition.agentCommandId'),
+      );
+      expect(
+        systemMessage['content'],
+        contains('language.references.agentCommandIds'),
+      );
       expect(systemMessage['content'], contains('language.parameterInfo'));
       expect(systemMessage['content'], contains('language.serviceStatus'));
       expect(
@@ -997,7 +1005,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 66);
+      expect(metadata['contextSchemaVersion'], 67);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

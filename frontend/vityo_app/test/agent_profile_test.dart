@@ -86,6 +86,8 @@ void main() {
     expect(decoded.systemPrompt, contains('language.resolvedElement'));
     expect(decoded.systemPrompt, contains('language.resolvedReference'));
     expect(decoded.systemPrompt, contains('primary resolved symbol facts'));
+    expect(decoded.systemPrompt, contains('language.definition.agentCommandId'));
+    expect(decoded.systemPrompt, contains('language.references.agentCommandIds'));
     expect(decoded.systemPrompt, contains('language.parameterInfo'));
     expect(decoded.systemPrompt, contains('signature help'));
     expect(decoded.systemPrompt, contains('language.codeActions'));

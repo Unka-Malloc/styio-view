@@ -167,7 +167,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 63,
+      schemaVersion: 64,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -4319,6 +4319,8 @@ class AgentCommandContext {
     required this.description,
     required this.requiresInput,
     required this.inputLabel,
+    required this.inputContract,
+    required this.inputExamples,
   });
 
   final String id;
@@ -4327,6 +4329,8 @@ class AgentCommandContext {
   final String description;
   final bool requiresInput;
   final String inputLabel;
+  final String inputContract;
+  final List<String> inputExamples;
 
   factory AgentCommandContext.fromDescriptor(AppCommandDescriptor command) {
     return AgentCommandContext(
@@ -4336,6 +4340,8 @@ class AgentCommandContext {
       description: command.description,
       requiresInput: command.requiresInput,
       inputLabel: command.inputLabel,
+      inputContract: command.inputContract,
+      inputExamples: command.inputExamples,
     );
   }
 
@@ -4347,6 +4353,8 @@ class AgentCommandContext {
       'description': description,
       'requiresInput': requiresInput,
       'inputLabel': inputLabel,
+      'inputContract': inputContract,
+      'inputExamples': inputExamples,
     };
   }
 }

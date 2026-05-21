@@ -210,6 +210,8 @@ class AppCommandDescriptor {
     this.primary = false,
     this.requiresInput = false,
     this.inputLabel = '',
+    this.inputContract = '',
+    this.inputExamples = const <String>[],
     this.shortcuts = const <AppCommandShortcutSpec>[],
   });
 
@@ -220,6 +222,8 @@ class AppCommandDescriptor {
   final bool primary;
   final bool requiresInput;
   final String inputLabel;
+  final String inputContract;
+  final List<String> inputExamples;
   final List<AppCommandShortcutSpec> shortcuts;
 
   AppCommandCategory get category => id.category;
@@ -234,6 +238,8 @@ class AppCommandDescriptor {
       'primary': primary,
       'requiresInput': requiresInput,
       if (inputLabel.isNotEmpty) 'inputLabel': inputLabel,
+      if (inputContract.isNotEmpty) 'inputContract': inputContract,
+      if (inputExamples.isNotEmpty) 'inputExamples': inputExamples,
       if (shortcuts.isNotEmpty)
         'shortcuts': shortcuts.map((shortcut) => shortcut.toJson()).toList(),
     };
@@ -440,6 +446,10 @@ class StyioCommandRegistry {
       shortcutHint: 'Cmd/Ctrl+.',
       description:
           'Apply the first available quick fix/code action, or select one by 1-based index or label.',
+      inputLabel: 'Optional quick fix index or label',
+      inputContract:
+          'Optional. Use a 1-based quick fix index, exact label, or label fragment from language.codeActions.',
+      inputExamples: <String>['1', '2', 'Replace with second'],
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('period', control: true),
         AppCommandShortcutSpec('period', meta: true),

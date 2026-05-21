@@ -195,6 +195,9 @@ void main() {
       expect(applyQuickFix.label, 'Quick Fix');
       expect(applyQuickFix.shortcutHint, 'Cmd/Ctrl+.');
       expect(applyQuickFix.shortcuts, hasLength(2));
+      expect(applyQuickFix.inputLabel, 'Optional quick fix index or label');
+      expect(applyQuickFix.inputContract, contains('1-based quick fix index'));
+      expect(applyQuickFix.inputExamples, contains('2'));
       expect(previewQuickFix.label, 'Preview Quick Fix');
       expect(previewQuickFix.shortcutHint, 'Route');
       expect(previewQuickFix.requiresInput, isFalse);
@@ -496,6 +499,9 @@ void main() {
     final searchWorkspace = commands.cast<Map<String, Object?>>().firstWhere(
       (command) => command['id'] == AppCommandId.searchWorkspace.name,
     );
+    final applyQuickFix = commands.cast<Map<String, Object?>>().firstWhere(
+      (command) => command['id'] == AppCommandId.applyQuickFix.name,
+    );
 
     expect(manifest['schema'], 'vityo.command-contributions.v1');
     expect(
@@ -512,6 +518,12 @@ void main() {
     );
     expect(searchWorkspace['requiresInput'], isTrue);
     expect(searchWorkspace['inputLabel'], 'Search query');
+    expect(applyQuickFix['inputLabel'], 'Optional quick fix index or label');
+    expect(
+      applyQuickFix['inputContract'],
+      contains('language.codeActions'),
+    );
+    expect(applyQuickFix['inputExamples'], contains('Replace with second'));
   });
 
   test('command registry exposes toolchain and deployment route commands', () {

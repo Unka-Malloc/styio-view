@@ -324,6 +324,15 @@ void main() {
     );
     expect(entriesById['debugger.dap']?.runtimeMaturityBlocking, isFalse);
     expect(
+      entriesById['toolchain.manager']?.summary,
+      contains('ToolchainBootstrapExecutionPlan'),
+    );
+    expect(
+      entriesById['toolchain.manager']?.todo,
+      contains('concrete installer UX'),
+    );
+    expect(entriesById['toolchain.manager']?.runtimeMaturityBlocking, isFalse);
+    expect(
       entriesById['interaction.testing']?.status,
       IdeCapabilityStatus.scaffolded,
     );

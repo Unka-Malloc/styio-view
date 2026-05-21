@@ -570,9 +570,10 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/toolchain',
           summary:
-              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, managed downloads, Styio-first toolchain lifecycle reports, bootstrap summaries for settings/project/agent consumers, settings bootstrap action controls, and extension toolchain route consumption are wired.',
+              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, managed downloads, Styio-first toolchain lifecycle reports, bootstrap summaries for settings/project/agent consumers, ToolchainBootstrapExecutionPlan settings/installer/project action steps, settings bootstrap action controls, and extension toolchain route consumption are wired.',
           todo:
-              'TODO: connect bootstrap action controls to concrete installer UX and project bootstrap execution.',
+              'TODO: connect ToolchainBootstrapExecutionPlan steps to concrete installer UX and project bootstrap execution.',
+          runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code extensions toolchain model',
             'IntelliJ SDK model',

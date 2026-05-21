@@ -80,6 +80,7 @@ void main() {
         StyioToolchainRole.compiler,
       ],
     );
+    final executionPlan = summary.executionPlan();
     final json = summary.toJson();
 
     expect(summary.ready, isFalse);
@@ -94,6 +95,16 @@ void main() {
       contains('open-toolchain-settings'),
     );
     expect(summary.agentContext['toolchainReady'], isFalse);
+    expect(executionPlan.canExecute, isTrue);
+    expect(executionPlan.surfaceCounts['settings'], greaterThanOrEqualTo(1));
+    expect(
+      executionPlan.steps.map((step) => step.actionId),
+      contains('select-styio-compiler'),
+    );
+    expect(
+      (json['executionPlan']! as Map<String, Object?>)['canExecute'],
+      isTrue,
+    );
     expect(json['settingsActionIds'], contains('select-styio-compiler'));
     expect(
       (json['agentContext']! as Map<String, Object?>)['activeToolchains'],

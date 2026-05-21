@@ -284,7 +284,134 @@ class ToolchainManagerBootstrapSummary {
       'settingsActionIds': settingsActionIds,
       'installerActionIds': installerActionIds,
       'projectBootstrapActionIds': projectBootstrapActionIds,
+      'executionPlan': executionPlan().toJson(),
       'agentContext': agentContext,
+    };
+  }
+
+  ToolchainBootstrapExecutionPlan executionPlan() {
+    return ToolchainBootstrapExecutionPlan.fromSummary(this);
+  }
+}
+
+enum ToolchainBootstrapActionSurface { settings, installer, project }
+
+extension ToolchainBootstrapActionSurfaceX on ToolchainBootstrapActionSurface {
+  String get wireValue {
+    return switch (this) {
+      ToolchainBootstrapActionSurface.settings => 'settings',
+      ToolchainBootstrapActionSurface.installer => 'installer',
+      ToolchainBootstrapActionSurface.project => 'project',
+    };
+  }
+}
+
+class ToolchainBootstrapActionStep {
+  const ToolchainBootstrapActionStep({
+    required this.stepId,
+    required this.actionId,
+    required this.surface,
+    required this.required,
+    this.completed = false,
+  });
+
+  final String stepId;
+  final String actionId;
+  final ToolchainBootstrapActionSurface surface;
+  final bool required;
+  final bool completed;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'stepId': stepId,
+      'actionId': actionId,
+      'surface': surface.wireValue,
+      'required': required,
+      'completed': completed,
+    };
+  }
+}
+
+class ToolchainBootstrapExecutionPlan {
+  const ToolchainBootstrapExecutionPlan({
+    required this.ready,
+    required this.steps,
+    this.todo = '',
+  });
+
+  factory ToolchainBootstrapExecutionPlan.fromSummary(
+    ToolchainManagerBootstrapSummary summary,
+  ) {
+    var index = 0;
+    ToolchainBootstrapActionStep step(
+      String actionId,
+      ToolchainBootstrapActionSurface surface, {
+      required bool required,
+    }) {
+      index += 1;
+      return ToolchainBootstrapActionStep(
+        stepId: 'toolchain-bootstrap.$index',
+        actionId: actionId,
+        surface: surface,
+        required: required,
+        completed: summary.ready,
+      );
+    }
+
+    return ToolchainBootstrapExecutionPlan(
+      ready: summary.ready,
+      steps: List<ToolchainBootstrapActionStep>.unmodifiable(
+        <ToolchainBootstrapActionStep>[
+          for (final actionId in summary.settingsActionIds)
+            step(
+              actionId,
+              ToolchainBootstrapActionSurface.settings,
+              required: true,
+            ),
+          for (final actionId in summary.installerActionIds)
+            step(
+              actionId,
+              ToolchainBootstrapActionSurface.installer,
+              required: !summary.ready,
+            ),
+          for (final actionId in summary.projectBootstrapActionIds)
+            step(
+              actionId,
+              ToolchainBootstrapActionSurface.project,
+              required: true,
+            ),
+        ],
+      ),
+      todo:
+          'TODO: bind toolchain bootstrap execution steps to installer UX and project bootstrap runners.',
+    );
+  }
+
+  final bool ready;
+  final List<ToolchainBootstrapActionStep> steps;
+  final String todo;
+
+  bool get canExecute => !ready && steps.isNotEmpty;
+  int get requiredStepCount => steps.where((step) => step.required).length;
+
+  Map<String, int> get surfaceCounts {
+    return <String, int>{
+      for (final surface in ToolchainBootstrapActionSurface.values)
+        surface.wireValue: steps
+            .where((step) => step.surface == surface)
+            .length,
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'canExecute': canExecute,
+      'stepCount': steps.length,
+      'requiredStepCount': requiredStepCount,
+      'surfaceCounts': surfaceCounts,
+      'steps': steps.map((step) => step.toJson()).toList(growable: false),
+      if (todo.isNotEmpty) 'todo': todo,
     };
   }
 }

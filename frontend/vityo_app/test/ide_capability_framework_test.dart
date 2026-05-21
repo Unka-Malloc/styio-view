@@ -559,15 +559,15 @@ void main() {
     );
     expect(
       entriesById['runtime.execution']?.summary,
-      contains('ExtensionRuntimeTaskCancellationAdapter dispatch bridge'),
+      contains('ExtensionRuntimeTaskTerminationRequest/Result'),
+    );
+    expect(
+      entriesById['runtime.execution']?.summary,
+      contains('ShellManager/ProcessManager cancellation adapter factories'),
     );
     expect(
       entriesById['runtime.execution']?.todo,
-      contains('production ShellManager/ProcessManager termination'),
-    );
-    expect(
-      entriesById['runtime.execution']?.todo,
-      contains('termination adapters'),
+      contains('platform-specific process handles'),
     );
     expect(entriesById['runtime.execution']?.runtimeMaturityBlocking, isFalse);
     expect(

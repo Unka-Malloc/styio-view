@@ -411,6 +411,55 @@ void main() {
     },
   );
 
+  test(
+    'extension runtime task cancellation adapters expose termination requests',
+    () async {
+      final plan = _createRuntimeTaskPlan();
+      final telemetry = ExtensionRuntimeTaskInMemoryTelemetrySink();
+      final requests = <ExtensionRuntimeTaskTerminationRequest>[];
+      final bridge = ExtensionRuntimeTaskExecutionBridge(
+        telemetrySink: telemetry,
+        cancellationAdapters: <ExtensionRuntimeTaskCancellationAdapter>[
+          ExtensionRuntimeTaskCancellationAdapter.processManager(
+            terminate: (request) async {
+              requests.add(request);
+              return const ExtensionRuntimeTaskTerminationResult.accepted(
+                processTerminated: true,
+                message: 'Process handle terminated.',
+                metadata: <String, Object?>{'pid': 42},
+              );
+            },
+          ),
+        ],
+      );
+
+      bridge.registerCancellationHandle(
+        plan: plan,
+        processHandleId: 'process-build-1',
+      );
+      final result = await bridge.dispatchCancellation(
+        plan: plan,
+        timestamp: DateTime.utc(2026, 5, 21, 4),
+        reason: 'user cancelled build',
+      );
+
+      expect(result.dispatched, isTrue);
+      expect(result.adapterResult?.processTerminated, isTrue);
+      expect(requests, hasLength(1));
+      expect(requests.single.managerId, 'toolchain-manager');
+      expect(requests.single.backendKind, 'process-manager');
+      expect(
+        requests.single.signal,
+        ExtensionRuntimeTaskTerminationSignal.terminate,
+      );
+      expect(requests.single.toJson()['processHandleId'], 'process-build-1');
+      expect(
+        telemetry.records.single.metadata['adapterResult'],
+        containsPair('processTerminated', true),
+      );
+    },
+  );
+
   test('extension runtime task catalog reports missing command metadata', () {
     final route = const ExtensionContributionRouter().routeContribution(
       extensionId: 'broken.tasks',

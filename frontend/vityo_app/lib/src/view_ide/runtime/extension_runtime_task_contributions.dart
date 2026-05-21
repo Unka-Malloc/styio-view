@@ -665,12 +665,183 @@ typedef ExtensionRuntimeTaskCancellationAdapterHandler =
       required String reason,
     });
 
+enum ExtensionRuntimeTaskTerminationSignal { interrupt, terminate, kill }
+
+extension ExtensionRuntimeTaskTerminationSignalX
+    on ExtensionRuntimeTaskTerminationSignal {
+  String get wireValue {
+    return switch (this) {
+      ExtensionRuntimeTaskTerminationSignal.interrupt => 'interrupt',
+      ExtensionRuntimeTaskTerminationSignal.terminate => 'terminate',
+      ExtensionRuntimeTaskTerminationSignal.kill => 'kill',
+    };
+  }
+}
+
+class ExtensionRuntimeTaskTerminationRequest {
+  const ExtensionRuntimeTaskTerminationRequest({
+    required this.plan,
+    required this.handle,
+    required this.timestamp,
+    required this.reason,
+    required this.managerId,
+    required this.backendKind,
+    this.signal = ExtensionRuntimeTaskTerminationSignal.terminate,
+  });
+
+  final ExtensionRuntimeTaskExecutionPlan plan;
+  final ExtensionRuntimeTaskCancellationHandle handle;
+  final DateTime timestamp;
+  final String reason;
+  final String managerId;
+  final String backendKind;
+  final ExtensionRuntimeTaskTerminationSignal signal;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': plan.contribution.extensionId,
+      'contributionId': plan.contribution.contributionId,
+      'taskId': plan.executionPlan.definition.id,
+      'processHandleId': handle.processHandleId,
+      'timestamp': timestamp.toIso8601String(),
+      'reason': reason,
+      'managerId': managerId,
+      'backendKind': backendKind,
+      'signal': signal.wireValue,
+    };
+  }
+}
+
+class ExtensionRuntimeTaskTerminationResult {
+  const ExtensionRuntimeTaskTerminationResult({
+    required this.accepted,
+    required this.processTerminated,
+    required this.message,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const ExtensionRuntimeTaskTerminationResult.accepted({
+    bool processTerminated = true,
+    String message = 'Extension runtime task process termination accepted.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: true,
+         processTerminated: processTerminated,
+         message: message,
+         metadata: metadata,
+       );
+
+  const ExtensionRuntimeTaskTerminationResult.rejected({
+    String message = 'Extension runtime task process termination rejected.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: false,
+         processTerminated: false,
+         message: message,
+         metadata: metadata,
+       );
+
+  final bool accepted;
+  final bool processTerminated;
+  final String message;
+  final Map<String, Object?> metadata;
+
+  ExtensionRuntimeTaskCancellationAdapterResult toAdapterResult() {
+    return ExtensionRuntimeTaskCancellationAdapterResult(
+      accepted: accepted,
+      processTerminated: processTerminated,
+      message: message,
+      metadata: metadata,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'accepted': accepted,
+      'processTerminated': processTerminated,
+      'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+typedef ExtensionRuntimeTaskTerminator =
+    Future<ExtensionRuntimeTaskTerminationResult> Function(
+      ExtensionRuntimeTaskTerminationRequest request,
+    );
+
 class ExtensionRuntimeTaskCancellationAdapter {
   const ExtensionRuntimeTaskCancellationAdapter({
     required this.managerId,
     required ExtensionRuntimeTaskCancellationAdapterHandler cancel,
     this.routeKinds = const <String>[],
   }) : _cancel = cancel;
+
+  factory ExtensionRuntimeTaskCancellationAdapter.processManager({
+    required ExtensionRuntimeTaskTerminator terminate,
+    String managerId = 'toolchain-manager',
+    List<String> routeKinds = const <String>['toolchain-task'],
+    ExtensionRuntimeTaskTerminationSignal signal =
+        ExtensionRuntimeTaskTerminationSignal.terminate,
+  }) {
+    return ExtensionRuntimeTaskCancellationAdapter(
+      managerId: managerId,
+      routeKinds: routeKinds,
+      cancel:
+          ({
+            required plan,
+            required handle,
+            required timestamp,
+            required reason,
+          }) async {
+            final result = await terminate(
+              ExtensionRuntimeTaskTerminationRequest(
+                plan: plan,
+                handle: handle,
+                timestamp: timestamp,
+                reason: reason,
+                managerId: managerId,
+                backendKind: 'process-manager',
+                signal: signal,
+              ),
+            );
+            return result.toAdapterResult();
+          },
+    );
+  }
+
+  factory ExtensionRuntimeTaskCancellationAdapter.shellManager({
+    required ExtensionRuntimeTaskTerminator terminate,
+    String managerId = 'shell-manager',
+    List<String> routeKinds = const <String>['shell-command'],
+    ExtensionRuntimeTaskTerminationSignal signal =
+        ExtensionRuntimeTaskTerminationSignal.terminate,
+  }) {
+    return ExtensionRuntimeTaskCancellationAdapter(
+      managerId: managerId,
+      routeKinds: routeKinds,
+      cancel:
+          ({
+            required plan,
+            required handle,
+            required timestamp,
+            required reason,
+          }) async {
+            final result = await terminate(
+              ExtensionRuntimeTaskTerminationRequest(
+                plan: plan,
+                handle: handle,
+                timestamp: timestamp,
+                reason: reason,
+                managerId: managerId,
+                backendKind: 'shell-manager',
+                signal: signal,
+              ),
+            );
+            return result.toAdapterResult();
+          },
+    );
+  }
 
   final String managerId;
   final List<String> routeKinds;

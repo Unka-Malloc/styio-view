@@ -21,6 +21,42 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
+  test('agent autonomy policy does not report surfaced blocked-panel TODO', () {
+    final policy = AgentCodingAutonomyPolicy.fromGates(
+      readiness: const AgentCodingExecutionReadiness(
+        status: AgentCodingExecutionReadinessStatus.blocked,
+        issues: <AgentCodingExecutionReadinessIssue>[
+          AgentCodingExecutionReadinessIssue(
+            code: 'ide.runtime-contracts.blocking',
+            message: 'Runtime contract is blocked.',
+            severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
+            ownerLayer: 'foundation',
+          ),
+        ],
+        todoItems: <String>['TODO: close runtime-contract blockers.'],
+      ),
+      changeReviewGate: const AgentCodingChangeReviewGate(
+        status: AgentCodingChangeReviewGateStatus.idle,
+        canApplyPreview: false,
+        requiresUserReview: false,
+      ),
+    );
+
+    expect(policy.mode, AgentCodingAutonomyMode.blocked);
+    expect(
+      policy.todoItems,
+      contains('TODO: close runtime-contract blockers.'),
+    );
+    expect(
+      policy.todoItems,
+      isNot(
+        contains(
+          'TODO: surface blocked autonomy policy in the agent coding panel.',
+        ),
+      ),
+    );
+  });
+
   test('agent session context serializes coding execution readiness facts', () {
     const document = DocumentState(
       documentId: '/workspace/demo/src/main.styio',

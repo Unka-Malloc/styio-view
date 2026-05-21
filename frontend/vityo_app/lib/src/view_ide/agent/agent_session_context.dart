@@ -637,7 +637,6 @@ class AgentCodingAutonomyPolicy {
         todoItems: <String>[
           ...readiness.todoItems,
           ...changeReviewGate.todoItems,
-          'TODO: surface blocked autonomy policy in the agent coding panel.',
         ],
       );
     }

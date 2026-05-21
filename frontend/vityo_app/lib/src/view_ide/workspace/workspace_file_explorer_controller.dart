@@ -483,6 +483,38 @@ class WorkspaceFileExplorerActionRequest {
   }
 }
 
+enum WorkspaceFileExplorerActionRisk {
+  safe,
+  createsFile,
+  writesFile,
+  destructive,
+}
+
+extension WorkspaceFileExplorerActionRiskX on WorkspaceFileExplorerActionRisk {
+  String get wireValue {
+    return switch (this) {
+      WorkspaceFileExplorerActionRisk.safe => 'safe',
+      WorkspaceFileExplorerActionRisk.createsFile => 'creates-file',
+      WorkspaceFileExplorerActionRisk.writesFile => 'writes-file',
+      WorkspaceFileExplorerActionRisk.destructive => 'destructive',
+    };
+  }
+}
+
+WorkspaceFileExplorerActionRisk _workspaceFileExplorerRiskFor(
+  WorkspaceFileOperationKind kind,
+) {
+  return switch (kind) {
+    WorkspaceFileOperationKind.create =>
+      WorkspaceFileExplorerActionRisk.createsFile,
+    WorkspaceFileOperationKind.rename =>
+      WorkspaceFileExplorerActionRisk.writesFile,
+    WorkspaceFileOperationKind.delete =>
+      WorkspaceFileExplorerActionRisk.destructive,
+    WorkspaceFileOperationKind.reveal => WorkspaceFileExplorerActionRisk.safe,
+  };
+}
+
 class WorkspaceFileExplorerConfirmationPlan {
   const WorkspaceFileExplorerConfirmationPlan({
     required this.planId,
@@ -490,7 +522,7 @@ class WorkspaceFileExplorerConfirmationPlan {
     required this.title,
     required this.message,
     this.requiresConfirmation = true,
-    this.destructive = false,
+    this.risk = WorkspaceFileExplorerActionRisk.safe,
   });
 
   factory WorkspaceFileExplorerConfirmationPlan.fromRequest(
@@ -504,6 +536,7 @@ class WorkspaceFileExplorerConfirmationPlan {
           request: request,
           title: 'Create workspace file',
           message: 'Create ${request.path} in the workspace file tree.',
+          risk: _workspaceFileExplorerRiskFor(request.kind),
         ),
       WorkspaceFileOperationKind.rename =>
         WorkspaceFileExplorerConfirmationPlan(
@@ -511,6 +544,7 @@ class WorkspaceFileExplorerConfirmationPlan {
           request: request,
           title: 'Rename workspace file',
           message: 'Rename ${request.path} to ${request.nextPath}.',
+          risk: _workspaceFileExplorerRiskFor(request.kind),
         ),
       WorkspaceFileOperationKind.delete =>
         WorkspaceFileExplorerConfirmationPlan(
@@ -518,7 +552,7 @@ class WorkspaceFileExplorerConfirmationPlan {
           request: request,
           title: 'Delete workspace file',
           message: 'Delete ${request.path} from the workspace.',
-          destructive: true,
+          risk: _workspaceFileExplorerRiskFor(request.kind),
         ),
       WorkspaceFileOperationKind.reveal =>
         WorkspaceFileExplorerConfirmationPlan(
@@ -527,6 +561,7 @@ class WorkspaceFileExplorerConfirmationPlan {
           title: 'Reveal workspace file',
           message: 'Reveal ${request.path} in the workspace file tree.',
           requiresConfirmation: false,
+          risk: _workspaceFileExplorerRiskFor(request.kind),
         ),
     };
   }
@@ -536,8 +571,9 @@ class WorkspaceFileExplorerConfirmationPlan {
   final String title;
   final String message;
   final bool requiresConfirmation;
-  final bool destructive;
+  final WorkspaceFileExplorerActionRisk risk;
 
+  bool get destructive => risk == WorkspaceFileExplorerActionRisk.destructive;
   bool get canRunWithoutDialog => !requiresConfirmation;
 
   Map<String, Object?> toJson() {
@@ -547,8 +583,83 @@ class WorkspaceFileExplorerConfirmationPlan {
       'title': title,
       'message': message,
       'requiresConfirmation': requiresConfirmation,
+      'risk': risk.wireValue,
       'destructive': destructive,
       'canRunWithoutDialog': canRunWithoutDialog,
+    };
+  }
+}
+
+class WorkspaceFileExplorerBatchActionPlan {
+  const WorkspaceFileExplorerBatchActionPlan({
+    required this.planId,
+    required this.confirmationPlans,
+    this.blockedReason = '',
+  });
+
+  factory WorkspaceFileExplorerBatchActionPlan.fromRequests(
+    List<WorkspaceFileExplorerActionRequest> requests,
+  ) {
+    final confirmationPlans = requests
+        .map(WorkspaceFileExplorerConfirmationPlan.fromRequest)
+        .toList(growable: false);
+    return WorkspaceFileExplorerBatchActionPlan(
+      planId: 'workspace-file.batch.${confirmationPlans.length}',
+      confirmationPlans:
+          List<WorkspaceFileExplorerConfirmationPlan>.unmodifiable(
+            confirmationPlans,
+          ),
+      blockedReason: confirmationPlans.isEmpty
+          ? 'Workspace file batch action requires at least one request.'
+          : '',
+    );
+  }
+
+  final String planId;
+  final List<WorkspaceFileExplorerConfirmationPlan> confirmationPlans;
+  final String blockedReason;
+
+  List<WorkspaceFileExplorerActionRequest> get requests {
+    return confirmationPlans
+        .map((plan) => plan.request)
+        .toList(growable: false);
+  }
+
+  int get actionCount => confirmationPlans.length;
+  int get destructiveActionCount {
+    return confirmationPlans.where((plan) => plan.destructive).length;
+  }
+
+  bool get canRun => blockedReason.isEmpty;
+  bool get destructive => destructiveActionCount > 0;
+  bool get requiresConfirmation {
+    return confirmationPlans.any((plan) => plan.requiresConfirmation);
+  }
+
+  bool get canRunWithoutDialog => canRun && !requiresConfirmation;
+
+  String get summary {
+    if (!canRun) {
+      return blockedReason;
+    }
+    return 'workspace file batch: $actionCount action(s), '
+        '$destructiveActionCount destructive.';
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'planId': planId,
+      'actionCount': actionCount,
+      'destructiveActionCount': destructiveActionCount,
+      'requiresConfirmation': requiresConfirmation,
+      'destructive': destructive,
+      'canRun': canRun,
+      'canRunWithoutDialog': canRunWithoutDialog,
+      'summary': summary,
+      if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
+      'confirmationPlans': confirmationPlans
+          .map((plan) => plan.toJson())
+          .toList(growable: false),
     };
   }
 }
@@ -572,11 +683,14 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
 
   WorkspaceFileOperationResult? _lastResult;
   WorkspaceFileExplorerConfirmationPlan? _pendingConfirmationPlan;
+  WorkspaceFileExplorerBatchActionPlan? _pendingBatchActionPlan;
   late WorkspaceFileExplorerState _state;
 
   WorkspaceFileOperationResult? get lastResult => _lastResult;
   WorkspaceFileExplorerConfirmationPlan? get pendingConfirmationPlan =>
       _pendingConfirmationPlan;
+  WorkspaceFileExplorerBatchActionPlan? get pendingBatchActionPlan =>
+      _pendingBatchActionPlan;
   WorkspaceFileExplorerState get state => _state;
 
   WorkspaceFileExplorerSnapshot get snapshot {
@@ -681,20 +795,38 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
     return WorkspaceFileExplorerConfirmationPlan.fromRequest(request);
   }
 
+  WorkspaceFileExplorerBatchActionPlan batchPlanFor(
+    List<WorkspaceFileExplorerActionRequest> requests,
+  ) {
+    return WorkspaceFileExplorerBatchActionPlan.fromRequests(requests);
+  }
+
   WorkspaceFileExplorerConfirmationPlan stageAction(
     WorkspaceFileExplorerActionRequest request,
   ) {
     final plan = confirmationPlanFor(request);
     _pendingConfirmationPlan = plan;
+    _pendingBatchActionPlan = null;
+    notifyListeners();
+    return plan;
+  }
+
+  WorkspaceFileExplorerBatchActionPlan stageBatchActions(
+    List<WorkspaceFileExplorerActionRequest> requests,
+  ) {
+    final plan = batchPlanFor(requests);
+    _pendingBatchActionPlan = plan;
+    _pendingConfirmationPlan = null;
     notifyListeners();
     return plan;
   }
 
   void cancelPendingAction() {
-    if (_pendingConfirmationPlan == null) {
+    if (_pendingConfirmationPlan == null && _pendingBatchActionPlan == null) {
       return;
     }
     _pendingConfirmationPlan = null;
+    _pendingBatchActionPlan = null;
     notifyListeners();
   }
 
@@ -710,6 +842,24 @@ class WorkspaceFileExplorerController extends ChangeNotifier {
     }
     _pendingConfirmationPlan = null;
     return run(plan.request);
+  }
+
+  Future<List<WorkspaceFileOperationResult>> runPendingBatchAction({
+    required bool confirmed,
+  }) async {
+    final plan = _pendingBatchActionPlan;
+    if (plan == null || !plan.canRun) {
+      return const <WorkspaceFileOperationResult>[];
+    }
+    if (plan.requiresConfirmation && !confirmed) {
+      return const <WorkspaceFileOperationResult>[];
+    }
+    _pendingBatchActionPlan = null;
+    final results = <WorkspaceFileOperationResult>[];
+    for (final request in plan.requests) {
+      results.add(await run(request));
+    }
+    return List<WorkspaceFileOperationResult>.unmodifiable(results);
   }
 
   void _handleWorkspaceChanged() {

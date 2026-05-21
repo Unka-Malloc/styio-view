@@ -214,6 +214,7 @@ void main() {
 
     expect(deletePlan.title, 'Delete workspace file');
     expect(deletePlan.destructive, isTrue);
+    expect(deletePlan.risk, WorkspaceFileExplorerActionRisk.destructive);
     expect(deletePlan.requiresConfirmation, isTrue);
     expect(deletePlan.toJson()['canRunWithoutDialog'], isFalse);
     expect(revealPlan.requiresConfirmation, isFalse);
@@ -327,6 +328,68 @@ void main() {
     expect(reveal?.applied, isFalse);
     expect(reveal?.message, contains('not part of the project'));
   });
+
+  test(
+    'workspace file explorer stages batch action confirmation plans',
+    () async {
+      final store = InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'main.styio': DocumentState(
+            documentId: 'main.styio',
+            text: 'main := 1\n',
+            revision: 1,
+          ),
+          'old.styio': DocumentState(
+            documentId: 'old.styio',
+            text: 'old := 1\n',
+            revision: 1,
+          ),
+        },
+      );
+      final workspaceController = WorkspaceController(
+        projectSnapshot: _projectGraph(
+          editorFiles: const <String>['main.styio', 'old.styio'],
+        ),
+      );
+      final controller = WorkspaceFileExplorerController(
+        workspaceController: workspaceController,
+        operationService: WorkspaceFileOperationService(
+          workspaceController: workspaceController,
+          documentStore: store,
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      final plan = controller
+          .stageBatchActions(const <WorkspaceFileExplorerActionRequest>[
+            WorkspaceFileExplorerActionRequest(
+              kind: WorkspaceFileOperationKind.rename,
+              path: 'old.styio',
+              nextPath: 'src/old.styio',
+            ),
+            WorkspaceFileExplorerActionRequest(
+              kind: WorkspaceFileOperationKind.delete,
+              path: 'main.styio',
+            ),
+          ]);
+      final skipped = await controller.runPendingBatchAction(confirmed: false);
+      final results = await controller.runPendingBatchAction(confirmed: true);
+
+      expect(plan.actionCount, 2);
+      expect(plan.requiresConfirmation, isTrue);
+      expect(plan.destructiveActionCount, 1);
+      expect(plan.summary, contains('2 action'));
+      expect(controller.pendingBatchActionPlan, isNull);
+      expect(skipped, isEmpty);
+      expect(results.map((result) => result.kind), <WorkspaceFileOperationKind>[
+        WorkspaceFileOperationKind.rename,
+        WorkspaceFileOperationKind.delete,
+      ]);
+      expect(await store.documentExists('old.styio'), isFalse);
+      expect(await store.documentExists('src/old.styio'), isTrue);
+      expect(await store.documentExists('main.styio'), isFalse);
+    },
+  );
 }
 
 ProjectGraphSnapshot _projectGraph({required List<String> editorFiles}) {

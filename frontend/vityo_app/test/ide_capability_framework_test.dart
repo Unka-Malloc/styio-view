@@ -216,6 +216,22 @@ void main() {
       contains('Agent workspace file command routing'),
     );
     expect(
+      entriesById['workspace.file-explorer']?.summary,
+      contains('WorkspaceFileExplorerActionRisk'),
+    );
+    expect(
+      entriesById['workspace.file-explorer']?.summary,
+      contains('WorkspaceFileExplorerBatchActionPlan'),
+    );
+    expect(
+      entriesById['workspace.file-explorer']?.todo,
+      contains('batch plans'),
+    );
+    expect(
+      entriesById['workspace.file-explorer']?.runtimeMaturityBlocking,
+      isFalse,
+    );
+    expect(
       entriesById['presentation.problems-panel']?.dependencies,
       contains('workspace.diagnostics'),
     );

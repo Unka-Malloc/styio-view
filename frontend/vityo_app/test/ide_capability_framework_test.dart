@@ -498,6 +498,14 @@ void main() {
       contains('ExtensionRuntimeTaskCancellationRegistry'),
     );
     expect(
+      entriesById['runtime.execution']?.summary,
+      contains('ExtensionRuntimeTaskCancellationAdapter dispatch bridge'),
+    );
+    expect(
+      entriesById['runtime.execution']?.todo,
+      contains('production ShellManager/ProcessManager termination'),
+    );
+    expect(
       entriesById['runtime.execution']?.todo,
       contains('termination adapters'),
     );

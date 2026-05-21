@@ -375,6 +375,29 @@ enum ExtensionRuntimeTaskCancellationState {
   unavailable,
 }
 
+enum ExtensionRuntimeTaskCancellationDispatchStatus {
+  dispatched,
+  blocked,
+  missingManager,
+  missingAdapter,
+  rejected,
+}
+
+extension ExtensionRuntimeTaskCancellationDispatchStatusX
+    on ExtensionRuntimeTaskCancellationDispatchStatus {
+  String get wireValue {
+    return switch (this) {
+      ExtensionRuntimeTaskCancellationDispatchStatus.dispatched => 'dispatched',
+      ExtensionRuntimeTaskCancellationDispatchStatus.blocked => 'blocked',
+      ExtensionRuntimeTaskCancellationDispatchStatus.missingManager =>
+        'missing-manager',
+      ExtensionRuntimeTaskCancellationDispatchStatus.missingAdapter =>
+        'missing-adapter',
+      ExtensionRuntimeTaskCancellationDispatchStatus.rejected => 'rejected',
+    };
+  }
+}
+
 class ExtensionRuntimeTaskCancellationHandle {
   const ExtensionRuntimeTaskCancellationHandle({
     required this.extensionId,
@@ -453,7 +476,8 @@ class ExtensionRuntimeTaskCancellationHandle {
         state: ExtensionRuntimeTaskCancellationState.unavailable,
         canCancel: false,
         requestedAt: timestamp,
-        message: 'Extension runtime task $taskId cannot be cancelled$reasonSuffix.',
+        message:
+            'Extension runtime task $taskId cannot be cancelled$reasonSuffix.',
         metadata: <String, Object?>{...this.metadata, ...metadata},
       );
     }
@@ -465,7 +489,28 @@ class ExtensionRuntimeTaskCancellationHandle {
       state: ExtensionRuntimeTaskCancellationState.requested,
       canCancel: canCancel,
       requestedAt: timestamp,
-      message: 'Cancellation requested for extension runtime task $taskId$reasonSuffix.',
+      message:
+          'Cancellation requested for extension runtime task $taskId$reasonSuffix.',
+      metadata: <String, Object?>{...this.metadata, ...metadata},
+    );
+  }
+
+  ExtensionRuntimeTaskCancellationHandle markCompleted({
+    required DateTime timestamp,
+    String message = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionRuntimeTaskCancellationHandle(
+      extensionId: extensionId,
+      contributionId: contributionId,
+      taskId: taskId,
+      processHandleId: processHandleId,
+      state: ExtensionRuntimeTaskCancellationState.completed,
+      canCancel: false,
+      requestedAt: requestedAt ?? timestamp,
+      message: message.trim().isEmpty
+          ? 'Cancellation completed for extension runtime task $taskId.'
+          : message.trim(),
       metadata: <String, Object?>{...this.metadata, ...metadata},
     );
   }
@@ -541,12 +586,153 @@ class ExtensionRuntimeTaskCancellationRegistry {
     return requested;
   }
 
+  ExtensionRuntimeTaskCancellationHandle completeCancellation({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required DateTime timestamp,
+    String message = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final handle =
+        lookup(plan) ??
+        ExtensionRuntimeTaskCancellationHandle.unavailable(plan: plan);
+    final completed = handle.markCompleted(
+      timestamp: timestamp,
+      message: message,
+      metadata: metadata,
+    );
+    _handles[_keyForPlan(plan)] = completed;
+    return completed;
+  }
+
   String _keyForPlan(ExtensionRuntimeTaskExecutionPlan plan) {
     return _cancellationHandleKey(
       plan.contribution.extensionId,
       plan.contribution.contributionId,
       plan.executionPlan.definition.id,
     );
+  }
+}
+
+class ExtensionRuntimeTaskCancellationAdapterResult {
+  const ExtensionRuntimeTaskCancellationAdapterResult({
+    required this.accepted,
+    required this.processTerminated,
+    required this.message,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const ExtensionRuntimeTaskCancellationAdapterResult.accepted({
+    bool processTerminated = false,
+    String message = 'Extension runtime task cancellation accepted.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: true,
+         processTerminated: processTerminated,
+         message: message,
+         metadata: metadata,
+       );
+
+  const ExtensionRuntimeTaskCancellationAdapterResult.rejected({
+    String message = 'Extension runtime task cancellation rejected.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: false,
+         processTerminated: false,
+         message: message,
+         metadata: metadata,
+       );
+
+  final bool accepted;
+  final bool processTerminated;
+  final String message;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'accepted': accepted,
+      'processTerminated': processTerminated,
+      'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+typedef ExtensionRuntimeTaskCancellationAdapterHandler =
+    Future<ExtensionRuntimeTaskCancellationAdapterResult> Function({
+      required ExtensionRuntimeTaskExecutionPlan plan,
+      required ExtensionRuntimeTaskCancellationHandle handle,
+      required DateTime timestamp,
+      required String reason,
+    });
+
+class ExtensionRuntimeTaskCancellationAdapter {
+  const ExtensionRuntimeTaskCancellationAdapter({
+    required this.managerId,
+    required ExtensionRuntimeTaskCancellationAdapterHandler cancel,
+    this.routeKinds = const <String>[],
+  }) : _cancel = cancel;
+
+  final String managerId;
+  final List<String> routeKinds;
+  final ExtensionRuntimeTaskCancellationAdapterHandler _cancel;
+
+  bool accepts(ExtensionRuntimeTaskExecutionPlan plan) {
+    return plan.binding.managerId == managerId &&
+        (routeKinds.isEmpty || routeKinds.contains(plan.binding.routeKind));
+  }
+
+  Future<ExtensionRuntimeTaskCancellationAdapterResult> cancel({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required ExtensionRuntimeTaskCancellationHandle handle,
+    required DateTime timestamp,
+    required String reason,
+  }) {
+    return _cancel(
+      plan: plan,
+      handle: handle,
+      timestamp: timestamp,
+      reason: reason,
+    );
+  }
+}
+
+class ExtensionRuntimeTaskCancellationDispatchResult {
+  const ExtensionRuntimeTaskCancellationDispatchResult({
+    required this.plan,
+    required this.handle,
+    required this.status,
+    required this.message,
+    this.manager,
+    this.adapterResult,
+    this.telemetryRecord,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final ExtensionRuntimeTaskExecutionPlan plan;
+  final ExtensionRuntimeTaskCancellationHandle handle;
+  final ExtensionRuntimeTaskCancellationDispatchStatus status;
+  final String message;
+  final RuntimeExecutionManagerRegistration? manager;
+  final ExtensionRuntimeTaskCancellationAdapterResult? adapterResult;
+  final ExtensionRuntimeTaskTelemetryRecord? telemetryRecord;
+  final Map<String, Object?> metadata;
+
+  bool get dispatched =>
+      status == ExtensionRuntimeTaskCancellationDispatchStatus.dispatched;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'dispatched': dispatched,
+      'message': message,
+      'managerId': plan.binding.managerId,
+      'routeKind': plan.binding.routeKind,
+      'handle': handle.toJson(),
+      if (manager != null) 'manager': manager!.toJson(),
+      if (adapterResult != null) 'adapterResult': adapterResult!.toJson(),
+      if (telemetryRecord != null) 'telemetry': telemetryRecord!.toJson(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
   }
 }
 
@@ -577,10 +763,7 @@ class ExtensionRuntimeTaskTelemetryRecord {
       message: json['message'] as String? ?? '',
       metadata: json['metadata'] is Map
           ? (json['metadata']! as Map).map(
-              (key, value) => MapEntry<String, Object?>(
-                key.toString(),
-                value,
-              ),
+              (key, value) => MapEntry<String, Object?>(key.toString(), value),
             )
           : const <String, Object?>{},
     );
@@ -679,9 +862,7 @@ class ExtensionRuntimeTaskTelemetrySnapshot {
     return ExtensionRuntimeTaskTelemetrySnapshot(
       workspaceId: json['workspaceId'] as String? ?? '',
       records: _extensionRuntimeTaskTelemetryRecords(json['records']),
-      updatedAt: DateTime.tryParse(
-        json['updatedAt'] as String? ?? '',
-      )?.toUtc(),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
     );
   }
 
@@ -798,9 +979,7 @@ class ExtensionRuntimeTaskDataStoreTelemetrySink
         : snapshot;
   }
 
-  Future<void> saveTelemetry(
-    ExtensionRuntimeTaskTelemetrySnapshot snapshot,
-  ) {
+  Future<void> saveTelemetry(ExtensionRuntimeTaskTelemetrySnapshot snapshot) {
     return _owner.writeJson(
       namespaceName: _namespaceName,
       key: _key,
@@ -821,12 +1000,23 @@ class ExtensionRuntimeTaskExecutionBridge {
   ExtensionRuntimeTaskExecutionBridge({
     RuntimeExecutionManagerRegistry? registry,
     ExtensionRuntimeTaskTelemetrySink? telemetrySink,
+    ExtensionRuntimeTaskCancellationRegistry? cancellationRegistry,
+    Iterable<ExtensionRuntimeTaskCancellationAdapter> cancellationAdapters =
+        const <ExtensionRuntimeTaskCancellationAdapter>[],
   }) : _registry =
            registry ?? RuntimeExecutionManagerRegistry.defaultManagers(),
-       _telemetrySink = telemetrySink;
+       _telemetrySink = telemetrySink,
+       _cancellationRegistry =
+           cancellationRegistry ?? ExtensionRuntimeTaskCancellationRegistry(),
+       _cancellationAdapters = cancellationAdapters.toList(growable: false);
 
   final RuntimeExecutionManagerRegistry _registry;
   final ExtensionRuntimeTaskTelemetrySink? _telemetrySink;
+  final ExtensionRuntimeTaskCancellationRegistry _cancellationRegistry;
+  final List<ExtensionRuntimeTaskCancellationAdapter> _cancellationAdapters;
+
+  ExtensionRuntimeTaskCancellationRegistry get cancellationRegistry =>
+      _cancellationRegistry;
 
   RuntimeExecutionDispatchResult dispatchToLiveBuffer({
     required ExtensionRuntimeTaskExecutionPlan plan,
@@ -886,6 +1076,187 @@ class ExtensionRuntimeTaskExecutionBridge {
     _telemetrySink?.record(record);
     return record;
   }
+
+  ExtensionRuntimeTaskCancellationHandle registerCancellationHandle({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required String processHandleId,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return _cancellationRegistry.register(
+      plan: plan,
+      processHandleId: processHandleId,
+      metadata: metadata,
+    );
+  }
+
+  Future<ExtensionRuntimeTaskCancellationDispatchResult> dispatchCancellation({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required DateTime timestamp,
+    String reason = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) async {
+    final requested = _cancellationRegistry.requestCancellation(
+      plan: plan,
+      timestamp: timestamp,
+      reason: reason,
+      metadata: metadata,
+    );
+    if (!requested.canCancel) {
+      final record = recordCancellation(
+        plan: plan,
+        timestamp: timestamp,
+        reason: requested.message,
+        metadata: <String, Object?>{
+          'dispatchStatus':
+              ExtensionRuntimeTaskCancellationDispatchStatus.blocked.wireValue,
+          'cancellationHandle': requested.toJson(),
+          ...metadata,
+        },
+      );
+      return ExtensionRuntimeTaskCancellationDispatchResult(
+        plan: plan,
+        handle: requested,
+        status: ExtensionRuntimeTaskCancellationDispatchStatus.blocked,
+        message: requested.message,
+        telemetryRecord: record,
+        metadata: metadata,
+      );
+    }
+    final manager = _registry.resolve(plan.binding);
+    if (manager == null || !manager.available) {
+      final record = recordCancellation(
+        plan: plan,
+        timestamp: timestamp,
+        reason:
+            'No available runtime execution manager ${plan.binding.managerId} for cancellation.',
+        metadata: <String, Object?>{
+          'dispatchStatus': ExtensionRuntimeTaskCancellationDispatchStatus
+              .missingManager
+              .wireValue,
+          'cancellationHandle': requested.toJson(),
+          ...metadata,
+        },
+      );
+      return ExtensionRuntimeTaskCancellationDispatchResult(
+        plan: plan,
+        handle: requested,
+        status: ExtensionRuntimeTaskCancellationDispatchStatus.missingManager,
+        message:
+            'Extension runtime task ${plan.executionPlan.definition.id} cancellation missing available manager ${plan.binding.managerId}.',
+        telemetryRecord: record,
+        metadata: metadata,
+      );
+    }
+    final adapter = _cancellationAdapterFor(plan);
+    if (adapter == null) {
+      final record = recordCancellation(
+        plan: plan,
+        timestamp: timestamp,
+        reason:
+            'No cancellation adapter is registered for ${plan.binding.managerId}/${plan.binding.routeKind}.',
+        metadata: <String, Object?>{
+          'dispatchStatus': ExtensionRuntimeTaskCancellationDispatchStatus
+              .missingAdapter
+              .wireValue,
+          'cancellationHandle': requested.toJson(),
+          'manager': manager.toJson(),
+          ...metadata,
+        },
+      );
+      return ExtensionRuntimeTaskCancellationDispatchResult(
+        plan: plan,
+        handle: requested,
+        manager: manager,
+        status: ExtensionRuntimeTaskCancellationDispatchStatus.missingAdapter,
+        message:
+            'Extension runtime task ${plan.executionPlan.definition.id} cancellation missing adapter for ${plan.binding.managerId}/${plan.binding.routeKind}.',
+        telemetryRecord: record,
+        metadata: metadata,
+      );
+    }
+    late final ExtensionRuntimeTaskCancellationAdapterResult adapterResult;
+    try {
+      adapterResult = await adapter.cancel(
+        plan: plan,
+        handle: requested,
+        timestamp: timestamp,
+        reason: reason,
+      );
+    } on Object catch (error) {
+      adapterResult = ExtensionRuntimeTaskCancellationAdapterResult.rejected(
+        message:
+            'Extension runtime task ${plan.executionPlan.definition.id} cancellation adapter failed: $error.',
+      );
+    }
+    if (!adapterResult.accepted) {
+      final record = recordCancellation(
+        plan: plan,
+        timestamp: timestamp,
+        reason: adapterResult.message,
+        metadata: <String, Object?>{
+          'dispatchStatus':
+              ExtensionRuntimeTaskCancellationDispatchStatus.rejected.wireValue,
+          'cancellationHandle': requested.toJson(),
+          'manager': manager.toJson(),
+          'adapterResult': adapterResult.toJson(),
+          ...metadata,
+        },
+      );
+      return ExtensionRuntimeTaskCancellationDispatchResult(
+        plan: plan,
+        handle: requested,
+        manager: manager,
+        status: ExtensionRuntimeTaskCancellationDispatchStatus.rejected,
+        message: adapterResult.message,
+        adapterResult: adapterResult,
+        telemetryRecord: record,
+        metadata: metadata,
+      );
+    }
+    final completed = _cancellationRegistry.completeCancellation(
+      plan: plan,
+      timestamp: timestamp,
+      message: adapterResult.message,
+      metadata: <String, Object?>{
+        'adapterResult': adapterResult.toJson(),
+        ...metadata,
+      },
+    );
+    final record = recordCancellation(
+      plan: plan,
+      timestamp: timestamp,
+      reason: adapterResult.message,
+      metadata: <String, Object?>{
+        'dispatchStatus':
+            ExtensionRuntimeTaskCancellationDispatchStatus.dispatched.wireValue,
+        'cancellationHandle': completed.toJson(),
+        'manager': manager.toJson(),
+        'adapterResult': adapterResult.toJson(),
+        ...metadata,
+      },
+    );
+    return ExtensionRuntimeTaskCancellationDispatchResult(
+      plan: plan,
+      handle: completed,
+      manager: manager,
+      status: ExtensionRuntimeTaskCancellationDispatchStatus.dispatched,
+      message: adapterResult.message,
+      adapterResult: adapterResult,
+      telemetryRecord: record,
+      metadata: metadata,
+    );
+  }
+
+  ExtensionRuntimeTaskCancellationAdapter? _cancellationAdapterFor(
+    ExtensionRuntimeTaskExecutionPlan plan,
+  ) {
+    for (final adapter in _cancellationAdapters) {
+      if (adapter.accepts(plan)) {
+        return adapter;
+      }
+    }
+    return null;
+  }
 }
 
 ExtensionRuntimeTaskTelemetryKind _extensionRuntimeTaskTelemetryKindFromWire(
@@ -898,8 +1269,9 @@ ExtensionRuntimeTaskTelemetryKind _extensionRuntimeTaskTelemetryKindFromWire(
   };
 }
 
-List<ExtensionRuntimeTaskTelemetryRecord>
-_extensionRuntimeTaskTelemetryRecords(Object? value) {
+List<ExtensionRuntimeTaskTelemetryRecord> _extensionRuntimeTaskTelemetryRecords(
+  Object? value,
+) {
   if (value is! List) {
     return const <ExtensionRuntimeTaskTelemetryRecord>[];
   }

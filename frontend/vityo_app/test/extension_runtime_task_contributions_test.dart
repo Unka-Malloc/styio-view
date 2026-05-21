@@ -244,7 +244,10 @@ void main() {
 
     expect(firstRetry.retryable, isTrue);
     expect(firstRetry.nextAttempt, 2);
-    expect(firstRetry.delayBeforeNextAttempt, const Duration(milliseconds: 100));
+    expect(
+      firstRetry.delayBeforeNextAttempt,
+      const Duration(milliseconds: 100),
+    );
     expect(firstRetry.toJson()['extensionId'], 'styio.tasks');
     expect(firstRetry.toJson()['contributionId'], 'build');
     expect(firstRetry.toJson()['failureKind'], 'transient');
@@ -261,41 +264,152 @@ void main() {
     expect(invalidConfiguration.retryable, isFalse);
   });
 
-  test('extension runtime task cancellation registry binds process handles', () {
-    final plan = _createRuntimeTaskPlan();
-    final registry = ExtensionRuntimeTaskCancellationRegistry();
+  test(
+    'extension runtime task cancellation registry binds process handles',
+    () {
+      final plan = _createRuntimeTaskPlan();
+      final registry = ExtensionRuntimeTaskCancellationRegistry();
 
-    final handle = registry.register(
-      plan: plan,
-      processHandleId: 'process-build-1',
-      metadata: const <String, Object?>{'pid': 42},
-    );
-    final requested = registry.requestCancellation(
-      plan: plan,
-      timestamp: DateTime.utc(2026, 5, 21, 2),
-      reason: 'user cancelled task',
-      metadata: const <String, Object?>{'source': 'editor'},
-    );
-    final missing = ExtensionRuntimeTaskCancellationRegistry()
-        .requestCancellation(
-          plan: plan,
-          timestamp: DateTime.utc(2026, 5, 21, 2, 1),
-          reason: 'missing process handle',
-        );
+      final handle = registry.register(
+        plan: plan,
+        processHandleId: 'process-build-1',
+        metadata: const <String, Object?>{'pid': 42},
+      );
+      final requested = registry.requestCancellation(
+        plan: plan,
+        timestamp: DateTime.utc(2026, 5, 21, 2),
+        reason: 'user cancelled task',
+        metadata: const <String, Object?>{'source': 'editor'},
+      );
+      final missing = ExtensionRuntimeTaskCancellationRegistry()
+          .requestCancellation(
+            plan: plan,
+            timestamp: DateTime.utc(2026, 5, 21, 2, 1),
+            reason: 'missing process handle',
+          );
 
-    expect(handle.state, ExtensionRuntimeTaskCancellationState.registered);
-    expect(handle.canCancel, isTrue);
-    expect(handle.toJson()['processHandleId'], 'process-build-1');
-    expect(requested.state, ExtensionRuntimeTaskCancellationState.requested);
-    expect(requested.canCancel, isTrue);
-    expect(requested.message, contains('user cancelled task'));
-    expect(requested.toJson()['requestedAt'], '2026-05-21T02:00:00.000Z');
-    expect(requested.metadata['pid'], 42);
-    expect(requested.metadata['source'], 'editor');
-    expect(registry.lookup(plan)?.state, requested.state);
-    expect(missing.state, ExtensionRuntimeTaskCancellationState.unavailable);
-    expect(missing.canCancel, isFalse);
-  });
+      expect(handle.state, ExtensionRuntimeTaskCancellationState.registered);
+      expect(handle.canCancel, isTrue);
+      expect(handle.toJson()['processHandleId'], 'process-build-1');
+      expect(requested.state, ExtensionRuntimeTaskCancellationState.requested);
+      expect(requested.canCancel, isTrue);
+      expect(requested.message, contains('user cancelled task'));
+      expect(requested.toJson()['requestedAt'], '2026-05-21T02:00:00.000Z');
+      expect(requested.metadata['pid'], 42);
+      expect(requested.metadata['source'], 'editor');
+      expect(registry.lookup(plan)?.state, requested.state);
+      expect(missing.state, ExtensionRuntimeTaskCancellationState.unavailable);
+      expect(missing.canCancel, isFalse);
+    },
+  );
+
+  test(
+    'extension runtime task bridge dispatches cancellation adapters',
+    () async {
+      final plan = _createRuntimeTaskPlan();
+      final telemetry = ExtensionRuntimeTaskInMemoryTelemetrySink();
+      final cancelledHandles = <String>[];
+      final bridge = ExtensionRuntimeTaskExecutionBridge(
+        telemetrySink: telemetry,
+        cancellationAdapters: <ExtensionRuntimeTaskCancellationAdapter>[
+          ExtensionRuntimeTaskCancellationAdapter(
+            managerId: 'toolchain-manager',
+            routeKinds: const <String>['toolchain-task'],
+            cancel:
+                ({
+                  required plan,
+                  required handle,
+                  required timestamp,
+                  required reason,
+                }) async {
+                  cancelledHandles.add(handle.processHandleId);
+                  return const ExtensionRuntimeTaskCancellationAdapterResult.accepted(
+                    processTerminated: true,
+                    message: 'Terminated extension task process.',
+                    metadata: <String, Object?>{'pid': 42},
+                  );
+                },
+          ),
+        ],
+      );
+
+      final handle = bridge.registerCancellationHandle(
+        plan: plan,
+        processHandleId: 'process-build-1',
+        metadata: const <String, Object?>{'source': 'toolchain'},
+      );
+      final result = await bridge.dispatchCancellation(
+        plan: plan,
+        timestamp: DateTime.utc(2026, 5, 21, 3),
+        reason: 'user cancelled build',
+        metadata: const <String, Object?>{'source': 'editor'},
+      );
+
+      expect(handle.canCancel, isTrue);
+      expect(
+        result.status,
+        ExtensionRuntimeTaskCancellationDispatchStatus.dispatched,
+      );
+      expect(result.dispatched, isTrue);
+      expect(
+        result.handle.state,
+        ExtensionRuntimeTaskCancellationState.completed,
+      );
+      expect(result.handle.canCancel, isFalse);
+      expect(result.adapterResult?.processTerminated, isTrue);
+      expect(cancelledHandles, <String>['process-build-1']);
+      expect(
+        bridge.cancellationRegistry.lookup(plan)?.state,
+        ExtensionRuntimeTaskCancellationState.completed,
+      );
+      expect(result.toJson()['status'], 'dispatched');
+      expect(
+        telemetry.records.single.kind,
+        ExtensionRuntimeTaskTelemetryKind.cancellation,
+      );
+      expect(telemetry.records.single.metadata['dispatchStatus'], 'dispatched');
+      final telemetryAdapterResult =
+          telemetry.records.single.metadata['adapterResult']!
+              as Map<String, Object?>;
+      expect(telemetryAdapterResult['processTerminated'], isTrue);
+    },
+  );
+
+  test(
+    'extension runtime task bridge reports missing cancellation adapters',
+    () async {
+      final plan = _createRuntimeTaskPlan();
+      final telemetry = ExtensionRuntimeTaskInMemoryTelemetrySink();
+      final bridge = ExtensionRuntimeTaskExecutionBridge(
+        telemetrySink: telemetry,
+      );
+
+      bridge.registerCancellationHandle(
+        plan: plan,
+        processHandleId: 'process-build-1',
+      );
+      final result = await bridge.dispatchCancellation(
+        plan: plan,
+        timestamp: DateTime.utc(2026, 5, 21, 3, 1),
+        reason: 'user cancelled build',
+      );
+
+      expect(
+        result.status,
+        ExtensionRuntimeTaskCancellationDispatchStatus.missingAdapter,
+      );
+      expect(result.dispatched, isFalse);
+      expect(
+        result.handle.state,
+        ExtensionRuntimeTaskCancellationState.requested,
+      );
+      expect(result.toJson()['status'], 'missing-adapter');
+      expect(
+        telemetry.records.single.metadata['dispatchStatus'],
+        'missing-adapter',
+      );
+    },
+  );
 
   test('extension runtime task catalog reports missing command metadata', () {
     final route = const ExtensionContributionRouter().routeContribution(

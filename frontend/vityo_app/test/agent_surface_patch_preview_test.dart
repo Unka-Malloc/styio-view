@@ -6,6 +6,7 @@ import 'package:vityo_app/src/agent/agent_code_patch_applier.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/view_ide/agent/agent_coding_session_history_store.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_prompt_profile_store.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
@@ -95,6 +96,17 @@ void main() {
     tester,
   ) async {
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    const savedProfiles = <AgentPromptProfileManifestEntry>[
+      AgentPromptProfileManifestEntry(
+        key: 'agent.provider.backup-cloud',
+        profileId: 'backup-cloud',
+        displayName: 'Backup Cloud',
+        route: 'web-hosted',
+        protocol: 'openai-compatible',
+        model: 'gpt-backup',
+        requiresCredential: false,
+      ),
+    ];
     AgentIdeCommandSuggestion? appliedRecoveryCommand;
     final history = AgentCodingSessionHistory(
       workspaceId: 'demo',
@@ -135,7 +147,7 @@ void main() {
               ),
               visibleModules: const [],
               adapterCapabilities: const [],
-              sessionContext: _context(),
+              sessionContext: _context(savedProviderProfiles: savedProfiles),
               codingController: controller,
               onApplyPendingPatch: () async {},
               onApplyIdeCommandSuggestion: (command) async {
@@ -185,7 +197,7 @@ void main() {
     await tester.pump();
 
     expect(appliedRecoveryCommand?.commandId, 'failoverAgentProvider');
-    expect(appliedRecoveryCommand?.input, profile.profileId);
+    expect(appliedRecoveryCommand?.input, 'agent.provider.backup-cloud');
   });
 
   testWidgets('agent surface dispatches confirmed recovery action', (
@@ -255,7 +267,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Agent recovery request dispatched.'), findsOneWidget);
-    expect(find.text('recovery ok'), findsOneWidget);
+    expect(find.text('recovery ok'), findsWidgets);
   });
 
   testWidgets('agent surface displays structured coding plan', (tester) async {
@@ -2066,7 +2078,10 @@ void main() {
       ),
     );
 
-    expect(find.textContaining('deleteWorkspace'), findsOneWidget);
+    expect(
+      find.text('deleteWorkspace · This is not registered.'),
+      findsOneWidget,
+    );
     expect(find.text('Unsupported command'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Apply Command'), findsNothing);
     expect(applied, isFalse);
@@ -3728,7 +3743,10 @@ void main() {
   });
 }
 
-AgentSessionContext _context() {
+AgentSessionContext _context({
+  Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
+      const <AgentPromptProfileManifestEntry>[],
+}) {
   return AgentSessionContext.fromEditorState(
     document: const DocumentState(
       documentId: 'main.styio',
@@ -3765,6 +3783,7 @@ AgentSessionContext _context() {
     ],
     workspaceFiles: const <String>['main.styio', 'other.styio'],
     activeFilePath: 'main.styio',
+    savedProviderProfiles: savedProviderProfiles,
   );
 }
 

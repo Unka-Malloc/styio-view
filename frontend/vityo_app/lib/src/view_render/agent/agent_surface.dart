@@ -1561,8 +1561,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     setState(() {
       _recoveryDispatchMessage = 'Running recovery...';
     });
+    final command = controller.sessionRecoveryPlan.commandFor(action);
     final result = await controller.dispatchRecoveryRequestDraft(
       action,
+      targetProviderProfileKey: command == null
+          ? null
+          : _recoveryProviderProfileKeyFor(command),
       confirmed: true,
     );
     if (!mounted) {
@@ -1578,11 +1582,37 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
   ) {
     return AgentIdeCommandSuggestion(
       commandId: command.commandId,
-      input: command.requiresProviderSelection
-          ? widget.controller.profile.profileId
-          : null,
+      input: _recoveryProviderProfileKeyFor(command),
       reason: 'Run ${command.label} recovery.',
     );
+  }
+
+  String? _recoveryProviderProfileKeyFor(
+    AgentCodingSessionRecoveryCommandPlan command,
+  ) {
+    if (!command.requiresProviderSelection) {
+      return null;
+    }
+    return _savedProviderProfileKeyForFailover();
+  }
+
+  String? _savedProviderProfileKeyForFailover() {
+    final savedProfiles = widget.sessionContext.agent.savedProviderProfiles;
+    if (savedProfiles.isEmpty) {
+      return null;
+    }
+    final activeProfileId = widget.controller.profile.profileId;
+    for (final profile in savedProfiles) {
+      if (profile.key.trim().isNotEmpty && profile.profileId != activeProfileId) {
+        return profile.key;
+      }
+    }
+    for (final profile in savedProfiles) {
+      if (profile.key.trim().isNotEmpty) {
+        return profile.key;
+      }
+    }
+    return null;
   }
 
   String _appliedIdeCommandMessage(AgentIdeCommandSuggestion command) {
@@ -1992,22 +2022,33 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           runSpacing: 8,
                           children: [
                             for (final command in recoveryCommands)
-                              OutlinedButton(
-                                key: ValueKey(
-                                  'agent-recovery-command-${command.action.wireValue}',
-                                ),
-                                onPressed:
-                                    widget.onApplyIdeCommandSuggestion ==
-                                            null ||
-                                        applyingAction ||
-                                        controller.sending
-                                    ? null
-                                    : () => unawaited(
-                                        _applyIdeCommandSuggestion(
-                                          _recoveryCommandSuggestion(command),
-                                        ),
-                                      ),
-                                child: Text(command.label),
+                              Builder(
+                                builder: (context) {
+                                  final missingProviderProfileKey =
+                                      command.requiresProviderSelection &&
+                                      _recoveryProviderProfileKeyFor(command) ==
+                                          null;
+                                  return OutlinedButton(
+                                    key: ValueKey(
+                                      'agent-recovery-command-${command.action.wireValue}',
+                                    ),
+                                    onPressed:
+                                        widget.onApplyIdeCommandSuggestion ==
+                                                null ||
+                                            applyingAction ||
+                                            controller.sending ||
+                                            missingProviderProfileKey
+                                        ? null
+                                        : () => unawaited(
+                                            _applyIdeCommandSuggestion(
+                                              _recoveryCommandSuggestion(
+                                                command,
+                                              ),
+                                            ),
+                                          ),
+                                    child: Text(command.label),
+                                  );
+                                },
                               ),
                           ],
                         ),
@@ -2016,7 +2057,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                         )) ...[
                           const SizedBox(height: 6),
                           Text(
-                            'Provider-selection commands use the current mounted profile id: ${controller.profile.profileId}. TODO: replace this with a saved-profile picker.',
+                            _savedProviderProfileKeyForFailover() == null
+                                ? 'Provider-selection commands need a saved provider profile key. Save or mount a provider profile before failover recovery.'
+                                : 'Provider-selection commands use saved provider profile keys. Default target: ${_savedProviderProfileKeyForFailover()}.',
                             style: theme.textTheme.bodySmall,
                           ),
                         ],
@@ -2049,7 +2092,15 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                             key: const ValueKey(
                               'agent-recovery-dispatch-confirmed',
                             ),
-                            onPressed: applyingAction || controller.sending
+                            onPressed:
+                                applyingAction ||
+                                    controller.sending ||
+                                    (recoveryCommand
+                                            .requiresProviderSelection &&
+                                        _recoveryProviderProfileKeyFor(
+                                              recoveryCommand,
+                                            ) ==
+                                            null)
                                 ? null
                                 : () => unawaited(
                                     _dispatchRecoveryAction(

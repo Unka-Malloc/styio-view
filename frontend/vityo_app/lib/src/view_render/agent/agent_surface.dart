@@ -2434,6 +2434,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final toolCallTimeline = controller.toolCallTimeline;
         final toolCallExecutionPlan = controller.toolCallExecutionPlan;
         final toolCallReplayPlan = controller.toolCallReplayPlan;
+        final recentToolCallResultCount =
+            controller.recentToolCallResultContexts.length;
         final projectToolPermissionRules =
             controller.projectToolPermissionRules;
         final workspaceSnapshotCapture =
@@ -2527,6 +2529,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                         ),
                   dispatching: _dispatchingToolCalls,
                   toolLoopRuntimeReport: _lastToolLoopRuntimeReport,
+                  toolResultCount: recentToolCallResultCount,
                   onRunReadyCalls:
                       toolCallExecutionPlan.status ==
                               AgentToolCallExecutionPlanStatus.ready &&
@@ -2545,6 +2548,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                       : () => controller.updatePrompt(
                           _toolCallReviewPrompt(toolCallExecutionPlan),
                         ),
+                  onDraftContinuation:
+                      applyingAction ||
+                          controller.sending ||
+                          recentToolCallResultCount == 0
+                      ? null
+                      : () => controller.restoreToolResultContinuationDraft(),
                 ),
               ],
               if (projectToolPermissionRules.isNotEmpty) ...[
@@ -3392,6 +3401,8 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
     this.onReplayJournal,
     this.onDraftReview,
     this.toolLoopRuntimeReport,
+    this.toolResultCount = 0,
+    this.onDraftContinuation,
   });
 
   final AgentToolCallTimeline timeline;
@@ -3409,6 +3420,8 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   final VoidCallback? onReplayJournal;
   final VoidCallback? onDraftReview;
   final AgentCodingToolLoopRuntimeReport? toolLoopRuntimeReport;
+  final int toolResultCount;
+  final VoidCallback? onDraftContinuation;
 
   @override
   Widget build(BuildContext context) {
@@ -3456,6 +3469,14 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                     theme,
                     toolLoopRuntimeReport!.status,
                   ),
+                ),
+              ),
+            if (toolResultCount > 0)
+              Text(
+                'Tool results ready: $toolResultCount',
+                key: const ValueKey('agent-tool-result-continuation-summary'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
                 ),
               ),
             for (final execution in executionPlan.executions.take(4)) ...[
@@ -3609,6 +3630,13 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                   icon: const Icon(Icons.rate_review_outlined),
                   label: const Text('Draft Tool Review'),
                 ),
+                if (toolResultCount > 0)
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('agent-tool-call-draft-continuation'),
+                    onPressed: dispatching ? null : onDraftContinuation,
+                    icon: const Icon(Icons.auto_awesome_motion_outlined),
+                    label: const Text('Draft Tool Continuation'),
+                  ),
               ],
             ),
           ],

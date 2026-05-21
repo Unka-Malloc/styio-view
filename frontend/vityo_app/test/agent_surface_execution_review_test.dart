@@ -758,6 +758,19 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.byKey(const ValueKey('agent-tool-result-continuation-summary')),
+      findsOneWidget,
+    );
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-draft-continuation')),
+    );
+    await tester.pump();
+    expect(
+      controller.draftPrompt,
+      contains('Continue after 1 agent tool result(s).'),
+    );
+    expect(
       controller.toolCallTimeline.status,
       AgentToolCallTimelineStatus.complete,
     );

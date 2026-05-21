@@ -461,6 +461,14 @@ class AgentCodingSessionController extends ChangeNotifier {
     return true;
   }
 
+  bool restoreToolResultContinuationDraft({String? prompt}) {
+    if (_recentToolCallResultContexts.isEmpty) {
+      return false;
+    }
+    updatePrompt(prompt ?? _toolResultContinuationPrompt());
+    return true;
+  }
+
   Future<AgentCodingSessionRecoveryDispatchResult> dispatchRecoveryRequestDraft(
     AgentCodingSessionRecoveryAction action, {
     String? targetProviderProfileKey,
@@ -2229,6 +2237,18 @@ class AgentCodingSessionController extends ChangeNotifier {
     return List<AgentToolCallResultContext>.unmodifiable(
       _recentToolCallResultContexts,
     );
+  }
+
+  String _toolResultContinuationPrompt() {
+    final resultCount = _recentToolCallResultContexts.length;
+    final failedCount = _recentToolCallResultContexts
+        .where((result) => !result.success)
+        .length;
+    final failed = failedCount == 0
+        ? ''
+        : ' $failedCount result(s) failed; explain the failure and propose a recovery step.';
+    return 'Continue after $resultCount agent tool result(s). '
+        'Use the attached tool results as the source of truth, summarize the outcome, and propose the next IDE action.$failed';
   }
 
   void _recordRecentToolCallResultContexts(

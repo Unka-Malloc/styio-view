@@ -482,6 +482,11 @@ void main() {
         controller.recentToolCallResultContexts.single.callId,
         'call-read',
       );
+      expect(controller.restoreToolResultContinuationDraft(), isTrue);
+      expect(
+        controller.draftPrompt,
+        contains('Continue after 1 agent tool result(s).'),
+      );
 
       controller.updatePrompt('Continue with tool result.');
       await controller.sendPrompt();
@@ -505,6 +510,7 @@ void main() {
       );
       expect(request.toJson()['toolCallResults'], isA<List<Object?>>());
       expect(controller.recentToolCallResultContexts, isEmpty);
+      expect(controller.restoreToolResultContinuationDraft(), isFalse);
     },
   );
 

@@ -1,5 +1,6 @@
 export 'agent_code_patch_applier.dart';
 export 'agent_workspace_edit_adapter.dart';
+export 'agent_builtin_tool_executor.dart';
 export 'agent_coding_dispatch_plan.dart';
 export 'agent_coding_loop_plan.dart';
 export 'agent_coding_session_controller.dart';

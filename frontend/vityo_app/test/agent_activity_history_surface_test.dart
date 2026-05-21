@@ -48,6 +48,17 @@ void main() {
           ideCommandCount: 1,
           planCount: 1,
           diagnosticSummaryCount: 1,
+          metadata: const <String, Object?>{
+            'validationResult': <String, Object?>{
+              'status': 'passed',
+              'completedCommandIds': <String>['saveAll', 'runTests'],
+            },
+            'validationPipeline': <String, Object?>{
+              'status': 'complete',
+              'progressNumerator': 5,
+              'progressDenominator': 5,
+            },
+          },
         ),
       ],
     );
@@ -64,6 +75,14 @@ void main() {
     expect(find.text('patches 1'), findsOneWidget);
     expect(find.text('commands 1'), findsOneWidget);
     expect(find.text('diagnostics 1'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('agent-activity-validation-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Validation: passed · pipeline complete 5/5'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('agent activity history surface renders failed record reason', (

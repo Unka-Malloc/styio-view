@@ -76,6 +76,7 @@ class _AgentActivityRecordTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final errorMessage = record.errorMessage?.trim();
+    final validationSummary = _activityValidationSummary(record.metadata);
     final statusColor = record.succeeded
         ? theme.colorScheme.primary
         : theme.colorScheme.error;
@@ -135,6 +136,18 @@ class _AgentActivityRecordTile extends StatelessWidget {
               style: theme.textTheme.bodySmall,
             ),
           ],
+          if (validationSummary != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              validationSummary,
+              key: const ValueKey('agent-activity-validation-summary'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -153,6 +166,42 @@ class _AgentActivityRecordTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _activityValidationSummary(Map<String, Object?> metadata) {
+  final validationResult = _metadataObject(metadata['validationResult']);
+  final validationPipeline = _metadataObject(metadata['validationPipeline']);
+  if (validationResult.isEmpty && validationPipeline.isEmpty) {
+    return null;
+  }
+  final resultStatus = validationResult['status'] as String? ?? 'unknown';
+  final pipelineStatus = validationPipeline['status'] as String? ?? 'unknown';
+  final progressNumerator = validationPipeline['progressNumerator'] as int?;
+  final progressDenominator =
+      validationPipeline['progressDenominator'] as int?;
+  final nextCommandId = validationPipeline['nextCommandId'] as String?;
+  final progress = progressNumerator == null || progressDenominator == null
+      ? ''
+      : ' $progressNumerator/$progressDenominator';
+  final next = nextCommandId == null ? '' : ' · next $nextCommandId';
+  return 'Validation: $resultStatus · pipeline $pipelineStatus$progress$next';
+}
+
+Map<String, Object?> _metadataObject(Object? value) {
+  if (value is Map<String, Object?>) {
+    return value;
+  }
+  if (value is Map) {
+    final result = <String, Object?>{};
+    for (final entry in value.entries) {
+      final key = entry.key;
+      if (key is String) {
+        result[key] = entry.value;
+      }
+    }
+    return result;
+  }
+  return const <String, Object?>{};
 }
 
 class _ActivityChip extends StatelessWidget {

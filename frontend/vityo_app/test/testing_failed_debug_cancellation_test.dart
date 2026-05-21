@@ -330,6 +330,58 @@ void main() {
     },
   );
 
+  test(
+    'testing failed-test debug process binder exposes typed pid handles',
+    () {
+      final runtimeTask = RuntimeTaskSnapshot(
+        definition: const RuntimeTaskDefinition(
+          id: 'test.fixture-runner.pid',
+          label: 'Debug tests',
+          kind: RuntimeTaskKind.debug,
+          command: 'fixture-runner',
+        ),
+        status: RuntimeTaskStatus.running,
+        statusMessage: 'Debug test task is running.',
+        startedAt: DateTime.utc(2026, 5, 21, 9),
+        events: <RuntimeTaskLifecycleEvent>[
+          RuntimeTaskLifecycleEvent(
+            taskId: 'test.fixture-runner.pid',
+            sequence: 1,
+            status: RuntimeTaskStatus.running,
+            timestamp: DateTime.utc(2026, 5, 21, 9),
+            message: 'Debug adapter started.',
+            metadata: const <String, Object?>{
+              'pid': 9090,
+              'managerId': 'debug-adapter',
+              'processHandleSource': 'debug-adapter',
+            },
+          ),
+        ],
+      );
+      final registry = FailedTestDebugCancellationHandleRegistry();
+      final binding = const FailedTestDebugProcessHandleBinder().bind(
+        runtimeTask: runtimeTask,
+        registry: registry,
+        providerId: 'fixture-runner',
+        configurationId: 'rerun-failed',
+        terminate: (request) async {
+          return const FailedTestDebugCancellationResult.accepted(
+            processTerminated: true,
+            message: 'Bound failed-test debug process terminated.',
+          );
+        },
+      );
+      final processHandle =
+          binding.metadata['processHandle']! as Map<String, Object?>;
+
+      expect(binding.registered, isTrue);
+      expect(binding.processHandleId, '9090');
+      expect(processHandle['pid'], 9090);
+      expect(processHandle['managerId'], 'debug-adapter');
+      expect(processHandle['source'], 'debug-adapter');
+    },
+  );
+
   testWidgets('testing surface emits failed-test debug cancellation action', (
     tester,
   ) async {

@@ -406,7 +406,10 @@ class FailedTestDebugProcessHandleBinder {
         metadata: metadata,
       );
     }
-    final handleId = _handleIdFromRuntimeTask(runtimeTask);
+    final processHandle = _processHandleFromRuntimeTask(runtimeTask);
+    final handleId =
+        _handleIdFromProcessHandle(processHandle) ??
+        _handleIdFromRuntimeTask(runtimeTask);
     if (handleId == null) {
       return FailedTestDebugProcessHandleBindingResult.missingHandle(
         message:
@@ -434,9 +437,40 @@ class FailedTestDebugProcessHandleBinder {
         'source': 'runtime-task-snapshot',
         'providerId': providerId,
         if (configurationId.isNotEmpty) 'configurationId': configurationId,
+        if (processHandle != null) 'processHandle': processHandle.toJson(),
         ...metadata,
       },
     );
+  }
+
+  RuntimeProcessHandleIdentity? _processHandleFromRuntimeTask(
+    RuntimeTaskSnapshot runtimeTask,
+  ) {
+    for (final source in <Map<String, Object?>>[
+      runtimeTask.definition.metadata,
+      if (runtimeTask.lastEvent != null) runtimeTask.lastEvent!.metadata,
+      for (final event in runtimeTask.events.reversed) event.metadata,
+    ]) {
+      final handle = RuntimeProcessHandleIdentity.tryFromMetadata(
+        source,
+        managerId: _managerIdFromMetadata(source),
+      );
+      if (handle != null) {
+        return handle;
+      }
+    }
+    return null;
+  }
+
+  String? _handleIdFromProcessHandle(RuntimeProcessHandleIdentity? handle) {
+    if (handle == null || !handle.available) {
+      return null;
+    }
+    if (handle.processHandleId.isNotEmpty) {
+      return handle.processHandleId;
+    }
+    final pid = handle.pid;
+    return pid == null ? null : '$pid';
   }
 
   String? _handleIdFromRuntimeTask(RuntimeTaskSnapshot runtimeTask) {
@@ -451,6 +485,14 @@ class FailedTestDebugProcessHandleBinder {
       }
     }
     return null;
+  }
+
+  String _managerIdFromMetadata(Map<String, Object?> metadata) {
+    final value = metadata['managerId'];
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+    return '';
   }
 
   String? _handleIdFromMetadata(Map<String, Object?> metadata) {

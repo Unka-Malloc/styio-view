@@ -2254,6 +2254,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Validation result: notStarted'), findsOneWidget);
+    expect(find.text('Validation pipeline: ready (0/5)'), findsOneWidget);
+    expect(find.text('Next validation command: saveAll'), findsOneWidget);
     expect(
       find.textContaining('Missing validation commands: saveAll'),
       findsOneWidget,

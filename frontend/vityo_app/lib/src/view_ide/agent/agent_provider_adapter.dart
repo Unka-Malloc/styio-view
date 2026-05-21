@@ -1999,6 +1999,12 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
           agent.validationResult.failedCommandIds,
       'agentValidationMissingCommandIds':
           agent.validationResult.missingCommandIds,
+      'agentValidationPipelineStatus':
+          agent.validationPipeline.status.wireValue,
+      'agentValidationPipelineNextCommandId':
+          agent.validationPipeline.nextCommandId,
+      'agentValidationPipelineProgress':
+          '${agent.validationPipeline.progressNumerator}/${agent.validationPipeline.progressDenominator}',
     });
   }
   final providerExecution = agent.providerExecution;

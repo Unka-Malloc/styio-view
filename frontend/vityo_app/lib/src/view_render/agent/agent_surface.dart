@@ -242,12 +242,14 @@ class _AgentCodingValidationPlanSummary extends StatelessWidget {
   const _AgentCodingValidationPlanSummary({
     required this.validationPlan,
     required this.validationResult,
+    required this.validationPipeline,
     required this.applyingIdeCommand,
     this.onApplyCommand,
   });
 
   final AgentCodingValidationPlan validationPlan;
   final AgentCodingValidationResult validationResult;
+  final AgentCodingValidationPipeline validationPipeline;
   final bool applyingIdeCommand;
   final void Function(AgentIdeCommandSuggestion suggestion)? onApplyCommand;
 
@@ -288,6 +290,16 @@ class _AgentCodingValidationPlanSummary extends StatelessWidget {
               'Validation result: ${validationResult.status.wireValue}',
               style: theme.textTheme.bodySmall,
             ),
+            Text(
+              'Validation pipeline: ${validationPipeline.status.wireValue}'
+              ' (${validationPipeline.progressNumerator}/${validationPipeline.progressDenominator})',
+              style: theme.textTheme.bodySmall,
+            ),
+            if (validationPipeline.nextCommandId != null)
+              Text(
+                'Next validation command: ${validationPipeline.nextCommandId}',
+                style: theme.textTheme.bodySmall,
+              ),
             if (validationResult.missingCommandIds.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
@@ -2677,6 +2689,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   _AgentCodingValidationPlanSummary(
                     validationPlan: widget.controller.codingValidationPlan,
                     validationResult: widget.controller.codingValidationResult,
+                    validationPipeline:
+                        widget.controller.codingValidationPipeline,
                     applyingIdeCommand: applyingIdeCommand,
                     onApplyCommand: widget.onApplyIdeCommandSuggestion == null
                         ? null

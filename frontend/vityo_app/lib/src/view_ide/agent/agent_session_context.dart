@@ -738,6 +738,160 @@ class AgentCodingValidationResult {
   }
 }
 
+enum AgentCodingValidationPipelineStatus {
+  idle,
+  waiting,
+  ready,
+  running,
+  complete,
+  failed,
+  blocked,
+}
+
+extension AgentCodingValidationPipelineStatusX
+    on AgentCodingValidationPipelineStatus {
+  String get wireValue => switch (this) {
+    AgentCodingValidationPipelineStatus.idle => 'idle',
+    AgentCodingValidationPipelineStatus.waiting => 'waiting',
+    AgentCodingValidationPipelineStatus.ready => 'ready',
+    AgentCodingValidationPipelineStatus.running => 'running',
+    AgentCodingValidationPipelineStatus.complete => 'complete',
+    AgentCodingValidationPipelineStatus.failed => 'failed',
+    AgentCodingValidationPipelineStatus.blocked => 'blocked',
+  };
+}
+
+class AgentCodingValidationPipeline {
+  const AgentCodingValidationPipeline({
+    required this.status,
+    required this.summary,
+    this.nextCommandId,
+    this.completedCommandIds = const <String>[],
+    this.remainingCommandIds = const <String>[],
+    this.runnableCommandIds = const <String>[],
+    this.requiresInputCommandIds = const <String>[],
+    this.progressNumerator = 0,
+    this.progressDenominator = 0,
+  });
+
+  const AgentCodingValidationPipeline.idle()
+    : status = AgentCodingValidationPipelineStatus.idle,
+      summary = 'No agent coding validation pipeline is active.',
+      nextCommandId = null,
+      completedCommandIds = const <String>[],
+      remainingCommandIds = const <String>[],
+      runnableCommandIds = const <String>[],
+      requiresInputCommandIds = const <String>[],
+      progressNumerator = 0,
+      progressDenominator = 0;
+
+  factory AgentCodingValidationPipeline.fromPlan({
+    required AgentCodingValidationPlan plan,
+    required AgentCodingValidationResult result,
+  }) {
+    if (plan.status == AgentCodingValidationPlanStatus.notNeeded) {
+      return const AgentCodingValidationPipeline.idle();
+    }
+    if (plan.status == AgentCodingValidationPlanStatus.waitingForReview) {
+      return AgentCodingValidationPipeline(
+        status: AgentCodingValidationPipelineStatus.waiting,
+        summary: plan.reason,
+        runnableCommandIds: plan.registeredCommandIds,
+      );
+    }
+    if (plan.status == AgentCodingValidationPlanStatus.blocked ||
+        result.status == AgentCodingValidationResultStatus.blocked) {
+      return AgentCodingValidationPipeline(
+        status: AgentCodingValidationPipelineStatus.blocked,
+        summary: result.summary,
+      );
+    }
+    if (result.status == AgentCodingValidationResultStatus.failed) {
+      return AgentCodingValidationPipeline(
+        status: AgentCodingValidationPipelineStatus.failed,
+        summary: result.summary,
+        completedCommandIds: result.completedCommandIds,
+        remainingCommandIds: result.missingCommandIds,
+        progressNumerator: result.completedCommandIds.length,
+        progressDenominator: result.requiredCommandIds.length,
+      );
+    }
+    if (result.status == AgentCodingValidationResultStatus.passed) {
+      return AgentCodingValidationPipeline(
+        status: AgentCodingValidationPipelineStatus.complete,
+        summary: result.summary,
+        completedCommandIds: result.completedCommandIds,
+        progressNumerator: result.completedCommandIds.length,
+        progressDenominator: result.requiredCommandIds.length,
+      );
+    }
+    final requiredCommandIds = result.requiredCommandIds.isEmpty
+        ? plan.commandPlans
+              .where((commandPlan) => commandPlan.required)
+              .where((commandPlan) => !commandPlan.requiresInput)
+              .map((commandPlan) => commandPlan.commandId)
+              .toList(growable: false)
+        : result.requiredCommandIds;
+    final completedCommandIds = result.completedCommandIds;
+    final remainingCommandIds = result.missingCommandIds.isEmpty
+        ? requiredCommandIds
+              .where((commandId) => !completedCommandIds.contains(commandId))
+              .toList(growable: false)
+        : result.missingCommandIds;
+    final runnableCommandIds = plan.commandPlans
+        .where((commandPlan) => !commandPlan.requiresInput)
+        .map((commandPlan) => commandPlan.commandId)
+        .where(remainingCommandIds.contains)
+        .toList(growable: false);
+    final requiresInputCommandIds = plan.commandPlans
+        .where((commandPlan) => commandPlan.requiresInput)
+        .map((commandPlan) => commandPlan.commandId)
+        .toList(growable: false);
+    final status = completedCommandIds.isEmpty
+        ? AgentCodingValidationPipelineStatus.ready
+        : AgentCodingValidationPipelineStatus.running;
+    return AgentCodingValidationPipeline(
+      status: status,
+      summary: status == AgentCodingValidationPipelineStatus.ready
+          ? 'Agent coding validation is ready to run.'
+          : 'Agent coding validation is running.',
+      nextCommandId: runnableCommandIds.isEmpty
+          ? null
+          : runnableCommandIds.first,
+      completedCommandIds: completedCommandIds,
+      remainingCommandIds: remainingCommandIds,
+      runnableCommandIds: runnableCommandIds,
+      requiresInputCommandIds: requiresInputCommandIds,
+      progressNumerator: completedCommandIds.length,
+      progressDenominator: requiredCommandIds.length,
+    );
+  }
+
+  final AgentCodingValidationPipelineStatus status;
+  final String summary;
+  final String? nextCommandId;
+  final List<String> completedCommandIds;
+  final List<String> remainingCommandIds;
+  final List<String> runnableCommandIds;
+  final List<String> requiresInputCommandIds;
+  final int progressNumerator;
+  final int progressDenominator;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'summary': summary,
+      if (nextCommandId != null) 'nextCommandId': nextCommandId,
+      'completedCommandIds': completedCommandIds,
+      'remainingCommandIds': remainingCommandIds,
+      'runnableCommandIds': runnableCommandIds,
+      'requiresInputCommandIds': requiresInputCommandIds,
+      'progressNumerator': progressNumerator,
+      'progressDenominator': progressDenominator,
+    };
+  }
+}
+
 class AgentCodingValidationPlan {
   const AgentCodingValidationPlan({
     required this.status,
@@ -1478,6 +1632,7 @@ class AgentCodingLoopContext {
     this.autonomyPolicy = const AgentCodingAutonomyPolicy.proposalOnly(),
     this.validationPlan = const AgentCodingValidationPlan.notNeeded(),
     this.validationResult = const AgentCodingValidationResult.notStarted(),
+    this.validationPipeline = const AgentCodingValidationPipeline.idle(),
     this.suggestedCommandIds = const <String>[],
   });
 
@@ -1540,6 +1695,10 @@ class AgentCodingLoopContext {
       changeReviewGate: effectiveChangeReviewGate,
       lastPatchApplication: effectiveLastPatchApplication,
     );
+    final effectiveValidationResult = AgentCodingValidationResult.fromPlan(
+      plan: effectiveValidationPlan,
+      recentCommandResults: recentCommandResults,
+    );
     return AgentCodingLoopContext(
       pendingPatch: pendingPatch,
       recentPatchProposals: recentPatchProposals.toList(growable: false),
@@ -1562,9 +1721,10 @@ class AgentCodingLoopContext {
       changeReviewGate: effectiveChangeReviewGate,
       autonomyPolicy: effectiveAutonomyPolicy,
       validationPlan: effectiveValidationPlan,
-      validationResult: AgentCodingValidationResult.fromPlan(
+      validationResult: effectiveValidationResult,
+      validationPipeline: AgentCodingValidationPipeline.fromPlan(
         plan: effectiveValidationPlan,
-        recentCommandResults: recentCommandResults,
+        result: effectiveValidationResult,
       ),
       suggestedCommandIds: _suggestedAgentCodingCommandIds(
         pendingIdeCommands: pendingIdeCommandList,
@@ -1596,6 +1756,7 @@ class AgentCodingLoopContext {
   final AgentCodingAutonomyPolicy autonomyPolicy;
   final AgentCodingValidationPlan validationPlan;
   final AgentCodingValidationResult validationResult;
+  final AgentCodingValidationPipeline validationPipeline;
   final List<String> suggestedCommandIds;
 
   Map<String, Object?> toJson() {
@@ -1641,6 +1802,8 @@ class AgentCodingLoopContext {
         'validationPlan': validationPlan.toJson(),
       if (validationPlan.status != AgentCodingValidationPlanStatus.notNeeded)
         'validationResult': validationResult.toJson(),
+      if (validationPlan.status != AgentCodingValidationPlanStatus.notNeeded)
+        'validationPipeline': validationPipeline.toJson(),
       if (recentCodingPlans.isNotEmpty)
         'recentCodingPlans': recentCodingPlans
             .map((plan) => plan.toJson())

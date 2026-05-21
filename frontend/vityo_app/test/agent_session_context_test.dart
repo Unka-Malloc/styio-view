@@ -1975,6 +1975,8 @@ void main() {
           agentJson['validationPlan']! as Map<String, Object?>;
       final validationResult =
           agentJson['validationResult']! as Map<String, Object?>;
+      final validationPipeline =
+          agentJson['validationPipeline']! as Map<String, Object?>;
       final validationCommandPlans =
           validationPlan['commandPlans']! as List<Object?>;
 
@@ -2014,6 +2016,9 @@ void main() {
       expect(validationResult['status'], 'notStarted');
       expect(validationResult['missingCommandIds'], contains('saveAll'));
       expect(validationResult['missingCommandIds'], contains('runTests'));
+      expect(validationPipeline['status'], 'ready');
+      expect(validationPipeline['nextCommandId'], 'saveAll');
+      expect(validationPipeline['progressNumerator'], 0);
       expect(
         validationPlan['commandHints'],
         containsAll(<String>[
@@ -2106,9 +2111,14 @@ void main() {
     final agentJson = context.toJson()['agent']! as Map<String, Object?>;
     final validationResult =
         agentJson['validationResult']! as Map<String, Object?>;
+    final validationPipeline =
+        agentJson['validationPipeline']! as Map<String, Object?>;
 
     expect(validationResult['status'], 'passed');
     expect(validationResult['summary'], 'Agent coding validation passed.');
+    expect(validationPipeline['status'], 'complete');
+    expect(validationPipeline['progressNumerator'], 5);
+    expect(validationPipeline['progressDenominator'], 5);
     expect(
       validationResult['completedCommandIds'],
       containsAll(<String>[

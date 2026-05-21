@@ -985,6 +985,7 @@ void main() {
       expect(systemMessage['content'], contains('agent.autonomyPolicy'));
       expect(systemMessage['content'], contains('agent.validationPlan'));
       expect(systemMessage['content'], contains('agent.validationResult'));
+      expect(systemMessage['content'], contains('agent.validationPipeline'));
       expect(
         systemMessage['content'],
         contains('agent.validationPlan.registeredCommandIds'),
@@ -996,6 +997,10 @@ void main() {
       expect(
         systemMessage['content'],
         contains('agent.validationResult.status'),
+      );
+      expect(
+        systemMessage['content'],
+        contains('agent.validationPipeline.nextCommandId'),
       );
       expect(
         systemMessage['content'],
@@ -1392,6 +1397,9 @@ void main() {
         metadata['agentValidationMissingCommandIds'],
         contains('collectAgentCodingCheckpoint'),
       );
+      expect(metadata['agentValidationPipelineStatus'], 'waiting');
+      expect(metadata['agentValidationPipelineNextCommandId'], isNull);
+      expect(metadata['agentValidationPipelineProgress'], '0/0');
       expect(metadata['recentPatchProposalCount'], 1);
       expect(metadata['recentPatchProposalIds'], <String>['patch-pending']);
       expect(metadata['pendingIdeCommandCount'], 1);

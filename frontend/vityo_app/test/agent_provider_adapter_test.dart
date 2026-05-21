@@ -1014,6 +1014,7 @@ void main() {
         contains('planSourceControlCommitDraft'),
       );
       expect(systemMessage['content'], contains('testing.rerunFailed'));
+      expect(systemMessage['content'], contains('testing.suggestedCommandIds'));
       expect(systemMessage['content'], contains('testing.debugFailed'));
       expect(
         systemMessage['content'],

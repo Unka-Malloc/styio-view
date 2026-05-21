@@ -57,6 +57,7 @@ void main() {
     expect(decoded.systemPrompt, contains('previewWorkspaceReplace'));
     expect(decoded.systemPrompt, contains('applyWorkspaceReplace'));
     expect(decoded.systemPrompt, contains('testing.discovered.testCount'));
+    expect(decoded.systemPrompt, contains('testing.suggestedCommandIds'));
     expect(decoded.systemPrompt, contains('testing.lastRun.failedTests'));
     expect(decoded.systemPrompt, contains('commands.testingCommands'));
     expect(decoded.systemPrompt, contains('rerunFailedTests'));

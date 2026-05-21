@@ -272,7 +272,7 @@ List<String> _todoItems(List<AgentToolPermissionDecision> decisions) {
   final todos = <String>[];
   if (decisions.any((decision) => decision.requiresReview)) {
     todos.add(
-      'TODO: bind project-level permission policy management controls to Agent Surface.',
+      'TODO: add project-level permission policy listing and cleanup controls to Agent settings.',
     );
   }
   if (decisions.any((decision) => decision.blocksDispatch)) {

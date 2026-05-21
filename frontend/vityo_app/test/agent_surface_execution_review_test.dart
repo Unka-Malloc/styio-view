@@ -212,6 +212,116 @@ void main() {
     );
   });
 
+  testWidgets('agent surface remembers tool approval for project', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-project-1',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+
+    await _pumpSurface(tester, controller);
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey(
+          'agent-tool-call-approve-project-call-command-project-1',
+        ),
+      ),
+    );
+    await tester.pump();
+    controller.clearToolCallTimeline();
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-project-2',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      controller.projectToolPermissionRules.single.action,
+      AgentToolPermissionAction.allow,
+    );
+    expect(
+      controller.toolCallExecutionPlan
+          .executionFor('call-command-project-2')
+          ?.status,
+      AgentToolCallExecutionStatus.ready,
+    );
+    expect(
+      find.text('runIdeCommand · ready · call-command-project-2'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('agent surface remembers tool denial for project', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-project-deny-1',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+
+    await _pumpSurface(tester, controller);
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey(
+          'agent-tool-call-deny-project-call-command-project-deny-1',
+        ),
+      ),
+    );
+    await tester.pump();
+    controller.clearToolCallTimeline();
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-project-deny-2',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      controller.projectToolPermissionRules.single.action,
+      AgentToolPermissionAction.deny,
+    );
+    expect(
+      controller.toolCallExecutionPlan
+          .executionFor('call-command-project-deny-2')
+          ?.status,
+      AgentToolCallExecutionStatus.blocked,
+    );
+    expect(
+      find.text('runIdeCommand · blocked · call-command-project-deny-2'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent surface denies tool call with corrective feedback', (
     tester,
   ) async {

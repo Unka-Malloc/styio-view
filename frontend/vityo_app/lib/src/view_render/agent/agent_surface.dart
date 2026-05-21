@@ -2484,6 +2484,16 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           callId,
                           rememberForSession: true,
                         ),
+                  onApproveCallForProject: applyingAction || controller.sending
+                      ? null
+                      : (callId) => unawaited(
+                          controller.approveToolCallExecutionForProject(callId),
+                        ),
+                  onDenyCallForProject: applyingAction || controller.sending
+                      ? null
+                      : (callId) => unawaited(
+                          controller.denyToolCallExecutionForProject(callId),
+                        ),
                   dispatching: _dispatchingToolCalls,
                   onRunReadyCalls:
                       toolCallExecutionPlan.status ==
@@ -3258,6 +3268,8 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
     this.onDenyCallWithFeedback,
     this.onApproveCallForSession,
     this.onDenyCallForSession,
+    this.onApproveCallForProject,
+    this.onDenyCallForProject,
     this.onRunReadyCalls,
     this.onReplayJournal,
     this.onDraftReview,
@@ -3272,6 +3284,8 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   final void Function(String callId, String feedback)? onDenyCallWithFeedback;
   final ValueChanged<String>? onApproveCallForSession;
   final ValueChanged<String>? onDenyCallForSession;
+  final ValueChanged<String>? onApproveCallForProject;
+  final ValueChanged<String>? onDenyCallForProject;
   final VoidCallback? onRunReadyCalls;
   final VoidCallback? onReplayJournal;
   final VoidCallback? onDraftReview;
@@ -3393,6 +3407,26 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                             : () => onDenyCallForSession!(execution.callId),
                         icon: const Icon(Icons.lock),
                         label: const Text('Deny In Session'),
+                      ),
+                      FilledButton.tonalIcon(
+                        key: ValueKey(
+                          'agent-tool-call-approve-project-${execution.callId}',
+                        ),
+                        onPressed: onApproveCallForProject == null
+                            ? null
+                            : () => onApproveCallForProject!(execution.callId),
+                        icon: const Icon(Icons.policy_outlined),
+                        label: const Text('Allow In Project'),
+                      ),
+                      OutlinedButton.icon(
+                        key: ValueKey(
+                          'agent-tool-call-deny-project-${execution.callId}',
+                        ),
+                        onPressed: onDenyCallForProject == null
+                            ? null
+                            : () => onDenyCallForProject!(execution.callId),
+                        icon: const Icon(Icons.gpp_bad_outlined),
+                        label: const Text('Deny In Project'),
                       ),
                     ],
                   ),

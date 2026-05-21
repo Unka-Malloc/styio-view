@@ -66,7 +66,7 @@ void main() {
     expect(permission.blockingReasons, isEmpty);
     expect(
       permission.todoItems.join('\n'),
-      contains('project-level permission policy management controls'),
+      contains('permission policy listing and cleanup controls'),
     );
     expect(dispatch.status, AgentCodingLoopStepStatus.ready);
     expect(review.status, AgentCodingLoopStepStatus.waiting);

@@ -924,7 +924,17 @@ void main() {
       controller.updatePrompt('Plan a fix.');
       await controller.sendPrompt();
 
-      final event = buffer.snapshot.events.single;
+      final streamEvents = buffer.snapshot.events
+          .where((event) => event.metadata['streamEventKind'] != null)
+          .toList(growable: false);
+      expect(
+        streamEvents.map((event) => event.metadata['streamEventKind']),
+        <String>['started', 'contentPart', 'completed'],
+      );
+      expect(streamEvents.first.metadata['synthetic'], isTrue);
+      final event = buffer.snapshot.events.singleWhere(
+        (event) => event.metadata['outcome'] == 'succeeded',
+      );
       expect(event.channelId, 'agent.activity');
       expect(event.kind, RuntimeOutputChannelKind.agent);
       expect(event.message, 'Patch plan ready.');
@@ -1018,8 +1028,13 @@ void main() {
     final response = await controller.sendPrompt();
 
     expect(response, isNotNull);
-    expect(buffer.snapshot.events, hasLength(2));
-    final event = buffer.snapshot.events.last;
+    final streamEvents = buffer.snapshot.events
+        .where((event) => event.metadata['streamEventKind'] != null)
+        .toList(growable: false);
+    expect(streamEvents, hasLength(3));
+    final event = buffer.snapshot.events.singleWhere(
+      (event) => event.metadata['operation'] == 'agent.history.persist',
+    );
     expect(event.message, contains('Agent history persistence failed'));
     expect(event.message, contains('disk write denied'));
     expect(event.metadata['operation'], 'agent.history.persist');

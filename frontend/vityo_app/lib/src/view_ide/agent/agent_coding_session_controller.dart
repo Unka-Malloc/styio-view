@@ -1100,25 +1100,34 @@ class AgentCodingSessionController extends ChangeNotifier {
 
   Future<AgentProviderResponseEnvelope> _sendProviderRequest(
     AgentProviderRequest request,
-  ) {
-    final streamingAdapter = adapter is StreamingAgentProviderAdapter
-        ? adapter as StreamingAgentProviderAdapter
-        : null;
-    if (streamingAdapter == null) {
-      return adapter.send(request);
+  ) async {
+    final result = await const AgentProviderStreamingRuntime().run(
+      adapter: adapter,
+      request: request,
+    );
+    for (final event in result.outputEvents) {
+      _runtimeOutputBuffer?.addEvent(event);
     }
-    const binding = AgentProviderStreamRuntimeOutputBinding();
-    final events = streamingAdapter.stream(request).map((event) {
-      _runtimeOutputBuffer?.addEvent(binding.eventFor(event));
+    for (final event in result.providerEvents) {
       final toolCallEvent = _toolCallStreamBridge.eventFor(event);
       if (toolCallEvent != null) {
         recordToolCallEvent(toolCallEvent);
       }
-      return event;
-    });
-    return const AgentProviderStreamingResponseCollector().collect(
-      requestId: request.requestId,
-      events: events,
+    }
+    if (result.succeeded && result.response != null) {
+      return result.response!;
+    }
+    final error = result.error;
+    if (error is AgentProviderTransportException) {
+      throw error;
+    }
+    if (error != null) {
+      throw error;
+    }
+    throw AgentProviderTransportException(
+      kind: AgentProviderTransportFailureKind.unknown,
+      message: result.errorMessage ?? 'Agent provider request failed.',
+      operation: 'agent.provider.streaming_runtime',
     );
   }
 

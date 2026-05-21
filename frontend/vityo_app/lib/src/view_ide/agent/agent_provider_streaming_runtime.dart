@@ -20,12 +20,14 @@ class AgentProviderStreamingRunResult {
     required this.providerEvents,
     required this.outputEvents,
     this.response,
+    this.error,
     this.errorMessage,
   });
 
   final AgentProviderStreamingRunStatus status;
   final String requestId;
   final AgentProviderResponseEnvelope? response;
+  final Object? error;
   final String? errorMessage;
   final List<AgentProviderStreamEvent> providerEvents;
   final List<RuntimeOutputEvent> outputEvents;
@@ -106,6 +108,7 @@ class AgentProviderStreamingRuntime {
         status: AgentProviderStreamingRunStatus.failed,
         requestId: request.requestId,
         events: events,
+        error: error,
         errorMessage: message,
       );
     }
@@ -162,6 +165,7 @@ class AgentProviderStreamingRuntime {
     required String requestId,
     required List<AgentProviderStreamEvent> events,
     AgentProviderResponseEnvelope? response,
+    Object? error,
     String? errorMessage,
   }) {
     final providerEvents = List<AgentProviderStreamEvent>.unmodifiable(events);
@@ -169,6 +173,7 @@ class AgentProviderStreamingRuntime {
       status: status,
       requestId: requestId,
       response: response,
+      error: error,
       errorMessage: errorMessage,
       providerEvents: providerEvents,
       outputEvents: binding.eventsFor(providerEvents),

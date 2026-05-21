@@ -146,6 +146,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   final AgentProviderToolCallStreamBridge _toolCallStreamBridge =
       const AgentProviderToolCallStreamBridge();
   AgentToolCallTimeline _toolCallTimeline = AgentToolCallTimeline.empty();
+  final Map<String, AgentToolCallReviewDecision> _toolCallReviewDecisions =
+      <String, AgentToolCallReviewDecision>{};
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
   final List<AgentConversationTurn> _conversationTurns =
       <AgentConversationTurn>[];
@@ -213,12 +215,17 @@ class AgentCodingSessionController extends ChangeNotifier {
   List<AgentConversationTurn> get conversationTurns =>
       List<AgentConversationTurn>.unmodifiable(_conversationTurns);
   AgentToolCallTimeline get toolCallTimeline => _toolCallTimeline;
+  List<AgentToolCallReviewDecision> get toolCallReviewDecisions =>
+      List<AgentToolCallReviewDecision>.unmodifiable(
+        _toolCallReviewDecisions.values,
+      );
   AgentToolCallExecutionPlan get toolCallExecutionPlan {
     final dispatchPlan = previewDispatchPlan();
     return AgentToolCallExecutionPlan.fromTimeline(
       toolSelection: dispatchPlan.toolSelection,
       permissionPlan: dispatchPlan.toolPermissionPlan,
       timeline: _toolCallTimeline,
+      reviewDecisions: _toolCallReviewDecisions.values,
     );
   }
 
@@ -329,6 +336,8 @@ class AgentCodingSessionController extends ChangeNotifier {
     _recentIdeCommandSuggestionContexts.clear();
     _recentCodingPlanContexts.clear();
     _recentDiagnosticSummaryContexts.clear();
+    _toolCallTimeline = AgentToolCallTimeline.empty();
+    _toolCallReviewDecisions.clear();
     _attachments.clear();
     _conversationTurns.clear();
     notifyListeners();
@@ -516,11 +525,50 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   void clearToolCallTimeline() {
-    if (_toolCallTimeline.status == AgentToolCallTimelineStatus.idle) {
+    if (_toolCallTimeline.status == AgentToolCallTimelineStatus.idle &&
+        _toolCallReviewDecisions.isEmpty) {
       return;
     }
     _toolCallTimeline = AgentToolCallTimeline.empty();
+    _toolCallReviewDecisions.clear();
     notifyListeners();
+  }
+
+  bool approveToolCallExecution(String callId, {String? reason}) {
+    return _recordToolCallReviewDecision(
+      callId,
+      (call) => AgentToolCallReviewDecision.approved(
+        callId: call.callId,
+        toolId: call.toolId,
+        reason: reason ?? 'User approved this agent tool call.',
+        decidedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  bool denyToolCallExecution(String callId, {String? reason}) {
+    return _recordToolCallReviewDecision(
+      callId,
+      (call) => AgentToolCallReviewDecision.denied(
+        callId: call.callId,
+        toolId: call.toolId,
+        reason: reason ?? 'User denied this agent tool call.',
+        decidedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  bool _recordToolCallReviewDecision(
+    String callId,
+    AgentToolCallReviewDecision Function(AgentToolCallState call) buildDecision,
+  ) {
+    final call = _toolCallTimeline.callFor(callId);
+    if (call == null || call.callId.trim().isEmpty) {
+      return false;
+    }
+    _toolCallReviewDecisions[call.callId] = buildDecision(call);
+    notifyListeners();
+    return true;
   }
 
   Future<AgentProviderResponseEnvelope?> sendPrompt() async {
@@ -566,6 +614,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _lastPatchApplicationResult = null;
     _clearWorkspaceSnapshotState();
     _toolCallTimeline = AgentToolCallTimeline.empty();
+    _toolCallReviewDecisions.clear();
     notifyListeners();
 
     final requestId = _nextRequestId();
@@ -806,6 +855,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         _recentPatchProposalContexts.isEmpty &&
         _recentIdeCommandSuggestionContexts.isEmpty &&
         _toolCallTimeline.status == AgentToolCallTimelineStatus.idle &&
+        _toolCallReviewDecisions.isEmpty &&
         _lastError == null &&
         _lastProviderFailure == null) {
       return;
@@ -829,6 +879,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _recentPatchProposalContexts.clear();
     _recentIdeCommandSuggestionContexts.clear();
     _toolCallTimeline = AgentToolCallTimeline.empty();
+    _toolCallReviewDecisions.clear();
     _lastError = null;
     _lastProviderFailure = null;
     notifyListeners();

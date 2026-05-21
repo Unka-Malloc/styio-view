@@ -47,6 +47,71 @@ extension AgentToolCallExecutionPlanStatusX
   };
 }
 
+enum AgentToolCallReviewDecisionStatus { approved, denied }
+
+extension AgentToolCallReviewDecisionStatusX
+    on AgentToolCallReviewDecisionStatus {
+  String get wireValue => switch (this) {
+    AgentToolCallReviewDecisionStatus.approved => 'approved',
+    AgentToolCallReviewDecisionStatus.denied => 'denied',
+  };
+}
+
+class AgentToolCallReviewDecision {
+  const AgentToolCallReviewDecision({
+    required this.callId,
+    required this.toolId,
+    required this.status,
+    required this.reason,
+    this.decidedAt,
+  });
+
+  const AgentToolCallReviewDecision.approved({
+    required String callId,
+    required String toolId,
+    String reason = 'User approved this agent tool call.',
+    DateTime? decidedAt,
+  }) : this(
+         callId: callId,
+         toolId: toolId,
+         status: AgentToolCallReviewDecisionStatus.approved,
+         reason: reason,
+         decidedAt: decidedAt,
+       );
+
+  const AgentToolCallReviewDecision.denied({
+    required String callId,
+    required String toolId,
+    String reason = 'User denied this agent tool call.',
+    DateTime? decidedAt,
+  }) : this(
+         callId: callId,
+         toolId: toolId,
+         status: AgentToolCallReviewDecisionStatus.denied,
+         reason: reason,
+         decidedAt: decidedAt,
+       );
+
+  final String callId;
+  final String toolId;
+  final AgentToolCallReviewDecisionStatus status;
+  final String reason;
+  final DateTime? decidedAt;
+
+  bool get approved => status == AgentToolCallReviewDecisionStatus.approved;
+  bool get denied => status == AgentToolCallReviewDecisionStatus.denied;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'callId': callId,
+      'toolId': toolId,
+      'status': status.wireValue,
+      'reason': reason,
+      if (decidedAt != null) 'decidedAt': decidedAt!.toIso8601String(),
+    };
+  }
+}
+
 class AgentToolCallExecutionIssue {
   const AgentToolCallExecutionIssue({
     required this.code,
@@ -74,6 +139,7 @@ class AgentToolCallExecution {
     required this.status,
     this.lifecycleStatus,
     this.permissionStatus,
+    this.reviewDecisionStatus,
     this.issues = const <AgentToolCallExecutionIssue>[],
   });
 
@@ -82,6 +148,7 @@ class AgentToolCallExecution {
   final AgentToolCallExecutionStatus status;
   final AgentToolCallStatus? lifecycleStatus;
   final AgentToolPermissionDecisionStatus? permissionStatus;
+  final AgentToolCallReviewDecisionStatus? reviewDecisionStatus;
   final List<AgentToolCallExecutionIssue> issues;
 
   bool get blocked =>
@@ -101,6 +168,8 @@ class AgentToolCallExecution {
         'lifecycleStatus': lifecycleStatus!.wireValue,
       if (permissionStatus != null)
         'permissionStatus': permissionStatus!.wireValue,
+      if (reviewDecisionStatus != null)
+        'reviewDecisionStatus': reviewDecisionStatus!.wireValue,
       'issueCodes': issueCodes,
       'issues': issues.map((issue) => issue.toJson()).toList(growable: false),
     };
@@ -118,13 +187,19 @@ class AgentToolCallExecutionPlan {
     required AgentToolSelection toolSelection,
     required AgentToolPermissionPlan permissionPlan,
     required AgentToolCallTimeline timeline,
+    Iterable<AgentToolCallReviewDecision> reviewDecisions =
+        const <AgentToolCallReviewDecision>[],
   }) {
+    final reviewDecisionByCallId = <String, AgentToolCallReviewDecision>{
+      for (final decision in reviewDecisions) decision.callId: decision,
+    };
     final executions = <AgentToolCallExecution>[
       for (final call in timeline.calls)
         _executionFor(
           call: call,
           toolSelection: toolSelection,
           permissionPlan: permissionPlan,
+          reviewDecision: reviewDecisionByCallId[call.callId],
         ),
     ];
     return AgentToolCallExecutionPlan(
@@ -187,6 +262,7 @@ AgentToolCallExecution _executionFor({
   required AgentToolCallState call,
   required AgentToolSelection toolSelection,
   required AgentToolPermissionPlan permissionPlan,
+  required AgentToolCallReviewDecision? reviewDecision,
 }) {
   final issues = <AgentToolCallExecutionIssue>[];
   final tool = _toolFor(toolSelection, call.toolId);
@@ -212,6 +288,16 @@ AgentToolCallExecution _executionFor({
       AgentToolCallExecutionIssue(
         code: permission.issueCode,
         message: permission.reason,
+      ),
+    );
+  }
+  if (reviewDecision?.denied ?? false) {
+    issues.add(
+      AgentToolCallExecutionIssue(
+        code: 'agent.tool.review.denied.${call.callId}',
+        message: reviewDecision!.reason.isEmpty
+            ? 'Tool call ${call.callId} was denied by user review.'
+            : reviewDecision.reason,
       ),
     );
   }
@@ -247,10 +333,12 @@ AgentToolCallExecution _executionFor({
     status: _executionStatus(
       call: call,
       permission: permission,
+      reviewDecision: reviewDecision,
       issues: issues,
     ),
     lifecycleStatus: call.status,
     permissionStatus: permission?.status,
+    reviewDecisionStatus: reviewDecision?.status,
     issues: List<AgentToolCallExecutionIssue>.unmodifiable(issues),
   );
 }
@@ -333,6 +421,7 @@ List<AgentToolCallExecutionIssue> _validateInput(
 AgentToolCallExecutionStatus _executionStatus({
   required AgentToolCallState call,
   required AgentToolPermissionDecision? permission,
+  required AgentToolCallReviewDecision? reviewDecision,
   required List<AgentToolCallExecutionIssue> issues,
 }) {
   if (call.status == AgentToolCallStatus.failed) {
@@ -348,7 +437,8 @@ AgentToolCallExecutionStatus _executionStatus({
       call.status == AgentToolCallStatus.inputStreaming) {
     return AgentToolCallExecutionStatus.waitingInput;
   }
-  if (permission?.requiresReview ?? false) {
+  if ((permission?.requiresReview ?? false) &&
+      !(reviewDecision?.approved ?? false)) {
     return AgentToolCallExecutionStatus.reviewRequired;
   }
   return AgentToolCallExecutionStatus.ready;

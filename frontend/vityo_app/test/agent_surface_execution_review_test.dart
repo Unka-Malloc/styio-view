@@ -5,6 +5,7 @@ import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
 import 'package:vityo_app/src/agent/agent_workspace_snapshot.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
@@ -57,6 +58,19 @@ void main() {
       find.byKey(const ValueKey('agent-tool-call-execution-call-command')),
       findsOneWidget,
     );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-approve-call-command')),
+    );
+    await tester.pump();
+
+    expect(
+      controller.toolCallExecutionPlan.executionFor('call-command')?.status,
+      AgentToolCallExecutionStatus.ready,
+    );
+    expect(find.text('runIdeCommand · ready · call-command'), findsOneWidget);
+    expect(find.text('Review decision: approved'), findsOneWidget);
 
     await _tapVisible(
       tester,

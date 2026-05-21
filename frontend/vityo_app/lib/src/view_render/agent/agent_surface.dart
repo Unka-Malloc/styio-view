@@ -2306,6 +2306,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 _AgentToolCallReviewSurface(
                   timeline: toolCallTimeline,
                   executionPlan: toolCallExecutionPlan,
+                  onApproveCall: applyingAction || controller.sending
+                      ? null
+                      : (callId) => controller.approveToolCallExecution(callId),
+                  onDenyCall: applyingAction || controller.sending
+                      ? null
+                      : (callId) => controller.denyToolCallExecution(callId),
                   onDraftReview: applyingAction || controller.sending
                       ? null
                       : () => controller.updatePrompt(
@@ -3059,11 +3065,15 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   const _AgentToolCallReviewSurface({
     required this.timeline,
     required this.executionPlan,
+    this.onApproveCall,
+    this.onDenyCall,
     this.onDraftReview,
   });
 
   final AgentToolCallTimeline timeline;
   final AgentToolCallExecutionPlan executionPlan;
+  final ValueChanged<String>? onApproveCall;
+  final ValueChanged<String>? onDenyCall;
   final VoidCallback? onDraftReview;
 
   @override
@@ -3110,6 +3120,44 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                   'Issues: ${execution.issueCodes.join(', ')}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.error,
+                  ),
+                ),
+              if (execution.reviewDecisionStatus != null)
+                Text(
+                  'Review decision: ${execution.reviewDecisionStatus!.wireValue}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              if (execution.status ==
+                  AgentToolCallExecutionStatus.reviewRequired)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.tonalIcon(
+                        key: ValueKey(
+                          'agent-tool-call-approve-${execution.callId}',
+                        ),
+                        onPressed: onApproveCall == null
+                            ? null
+                            : () => onApproveCall!(execution.callId),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Approve Tool Call'),
+                      ),
+                      OutlinedButton.icon(
+                        key: ValueKey(
+                          'agent-tool-call-deny-${execution.callId}',
+                        ),
+                        onPressed: onDenyCall == null
+                            ? null
+                            : () => onDenyCall!(execution.callId),
+                        icon: const Icon(Icons.block),
+                        label: const Text('Deny Tool Call'),
+                      ),
+                    ],
                   ),
                 ),
             ],

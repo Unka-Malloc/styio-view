@@ -39,6 +39,64 @@ void main() {
     expect(plan.toJson()['status'], 'review_required');
   });
 
+  test('agent tool call execution plan applies review decisions', () {
+    final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+      PlatformTarget.linux,
+    );
+    final selection = AgentToolRegistry().selectForProfile(
+      profile: profile,
+      providerKind: AgentProviderKind.cloudOpenAICompatible,
+    );
+    final permissions = AgentToolPermissionPlan.fromSelection(selection);
+    final timeline = const AgentToolCallLifecycleTracker()
+        .track(<AgentToolCallEvent>[
+          const AgentToolCallEvent.callStarted(
+            callId: 'call-patch',
+            toolId: 'applyWorkspacePatch',
+            input: '{"patch":"diff --git a/main.styio b/main.styio"}',
+          ),
+        ]);
+
+    final approvedPlan = AgentToolCallExecutionPlan.fromTimeline(
+      toolSelection: selection,
+      permissionPlan: permissions,
+      timeline: timeline,
+      reviewDecisions: const <AgentToolCallReviewDecision>[
+        AgentToolCallReviewDecision.approved(
+          callId: 'call-patch',
+          toolId: 'applyWorkspacePatch',
+        ),
+      ],
+    );
+    final deniedPlan = AgentToolCallExecutionPlan.fromTimeline(
+      toolSelection: selection,
+      permissionPlan: permissions,
+      timeline: timeline,
+      reviewDecisions: const <AgentToolCallReviewDecision>[
+        AgentToolCallReviewDecision.denied(
+          callId: 'call-patch',
+          toolId: 'applyWorkspacePatch',
+          reason: 'Patch is too broad.',
+        ),
+      ],
+    );
+
+    expect(approvedPlan.status, AgentToolCallExecutionPlanStatus.ready);
+    expect(
+      approvedPlan.executionFor('call-patch')!.reviewDecisionStatus,
+      AgentToolCallReviewDecisionStatus.approved,
+    );
+    expect(deniedPlan.status, AgentToolCallExecutionPlanStatus.blocked);
+    expect(
+      deniedPlan.blockingIssueCodes,
+      contains('agent.tool.review.denied.call-patch'),
+    );
+    expect(
+      deniedPlan.executionFor('call-patch')!.reviewDecisionStatus,
+      AgentToolCallReviewDecisionStatus.denied,
+    );
+  });
+
   test('agent tool call execution plan blocks unregistered tools', () {
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
     final selection = AgentToolRegistry().selectForProfile(

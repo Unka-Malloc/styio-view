@@ -48,6 +48,8 @@ void main() {
     expect(decoded.systemPrompt, contains('metadata.deploymentCommand'));
     expect(decoded.systemPrompt, contains('commands.moduleCommands'));
     expect(decoded.systemPrompt, contains('metadata.moduleHostRefresh'));
+    expect(decoded.systemPrompt, contains('commands.surfaceCommands'));
+    expect(decoded.systemPrompt, contains('showRuntime'));
     expect(decoded.systemPrompt, contains('commands.workspaceFileCommands'));
     expect(decoded.systemPrompt, contains('createWorkspaceFile'));
     expect(decoded.systemPrompt, contains('renameWorkspaceFile'));

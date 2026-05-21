@@ -548,6 +548,14 @@ void main() {
       <AppCommandId>[AppCommandId.refreshModules],
     );
     expect(
+      StyioCommandRegistry.surfaceCommands.map((command) => command.id),
+      <AppCommandId>[
+        AppCommandId.showRuntime,
+        AppCommandId.showAgent,
+        AppCommandId.showDebug,
+      ],
+    );
+    expect(
       StyioCommandRegistry.workflowCommands.map((command) => command.id),
       <AppCommandId>[
         AppCommandId.run,

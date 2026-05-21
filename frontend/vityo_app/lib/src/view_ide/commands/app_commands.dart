@@ -841,6 +841,9 @@ class StyioCommandRegistry {
     (command) => command.category == AppCommandCategory.settings,
   );
 
+  static Iterable<AppCommandDescriptor> get surfaceCommands =>
+      commandsForCategory(AppCommandCategory.surface);
+
   static Iterable<AppCommandDescriptor> get workflowCommands => commands.where(
     (command) => switch (command.id) {
       AppCommandId.run ||

@@ -476,6 +476,7 @@ void main() {
     final deploymentCommands =
         commandsJson['deploymentCommands']! as List<Object?>;
     final moduleCommands = commandsJson['moduleCommands']! as List<Object?>;
+    final surfaceCommands = commandsJson['surfaceCommands']! as List<Object?>;
     final nativeToolCommands =
         commandsJson['nativeToolCommands']! as List<Object?>;
     final nativeToolCommandReadiness =
@@ -509,7 +510,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 60);
+    expect(json['schemaVersion'], 61);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1134,6 +1135,12 @@ void main() {
       'refreshModules',
     );
     expect(
+      surfaceCommands.map(
+        (command) => (command! as Map<String, Object?>)['id'],
+      ),
+      <String>['showRuntime', 'showAgent', 'showDebug'],
+    );
+    expect(
       (nativeToolCommands.first! as Map<String, Object?>)['id'],
       'runBuild',
     );
@@ -1626,7 +1633,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 60);
+    expect(json['schemaVersion'], 61);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1901,7 +1908,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 60);
+    expect(context.schemaVersion, 61);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

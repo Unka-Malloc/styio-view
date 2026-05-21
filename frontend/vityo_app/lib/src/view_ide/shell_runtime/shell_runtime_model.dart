@@ -3270,6 +3270,34 @@ class ShellRuntimeModel extends ChangeNotifier {
           metadata: <String, Object?>{'moduleHostRefresh': metadata},
         );
         return true;
+      case 'showRuntime':
+      case 'showAgent':
+      case 'showDebug':
+        final commandId = switch (suggestion.commandId) {
+          'showRuntime' => AppCommandId.showRuntime,
+          'showAgent' => AppCommandId.showAgent,
+          'showDebug' => AppCommandId.showDebug,
+          _ => AppCommandId.showRuntime,
+        };
+        await executeCommand(commandId);
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: true,
+          message:
+              'Agent command ${suggestion.commandId} focused the requested IDE surface.',
+          metadata: <String, Object?>{
+            'surfaceCommand': <String, Object?>{
+              'commandId': suggestion.commandId,
+              'targetSurface': switch (suggestion.commandId) {
+                'showRuntime' => 'runtime',
+                'showAgent' => 'agent',
+                'showDebug' => 'debug',
+                _ => 'runtime',
+              },
+            },
+          },
+        );
+        return true;
       case 'runBuild':
         if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
           return false;

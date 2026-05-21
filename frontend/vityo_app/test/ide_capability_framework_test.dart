@@ -222,6 +222,12 @@ void main() {
     );
     expect(
       entriesById['service.semantic-snapshot']?.summary,
+      contains(
+        'StyioServiceDaemonProcessAdapter launch request/result contracts',
+      ),
+    );
+    expect(
+      entriesById['service.semantic-snapshot']?.summary,
       contains('StyioServiceDaemonSupervisorControls'),
     );
     expect(
@@ -234,7 +240,9 @@ void main() {
     );
     expect(
       entriesById['service.semantic-snapshot']?.todo,
-      contains('real StyioService daemon process adapters'),
+      contains(
+        'platform-specific StyioService process/service implementations',
+      ),
     );
     expect(
       entriesById['service.semantic-snapshot']?.runtimeMaturityBlocking,

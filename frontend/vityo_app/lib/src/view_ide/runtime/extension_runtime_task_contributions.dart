@@ -701,7 +701,10 @@ class ExtensionRuntimeTaskProcessHandleBinder {
         metadata: metadata,
       );
     }
-    final handleId = _handleIdFromResult(result);
+    final processHandle = result.processHandle;
+    final handleId =
+        _handleIdFromProcessHandle(processHandle) ??
+        _handleIdFromResult(result);
     if (handleId == null) {
       return ExtensionRuntimeTaskProcessHandleBindingResult.missingHandle(
         message:
@@ -717,6 +720,7 @@ class ExtensionRuntimeTaskProcessHandleBinder {
         'managerId': result.binding.managerId,
         'routeKind': result.binding.routeKind,
         if (result.manager != null) 'manager': result.manager!.toJson(),
+        if (processHandle != null) 'processHandle': processHandle.toJson(),
         ...metadata,
       },
     );
@@ -726,6 +730,17 @@ class ExtensionRuntimeTaskProcessHandleBinder {
           'Runtime task ${plan.executionPlan.definition.id} process handle $handleId registered.',
       metadata: metadata,
     );
+  }
+
+  String? _handleIdFromProcessHandle(RuntimeProcessHandleIdentity? handle) {
+    if (handle == null || !handle.available) {
+      return null;
+    }
+    if (handle.processHandleId.isNotEmpty) {
+      return handle.processHandleId;
+    }
+    final pid = handle.pid;
+    return pid == null ? null : '$pid';
   }
 
   String? _handleIdFromResult(RuntimeExecutionDispatchResult result) {

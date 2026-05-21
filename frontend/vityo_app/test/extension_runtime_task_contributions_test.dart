@@ -502,6 +502,30 @@ void main() {
     },
   );
 
+  test('extension runtime task dispatch binds typed pid process handles', () {
+    final plan = _createRuntimeTaskPlan();
+    final buffer = RuntimeOutputLiveBuffer();
+    final bridge = ExtensionRuntimeTaskExecutionBridge();
+
+    final dispatch = bridge.dispatchToLiveBuffer(
+      plan: plan,
+      buffer: buffer,
+      timestamp: DateTime.utc(2026, 5, 21, 6, 30),
+      metadata: const <String, Object?>{
+        'pid': 6060,
+        'processHandleSource': 'toolchain-manager',
+      },
+    );
+    final handle = bridge.cancellationRegistry.lookup(plan);
+    final processHandle =
+        handle?.metadata['processHandle'] as Map<String, Object?>?;
+
+    expect(dispatch.processHandle?.pid, 6060);
+    expect(handle?.processHandleId, '6060');
+    expect(processHandle?['pid'], 6060);
+    expect(processHandle?['source'], 'toolchain-manager');
+  });
+
   test('extension runtime task catalog reports missing command metadata', () {
     final route = const ExtensionContributionRouter().routeContribution(
       extensionId: 'broken.tasks',

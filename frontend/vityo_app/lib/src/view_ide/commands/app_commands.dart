@@ -8,6 +8,7 @@ enum AppCommandId {
   pinActiveCompiler,
   clearPinnedCompiler,
   bootstrapStyioToolchain,
+  executeToolchainInstallPlan,
   packProject,
   preparePublish,
   showRuntime,
@@ -120,6 +121,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.pinActiveCompiler ||
       AppCommandId.clearPinnedCompiler ||
       AppCommandId.bootstrapStyioToolchain ||
+      AppCommandId.executeToolchainInstallPlan ||
       AppCommandId.selectClangCppVersion => AppCommandCategory.toolchain,
       AppCommandId.packProject ||
       AppCommandId.preparePublish => AppCommandCategory.deployment,
@@ -331,6 +333,13 @@ class StyioCommandRegistry {
       shortcutHint: 'Route',
       description:
           'Refresh and route the Styio toolchain bootstrap plan for this workspace.',
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.executeToolchainInstallPlan,
+      label: 'Execute Toolchain Install',
+      shortcutHint: 'Route',
+      description:
+          'Execute the last prepared IDE-managed toolchain installation plan.',
     ),
     AppCommandDescriptor(
       id: AppCommandId.selectClangCppVersion,
@@ -922,6 +931,7 @@ class StyioCommandRegistry {
       AppCommandId.pinActiveCompiler ||
       AppCommandId.clearPinnedCompiler ||
       AppCommandId.bootstrapStyioToolchain ||
+      AppCommandId.executeToolchainInstallPlan ||
       AppCommandId.selectClangCppVersion ||
       AppCommandId.packProject ||
       AppCommandId.preparePublish => true,

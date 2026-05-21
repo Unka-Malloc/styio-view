@@ -2658,6 +2658,22 @@ void main() {
         ToolchainInstallPlanStatus.planned,
       );
 
+      await shell.executeCommand(AppCommandId.executeToolchainInstallPlan);
+
+      expect(
+        shell.lastAgentIdeCommandResult?.commandId,
+        'executeToolchainInstallPlan',
+      );
+      expect(shell.lastAgentIdeCommandResult?.applied, isTrue);
+      expect(
+        shell.lastAgentIdeCommandResult?.metadata,
+        contains('toolchainInstallExecution'),
+      );
+      expect(
+        shell.toolchainInstallExecutionSurface?.status,
+        'requiresUserAction',
+      );
+
       await shell.handleToolchainRecoveryAction(
         const ToolchainRecoveryAction(
           id: 'install-managed-toolchain',

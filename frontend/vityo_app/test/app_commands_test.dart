@@ -577,6 +577,7 @@ void main() {
         AppCommandId.pinActiveCompiler,
         AppCommandId.clearPinnedCompiler,
         AppCommandId.bootstrapStyioToolchain,
+        AppCommandId.executeToolchainInstallPlan,
         AppCommandId.selectClangCppVersion,
       ],
     );
@@ -610,6 +611,7 @@ void main() {
         AppCommandId.pinActiveCompiler,
         AppCommandId.clearPinnedCompiler,
         AppCommandId.bootstrapStyioToolchain,
+        AppCommandId.executeToolchainInstallPlan,
         AppCommandId.selectClangCppVersion,
         AppCommandId.packProject,
         AppCommandId.preparePublish,

@@ -3497,6 +3497,8 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
       case 'bootstrapStyioToolchain':
         return _applyAgentToolchainBootstrapCommand(suggestion);
+      case 'executeToolchainInstallPlan':
+        return _applyAgentToolchainInstallExecutionCommand(suggestion);
       case 'refreshModules':
         await executeCommand(AppCommandId.refreshModules);
         final metadata = await _agentModuleHostRefreshMetadata();
@@ -4004,6 +4006,28 @@ class ShellRuntimeModel extends ChangeNotifier {
     return applied;
   }
 
+  Future<bool> _applyAgentToolchainInstallExecutionCommand(
+    AgentIdeCommandSuggestion suggestion,
+  ) async {
+    final result = await executeLastToolchainInstallPlan();
+    final applied = result != null &&
+        result.status != ToolchainInstallExecutionStatus.failed &&
+        result.status != ToolchainInstallExecutionStatus.blocked;
+    _recordAgentIdeCommandResult(
+      suggestion,
+      applied: applied,
+      message: result == null
+          ? 'Agent command executeToolchainInstallPlan skipped: no install plan is prepared.'
+          : 'Agent command executeToolchainInstallPlan ${result.status.name}: ${result.message ?? result.plan.mode.name}',
+      metadata: <String, Object?>{
+        if (_lastToolchainInstallPlan != null)
+          'toolchainInstallPlan': _lastToolchainInstallPlan!.toJson(),
+        if (result != null) 'toolchainInstallExecution': result.toJson(),
+      },
+    );
+    return applied;
+  }
+
   Map<String, Object?> _dependencySourceCommandResultMetadata(
     DependencySourceCommandResult result,
   ) {
@@ -4450,6 +4474,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.pinActiveCompiler:
       case AppCommandId.clearPinnedCompiler:
       case AppCommandId.bootstrapStyioToolchain:
+      case AppCommandId.executeToolchainInstallPlan:
       case AppCommandId.selectClangCppVersion:
       case AppCommandId.packProject:
       case AppCommandId.preparePublish:
@@ -4539,6 +4564,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.pinActiveCompiler:
       case AppCommandId.clearPinnedCompiler:
       case AppCommandId.bootstrapStyioToolchain:
+      case AppCommandId.executeToolchainInstallPlan:
       case AppCommandId.selectClangCppVersion:
       case AppCommandId.packProject:
       case AppCommandId.preparePublish:
@@ -7357,6 +7383,11 @@ class ShellRuntimeModel extends ChangeNotifier {
           AgentIdeCommandSuggestion(commandId: commandId.name),
         );
         return;
+      case AppCommandId.executeToolchainInstallPlan:
+        await _applyAgentToolchainInstallExecutionCommand(
+          AgentIdeCommandSuggestion(commandId: commandId.name),
+        );
+        return;
       case AppCommandId.packProject:
         await packProject();
         return;
@@ -7690,6 +7721,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.pinActiveCompiler:
       case AppCommandId.clearPinnedCompiler:
       case AppCommandId.bootstrapStyioToolchain:
+      case AppCommandId.executeToolchainInstallPlan:
       case AppCommandId.packProject:
       case AppCommandId.preparePublish:
       case AppCommandId.showRuntime:
@@ -7900,6 +7932,8 @@ class ShellRuntimeModel extends ChangeNotifier {
           requiresPin: true,
         );
       case AppCommandId.bootstrapStyioToolchain:
+        return null;
+      case AppCommandId.executeToolchainInstallPlan:
         return null;
       case AppCommandId.packProject:
         return _blockedDeploymentCommandReason(projectGraph: projectGraph);

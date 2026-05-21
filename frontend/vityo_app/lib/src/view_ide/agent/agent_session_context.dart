@@ -15,6 +15,7 @@ import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
 import '../toolchain/toolchain_manager.dart';
 import '../workspace/workspace.dart';
+import 'agent_coding_session_history_store.dart';
 import 'agent_coding_skill.dart';
 import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
@@ -122,6 +123,7 @@ class AgentSessionContext {
     AgentProviderFailureContext? lastProviderFailure,
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
+    AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
@@ -162,7 +164,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 61,
+      schemaVersion: 62,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -202,6 +204,7 @@ class AgentSessionContext {
             : AgentProviderExecutionContext.fromResolution(
                 providerExecutionResolution,
               ),
+        recoveryPlan: recoveryPlan,
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
         workspaceEdit: AgentWorkspaceEditContext.fromWorkspaceEditState(
@@ -354,6 +357,7 @@ class AgentSessionContext {
     AgentProviderFailureContext? lastProviderFailure,
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
+    AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
@@ -388,6 +392,7 @@ class AgentSessionContext {
         lastProviderFailure == null &&
         providerSelectionPlan == null &&
         providerExecutionResolution == null &&
+        recoveryPlan == null &&
         lastPatchApplication == null &&
         workspaceEdit == null) {
       final recentPatchApplicationList = recentPatchApplications.toList(
@@ -428,6 +433,7 @@ class AgentSessionContext {
             : AgentProviderExecutionContext.fromResolution(
                 providerExecutionResolution,
               ),
+        recoveryPlan: recoveryPlan ?? agent.recoveryPlan,
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
         workspaceEdit: workspaceEdit ?? agent.workspaceEdit,
@@ -477,6 +483,7 @@ class AgentCodingLoopContext {
     this.lastProviderFailure,
     this.providerSelection,
     this.providerExecution,
+    this.recoveryPlan,
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
     this.workspaceEdit,
@@ -495,6 +502,7 @@ class AgentCodingLoopContext {
     AgentProviderFailureContext? lastProviderFailure,
     AgentProviderSelectionContext? providerSelection,
     AgentProviderExecutionContext? providerExecution,
+    AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
@@ -518,6 +526,7 @@ class AgentCodingLoopContext {
       lastProviderFailure: lastProviderFailure,
       providerSelection: providerSelection,
       providerExecution: providerExecution,
+      recoveryPlan: recoveryPlan,
       lastPatchApplication: history.isEmpty ? null : history.first,
       recentPatchApplications: history,
       workspaceEdit: workspaceEdit,
@@ -535,6 +544,7 @@ class AgentCodingLoopContext {
   final AgentProviderFailureContext? lastProviderFailure;
   final AgentProviderSelectionContext? providerSelection;
   final AgentProviderExecutionContext? providerExecution;
+  final AgentCodingSessionRecoveryPlan? recoveryPlan;
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
   final AgentWorkspaceEditContext? workspaceEdit;
@@ -562,6 +572,7 @@ class AgentCodingLoopContext {
         'providerSelection': providerSelection!.toJson(),
       if (providerExecution != null)
         'providerExecution': providerExecution!.toJson(),
+      if (recoveryPlan != null) 'recoveryPlan': recoveryPlan!.toJson(),
       if (lastPatchApplication != null)
         'lastPatchApplication': lastPatchApplication!.toJson(),
       if (recentPatchApplications.isNotEmpty)

@@ -1603,6 +1603,7 @@ void main() {
       final response = await controller.sendPrompt();
       final providerExecution =
           adapter.requests.single.context.agent.providerExecution!;
+      final recoveryPlan = adapter.requests.single.context.agent.recoveryPlan!;
 
       expect(response, isNotNull);
       expect(providerExecution.status, 'ready');
@@ -1611,6 +1612,8 @@ void main() {
         providerExecution.selectedEndpoint?.credentialReadiness,
         'available',
       );
+      expect(recoveryPlan.status, AgentCodingSessionRecoveryStatus.blocked);
+      expect(recoveryPlan.canFailoverProvider, isFalse);
     },
   );
 

@@ -8,11 +8,12 @@ import 'package:vityo_app/src/backend_toolchain/execution_adapter.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_coding_session_history_store.dart';
+import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_event_bridge.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
-import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/view_ide/testing/testing.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
@@ -511,7 +512,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 61);
+    expect(json['schemaVersion'], 62);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1320,6 +1321,52 @@ void main() {
     expect(registeredCommandIds.difference(exposedCommandIds), isEmpty);
   });
 
+  test('agent session context serializes recovery plan', () {
+    final recoveryPlan = AgentCodingSessionRecoveryPlan.fromCheckpoint(
+      AgentCodingSessionCheckpoint(
+        workspaceId: '/workspace/demo',
+        status: AgentCodingSessionCheckpointStatus.needsRecovery,
+        updatedAt: DateTime.utc(2026, 5, 21),
+        recordCount: 1,
+        latestRequestId: 'agent-failed',
+        latestProfileId: 'cloud',
+        latestProviderKind: 'cloud_openai_compatible',
+        latestOutcome: AgentCodingSessionOutcome.failed,
+        latestPromptSample: 'Fix the current file.',
+        latestCompletedAt: DateTime.utc(2026, 5, 21, 1),
+      ),
+    );
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'state value = 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      recoveryPlan: recoveryPlan,
+    );
+
+    final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final recoveryJson = agentJson['recoveryPlan']! as Map<String, Object?>;
+    final checkpointJson = recoveryJson['checkpoint']! as Map<String, Object?>;
+
+    expect(context.schemaVersion, 62);
+    expect(recoveryJson['status'], 'available');
+    expect(recoveryJson['recommendedAction'], 'retrySameProvider');
+    expect(
+      recoveryJson['availableActions'],
+      containsAll(<String>[
+        'retrySameProvider',
+        'failoverProvider',
+        'replayPrompt',
+      ]),
+    );
+    expect(recoveryJson['canFailoverProvider'], isTrue);
+    expect(checkpointJson['latestRequestId'], 'agent-failed');
+    expect(checkpointJson['latestOutcome'], 'failed');
+  });
+
   test('agent command context reports native tool command readiness', () {
     const document = DocumentState(
       documentId: '/workspace/demo/main.cc',
@@ -1683,7 +1730,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 61);
+    expect(json['schemaVersion'], 62);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -1958,7 +2005,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 61);
+    expect(context.schemaVersion, 62);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

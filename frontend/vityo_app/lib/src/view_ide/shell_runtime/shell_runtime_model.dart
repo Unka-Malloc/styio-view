@@ -944,6 +944,7 @@ class ShellRuntimeModel extends ChangeNotifier {
           toolchainStatusReport?.value.snapshot ?? _lastToolchainSnapshot,
       clangCppVersionPreference: _clangCppVersionPreference,
       semanticPanelViewModels: semanticPanelViewModels,
+      recoveryPlan: agentCodingController.sessionRecoveryPlan,
     );
   }
 

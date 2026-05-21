@@ -7882,7 +7882,7 @@ class ShellRuntimeModel extends ChangeNotifier {
         request: request,
         confirmationPlan: routed.confirmationPlan,
         message:
-            '${routed.confirmationPlan!.title} staged for confirmation. TODO: bind this pending plan to the workspace file confirmation dialog.',
+            '${routed.confirmationPlan!.title} staged for confirmation. Use the workspace file confirmation controls to apply or cancel it.',
       );
       _pendingWorkspaceFileCommandConfirmation = staged;
       return staged;

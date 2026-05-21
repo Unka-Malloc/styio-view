@@ -241,8 +241,12 @@ void main() {
       contains('WorkspaceFileExplorerBatchActionPlan'),
     );
     expect(
+      entriesById['workspace.file-explorer']?.summary,
+      contains('shell sidebar renders confirmation apply/cancel controls'),
+    );
+    expect(
       entriesById['workspace.file-explorer']?.todo,
-      contains('batch plans'),
+      contains('bind batch plans'),
     );
     expect(
       entriesById['workspace.file-explorer']?.runtimeMaturityBlocking,

@@ -1543,10 +1543,7 @@ void main() {
 
     expect(
       await shell.applyAgentIdeCommandSuggestion(
-        const AgentIdeCommandSuggestion(
-          commandId: 'applyQuickFix',
-          input: '2',
-        ),
+        const AgentIdeCommandSuggestion(commandId: 'applyQuickFix', input: '2'),
       ),
       isTrue,
     );
@@ -1984,12 +1981,18 @@ void main() {
       'focused-warning',
     );
     expect(
-      shell.agentSessionContext.language.semanticFeatureMatrix
+      shell
+          .agentSessionContext
+          .language
+          .semanticFeatureMatrix
           ?.codeActionFactCount,
       1,
     );
     expect(
-      shell.agentSessionContext.language.semanticFeatureMatrix
+      shell
+          .agentSessionContext
+          .language
+          .semanticFeatureMatrix
           ?.unavailableFeatures,
       isNot(contains('code-actions')),
     );
@@ -2672,6 +2675,8 @@ void main() {
       expect(agentDeleteResult?.commandId, 'deleteWorkspaceFile');
       expect(shell.pendingWorkspaceFileCommandConfirmation, isNotNull);
       expect(agentDeleteResult?.metadata['staged'], isTrue);
+      expect(agentDeleteResult?.message, contains('confirmation controls'));
+      expect(agentDeleteResult?.message, isNot(contains('TODO')));
       expect(
         agentDeleteResult?.metadata['confirmationPlan'],
         isA<Map<String, Object?>>(),
@@ -2746,6 +2751,10 @@ void main() {
       );
 
       expect(shell.pendingWorkspaceFileCommandConfirmation, isNotNull);
+      expect(
+        shell.pendingWorkspaceFileCommandConfirmation?.message,
+        contains('confirmation controls'),
+      );
       expect(shell.lastAgentIdeCommandResult?.applied, isFalse);
       expect(await documentStore.documentExists('src/old.styio'), isTrue);
 

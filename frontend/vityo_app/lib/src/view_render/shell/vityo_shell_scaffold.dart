@@ -841,6 +841,16 @@ class _WorkspaceSidebar extends StatelessWidget {
             _CompilerHandshakeCard(project: project),
             const SizedBox(height: 12),
             _ProjectOperationsCard(shell: shell),
+            if (shell.pendingWorkspaceFileCommandConfirmation != null) ...[
+              const SizedBox(height: 12),
+              _WorkspaceFileCommandConfirmationCard(
+                pending: shell.pendingWorkspaceFileCommandConfirmation!,
+                onConfirm: () {
+                  shell.confirmPendingWorkspaceFileCommand();
+                },
+                onCancel: shell.cancelPendingWorkspaceFileCommand,
+              ),
+            ],
             const SizedBox(height: 12),
             _RequiredHandoffsCard(
               platformTarget: shell.platformTarget,
@@ -1648,6 +1658,82 @@ class _WorkspaceFileTile extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(child: Text(file, style: theme.textTheme.bodyMedium)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceFileCommandConfirmationCard extends StatelessWidget {
+  const _WorkspaceFileCommandConfirmationCard({
+    required this.pending,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  final WorkspaceFileCommandRouteResult pending;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final plan = pending.confirmationPlan;
+    final request = pending.request;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF2D7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5A93B)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              plan?.title ?? 'Confirm workspace file command',
+              key: const ValueKey('workspace-file-confirmation-title'),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              pending.message,
+              key: const ValueKey('workspace-file-confirmation-message'),
+              style: theme.textTheme.bodySmall,
+            ),
+            if (request != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '${request.kind.wireValue}: ${request.path}',
+                key: const ValueKey('workspace-file-confirmation-target'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  key: const ValueKey('workspace-file-confirmation-apply'),
+                  onPressed: onConfirm,
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Confirm'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('workspace-file-confirmation-cancel'),
+                  onPressed: onCancel,
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Cancel'),
+                ),
+              ],
+            ),
           ],
         ),
       ),

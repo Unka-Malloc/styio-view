@@ -1961,6 +1961,39 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
           .toList(growable: false),
     });
   }
+  if (agent.changeReviewGate.status != AgentCodingChangeReviewGateStatus.idle) {
+    metadata.addAll(<String, Object?>{
+      'agentChangeReviewStatus': agent.changeReviewGate.status.wireValue,
+      'agentChangeReviewCanApplyPreview':
+          agent.changeReviewGate.canApplyPreview,
+      'agentChangeReviewRequiresUserReview':
+          agent.changeReviewGate.requiresUserReview,
+      'agentChangeReviewIssueCodes': agent.changeReviewGate.issueCodes,
+    });
+  }
+  metadata.addAll(<String, Object?>{
+    'agentAutonomyMode': agent.autonomyPolicy.mode.wireValue,
+    'agentAutonomyCanProposePatches': agent.autonomyPolicy.canProposePatches,
+    'agentAutonomyCanApplyWithoutReview':
+        agent.autonomyPolicy.canApplyWithoutReview,
+    'agentAutonomyRequiresExplicitUserApproval':
+        agent.autonomyPolicy.requiresExplicitUserApproval,
+  });
+  if (agent.validationPlan.status !=
+      AgentCodingValidationPlanStatus.notNeeded) {
+    final commandPlans = agent.validationPlan.commandPlans;
+    metadata.addAll(<String, Object?>{
+      'agentValidationStatus': agent.validationPlan.status.wireValue,
+      'agentValidationShouldRun': agent.validationPlan.shouldRun,
+      'agentValidationRegisteredCommandIds':
+          agent.validationPlan.registeredCommandIds,
+      'agentValidationCommandPlanCount': commandPlans.length,
+      'agentValidationInputCommandIds': commandPlans
+          .where((commandPlan) => commandPlan.requiresInput)
+          .map((commandPlan) => commandPlan.commandId)
+          .toList(growable: false),
+    });
+  }
   final providerExecution = agent.providerExecution;
   if (providerExecution != null) {
     final selectedEndpoint = providerExecution.selectedEndpoint;

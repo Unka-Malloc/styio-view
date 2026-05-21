@@ -1363,6 +1363,25 @@ void main() {
         'retryAgentProvider',
         'replayAgentPrompt',
       ]);
+      expect(metadata['agentChangeReviewStatus'], 'needsReview');
+      expect(metadata['agentChangeReviewCanApplyPreview'], isTrue);
+      expect(metadata['agentChangeReviewRequiresUserReview'], isTrue);
+      expect(
+        metadata['agentChangeReviewIssueCodes'],
+        contains('agent.change.requires-review'),
+      );
+      expect(metadata['agentAutonomyMode'], 'reviewBeforeApply');
+      expect(metadata['agentAutonomyCanProposePatches'], isTrue);
+      expect(metadata['agentAutonomyCanApplyWithoutReview'], isFalse);
+      expect(metadata['agentAutonomyRequiresExplicitUserApproval'], isTrue);
+      expect(metadata['agentValidationStatus'], 'waitingForReview');
+      expect(metadata['agentValidationShouldRun'], isFalse);
+      expect(
+        metadata['agentValidationRegisteredCommandIds'],
+        contains('collectAgentCodingCheckpoint'),
+      );
+      expect(metadata['agentValidationCommandPlanCount'], 1);
+      expect(metadata['agentValidationInputCommandIds'], isEmpty);
       expect(metadata['recentPatchProposalCount'], 1);
       expect(metadata['recentPatchProposalIds'], <String>['patch-pending']);
       expect(metadata['pendingIdeCommandCount'], 1);

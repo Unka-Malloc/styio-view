@@ -194,6 +194,10 @@ void main() {
     );
     expect(
       decoded.systemPrompt,
+      contains('metadata.projectLanguage.semanticFeatureMatrix'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('metadata.projectLanguage.workspaceQuickFixes'),
     );
     expect(

@@ -951,6 +951,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('metadata.projectLanguage.semanticFeatureMatrix'),
+      );
+      expect(
+        systemMessage['content'],
         contains('metadata.projectLanguage.workspaceQuickFixes'),
       );
       expect(

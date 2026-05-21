@@ -615,6 +615,124 @@ class TerminalRuntimeOutputBinding {
   }
 }
 
+enum TerminalSessionRecoveryAction {
+  none,
+  replayStartPlan,
+  rebindOutputSubscription,
+  closeStaleSession,
+  markUnsupported,
+}
+
+extension TerminalSessionRecoveryActionX on TerminalSessionRecoveryAction {
+  String get wireValue {
+    return switch (this) {
+      TerminalSessionRecoveryAction.none => 'none',
+      TerminalSessionRecoveryAction.replayStartPlan => 'replay-start-plan',
+      TerminalSessionRecoveryAction.rebindOutputSubscription =>
+        'rebind-output-subscription',
+      TerminalSessionRecoveryAction.closeStaleSession => 'close-stale-session',
+      TerminalSessionRecoveryAction.markUnsupported => 'mark-unsupported',
+    };
+  }
+}
+
+class TerminalSessionRecoveryPlan {
+  const TerminalSessionRecoveryPlan({
+    required this.action,
+    this.sessionId = '',
+    this.profileId = '',
+    this.canRetry = false,
+    this.requiresUserConfirmation = false,
+    this.message = '',
+  });
+
+  factory TerminalSessionRecoveryPlan.fromState({
+    TerminalRuntimeStartPlan? startPlan,
+    TerminalSessionSnapshot? snapshot,
+    bool outputSubscriptionActive = true,
+  }) {
+    if (startPlan != null && !startPlan.supported) {
+      return TerminalSessionRecoveryPlan(
+        action: TerminalSessionRecoveryAction.markUnsupported,
+        profileId: startPlan.profileId,
+        message:
+            startPlan.unsupportedMessage ??
+            'Terminal PTY backend is unsupported.',
+      );
+    }
+    if (snapshot == null) {
+      return TerminalSessionRecoveryPlan(
+        action: startPlan == null
+            ? TerminalSessionRecoveryAction.none
+            : TerminalSessionRecoveryAction.replayStartPlan,
+        profileId: startPlan?.profileId ?? '',
+        canRetry: startPlan != null,
+        message: startPlan == null
+            ? 'Terminal recovery has no session or start plan.'
+            : 'Terminal session can be recovered by replaying the start plan.',
+      );
+    }
+    if (snapshot.state == PtySessionState.running &&
+        !outputSubscriptionActive) {
+      return TerminalSessionRecoveryPlan(
+        action: TerminalSessionRecoveryAction.rebindOutputSubscription,
+        sessionId: snapshot.sessionId,
+        profileId: startPlan?.profileId ?? '',
+        canRetry: true,
+        message:
+            'Terminal session is running but output subscription is detached.',
+      );
+    }
+    if (snapshot.state == PtySessionState.failed ||
+        snapshot.state == PtySessionState.unsupported) {
+      return TerminalSessionRecoveryPlan(
+        action: TerminalSessionRecoveryAction.replayStartPlan,
+        sessionId: snapshot.sessionId,
+        profileId: startPlan?.profileId ?? '',
+        canRetry: startPlan?.supported ?? false,
+        message: 'Terminal session failed and can be restarted if supported.',
+      );
+    }
+    if (snapshot.state == PtySessionState.starting) {
+      return TerminalSessionRecoveryPlan(
+        action: TerminalSessionRecoveryAction.closeStaleSession,
+        sessionId: snapshot.sessionId,
+        profileId: startPlan?.profileId ?? '',
+        canRetry: true,
+        requiresUserConfirmation: true,
+        message: 'Terminal session is still starting and may be stale.',
+      );
+    }
+    return TerminalSessionRecoveryPlan(
+      action: TerminalSessionRecoveryAction.none,
+      sessionId: snapshot.sessionId,
+      profileId: startPlan?.profileId ?? '',
+      message: 'Terminal session does not need recovery.',
+    );
+  }
+
+  final TerminalSessionRecoveryAction action;
+  final String sessionId;
+  final String profileId;
+  final bool canRetry;
+  final bool requiresUserConfirmation;
+  final String message;
+
+  bool get hasRecoveryAction => action != TerminalSessionRecoveryAction.none;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'action': action.wireValue,
+      'hasRecoveryAction': hasRecoveryAction,
+      'canRetry': canRetry,
+      'requiresUserConfirmation': requiresUserConfirmation,
+      if (sessionId.isNotEmpty) 'sessionId': sessionId,
+      if (profileId.isNotEmpty) 'profileId': profileId,
+      if (message.isNotEmpty) 'message': message,
+    };
+  }
+}
+
 class TerminalInteractionController extends ChangeNotifier {
   TerminalInteractionController({
     required this.runtime,
@@ -644,6 +762,16 @@ class TerminalInteractionController extends ChangeNotifier {
       _runtimeOutputEvents.stream;
   Stream<RuntimeOutputProducerEmission> get runtimeOutputEmissions =>
       _runtimeOutputEmissions.stream;
+
+  TerminalSessionRecoveryPlan recoveryPlan({
+    TerminalRuntimeStartPlan? startPlan,
+  }) {
+    return TerminalSessionRecoveryPlan.fromState(
+      startPlan: startPlan,
+      snapshot: snapshot,
+      outputSubscriptionActive: _outputSubscription != null,
+    );
+  }
 
   TerminalSessionSnapshot? get snapshot {
     final session = _session;

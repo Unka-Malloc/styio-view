@@ -116,6 +116,57 @@ void main() {
     },
   );
 
+  test('terminal session recovery plan classifies replay and rebind paths', () {
+    final startPlan = TerminalRuntimeStartPlan(
+      profileId: 'sh',
+      executablePath: '/bin/sh',
+      workingDirectory: '/workspace/vityo',
+      rows: 24,
+      cols: 80,
+      ptyPlan: PtyAdapter(PtyFacts.linuxDebianArm(scriptUtilityPath: '/script'))
+          .plan(
+            const PtySessionRequest(
+              executablePath: '/bin/sh',
+              workingDirectory: '/workspace/vityo',
+            ),
+          ),
+    );
+    final replay = TerminalSessionRecoveryPlan.fromState(startPlan: startPlan);
+    final rebind = TerminalSessionRecoveryPlan.fromState(
+      startPlan: startPlan,
+      snapshot: TerminalSessionSnapshot(
+        sessionId: 'pty-1',
+        state: PtySessionState.running,
+        events: <TerminalInteractionEvent>[
+          TerminalInteractionEvent(
+            sequence: 1,
+            kind: TerminalInteractionEventKind.started,
+            sessionId: 'pty-1',
+            timestamp: DateTime.utc(2026, 5, 20),
+          ),
+        ],
+      ),
+      outputSubscriptionActive: false,
+    );
+    final stale = TerminalSessionRecoveryPlan.fromState(
+      snapshot: const TerminalSessionSnapshot(
+        sessionId: 'pty-2',
+        state: PtySessionState.starting,
+      ),
+    );
+
+    expect(replay.action, TerminalSessionRecoveryAction.replayStartPlan);
+    expect(replay.canRetry, isTrue);
+    expect(
+      rebind.action,
+      TerminalSessionRecoveryAction.rebindOutputSubscription,
+    );
+    expect(rebind.sessionId, 'pty-1');
+    expect(rebind.toJson()['action'], 'rebind-output-subscription');
+    expect(stale.action, TerminalSessionRecoveryAction.closeStaleSession);
+    expect(stale.requiresUserConfirmation, isTrue);
+  });
+
   test(
     'terminal interaction controller records output input and resize',
     () async {

@@ -303,6 +303,15 @@ void main() {
     );
     expect(
       entriesById['runtime.terminal']?.summary,
+      contains('TerminalSessionRecoveryPlan'),
+    );
+    expect(
+      entriesById['runtime.terminal']?.todo,
+      contains('recovery actions to UI controls'),
+    );
+    expect(entriesById['runtime.terminal']?.runtimeMaturityBlocking, isFalse);
+    expect(
+      entriesById['runtime.terminal']?.summary,
       contains('line-chunked ShellCommandResult stdout/stderr events'),
     );
     expect(

@@ -1249,6 +1249,64 @@ Map<String, String> _agentCommandInputLabelById(
   };
 }
 
+Map<String, String> _agentCommandInputContractById(
+  AgentCommandCatalogContext commands,
+) {
+  return <String, String>{
+    for (final command in commands.persistenceCommands)
+      command.id: command.inputContract,
+    for (final command in commands.diagnosticCommands)
+      command.id: command.inputContract,
+    for (final command in commands.languageServiceCommands)
+      command.id: command.inputContract,
+    for (final command in commands.sourceControlCommands)
+      command.id: command.inputContract,
+    for (final command in commands.codingCommands)
+      command.id: command.inputContract,
+    for (final command in commands.navigationCommands)
+      command.id: command.inputContract,
+    for (final command in commands.refactorCommands)
+      command.id: command.inputContract,
+    for (final command in commands.toolchainCommands)
+      command.id: command.inputContract,
+    for (final command in commands.nativeToolCommands)
+      command.id: command.inputContract,
+    for (final command in commands.debugCommands)
+      command.id: command.inputContract,
+    for (final command in commands.settingsCommands)
+      command.id: command.inputContract,
+  };
+}
+
+Map<String, List<String>> _agentCommandInputExamplesById(
+  AgentCommandCatalogContext commands,
+) {
+  return <String, List<String>>{
+    for (final command in commands.persistenceCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.diagnosticCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.languageServiceCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.sourceControlCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.codingCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.navigationCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.refactorCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.toolchainCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.nativeToolCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.debugCommands)
+      command.id: command.inputExamples,
+    for (final command in commands.settingsCommands)
+      command.id: command.inputExamples,
+  };
+}
+
 bool _agentCommandMissingRequiredInput(
   String commandId,
   String? input,
@@ -1297,6 +1355,8 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
     required this.registered,
     required this.missingRequiredInput,
     this.missingRequiredInputLabel,
+    this.missingRequiredInputContract,
+    this.missingRequiredInputExamples = const <String>[],
     required this.readiness,
     required this.requiredCommandRegistered,
     required this.applying,
@@ -1310,6 +1370,8 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
   final bool registered;
   final bool missingRequiredInput;
   final String? missingRequiredInputLabel;
+  final String? missingRequiredInputContract;
+  final List<String> missingRequiredInputExamples;
   final _AgentCommandReadinessStatus? readiness;
   final bool requiredCommandRegistered;
   final bool applying;
@@ -1347,15 +1409,32 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
             ),
           )
         else if (missingRequiredInput)
-          Text(
-            missingRequiredInputLabel == null ||
-                    missingRequiredInputLabel!.isEmpty
-                ? 'Missing required input'
-                : 'Missing required input: $missingRequiredInputLabel',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.error,
+          ...[
+            Text(
+              missingRequiredInputLabel == null ||
+                      missingRequiredInputLabel!.isEmpty
+                  ? 'Missing required input'
+                  : 'Missing required input: $missingRequiredInputLabel',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
             ),
-          )
+            if (missingRequiredInputContract != null &&
+                missingRequiredInputContract!.isNotEmpty)
+              Text(
+                'Expected input: $missingRequiredInputContract',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            if (missingRequiredInputExamples.isNotEmpty)
+              Text(
+                'Examples: ${missingRequiredInputExamples.join(', ')}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+          ]
         else if (onApply != null)
           OutlinedButton(
             key: ValueKey('agent-apply-command-${command.commandId}'),
@@ -1734,6 +1813,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
           widget.sessionContext.commands,
         );
         final commandInputLabelById = _agentCommandInputLabelById(
+          widget.sessionContext.commands,
+        );
+        final commandInputContractById = _agentCommandInputContractById(
+          widget.sessionContext.commands,
+        );
+        final commandInputExamplesById = _agentCommandInputExamplesById(
           widget.sessionContext.commands,
         );
         final nativeToolCommandIds = widget
@@ -2181,6 +2266,11 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           missingRequiredInput: missingRequiredInput,
                           missingRequiredInputLabel:
                               commandInputLabelById[command.commandId],
+                          missingRequiredInputContract:
+                              commandInputContractById[command.commandId],
+                          missingRequiredInputExamples:
+                              commandInputExamplesById[command.commandId] ??
+                              const <String>[],
                           readiness: readiness,
                           requiredCommandRegistered:
                               requiredCommandId != null &&
@@ -2265,6 +2355,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   registeredCommandIds: registeredCommandIds,
                   commandRequiresInputById: commandRequiresInputById,
                   commandInputLabelById: commandInputLabelById,
+                  commandInputContractById: commandInputContractById,
+                  commandInputExamplesById: commandInputExamplesById,
                   commandReadiness: commandReadiness,
                   applying: applyingIdeCommand,
                   onRetry: widget.onApplyIdeCommandSuggestion == null
@@ -2617,6 +2709,8 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
     required this.registeredCommandIds,
     required this.commandRequiresInputById,
     required this.commandInputLabelById,
+    required this.commandInputContractById,
+    required this.commandInputExamplesById,
     required this.commandReadiness,
     required this.applying,
     this.onRetry,
@@ -2628,6 +2722,8 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
   final Set<String> registeredCommandIds;
   final Map<String, bool> commandRequiresInputById;
   final Map<String, String> commandInputLabelById;
+  final Map<String, String> commandInputContractById;
+  final Map<String, List<String>> commandInputExamplesById;
   final Map<String, _AgentCommandReadinessStatus> commandReadiness;
   final bool applying;
   final void Function(AgentCommandResultContext result)? onRetry;
@@ -2667,6 +2763,11 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                 );
                 final missingInputLabel =
                     commandInputLabelById[result.commandId];
+                final missingInputContract =
+                    commandInputContractById[result.commandId];
+                final missingInputExamples =
+                    commandInputExamplesById[result.commandId] ??
+                    const <String>[];
                 final requiredCommandId =
                     readiness?.requiredCommandId ??
                     requiredCommandIdFromAgentMetadata(result.metadata);
@@ -2779,6 +2880,22 @@ class _AgentRecentIdeCommandsSection extends StatelessWidget {
                             : 'Retry requires input: $missingInputLabel',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.error,
+                        ),
+                      ),
+                    if (missingRequiredInput &&
+                        missingInputContract != null &&
+                        missingInputContract.isNotEmpty)
+                      Text(
+                        'Expected input: $missingInputContract',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    if (missingRequiredInput && missingInputExamples.isNotEmpty)
+                      Text(
+                        'Examples: ${missingInputExamples.join(', ')}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     if (result.completedAt != null)

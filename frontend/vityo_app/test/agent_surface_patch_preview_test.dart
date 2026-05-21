@@ -582,6 +582,13 @@ void main() {
       find.text('Missing required input: New symbol name'),
       findsOneWidget,
     );
+    expect(
+      find.text(
+        'Expected input: New symbol name valid for the active language syntax contract.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Examples: newName'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Apply Command'), findsNothing);
     expect(applied, isFalse);
   });
@@ -1446,6 +1453,13 @@ void main() {
 
     expect(find.text('renameSymbol · not applied'), findsOneWidget);
     expect(find.text('Retry requires input: New symbol name'), findsOneWidget);
+    expect(
+      find.text(
+        'Expected input: New symbol name valid for the active language syntax contract.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Examples: newName'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Retry Command'), findsNothing);
     expect(appliedCommands, isEmpty);
   });

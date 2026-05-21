@@ -1326,6 +1326,18 @@ Map<String, Object?> _openAICompatibleRequestBody(
         .map((result) => result.toJson())
         .toList(growable: false),
   });
+  final replayedToolResults = _replayedToolCallResults(
+    request.toolCallResults,
+  );
+  final replayFollowUpJson = jsonEncode(<String, Object?>{
+    'source': 'vityo-agent-tool-replay',
+    'summary':
+        'Previous agent tool results include replayed tool executions. Use these as recovery evidence before proposing more edits.',
+    'replayedToolResultCount': replayedToolResults.length,
+    'replayedToolResults': replayedToolResults
+        .map((result) => result.toJson())
+        .toList(growable: false),
+  });
   final historicalMessages = request.conversationTurns
       .where((turn) => turn.text.trim().isNotEmpty)
       .map(
@@ -1360,6 +1372,12 @@ Map<String, Object?> _openAICompatibleRequestBody(
           'role': 'user',
           'name': 'vityo_agent_tool_results',
           'content': toolResultsJson,
+        },
+      if (replayedToolResults.isNotEmpty)
+        <String, Object?>{
+          'role': 'user',
+          'name': 'vityo_agent_replay_follow_up',
+          'content': replayFollowUpJson,
         },
       <String, Object?>{'role': 'user', 'content': request.userPrompt},
     ],
@@ -1503,9 +1521,22 @@ Map<String, Object?> _openAICompatibleRequestBody(
         'toolCallResultIds': request.toolCallResults
             .map((result) => result.callId)
             .toList(growable: false),
+      'toolReplayResultCount': replayedToolResults.length,
+      if (replayedToolResults.isNotEmpty)
+        'toolReplayResultIds': replayedToolResults
+            .map((result) => result.callId)
+            .toList(growable: false),
       'conversationTurnCount': request.conversationTurns.length,
     },
   };
+}
+
+List<AgentToolCallResultContext> _replayedToolCallResults(
+  List<AgentToolCallResultContext> results,
+) {
+  return results
+      .where((result) => result.metadata['replayedFromJournal'] == true)
+      .toList(growable: false);
 }
 
 Map<String, Object?> _openAIResponsesRequestBody(

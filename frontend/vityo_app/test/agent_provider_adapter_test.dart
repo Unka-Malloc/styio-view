@@ -293,6 +293,67 @@ void main() {
     expect(metadata['toolCallResultIds'], <String>['call-read']);
   });
 
+  test('OpenAI compatible provider sends replay follow-up summary', () async {
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    final transport = _RecordingAgentProviderTransport();
+    final adapter = OpenAICompatibleAgentProviderAdapter(
+      transport: transport,
+      endpoint: profile.endpoint,
+    );
+
+    await adapter.send(
+      AgentProviderRequest(
+        requestId: 'agent-request-replay-follow-up',
+        profile: profile,
+        context: AgentSessionContext.fromEditorState(
+          document: const DocumentState(
+            documentId: '/workspace/demo/src/main.styio',
+            text: 'value = 1\n',
+            revision: 1,
+          ),
+          selection: const SelectionState.collapsed(0),
+          diagnostics: const [],
+        ),
+        userPrompt: 'Continue after replay.',
+        toolCallResults: <AgentToolCallResultContext>[
+          AgentToolCallResultContext(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            status: AgentToolCallResultContextStatus.success,
+            message: 'Agent tool call completed.',
+            output: '{"text":"value = 1"}',
+            createdAt: DateTime.utc(2026, 5, 22),
+            metadata: const <String, Object?>{
+              'replayedFromJournal': true,
+              'replayToolId': 'readWorkspaceFile',
+            },
+          ),
+        ],
+      ),
+    );
+
+    final messages = transport.body['messages']! as List<Object?>;
+    final replayMessage = messages.cast<Map<String, Object?>>().firstWhere(
+      (message) => message['name'] == 'vityo_agent_replay_follow_up',
+    );
+    final replayContent =
+        jsonDecode(replayMessage['content']! as String)
+            as Map<String, Object?>;
+    final replayedResults =
+        replayContent['replayedToolResults']! as List<Object?>;
+    final metadata = transport.body['metadata']! as Map<String, Object?>;
+
+    expect(replayMessage['role'], 'user');
+    expect(replayContent['source'], 'vityo-agent-tool-replay');
+    expect(replayContent['replayedToolResultCount'], 1);
+    expect(
+      (replayedResults.single! as Map<String, Object?>)['callId'],
+      'call-read',
+    );
+    expect(metadata['toolReplayResultCount'], 1);
+    expect(metadata['toolReplayResultIds'], <String>['call-read']);
+  });
+
   test('OpenAI-compatible adapter preserves executable tool calls', () async {
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
     final adapter = OpenAICompatibleAgentProviderAdapter(

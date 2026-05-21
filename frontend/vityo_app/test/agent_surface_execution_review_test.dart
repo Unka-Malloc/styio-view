@@ -322,6 +322,86 @@ void main() {
     );
   });
 
+  testWidgets('agent surface clears project tool permission policy', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-project-clear-1',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+
+    await _pumpSurface(tester, controller);
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey(
+          'agent-tool-call-deny-project-call-command-project-clear-1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('agent-project-tool-permission-policy-card')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('agent-project-tool-permission-rule-runIdeCommand'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('runIdeCommand · deny'), findsOneWidget);
+
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey('agent-project-tool-permission-clear-runIdeCommand'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(controller.projectToolPermissionRules, isEmpty);
+    expect(
+      find.byKey(const ValueKey('agent-project-tool-permission-policy-card')),
+      findsNothing,
+    );
+
+    controller.clearToolCallTimeline();
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-project-clear-2',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      controller.toolCallExecutionPlan
+          .executionFor('call-command-project-clear-2')
+          ?.status,
+      AgentToolCallExecutionStatus.reviewRequired,
+    );
+    expect(
+      find.text(
+        'runIdeCommand · review_required · call-command-project-clear-2',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent surface denies tool call with corrective feedback', (
     tester,
   ) async {

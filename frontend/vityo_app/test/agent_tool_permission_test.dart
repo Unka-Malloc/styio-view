@@ -38,7 +38,7 @@ void main() {
     expect(json['blocksDispatch'], isFalse);
     expect(
       plan.todoItems.join('\n'),
-      contains('permission policy listing and cleanup controls'),
+      contains('permission policy import/export and bulk-edit controls'),
     );
   });
 

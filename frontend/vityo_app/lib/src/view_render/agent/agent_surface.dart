@@ -2405,6 +2405,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final toolCallTimeline = controller.toolCallTimeline;
         final toolCallExecutionPlan = controller.toolCallExecutionPlan;
         final toolCallReplayPlan = controller.toolCallReplayPlan;
+        final projectToolPermissionRules =
+            controller.projectToolPermissionRules;
         final workspaceSnapshotCapture =
             controller.lastWorkspaceSnapshotCaptureResult;
         final workspaceRevertPlan = controller.lastWorkspaceRevertPlan;
@@ -2512,6 +2514,17 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                       ? null
                       : () => controller.updatePrompt(
                           _toolCallReviewPrompt(toolCallExecutionPlan),
+                        ),
+                ),
+              ],
+              if (projectToolPermissionRules.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _AgentProjectToolPermissionPolicySurface(
+                  rules: projectToolPermissionRules,
+                  onClearRule: applyingAction || controller.sending
+                      ? null
+                      : (toolId) => unawaited(
+                          controller.clearProjectToolPermissionRule(toolId),
                         ),
                 ),
               ],
@@ -3253,6 +3266,81 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
           ),
         );
       },
+    );
+  }
+}
+
+class _AgentProjectToolPermissionPolicySurface extends StatelessWidget {
+  const _AgentProjectToolPermissionPolicySurface({
+    required this.rules,
+    this.onClearRule,
+  });
+
+  final List<AgentToolPermissionRule> rules;
+  final ValueChanged<String>? onClearRule;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      key: const ValueKey('agent-project-tool-permission-policy-card'),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Project tool policy', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Text(
+              'Persisted project rules: ${rules.length}',
+              style: theme.textTheme.bodySmall,
+            ),
+            for (final rule in rules.take(6)) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    '${rule.toolIdPattern} · ${rule.action.wireValue}',
+                    key: ValueKey(
+                      'agent-project-tool-permission-rule-${rule.toolIdPattern}',
+                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (rule.reason.isNotEmpty)
+                    Text(rule.reason, style: theme.textTheme.bodySmall),
+                  OutlinedButton.icon(
+                    key: ValueKey(
+                      'agent-project-tool-permission-clear-${rule.toolIdPattern}',
+                    ),
+                    onPressed: onClearRule == null
+                        ? null
+                        : () => onClearRule!(rule.toolIdPattern),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Clear Project Rule'),
+                  ),
+                ],
+              ),
+            ],
+            if (rules.length > 6) ...[
+              const SizedBox(height: 6),
+              Text(
+                '+${rules.length - 6} more project rule(s).',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

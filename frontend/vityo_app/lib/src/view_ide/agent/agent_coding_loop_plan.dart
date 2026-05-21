@@ -148,7 +148,7 @@ class AgentCodingLoopPlan {
         blockingReasons: dispatchPlan.toolPermissionPlan.blockingIssueCodes,
         todoItems: dispatchPlan.toolPermissionPlan.todoItems.isEmpty
             ? const <String>[
-                'TODO: add project-level permission policy listing and cleanup controls to Agent settings.',
+                'TODO: add project-level permission policy import/export and bulk-edit controls to Agent settings.',
               ]
             : dispatchPlan.toolPermissionPlan.todoItems,
       ),

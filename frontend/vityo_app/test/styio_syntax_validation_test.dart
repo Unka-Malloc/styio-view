@@ -39,6 +39,33 @@ void main() {
     expect(diagnosticsForFixture('syntax_contract/value.true.styio'), isEmpty);
   });
 
+  test('serializes IDE syntax validation reports with contract metadata', () {
+    final source = File(
+      'test/fixtures/styio_language/syntax_contract/unknown-token.false.styio',
+    ).readAsStringSync();
+    const highlighter = StyioSyntaxHighlighter();
+    final report = StyioSyntaxValidator(
+      contract: contractFixture(),
+    ).validateWithReport(
+      documentId: 'unknown-token.false.styio',
+      source: source,
+      tokens: highlighter.tokenize(source),
+    );
+    final json = report.toJson();
+
+    expect(json['documentId'], 'unknown-token.false.styio');
+    expect(json['contractId'], 'vityo-ide-syntax');
+    expect(json['contractVersion'], '2026.05.ide');
+    expect(json['source'], 'vityo-ide-syntax-contract');
+    expect(json['fallback'], isTrue);
+    expect(json['valid'], isFalse);
+    expect(json['diagnosticCount'], greaterThan(0));
+    expect(
+      (json['diagnostics']! as List<Object?>).first,
+      isA<Map<String, Object?>>(),
+    );
+  });
+
   test('reports false syntax fixtures through the IDE syntax validator', () {
     expect(
       diagnosticsForFixture('syntax_contract/unknown-token.false.styio')

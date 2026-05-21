@@ -8,6 +8,21 @@ class StyioSyntaxValidator {
 
   final StyioSyntaxContract contract;
 
+  StyioSyntaxValidationReport validateWithReport({
+    required String documentId,
+    required String source,
+    required List<TokenSpan> tokens,
+  }) {
+    final diagnostics = validate(source: source, tokens: tokens);
+    return StyioSyntaxValidationReport(
+      documentId: documentId,
+      contractId: contract.id,
+      contractVersion: contract.version,
+      diagnostics: diagnostics,
+      fallback: true,
+    );
+  }
+
   List<Diagnostic> validate({
     required String source,
     required List<TokenSpan> tokens,
@@ -202,4 +217,50 @@ class _DelimiterFrame {
   const _DelimiterFrame({required this.token});
 
   final TokenSpan token;
+}
+
+class StyioSyntaxValidationReport {
+  const StyioSyntaxValidationReport({
+    required this.documentId,
+    required this.contractId,
+    required this.contractVersion,
+    required this.diagnostics,
+    required this.fallback,
+  });
+
+  final String documentId;
+  final String contractId;
+  final String contractVersion;
+  final List<Diagnostic> diagnostics;
+  final bool fallback;
+
+  bool get valid => diagnostics.isEmpty;
+  int get diagnosticCount => diagnostics.length;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'documentId': documentId,
+      'contractId': contractId,
+      'contractVersion': contractVersion,
+      'source': fallback ? 'vityo-ide-syntax-contract' : 'styio-service',
+      'fallback': fallback,
+      'valid': valid,
+      'diagnosticCount': diagnosticCount,
+      'diagnostics': diagnostics
+          .map(_diagnosticToJson)
+          .toList(growable: false),
+    };
+  }
+
+  static Map<String, Object?> _diagnosticToJson(Diagnostic diagnostic) {
+    return <String, Object?>{
+      'severity': diagnostic.severity.name,
+      'code': diagnostic.code,
+      'message': diagnostic.message,
+      'range': <String, int>{
+        'start': diagnostic.range.start,
+        'end': diagnostic.range.end,
+      },
+    };
+  }
 }

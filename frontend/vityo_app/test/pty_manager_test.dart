@@ -95,6 +95,60 @@ void main() {
     expect(output, contains('resize-test'));
   });
 
+  test('pty manager delegates native resize and signal backends', () async {
+    final resizeRequests = <PtyNativeResizeRequest>[];
+    final signalRequests = <PtyNativeSignalRequest>[];
+    final manager = LocalPtyManager.linuxDebianArmForTest(
+      scriptUtilityPath: '/usr/bin/script',
+      nativeOperations: PtyNativeOperationBackendRegistry(
+        backends: <PtyNativeOperationBackend>[
+          PtyNativeOperationBackend(
+            backendId: 'native-fixture',
+            label: 'Native Fixture',
+            resize: (request) async {
+              resizeRequests.add(request);
+              return PtyResizeResult(
+                status: PtyResizeStatus.applied,
+                rows: request.rows,
+                cols: request.cols,
+                message: 'native resize applied',
+              );
+            },
+            signal: (request) async {
+              signalRequests.add(request);
+              return PtySignalResult(
+                signal: request.signal,
+                status: PtySignalStatus.sent,
+                message: 'native signal sent',
+              );
+            },
+          ),
+        ],
+      ),
+    );
+    final session = await manager.start(
+      const PtySessionRequest(
+        executablePath: '/usr/bin/printf',
+        arguments: <String>['native-ops'],
+      ),
+    );
+    final outputFuture = session.output.join();
+
+    final resize = await session.resize(rows: 42, cols: 132);
+    final signal = await session.sendSignal(PtySignal.interrupt);
+    final exitCode = await session.exitCode.timeout(const Duration(seconds: 5));
+    final output = await outputFuture.timeout(const Duration(seconds: 5));
+
+    expect(resize.applied, isTrue);
+    expect(signal.sent, isTrue);
+    expect(resizeRequests.single.rows, 42);
+    expect(resizeRequests.single.processId, isNotNull);
+    expect(signalRequests.single.signal, PtySignal.interrupt);
+    expect(signalRequests.single.processId, isNotNull);
+    expect(exitCode, 0);
+    expect(output, contains('native-ops'));
+  });
+
   test(
     'pty manager merges backend stdout and stderr into terminal output',
     () async {

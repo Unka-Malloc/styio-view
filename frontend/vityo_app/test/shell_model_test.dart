@@ -684,7 +684,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        69,
+        70,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],

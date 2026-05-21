@@ -167,7 +167,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 69,
+      schemaVersion: 70,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -2690,6 +2690,9 @@ class AgentSemanticBlockContext {
 class AgentSemanticFeatureMatrixContext {
   const AgentSemanticFeatureMatrixContext({
     required this.source,
+    required this.preferredSource,
+    required this.fallbackActive,
+    required this.conflictPolicy,
     required this.availableFeatureCount,
     required this.serviceBackedFeatureCount,
     required this.localFallbackFeatureCount,
@@ -2699,6 +2702,9 @@ class AgentSemanticFeatureMatrixContext {
   });
 
   final String source;
+  final String preferredSource;
+  final bool fallbackActive;
+  final String conflictPolicy;
   final int availableFeatureCount;
   final int serviceBackedFeatureCount;
   final int localFallbackFeatureCount;
@@ -2709,8 +2715,17 @@ class AgentSemanticFeatureMatrixContext {
   factory AgentSemanticFeatureMatrixContext.fromMatrix(
     SemanticSnapshotFeatureMatrix matrix,
   ) {
+    final preferredSource = matrix.serviceBackedFeatureCount > 0
+        ? 'styio-service'
+        : matrix.localFallbackFeatureCount > 0
+        ? 'local-fallback'
+        : 'unavailable';
     return AgentSemanticFeatureMatrixContext(
       source: matrix.source.wireValue,
+      preferredSource: preferredSource,
+      fallbackActive: matrix.localFallbackFeatureCount > 0,
+      conflictPolicy:
+          'Prefer StyioService-backed semantic facts over local fallback facts; treat unavailable features as absent evidence.',
       availableFeatureCount: matrix.availableFeatureCount,
       serviceBackedFeatureCount: matrix.serviceBackedFeatureCount,
       localFallbackFeatureCount: matrix.localFallbackFeatureCount,
@@ -2725,6 +2740,9 @@ class AgentSemanticFeatureMatrixContext {
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'source': source,
+      'preferredSource': preferredSource,
+      'fallbackActive': fallbackActive,
+      'conflictPolicy': conflictPolicy,
       'availableFeatureCount': availableFeatureCount,
       'serviceBackedFeatureCount': serviceBackedFeatureCount,
       'localFallbackFeatureCount': localFallbackFeatureCount,

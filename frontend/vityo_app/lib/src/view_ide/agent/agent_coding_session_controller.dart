@@ -223,6 +223,11 @@ class AgentCodingSessionController extends ChangeNotifier {
         changeReviewGate: codingChangeReviewGate,
         lastPatchApplication: _lastPatchApplicationContext,
       );
+  AgentCodingValidationResult get codingValidationResult =>
+      AgentCodingValidationResult.fromPlan(
+        plan: codingValidationPlan,
+        recentCommandResults: _recentIdeCommandResultContexts,
+      );
 
   void mountProvider({
     required AgentPromptProfile profile,

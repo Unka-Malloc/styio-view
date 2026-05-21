@@ -598,6 +598,146 @@ extension AgentCodingValidationPlanStatusX on AgentCodingValidationPlanStatus {
   };
 }
 
+enum AgentCodingValidationResultStatus {
+  notStarted,
+  partial,
+  passed,
+  failed,
+  blocked,
+}
+
+extension AgentCodingValidationResultStatusX
+    on AgentCodingValidationResultStatus {
+  String get wireValue => switch (this) {
+    AgentCodingValidationResultStatus.notStarted => 'notStarted',
+    AgentCodingValidationResultStatus.partial => 'partial',
+    AgentCodingValidationResultStatus.passed => 'passed',
+    AgentCodingValidationResultStatus.failed => 'failed',
+    AgentCodingValidationResultStatus.blocked => 'blocked',
+  };
+}
+
+class AgentCodingValidationResult {
+  const AgentCodingValidationResult({
+    required this.status,
+    required this.summary,
+    this.requiredCommandIds = const <String>[],
+    this.completedCommandIds = const <String>[],
+    this.failedCommandIds = const <String>[],
+    this.missingCommandIds = const <String>[],
+    this.resultCount = 0,
+  });
+
+  const AgentCodingValidationResult.notStarted()
+    : status = AgentCodingValidationResultStatus.notStarted,
+      summary = 'Agent coding validation has not started.',
+      requiredCommandIds = const <String>[],
+      completedCommandIds = const <String>[],
+      failedCommandIds = const <String>[],
+      missingCommandIds = const <String>[],
+      resultCount = 0;
+
+  factory AgentCodingValidationResult.fromPlan({
+    required AgentCodingValidationPlan plan,
+    Iterable<AgentCommandResultContext> recentCommandResults =
+        const <AgentCommandResultContext>[],
+  }) {
+    if (plan.status == AgentCodingValidationPlanStatus.notNeeded) {
+      return const AgentCodingValidationResult.notStarted();
+    }
+    if (plan.status == AgentCodingValidationPlanStatus.blocked) {
+      return AgentCodingValidationResult(
+        status: AgentCodingValidationResultStatus.blocked,
+        summary: plan.reason,
+      );
+    }
+    final requiredCommandIds = plan.commandPlans
+        .where((commandPlan) => commandPlan.required)
+        .where((commandPlan) => !commandPlan.requiresInput)
+        .map((commandPlan) => commandPlan.commandId)
+        .toList(growable: false);
+    if (requiredCommandIds.isEmpty) {
+      return AgentCodingValidationResult(
+        status: AgentCodingValidationResultStatus.notStarted,
+        summary: plan.reason,
+      );
+    }
+    final requiredCommandIdSet = requiredCommandIds.toSet();
+    final resultByCommandId = <String, AgentCommandResultContext>{};
+    for (final result in recentCommandResults) {
+      if (!requiredCommandIdSet.contains(result.commandId)) {
+        continue;
+      }
+      resultByCommandId.putIfAbsent(result.commandId, () => result);
+    }
+    final failedCommandIds = requiredCommandIds
+        .where((commandId) => resultByCommandId[commandId]?.applied == false)
+        .toList(growable: false);
+    final completedCommandIds = requiredCommandIds
+        .where((commandId) => resultByCommandId[commandId]?.applied == true)
+        .toList(growable: false);
+    final missingCommandIds = requiredCommandIds
+        .where((commandId) => !resultByCommandId.containsKey(commandId))
+        .toList(growable: false);
+    if (failedCommandIds.isNotEmpty) {
+      return AgentCodingValidationResult(
+        status: AgentCodingValidationResultStatus.failed,
+        summary: 'Agent coding validation failed.',
+        requiredCommandIds: requiredCommandIds,
+        completedCommandIds: completedCommandIds,
+        failedCommandIds: failedCommandIds,
+        missingCommandIds: missingCommandIds,
+        resultCount: resultByCommandId.length,
+      );
+    }
+    if (completedCommandIds.isEmpty) {
+      return AgentCodingValidationResult(
+        status: AgentCodingValidationResultStatus.notStarted,
+        summary: 'Agent coding validation has not started.',
+        requiredCommandIds: requiredCommandIds,
+        missingCommandIds: missingCommandIds,
+      );
+    }
+    if (missingCommandIds.isEmpty) {
+      return AgentCodingValidationResult(
+        status: AgentCodingValidationResultStatus.passed,
+        summary: 'Agent coding validation passed.',
+        requiredCommandIds: requiredCommandIds,
+        completedCommandIds: completedCommandIds,
+        resultCount: resultByCommandId.length,
+      );
+    }
+    return AgentCodingValidationResult(
+      status: AgentCodingValidationResultStatus.partial,
+      summary: 'Agent coding validation is partially complete.',
+      requiredCommandIds: requiredCommandIds,
+      completedCommandIds: completedCommandIds,
+      missingCommandIds: missingCommandIds,
+      resultCount: resultByCommandId.length,
+    );
+  }
+
+  final AgentCodingValidationResultStatus status;
+  final String summary;
+  final List<String> requiredCommandIds;
+  final List<String> completedCommandIds;
+  final List<String> failedCommandIds;
+  final List<String> missingCommandIds;
+  final int resultCount;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'summary': summary,
+      'requiredCommandIds': requiredCommandIds,
+      'completedCommandIds': completedCommandIds,
+      'failedCommandIds': failedCommandIds,
+      'missingCommandIds': missingCommandIds,
+      'resultCount': resultCount,
+    };
+  }
+}
+
 class AgentCodingValidationPlan {
   const AgentCodingValidationPlan({
     required this.status,
@@ -1275,6 +1415,7 @@ class AgentSessionContext {
         workspaceEdit: workspaceEdit ?? agent.workspaceEdit,
         recentCodingPlans: recentCodingPlanList,
         recentDiagnosticSummaries: recentDiagnosticSummaryList,
+        recentCommandResults: commandResultHistory,
         ideCapabilityClosure: ideCapabilityClosure ?? this.ideCapabilityClosure,
         codingReadiness: codingReadiness,
       ),
@@ -1336,6 +1477,7 @@ class AgentCodingLoopContext {
     ),
     this.autonomyPolicy = const AgentCodingAutonomyPolicy.proposalOnly(),
     this.validationPlan = const AgentCodingValidationPlan.notNeeded(),
+    this.validationResult = const AgentCodingValidationResult.notStarted(),
     this.suggestedCommandIds = const <String>[],
   });
 
@@ -1361,6 +1503,8 @@ class AgentCodingLoopContext {
         const <AgentCodingPlanContext>[],
     Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
         const <AgentDiagnosticSummaryContext>[],
+    Iterable<AgentCommandResultContext> recentCommandResults =
+        const <AgentCommandResultContext>[],
     IdeCapabilityClosureReport? ideCapabilityClosure,
     AgentCodingExecutionReadiness codingReadiness =
         const AgentCodingExecutionReadiness.unknown(),
@@ -1391,6 +1535,11 @@ class AgentCodingLoopContext {
     final effectiveLastPatchApplication = history.isEmpty
         ? null
         : history.first;
+    final effectiveValidationPlan = AgentCodingValidationPlan.fromAgentState(
+      autonomyPolicy: effectiveAutonomyPolicy,
+      changeReviewGate: effectiveChangeReviewGate,
+      lastPatchApplication: effectiveLastPatchApplication,
+    );
     return AgentCodingLoopContext(
       pendingPatch: pendingPatch,
       recentPatchProposals: recentPatchProposals.toList(growable: false),
@@ -1412,10 +1561,10 @@ class AgentCodingLoopContext {
       ),
       changeReviewGate: effectiveChangeReviewGate,
       autonomyPolicy: effectiveAutonomyPolicy,
-      validationPlan: AgentCodingValidationPlan.fromAgentState(
-        autonomyPolicy: effectiveAutonomyPolicy,
-        changeReviewGate: effectiveChangeReviewGate,
-        lastPatchApplication: effectiveLastPatchApplication,
+      validationPlan: effectiveValidationPlan,
+      validationResult: AgentCodingValidationResult.fromPlan(
+        plan: effectiveValidationPlan,
+        recentCommandResults: recentCommandResults,
       ),
       suggestedCommandIds: _suggestedAgentCodingCommandIds(
         pendingIdeCommands: pendingIdeCommandList,
@@ -1446,6 +1595,7 @@ class AgentCodingLoopContext {
   final AgentCodingChangeReviewGate changeReviewGate;
   final AgentCodingAutonomyPolicy autonomyPolicy;
   final AgentCodingValidationPlan validationPlan;
+  final AgentCodingValidationResult validationResult;
   final List<String> suggestedCommandIds;
 
   Map<String, Object?> toJson() {
@@ -1489,6 +1639,8 @@ class AgentCodingLoopContext {
       'autonomyPolicy': autonomyPolicy.toJson(),
       if (validationPlan.status != AgentCodingValidationPlanStatus.notNeeded)
         'validationPlan': validationPlan.toJson(),
+      if (validationPlan.status != AgentCodingValidationPlanStatus.notNeeded)
+        'validationResult': validationResult.toJson(),
       if (recentCodingPlans.isNotEmpty)
         'recentCodingPlans': recentCodingPlans
             .map((plan) => plan.toJson())

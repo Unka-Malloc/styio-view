@@ -1973,6 +1973,8 @@ void main() {
       final filteredAgentJson = filteredJson['agent']! as Map<String, Object?>;
       final validationPlan =
           agentJson['validationPlan']! as Map<String, Object?>;
+      final validationResult =
+          agentJson['validationResult']! as Map<String, Object?>;
       final validationCommandPlans =
           validationPlan['commandPlans']! as List<Object?>;
 
@@ -2009,6 +2011,9 @@ void main() {
       );
       expect(validationPlan['status'], 'ready');
       expect(validationPlan['shouldRun'], isTrue);
+      expect(validationResult['status'], 'notStarted');
+      expect(validationResult['missingCommandIds'], contains('saveAll'));
+      expect(validationResult['missingCommandIds'], contains('runTests'));
       expect(
         validationPlan['commandHints'],
         containsAll(<String>[
@@ -2056,6 +2061,67 @@ void main() {
       expect(filteredJson.containsKey('document'), isFalse);
     },
   );
+
+  test('agent session context summarizes coding validation results', () {
+    final patchApplication = AgentPatchApplicationContext(
+      patchId: 'patch-validated',
+      summary: 'Validated change.',
+      documentIds: const <String>['src/main.styio'],
+      editCount: 1,
+      operationCounts: const <String, int>{'replace': 1},
+      applied: true,
+      pendingPatchRetained: false,
+      message: 'Applied.',
+      appliedEditCount: 1,
+      changedDocumentIds: const <String>['src/main.styio'],
+      recordedAt: DateTime.utc(2026, 5, 19, 3, 4, 5),
+    );
+    final commandResults = <AgentCommandResultContext>[
+      for (final commandId in <String>[
+        AppCommandId.saveAll.name,
+        AppCommandId.refreshLanguageService.name,
+        AppCommandId.refreshWorkspaceDiagnostics.name,
+        AppCommandId.collectProjectLanguageContext.name,
+        AppCommandId.runTests.name,
+      ])
+        AgentCommandResultContext(
+          commandId: commandId,
+          applied: true,
+          message: '$commandId completed.',
+        ),
+    ];
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+    ).withAgentCodingState(
+      lastPatchApplication: patchApplication,
+      recentCommandResults: commandResults,
+    );
+
+    final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final validationResult =
+        agentJson['validationResult']! as Map<String, Object?>;
+
+    expect(validationResult['status'], 'passed');
+    expect(validationResult['summary'], 'Agent coding validation passed.');
+    expect(
+      validationResult['completedCommandIds'],
+      containsAll(<String>[
+        AppCommandId.saveAll.name,
+        AppCommandId.refreshLanguageService.name,
+        AppCommandId.refreshWorkspaceDiagnostics.name,
+        AppCommandId.collectProjectLanguageContext.name,
+        AppCommandId.runTests.name,
+      ]),
+    );
+    expect(validationResult['failedCommandIds'], isEmpty);
+    expect(validationResult['missingCommandIds'], isEmpty);
+  });
 
   test('agent session context serializes current pending patch', () {
     final context = AgentSessionContext.fromEditorState(

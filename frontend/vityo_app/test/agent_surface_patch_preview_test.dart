@@ -2253,6 +2253,11 @@ void main() {
       find.text('Generated code was applied and needs validation.'),
       findsOneWidget,
     );
+    expect(find.text('Validation result: notStarted'), findsOneWidget);
+    expect(
+      find.textContaining('Missing validation commands: saveAll'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining(
         'Command plan: saveAll -> refreshLanguageService',

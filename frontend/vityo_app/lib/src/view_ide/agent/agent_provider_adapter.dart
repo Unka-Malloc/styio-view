@@ -1992,6 +1992,13 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
           .where((commandPlan) => commandPlan.requiresInput)
           .map((commandPlan) => commandPlan.commandId)
           .toList(growable: false),
+      'agentValidationResultStatus': agent.validationResult.status.wireValue,
+      'agentValidationCompletedCommandIds':
+          agent.validationResult.completedCommandIds,
+      'agentValidationFailedCommandIds':
+          agent.validationResult.failedCommandIds,
+      'agentValidationMissingCommandIds':
+          agent.validationResult.missingCommandIds,
     });
   }
   final providerExecution = agent.providerExecution;

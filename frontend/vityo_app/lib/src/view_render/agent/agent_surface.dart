@@ -241,11 +241,13 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
 class _AgentCodingValidationPlanSummary extends StatelessWidget {
   const _AgentCodingValidationPlanSummary({
     required this.validationPlan,
+    required this.validationResult,
     required this.applyingIdeCommand,
     this.onApplyCommand,
   });
 
   final AgentCodingValidationPlan validationPlan;
+  final AgentCodingValidationResult validationResult;
   final bool applyingIdeCommand;
   final void Function(AgentIdeCommandSuggestion suggestion)? onApplyCommand;
 
@@ -281,6 +283,18 @@ class _AgentCodingValidationPlanSummary extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(validationPlan.reason, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 4),
+            Text(
+              'Validation result: ${validationResult.status.wireValue}',
+              style: theme.textTheme.bodySmall,
+            ),
+            if (validationResult.missingCommandIds.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Missing validation commands: ${validationResult.missingCommandIds.join(', ')}',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             if (commandPlanText.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
@@ -2662,6 +2676,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   const SizedBox(height: 8),
                   _AgentCodingValidationPlanSummary(
                     validationPlan: widget.controller.codingValidationPlan,
+                    validationResult: widget.controller.codingValidationResult,
                     applyingIdeCommand: applyingIdeCommand,
                     onApplyCommand: widget.onApplyIdeCommandSuggestion == null
                         ? null

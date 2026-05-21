@@ -158,7 +158,9 @@ void main() {
     expect(decoded.systemPrompt, contains('agent.changeReviewGate'));
     expect(decoded.systemPrompt, contains('agent.autonomyPolicy'));
     expect(decoded.systemPrompt, contains('agent.validationPlan'));
+    expect(decoded.systemPrompt, contains('agent.validationResult'));
     expect(decoded.systemPrompt, contains('agent.validationPlan.commandPlans'));
+    expect(decoded.systemPrompt, contains('agent.validationResult.status'));
     expect(
       decoded.systemPrompt,
       contains('agent.validationPlan.registeredCommandIds'),

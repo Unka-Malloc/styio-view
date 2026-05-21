@@ -331,6 +331,8 @@ class StyioCommandRegistry {
           'Select the IDE-managed Clang/C++ compiler version and optional C++ standard.',
       requiresInput: true,
       inputLabel: 'Clang/C++ version id and optional C++ standard',
+      inputContract: 'Use "versionId" or "versionId c++23".',
+      inputExamples: <String>['native-clang-cpp-compiler', 'clang-18 c++23'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.packProject,
@@ -414,6 +416,8 @@ class StyioCommandRegistry {
       description: 'Select a paused DAP thread and refresh its call stack.',
       requiresInput: true,
       inputLabel: 'DAP thread id',
+      inputContract: 'Use an existing id from debug.threads.',
+      inputExamples: <String>['1'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.selectDebugStackFrame,
@@ -423,6 +427,8 @@ class StyioCommandRegistry {
           'Select a paused DAP stack frame and refresh its local variables.',
       requiresInput: true,
       inputLabel: 'DAP stack frame id',
+      inputContract: 'Use an existing id from debug.stackFrames.',
+      inputExamples: <String>['frame-0'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.nextDiagnostic,
@@ -489,6 +495,8 @@ class StyioCommandRegistry {
           'Preview the current unified diff for a changed workspace file.',
       requiresInput: true,
       inputLabel: 'Changed file path',
+      inputContract: 'Workspace-relative changed file path.',
+      inputExamples: <String>['src/main.styio'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.stageSourceControl,
@@ -498,6 +506,9 @@ class StyioCommandRegistry {
           'Stage one or more changed workspace paths through the source-control action contract.',
       requiresInput: true,
       inputLabel: 'Changed file path(s)',
+      inputContract:
+          'One or more workspace-relative changed paths, separated by comma or newline.',
+      inputExamples: <String>['src/main.styio', 'src/a.styio, src/b.styio'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.unstageSourceControl,
@@ -507,6 +518,9 @@ class StyioCommandRegistry {
           'Unstage one or more changed workspace paths through the source-control action contract.',
       requiresInput: true,
       inputLabel: 'Changed file path(s)',
+      inputContract:
+          'One or more staged workspace-relative paths, separated by comma or newline.',
+      inputExamples: <String>['src/main.styio', 'src/a.styio, src/b.styio'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.planSourceControlBranchSwitch,
@@ -516,6 +530,8 @@ class StyioCommandRegistry {
           'Load branch facts and prepare a source-control branch switch plan without switching branches.',
       requiresInput: true,
       inputLabel: 'Target branch',
+      inputContract: 'Existing or candidate branch name from source-control facts.',
+      inputExamples: <String>['ai-dev', 'nightly'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.planSourceControlCommitDraft,
@@ -525,6 +541,12 @@ class StyioCommandRegistry {
           'Prepare a source-control commit draft without creating a revision.',
       requiresInput: true,
       inputLabel: 'Commit message or message -> path(s)',
+      inputContract:
+          'Use "commit message" for all staged paths or "message -> path1, path2".',
+      inputExamples: <String>[
+        'Add Styio quick fix routing',
+        'Add tests -> src/main.styio, test/main_test.dart',
+      ],
     ),
     AppCommandDescriptor(
       id: AppCommandId.collectAgentCodingCheckpoint,
@@ -555,6 +577,8 @@ class StyioCommandRegistry {
           'Replay the failed Agent coding request through another configured provider profile key.',
       requiresInput: true,
       inputLabel: 'Agent provider profile key',
+      inputContract: 'Use a key from agent.savedProviderProfiles.',
+      inputExamples: <String>['codex-spark', 'local-fallback'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.replayAgentPrompt,
@@ -578,6 +602,9 @@ class StyioCommandRegistry {
           'Open a workspace file so the editor and Agent can sample it.',
       requiresInput: true,
       inputLabel: 'Workspace file path',
+      inputContract:
+          'Workspace-relative file path. Must not contain .. path segments.',
+      inputExamples: <String>['src/main.styio'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.createWorkspaceFile,
@@ -587,6 +614,9 @@ class StyioCommandRegistry {
           'Create a workspace file through the File Explorer operation contract.',
       requiresInput: true,
       inputLabel: 'New workspace file path',
+      inputContract:
+          'Workspace-relative new file path. Must not contain .. path segments.',
+      inputExamples: <String>['src/new_file.styio'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.renameWorkspaceFile,
@@ -596,6 +626,9 @@ class StyioCommandRegistry {
           'Rename a workspace file through the File Explorer operation contract.',
       requiresInput: true,
       inputLabel: 'Current path -> next path',
+      inputContract:
+          'Use "current/path -> next/path" with workspace-relative paths.',
+      inputExamples: <String>['src/old.styio -> src/new.styio'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.deleteWorkspaceFile,
@@ -605,6 +638,9 @@ class StyioCommandRegistry {
           'Delete a workspace file through the File Explorer operation contract.',
       requiresInput: true,
       inputLabel: 'Workspace file path',
+      inputContract:
+          'Workspace-relative file path. Must not be the active document.',
+      inputExamples: <String>['src/unused.styio'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.revealWorkspaceFile,
@@ -614,6 +650,8 @@ class StyioCommandRegistry {
           'Reveal a workspace file in the File Explorer operation contract.',
       requiresInput: true,
       inputLabel: 'Workspace file path',
+      inputContract: 'Workspace-relative file path to reveal in the file tree.',
+      inputExamples: <String>['src/main.styio'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.searchWorkspace,
@@ -623,6 +661,8 @@ class StyioCommandRegistry {
           'Search workspace documents and expose capped results to the next Agent context.',
       requiresInput: true,
       inputLabel: 'Search query',
+      inputContract: 'Plain text search query.',
+      inputExamples: <String>['main', '@stdout'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.previewWorkspaceReplace,
@@ -632,6 +672,8 @@ class StyioCommandRegistry {
           'Preview a workspace-wide replacement without modifying documents.',
       requiresInput: true,
       inputLabel: 'Search query -> replacement',
+      inputContract: 'Use "search text -> replacement text".',
+      inputExamples: <String>['oldName -> newName'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.applyWorkspaceReplace,
@@ -688,6 +730,8 @@ class StyioCommandRegistry {
       description: 'Run an IDE test configuration by id.',
       requiresInput: true,
       inputLabel: 'Test configuration id',
+      inputContract: 'Use an id from testing.configurationSet.configurations.',
+      inputExamples: <String>['unit'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.debugTestConfiguration,
@@ -696,6 +740,8 @@ class StyioCommandRegistry {
       description: 'Start the debug route for an IDE test configuration by id.',
       requiresInput: true,
       inputLabel: 'Test configuration id',
+      inputContract: 'Use an id from testing.configurationSet.configurations.',
+      inputExamples: <String>['unit'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.nextReference,
@@ -723,6 +769,9 @@ class StyioCommandRegistry {
       description: 'Rename the resolved symbol and its safe references.',
       requiresInput: true,
       inputLabel: 'New symbol name',
+      inputContract:
+          'New symbol name valid for the active language syntax contract.',
+      inputExamples: <String>['newName'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.safeDelete,

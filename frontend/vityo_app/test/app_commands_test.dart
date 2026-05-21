@@ -16,6 +16,28 @@ void main() {
     );
   });
 
+  test('command registry exposes agent input contracts', () {
+    final commandsWithAgentInput = StyioCommandRegistry.commands
+        .where(
+          (command) => command.requiresInput || command.inputLabel.isNotEmpty,
+        )
+        .toList();
+
+    expect(commandsWithAgentInput, isNotEmpty);
+    for (final command in commandsWithAgentInput) {
+      expect(
+        command.inputContract,
+        isNotEmpty,
+        reason: '${command.id.name} must describe accepted agent input.',
+      );
+      expect(
+        command.inputExamples,
+        isNotEmpty,
+        reason: '${command.id.name} must expose concrete agent input examples.',
+      );
+    }
+  });
+
   test(
     'command registry resolves descriptors and shortcuts for source ops',
     () {

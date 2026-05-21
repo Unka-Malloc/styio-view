@@ -614,16 +614,25 @@ class AppBootstrap {
   static ExtensionAgentToolExecutionRegistry?
   createAgentExtensionToolExecutionRegistry({
     ExtensionContributionRouteManifest? extensionContributionRoutes,
+    ExtensionAgentToolHostBridge? hostBridge,
     Map<String, ExtensionAgentToolHandler> handlers =
         const <String, ExtensionAgentToolHandler>{},
   }) {
     if (extensionContributionRoutes == null) {
       return null;
     }
+    final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
+      extensionContributionRoutes,
+    );
+    if (hostBridge != null) {
+      return ExtensionAgentToolExecutionRegistry.fromHostBridge(
+        catalog: catalog,
+        hostBridge: hostBridge,
+        handlers: handlers,
+      );
+    }
     return ExtensionAgentToolExecutionRegistry(
-      catalog: ExtensionAgentToolContributionCatalog.fromRoutes(
-        extensionContributionRoutes,
-      ),
+      catalog: catalog,
       handlers: handlers,
     );
   }

@@ -118,6 +118,30 @@ void main() {
       );
       expect(dispatchResult.success, isFalse);
       expect(dispatchResult.metadata['missingHandler'], isTrue);
+
+      final bridgedRegistry =
+          AppBootstrap.createAgentExtensionToolExecutionRegistry(
+            extensionContributionRoutes: routes,
+            hostBridge: (request) async {
+              return AgentToolCallDispatchResult.success(
+                callId: request.toolCall.callId,
+                toolId: request.toolCall.toolId,
+                output: '{"extension":"bootstrap"}',
+                metadata: <String, Object?>{
+                  'handlerId': request.handlerId,
+                },
+              );
+            },
+          );
+      final bridgedResult = await bridgedRegistry!.dispatch(
+        const AgentToolCallDispatchRequest(
+          callId: 'call-extension-context',
+          toolId: 'collectExtensionContext',
+          inputText: '{}',
+        ),
+      );
+      expect(bridgedResult.success, isTrue);
+      expect(bridgedResult.metadata['handlerId'], 'collect-extension-context');
     },
   );
 

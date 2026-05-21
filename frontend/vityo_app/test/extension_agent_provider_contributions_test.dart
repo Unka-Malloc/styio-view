@@ -90,6 +90,7 @@ void main() {
               title: 'Collect Extension Context',
               metadata: <String, Object?>{
                 'toolId': 'collectExtensionContext',
+                'handlerId': 'collect-context',
                 'description': 'Collect context from an extension.',
                 'permissionMode': 'never',
                 'supportedProviderKinds': <String>['cloud_openai_compatible'],
@@ -115,6 +116,7 @@ void main() {
     final routes = const ExtensionContributionRouter().routeRegistry(registry);
 
     final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(routes);
+    final contribution = catalog.readyContributions.single;
     final tool = catalog.readyTools.single;
     final selection = catalog.toRegistry().selectForProfile(
       profile: AgentPromptProfile.openAICodexSparkForPlatform(
@@ -123,6 +125,7 @@ void main() {
       providerKind: AgentProviderKind.cloudOpenAICompatible,
     );
 
+    expect(contribution.handlerId, 'collect-context');
     expect(tool.toolId, 'collectExtensionContext');
     expect(tool.builtin, isFalse);
     expect(tool.permissionMode, AgentToolPermissionMode.never);
@@ -200,6 +203,59 @@ void main() {
     expect(result.success, isTrue);
     expect(result.output, '{"extension":"ok"}');
     expect(registry.toJson()['missingHandlerToolIds'], isEmpty);
+  });
+
+  test('extension agent tool execution registry bridges host handlers', () async {
+    final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
+      ExtensionContributionRouteManifest(
+        routes: <ExtensionContributionRoute>[
+          const ExtensionContributionRouter().routeContribution(
+            extensionId: 'agent.tools',
+            contribution: const ExtensionContributionPoint(
+              kind: ExtensionContributionKind.agent,
+              id: 'collect-extension-context',
+              target: 'agent.tools',
+              metadata: <String, Object?>{
+                'toolId': 'collectExtensionContext',
+                'handlerId': 'collect-context',
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+    ExtensionAgentToolHostRequest? hostRequest;
+    final registry = ExtensionAgentToolExecutionRegistry.fromHostBridge(
+      catalog: catalog,
+      hostBridge: (request) async {
+        hostRequest = request;
+        return AgentToolCallDispatchResult.success(
+          callId: request.toolCall.callId,
+          toolId: request.toolCall.toolId,
+          output: '{"extension":"host"}',
+          metadata: <String, Object?>{
+            'source': 'extension-host-bridge',
+            'handlerId': request.handlerId,
+          },
+        );
+      },
+    );
+
+    final result = await registry.dispatch(
+      const AgentToolCallDispatchRequest(
+        callId: 'call-extension',
+        toolId: 'collectExtensionContext',
+        inputText: '{"extensionId":"demo"}',
+      ),
+    );
+
+    expect(registry.canHandle('collectExtensionContext'), isTrue);
+    expect(hostRequest?.extensionId, 'agent.tools');
+    expect(hostRequest?.contributionId, 'collect-extension-context');
+    expect(hostRequest?.handlerId, 'collect-context');
+    expect(hostRequest?.toolCall.inputText, '{"extensionId":"demo"}');
+    expect(result.success, isTrue);
+    expect(result.metadata['handlerId'], 'collect-context');
   });
 
   test(

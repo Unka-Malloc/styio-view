@@ -12,6 +12,7 @@ class ExtensionAgentToolContribution {
     required this.target,
     required this.status,
     required this.message,
+    this.handlerId = '',
     this.tool,
   });
 
@@ -86,6 +87,9 @@ class ExtensionAgentToolContribution {
       target: route.registryTargetId,
       status: ExtensionAgentToolContributionStatus.ready,
       message: 'Agent tool contribution ${route.contribution.id} is ready.',
+      handlerId:
+          _metadataString(route.contribution.metadata, 'handlerId') ??
+          route.contribution.id,
       tool: tool,
     );
   }
@@ -95,6 +99,7 @@ class ExtensionAgentToolContribution {
   final String target;
   final ExtensionAgentToolContributionStatus status;
   final String message;
+  final String handlerId;
   final AgentToolDefinition? tool;
 
   bool get ready => status == ExtensionAgentToolContributionStatus.ready;
@@ -107,6 +112,7 @@ class ExtensionAgentToolContribution {
       'status': status.name,
       'message': message,
       'ready': ready,
+      if (handlerId.isNotEmpty) 'handlerId': handlerId,
       if (tool != null) 'tool': tool!.toJson(),
     };
   }
@@ -129,8 +135,14 @@ class ExtensionAgentToolContributionCatalog {
 
   final List<ExtensionAgentToolContribution> contributions;
 
-  List<AgentToolDefinition> get readyTools {
+  List<ExtensionAgentToolContribution> get readyContributions {
     return contributions
+        .where((contribution) => contribution.ready && contribution.tool != null)
+        .toList(growable: false);
+  }
+
+  List<AgentToolDefinition> get readyTools {
+    return readyContributions
         .map((contribution) => contribution.tool)
         .whereType<AgentToolDefinition>()
         .toList(growable: false);
@@ -162,6 +174,34 @@ typedef ExtensionAgentToolHandler =
       AgentToolCallDispatchRequest request,
     );
 
+class ExtensionAgentToolHostRequest {
+  const ExtensionAgentToolHostRequest({
+    required this.extensionId,
+    required this.contributionId,
+    required this.handlerId,
+    required this.toolCall,
+  });
+
+  final String extensionId;
+  final String contributionId;
+  final String handlerId;
+  final AgentToolCallDispatchRequest toolCall;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'contributionId': contributionId,
+      'handlerId': handlerId,
+      'toolCall': toolCall.toJson(),
+    };
+  }
+}
+
+typedef ExtensionAgentToolHostBridge =
+    Future<AgentToolCallDispatchResult> Function(
+      ExtensionAgentToolHostRequest request,
+    );
+
 class ExtensionAgentToolExecutionRegistry {
   ExtensionAgentToolExecutionRegistry({
     required ExtensionAgentToolContributionCatalog catalog,
@@ -171,6 +211,38 @@ class ExtensionAgentToolExecutionRegistry {
        _handlers = Map<String, ExtensionAgentToolHandler>.unmodifiable(
          handlers,
        );
+
+  factory ExtensionAgentToolExecutionRegistry.fromHostBridge({
+    required ExtensionAgentToolContributionCatalog catalog,
+    required ExtensionAgentToolHostBridge hostBridge,
+    Map<String, ExtensionAgentToolHandler> handlers =
+        const <String, ExtensionAgentToolHandler>{},
+  }) {
+    final bridgedHandlers = <String, ExtensionAgentToolHandler>{};
+    for (final contribution in catalog.readyContributions) {
+      final tool = contribution.tool;
+      if (tool == null) {
+        continue;
+      }
+      bridgedHandlers[tool.toolId] = (request) {
+        return hostBridge(
+          ExtensionAgentToolHostRequest(
+            extensionId: contribution.extensionId,
+            contributionId: contribution.contributionId,
+            handlerId: contribution.handlerId,
+            toolCall: request,
+          ),
+        );
+      };
+    }
+    return ExtensionAgentToolExecutionRegistry(
+      catalog: catalog,
+      handlers: <String, ExtensionAgentToolHandler>{
+        ...bridgedHandlers,
+        ...handlers,
+      },
+    );
+  }
 
   final Set<String> _toolIds;
   final Map<String, ExtensionAgentToolHandler> _handlers;

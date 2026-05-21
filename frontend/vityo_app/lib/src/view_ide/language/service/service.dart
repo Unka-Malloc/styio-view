@@ -13,6 +13,7 @@ export 'semantic_snapshot_provider.dart';
 export 'local_styio_language_service.dart';
 export 'styio_service_capability.dart';
 export 'styio_service_capability_detector.dart';
+export 'styio_service_capability_profile.dart';
 export 'styio_service_connector.dart';
 export 'styio_service_manager_connector.dart';
 export 'styio_service_project_document_rule_provider.dart';

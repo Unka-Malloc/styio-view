@@ -15,6 +15,7 @@ export 'service/language_service_foundation.dart';
 export 'service/local_styio_language_service.dart';
 export 'service/styio_service_capability.dart';
 export 'service/styio_service_capability_detector.dart';
+export 'service/styio_service_capability_profile.dart';
 export 'service/styio_service_connector.dart';
 export 'service/styio_service_daemon_process_adapter.dart';
 export 'service/styio_service_manager_connector.dart';

@@ -13,6 +13,7 @@ import 'agent_provider_route_executor.dart';
 import 'agent_provider_streaming_runtime.dart';
 import 'agent_session_context.dart';
 import 'agent_tool_call_dispatcher.dart';
+import 'agent_tool_call_execution_journal.dart';
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
@@ -155,6 +156,10 @@ class AgentCodingSessionController extends ChangeNotifier {
   final AgentProviderToolCallStreamBridge _toolCallStreamBridge =
       const AgentProviderToolCallStreamBridge();
   AgentToolCallTimeline _toolCallTimeline = AgentToolCallTimeline.empty();
+  AgentToolCallExecutionJournal _toolCallExecutionJournal =
+      AgentToolCallExecutionJournal.fromTimeline(
+        timeline: AgentToolCallTimeline.empty(),
+      );
   final Map<String, AgentToolCallReviewDecision> _toolCallReviewDecisions =
       <String, AgentToolCallReviewDecision>{};
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
@@ -224,6 +229,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   List<AgentConversationTurn> get conversationTurns =>
       List<AgentConversationTurn>.unmodifiable(_conversationTurns);
   AgentToolCallTimeline get toolCallTimeline => _toolCallTimeline;
+  AgentToolCallExecutionJournal get toolCallExecutionJournal =>
+      _toolCallExecutionJournal;
   List<AgentToolCallResultContext> get recentToolCallResultContexts =>
       List<AgentToolCallResultContext>.unmodifiable(
         _recentToolCallResultContexts,
@@ -523,6 +530,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       return;
     }
     _toolCallTimeline = next;
+    _refreshToolCallExecutionJournal();
     notifyListeners();
   }
 
@@ -535,6 +543,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       return;
     }
     _toolCallTimeline = next;
+    _refreshToolCallExecutionJournal();
     notifyListeners();
   }
 
@@ -544,6 +553,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       return;
     }
     _toolCallTimeline = AgentToolCallTimeline.empty();
+    _refreshToolCallExecutionJournal();
     _toolCallReviewDecisions.clear();
     notifyListeners();
   }
@@ -597,12 +607,15 @@ class AgentCodingSessionController extends ChangeNotifier {
           .toList(growable: false);
       recordToolCallEvents(events);
       _recordRecentToolCallResultContexts(blockedInputResults);
-      return AgentToolCallDispatchReport(
+      final report = AgentToolCallDispatchReport(
         status: AgentToolCallDispatchReportStatus.failed,
         plan: AgentToolCallDispatchPlan.fromExecutionPlan(executionPlan),
         results: blockedInputResults,
         events: events,
       );
+      _refreshToolCallExecutionJournal(dispatchReport: report);
+      notifyListeners();
+      return report;
     }
     final report = await dispatcher.dispatchReady(
       executionPlan: executionPlan,
@@ -615,7 +628,18 @@ class AgentCodingSessionController extends ChangeNotifier {
     if (report.results.isNotEmpty) {
       _recordRecentToolCallResultContexts(report.results);
     }
+    _refreshToolCallExecutionJournal(dispatchReport: report);
+    notifyListeners();
     return report;
+  }
+
+  void _refreshToolCallExecutionJournal({
+    AgentToolCallDispatchReport? dispatchReport,
+  }) {
+    _toolCallExecutionJournal = AgentToolCallExecutionJournal.fromTimeline(
+      timeline: _toolCallTimeline,
+      dispatchReport: dispatchReport,
+    );
   }
 
   Future<AgentProviderResponseEnvelope?> sendPrompt() async {

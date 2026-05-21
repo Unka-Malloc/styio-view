@@ -152,6 +152,37 @@ void main() {
     },
   );
 
+  test('agent coding session records replayable tool execution journal',
+      () async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-read',
+        toolId: 'readWorkspaceFile',
+        input: '{"path":"missing.styio"}',
+      ),
+    );
+
+    final report = await controller.dispatchReadyToolCalls((request) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message: 'file missing',
+      );
+    });
+    final journal = controller.toolCallExecutionJournal;
+
+    expect(report.status, AgentToolCallDispatchReportStatus.failed);
+    expect(journal.status, AgentToolCallExecutionJournalStatus.failed);
+    expect(journal.replayCandidates.single.toolId, 'readWorkspaceFile');
+    expect(journal.replayRequests().single.inputText, '{"path":"missing.styio"}');
+  });
+
   test('agent builtin executor reads sampled workspace files', () async {
     final context = _context(
       workspaceFiles: const <String>['helper.styio'],

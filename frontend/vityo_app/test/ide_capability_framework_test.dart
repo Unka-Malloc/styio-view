@@ -640,6 +640,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('AgentCodingValidationPipeline next-command progress facts'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('provider adapter coding gate metadata summaries'),
     );
     expect(

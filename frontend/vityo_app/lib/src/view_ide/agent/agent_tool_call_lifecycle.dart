@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 enum AgentToolCallEventKind {
   inputStart,
   inputDelta,
@@ -232,6 +234,67 @@ class AgentToolCallState {
 
   bool get blocked => status == AgentToolCallStatus.permissionBlocked;
 
+  String get progressLabel {
+    return _metadataString(metadata, const <String>[
+      'progressLabel',
+      'toolProgressLabel',
+      'progress.label',
+    ]);
+  }
+
+  num? get progressCurrent {
+    return _metadataNumber(metadata, const <String>[
+      'progressCurrent',
+      'toolProgressCurrent',
+      'progress.current',
+    ]);
+  }
+
+  num? get progressTotal {
+    return _metadataNumber(metadata, const <String>[
+      'progressTotal',
+      'toolProgressTotal',
+      'progress.total',
+    ]);
+  }
+
+  String get progressUnit {
+    return _metadataString(metadata, const <String>[
+      'progressUnit',
+      'toolProgressUnit',
+      'progress.unit',
+    ]);
+  }
+
+  String get progressSummary {
+    final label = progressLabel;
+    final current = progressCurrent;
+    final total = progressTotal;
+    final unit = progressUnit;
+    final parts = <String>[];
+    if (label.isNotEmpty) {
+      parts.add(label);
+    }
+    if (current != null && total != null) {
+      parts.add(
+        '${_formatNumber(current)}/${_formatNumber(total)}'
+        '${unit.isEmpty ? '' : ' $unit'}',
+      );
+    } else if (current != null) {
+      parts.add('${_formatNumber(current)}${unit.isEmpty ? '' : ' $unit'}');
+    }
+    return parts.join(' · ');
+  }
+
+  String get richErrorDetails {
+    return _metadataText(metadata, const <String>[
+      'richErrorDetails',
+      'errorDetails',
+      'error.details',
+      'error.detail',
+    ]);
+  }
+
   AgentToolCallState copyWith({
     String? toolId,
     AgentToolCallStatus? status,
@@ -272,6 +335,8 @@ class AgentToolCallState {
       'eventCount': eventCount,
       if (resultSample.isNotEmpty) 'resultSample': resultSample,
       if (errorMessage.isNotEmpty) 'errorMessage': errorMessage,
+      if (progressSummary.isNotEmpty) 'progressSummary': progressSummary,
+      if (richErrorDetails.isNotEmpty) 'richErrorDetails': richErrorDetails,
       if (permissionReason.isNotEmpty) 'permissionReason': permissionReason,
       if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
@@ -367,9 +432,7 @@ class AgentToolCallLifecycleTracker {
     return AgentToolCallTimeline(
       status: _timelineStatus(calls),
       calls: List<AgentToolCallState>.unmodifiable(calls),
-      todoItems: const <String>[
-        'TODO: bind provider-native tool progress rendering and rich error details to Agent Surface.',
-      ],
+      todoItems: const <String>[],
     );
   }
 
@@ -466,6 +529,73 @@ class AgentToolCallLifecycleTracker {
         );
     }
   }
+}
+
+String _metadataString(Map<String, Object?> metadata, List<String> keys) {
+  for (final key in keys) {
+    final value = _metadataLookup(metadata, key);
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+num? _metadataNumber(Map<String, Object?> metadata, List<String> keys) {
+  for (final key in keys) {
+    final value = _metadataLookup(metadata, key);
+    if (value is num) {
+      return value;
+    }
+    if (value is String) {
+      final parsed = num.tryParse(value.trim());
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+  }
+  return null;
+}
+
+String _metadataText(Map<String, Object?> metadata, List<String> keys) {
+  for (final key in keys) {
+    final value = _metadataLookup(metadata, key);
+    if (value == null) {
+      continue;
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+    if (value is Map || value is List) {
+      try {
+        return jsonEncode(value);
+      } on Object {
+        return value.toString();
+      }
+    }
+  }
+  return '';
+}
+
+Object? _metadataLookup(Map<String, Object?> metadata, String key) {
+  if (metadata.containsKey(key)) {
+    return metadata[key];
+  }
+  Object? current = metadata;
+  for (final segment in key.split('.')) {
+    if (current is Map) {
+      current = current[segment];
+    } else {
+      return null;
+    }
+  }
+  return current;
+}
+
+String _formatNumber(num value) {
+  return value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toString();
 }
 
 AgentToolCallState _seedState(AgentToolCallEvent event, String toolId) {

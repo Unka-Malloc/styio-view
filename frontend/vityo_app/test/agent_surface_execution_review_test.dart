@@ -102,6 +102,60 @@ void main() {
     expect(controller.draftPrompt, contains('Review pending agent tool calls'));
   });
 
+  testWidgets('agent surface renders tool progress and rich error details', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-rich-progress',
+        toolId: 'readWorkspaceFile',
+        input: '{"path":"missing.styio"}',
+        metadata: <String, Object?>{
+          'progress': <String, Object?>{
+            'label': 'Reading workspace',
+            'current': 1,
+            'total': 3,
+            'unit': 'files',
+          },
+        },
+      ),
+    );
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.error(
+        callId: 'call-rich-progress',
+        toolId: 'readWorkspaceFile',
+        errorMessage: 'tool failed',
+        metadata: <String, Object?>{'errorDetails': 'ENOENT: missing.styio'},
+      ),
+    );
+
+    await _pumpSurface(tester, controller);
+
+    expect(
+      find.byKey(const ValueKey('agent-tool-call-progress-call-rich-progress')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Progress: Reading workspace · 1/3 files'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('agent-tool-call-error-details-call-rich-progress'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Error details: ENOENT: missing.styio'), findsOneWidget);
+  });
+
   testWidgets('agent surface remembers tool approval for session', (
     tester,
   ) async {
@@ -1002,10 +1056,7 @@ void main() {
     await _pumpSurface(tester, controller);
 
     expect(find.text('Loop guard: attention'), findsOneWidget);
-    expect(
-      find.text('agent.loop.failedToolResultObserved:1'),
-      findsOneWidget,
-    );
+    expect(find.text('agent.loop.failedToolResultObserved:1'), findsOneWidget);
   });
 
   testWidgets('agent surface shows blocked loop guard', (tester) async {

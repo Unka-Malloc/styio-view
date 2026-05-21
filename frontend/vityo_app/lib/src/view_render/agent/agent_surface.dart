@@ -3534,6 +3534,26 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                     color: theme.colorScheme.primary,
                   ),
                 ),
+              if ((timeline.callFor(execution.callId)?.progressSummary ?? '')
+                  .isNotEmpty)
+                Text(
+                  'Progress: ${timeline.callFor(execution.callId)!.progressSummary}',
+                  key: ValueKey('agent-tool-call-progress-${execution.callId}'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              if ((timeline.callFor(execution.callId)?.richErrorDetails ?? '')
+                  .isNotEmpty)
+                Text(
+                  'Error details: ${timeline.callFor(execution.callId)!.richErrorDetails}',
+                  key: ValueKey(
+                    'agent-tool-call-error-details-${execution.callId}',
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
               if (execution.status ==
                   AgentToolCallExecutionStatus.reviewRequired)
                 Padding(

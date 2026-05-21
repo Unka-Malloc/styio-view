@@ -61,8 +61,38 @@ void main() {
     expect(call.status, AgentToolCallStatus.permissionBlocked);
     expect(call.terminal, isTrue);
     expect(call.permissionReason, contains('requires review'));
-    expect(timeline.todoItems.join('\n'), contains('progress rendering'));
+    expect(
+      timeline.todoItems.join('\n'),
+      isNot(contains('progress rendering')),
+    );
     expect(timeline.todoItems.join('\n'), isNot(contains('result truncation')));
+  });
+
+  test('agent tool call lifecycle exposes provider progress metadata', () {
+    final timeline = const AgentToolCallLifecycleTracker().track(
+      <AgentToolCallEvent>[
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-progress',
+          toolId: 'readWorkspaceFile',
+          metadata: <String, Object?>{
+            'progress': <String, Object?>{
+              'label': 'Reading workspace',
+              'current': 2,
+              'total': 5,
+              'unit': 'files',
+            },
+          },
+        ),
+      ],
+    );
+    final call = timeline.callFor('call-progress')!;
+
+    expect(call.progressSummary, 'Reading workspace · 2/5 files');
+    expect(call.toJson()['progressSummary'], 'Reading workspace · 2/5 files');
+    expect(
+      timeline.todoItems.join('\n'),
+      isNot(contains('progress rendering')),
+    );
   });
 
   test('agent tool call lifecycle tracks failures and truncates buffers', () {
@@ -89,6 +119,29 @@ void main() {
     expect(call.inputText, '01234');
     expect(call.errorMessage, 'command failed');
     expect(call.terminal, isTrue);
+  });
+
+  test('agent tool call lifecycle exposes rich provider errors', () {
+    final timeline = const AgentToolCallLifecycleTracker().track(
+      <AgentToolCallEvent>[
+        const AgentToolCallEvent.error(
+          callId: 'call-rich-error',
+          toolId: 'readWorkspaceFile',
+          errorMessage: 'tool failed',
+          metadata: <String, Object?>{
+            'errorDetails': <String, Object?>{
+              'code': 'ENOENT',
+              'path': 'missing.styio',
+            },
+          },
+        ),
+      ],
+    );
+    final call = timeline.callFor('call-rich-error')!;
+
+    expect(call.richErrorDetails, contains('ENOENT'));
+    expect(call.richErrorDetails, contains('missing.styio'));
+    expect(call.toJson()['richErrorDetails'], contains('ENOENT'));
   });
 
   test('agent tool call lifecycle keeps result samples bounded', () {

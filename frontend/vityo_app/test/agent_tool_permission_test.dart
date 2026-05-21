@@ -38,7 +38,7 @@ void main() {
     expect(json['blocksDispatch'], isFalse);
     expect(
       plan.todoItems.join('\n'),
-      contains('project-level permission policy'),
+      contains('project-level permission policy management controls'),
     );
   });
 

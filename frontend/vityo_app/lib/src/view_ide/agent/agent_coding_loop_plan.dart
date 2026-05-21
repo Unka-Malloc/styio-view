@@ -148,7 +148,7 @@ class AgentCodingLoopPlan {
         blockingReasons: dispatchPlan.toolPermissionPlan.blockingIssueCodes,
         todoItems: dispatchPlan.toolPermissionPlan.todoItems.isEmpty
             ? const <String>[
-                'TODO: persist project-level permission policy controls for review-gated tools.',
+                'TODO: bind project-level permission policy management controls to Agent Surface.',
               ]
             : dispatchPlan.toolPermissionPlan.todoItems,
       ),

@@ -16,6 +16,7 @@ export 'agent_tool_call_result_context.dart';
 export 'agent_tool_call_stream_bridge.dart';
 export 'agent_tool_input_validator.dart';
 export 'agent_tool_permission.dart';
+export 'agent_tool_permission_policy_store.dart';
 export 'agent_tool_registry.dart';
 export 'agent_workspace_snapshot.dart';
 export 'agent_command_metadata.dart';

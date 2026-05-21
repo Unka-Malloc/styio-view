@@ -20,6 +20,7 @@ import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
 import 'agent_tool_call_stream_bridge.dart';
 import 'agent_tool_permission.dart';
+import 'agent_tool_permission_policy_store.dart';
 import 'agent_tool_registry.dart';
 import 'agent_workspace_snapshot.dart';
 import 'agent_workspace_edit_adapter.dart';
@@ -89,6 +90,8 @@ class AgentCodingSessionController extends ChangeNotifier {
     this.sessionHistoryStore,
     this.sessionHistoryWorkspaceId = 'default',
     this.sessionHistoryMaxEntries = 50,
+    this.toolPermissionPolicyStore,
+    String? toolPermissionPolicyWorkspaceId,
     RuntimeOutputLiveBuffer? runtimeOutputBuffer,
     AgentToolRegistry? toolRegistry,
     AgentProviderSelectionPlan? providerSelectionPlan,
@@ -97,6 +100,8 @@ class AgentCodingSessionController extends ChangeNotifier {
        _toolRegistry = toolRegistry ?? AgentToolRegistry(),
        _providerSelectionPlan = providerSelectionPlan,
        _providerExecutionResolution = providerExecutionResolution,
+       _toolPermissionPolicyWorkspaceId =
+           toolPermissionPolicyWorkspaceId ?? sessionHistoryWorkspaceId,
        _mountedProviderProfileKey = profile.profileId;
 
   AgentPromptProfile profile;
@@ -108,6 +113,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   final AgentCodingSessionHistoryStore? sessionHistoryStore;
   final String sessionHistoryWorkspaceId;
   final int sessionHistoryMaxEntries;
+  final AgentToolPermissionPolicyStore? toolPermissionPolicyStore;
+  final String _toolPermissionPolicyWorkspaceId;
   final RuntimeOutputLiveBuffer? _runtimeOutputBuffer;
   final AgentToolRegistry _toolRegistry;
 
@@ -166,6 +173,8 @@ class AgentCodingSessionController extends ChangeNotifier {
       );
   final Map<String, AgentToolCallReviewDecision> _toolCallReviewDecisions =
       <String, AgentToolCallReviewDecision>{};
+  final List<AgentToolPermissionRule> _projectToolPermissionRules =
+      <AgentToolPermissionRule>[];
   final List<AgentToolPermissionRule> _sessionToolPermissionRules =
       <AgentToolPermissionRule>[];
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
@@ -255,6 +264,8 @@ class AgentCodingSessionController extends ChangeNotifier {
       List<AgentToolCallReviewDecision>.unmodifiable(
         _toolCallReviewDecisions.values,
       );
+  List<AgentToolPermissionRule> get projectToolPermissionRules =>
+      List<AgentToolPermissionRule>.unmodifiable(_projectToolPermissionRules);
   List<AgentToolPermissionRule> get sessionToolPermissionRules =>
       List<AgentToolPermissionRule>.unmodifiable(_sessionToolPermissionRules);
   AgentToolCallExecutionPlan get toolCallExecutionPlan {
@@ -340,7 +351,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       attachmentCount: _attachments.length,
       conversationTurnCount: _conversationWindow().length,
       toolRegistry: _toolRegistry,
-      toolPermissionRules: _sessionToolPermissionRules,
+      toolPermissionRules: _toolPermissionRules(),
       providerSelectionPlan: _providerSelectionPlan,
       providerExecutionResolution: _providerExecutionResolution,
     );
@@ -652,6 +663,60 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
     notifyListeners();
     return true;
+  }
+
+  Future<void> loadToolPermissionPolicy() async {
+    final store = toolPermissionPolicyStore;
+    if (store == null) {
+      return;
+    }
+    try {
+      final policy = await store.readPolicy(
+        workspaceId: _toolPermissionPolicyWorkspaceId,
+      );
+      _projectToolPermissionRules
+        ..clear()
+        ..addAll(policy.rules);
+      notifyListeners();
+    } on Object catch (error) {
+      _lastError =
+          'Agent tool permission policy restore failed: ${sanitizeAgentError(error.toString())}';
+      notifyListeners();
+    }
+  }
+
+  Future<bool> approveToolCallExecutionForProject(
+    String callId, {
+    String? reason,
+  }) {
+    return _rememberToolCallExecutionForProject(
+      callId,
+      action: AgentToolPermissionAction.allow,
+      reason: reason ?? 'Allow this agent tool for this workspace.',
+    );
+  }
+
+  Future<bool> denyToolCallExecutionForProject(
+    String callId, {
+    String? reason,
+  }) {
+    return _rememberToolCallExecutionForProject(
+      callId,
+      action: AgentToolPermissionAction.deny,
+      reason: reason ?? 'Deny this agent tool for this workspace.',
+    );
+  }
+
+  Future<bool> clearProjectToolPermissionRule(String toolId) async {
+    final ruleId = _projectToolPermissionRuleId(toolId);
+    final before = _projectToolPermissionRules.length;
+    _projectToolPermissionRules.removeWhere((rule) => rule.ruleId == ruleId);
+    if (_projectToolPermissionRules.length == before) {
+      return false;
+    }
+    final persisted = await _persistProjectToolPermissionPolicy();
+    notifyListeners();
+    return persisted;
   }
 
   Future<AgentToolCallDispatchReport> dispatchReadyToolCalls(
@@ -1832,7 +1897,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentToolPermissionPlan _currentToolPermissionPlan() {
     return AgentToolPermissionPlan.fromSelection(
       _currentToolSelection(),
-      rules: _sessionToolPermissionRules,
+      rules: _toolPermissionRules(),
     );
   }
 
@@ -1863,6 +1928,78 @@ class AgentCodingSessionController extends ChangeNotifier {
         reason: reason,
       ),
     );
+  }
+
+  Future<bool> _rememberToolCallExecutionForProject(
+    String callId, {
+    required AgentToolPermissionAction action,
+    required String reason,
+  }) async {
+    final call = _toolCallTimeline.callFor(callId);
+    if (call == null || call.callId.trim().isEmpty) {
+      return false;
+    }
+    _upsertProjectToolPermissionRule(
+      toolId: call.toolId,
+      action: action,
+      reason: reason,
+    );
+    final persisted = await _persistProjectToolPermissionPolicy();
+    notifyListeners();
+    return persisted;
+  }
+
+  void _upsertProjectToolPermissionRule({
+    required String toolId,
+    required AgentToolPermissionAction action,
+    required String reason,
+  }) {
+    final normalizedToolId = toolId.trim();
+    if (normalizedToolId.isEmpty) {
+      return;
+    }
+    final ruleId = _projectToolPermissionRuleId(normalizedToolId);
+    _projectToolPermissionRules.removeWhere((rule) => rule.ruleId == ruleId);
+    _projectToolPermissionRules.add(
+      AgentToolPermissionRule(
+        ruleId: ruleId,
+        toolIdPattern: normalizedToolId,
+        action: action,
+        priority: 500,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<bool> _persistProjectToolPermissionPolicy() async {
+    final store = toolPermissionPolicyStore;
+    if (store == null) {
+      return true;
+    }
+    try {
+      await store.savePolicy(
+        AgentToolPermissionPolicy(
+          workspaceId: _toolPermissionPolicyWorkspaceId,
+          rules: _projectToolPermissionRules,
+        ),
+      );
+      return true;
+    } on Object catch (error) {
+      _lastError =
+          'Agent tool permission policy persistence failed: ${sanitizeAgentError(error.toString())}';
+      return false;
+    }
+  }
+
+  List<AgentToolPermissionRule> _toolPermissionRules() {
+    return <AgentToolPermissionRule>[
+      ..._projectToolPermissionRules,
+      ..._sessionToolPermissionRules,
+    ];
+  }
+
+  String _projectToolPermissionRuleId(String toolId) {
+    return 'project-tool-permission-${toolId.trim()}';
   }
 
   String _sessionToolPermissionRuleId(String toolId) {

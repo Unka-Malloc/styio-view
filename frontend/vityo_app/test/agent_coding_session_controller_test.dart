@@ -11,6 +11,7 @@ import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_dispatcher.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
+import 'package:vityo_app/src/agent/agent_tool_permission_policy_store.dart';
 import 'package:vityo_app/src/agent/agent_workspace_snapshot.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
@@ -246,6 +247,91 @@ void main() {
       AgentToolCallExecutionStatus.reviewRequired,
     );
   });
+
+  test(
+    'agent coding session persists project tool permission policy',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_tool_permission_policy_controller_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final policyStore = AgentToolPermissionPolicyStore.fromDataStore(
+        dataStore: FoundationDataStore(
+          resourceCoordinator: FoundationResourceCoordinator(
+            resourceManager: resourceManager,
+            fileSystemManager: fileSystemManager,
+          ),
+          fileSystemManager: fileSystemManager,
+        ),
+      );
+      final first = AgentCodingSessionController(
+        profile: AgentPromptProfile.openAICodexSparkForPlatform(
+          PlatformTarget.linux,
+        ),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
+        sessionHistoryWorkspaceId: 'demo',
+        toolPermissionPolicyStore: policyStore,
+      );
+      addTearDown(first.dispose);
+      first.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-project-deny-1',
+          toolId: 'runIdeCommand',
+          input: '{"commandId":"runTests"}',
+        ),
+      );
+
+      final persisted = await first.denyToolCallExecutionForProject(
+        'call-project-deny-1',
+        reason: 'Project policy blocks IDE command tools.',
+      );
+
+      final second = AgentCodingSessionController(
+        profile: AgentPromptProfile.openAICodexSparkForPlatform(
+          PlatformTarget.linux,
+        ),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
+        sessionHistoryWorkspaceId: 'demo',
+        toolPermissionPolicyStore: policyStore,
+      );
+      addTearDown(second.dispose);
+      await second.loadToolPermissionPolicy();
+      second.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-project-deny-2',
+          toolId: 'runIdeCommand',
+          input: '{"commandId":"runTests"}',
+        ),
+      );
+
+      final execution = second.toolCallExecutionPlan.executionFor(
+        'call-project-deny-2',
+      )!;
+      expect(persisted, isTrue);
+      expect(
+        second.projectToolPermissionRules.single.action,
+        AgentToolPermissionAction.deny,
+      );
+      expect(execution.status, AgentToolCallExecutionStatus.blocked);
+      expect(
+        execution.issueCodes,
+        contains('agent.tool.permission.denied.runIdeCommand'),
+      );
+    },
+  );
 
   test(
     'agent coding session forwards denied tool feedback to next request',

@@ -40,6 +40,16 @@ class AgentToolPermissionRule {
     this.reason = '',
   });
 
+  factory AgentToolPermissionRule.fromJson(Map<String, Object?> json) {
+    return AgentToolPermissionRule(
+      ruleId: json['ruleId'] as String? ?? '',
+      toolIdPattern: json['toolIdPattern'] as String? ?? '',
+      action: _agentToolPermissionActionFromWire(json['action'] as String?),
+      priority: json['priority'] as int? ?? 0,
+      reason: json['reason'] as String? ?? '',
+    );
+  }
+
   final String ruleId;
   final String toolIdPattern;
   final AgentToolPermissionAction action;
@@ -262,7 +272,7 @@ List<String> _todoItems(List<AgentToolPermissionDecision> decisions) {
   final todos = <String>[];
   if (decisions.any((decision) => decision.requiresReview)) {
     todos.add(
-      'TODO: persist project-level permission policy controls for review-gated tools.',
+      'TODO: bind project-level permission policy management controls to Agent Surface.',
     );
   }
   if (decisions.any((decision) => decision.blocksDispatch)) {
@@ -307,4 +317,12 @@ bool _matchesToolIdPattern(String pattern, String toolId) {
   }
   final expression = normalizedPattern.split('*').map(RegExp.escape).join('.*');
   return RegExp('^$expression\$').hasMatch(toolId);
+}
+
+AgentToolPermissionAction _agentToolPermissionActionFromWire(String? value) {
+  return switch (value) {
+    'ask' => AgentToolPermissionAction.ask,
+    'deny' => AgentToolPermissionAction.deny,
+    _ => AgentToolPermissionAction.allow,
+  };
 }

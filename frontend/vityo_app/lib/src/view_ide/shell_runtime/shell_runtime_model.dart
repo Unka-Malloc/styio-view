@@ -1595,6 +1595,11 @@ class ShellRuntimeModel extends ChangeNotifier {
       'sourceControl': sourceControlSnapshot.toJson(),
       'projectLanguage': projectLanguage,
       'languageServiceStatus': context.language.serviceStatus?.toJson(),
+      if (context.language.semanticFeatureMatrix != null)
+        'semanticFeatureMatrix': context.language.semanticFeatureMatrix!
+            .toJson(),
+      'codeActionFactCount':
+          context.language.semanticFeatureMatrix?.codeActionFactCount ?? 0,
       'testing': context.testing.toJson(),
       'savedProviderProfileCount': profileManifest.entries.length,
       if (profileManifest.entries.isNotEmpty)
@@ -1615,6 +1620,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       '${diagnosticsSnapshot.totalCount} diagnostic(s), '
       '${sourceControlSnapshot.changes.length} source change(s), '
       '${projectLanguage['referenceCount'] ?? 0} project reference(s), '
+      '${context.language.semanticFeatureMatrix?.codeActionFactCount ?? 0} code action fact(s), '
       '${workspaceEditPreview?.editCount ?? 0} workspace edit preview edit(s).',
     );
     notifyListeners();

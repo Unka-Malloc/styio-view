@@ -1692,7 +1692,7 @@ void main() {
     );
   });
 
-  test('shell agent context exposes parameter info at selection', () {
+  test('shell agent context exposes parameter info at selection', () async {
     final projectGraph = ProjectGraphSnapshot.scratch(
       workspaceRoot: '/workspace/demo',
       activeFilePath: 'src/main.styio',
@@ -1879,6 +1879,16 @@ void main() {
     expect(
       shell.agentSessionContext.language.surroundTemplates.single.id,
       'if-block',
+    );
+
+    final checkpoint = await shell.collectAgentCodingCheckpoint();
+    final checkpointMatrix =
+        checkpoint['semanticFeatureMatrix']! as Map<String, Object?>;
+    expect(checkpoint['codeActionFactCount'], 1);
+    expect(checkpointMatrix['codeActionFactCount'], 1);
+    expect(
+      checkpointMatrix['unavailableFeatures'] as List<Object?>,
+      isNot(contains('code-actions')),
     );
   });
 

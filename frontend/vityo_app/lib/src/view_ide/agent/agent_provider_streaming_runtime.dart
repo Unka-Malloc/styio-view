@@ -2,6 +2,180 @@ import '../runtime/runtime.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_retry_policy.dart';
 
+enum AgentProviderStreamingRunStatus { succeeded, failed }
+
+extension AgentProviderStreamingRunStatusX on AgentProviderStreamingRunStatus {
+  String get wireValue {
+    return switch (this) {
+      AgentProviderStreamingRunStatus.succeeded => 'succeeded',
+      AgentProviderStreamingRunStatus.failed => 'failed',
+    };
+  }
+}
+
+class AgentProviderStreamingRunResult {
+  const AgentProviderStreamingRunResult({
+    required this.status,
+    required this.requestId,
+    required this.providerEvents,
+    required this.outputEvents,
+    this.response,
+    this.errorMessage,
+  });
+
+  final AgentProviderStreamingRunStatus status;
+  final String requestId;
+  final AgentProviderResponseEnvelope? response;
+  final String? errorMessage;
+  final List<AgentProviderStreamEvent> providerEvents;
+  final List<RuntimeOutputEvent> outputEvents;
+
+  bool get succeeded => status == AgentProviderStreamingRunStatus.succeeded;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'succeeded': succeeded,
+      'requestId': requestId,
+      if (response != null) 'response': response!.toJson(),
+      if (errorMessage != null) 'errorMessage': errorMessage,
+      'providerEventCount': providerEvents.length,
+      'outputEventCount': outputEvents.length,
+      'providerEvents': providerEvents
+          .map((event) => event.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+class AgentProviderStreamingRuntime {
+  const AgentProviderStreamingRuntime({
+    this.collector = const AgentProviderStreamingResponseCollector(),
+    this.binding = const AgentProviderStreamRuntimeOutputBinding(),
+  });
+
+  final AgentProviderStreamingResponseCollector collector;
+  final AgentProviderStreamRuntimeOutputBinding binding;
+
+  Future<AgentProviderStreamingRunResult> run({
+    required AgentProviderAdapter adapter,
+    required AgentProviderRequest request,
+  }) async {
+    final events = <AgentProviderStreamEvent>[];
+
+    void record(AgentProviderStreamEvent event) {
+      events.add(event);
+    }
+
+    try {
+      final response = adapter is StreamingAgentProviderAdapter
+          ? await _runStreamingAdapter(adapter, request, record)
+          : await _runSendAdapter(adapter, request, record);
+      if (events.isEmpty || !events.last.terminal) {
+        record(
+          AgentProviderStreamEvent.completed(
+            requestId: request.requestId,
+            response: response,
+            metadata: const <String, Object?>{'synthetic': true},
+          ),
+        );
+      }
+      return _result(
+        status: AgentProviderStreamingRunStatus.succeeded,
+        requestId: request.requestId,
+        events: events,
+        response: response,
+      );
+    } on Object catch (error) {
+      final message = error is AgentProviderTransportException
+          ? error.message
+          : error.toString();
+      if (events.isEmpty || !events.last.terminal) {
+        record(
+          AgentProviderStreamEvent.failed(
+            requestId: request.requestId,
+            message: message,
+            metadata: <String, Object?>{
+              'synthetic': true,
+              'adapterId': adapter.adapterId,
+            },
+          ),
+        );
+      }
+      return _result(
+        status: AgentProviderStreamingRunStatus.failed,
+        requestId: request.requestId,
+        events: events,
+        errorMessage: message,
+      );
+    }
+  }
+
+  Future<AgentProviderResponseEnvelope> _runStreamingAdapter(
+    StreamingAgentProviderAdapter adapter,
+    AgentProviderRequest request,
+    void Function(AgentProviderStreamEvent event) record,
+  ) {
+    final stream = adapter.stream(request).map((event) {
+      record(event);
+      return event;
+    });
+    return collector.collect(requestId: request.requestId, events: stream);
+  }
+
+  Future<AgentProviderResponseEnvelope> _runSendAdapter(
+    AgentProviderAdapter adapter,
+    AgentProviderRequest request,
+    void Function(AgentProviderStreamEvent event) record,
+  ) async {
+    record(
+      AgentProviderStreamEvent.started(
+        request.requestId,
+        metadata: <String, Object?>{
+          'synthetic': true,
+          'adapterId': adapter.adapterId,
+        },
+      ),
+    );
+    final response = await adapter.send(request);
+    for (final part in response.contentParts) {
+      record(
+        AgentProviderStreamEvent.part(
+          requestId: request.requestId,
+          contentPart: part,
+          metadata: const <String, Object?>{'synthetic': true},
+        ),
+      );
+    }
+    record(
+      AgentProviderStreamEvent.completed(
+        requestId: request.requestId,
+        response: response,
+        metadata: const <String, Object?>{'synthetic': true},
+      ),
+    );
+    return response;
+  }
+
+  AgentProviderStreamingRunResult _result({
+    required AgentProviderStreamingRunStatus status,
+    required String requestId,
+    required List<AgentProviderStreamEvent> events,
+    AgentProviderResponseEnvelope? response,
+    String? errorMessage,
+  }) {
+    final providerEvents = List<AgentProviderStreamEvent>.unmodifiable(events);
+    return AgentProviderStreamingRunResult(
+      status: status,
+      requestId: requestId,
+      response: response,
+      errorMessage: errorMessage,
+      providerEvents: providerEvents,
+      outputEvents: binding.eventsFor(providerEvents),
+    );
+  }
+}
+
 class AgentProviderStreamRuntimeOutputBinding {
   const AgentProviderStreamRuntimeOutputBinding({
     this.channelId = 'agent.activity',

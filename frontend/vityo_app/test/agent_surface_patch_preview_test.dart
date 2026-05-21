@@ -2266,10 +2266,18 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.widgetWithText(FilledButton, 'Continue Validation: saveAll'),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(OutlinedButton, 'saveAll'), findsOneWidget);
 
-    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'saveAll'));
-    await tester.tap(find.widgetWithText(OutlinedButton, 'saveAll'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Continue Validation: saveAll'),
+    );
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Continue Validation: saveAll'),
+    );
     await tester.pump();
 
     expect(appliedCommandIds, <String>['saveAll']);

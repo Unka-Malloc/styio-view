@@ -314,6 +314,27 @@ class _AgentCodingValidationPlanSummary extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               ),
             ],
+            if (validationPipeline.nextCommandId != null) ...[
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                key: const ValueKey(
+                  'agent-validation-continue-next-command',
+                ),
+                onPressed: applyingIdeCommand || onApplyCommand == null
+                    ? null
+                    : () => onApplyCommand!(
+                        AgentIdeCommandSuggestion(
+                          commandId: validationPipeline.nextCommandId!,
+                          reason:
+                              'Continue the agent coding validation pipeline.',
+                        ),
+                      ),
+                icon: const Icon(Icons.play_arrow),
+                label: Text(
+                  'Continue Validation: ${validationPipeline.nextCommandId}',
+                ),
+              ),
+            ],
             if (runnableCommandPlans.isNotEmpty) ...[
               const SizedBox(height: 8),
               Wrap(

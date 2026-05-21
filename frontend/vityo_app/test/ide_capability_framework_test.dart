@@ -689,6 +689,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('provider dispatch gate enforcement'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('AgentCodingChangeReviewGate patch review facts'),
     );
     expect(

@@ -248,6 +248,60 @@ class AgentCodingExecutionReadiness {
     );
   }
 
+  AgentCodingExecutionReadiness withProviderExecutionResolution(
+    AgentProviderExecutionResolution? providerExecutionResolution,
+  ) {
+    final nextIssues = issues
+        .where((issue) => !issue.code.startsWith('agent.provider.route.'))
+        .toList(growable: true);
+    if (providerExecutionResolution == null) {
+      nextIssues.add(
+        const AgentCodingExecutionReadinessIssue(
+          code: 'agent.provider.route.unresolved',
+          message:
+              'Agent provider route execution is not attached to this context.',
+          severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+          ownerLayer: 'service',
+          todo:
+              'TODO: bind ProviderRegistry route selection to the coding assistant UI.',
+        ),
+      );
+    } else {
+      final providerHealth = providerExecutionResolution.toHealthReport();
+      if (!providerHealth.executable) {
+        nextIssues.add(
+          AgentCodingExecutionReadinessIssue(
+            code: 'agent.provider.route.blocked',
+            message: providerHealth.message,
+            severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
+            ownerLayer: 'service',
+            todo:
+                'TODO: resolve provider credentials, endpoint reachability, or route execution before dispatching agent coding requests.',
+          ),
+        );
+      } else if (!providerHealth.ready) {
+        nextIssues.add(
+          AgentCodingExecutionReadinessIssue(
+            code: 'agent.provider.route.degraded',
+            message: providerHealth.message,
+            severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+            ownerLayer: 'service',
+            todo:
+                'TODO: surface provider fallback health in the Agent panel before autonomous edits.',
+          ),
+        );
+      }
+    }
+    final nextTodos = nextIssues
+        .map((issue) => issue.todo)
+        .whereType<String>()
+        .toList(growable: false);
+    return AgentCodingExecutionReadiness._fromIssues(
+      nextIssues,
+      todoItems: nextTodos,
+    );
+  }
+
   final AgentCodingExecutionReadinessStatus status;
   final List<AgentCodingExecutionReadinessIssue> issues;
   final List<String> todoItems;
@@ -1573,6 +1627,11 @@ class AgentSessionContext {
             lastResult: lastCommandResult,
             recentResults: recentCommandResultList,
           );
+    final effectiveCodingReadiness = providerExecutionResolution == null
+        ? codingReadiness
+        : codingReadiness.withProviderExecutionResolution(
+            providerExecutionResolution,
+          );
     return AgentSessionContext(
       schemaVersion: schemaVersion,
       document: document,
@@ -1608,7 +1667,7 @@ class AgentSessionContext {
         recentDiagnosticSummaries: recentDiagnosticSummaryList,
         recentCommandResults: commandResultHistory,
         ideCapabilityClosure: ideCapabilityClosure ?? this.ideCapabilityClosure,
-        codingReadiness: codingReadiness,
+        codingReadiness: effectiveCodingReadiness,
       ),
       commands: AgentCommandCatalogContext(
         persistenceCommands: commands.persistenceCommands,
@@ -1640,7 +1699,7 @@ class AgentSessionContext {
       toolchains: toolchains,
       ideCapabilities: ideCapabilities,
       ideCapabilityClosure: ideCapabilityClosure ?? this.ideCapabilityClosure,
-      codingReadiness: codingReadiness,
+      codingReadiness: effectiveCodingReadiness,
     );
   }
 }

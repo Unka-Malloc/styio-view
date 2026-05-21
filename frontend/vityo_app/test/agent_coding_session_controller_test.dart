@@ -84,6 +84,50 @@ void main() {
   });
 
   test(
+    'agent coding session blocks provider dispatch when route is blocked',
+    () async {
+      const resolution = AgentProviderExecutionResolution(
+        profileId: 'blocked-provider',
+        status: AgentProviderExecutionResolutionStatus.blocked,
+        endpoints: <AgentProviderEndpointReadiness>[],
+      );
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-blocked',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(kind: AgentContentPartKind.text, text: 'blocked'),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+        providerExecutionResolution: resolution,
+      );
+
+      controller.updatePrompt('Try to dispatch.');
+
+      expect(controller.canSend, isFalse);
+      expect(
+        controller.codingExecutionReadiness.hasIssue(
+          'agent.provider.route.blocked',
+        ),
+        isTrue,
+      );
+
+      final response = await controller.sendPrompt();
+
+      expect(response, isNull);
+      expect(adapter.requests, isEmpty);
+      expect(controller.lastError, contains('Agent request blocked'));
+      expect(controller.lastError, contains('agent.provider.route.blocked'));
+    },
+  );
+
+  test(
     'agent coding session publishes runtime output activity event',
     () async {
       final buffer = RuntimeOutputLiveBuffer();
@@ -285,131 +329,139 @@ void main() {
     );
   });
 
-  test('controller records validation summary in session history metadata', () async {
-    final editorController = EditorSessionController(
-      initialDocument: const DocumentState(
-        documentId: 'main.styio',
-        text: 'value = 1\n',
-        revision: 1,
-      ),
-      languageService: const SimpleStyioLanguageService(),
-    );
-    const patch = AgentCodePatch(
-      patchId: 'patch-validated',
-      summary: 'Validated change.',
-      edits: <AgentCodePatchEdit>[
-        AgentCodePatchEdit(
+  test(
+    'controller records validation summary in session history metadata',
+    () async {
+      final editorController = EditorSessionController(
+        initialDocument: const DocumentState(
           documentId: 'main.styio',
-          start: 8,
-          end: 9,
-          replacementText: '2',
+          text: 'value = 1\n',
+          revision: 1,
         ),
-      ],
-    );
-    final historyStore = _MemoryAgentCodingSessionHistoryStore(
-      AgentCodingSessionHistory(workspaceId: 'demo'),
-    );
-    final adapter = _FakeAgentProviderAdapter(
-      response: const AgentProviderResponseEnvelope(
-        requestId: 'agent-validation-history',
-        role: 'assistant',
-        finishReason: 'stop',
-        contentParts: <AgentContentPart>[
-          AgentContentPart(
-            kind: AgentContentPartKind.codePatch,
-            text: 'Patch ready.',
-            patch: patch,
+        languageService: const SimpleStyioLanguageService(),
+      );
+      const patch = AgentCodePatch(
+        patchId: 'patch-validated',
+        summary: 'Validated change.',
+        edits: <AgentCodePatchEdit>[
+          AgentCodePatchEdit(
+            documentId: 'main.styio',
+            start: 8,
+            end: 9,
+            replacementText: '2',
           ),
         ],
-      ),
-    );
-    final controller = AgentCodingSessionController(
-      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
-      adapter: adapter,
-      contextProvider: _context,
-      sessionHistoryStore: historyStore,
-      sessionHistoryWorkspaceId: 'demo',
-    );
-    addTearDown(controller.dispose);
-
-    controller.updatePrompt('Apply validated patch.');
-    await controller.sendPrompt();
-    final applied = controller.applyPendingPatch(
-      AgentCodePatchApplier(editorController: editorController),
-    );
-    expect(applied?.applied, isTrue);
-    for (final commandId in <String>[
-      'saveAll',
-      'refreshLanguageService',
-      'refreshWorkspaceDiagnostics',
-      'collectProjectLanguageContext',
-    ]) {
-      controller.recordIdeCommandResult(
-        AgentCommandResultContext(
-          commandId: commandId,
-          applied: true,
-          message: '$commandId completed.',
+      );
+      final historyStore = _MemoryAgentCodingSessionHistoryStore(
+        AgentCodingSessionHistory(workspaceId: 'demo'),
+      );
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-validation-history',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(
+              kind: AgentContentPartKind.codePatch,
+              text: 'Patch ready.',
+              patch: patch,
+            ),
+          ],
         ),
       );
-    }
-    controller.recordIdeCommandResult(
-      const AgentCommandResultContext(
-        commandId: 'runTests',
-        applied: false,
-        message: 'runTests failed.',
-        metadata: <String, Object?>{
-          'testResult': <String, Object?>{
-            'status': 'failed',
-            'failedCount': 1,
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+        sessionHistoryStore: historyStore,
+        sessionHistoryWorkspaceId: 'demo',
+      );
+      addTearDown(controller.dispose);
+
+      controller.updatePrompt('Apply validated patch.');
+      await controller.sendPrompt();
+      final applied = controller.applyPendingPatch(
+        AgentCodePatchApplier(editorController: editorController),
+      );
+      expect(applied?.applied, isTrue);
+      for (final commandId in <String>[
+        'saveAll',
+        'refreshLanguageService',
+        'refreshWorkspaceDiagnostics',
+        'collectProjectLanguageContext',
+      ]) {
+        controller.recordIdeCommandResult(
+          AgentCommandResultContext(
+            commandId: commandId,
+            applied: true,
+            message: '$commandId completed.',
+          ),
+        );
+      }
+      controller.recordIdeCommandResult(
+        const AgentCommandResultContext(
+          commandId: 'runTests',
+          applied: false,
+          message: 'runTests failed.',
+          metadata: <String, Object?>{
+            'testResult': <String, Object?>{
+              'status': 'failed',
+              'failedCount': 1,
+            },
           },
-        },
-      ),
-    );
+        ),
+      );
 
-    await Future<void>.delayed(Duration.zero);
-    final immediateMetadata = historyStore.history.records.first.metadata;
-    final immediateLastPatchApplication =
-        immediateMetadata['lastPatchApplication']! as Map<String, Object?>;
-    final immediateValidationSnapshot =
-        immediateLastPatchApplication['validationSnapshot']!
-            as Map<String, Object?>;
+      await Future<void>.delayed(Duration.zero);
+      final immediateMetadata = historyStore.history.records.first.metadata;
+      final immediateLastPatchApplication =
+          immediateMetadata['lastPatchApplication']! as Map<String, Object?>;
+      final immediateValidationSnapshot =
+          immediateLastPatchApplication['validationSnapshot']!
+              as Map<String, Object?>;
 
-    expect(
-      controller.lastPatchApplicationContext?.validationSnapshot?.resultStatus,
-      'failed',
-    );
-    expect(immediateValidationSnapshot['resultStatus'], 'failed');
-    expect(immediateValidationSnapshot['failedCommandIds'], contains('runTests'));
+      expect(
+        controller
+            .lastPatchApplicationContext
+            ?.validationSnapshot
+            ?.resultStatus,
+        'failed',
+      );
+      expect(immediateValidationSnapshot['resultStatus'], 'failed');
+      expect(
+        immediateValidationSnapshot['failedCommandIds'],
+        contains('runTests'),
+      );
 
-    controller.updatePrompt('Continue after validation.');
-    await controller.sendPrompt();
+      controller.updatePrompt('Continue after validation.');
+      await controller.sendPrompt();
 
-    final metadata = historyStore.history.records.first.metadata;
-    final validationResult =
-        metadata['validationResult']! as Map<String, Object?>;
-    final validationPipeline =
-        metadata['validationPipeline']! as Map<String, Object?>;
-    final failedCommandResults =
-        metadata['validationFailedCommandResults']! as List<Object?>;
-    final lastPatchApplication =
-        metadata['lastPatchApplication']! as Map<String, Object?>;
-    final patchValidationSnapshot =
-        lastPatchApplication['validationSnapshot']! as Map<String, Object?>;
+      final metadata = historyStore.history.records.first.metadata;
+      final validationResult =
+          metadata['validationResult']! as Map<String, Object?>;
+      final validationPipeline =
+          metadata['validationPipeline']! as Map<String, Object?>;
+      final failedCommandResults =
+          metadata['validationFailedCommandResults']! as List<Object?>;
+      final lastPatchApplication =
+          metadata['lastPatchApplication']! as Map<String, Object?>;
+      final patchValidationSnapshot =
+          lastPatchApplication['validationSnapshot']! as Map<String, Object?>;
 
-    expect(lastPatchApplication['patchId'], 'patch-validated');
-    expect(patchValidationSnapshot['resultStatus'], 'failed');
-    expect(patchValidationSnapshot['pipelineStatus'], 'failed');
-    expect(patchValidationSnapshot['failedCommandIds'], contains('runTests'));
-    expect(validationResult['status'], 'failed');
-    expect(validationResult['failedCommandIds'], contains('runTests'));
-    expect(validationPipeline['status'], 'failed');
-    expect(validationPipeline['progressNumerator'], 4);
-    expect(validationPipeline['progressDenominator'], 5);
-    final failedRun =
-        failedCommandResults.single! as Map<String, Object?>;
-    expect(failedRun['commandId'], 'runTests');
-    expect(failedRun['message'], 'runTests failed.');
-  });
+      expect(lastPatchApplication['patchId'], 'patch-validated');
+      expect(patchValidationSnapshot['resultStatus'], 'failed');
+      expect(patchValidationSnapshot['pipelineStatus'], 'failed');
+      expect(patchValidationSnapshot['failedCommandIds'], contains('runTests'));
+      expect(validationResult['status'], 'failed');
+      expect(validationResult['failedCommandIds'], contains('runTests'));
+      expect(validationPipeline['status'], 'failed');
+      expect(validationPipeline['progressNumerator'], 4);
+      expect(validationPipeline['progressDenominator'], 5);
+      final failedRun = failedCommandResults.single! as Map<String, Object?>;
+      expect(failedRun['commandId'], 'runTests');
+      expect(failedRun['message'], 'runTests failed.');
+    },
+  );
 
   test('agent coding session restores recovery request draft', () async {
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);

@@ -438,6 +438,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('agent.provider.route.blocked'), findsOneWidget);
+    final sendButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Send'),
+    );
+    expect(sendButton.onPressed, isNull);
   });
 
   testWidgets('agent surface renders provider selection plan', (tester) async {

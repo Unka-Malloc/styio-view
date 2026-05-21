@@ -192,11 +192,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       List<AgentRequestAttachment>.unmodifiable(_attachments);
   List<AgentConversationTurn> get conversationTurns =>
       List<AgentConversationTurn>.unmodifiable(_conversationTurns);
-  bool get canSend =>
-      !_sending &&
-      !_applyingPatch &&
-      !_applyingIdeCommand &&
-      _draftPrompt.trim().isNotEmpty;
+  bool get canSend => codingExecutionReadiness.canDispatchProviderRequest;
   AgentCodingExecutionReadiness get codingExecutionReadiness =>
       _contextForProviderRequest().codingReadiness.withControllerState(
         hasDraftPrompt: _draftPrompt.trim().isNotEmpty,
@@ -438,13 +434,25 @@ class AgentCodingSessionController extends ChangeNotifier {
 
   Future<AgentProviderResponseEnvelope?> sendPrompt() async {
     final prompt = _draftPrompt.trim();
-    if (_sending || _applyingPatch || prompt.isEmpty) {
+    if (_sending || _applyingPatch || _applyingIdeCommand || prompt.isEmpty) {
+      return null;
+    }
+
+    final requestContext = _contextForProviderRequest();
+    final readiness = requestContext.codingReadiness.withControllerState(
+      hasDraftPrompt: true,
+      sending: _sending,
+      applyingPatch: _applyingPatch,
+      applyingIdeCommand: _applyingIdeCommand,
+    );
+    if (!readiness.canDispatchProviderRequest) {
+      _lastError = sanitizeAgentError(_agentReadinessBlockMessage(readiness));
+      notifyListeners();
       return null;
     }
 
     final requestSerial = _activeRequestSerial + 1;
     _activeRequestSerial = requestSerial;
-    final requestContext = _contextForProviderRequest();
     final patchApplicationContextSent = _lastPatchApplicationContext;
     _preserveAgentStateForActiveRequest();
     _sending = true;
@@ -966,11 +974,10 @@ class AgentCodingSessionController extends ChangeNotifier {
     if (lastPatchApplication == null) {
       return;
     }
-    final validationSnapshot =
-        _contextForProviderRequest()
-            .agent
-            .lastPatchApplication
-            ?.validationSnapshot;
+    final validationSnapshot = _contextForProviderRequest()
+        .agent
+        .lastPatchApplication
+        ?.validationSnapshot;
     if (validationSnapshot == null) {
       return;
     }
@@ -978,7 +985,11 @@ class AgentCodingSessionController extends ChangeNotifier {
       validationSnapshot,
     );
     _lastPatchApplicationContext = updated;
-    for (var index = 0; index < _recentPatchApplicationContexts.length; index++) {
+    for (
+      var index = 0;
+      index < _recentPatchApplicationContexts.length;
+      index++
+    ) {
       if (_recentPatchApplicationContexts[index].patchId ==
           lastPatchApplication.patchId) {
         _recentPatchApplicationContexts[index] = updated;
@@ -1007,9 +1018,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         ...latest.metadata,
         ..._agentCodingHistoryMetadata(_contextForProviderRequest()),
       };
-      final next = current.replaceLatest(
-        latest.copyWith(metadata: metadata),
-      );
+      final next = current.replaceLatest(latest.copyWith(metadata: metadata));
       _sessionHistorySnapshot = next;
       await store.saveHistory(next);
     } on Object catch (error) {
@@ -1178,9 +1187,17 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 }
 
-Map<String, Object?> _agentCodingHistoryMetadata(
-  AgentSessionContext context,
-) {
+String _agentReadinessBlockMessage(AgentCodingExecutionReadiness readiness) {
+  final issueMessages = readiness.issues
+      .map((issue) => '${issue.code}: ${issue.message}')
+      .toList(growable: false);
+  if (issueMessages.isEmpty) {
+    return 'Agent request blocked by coding readiness gate.';
+  }
+  return 'Agent request blocked by coding readiness gate: ${issueMessages.join(' ')}';
+}
+
+Map<String, Object?> _agentCodingHistoryMetadata(AgentSessionContext context) {
   final agent = context.agent;
   final metadata = <String, Object?>{};
   final lastPatchApplication = agent.lastPatchApplication;

@@ -261,6 +261,7 @@ class TerminalShellCommandOutputBinding {
       'status': result.status.name,
       if (result.exitCode != null) 'exitCode': result.exitCode,
       'durationMs': result.duration.inMilliseconds,
+      ...result.metadata,
     };
   }
 
@@ -381,8 +382,16 @@ class ShellManagerRuntimeExecutionResult {
 
   bool get executed => status == ShellManagerRuntimeExecutionStatus.executed;
   bool get succeeded => execution?.succeeded ?? false;
+  RuntimeProcessHandleIdentity? get processHandle {
+    final metadata = execution?.result.metadata ?? const <String, Object?>{};
+    return RuntimeProcessHandleIdentity.tryFromMetadata(
+      metadata,
+      managerId: binding.managerId,
+    );
+  }
 
   Map<String, Object?> toJson() {
+    final handle = processHandle;
     return <String, Object?>{
       'status': status.wireValue,
       'executed': executed,
@@ -390,6 +399,7 @@ class ShellManagerRuntimeExecutionResult {
       'binding': binding.toJson(),
       'outputEvent': outputEvent.toJson(),
       if (execution != null) 'execution': execution!.toJson(),
+      if (handle != null) 'processHandle': handle.toJson(),
     };
   }
 }
@@ -453,6 +463,7 @@ class ShellManagerRuntimeExecutionAdapter {
             ShellManagerRuntimeExecutionStatus.executed.wireValue,
         'succeeded': execution.succeeded,
         'eventCount': execution.eventCount,
+        ...execution.result.metadata,
       },
     );
     buffer.addEvent(outputEvent, now: _clock());

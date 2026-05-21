@@ -521,6 +521,46 @@ void main() {
     },
   );
 
+  test(
+    'shell manager runtime execution adapter exposes process identity metadata',
+    () async {
+      const definition = RuntimeTaskDefinition(
+        id: 'shell-run-with-pid',
+        label: 'Shell run with pid',
+        kind: RuntimeTaskKind.shell,
+        command: 'printf',
+        arguments: <String>['handoff-ok'],
+      );
+      final binding = const RuntimeExecutionPlanner()
+          .plan(definition: definition)
+          .createHandoff(
+            target: RuntimeExecutionHandoffTarget.shellManager,
+            outputChannelId: 'shell.runtime',
+          )
+          .bind();
+      final buffer = RuntimeOutputLiveBuffer();
+      addTearDown(buffer.dispose);
+      final adapter = ShellManagerRuntimeExecutionAdapter(
+        shellManager: _IdentityShellManager(),
+        clock: () => DateTime.utc(2026, 5, 20, 11),
+      );
+
+      final result = await adapter.executeHandoff(
+        binding: binding,
+        buffer: buffer,
+      );
+
+      expect(result.executed, isTrue);
+      expect(result.processHandle?.processHandleId, 'shell-proc-1');
+      expect(result.processHandle?.pid, 7171);
+      expect(
+        buffer.snapshot.visibleEvents.last.metadata['processHandleId'],
+        'shell-proc-1',
+      );
+      expect(result.toJson()['processHandle'], isA<Map<String, Object?>>());
+    },
+  );
+
   test('shell manager runtime execution adapter rejects wrong route', () async {
     const definition = RuntimeTaskDefinition(
       id: 'tool-run',
@@ -674,6 +714,47 @@ void main() {
       );
     },
   );
+}
+
+class _IdentityShellManager implements ShellManager {
+  @override
+  final ShellFacts facts = ShellFacts.linuxDebianArm();
+
+  @override
+  final ShellCompatibility compatibility = ShellAdapter(
+    ShellFacts.linuxDebianArm(),
+  ).adapt();
+
+  @override
+  Future<ShellCommandResult> run(
+    ShellCommandRequest request, {
+    ShellConfiguration? configuration,
+  }) async {
+    return ShellCommandResult(
+      status: ShellCommandStatus.succeeded,
+      command: request.command,
+      executablePath: '/bin/sh',
+      arguments: request.arguments,
+      exitCode: 0,
+      stdout: 'handoff-ok',
+      stderr: '',
+      duration: const Duration(milliseconds: 10),
+      metadata: const <String, Object?>{
+        'processHandleId': 'shell-proc-1',
+        'pid': 7171,
+        'processHandleSource': 'shell-manager',
+      },
+    );
+  }
+
+  @override
+  ShellOperationFailure? failureFor(
+    ShellCommandResult result, {
+    String operation = 'shell.run',
+    String? recoveryHint,
+  }) {
+    return null;
+  }
 }
 
 Future<ToolchainManager> _createToolchainManager(Directory root) async {

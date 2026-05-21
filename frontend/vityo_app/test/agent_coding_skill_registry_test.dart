@@ -16,11 +16,30 @@ void main() {
 
     expect(selection.isEmpty, isFalse);
     expect(selection.skillIds.first, 'styio-language-service-truth');
+    expect(selection.skillIds, contains('styio-agent-command-loop'));
     expect(selection.skillIds, contains('styio-ide-feature-loop'));
     expect(selection.skillIds, isNot(contains('styio-cpp-compiler-project')));
     expect(selection.promptSections.join('\n'), contains('StyioService'));
     expect(selection.promptSections.join('\n'), contains('SemanticSnapshot'));
+    expect(selection.promptSections.join('\n'), contains('suggestedCommandIds'));
     expect(selection.toJson()['matchCount'], greaterThanOrEqualTo(2));
+  });
+
+  test('agent coding skill registry selects Styio command loop skill', () {
+    final selection = const AgentCodingSkillRegistry().selectForContext(
+      taskHints: const <String>[
+        'refreshLanguageService',
+        'quick fix',
+        'agent coding',
+      ],
+      limit: 3,
+    );
+
+    expect(selection.skillIds.first, 'styio-agent-command-loop');
+    expect(
+      selection.promptSections.join('\n'),
+      contains('previewQuickFix before applyQuickFix'),
+    );
   });
 
   test('agent coding skill registry requires explicit compiler signal', () {

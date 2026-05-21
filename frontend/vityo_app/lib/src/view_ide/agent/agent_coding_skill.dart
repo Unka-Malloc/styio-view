@@ -56,6 +56,32 @@ class AgentCodingSkillCatalog {
       ],
     ),
     AgentCodingSkill(
+      skillId: 'styio-agent-command-loop',
+      title: 'Styio Agent Command Loop',
+      appliesTo: <String>[
+        'Styio',
+        'agent coding',
+        'language commands',
+        'refreshLanguageService',
+        'quick fix',
+        'code action',
+      ],
+      toolchainDefaults: <String>[
+        'Read language.serviceStatus.suggestedCommandIds before making syntax-sensitive edits.',
+        'Use refreshLanguageService when StyioService facts are stale, degraded, unavailable, or missing semantic facts.',
+        'Read language.focusedDiagnostics.suggestedCommandIds and language.codeActions before proposing manual diagnostic fixes.',
+      ],
+      instructions: <String>[
+        'Prefer registered IDE commands over direct patches when the command exposes the needed language operation.',
+        'Use previewQuickFix before applyQuickFix when the diagnostic fix may touch multiple documents.',
+        'If the Styio command path is scaffolded or unavailable, mark the missing command integration as TODO and keep the patch local to Vityo UI/workflow code.',
+      ],
+      validationHints: <String>[
+        'Cover command-loop changes with agent context, provider prompt, or shell command tests.',
+        'Assert command ids and input contracts explicitly so agents cannot invent unsupported commands.',
+      ],
+    ),
+    AgentCodingSkill(
       skillId: 'styio-ide-feature-loop',
       title: 'Styio IDE Feature Loop',
       appliesTo: <String>[

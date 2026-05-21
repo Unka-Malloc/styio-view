@@ -541,9 +541,9 @@ class StyioCommandRegistry {
       label: 'Fail Over Agent Provider',
       shortcutHint: 'Route',
       description:
-          'Replay the failed Agent coding request through another configured provider profile.',
+          'Replay the failed Agent coding request through another configured provider profile key.',
       requiresInput: true,
-      inputLabel: 'Agent provider profile id',
+      inputLabel: 'Agent provider profile key',
     ),
     AppCommandDescriptor(
       id: AppCommandId.replayAgentPrompt,

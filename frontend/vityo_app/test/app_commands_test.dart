@@ -364,7 +364,7 @@ void main() {
       expect(failoverAgentProvider.label, 'Fail Over Agent Provider');
       expect(failoverAgentProvider.category, AppCommandCategory.agentCoding);
       expect(failoverAgentProvider.requiresInput, isTrue);
-      expect(failoverAgentProvider.inputLabel, 'Agent provider profile id');
+      expect(failoverAgentProvider.inputLabel, 'Agent provider profile key');
       expect(replayAgentPrompt.label, 'Replay Agent Prompt');
       expect(replayAgentPrompt.category, AppCommandCategory.agentCoding);
       expect(replayAgentPrompt.requiresInput, isFalse);

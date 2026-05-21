@@ -387,6 +387,59 @@ void main() {
     );
   });
 
+  testWidgets('agent surface renders coding readiness provider blockers', (
+    tester,
+  ) async {
+    const resolution = AgentProviderExecutionResolution(
+      profileId: 'blocked-provider',
+      status: AgentProviderExecutionResolutionStatus.blocked,
+      endpoints: <AgentProviderEndpointReadiness>[],
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      providerExecutionResolution: resolution,
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(providerExecutionResolution: resolution),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Execution readiness: blocked'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey(
+          'agent-coding-readiness-issue-agent.provider.route.blocked',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('agent.provider.route.blocked'), findsOneWidget);
+  });
+
   testWidgets('agent surface renders provider selection plan', (tester) async {
     const selectionPlan = AgentProviderSelectionPlan(
       status: AgentProviderSelectionStatus.ready,
@@ -855,6 +908,7 @@ void main() {
 AgentSessionContext _context({
   Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
       const <AgentPromptProfileManifestEntry>[],
+  AgentProviderExecutionResolution? providerExecutionResolution,
 }) {
   return AgentSessionContext.fromEditorState(
     document: const DocumentState(
@@ -865,5 +919,6 @@ AgentSessionContext _context({
     selection: const SelectionState.collapsed(0),
     diagnostics: const [],
     savedProviderProfiles: savedProviderProfiles,
+    providerExecutionResolution: providerExecutionResolution,
   );
 }

@@ -685,6 +685,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('Agent Surface readiness issue visibility'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('AgentCodingChangeReviewGate patch review facts'),
     );
     expect(

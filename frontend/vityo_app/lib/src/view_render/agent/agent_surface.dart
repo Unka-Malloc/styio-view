@@ -214,6 +214,24 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
               'Execution readiness: ${executionReadiness.status.wireValue}',
               style: theme.textTheme.bodySmall,
             ),
+            if (executionReadiness.issues.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              for (final issue in executionReadiness.issues.take(4))
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    '${issue.code}: ${issue.message}',
+                    key: ValueKey('agent-coding-readiness-issue-${issue.code}'),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              if (executionReadiness.issues.length > 4)
+                Text(
+                  '+${executionReadiness.issues.length - 4} more readiness issue(s).',
+                  key: const ValueKey('agent-coding-readiness-issue-overflow'),
+                  style: theme.textTheme.bodySmall,
+                ),
+            ],
             Text(
               'Change review: ${changeReviewGate.status.wireValue}',
               style: theme.textTheme.bodySmall,
@@ -322,9 +340,7 @@ class _AgentCodingValidationPlanSummary extends StatelessWidget {
             if (validationPipeline.nextCommandId != null) ...[
               const SizedBox(height: 8),
               FilledButton.icon(
-                key: const ValueKey(
-                  'agent-validation-continue-next-command',
-                ),
+                key: const ValueKey('agent-validation-continue-next-command'),
                 onPressed: applyingIdeCommand || onApplyCommand == null
                     ? null
                     : () => onApplyCommand!(
@@ -389,8 +405,7 @@ String? _recoveryValidationSummary(AgentCodingSessionHistory history) {
   final resultStatus = validationResult['status'] as String? ?? 'unknown';
   final pipelineStatus = validationPipeline['status'] as String? ?? 'unknown';
   final progressNumerator = validationPipeline['progressNumerator'] as int?;
-  final progressDenominator =
-      validationPipeline['progressDenominator'] as int?;
+  final progressDenominator = validationPipeline['progressDenominator'] as int?;
   final nextCommandId = validationPipeline['nextCommandId'] as String?;
   final progress = progressNumerator == null || progressDenominator == null
       ? ''
@@ -431,9 +446,7 @@ List<String> _recoveryValidationFailedCommandIds(
   return const <String>[];
 }
 
-String? _recoveryValidationFailureEvidence(
-  AgentCodingSessionHistory history,
-) {
+String? _recoveryValidationFailureEvidence(AgentCodingSessionHistory history) {
   if (history.records.isEmpty) {
     return null;
   }
@@ -1700,34 +1713,32 @@ class _AgentIdeCommandSuggestionRow extends StatelessWidget {
               color: theme.colorScheme.error,
             ),
           )
-        else if (missingRequiredInput)
-          ...[
+        else if (missingRequiredInput) ...[
+          Text(
+            missingRequiredInputLabel == null ||
+                    missingRequiredInputLabel!.isEmpty
+                ? 'Missing required input'
+                : 'Missing required input: $missingRequiredInputLabel',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+          if (missingRequiredInputContract != null &&
+              missingRequiredInputContract!.isNotEmpty)
             Text(
-              missingRequiredInputLabel == null ||
-                      missingRequiredInputLabel!.isEmpty
-                  ? 'Missing required input'
-                  : 'Missing required input: $missingRequiredInputLabel',
+              'Expected input: $missingRequiredInputContract',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.error,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            if (missingRequiredInputContract != null &&
-                missingRequiredInputContract!.isNotEmpty)
-              Text(
-                'Expected input: $missingRequiredInputContract',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+          if (missingRequiredInputExamples.isNotEmpty)
+            Text(
+              'Examples: ${missingRequiredInputExamples.join(', ')}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-            if (missingRequiredInputExamples.isNotEmpty)
-              Text(
-                'Examples: ${missingRequiredInputExamples.join(', ')}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-          ]
-        else if (onApply != null)
+            ),
+        ] else if (onApply != null)
           OutlinedButton(
             key: ValueKey('agent-apply-command-${command.commandId}'),
             onPressed: applying ? null : onApply,
@@ -1974,7 +1985,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     }
     final activeProfileId = widget.controller.profile.profileId;
     for (final profile in savedProfiles) {
-      if (profile.key.trim().isNotEmpty && profile.profileId != activeProfileId) {
+      if (profile.key.trim().isNotEmpty &&
+          profile.profileId != activeProfileId) {
         return profile.key;
       }
     }
@@ -2222,6 +2234,11 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   style: theme.textTheme.bodySmall,
                 ),
               ],
+              const SizedBox(height: 8),
+              _AgentCodingLoopGateSummary(
+                executionReadiness: widget.sessionContext.codingReadiness,
+                changeReviewGate: widget.controller.codingChangeReviewGate,
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 key: const ValueKey('agent-prompt-input'),
@@ -2803,21 +2820,13 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   'Patch ${patch.patchId}${patch.baseRevision == null ? '' : ' · base rev ${patch.baseRevision}'}',
                   style: theme.textTheme.bodySmall,
                 ),
-                const SizedBox(height: 6),
-                _AgentCodingLoopGateSummary(
-                  executionReadiness:
-                      widget.controller.codingExecutionReadiness,
-                  changeReviewGate: widget.controller.codingChangeReviewGate,
-                ),
                 if (widget.onApplyIdeCommandSuggestion != null &&
                     registeredCommandIds.contains(
                       'collectAgentCodingCheckpoint',
                     )) ...[
                   const SizedBox(height: 6),
                   OutlinedButton.icon(
-                    key: const ValueKey(
-                      'agent-coding-loop-collect-checkpoint',
-                    ),
+                    key: const ValueKey('agent-coding-loop-collect-checkpoint'),
                     onPressed: applyingIdeCommand
                         ? null
                         : () => unawaited(
@@ -2919,9 +2928,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                     applyingIdeCommand: applyingIdeCommand,
                     onApplyCommand: widget.onApplyIdeCommandSuggestion == null
                         ? null
-                        : (suggestion) => unawaited(
-                            _applyIdeCommandSuggestion(suggestion),
-                          ),
+                        : (suggestion) =>
+                              unawaited(_applyIdeCommandSuggestion(suggestion)),
                   ),
                 ],
               ],

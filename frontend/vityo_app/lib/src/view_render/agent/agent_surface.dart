@@ -23,6 +23,7 @@ class AgentSurface extends StatelessWidget {
     required this.codingController,
     required this.onApplyPendingPatch,
     required this.onSaveProviderProfile,
+    this.onApplyWorkspaceRevertPlan,
     this.onApplyIdeCommandSuggestion,
     this.onResolveIdeCommandResult,
     this.onMountSavedProviderProfile,
@@ -36,6 +37,7 @@ class AgentSurface extends StatelessWidget {
   final AgentSessionContext sessionContext;
   final AgentCodingSessionController codingController;
   final Future<void> Function() onApplyPendingPatch;
+  final Future<void> Function()? onApplyWorkspaceRevertPlan;
   final Future<bool> Function(AgentIdeCommandSuggestion suggestion)?
   onApplyIdeCommandSuggestion;
   final AgentCommandResultContext? Function(
@@ -110,6 +112,7 @@ class AgentSurface extends StatelessWidget {
                   controller: codingController,
                   sessionContext: sessionContext,
                   onApplyPendingPatch: onApplyPendingPatch,
+                  onApplyWorkspaceRevertPlan: onApplyWorkspaceRevertPlan,
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
                   onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
@@ -155,6 +158,7 @@ class AgentSurface extends StatelessWidget {
                   controller: codingController,
                   sessionContext: sessionContext,
                   onApplyPendingPatch: onApplyPendingPatch,
+                  onApplyWorkspaceRevertPlan: onApplyWorkspaceRevertPlan,
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
                   onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
@@ -1805,6 +1809,7 @@ class _AgentPromptSection extends StatefulWidget {
     required this.controller,
     required this.sessionContext,
     required this.onApplyPendingPatch,
+    this.onApplyWorkspaceRevertPlan,
     this.onApplyIdeCommandSuggestion,
     this.onResolveIdeCommandResult,
   });
@@ -1813,6 +1818,7 @@ class _AgentPromptSection extends StatefulWidget {
   final AgentCodingSessionController controller;
   final AgentSessionContext sessionContext;
   final Future<void> Function() onApplyPendingPatch;
+  final Future<void> Function()? onApplyWorkspaceRevertPlan;
   final Future<bool> Function(AgentIdeCommandSuggestion suggestion)?
   onApplyIdeCommandSuggestion;
   final AgentCommandResultContext? Function(
@@ -1881,6 +1887,30 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     });
     try {
       await widget.onApplyPendingPatch();
+    } on Object catch (error) {
+      widget.controller.recordPatchApplicationError(error);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _applyingPatch = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _applyWorkspaceRevertPlan() async {
+    if (_applyingPatch) {
+      return;
+    }
+    final callback = widget.onApplyWorkspaceRevertPlan;
+    if (callback == null) {
+      return;
+    }
+    setState(() {
+      _applyingPatch = true;
+    });
+    try {
+      await callback();
     } on Object catch (error) {
       widget.controller.recordPatchApplicationError(error);
     } finally {
@@ -2289,6 +2319,14 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 _AgentWorkspaceSnapshotReviewSurface(
                   captureResult: workspaceSnapshotCapture,
                   revertPlan: workspaceRevertPlan,
+                  applying: applyingPatch,
+                  onApplyRevert:
+                      workspaceRevertPlan?.ready == true &&
+                          widget.onApplyWorkspaceRevertPlan != null &&
+                          !applyingAction &&
+                          !controller.sending
+                      ? () => unawaited(_applyWorkspaceRevertPlan())
+                      : null,
                   onDraftRevert:
                       workspaceRevertPlan?.ready == true &&
                           !applyingAction &&
@@ -3107,11 +3145,15 @@ class _AgentWorkspaceSnapshotReviewSurface extends StatelessWidget {
   const _AgentWorkspaceSnapshotReviewSurface({
     required this.captureResult,
     required this.revertPlan,
+    required this.applying,
+    this.onApplyRevert,
     this.onDraftRevert,
   });
 
   final AgentWorkspaceSnapshotCaptureResult? captureResult;
   final AgentWorkspaceRevertPlan? revertPlan;
+  final bool applying;
+  final VoidCallback? onApplyRevert;
   final VoidCallback? onDraftRevert;
 
   @override
@@ -3172,11 +3214,25 @@ class _AgentWorkspaceSnapshotReviewSurface extends StatelessWidget {
                 ),
             ],
             const SizedBox(height: 8),
-            OutlinedButton.icon(
-              key: const ValueKey('agent-workspace-revert-draft-button'),
-              onPressed: onDraftRevert,
-              icon: const Icon(Icons.undo),
-              label: const Text('Draft Revert Prompt'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  key: const ValueKey('agent-workspace-revert-apply-button'),
+                  onPressed: applying ? null : onApplyRevert,
+                  icon: const Icon(Icons.restore),
+                  label: Text(
+                    applying ? 'Applying Revert...' : 'Apply Revert Plan',
+                  ),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('agent-workspace-revert-draft-button'),
+                  onPressed: applying ? null : onDraftRevert,
+                  icon: const Icon(Icons.undo),
+                  label: const Text('Draft Revert Prompt'),
+                ),
+              ],
             ),
           ],
         ),

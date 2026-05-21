@@ -19,6 +19,10 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await tester.pump();
   final widget = tester.widget<Widget>(finder);
+  if (widget is FilledButton) {
+    widget.onPressed?.call();
+    return;
+  }
   if (widget is OutlinedButton) {
     widget.onPressed?.call();
     return;
@@ -114,7 +118,15 @@ void main() {
         editorController: editorController,
       ),
     );
-    await _pumpSurface(tester, controller);
+    await _pumpSurface(
+      tester,
+      controller,
+      onApplyWorkspaceRevertPlan: () async {
+        controller.applyLastWorkspaceRevertPlan(
+          AgentCodePatchApplier(editorController: editorController),
+        );
+      },
+    );
 
     expect(
       find.byKey(const ValueKey('agent-workspace-snapshot-card')),
@@ -136,13 +148,25 @@ void main() {
       controller.draftPrompt,
       contains('Review the agent workspace revert plan'),
     );
+
+    expect(editorController.document.text, 'value = 2\n');
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-workspace-revert-apply-button')),
+    );
+    await tester.pump();
+
+    expect(editorController.document.text, 'value = 1\n');
+    expect(controller.lastWorkspaceRevertPlan, isNull);
   });
 }
 
 Future<void> _pumpSurface(
   WidgetTester tester,
-  AgentCodingSessionController controller,
-) async {
+  AgentCodingSessionController controller, {
+  Future<void> Function()? onApplyWorkspaceRevertPlan,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -161,6 +185,7 @@ Future<void> _pumpSurface(
             sessionContext: _context(),
             codingController: controller,
             onApplyPendingPatch: () async {},
+            onApplyWorkspaceRevertPlan: onApplyWorkspaceRevertPlan,
             onSaveProviderProfile: (profile, {bearerToken}) async {},
           ),
         ),

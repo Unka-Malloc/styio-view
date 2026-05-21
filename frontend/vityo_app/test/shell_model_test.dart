@@ -1268,6 +1268,8 @@ void main() {
       final hover = projectLanguage['hover']! as Map<String, Object?>;
       final languageServiceStatus =
           projectLanguage['languageServiceStatus']! as Map<String, Object?>;
+      final syntaxValidationReport =
+          projectLanguage['syntaxValidationReport']! as Map<String, Object?>;
       expect(projectLanguage['definitionCount'], 1);
       expect(projectLanguage['referenceCount'], 2);
       expect(
@@ -1279,6 +1281,8 @@ void main() {
         contains('nextReference'),
       );
       expect(languageServiceStatus['severity'], isA<String>());
+      expect(syntaxValidationReport['contractVersion'], '2026.05.ide');
+      expect(syntaxValidationReport['source'], 'vityo-ide-syntax-contract');
       expect(
         shell.semanticProblemsPanelViewModel?.semanticTokenEventCount,
         greaterThanOrEqualTo(1),
@@ -1487,6 +1491,10 @@ void main() {
     );
     expect(
       (projectLanguage['workspaceQuickFixes']! as List<Object?>).first,
+      isA<Map<String, Object?>>(),
+    );
+    expect(
+      projectLanguage['syntaxValidationReport'],
       isA<Map<String, Object?>>(),
     );
     final fixes = await commandShell.collectProjectWorkspaceQuickFixes();

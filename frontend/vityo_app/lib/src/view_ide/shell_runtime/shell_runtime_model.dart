@@ -17,6 +17,8 @@ import '../interaction/interaction.dart';
 import '../language/language_contract.dart';
 import '../language/service/semantic_snapshot_event_bridge.dart';
 import '../language/service/service.dart';
+import '../language/syntax/styio_syntax_highlighter.dart';
+import '../language/syntax_validation/syntax_validation.dart';
 import '../module_host/module_host.dart';
 import '../platform/platform.dart';
 import '../runtime/runtime.dart';
@@ -1660,6 +1662,13 @@ class ShellRuntimeModel extends ChangeNotifier {
       documentId: documentId,
       offset: offset,
     );
+    const syntaxHighlighter = StyioSyntaxHighlighter();
+    const syntaxValidator = StyioSyntaxValidator();
+    final syntaxValidationReport = syntaxValidator.validateWithReport(
+      documentId: documentId,
+      source: editorController.document.text,
+      tokens: syntaxHighlighter.tokenize(editorController.document.text),
+    );
     final analysis = projectLanguageService.analyzeProject(documents);
     final fixes = projectLanguageService.workspaceQuickFixesForProjectDiagnostics(
       documents: documents,
@@ -1679,6 +1688,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       'offset': offset,
       'documentCount': documents.length,
       'languageServiceStatus': status.toJson(),
+      'syntaxValidationReport': syntaxValidationReport.toJson(),
       if (suggestedCommandIds.isNotEmpty)
         'suggestedCommandIds': suggestedCommandIds,
       'diagnosticCount': analysis.diagnostics.length,

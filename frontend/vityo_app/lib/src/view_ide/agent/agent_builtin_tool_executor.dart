@@ -8,6 +8,7 @@ import 'agent_provider_adapter.dart';
 import 'agent_session_context.dart';
 import 'agent_tool_call_dispatcher.dart';
 import 'agent_workspace_edit_adapter.dart';
+import 'agent_workspace_snapshot.dart';
 
 typedef AgentIdeCommandToolRunner =
     Future<AgentCommandResultContext> Function(
@@ -15,10 +16,10 @@ typedef AgentIdeCommandToolRunner =
     );
 typedef AgentWorkspacePatchToolRunner =
     Future<AgentCodePatchApplicationResult> Function(AgentCodePatch patch);
-typedef AgentValidationContextProvider = AgentCodingValidationToolContext
-    Function();
-typedef AgentRecoveryContextProvider = AgentCodingSessionRecoveryContext
-    Function();
+typedef AgentValidationContextProvider =
+    AgentCodingValidationToolContext Function();
+typedef AgentRecoveryContextProvider =
+    AgentCodingSessionRecoveryContext Function();
 typedef AgentExtensionToolRunner =
     Future<AgentToolCallDispatchResult> Function(
       AgentToolCallDispatchRequest request,
@@ -54,7 +55,9 @@ class AgentCodingValidationToolContext {
         .toList(growable: false);
     final failedCommandIds = result.failedCommandIds.toSet();
     final failedCommandResults = context.commands.recentResults
-        .where((commandResult) => failedCommandIds.contains(commandResult.commandId))
+        .where(
+          (commandResult) => failedCommandIds.contains(commandResult.commandId),
+        )
         .toList(growable: false);
     return AgentCodingValidationToolContext(
       validationPlan: plan,
@@ -106,6 +109,7 @@ class AgentBuiltinToolExecutor {
     this.documentStore,
     this.ideCommandRunner,
     this.workspacePatchRunner,
+    this.workspaceSnapshotService,
     this.validationContextProvider,
     this.recoveryContextProvider,
     this.extensionToolRunner,
@@ -128,6 +132,7 @@ class AgentBuiltinToolExecutor {
   final WorkspaceDocumentStore? documentStore;
   final AgentIdeCommandToolRunner? ideCommandRunner;
   final AgentWorkspacePatchToolRunner? workspacePatchRunner;
+  final AgentWorkspaceSnapshotService? workspaceSnapshotService;
   final AgentValidationContextProvider? validationContextProvider;
   final AgentRecoveryContextProvider? recoveryContextProvider;
   final AgentExtensionToolRunner? extensionToolRunner;
@@ -322,6 +327,20 @@ class AgentBuiltinToolExecutor {
         metadata: <String, Object?>{'patch': patch.toJson()},
       );
     }
+    final snapshotCapture = await _captureWorkspaceSnapshot(request, patch);
+    if (snapshotCapture != null && !snapshotCapture.captured) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message:
+            'Workspace patch ${patch.patchId} cannot run because the workspace snapshot was not captured: ${snapshotCapture.message}',
+        metadata: <String, Object?>{
+          'patch': patch.toJson(),
+          'workspaceSnapshot': snapshotCapture.toJson(),
+          'workspaceSnapshotCaptured': false,
+        },
+      );
+    }
     late final AgentCodePatchApplicationResult result;
     try {
       result = await runner(patch);
@@ -330,6 +349,11 @@ class AgentBuiltinToolExecutor {
         callId: request.callId,
         toolId: request.toolId,
         message: 'Workspace patch ${patch.patchId} failed: $error',
+        metadata: <String, Object?>{
+          'patch': patch.toJson(),
+          if (snapshotCapture != null)
+            'workspaceSnapshot': snapshotCapture.toJson(),
+        },
       );
     }
     if (!result.applied) {
@@ -340,6 +364,8 @@ class AgentBuiltinToolExecutor {
         metadata: <String, Object?>{
           'patch': patch.toJson(),
           'applicationResult': _patchApplicationResultPayload(result),
+          if (snapshotCapture != null)
+            'workspaceSnapshot': snapshotCapture.toJson(),
         },
       );
     }
@@ -350,9 +376,43 @@ class AgentBuiltinToolExecutor {
         'source': 'agent-workspace-patch-runner',
         'patch': patch.toJson(),
         'result': _patchApplicationResultPayload(result),
+        if (snapshotCapture != null)
+          'workspaceSnapshot': snapshotCapture.toJson(),
       }),
-      metadata: <String, Object?>{'patchId': patch.patchId},
+      metadata: <String, Object?>{
+        'patchId': patch.patchId,
+        if (snapshotCapture != null) ...<String, Object?>{
+          'workspaceSnapshotCaptured': snapshotCapture.captured,
+          'workspaceSnapshotStatus': snapshotCapture.status.wireValue,
+          if (snapshotCapture.snapshot != null)
+            'workspaceSnapshotId': snapshotCapture.snapshot!.snapshotId,
+          if (snapshotCapture.snapshot != null)
+            'workspaceSnapshotDocumentCount':
+                snapshotCapture.snapshot!.documents.length,
+        },
+      },
     );
+  }
+
+  Future<AgentWorkspaceSnapshotCaptureResult?> _captureWorkspaceSnapshot(
+    AgentToolCallDispatchRequest request,
+    AgentCodePatch patch,
+  ) async {
+    final service = workspaceSnapshotService;
+    if (service == null) {
+      return null;
+    }
+    try {
+      return await service.captureBeforePatch(
+        patch,
+        snapshotId: 'agent-tool-snapshot-${request.callId}-${patch.patchId}',
+      );
+    } on Object catch (error) {
+      return AgentWorkspaceSnapshotCaptureResult(
+        status: AgentWorkspaceSnapshotCaptureStatus.empty,
+        message: 'Failed to capture workspace snapshot: $error',
+      );
+    }
   }
 
   Future<AgentToolCallDispatchResult> _runIdeCommand(

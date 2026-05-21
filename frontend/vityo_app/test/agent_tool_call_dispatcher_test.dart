@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
+import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
+import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
@@ -152,36 +154,41 @@ void main() {
     },
   );
 
-  test('agent coding session records replayable tool execution journal',
-      () async {
-    final controller = AgentCodingSessionController(
-      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
-      adapter: const LocalOnlyAgentProviderAdapter(),
-      contextProvider: _context,
-    );
-    addTearDown(controller.dispose);
-    controller.recordToolCallEvent(
-      const AgentToolCallEvent.callStarted(
-        callId: 'call-read',
-        toolId: 'readWorkspaceFile',
-        input: '{"path":"missing.styio"}',
-      ),
-    );
-
-    final report = await controller.dispatchReadyToolCalls((request) {
-      return AgentToolCallDispatchResult.failure(
-        callId: request.callId,
-        toolId: request.toolId,
-        message: 'file missing',
+  test(
+    'agent coding session records replayable tool execution journal',
+    () async {
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
       );
-    });
-    final journal = controller.toolCallExecutionJournal;
+      addTearDown(controller.dispose);
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-read',
+          toolId: 'readWorkspaceFile',
+          input: '{"path":"missing.styio"}',
+        ),
+      );
 
-    expect(report.status, AgentToolCallDispatchReportStatus.failed);
-    expect(journal.status, AgentToolCallExecutionJournalStatus.failed);
-    expect(journal.replayCandidates.single.toolId, 'readWorkspaceFile');
-    expect(journal.replayRequests().single.inputText, '{"path":"missing.styio"}');
-  });
+      final report = await controller.dispatchReadyToolCalls((request) {
+        return AgentToolCallDispatchResult.failure(
+          callId: request.callId,
+          toolId: request.toolId,
+          message: 'file missing',
+        );
+      });
+      final journal = controller.toolCallExecutionJournal;
+
+      expect(report.status, AgentToolCallDispatchReportStatus.failed);
+      expect(journal.status, AgentToolCallExecutionJournalStatus.failed);
+      expect(journal.replayCandidates.single.toolId, 'readWorkspaceFile');
+      expect(
+        journal.replayRequests().single.inputText,
+        '{"path":"missing.styio"}',
+      );
+    },
+  );
 
   test('agent coding session replays tool execution journal', () async {
     final controller = AgentCodingSessionController(
@@ -215,12 +222,18 @@ void main() {
 
     expect(report.status, AgentToolCallReplayReportStatus.replayed);
     expect(report.replayed, isTrue);
-    expect(controller.toolCallTimeline.status, AgentToolCallTimelineStatus.complete);
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.complete,
+    );
     expect(
       controller.toolCallExecutionPlan.executionFor('call-read')?.status,
       AgentToolCallExecutionStatus.completed,
     );
-    expect(controller.toolCallReplayPlan.status, AgentToolCallReplayPlanStatus.blocked);
+    expect(
+      controller.toolCallReplayPlan.status,
+      AgentToolCallReplayPlanStatus.blocked,
+    );
     expect(
       controller.recentToolCallResultContexts.any(
         (result) => result.metadata['replayedFromJournal'] == true,
@@ -355,7 +368,10 @@ void main() {
     expect(result.success, isTrue);
     expect(output['source'], 'agent-validation-context');
     expect(output['validation']['validationPlan']['status'], 'ready');
-    expect(output['validation']['validationPipeline']['nextCommandId'], 'runTests');
+    expect(
+      output['validation']['validationPipeline']['nextCommandId'],
+      'runTests',
+    );
     expect(result.metadata['nextCommandId'], 'runTests');
     expect(result.metadata['runnableCommandCount'], 1);
   });
@@ -534,6 +550,79 @@ void main() {
       expect(output['source'], 'agent-workspace-patch-runner');
       expect(output['result']['applied'], isTrue);
       expect(output['result']['appliedDocumentIds'], <String>['main.styio']);
+    },
+  );
+
+  test(
+    'agent builtin executor captures snapshot before applying workspace patch',
+    () async {
+      final editorController = EditorSessionController(
+        initialDocument: const DocumentState(
+          documentId: 'main.styio',
+          text: 'value = 1\n',
+          revision: 1,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+      );
+      AgentCodePatch? receivedPatch;
+      final executor = AgentBuiltinToolExecutor(
+        context: _context(),
+        workspaceSnapshotService: AgentWorkspaceSnapshotService(
+          editorController: editorController,
+        ),
+        workspacePatchRunner: (patch) async {
+          receivedPatch = patch;
+          return const AgentCodePatchApplicationResult(
+            applied: true,
+            message: 'patch applied after snapshot capture',
+            appliedEditCount: 1,
+            appliedOperationCounts: <String, int>{'replace': 1},
+            appliedDocumentIds: <String>['main.styio'],
+          );
+        },
+      );
+
+      final result = await executor.execute(
+        AgentToolCallDispatchRequest(
+          callId: 'call-apply-snapshot',
+          toolId: 'applyWorkspacePatch',
+          inputText: jsonEncode(<String, Object?>{
+            'patch': <String, Object?>{
+              'patchId': 'patch-from-tool',
+              'summary': 'Change value.',
+              'edits': <Object?>[
+                <String, Object?>{
+                  'documentId': 'main.styio',
+                  'start': 8,
+                  'end': 9,
+                  'replacementText': '2',
+                },
+              ],
+            },
+          }),
+        ),
+      );
+
+      final output = jsonDecode(result.output) as Map<String, Object?>;
+      final workspaceSnapshot =
+          output['workspaceSnapshot']! as Map<String, Object?>;
+      final snapshot = workspaceSnapshot['snapshot']! as Map<String, Object?>;
+
+      expect(result.success, isTrue);
+      expect(receivedPatch?.patchId, 'patch-from-tool');
+      expect(workspaceSnapshot['status'], 'captured');
+      expect(
+        snapshot['snapshotId'],
+        'agent-tool-snapshot-call-apply-snapshot-patch-from-tool',
+      );
+      expect(snapshot['documentIds'], <String>['main.styio']);
+      expect(result.metadata['workspaceSnapshotCaptured'], isTrue);
+      expect(result.metadata['workspaceSnapshotStatus'], 'captured');
+      expect(
+        result.metadata['workspaceSnapshotId'],
+        'agent-tool-snapshot-call-apply-snapshot-patch-from-tool',
+      );
+      expect(result.metadata['workspaceSnapshotDocumentCount'], 1);
     },
   );
 

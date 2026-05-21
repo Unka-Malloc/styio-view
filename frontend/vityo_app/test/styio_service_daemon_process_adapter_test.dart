@@ -144,6 +144,81 @@ void main() {
   );
 
   test(
+    'StyioService daemon local process launcher maps starter process identity',
+    () async {
+      final starts = <StyioServiceDaemonLocalProcessStartRequest>[];
+      final localLauncher = StyioServiceDaemonLocalProcessLauncher(
+        executablePath: '/opt/styio/bin/styio',
+        metadata: const <String, Object?>{'source': 'toolchain-manager'},
+        starter: (request) async {
+          starts.add(request);
+          return const StyioServiceDaemonLocalProcessStartResult.started(
+            pid: 5151,
+            endpoint: 'stdio://styio-service',
+            metadata: <String, Object?>{'transport': 'stdio'},
+          );
+        },
+      );
+      final registry = StyioServiceDaemonProcessLauncherRegistry(
+        launchers: <StyioServiceDaemonProcessLauncherRegistration>[
+          localLauncher.registration(
+            providerIds: const <String>{'styio-daemon.local'},
+          ),
+        ],
+      );
+      final request = StyioServiceDaemonProcessLaunchRequest(
+        providerId: 'styio-daemon.local',
+        reason: StyioServiceDaemonRestartReason.manual,
+        attempt: 2,
+        restartable: true,
+        arguments: const <String>['service', '--jsonl'],
+        workingDirectory: '/workspace/project',
+        environment: const <String, String>{'STYIO_HOME': '/opt/styio'},
+      );
+
+      final result = await registry.launch(request);
+
+      expect(result.started, isTrue);
+      expect(result.processId, 5151);
+      expect(result.endpoint, 'stdio://styio-service');
+      expect(result.metadata['processHandleId'], '5151');
+      expect(result.metadata['transport'], 'stdio');
+      expect(starts.single.executablePath, '/opt/styio/bin/styio');
+      expect(starts.single.arguments, <String>['service', '--jsonl']);
+      expect(starts.single.metadata['attempt'], 2);
+      expect(starts.single.toJson()['environmentKeys'], <String>['STYIO_HOME']);
+      expect(localLauncher.toJson()['endpoint'], 'stdio://styio-service');
+    },
+  );
+
+  test(
+    'StyioService daemon local process launcher fails without executable',
+    () async {
+      final localLauncher = StyioServiceDaemonLocalProcessLauncher(
+        executablePath: ' ',
+        starter: (_) async {
+          return const StyioServiceDaemonLocalProcessStartResult.started(
+            pid: 1,
+          );
+        },
+      );
+      final request = StyioServiceDaemonProcessLaunchRequest(
+        providerId: 'styio-daemon.local',
+        reason: StyioServiceDaemonRestartReason.manual,
+        attempt: 1,
+        restartable: true,
+        arguments: const <String>['service'],
+      );
+
+      final result = await localLauncher.launch(request);
+
+      expect(result.started, isFalse);
+      expect(result.message, contains('no executable path'));
+      expect(result.metadata['TODO'], contains('ToolchainManager'));
+    },
+  );
+
+  test(
     'StyioService daemon process launcher registry reports missing launchers',
     () async {
       final registry = StyioServiceDaemonProcessLauncherRegistry();

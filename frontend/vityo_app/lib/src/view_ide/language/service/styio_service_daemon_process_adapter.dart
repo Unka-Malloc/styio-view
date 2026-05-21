@@ -275,6 +275,196 @@ class StyioServiceDaemonProcessLauncherRegistry {
   }
 }
 
+typedef StyioServiceDaemonLocalProcessStarter =
+    Future<StyioServiceDaemonLocalProcessStartResult> Function(
+      StyioServiceDaemonLocalProcessStartRequest request,
+    );
+
+class StyioServiceDaemonLocalProcessStartRequest {
+  StyioServiceDaemonLocalProcessStartRequest({
+    required this.executablePath,
+    required Iterable<String> arguments,
+    this.workingDirectory = '',
+    Map<String, String> environment = const <String, String>{},
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : arguments = List<String>.unmodifiable(arguments),
+       environment = Map<String, String>.unmodifiable(environment),
+       metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final String executablePath;
+  final List<String> arguments;
+  final String workingDirectory;
+  final Map<String, String> environment;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'executablePath': executablePath,
+      'arguments': arguments,
+      if (workingDirectory.isNotEmpty) 'workingDirectory': workingDirectory,
+      if (environment.isNotEmpty) 'environmentKeys': environment.keys.toList(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class StyioServiceDaemonLocalProcessStartResult {
+  const StyioServiceDaemonLocalProcessStartResult({
+    required this.started,
+    required this.message,
+    this.pid,
+    this.endpoint = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  const StyioServiceDaemonLocalProcessStartResult.started({
+    String message = 'StyioService local process started.',
+    int? pid,
+    String endpoint = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         started: true,
+         message: message,
+         pid: pid,
+         endpoint: endpoint,
+         metadata: metadata,
+       );
+
+  const StyioServiceDaemonLocalProcessStartResult.failed({
+    String message = 'StyioService local process failed to start.',
+    int? pid,
+    String endpoint = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         started: false,
+         message: message,
+         pid: pid,
+         endpoint: endpoint,
+         metadata: metadata,
+       );
+
+  final bool started;
+  final String message;
+  final int? pid;
+  final String endpoint;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'started': started,
+      'message': message,
+      if (pid != null) 'pid': pid,
+      if (endpoint.isNotEmpty) 'endpoint': endpoint,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class StyioServiceDaemonLocalProcessLauncher {
+  StyioServiceDaemonLocalProcessLauncher({
+    required this.executablePath,
+    required this.starter,
+    this.endpoint = 'stdio://styio-service',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final String executablePath;
+  final String endpoint;
+  final StyioServiceDaemonLocalProcessStarter starter;
+  final Map<String, Object?> metadata;
+
+  StyioServiceDaemonProcessLauncherRegistration registration({
+    String launcherId = 'styio-service-local-process',
+    String label = 'StyioService Local Process',
+    Iterable<String> providerIds = const <String>[],
+    bool available = true,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return StyioServiceDaemonProcessLauncherRegistration(
+      launcherId: launcherId,
+      label: label,
+      kind: StyioServiceDaemonProcessLauncherKind.localProcess,
+      providerIds: providerIds,
+      available: available,
+      metadata: <String, Object?>{...this.metadata, ...metadata},
+      launcher: launch,
+    );
+  }
+
+  Future<StyioServiceDaemonProcessLaunchResult> launch(
+    StyioServiceDaemonProcessLaunchRequest request,
+  ) async {
+    final executable = executablePath.trim();
+    if (executable.isEmpty) {
+      return StyioServiceDaemonProcessLaunchResult.failed(
+        providerId: request.providerId,
+        message: 'StyioService local process launcher has no executable path.',
+        metadata: const <String, Object?>{
+          'localProcessLauncher': true,
+          'TODO': 'Resolve StyioService executable from ToolchainManager.',
+        },
+      );
+    }
+    final startRequest = StyioServiceDaemonLocalProcessStartRequest(
+      executablePath: executable,
+      arguments: request.arguments,
+      workingDirectory: request.workingDirectory,
+      environment: request.environment,
+      metadata: <String, Object?>{
+        ...metadata,
+        ...request.metadata,
+        'providerId': request.providerId,
+        'restartReason': request.reason.name,
+        'attempt': request.attempt,
+      },
+    );
+    try {
+      final result = await starter(startRequest);
+      final resolvedEndpoint = result.endpoint.isEmpty
+          ? endpoint
+          : result.endpoint;
+      final generatedHandle = result.pid == null
+          ? const <String, Object?>{}
+          : <String, Object?>{
+              'pid': result.pid,
+              'processHandleId': '${result.pid}',
+              'processHandleSource': 'StyioServiceDaemonLocalProcessLauncher',
+            };
+      return StyioServiceDaemonProcessLaunchResult(
+        started: result.started,
+        providerId: request.providerId,
+        processId: result.pid,
+        endpoint: resolvedEndpoint,
+        message: result.message,
+        metadata: <String, Object?>{
+          'localProcessLauncher': true,
+          'executablePath': executable,
+          ...generatedHandle,
+          ...result.metadata,
+        },
+      );
+    } on Object catch (error) {
+      return StyioServiceDaemonProcessLaunchResult.failed(
+        providerId: request.providerId,
+        message: 'StyioService local process launcher failed: $error',
+        metadata: <String, Object?>{
+          'localProcessLauncher': true,
+          'executablePath': executable,
+          'error': error.toString(),
+        },
+      );
+    }
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'executablePath': executablePath,
+      'endpoint': endpoint,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
 class StyioServiceDaemonProcessAdapter
     implements StyioServiceDaemonProcessSupervisor {
   StyioServiceDaemonProcessAdapter({

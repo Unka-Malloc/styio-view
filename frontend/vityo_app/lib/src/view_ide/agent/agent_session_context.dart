@@ -1057,7 +1057,6 @@ class AgentCodingValidationPlan {
         ),
       ],
       todoItems: <String>[
-        'TODO: bind validation command hints to real command execution routes.',
         'TODO: persist validation result beside the agent patch application record.',
       ],
     );

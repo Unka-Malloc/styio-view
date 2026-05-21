@@ -676,6 +676,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('Agent Surface validation command controls'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('AgentCodingValidationResult validation outcome summaries'),
     );
     expect(

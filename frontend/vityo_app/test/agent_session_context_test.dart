@@ -2040,6 +2040,14 @@ void main() {
           AppCommandId.runTestConfiguration.name,
         ]),
       );
+      expect(
+        validationPlan['todoItems'],
+        isNot(
+          contains(
+            'TODO: bind validation command hints to real command execution routes.',
+          ),
+        ),
+      );
       final projectLanguagePlan = validationCommandPlans
           .cast<Map<String, Object?>>()
           .singleWhere(

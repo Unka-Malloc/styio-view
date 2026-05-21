@@ -41,6 +41,15 @@ void main() {
         requiresUserReview: false,
       ),
     );
+    final validationPlan = AgentCodingValidationPlan.fromAgentState(
+      autonomyPolicy: policy,
+      changeReviewGate: const AgentCodingChangeReviewGate(
+        status: AgentCodingChangeReviewGateStatus.idle,
+        canApplyPreview: false,
+        requiresUserReview: false,
+      ),
+      lastPatchApplication: null,
+    );
 
     expect(policy.mode, AgentCodingAutonomyMode.blocked);
     expect(
@@ -52,6 +61,15 @@ void main() {
       isNot(
         contains(
           'TODO: surface blocked autonomy policy in the agent coding panel.',
+        ),
+      ),
+    );
+    expect(validationPlan.status, AgentCodingValidationPlanStatus.blocked);
+    expect(
+      validationPlan.todoItems,
+      isNot(
+        contains(
+          'TODO: expose blocked validation state in the agent activity panel.',
         ),
       ),
     );

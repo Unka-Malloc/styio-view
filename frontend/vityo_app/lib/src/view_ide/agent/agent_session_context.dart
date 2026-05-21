@@ -1019,10 +1019,7 @@ class AgentCodingValidationPlan {
         status: AgentCodingValidationPlanStatus.blocked,
         shouldRun: false,
         reason: 'Agent coding validation is blocked by autonomy policy.',
-        todoItems: <String>[
-          ...autonomyPolicy.todoItems,
-          'TODO: expose blocked validation state in the agent activity panel.',
-        ],
+        todoItems: <String>[...autonomyPolicy.todoItems],
       );
     }
     if (changeReviewGate.status ==

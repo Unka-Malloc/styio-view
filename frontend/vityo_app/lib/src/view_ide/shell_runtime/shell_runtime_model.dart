@@ -637,6 +637,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   ToolchainInstallExecutionResult? _lastToolchainInstallExecutionResult;
   ToolchainManagerBootstrapSummary? _toolchainBootstrapSummary;
   ToolchainBootstrapActionDispatchResult? _lastToolchainBootstrapActionDispatch;
+  StyioServiceDaemonRestartDispatchResult?
+  _lastStyioServiceDaemonRestartDispatch;
   DebugSessionSnapshot _debugSession = const DebugSessionSnapshot(
     status: DebugSessionStatus.idle,
     message: 'No debug session has been started.',
@@ -691,6 +693,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       styioServiceSubscriptionController != null;
   bool get styioServiceSubscriptionListening =>
       styioServiceSubscriptionController?.listening ?? false;
+  StyioServiceDaemonRestartDispatchResult?
+  get lastStyioServiceDaemonRestartDispatch =>
+      _lastStyioServiceDaemonRestartDispatch;
   ExecutionSession? get lastExecutionSession => _lastExecutionSession;
   List<RuntimeEventEnvelope> get lastRuntimeEvents =>
       List<RuntimeEventEnvelope>.unmodifiable(_lastRuntimeEvents);
@@ -1112,6 +1117,34 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     notifyListeners();
     return event;
+  }
+
+  Future<StyioServiceDaemonRestartDispatchResult?>
+  dispatchStyioServiceDaemonRestart({
+    int failedAttempt = 0,
+    StyioServiceDaemonRestartReason reason =
+        StyioServiceDaemonRestartReason.manual,
+    StyioServiceDaemonRestartPolicy policy =
+        const StyioServiceDaemonRestartPolicy(),
+    StyioServiceDaemonRestartHandler? restart,
+  }) async {
+    final controller = styioServiceSubscriptionController;
+    if (controller == null) {
+      appendLog(
+        'StyioService daemon restart unavailable: no controller is wired.',
+      );
+      return null;
+    }
+    final result = await controller.dispatchDaemonRestart(
+      failedAttempt: failedAttempt,
+      reason: reason,
+      policy: policy,
+      restart: restart,
+    );
+    _lastStyioServiceDaemonRestartDispatch = result;
+    appendLog(result.message);
+    notifyListeners();
+    return result;
   }
 
   String? _styioServiceDocumentPath(DocumentState document) {
@@ -1681,11 +1714,12 @@ class ShellRuntimeModel extends ChangeNotifier {
       tokens: syntaxHighlighter.tokenize(editorController.document.text),
     );
     final analysis = projectLanguageService.analyzeProject(documents);
-    final fixes = projectLanguageService.workspaceQuickFixesForProjectDiagnostics(
-      documents: documents,
-      diagnostics: analysis.diagnostics,
-      analysis: analysis,
-    );
+    final fixes = projectLanguageService
+        .workspaceQuickFixesForProjectDiagnostics(
+          documents: documents,
+          diagnostics: analysis.diagnostics,
+          analysis: analysis,
+        );
     final status = languageServiceStatus.value;
     final semanticFeatureMatrix = AgentSemanticFeatureMatrixContext.fromMatrix(
       editorController.semanticFeatureMatrix,
@@ -1714,6 +1748,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       'semanticFeatureMatrix': semanticFeatureMatrix,
       'syntaxValidationAuthority': syntaxValidationAuthority,
       'syntaxValidationReport': syntaxValidationReport.toJson(),
+      if (_lastStyioServiceDaemonRestartDispatch != null)
+        'styioServiceDaemonRestartDispatch':
+            _lastStyioServiceDaemonRestartDispatch!.toJson(),
       if (suggestedCommandIds.isNotEmpty)
         'suggestedCommandIds': suggestedCommandIds,
       'diagnosticCount': analysis.diagnostics.length,
@@ -2745,10 +2782,9 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
         if (selectedQuickFix != null) {
           editorController.applyDiagnosticQuickFix(selectedQuickFix);
-          final quickFixMessage =
-              quickFixInput == null || quickFixInput.isEmpty
-                  ? 'Agent command applyQuickFix applied at editor selection.'
-                  : 'Agent command applyQuickFix applied matching "$quickFixInput" at editor selection.';
+          final quickFixMessage = quickFixInput == null || quickFixInput.isEmpty
+              ? 'Agent command applyQuickFix applied at editor selection.'
+              : 'Agent command applyQuickFix applied matching "$quickFixInput" at editor selection.';
           _cacheDocument(_activeDocumentPath, editorController.document);
           _dirtyDocumentPaths.add(_activeDocumentPath);
           appendLog(quickFixMessage);
@@ -2758,10 +2794,9 @@ class ShellRuntimeModel extends ChangeNotifier {
             message: quickFixMessage,
             metadata: <String, Object?>{
               'scope': 'selection',
-              'selectionMode':
-                  quickFixInput == null || quickFixInput.isEmpty
-                      ? 'first'
-                      : 'input',
+              'selectionMode': quickFixInput == null || quickFixInput.isEmpty
+                  ? 'first'
+                  : 'input',
               if (quickFixInput != null && quickFixInput.isNotEmpty)
                 'input': quickFixInput,
               'quickFixLabel': selectedQuickFix.label,
@@ -2775,10 +2810,9 @@ class ShellRuntimeModel extends ChangeNotifier {
             message: quickFixMessage,
             metadata: <String, Object?>{
               'scope': 'selection',
-              'selectionMode':
-                  quickFixInput == null || quickFixInput.isEmpty
-                      ? 'first'
-                      : 'input',
+              'selectionMode': quickFixInput == null || quickFixInput.isEmpty
+                  ? 'first'
+                  : 'input',
               if (quickFixInput != null && quickFixInput.isNotEmpty)
                 'input': quickFixInput,
               'quickFixLabel': selectedQuickFix.label,
@@ -4010,7 +4044,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     AgentIdeCommandSuggestion suggestion,
   ) async {
     final result = await executeLastToolchainInstallPlan();
-    final applied = result != null &&
+    final applied =
+        result != null &&
         result.status != ToolchainInstallExecutionStatus.failed &&
         result.status != ToolchainInstallExecutionStatus.blocked;
     _recordAgentIdeCommandResult(
@@ -6719,7 +6754,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
 
     final fallbackInstallKind =
-        _firstMissingStyioToolchainKind(summary) ?? ToolchainKind.languageService;
+        _firstMissingStyioToolchainKind(summary) ??
+        ToolchainKind.languageService;
     final router = ToolchainBootstrapActionRouter(
       onSettingsAction: _dispatchToolchainBootstrapSettingsAction,
       onInstallerAction: (step) {
@@ -6750,7 +6786,9 @@ class ShellRuntimeModel extends ChangeNotifier {
     ToolchainBootstrapActionStep step,
   ) async {
     if (step.actionId.startsWith('select-styio-')) {
-      appendLog('Toolchain bootstrap selection route requested: ${step.actionId}.');
+      appendLog(
+        'Toolchain bootstrap selection route requested: ${step.actionId}.',
+      );
       return ToolchainBootstrapActionDispatchResult.dispatched(
         step,
         message: 'Selection route requested.',
@@ -6783,8 +6821,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     return ToolchainBootstrapActionDispatchResult.blocked(
       step,
       message: 'Settings bootstrap action is not implemented.',
-      todo:
-          'TODO: bind ${step.actionId} to the concrete Settings UI action.',
+      todo: 'TODO: bind ${step.actionId} to the concrete Settings UI action.',
     );
   }
 
@@ -6799,7 +6836,8 @@ class ShellRuntimeModel extends ChangeNotifier {
         return ToolchainBootstrapActionDispatchResult.blocked(
           step,
           message: 'No managed install plan could be prepared.',
-          todo: 'TODO: bind managed Styio installer to production installer UX.',
+          todo:
+              'TODO: bind managed Styio installer to production installer UX.',
         );
       }
       return ToolchainBootstrapActionDispatchResult.dispatched(
@@ -6818,8 +6856,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     return ToolchainBootstrapActionDispatchResult.blocked(
       step,
       message: 'Installer bootstrap action is not implemented.',
-      todo:
-          'TODO: bind ${step.actionId} to the concrete installer executor.',
+      todo: 'TODO: bind ${step.actionId} to the concrete installer executor.',
     );
   }
 

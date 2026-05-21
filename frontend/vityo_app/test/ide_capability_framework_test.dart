@@ -176,6 +176,10 @@ void main() {
       contains('StyioServiceDaemonRestartDispatchResult'),
     );
     expect(
+      entriesById['service.semantic-snapshot']?.summary,
+      contains('restart dispatch controls'),
+    );
+    expect(
       entriesById['service.semantic-snapshot']?.todo,
       contains('production process supervisor controls'),
     );

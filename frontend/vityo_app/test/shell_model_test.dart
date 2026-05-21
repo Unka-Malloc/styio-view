@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -19,6 +20,8 @@ import 'package:vityo_app/src/view_ide/editor/session/editor_session_data_store.
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_event_bridge.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_service_subscription.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_configuration_store.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_executor.dart'
@@ -87,6 +90,121 @@ void main() {
     );
     return createPlatformManagerBundle(platformContext: context);
   }
+
+  test(
+    'shell runtime dispatches StyioService daemon restart state to language context',
+    () async {
+      const mainPath = '/workspace/demo/src/main.styio';
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+        editorFiles: const <String>[mainPath],
+      );
+      final subscriptionController = StyioServiceSubscriptionController(
+        driver: const StyioServiceAnalysisDriver(
+          connector: _ShellStyioServiceConnector(),
+        ),
+      );
+      addTearDown(subscriptionController.dispose);
+      final daemonEvents = StreamController<StyioServiceDaemonEvent>();
+      addTearDown(daemonEvents.close);
+      subscriptionController.bindDaemonEventStream(
+        providerId: 'styio-daemon.fixture',
+        events: daemonEvents.stream,
+      );
+      final failedEvent = subscriptionController.events.firstWhere(
+        (event) => event.kind == StyioServiceSubscriptionEventKind.failed,
+      );
+      daemonEvents.addError(StateError('daemon crashed'));
+      await failedEvent;
+
+      final shell = ShellModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[initialGraph],
+        ),
+        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+          seededDocuments: const <String, DocumentState>{
+            mainPath: DocumentState(
+              documentId: mainPath,
+              text: '#main := () => {}',
+              revision: 1,
+            ),
+          },
+        ),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: const DocumentState(
+            documentId: mainPath,
+            text: '#main := () => {}',
+            revision: 1,
+          ),
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: const _SuccessfulExecutionAdapter(
+          sessionId: 'shell-styio-restart',
+        ),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            const _SuccessfulExecutionAdapter(sessionId: 'shell-styio-restart'),
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        toolchainManagementAdapter:
+            const _SuccessfulToolchainManagementAdapter(),
+        styioServiceSubscriptionController: subscriptionController,
+      );
+      addTearDown(shell.dispose);
+
+      final scheduled = await shell.dispatchStyioServiceDaemonRestart(
+        policy: const StyioServiceDaemonRestartPolicy(
+          initialDelay: Duration.zero,
+        ),
+      );
+      final dispatched = await shell.dispatchStyioServiceDaemonRestart(
+        policy: const StyioServiceDaemonRestartPolicy(
+          initialDelay: Duration.zero,
+        ),
+        restart: (plan) async => StyioServiceDaemonLifecycleSnapshot(
+          state: StyioServiceDaemonLifecycleState.active,
+          providerId: plan.providerId,
+          message: 'StyioService daemon restart handler ran from shell.',
+        ),
+      );
+      final projectLanguage = await shell.collectProjectLanguageContext();
+      final restartDispatch =
+          projectLanguage['styioServiceDaemonRestartDispatch']!
+              as Map<String, Object?>;
+
+      expect(
+        scheduled?.status,
+        StyioServiceDaemonRestartDispatchStatus.scheduled,
+      );
+      expect(
+        dispatched?.status,
+        StyioServiceDaemonRestartDispatchStatus.dispatched,
+      );
+      expect(shell.lastStyioServiceDaemonRestartDispatch, dispatched);
+      expect(restartDispatch['status'], 'dispatched');
+      expect(restartDispatch['dispatched'], isTrue);
+      expect(restartDispatch['lifecycle'], isA<Map<String, Object?>>());
+      expect(
+        shell.debugLog,
+        contains(
+          contains('StyioService daemon restart handler ran from shell.'),
+        ),
+      );
+    },
+  );
 
   test('persists editor session through shell runtime store', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
@@ -393,8 +511,7 @@ void main() {
       final unregisteredApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(commandId: 'deleteWorkspace'),
       );
-      final unregisteredResult =
-          shell.agentSessionContext.commands.lastResult;
+      final unregisteredResult = shell.agentSessionContext.commands.lastResult;
       expect(unregisteredApplied, isFalse);
       expect(unregisteredResult?.commandId, 'deleteWorkspace');
       expect(unregisteredResult?.message, contains('not registered'));
@@ -1299,18 +1416,14 @@ void main() {
       final syntaxValidationReport =
           projectLanguage['syntaxValidationReport']! as Map<String, Object?>;
       final syntaxValidationAuthority =
-          projectLanguage['syntaxValidationAuthority']!
-              as Map<String, Object?>;
+          projectLanguage['syntaxValidationAuthority']! as Map<String, Object?>;
       expect(projectLanguage['definitionCount'], 1);
       expect(projectLanguage['referenceCount'], 2);
       expect(
         projectLanguage['suggestedCommandIds'],
         contains('goToDefinition'),
       );
-      expect(
-        projectLanguage['suggestedCommandIds'],
-        contains('nextReference'),
-      );
+      expect(projectLanguage['suggestedCommandIds'], contains('nextReference'));
       expect(languageServiceStatus['severity'], isA<String>());
       expect(semanticFeatureMatrix['preferredSource'], isA<String>());
       expect(
@@ -1515,7 +1628,9 @@ void main() {
 
     final commandShell = createShell('shell-project-workspace-fix-command');
     addTearDown(commandShell.dispose);
-    await commandShell.executeCommand(AppCommandId.collectProjectLanguageContext);
+    await commandShell.executeCommand(
+      AppCommandId.collectProjectLanguageContext,
+    );
     final projectLanguage =
         commandShell
                 .agentSessionContext
@@ -1525,14 +1640,8 @@ void main() {
             as Map<String, Object?>;
     expect(projectLanguage['diagnosticCount'], greaterThan(0));
     expect(projectLanguage['workspaceQuickFixCount'], greaterThan(0));
-    expect(
-      projectLanguage['suggestedCommandIds'],
-      contains('previewQuickFix'),
-    );
-    expect(
-      projectLanguage['suggestedCommandIds'],
-      contains('applyQuickFix'),
-    );
+    expect(projectLanguage['suggestedCommandIds'], contains('previewQuickFix'));
+    expect(projectLanguage['suggestedCommandIds'], contains('applyQuickFix'));
     expect(
       (projectLanguage['workspaceQuickFixes']! as List<Object?>).first,
       isA<Map<String, Object?>>(),
@@ -2646,7 +2755,8 @@ void main() {
         contains('toolchainBootstrap'),
       );
       final bootstrapCommandDispatch =
-          shell.lastAgentIdeCommandResult!
+          shell
+                  .lastAgentIdeCommandResult!
                   .metadata['toolchainBootstrapActionDispatch']!
               as Map<String, Object?>;
       expect(
@@ -3370,6 +3480,21 @@ class _ShellSourceControlActionProvider extends SourceControlActionProvider {
       applied: true,
       paths: request.paths,
       message: 'confirmed in $workspaceRoot',
+    );
+  }
+}
+
+class _ShellStyioServiceConnector implements StyioServiceConnector {
+  const _ShellStyioServiceConnector();
+
+  @override
+  Future<StyioServiceResponse> analyzeDocument(
+    StyioServiceDocument document,
+  ) async {
+    return StyioServiceResponse(
+      status: StyioServiceStatus.succeeded,
+      documentId: document.documentId,
+      revision: document.revision,
     );
   }
 }

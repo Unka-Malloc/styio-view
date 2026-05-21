@@ -194,6 +194,10 @@ void main() {
     );
     expect(
       decoded.systemPrompt,
+      contains('metadata.projectLanguage.workspaceQuickFixes'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('language.serviceStatus.parserEngine'),
     );
     expect(

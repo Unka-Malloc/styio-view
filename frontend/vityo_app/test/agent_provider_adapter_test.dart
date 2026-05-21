@@ -951,6 +951,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('metadata.projectLanguage.workspaceQuickFixes'),
+      );
+      expect(
+        systemMessage['content'],
         contains('language.serviceStatus.syntaxValidationReady'),
       );
       expect(systemMessage['content'], contains('language.completions'));

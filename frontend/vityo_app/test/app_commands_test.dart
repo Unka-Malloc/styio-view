@@ -544,6 +544,10 @@ void main() {
       <AppCommandId>[AppCommandId.packProject, AppCommandId.preparePublish],
     );
     expect(
+      StyioCommandRegistry.moduleCommands.map((command) => command.id),
+      <AppCommandId>[AppCommandId.refreshModules],
+    );
+    expect(
       StyioCommandRegistry.workflowCommands.map((command) => command.id),
       <AppCommandId>[
         AppCommandId.run,

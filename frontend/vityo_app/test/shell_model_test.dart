@@ -668,7 +668,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        59,
+        60,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],
@@ -2127,6 +2127,62 @@ void main() {
       expect(clearResult?.metadata['blockedReason'], isA<String>());
     },
   );
+
+  test('agent module refresh command records module host metadata', () async {
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+    );
+    final shell = ShellModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _SequenceProjectGraphAdapter(
+        snapshots: <ProjectGraphSnapshot>[initialGraph],
+      ),
+      workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: EditorSessionController.seedDocumentForPath(
+          initialGraph.editorFiles.first,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+      ),
+      executionAdapter: _RefreshAwareExecutionAdapter(
+        projectGraph: initialGraph,
+      ),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          _RefreshAwareExecutionAdapter(projectGraph: projectGraph),
+      runtimeEventAdapter: createRuntimeEventAdapter(
+        platformTarget: PlatformTarget.macos,
+      ),
+      dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+      deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+      toolchainManagementAdapter: const _SuccessfulToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final applied = await shell.applyAgentIdeCommandSuggestion(
+      const AgentIdeCommandSuggestion(commandId: 'refreshModules'),
+    );
+    final result = shell.agentSessionContext.commands.lastResult;
+    final metadata =
+        result?.metadata['moduleHostRefresh']! as Map<String, Object?>;
+    final bridge = metadata['nativeBridge']! as Map<String, Object?>;
+
+    expect(applied, isTrue);
+    expect(result?.commandId, 'refreshModules');
+    expect(metadata['visibleModuleCount'], 0);
+    expect(metadata['mountedModuleCount'], 0);
+    expect(bridge['moduleId'], 'local.runtime.desktop');
+    expect(bridge['state'], 'deferred');
+  });
 
   test('open settings command selects the settings bottom surface', () async {
     final initialGraph = _projectGraph(

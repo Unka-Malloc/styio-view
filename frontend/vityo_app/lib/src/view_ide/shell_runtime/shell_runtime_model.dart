@@ -3260,6 +3260,16 @@ class ShellRuntimeModel extends ChangeNotifier {
           suggestion,
           AppCommandId.clearPinnedCompiler,
         );
+      case 'refreshModules':
+        await executeCommand(AppCommandId.refreshModules);
+        final metadata = await _agentModuleHostRefreshMetadata();
+        _recordAgentIdeCommandResult(
+          suggestion,
+          applied: true,
+          message: 'Agent command refreshModules refreshed module host facts.',
+          metadata: <String, Object?>{'moduleHostRefresh': metadata},
+        );
+        return true;
       case 'runBuild':
         if (_blockAgentDiskBackedCommandWhenDirty(suggestion)) {
           return false;
@@ -3732,6 +3742,27 @@ class ShellRuntimeModel extends ChangeNotifier {
       if (result.errorPayload != null) 'errorPayload': result.errorPayload,
       // TODO(agent-toolchain): add bounded stdout/stderr summaries once
       // toolchain results expose stable log slicing.
+    };
+  }
+
+  Future<Map<String, Object?>> _agentModuleHostRefreshMetadata() async {
+    final bridge = await nativeModuleLoader.describe('local.runtime.desktop');
+    return <String, Object?>{
+      'visibleModuleCount': visibleModules.length,
+      'mountedModuleCount': mountedModules.length,
+      'visibleModuleIds': visibleModules
+          .map((module) => module.manifest.moduleId)
+          .toList(growable: false),
+      'mountedModuleIds': mountedModules
+          .map((module) => module.manifest.moduleId)
+          .toList(growable: false),
+      'nativeBridge': <String, Object?>{
+        'moduleId': bridge.moduleId,
+        'state': bridge.state.name,
+        'detail': bridge.detail,
+      },
+      // TODO(agent-modules): include extension-host manifest digests once the
+      // module registry exposes stable per-module refresh timestamps.
     };
   }
 

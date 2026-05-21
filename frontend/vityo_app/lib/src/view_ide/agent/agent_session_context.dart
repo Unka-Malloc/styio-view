@@ -162,7 +162,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 59,
+      schemaVersion: 60,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -447,6 +447,7 @@ class AgentSessionContext {
         dependencyCommands: commands.dependencyCommands,
         toolchainCommands: commands.toolchainCommands,
         deploymentCommands: commands.deploymentCommands,
+        moduleCommands: commands.moduleCommands,
         nativeToolCommands: commands.nativeToolCommands,
         nativeToolCommandReadiness: commands.nativeToolCommandReadiness,
         testingCommands: commands.testingCommands,
@@ -3518,6 +3519,7 @@ class AgentCommandCatalogContext {
     required this.dependencyCommands,
     required this.toolchainCommands,
     required this.deploymentCommands,
+    required this.moduleCommands,
     required this.nativeToolCommands,
     required this.nativeToolCommandReadiness,
     required this.testingCommands,
@@ -3540,6 +3542,7 @@ class AgentCommandCatalogContext {
   final List<AgentCommandContext> dependencyCommands;
   final List<AgentCommandContext> toolchainCommands;
   final List<AgentCommandContext> deploymentCommands;
+  final List<AgentCommandContext> moduleCommands;
   final List<AgentCommandContext> nativeToolCommands;
   final List<AgentNativeToolCommandReadinessContext> nativeToolCommandReadiness;
   final List<AgentCommandContext> testingCommands;
@@ -3608,6 +3611,9 @@ class AgentCommandCatalogContext {
       deploymentCommands: StyioCommandRegistry.deploymentCommands
           .map(AgentCommandContext.fromDescriptor)
           .toList(growable: false),
+      moduleCommands: StyioCommandRegistry.moduleCommands
+          .map(AgentCommandContext.fromDescriptor)
+          .toList(growable: false),
       nativeToolCommands: nativeToolCommands,
       nativeToolCommandReadiness: _nativeToolCommandReadinessFor(
         nativeToolCommands: nativeToolCommands,
@@ -3668,6 +3674,9 @@ class AgentCommandCatalogContext {
           .map((command) => command.toJson())
           .toList(growable: false),
       'deploymentCommands': deploymentCommands
+          .map((command) => command.toJson())
+          .toList(growable: false),
+      'moduleCommands': moduleCommands
           .map((command) => command.toJson())
           .toList(growable: false),
       'nativeToolCommands': nativeToolCommands

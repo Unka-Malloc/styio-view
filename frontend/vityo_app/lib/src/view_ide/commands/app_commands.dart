@@ -864,6 +864,9 @@ class StyioCommandRegistry {
         },
       );
 
+  static Iterable<AppCommandDescriptor> get moduleCommands =>
+      commandsForCategory(AppCommandCategory.module);
+
   static AppCommandDescriptor descriptorFor(AppCommandId id) =>
       commands.firstWhere((command) => command.id == id);
 }

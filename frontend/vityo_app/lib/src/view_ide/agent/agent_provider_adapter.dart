@@ -1328,6 +1328,9 @@ Map<String, Object?> _openAICompatibleRequestBody(
         .toList(growable: false),
   });
   final replayedToolResults = _replayedToolCallResults(request.toolCallResults);
+  final truncatedToolResults = request.toolCallResults
+      .where((result) => result.outputTruncated)
+      .toList(growable: false);
   final replayFollowUpJson = jsonEncode(<String, Object?>{
     'source': 'vityo-agent-tool-replay',
     'summary':
@@ -1518,6 +1521,11 @@ Map<String, Object?> _openAICompatibleRequestBody(
       'toolCallResultCount': request.toolCallResults.length,
       if (request.toolCallResults.isNotEmpty)
         'toolCallResultIds': request.toolCallResults
+            .map((result) => result.callId)
+            .toList(growable: false),
+      'toolCallResultTruncatedCount': truncatedToolResults.length,
+      if (truncatedToolResults.isNotEmpty)
+        'toolCallResultTruncatedIds': truncatedToolResults
             .map((result) => result.callId)
             .toList(growable: false),
       'toolReplayResultCount': replayedToolResults.length,
@@ -2345,6 +2353,7 @@ Vityo structured response contract:
 - If language.serviceStatus.suggestedCommandIds includes refreshLanguageService, or language.serviceStatus is stale, unavailable, failed, or missing usable facts and commands.languageServiceCommands includes refreshLanguageService, propose that registered command before making language-fact-sensitive edits.
 - Before proposing build, test, static-analysis, or debug commands for dirty workspace documents, prefer commands.persistenceCommands save or saveAll when the user needs disk-backed tool feedback.
 - If the IDE context includes commands.recentResults, read it as newest-first user-confirmed IDE command outcomes before deciding the next step.
+- If vityo_agent_tool_results includes outputTruncated true, treat that tool output as partial evidence only; inspect outputOriginalLength, outputLimit, and outputOmittedLength before deciding whether to request a narrower follow-up tool call.
 - If the IDE context includes commands.lastResult, treat it as the latest user-confirmed IDE command outcome before deciding the next step. If commands.lastResult.commandId is collectProjectLanguageContext, read metadata.projectLanguage.suggestedCommandIds, metadata.projectLanguage.languageServiceStatus, metadata.projectLanguage.semanticFeatureMatrix, metadata.projectLanguage.diagnosticCount, metadata.projectLanguage.workspaceQuickFixes, and metadata.projectLanguage.syntaxValidationAuthority, metadata.projectLanguage.syntaxValidationReport before choosing navigation, refresh, quick-fix, or semantic edit commands.
 - If commands.recentResults includes metadata.requiredCommand or nested buildResult/staticAnalysisResult/testResult.requiredCommand, propose that registered required command before retrying that recent result.
 - If the IDE context includes agent.pendingPatch, treat it as the current unapplied structured patch that the user may want to apply, revise, explain, or discard.

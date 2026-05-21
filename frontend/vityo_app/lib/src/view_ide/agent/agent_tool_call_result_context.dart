@@ -22,6 +22,9 @@ class AgentToolCallResultContext {
     required this.createdAt,
     this.metadata = const <String, Object?>{},
     this.outputTruncated = false,
+    this.outputOriginalLength = 0,
+    this.outputLimit = defaultAgentToolResultOutputLimit,
+    this.outputOmittedLength = 0,
   });
 
   factory AgentToolCallResultContext.fromDispatchResult(
@@ -39,6 +42,9 @@ class AgentToolCallResultContext {
       message: result.message,
       output: output.text,
       outputTruncated: output.truncated,
+      outputOriginalLength: output.originalLength,
+      outputLimit: output.limit,
+      outputOmittedLength: output.omittedLength,
       createdAt: createdAt ?? DateTime.now().toUtc(),
       metadata: _toolResultMetadataJson(result.metadata),
     );
@@ -52,6 +58,9 @@ class AgentToolCallResultContext {
   final DateTime createdAt;
   final Map<String, Object?> metadata;
   final bool outputTruncated;
+  final int outputOriginalLength;
+  final int outputLimit;
+  final int outputOmittedLength;
 
   bool get success => status == AgentToolCallResultContextStatus.success;
 
@@ -64,6 +73,9 @@ class AgentToolCallResultContext {
       'message': message,
       'output': output,
       'outputTruncated': outputTruncated,
+      if (outputTruncated) 'outputOriginalLength': outputOriginalLength,
+      if (outputTruncated) 'outputLimit': outputLimit,
+      if (outputTruncated) 'outputOmittedLength': outputOmittedLength,
       'createdAt': createdAt.toIso8601String(),
       if (metadata.isNotEmpty) 'metadata': metadata,
     };
@@ -74,10 +86,16 @@ class _TruncatedToolResultOutput {
   const _TruncatedToolResultOutput({
     required this.text,
     required this.truncated,
+    required this.originalLength,
+    required this.limit,
+    required this.omittedLength,
   });
 
   final String text;
   final bool truncated;
+  final int originalLength;
+  final int limit;
+  final int omittedLength;
 }
 
 _TruncatedToolResultOutput _truncateToolResultOutput(
@@ -85,11 +103,22 @@ _TruncatedToolResultOutput _truncateToolResultOutput(
   int outputLimit,
 ) {
   if (outputLimit <= 0 || output.length <= outputLimit) {
-    return _TruncatedToolResultOutput(text: output, truncated: false);
+    return _TruncatedToolResultOutput(
+      text: output,
+      truncated: false,
+      originalLength: output.length,
+      limit: outputLimit,
+      omittedLength: 0,
+    );
   }
+  final omittedLength = output.length - outputLimit;
   return _TruncatedToolResultOutput(
-    text: output.substring(0, outputLimit),
+    text:
+        '${output.substring(0, outputLimit)}\n[tool output truncated: $omittedLength char(s) omitted]',
     truncated: true,
+    originalLength: output.length,
+    limit: outputLimit,
+    omittedLength: omittedLength,
   );
 }
 

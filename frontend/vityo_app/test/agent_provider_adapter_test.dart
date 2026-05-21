@@ -266,6 +266,10 @@ void main() {
             status: AgentToolCallResultContextStatus.success,
             message: 'Agent tool call completed.',
             output: '{"text":"value = 1"}',
+            outputTruncated: true,
+            outputOriginalLength: 120,
+            outputLimit: 20,
+            outputOmittedLength: 100,
             createdAt: DateTime.utc(2026, 5, 22),
             metadata: const <String, Object?>{'source': 'test'},
           ),
@@ -289,8 +293,14 @@ void main() {
     expect(result['toolId'], 'readWorkspaceFile');
     expect(result['success'], isTrue);
     expect(result['output'], '{"text":"value = 1"}');
+    expect(result['outputTruncated'], isTrue);
+    expect(result['outputOriginalLength'], 120);
+    expect(result['outputLimit'], 20);
+    expect(result['outputOmittedLength'], 100);
     expect(metadata['toolCallResultCount'], 1);
     expect(metadata['toolCallResultIds'], <String>['call-read']);
+    expect(metadata['toolCallResultTruncatedCount'], 1);
+    expect(metadata['toolCallResultTruncatedIds'], <String>['call-read']);
   });
 
   test('OpenAI compatible provider sends replay follow-up summary', () async {
@@ -1225,6 +1235,7 @@ void main() {
       expect(systemMessage['content'], contains('agent.pendingPatch'));
       expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
       expect(systemMessage['content'], contains('agent.workspaceCheckpoint'));
+      expect(systemMessage['content'], contains('outputTruncated true'));
       expect(systemMessage['content'], contains('agent.changeReviewGate'));
       expect(systemMessage['content'], contains('agent.autonomyPolicy'));
       expect(systemMessage['content'], contains('agent.loopGuard'));

@@ -2466,6 +2466,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   onDenyCall: applyingAction || controller.sending
                       ? null
                       : (callId) => controller.denyToolCallExecution(callId),
+                  onDenyCallWithFeedback: applyingAction || controller.sending
+                      ? null
+                      : (callId, feedback) => controller.denyToolCallExecution(
+                          callId,
+                          reason: feedback,
+                        ),
                   onApproveCallForSession: applyingAction || controller.sending
                       ? null
                       : (callId) => controller.approveToolCallExecution(
@@ -3249,6 +3255,7 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
     required this.dispatching,
     this.onApproveCall,
     this.onDenyCall,
+    this.onDenyCallWithFeedback,
     this.onApproveCallForSession,
     this.onDenyCallForSession,
     this.onRunReadyCalls,
@@ -3262,6 +3269,7 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   final bool dispatching;
   final ValueChanged<String>? onApproveCall;
   final ValueChanged<String>? onDenyCall;
+  final void Function(String callId, String feedback)? onDenyCallWithFeedback;
   final ValueChanged<String>? onApproveCallForSession;
   final ValueChanged<String>? onDenyCallForSession;
   final VoidCallback? onRunReadyCalls;
@@ -3354,6 +3362,18 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                         icon: const Icon(Icons.block),
                         label: const Text('Deny Tool Call'),
                       ),
+                      OutlinedButton.icon(
+                        key: ValueKey(
+                          'agent-tool-call-deny-feedback-${execution.callId}',
+                        ),
+                        onPressed: onDenyCallWithFeedback == null
+                            ? null
+                            : () => unawaited(
+                                _requestDenyFeedback(context, execution.callId),
+                              ),
+                        icon: const Icon(Icons.feedback_outlined),
+                        label: const Text('Deny With Feedback'),
+                      ),
                       FilledButton.tonalIcon(
                         key: ValueKey(
                           'agent-tool-call-approve-session-${execution.callId}',
@@ -3430,6 +3450,45 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _requestDenyFeedback(BuildContext context, String callId) async {
+    var currentFeedback = '';
+    final feedback = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Deny Tool Call With Feedback'),
+          content: TextField(
+            key: const ValueKey('agent-tool-call-deny-feedback-input'),
+            autofocus: true,
+            maxLines: 4,
+            onChanged: (value) => currentFeedback = value,
+            decoration: const InputDecoration(
+              labelText: 'Corrective feedback',
+              hintText: 'Explain what the agent should change before retry.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('agent-tool-call-deny-feedback-cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const ValueKey('agent-tool-call-deny-feedback-submit'),
+              onPressed: () => Navigator.of(dialogContext).pop(currentFeedback),
+              child: const Text('Send Feedback'),
+            ),
+          ],
+        );
+      },
+    );
+    final normalized = feedback?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return;
+    }
+    onDenyCallWithFeedback?.call(callId, normalized);
   }
 }
 

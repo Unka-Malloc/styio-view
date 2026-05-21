@@ -247,6 +247,59 @@ void main() {
     );
   });
 
+  test(
+    'agent coding session forwards denied tool feedback to next request',
+    () async {
+      final adapter = _FakeAgentProviderAdapter(
+        kind: AgentProviderKind.cloudOpenAICompatible,
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-denied-tool-feedback',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.openAICodexSparkForPlatform(
+          PlatformTarget.linux,
+        ),
+        adapter: adapter,
+        contextProvider: _context,
+      );
+
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-command-feedback',
+          toolId: 'runIdeCommand',
+          input: '{"commandId":"runTests"}',
+        ),
+      );
+      final denied = controller.denyToolCallExecution(
+        'call-command-feedback',
+        reason: 'Use the validation context before running tests.',
+      );
+      controller.updatePrompt('Continue after tool review.');
+      await controller.sendPrompt();
+
+      final result = adapter.requests.single.toolCallResults.single;
+      expect(denied, isTrue);
+      expect(result.success, isFalse);
+      expect(result.callId, 'call-command-feedback');
+      expect(result.toolId, 'runIdeCommand');
+      expect(result.output, contains('correctiveFeedback'));
+      expect(
+        result.output,
+        contains('Use the validation context before running tests.'),
+      );
+      expect(result.metadata['source'], 'agent-tool-review');
+      expect(result.metadata['reviewDecision'], 'denied');
+      expect(
+        result.metadata['correctiveFeedback'],
+        'Use the validation context before running tests.',
+      );
+    },
+  );
+
   test('agent coding session clears tool call timeline with conversation', () {
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),

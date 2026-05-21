@@ -212,6 +212,53 @@ void main() {
     );
   });
 
+  testWidgets('agent surface denies tool call with corrective feedback', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-feedback',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+
+    await _pumpSurface(tester, controller);
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey('agent-tool-call-deny-feedback-call-command-feedback'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('agent-tool-call-deny-feedback-input')),
+      'Collect validation context first.',
+    );
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-deny-feedback-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    final decision = controller.toolCallReviewDecisions.single;
+    final feedback = controller.recentToolCallResultContexts.single;
+    expect(decision.status, AgentToolCallReviewDecisionStatus.denied);
+    expect(decision.reason, 'Collect validation context first.');
+    expect(feedback.success, isFalse);
+    expect(feedback.metadata['source'], 'agent-tool-review');
+    expect(feedback.metadata['correctiveFeedback'], decision.reason);
+    expect(find.text('Review decision: denied'), findsOneWidget);
+  });
+
   testWidgets('agent surface exposes workspace snapshot revert plan', (
     tester,
   ) async {

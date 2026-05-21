@@ -36,7 +36,10 @@ void main() {
     expect(json['status'], 'review_required');
     expect(json['requiresReview'], isTrue);
     expect(json['blocksDispatch'], isFalse);
-    expect(plan.todoItems.join('\n'), contains('corrected-feedback'));
+    expect(
+      plan.todoItems.join('\n'),
+      contains('project-level permission policy'),
+    );
   });
 
   test('agent tool permission rules can deny matching tools', () {

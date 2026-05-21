@@ -262,7 +262,7 @@ List<String> _todoItems(List<AgentToolPermissionDecision> decisions) {
   final todos = <String>[];
   if (decisions.any((decision) => decision.requiresReview)) {
     todos.add(
-      'TODO: add corrected-feedback and persisted project/session permission policy controls for review-gated tools.',
+      'TODO: persist project-level permission policy controls for review-gated tools.',
     );
   }
   if (decisions.any((decision) => decision.blocksDispatch)) {

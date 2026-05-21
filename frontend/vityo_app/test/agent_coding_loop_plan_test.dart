@@ -64,7 +64,10 @@ void main() {
     expect(tooling.status, AgentCodingLoopStepStatus.ready);
     expect(permission.status, AgentCodingLoopStepStatus.ready);
     expect(permission.blockingReasons, isEmpty);
-    expect(permission.todoItems.join('\n'), contains('corrected-feedback'));
+    expect(
+      permission.todoItems.join('\n'),
+      contains('project-level permission policy'),
+    );
     expect(dispatch.status, AgentCodingLoopStepStatus.ready);
     expect(review.status, AgentCodingLoopStepStatus.waiting);
     expect(validation.status, AgentCodingLoopStepStatus.waiting);

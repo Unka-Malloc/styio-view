@@ -28,6 +28,51 @@ void main() {
           ),
         ],
       );
+      final liveProbeHealth = await bundle.probeLiveOperationHealthSnapshot(
+        registry: PlatformManagerLiveOperationProbeRegistry(
+          registrations: <PlatformManagerLiveOperationProbeRegistration>[
+            PlatformManagerLiveOperationProbeRegistration(
+              managerKey: 'fileSystem',
+              operationId: 'platform.fileSystem.smoke',
+              probe: (bundle) async {
+                return PlatformManagerLiveOperationProbeResult.ready(
+                  managerKey: 'fileSystem',
+                  operationId: 'platform.fileSystem.smoke',
+                  message:
+                      'File system smoke passed for ${bundle.context.targetId}.',
+                );
+              },
+            ),
+            PlatformManagerLiveOperationProbeRegistration(
+              managerKey: 'shell',
+              operationId: 'platform.shell.smoke',
+              recoveryActions: const <PlatformManagerRecoveryAction>[
+                PlatformManagerRecoveryAction(
+                  id: 'platform.shell.open-settings',
+                  label: 'Open shell settings',
+                  managerKey: 'shell',
+                  message: 'Select a shell profile.',
+                ),
+              ],
+              probe: (_) async {
+                return const PlatformManagerLiveOperationProbeResult.blocked(
+                  managerKey: 'shell',
+                  operationId: 'platform.shell.smoke',
+                  message: 'Shell smoke requires a concrete shell callback.',
+                  recoveryActions: <PlatformManagerRecoveryAction>[
+                    PlatformManagerRecoveryAction(
+                      id: 'platform.shell.open-settings',
+                      label: 'Open shell settings',
+                      managerKey: 'shell',
+                      message: 'Select a shell profile.',
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      );
 
       expect(snapshot.targetId, 'platform-manager-contract-test');
       expect(snapshot.managerKeys, <String>[
@@ -93,6 +138,20 @@ void main() {
       );
       expect(routes.single.settingsSectionId, 'shell');
       expect(routes.single.toJson()['settingsSectionId'], 'shell');
+      expect(liveProbeHealth.ready, isFalse);
+      expect(liveProbeHealth.probeSource, 'platform-live-operation-registry');
+      expect(
+        liveProbeHealth.components.map((component) => component.managerKey),
+        <String>['fileSystem', 'shell'],
+      );
+      expect(
+        liveProbeHealth.recoveryActions.single.id,
+        'platform.shell.open-settings',
+      );
+      expect(
+        liveProbeHealth.toJson()['todo'],
+        contains('smoke operation callbacks'),
+      );
     },
   );
 }

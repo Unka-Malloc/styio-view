@@ -142,8 +142,12 @@ void main() {
       contains('manager live-operation probe metadata'),
     );
     expect(
+      entriesById['environment.platform']?.summary,
+      contains('PlatformManagerLiveOperationProbeRegistry'),
+    );
+    expect(
       entriesById['environment.platform']?.todo,
-      contains('platform-specific smoke operations'),
+      contains('live-operation smoke callbacks'),
     );
     expect(
       entriesById['environment.platform']?.runtimeMaturityBlocking,

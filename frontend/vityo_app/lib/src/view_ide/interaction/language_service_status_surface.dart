@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../language/service/styio_language_provider_registry.dart';
 import '../language/service/styio_service_capability_detector.dart';
+import '../language/service/styio_service_capability_profile.dart';
 import '../language/service/styio_service_runtime.dart';
 
 enum LanguageServiceStatusSeverity {
@@ -47,6 +48,7 @@ class LanguageServiceStatusSurface {
     required this.freshCapabilityCount,
     required this.primaryCapabilityStates,
     required this.capabilities,
+    this.capabilityProfile,
     this.toolchainId = '',
     this.parserEngine,
     this.grammarVersion,
@@ -123,6 +125,9 @@ class LanguageServiceStatusSurface {
   }) {
     final capabilitySnapshot = snapshot.capabilitySnapshot;
     final healthSummary = capabilitySnapshot?.healthSummary;
+    final capabilityProfile = capabilitySnapshot == null
+        ? null
+        : StyioServiceCapabilityProfile.fromSnapshot(capabilitySnapshot);
     final severity = _severityFor(snapshot);
     final providerReady = providerReadiness?.ready;
     return LanguageServiceStatusSurface(
@@ -136,6 +141,7 @@ class LanguageServiceStatusSurface {
       usableCapabilityCount: snapshot.usableCapabilityCount,
       freshCapabilityCount: snapshot.freshCapabilityCount,
       primaryCapabilityStates: snapshot.primaryCapabilityStates,
+      capabilityProfile: capabilityProfile,
       localFallbackEnabled: snapshot.allowLocalFallback,
       capabilityHealth:
           healthSummary?.health.wireValue ??
@@ -175,6 +181,7 @@ class LanguageServiceStatusSurface {
   final int freshCapabilityCount;
   final Map<String, String> primaryCapabilityStates;
   final List<LanguageServiceCapabilityStatusItem> capabilities;
+  final StyioServiceCapabilityProfile? capabilityProfile;
   final bool localFallbackEnabled;
   final String capabilityHealth;
   final int missingCapabilityCount;
@@ -227,6 +234,10 @@ class LanguageServiceStatusSurface {
         );
   }
 
+  bool get canDriveIntelligentCoding {
+    return capabilityProfile?.canDriveIntelligentCoding ?? semanticFactsReady;
+  }
+
   List<String> get unavailablePrimaryCapabilities {
     return primaryCapabilityStates.entries
         .where((entry) => !_stateUsable(entry.value))
@@ -261,10 +272,13 @@ class LanguageServiceStatusSurface {
       'capabilities': capabilities
           .map((capability) => capability.toJson())
           .toList(growable: false),
+      if (capabilityProfile != null)
+        'capabilityProfile': capabilityProfile!.toJson(),
       'actionable': actionable,
       'refreshRecommended': refreshRecommended,
       'syntaxValidationReady': syntaxValidationReady,
       'semanticFactsReady': semanticFactsReady,
+      'canDriveIntelligentCoding': canDriveIntelligentCoding,
       'unavailablePrimaryCapabilities': unavailablePrimaryCapabilities,
     };
   }

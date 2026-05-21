@@ -110,6 +110,12 @@ void main() {
     expect(surface.toJson()['grammarVersion'], '2026.05');
     expect(surface.toJson()['syntaxValidationReady'], isTrue);
     expect(surface.toJson()['semanticFactsReady'], isFalse);
+    expect(surface.toJson()['canDriveIntelligentCoding'], isFalse);
+    final capabilityProfile =
+        surface.toJson()['capabilityProfile']! as Map<String, Object?>;
+    expect(capabilityProfile['syntaxReady'], isTrue);
+    expect(capabilityProfile['semanticReady'], isFalse);
+    expect(capabilityProfile['canDriveIntelligentCoding'], isFalse);
     expect(surface.toJson()['capabilityHealth'], 'degraded');
     expect(surface.toJson()['missingCapabilityCount'], greaterThan(0));
     expect(surface.toJson()['providerReadiness'], 'degraded');

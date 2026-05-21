@@ -4564,6 +4564,8 @@ class AgentLanguageServiceStatusContext {
     required this.blockedCapabilityCount,
     required this.providerReadiness,
     required this.providerMissingCapabilityCount,
+    this.canDriveIntelligentCoding = false,
+    this.capabilityProfile,
     this.cacheLookupHits = 0,
     this.cacheLookupMisses = 0,
     this.cacheLookupCount = 0,
@@ -4598,6 +4600,8 @@ class AgentLanguageServiceStatusContext {
   final String providerReadiness;
   final String providerReadinessSummary;
   final int providerMissingCapabilityCount;
+  final bool canDriveIntelligentCoding;
+  final Map<String, Object?>? capabilityProfile;
   final int cacheLookupHits;
   final int cacheLookupMisses;
   final int cacheLookupCount;
@@ -4637,6 +4641,8 @@ class AgentLanguageServiceStatusContext {
       providerReadiness: surface.providerReadiness,
       providerReadinessSummary: surface.providerReadinessSummary,
       providerMissingCapabilityCount: surface.providerMissingCapabilityCount,
+      canDriveIntelligentCoding: surface.canDriveIntelligentCoding,
+      capabilityProfile: surface.capabilityProfile?.toJson(),
       cacheLookupHits: surface.cacheLookupHits,
       cacheLookupMisses: surface.cacheLookupMisses,
       cacheLookupCount: surface.cacheLookupCount,
@@ -4674,6 +4680,8 @@ class AgentLanguageServiceStatusContext {
       if (providerReadinessSummary.isNotEmpty)
         'providerReadinessSummary': providerReadinessSummary,
       'providerMissingCapabilityCount': providerMissingCapabilityCount,
+      'canDriveIntelligentCoding': canDriveIntelligentCoding,
+      if (capabilityProfile != null) 'capabilityProfile': capabilityProfile,
       'cacheLookupHits': cacheLookupHits,
       'cacheLookupMisses': cacheLookupMisses,
       'cacheLookupCount': cacheLookupCount,

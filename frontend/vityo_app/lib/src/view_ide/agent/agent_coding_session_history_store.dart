@@ -351,7 +351,7 @@ class AgentCodingSessionRecoveryPlan {
       availableActions: actions,
       checkpoint: checkpoint,
       todo:
-          'TODO: add saved-provider profile selection before failover recovery dispatch.',
+          'TODO: add saved-provider profile ranking before choosing the default failover recovery key.',
     );
   }
 

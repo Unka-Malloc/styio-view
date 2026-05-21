@@ -1990,7 +1990,10 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     });
     try {
       final executor = _agentToolExecutor();
-      await widget.controller.dispatchReadyToolCalls(executor.execute);
+      await const AgentCodingToolLoopRuntime().run(
+        controller: widget.controller,
+        executor: executor.execute,
+      );
     } finally {
       if (mounted) {
         setState(() {

@@ -2832,6 +2832,8 @@ void main() {
     final providerSelection =
         agentJson['providerSelection']! as Map<String, Object?>;
     final endpoints = providerExecution['endpoints']! as List<Object?>;
+    final codingReadiness =
+        context.toJson()['codingReadiness']! as Map<String, Object?>;
 
     expect(agentJson['suggestedCommandIds'], <String>[
       'retryAgentProvider',
@@ -2863,6 +2865,14 @@ void main() {
     expect(
       (endpoints.first! as Map<String, Object?>)['credentialReadiness'],
       'unavailable',
+    );
+    expect(
+      codingReadiness['issueCodes'],
+      contains('agent.provider.route.degraded'),
+    );
+    expect(
+      (codingReadiness['todoItems']! as List<Object?>).join('\n'),
+      isNot(contains('surface provider fallback health')),
     );
   });
 

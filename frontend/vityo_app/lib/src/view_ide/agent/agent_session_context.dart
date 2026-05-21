@@ -142,8 +142,6 @@ class AgentCodingExecutionReadiness {
             message: providerHealth.message,
             severity: AgentCodingExecutionReadinessIssueSeverity.attention,
             ownerLayer: 'service',
-            todo:
-                'TODO: surface provider fallback health in the Agent panel before autonomous edits.',
           ),
         );
       }
@@ -291,8 +289,6 @@ class AgentCodingExecutionReadiness {
             message: providerHealth.message,
             severity: AgentCodingExecutionReadinessIssueSeverity.attention,
             ownerLayer: 'service',
-            todo:
-                'TODO: surface provider fallback health in the Agent panel before autonomous edits.',
           ),
         );
       }

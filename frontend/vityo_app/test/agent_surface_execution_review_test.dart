@@ -102,6 +102,116 @@ void main() {
     expect(controller.draftPrompt, contains('Review pending agent tool calls'));
   });
 
+  testWidgets('agent surface remembers tool approval for session', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-session-1',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+
+    await _pumpSurface(tester, controller);
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey(
+          'agent-tool-call-approve-session-call-command-session-1',
+        ),
+      ),
+    );
+    await tester.pump();
+    controller.clearToolCallTimeline();
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-session-2',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      controller.sessionToolPermissionRules.single.action,
+      AgentToolPermissionAction.allow,
+    );
+    expect(
+      controller.toolCallExecutionPlan
+          .executionFor('call-command-session-2')
+          ?.status,
+      AgentToolCallExecutionStatus.ready,
+    );
+    expect(
+      find.text('runIdeCommand · ready · call-command-session-2'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('agent surface remembers tool denial for session', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-deny-session-1',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+
+    await _pumpSurface(tester, controller);
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey(
+          'agent-tool-call-deny-session-call-command-deny-session-1',
+        ),
+      ),
+    );
+    await tester.pump();
+    controller.clearToolCallTimeline();
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-deny-session-2',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      controller.sessionToolPermissionRules.single.action,
+      AgentToolPermissionAction.deny,
+    );
+    expect(
+      controller.toolCallExecutionPlan
+          .executionFor('call-command-deny-session-2')
+          ?.status,
+      AgentToolCallExecutionStatus.blocked,
+    );
+    expect(
+      find.text('runIdeCommand · blocked · call-command-deny-session-2'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent surface exposes workspace snapshot revert plan', (
     tester,
   ) async {

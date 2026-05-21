@@ -2466,6 +2466,18 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   onDenyCall: applyingAction || controller.sending
                       ? null
                       : (callId) => controller.denyToolCallExecution(callId),
+                  onApproveCallForSession: applyingAction || controller.sending
+                      ? null
+                      : (callId) => controller.approveToolCallExecution(
+                          callId,
+                          rememberForSession: true,
+                        ),
+                  onDenyCallForSession: applyingAction || controller.sending
+                      ? null
+                      : (callId) => controller.denyToolCallExecution(
+                          callId,
+                          rememberForSession: true,
+                        ),
                   dispatching: _dispatchingToolCalls,
                   onRunReadyCalls:
                       toolCallExecutionPlan.status ==
@@ -3237,6 +3249,8 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
     required this.dispatching,
     this.onApproveCall,
     this.onDenyCall,
+    this.onApproveCallForSession,
+    this.onDenyCallForSession,
     this.onRunReadyCalls,
     this.onReplayJournal,
     this.onDraftReview,
@@ -3248,6 +3262,8 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   final bool dispatching;
   final ValueChanged<String>? onApproveCall;
   final ValueChanged<String>? onDenyCall;
+  final ValueChanged<String>? onApproveCallForSession;
+  final ValueChanged<String>? onDenyCallForSession;
   final VoidCallback? onRunReadyCalls;
   final VoidCallback? onReplayJournal;
   final VoidCallback? onDraftReview;
@@ -3337,6 +3353,26 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                             : () => onDenyCall!(execution.callId),
                         icon: const Icon(Icons.block),
                         label: const Text('Deny Tool Call'),
+                      ),
+                      FilledButton.tonalIcon(
+                        key: ValueKey(
+                          'agent-tool-call-approve-session-${execution.callId}',
+                        ),
+                        onPressed: onApproveCallForSession == null
+                            ? null
+                            : () => onApproveCallForSession!(execution.callId),
+                        icon: const Icon(Icons.lock_open),
+                        label: const Text('Allow In Session'),
+                      ),
+                      OutlinedButton.icon(
+                        key: ValueKey(
+                          'agent-tool-call-deny-session-${execution.callId}',
+                        ),
+                        onPressed: onDenyCallForSession == null
+                            ? null
+                            : () => onDenyCallForSession!(execution.callId),
+                        icon: const Icon(Icons.lock),
+                        label: const Text('Deny In Session'),
                       ),
                     ],
                   ),

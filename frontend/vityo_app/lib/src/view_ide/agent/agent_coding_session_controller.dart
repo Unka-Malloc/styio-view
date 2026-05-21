@@ -832,6 +832,8 @@ class AgentCodingSessionController extends ChangeNotifier {
         _ideCommandSuggestionKey(result.commandId, result.input),
       );
     }
+    _refreshLastPatchValidationSnapshot();
+    unawaited(_persistLatestAgentValidationSnapshot());
     _appendConversationTurn(
       role: AgentConversationRole.user,
       text: _ideCommandResultConversationText(result),
@@ -955,6 +957,66 @@ class AgentCodingSessionController extends ChangeNotifier {
       _recentPatchApplicationContexts.removeRange(
         _maxAgentPatchApplicationContextHistory,
         _recentPatchApplicationContexts.length,
+      );
+    }
+  }
+
+  void _refreshLastPatchValidationSnapshot() {
+    final lastPatchApplication = _lastPatchApplicationContext;
+    if (lastPatchApplication == null) {
+      return;
+    }
+    final validationSnapshot =
+        _contextForProviderRequest()
+            .agent
+            .lastPatchApplication
+            ?.validationSnapshot;
+    if (validationSnapshot == null) {
+      return;
+    }
+    final updated = lastPatchApplication.withValidationSnapshot(
+      validationSnapshot,
+    );
+    _lastPatchApplicationContext = updated;
+    for (var index = 0; index < _recentPatchApplicationContexts.length; index++) {
+      if (_recentPatchApplicationContexts[index].patchId ==
+          lastPatchApplication.patchId) {
+        _recentPatchApplicationContexts[index] = updated;
+        return;
+      }
+    }
+  }
+
+  Future<void> _persistLatestAgentValidationSnapshot() async {
+    final store = sessionHistoryStore;
+    final lastPatchApplication = _lastPatchApplicationContext;
+    if (store == null ||
+        lastPatchApplication == null ||
+        lastPatchApplication.validationSnapshot == null) {
+      return;
+    }
+    try {
+      final current =
+          _sessionHistorySnapshot ??
+          await store.readHistory(workspaceId: sessionHistoryWorkspaceId);
+      if (current.records.isEmpty) {
+        return;
+      }
+      final latest = current.records.first;
+      final metadata = <String, Object?>{
+        ...latest.metadata,
+        ..._agentCodingHistoryMetadata(_contextForProviderRequest()),
+      };
+      final next = current.replaceLatest(
+        latest.copyWith(metadata: metadata),
+      );
+      _sessionHistorySnapshot = next;
+      await store.saveHistory(next);
+    } on Object catch (error) {
+      _publishAgentRuntimeDiagnostic(
+        operation: 'agent.history.validation-persist',
+        message:
+            'Agent validation snapshot persistence failed: ${sanitizeAgentError(error.toString())}',
       );
     }
   }

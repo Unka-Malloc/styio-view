@@ -692,6 +692,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('immediate validation snapshot persistence'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('provider adapter coding gate metadata summaries'),
     );
     expect(

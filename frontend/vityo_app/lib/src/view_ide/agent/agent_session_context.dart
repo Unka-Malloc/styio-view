@@ -1056,9 +1056,6 @@ class AgentCodingValidationPlan {
               'Use an id from testing.configurationSet.configurations.',
         ),
       ],
-      todoItems: <String>[
-        'TODO: persist validation snapshot immediately when validation commands run, not only on the next provider request.',
-      ],
     );
   }
 

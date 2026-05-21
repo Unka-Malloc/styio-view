@@ -365,6 +365,22 @@ void main() {
         },
       ),
     );
+
+    await Future<void>.delayed(Duration.zero);
+    final immediateMetadata = historyStore.history.records.first.metadata;
+    final immediateLastPatchApplication =
+        immediateMetadata['lastPatchApplication']! as Map<String, Object?>;
+    final immediateValidationSnapshot =
+        immediateLastPatchApplication['validationSnapshot']!
+            as Map<String, Object?>;
+
+    expect(
+      controller.lastPatchApplicationContext?.validationSnapshot?.resultStatus,
+      'failed',
+    );
+    expect(immediateValidationSnapshot['resultStatus'], 'failed');
+    expect(immediateValidationSnapshot['failedCommandIds'], contains('runTests'));
+
     controller.updatePrompt('Continue after validation.');
     await controller.sendPrompt();
 

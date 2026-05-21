@@ -172,6 +172,28 @@ class AgentCodingSessionHistoryRecord {
 
   bool get succeeded => outcome == AgentCodingSessionOutcome.succeeded;
 
+  AgentCodingSessionHistoryRecord copyWith({
+    Map<String, Object?>? metadata,
+  }) {
+    return AgentCodingSessionHistoryRecord(
+      requestId: requestId,
+      profileId: profileId,
+      providerKind: providerKind,
+      prompt: prompt,
+      outcome: outcome,
+      createdAt: createdAt,
+      completedAt: completedAt,
+      responseTextSample: responseTextSample,
+      contentPartCount: contentPartCount,
+      patchCount: patchCount,
+      ideCommandCount: ideCommandCount,
+      planCount: planCount,
+      diagnosticSummaryCount: diagnosticSummaryCount,
+      errorMessage: errorMessage,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'requestId': requestId,
@@ -557,6 +579,23 @@ class AgentCodingSessionHistory {
     return AgentCodingSessionHistory(
       workspaceId: workspaceId,
       records: nextRecords.take(maxEntries).toList(growable: false),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
+    );
+  }
+
+  AgentCodingSessionHistory replaceLatest(
+    AgentCodingSessionHistoryRecord record, {
+    DateTime? updatedAt,
+  }) {
+    if (records.isEmpty) {
+      return this;
+    }
+    return AgentCodingSessionHistory(
+      workspaceId: workspaceId,
+      records: <AgentCodingSessionHistoryRecord>[
+        record,
+        ...records.skip(1),
+      ],
       updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }

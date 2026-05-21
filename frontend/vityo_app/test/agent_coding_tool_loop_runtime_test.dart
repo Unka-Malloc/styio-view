@@ -149,6 +149,98 @@ void main() {
       expect(report.dispatchRoundCount, 0);
     },
   );
+
+  test('agent coding tool loop runtime continues after dispatch', () async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+    controller.approveToolCallExecution('call-command');
+    AgentCodingToolLoopContinuationRequest? continuationRequest;
+
+    final report = await const AgentCodingToolLoopRuntime().run(
+      controller: controller,
+      executor: (request) {
+        return AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: 'command executed',
+        );
+      },
+      continueAfterDispatch: (request) {
+        continuationRequest = request;
+        return const AgentCodingToolLoopContinuationResult.dispatched(
+          message: 'Provider follow-up queued.',
+          metadata: <String, Object?>{'source': 'test-continuation'},
+        );
+      },
+    );
+
+    expect(report.status, AgentCodingToolLoopRuntimeStatus.complete);
+    expect(report.continuationCount, 1);
+    expect(continuationRequest?.roundIndex, 0);
+    expect(
+      continuationRequest?.dispatchReport.status,
+      AgentToolCallDispatchReportStatus.dispatched,
+    );
+    expect(
+      report.continuationResults.single.message,
+      'Provider follow-up queued.',
+    );
+    expect(report.toJson()['continuationCount'], 1);
+  });
+
+  test('agent coding tool loop runtime fails on continuation errors', () async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"runTests"}',
+      ),
+    );
+    controller.approveToolCallExecution('call-command');
+
+    final report = await const AgentCodingToolLoopRuntime().run(
+      controller: controller,
+      executor: (request) {
+        return AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: 'command executed',
+        );
+      },
+      continueAfterDispatch: (_) {
+        throw StateError('provider unavailable');
+      },
+    );
+
+    expect(report.status, AgentCodingToolLoopRuntimeStatus.failed);
+    expect(report.continuationCount, 1);
+    expect(report.continuationResults.single.failed, isTrue);
+    expect(
+      report.continuationResults.single.message,
+      contains('provider unavailable'),
+    );
+  });
 }
 
 AgentSessionContext _context() {

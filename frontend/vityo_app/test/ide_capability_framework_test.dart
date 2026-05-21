@@ -349,6 +349,18 @@ void main() {
     );
     expect(
       entriesById['agent.provider']?.summary,
+      contains('saved profile loading by profile key/profile id'),
+    );
+    expect(
+      entriesById['agent.provider']?.summary,
+      contains('mounted provider profile key tracking'),
+    );
+    expect(
+      entriesById['agent.provider']?.summary,
+      contains('Agent Surface saved provider profile picker mount action'),
+    );
+    expect(
+      entriesById['agent.provider']?.summary,
       contains('failover provider mount execution'),
     );
     expect(

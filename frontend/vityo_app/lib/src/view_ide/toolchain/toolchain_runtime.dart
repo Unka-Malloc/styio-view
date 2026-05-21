@@ -16,6 +16,7 @@ class ToolchainRuntimeResult {
     required this.stderr,
     this.exitCode,
     this.message,
+    this.metadata = const <String, Object?>{},
   });
 
   final ToolchainRuntimeStatus status;
@@ -24,6 +25,7 @@ class ToolchainRuntimeResult {
   final String stderr;
   final int? exitCode;
   final String? message;
+  final Map<String, Object?> metadata;
 
   bool get succeeded => status == ToolchainRuntimeStatus.succeeded;
 
@@ -35,6 +37,7 @@ class ToolchainRuntimeResult {
       'stderr': stderr,
       if (exitCode != null) 'exitCode': exitCode,
       if (message != null) 'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
       'succeeded': succeeded,
     };
   }
@@ -122,6 +125,7 @@ class ToolchainRuntime {
       stderr: result.stderr,
       exitCode: result.exitCode,
       message: result.message,
+      metadata: result.metadata,
     );
   }
 

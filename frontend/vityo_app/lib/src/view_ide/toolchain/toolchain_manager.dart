@@ -714,8 +714,16 @@ class ToolchainManagerRuntimeExecutionResult {
   bool get executed =>
       status == ToolchainManagerRuntimeExecutionStatus.executed;
   bool get succeeded => runtimeResult?.succeeded ?? false;
+  RuntimeProcessHandleIdentity? get processHandle {
+    final metadata = runtimeResult?.metadata ?? const <String, Object?>{};
+    return RuntimeProcessHandleIdentity.tryFromMetadata(
+      metadata,
+      managerId: binding.managerId,
+    );
+  }
 
   Map<String, Object?> toJson() {
+    final handle = processHandle;
     return <String, Object?>{
       'status': status.wireValue,
       'executed': executed,
@@ -725,6 +733,7 @@ class ToolchainManagerRuntimeExecutionResult {
           .map((event) => event.toJson())
           .toList(growable: false),
       if (runtimeResult != null) 'runtimeResult': runtimeResult!.toJson(),
+      if (handle != null) 'processHandle': handle.toJson(),
     };
   }
 }
@@ -835,6 +844,7 @@ class ToolchainManagerRuntimeExecutionAdapter {
           'succeeded': runtimeResult.succeeded,
           if (runtimeResult.exitCode != null)
             'exitCode': runtimeResult.exitCode,
+          ...runtimeResult.metadata,
         },
       ),
     ];
@@ -845,6 +855,7 @@ class ToolchainManagerRuntimeExecutionAdapter {
         kind: RuntimeOutputChannelKind.stdout,
         output: runtimeResult.stdout,
         timestamp: timestamp,
+        metadata: runtimeResult.metadata,
       ),
     );
     events.addAll(
@@ -854,6 +865,7 @@ class ToolchainManagerRuntimeExecutionAdapter {
         kind: RuntimeOutputChannelKind.stderr,
         output: runtimeResult.stderr,
         timestamp: timestamp,
+        metadata: runtimeResult.metadata,
       ),
     );
     return events;
@@ -865,6 +877,7 @@ class ToolchainManagerRuntimeExecutionAdapter {
     required RuntimeOutputChannelKind kind,
     required String output,
     required DateTime timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
   }) {
     final chunks = _outputChunks(output);
     return <RuntimeOutputEvent>[
@@ -884,6 +897,7 @@ class ToolchainManagerRuntimeExecutionAdapter {
             'stream': stream,
             'chunkIndex': index,
             'chunkCount': chunks.length,
+            ...metadata,
           },
         ),
     ];

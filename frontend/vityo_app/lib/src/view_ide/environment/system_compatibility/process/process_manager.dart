@@ -70,6 +70,7 @@ class ProcessCommandResult {
     required this.stderr,
     required this.duration,
     this.message,
+    this.metadata = const <String, Object?>{},
   });
 
   final ProcessCommandStatus status;
@@ -80,6 +81,7 @@ class ProcessCommandResult {
   final String stderr;
   final Duration duration;
   final String? message;
+  final Map<String, Object?> metadata;
   bool get succeeded => status == ProcessCommandStatus.succeeded;
 
   Map<String, Object?> toJson() {
@@ -92,6 +94,7 @@ class ProcessCommandResult {
       'stderr': stderr,
       'durationMilliseconds': duration.inMilliseconds,
       if (message != null) 'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
       'succeeded': succeeded,
     };
   }
@@ -125,9 +128,10 @@ class ProcessFailureClassifier {
       ProcessCommandStatus.succeeded => ProcessFailureKind.unknownFailure,
       ProcessCommandStatus.blocked => ProcessFailureKind.unsupported,
       ProcessCommandStatus.timedOut => ProcessFailureKind.timedOut,
-      ProcessCommandStatus.failed => result.exitCode == null
-          ? ProcessFailureKind.spawnFailed
-          : ProcessFailureKind.nonZeroExit,
+      ProcessCommandStatus.failed =>
+        result.exitCode == null
+            ? ProcessFailureKind.spawnFailed
+            : ProcessFailureKind.nonZeroExit,
     };
   }
 }
@@ -144,22 +148,24 @@ abstract class ProcessManager {
 }
 
 class UnsupportedProcessManager implements ProcessManager {
-  UnsupportedProcessManager({required this.facts}) : compatibility = ProcessAdapter(facts).adapt();
+  UnsupportedProcessManager({required this.facts})
+    : compatibility = ProcessAdapter(facts).adapt();
   @override
   final ProcessFacts facts;
   @override
   final ProcessCompatibility compatibility;
   @override
-  Future<ProcessCommandResult> run(ProcessCommandRequest request) async => ProcessCommandResult(
-    status: ProcessCommandStatus.blocked,
-    executablePath: request.executablePath,
-    arguments: request.arguments,
-    exitCode: null,
-    stdout: '',
-    stderr: '',
-    duration: Duration.zero,
-    message: 'Process execution is not available.',
-  );
+  Future<ProcessCommandResult> run(ProcessCommandRequest request) async =>
+      ProcessCommandResult(
+        status: ProcessCommandStatus.blocked,
+        executablePath: request.executablePath,
+        arguments: request.arguments,
+        exitCode: null,
+        stdout: '',
+        stderr: '',
+        duration: Duration.zero,
+        message: 'Process execution is not available.',
+      );
   @override
   ProcessOperationFailure? failureFor(
     ProcessCommandResult result, {
@@ -168,10 +174,6 @@ class UnsupportedProcessManager implements ProcessManager {
   }) {
     return const ProcessFailureClassifier(
       sourceManager: 'UnsupportedProcessManager',
-    ).classify(
-      result,
-      operation: operation,
-      recoveryHint: recoveryHint,
-    );
+    ).classify(result, operation: operation, recoveryHint: recoveryHint);
   }
 }

@@ -409,6 +409,23 @@ String? _recoveryValidationNextCommandId(AgentCodingSessionHistory history) {
   return nextCommandId;
 }
 
+List<String> _recoveryValidationFailedCommandIds(
+  AgentCodingSessionHistory history,
+) {
+  if (history.records.isEmpty) {
+    return const <String>[];
+  }
+  final latest = history.records.first;
+  final validationResult = _agentSurfaceMetadataObject(
+    latest.metadata['validationResult'],
+  );
+  final failedCommandIds = validationResult['failedCommandIds'];
+  if (failedCommandIds is Iterable) {
+    return failedCommandIds.whereType<String>().toList(growable: false);
+  }
+  return const <String>[];
+}
+
 Map<String, Object?> _agentSurfaceMetadataObject(Object? value) {
   if (value is Map<String, Object?>) {
     return value;
@@ -2135,6 +2152,10 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final recoveryValidationCommandId = _recoveryValidationNextCommandId(
           controller.sessionHistorySnapshot,
         );
+        final recoveryValidationFailedCommandIds =
+            _recoveryValidationFailedCommandIds(
+              controller.sessionHistorySnapshot,
+            );
 
         return Container(
           key: const ValueKey('agent-prompt-section'),
@@ -2389,6 +2410,38 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           label: Text(
                             'Continue Validation: $recoveryValidationCommandId',
                           ),
+                        ),
+                      ],
+                      if (recoveryValidationFailedCommandIds.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Validation failed commands: ${recoveryValidationFailedCommandIds.join(', ')}',
+                          key: const ValueKey(
+                            'agent-recovery-validation-failed-commands',
+                          ),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          key: const ValueKey(
+                            'agent-recovery-draft-validation-fix',
+                          ),
+                          onPressed: applyingAction || controller.sending
+                              ? null
+                              : () {
+                                  controller.updatePrompt(
+                                    'Fix the latest agent validation failure. '
+                                    'Failed validation commands: '
+                                    '${recoveryValidationFailedCommandIds.join(', ')}.',
+                                  );
+                                  setState(() {
+                                    _recoveryDispatchMessage = null;
+                                  });
+                                },
+                          icon: const Icon(Icons.build_outlined),
+                          label: const Text('Draft Validation Fix'),
                         ),
                       ],
                       if (recoveryCommands.length > 1) ...[

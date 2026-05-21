@@ -122,12 +122,13 @@ void main() {
           completedAt: DateTime.utc(2026, 5, 20, 0, 1),
           metadata: const <String, Object?>{
             'validationResult': <String, Object?>{
-              'status': 'partial',
+              'status': 'failed',
               'completedCommandIds': <String>['saveAll'],
+              'failedCommandIds': <String>['runTests'],
               'missingCommandIds': <String>['runTests'],
             },
             'validationPipeline': <String, Object?>{
-              'status': 'running',
+              'status': 'failed',
               'nextCommandId': 'runTests',
               'progressNumerator': 1,
               'progressDenominator': 5,
@@ -186,7 +187,15 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Last validation: partial · pipeline running 1/5 · next runTests'),
+      find.text('Last validation: failed · pipeline failed 1/5 · next runTests'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Validation failed commands: runTests'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-recovery-draft-validation-fix')),
       findsOneWidget,
     );
     expect(
@@ -223,6 +232,17 @@ void main() {
     await tester.pump();
 
     expect(appliedRecoveryCommand?.commandId, 'runTests');
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-recovery-draft-validation-fix')),
+    );
+    await tester.pump();
+
+    expect(
+      controller.draftPrompt,
+      'Fix the latest agent validation failure. Failed validation commands: runTests.',
+    );
 
     await _tapVisible(
       tester,

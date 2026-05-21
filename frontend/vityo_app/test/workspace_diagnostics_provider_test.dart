@@ -622,6 +622,52 @@ void main() {
     expect(notifications, 2);
   });
 
+  test(
+    'workspace diagnostics controller cancels registered producer lifecycle',
+    () async {
+      const request = WorkspaceDiagnosticsRequest(
+        documentIds: <String>['main.styio'],
+        activeDocumentId: 'main.styio',
+      );
+      final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+        providerId: 'styio-project-diagnostics',
+        request: request,
+        command: 'styio',
+        arguments: const <String>['check', '.'],
+      );
+      final lifecycleController =
+          WorkspaceDiagnosticsProducerLifecycleController()
+            ..start(plan, message: 'Styio diagnostics started.');
+      final controller = WorkspaceDiagnosticsController(
+        provider: const StaticWorkspaceDiagnosticsProvider(
+          providerId: 'static',
+          snapshot: WorkspaceDiagnosticsSnapshot(
+            providerId: 'static',
+            diagnostics: <WorkspaceDiagnostic>[],
+          ),
+        ),
+        producerLifecycleController: lifecycleController,
+      );
+      addTearDown(controller.dispose);
+      var notifications = 0;
+      controller.addListener(() {
+        notifications++;
+      });
+
+      final cancelled = await controller.cancelDiagnosticsProducer(
+        controller.diagnosticsProducerLifecycles.single,
+      );
+
+      expect(cancelled?.toJson()['status'], 'cancelled');
+      expect(cancelled?.cancellationRequested, isTrue);
+      expect(
+        controller.diagnosticsProducerLifecycles.single.canCancel,
+        isFalse,
+      );
+      expect(notifications, 1);
+    },
+  );
+
   test('workspace diagnostics controller records provider failure', () async {
     final controller = WorkspaceDiagnosticsController(
       provider: const _FailingWorkspaceDiagnosticsProvider(),

@@ -334,6 +334,8 @@ class WorkspaceDiagnosticsProducerLifecycleController {
   final Map<String, WorkspaceDiagnosticsProducerLifecycleSnapshot>
   _snapshotsByProvider =
       <String, WorkspaceDiagnosticsProducerLifecycleSnapshot>{};
+  final Map<String, WorkspaceDiagnosticsProducerExecutionPlan>
+  _plansByProvider = <String, WorkspaceDiagnosticsProducerExecutionPlan>{};
 
   List<WorkspaceDiagnosticsProducerLifecycleSnapshot> get snapshots {
     return List<WorkspaceDiagnosticsProducerLifecycleSnapshot>.unmodifiable(
@@ -347,10 +349,17 @@ class WorkspaceDiagnosticsProducerLifecycleController {
     return _snapshotsByProvider[providerId];
   }
 
+  WorkspaceDiagnosticsProducerExecutionPlan? planForProvider(
+    String providerId,
+  ) {
+    return _plansByProvider[providerId];
+  }
+
   WorkspaceDiagnosticsProducerLifecycleSnapshot register(
     WorkspaceDiagnosticsProducerExecutionPlan plan, {
     String message = '',
   }) {
+    _plansByProvider[plan.providerId] = plan;
     final task = plan.executionPlan.applyTo(_taskLifecycleController);
     return _record(plan, task, message: message);
   }

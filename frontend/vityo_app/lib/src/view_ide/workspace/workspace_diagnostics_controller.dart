@@ -7,13 +7,27 @@ class WorkspaceDiagnosticsController extends ChangeNotifier {
   WorkspaceDiagnosticsController({
     required WorkspaceDiagnosticsProvider provider,
     WorkspaceDiagnosticsFilterStore? filterStore,
+    WorkspaceDiagnosticsProducerLifecycleController?
+    producerLifecycleController,
+    Map<String, WorkspaceDiagnosticsProducerCancellationAdapter>
+        producerCancellationAdapters =
+        const <String, WorkspaceDiagnosticsProducerCancellationAdapter>{},
     String workspaceId = 'default',
   }) : _provider = provider,
        _filterStore = filterStore,
+       _producerLifecycleController = producerLifecycleController,
+       _producerCancellationAdapters =
+           Map<String, WorkspaceDiagnosticsProducerCancellationAdapter>.of(
+             producerCancellationAdapters,
+           ),
        _workspaceId = workspaceId;
 
   final WorkspaceDiagnosticsProvider _provider;
   final WorkspaceDiagnosticsFilterStore? _filterStore;
+  final WorkspaceDiagnosticsProducerLifecycleController?
+  _producerLifecycleController;
+  final Map<String, WorkspaceDiagnosticsProducerCancellationAdapter>
+  _producerCancellationAdapters;
   final String _workspaceId;
   WorkspaceDiagnosticsSnapshot? _snapshot;
   WorkspaceDiagnosticsFilterState _filterState =
@@ -23,6 +37,10 @@ class WorkspaceDiagnosticsController extends ChangeNotifier {
   WorkspaceDiagnosticsProvider get provider => _provider;
   WorkspaceDiagnosticsSnapshot? get snapshot => _snapshot;
   WorkspaceDiagnosticsFilterState get filterState => _filterState;
+  List<WorkspaceDiagnosticsProducerLifecycleSnapshot>
+  get diagnosticsProducerLifecycles =>
+      _producerLifecycleController?.snapshots ??
+      const <WorkspaceDiagnosticsProducerLifecycleSnapshot>[];
   bool get hasSnapshot => _snapshot != null;
   WorkspaceDiagnosticsView? get view {
     final currentSnapshot = _snapshot;
@@ -99,6 +117,31 @@ class WorkspaceDiagnosticsController extends ChangeNotifier {
       }
       return fallback;
     }
+  }
+
+  Future<WorkspaceDiagnosticsProducerLifecycleSnapshot?>
+  cancelDiagnosticsProducer(
+    WorkspaceDiagnosticsProducerLifecycleSnapshot snapshot, {
+    String reason = 'User cancelled diagnostics producer.',
+  }) async {
+    final lifecycleController = _producerLifecycleController;
+    if (lifecycleController == null) {
+      return null;
+    }
+    final plan = lifecycleController.planForProvider(snapshot.providerId);
+    if (plan == null) {
+      return null;
+    }
+    final adapter = _producerCancellationAdapters[snapshot.providerId];
+    final result = adapter == null
+        ? lifecycleController.requestCancellation(plan, reason: reason)
+        : await lifecycleController.requestProcessCancellation(
+            plan,
+            adapter: adapter,
+            reason: reason,
+          );
+    notifyListeners();
+    return result;
   }
 
   void clear() {

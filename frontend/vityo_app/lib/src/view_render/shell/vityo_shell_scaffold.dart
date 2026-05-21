@@ -272,6 +272,7 @@ class VityoShellScaffold extends StatelessWidget {
             documentId: shell.editorController.document.documentId,
             diagnostics: shell.editorController.analysis.diagnostics,
             workspaceDiagnostics: shell.workspaceDiagnosticsSnapshot,
+            diagnosticsProducerLifecycles: shell.diagnosticsProducerLifecycles,
             onSelectDiagnostic: shell.editorController.selectDiagnostic,
             onSelectWorkspaceDiagnostic: (diagnostic) {
               shell.selectWorkspaceDiagnostic(diagnostic);
@@ -286,6 +287,8 @@ class VityoShellScaffold extends StatelessWidget {
                 AppCommandId.refreshWorkspaceDiagnostics,
               );
             },
+            onCancelDiagnosticsProducer:
+                shell.cancelWorkspaceDiagnosticsProducer,
             onPreviewWorkspaceQuickFix: () async {
               await shell.executeCommand(AppCommandId.previewQuickFix);
             },

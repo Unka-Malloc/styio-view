@@ -710,6 +710,10 @@ class ShellRuntimeModel extends ChangeNotifier {
 
   WorkspaceDiagnosticsSnapshot? get workspaceDiagnosticsSnapshot =>
       workspaceDiagnosticsController?.snapshot;
+  List<WorkspaceDiagnosticsProducerLifecycleSnapshot>
+  get diagnosticsProducerLifecycles =>
+      workspaceDiagnosticsController?.diagnosticsProducerLifecycles ??
+      const <WorkspaceDiagnosticsProducerLifecycleSnapshot>[];
   TestDiscoveryResult? get testDiscovery => testingSessionController?.discovery;
   TestRunResult? get lastTestRun => testingSessionController?.lastRun;
   List<TestRunResult> get testRunHistory =>
@@ -1062,6 +1066,31 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
     await recordSemanticPanelEvent(panelEvent);
     return panelEvent;
+  }
+
+  Future<WorkspaceDiagnosticsProducerLifecycleSnapshot?>
+  cancelWorkspaceDiagnosticsProducer(
+    WorkspaceDiagnosticsProducerLifecycleSnapshot snapshot,
+  ) async {
+    final controller = workspaceDiagnosticsController;
+    if (controller == null) {
+      appendLog(
+        'Workspace diagnostics producer cancel unavailable: no controller is wired.',
+      );
+      return null;
+    }
+    final result = await controller.cancelDiagnosticsProducer(snapshot);
+    if (result == null) {
+      appendLog(
+        'Workspace diagnostics producer ${snapshot.providerId} cancel unavailable: no lifecycle plan is registered.',
+      );
+      return null;
+    }
+    appendLog(
+      'Workspace diagnostics producer ${snapshot.providerId} cancel ${result.status.wireValue}: ${result.message}',
+    );
+    notifyListeners();
+    return result;
   }
 
   Future<void> startStyioServiceDocumentSubscription() async {

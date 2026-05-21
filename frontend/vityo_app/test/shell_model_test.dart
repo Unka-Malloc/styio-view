@@ -324,11 +324,27 @@ void main() {
           ),
         ],
       );
+      final diagnosticsProducerPlan =
+          WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+            providerId: 'styio-project-diagnostics',
+            request: const WorkspaceDiagnosticsRequest(
+              documentIds: <String>[documentPath],
+              activeDocumentId: documentPath,
+            ),
+            command: 'styio',
+            arguments: const <String>['check', '.'],
+          );
+      final diagnosticsProducerLifecycleController =
+          WorkspaceDiagnosticsProducerLifecycleController()..start(
+            diagnosticsProducerPlan,
+            message: 'Styio diagnostics started.',
+          );
       final diagnosticsController = WorkspaceDiagnosticsController(
         provider: const StaticWorkspaceDiagnosticsProvider(
           providerId: 'static',
           snapshot: snapshot,
         ),
+        producerLifecycleController: diagnosticsProducerLifecycleController,
       );
       addTearDown(diagnosticsController.dispose);
       await diagnosticsController.refresh(
@@ -453,6 +469,15 @@ void main() {
           workspaceJson['sourceControl']! as Map<String, Object?>;
 
       expect(shell.workspaceDiagnosticsSnapshot, same(snapshot));
+      expect(
+        shell.diagnosticsProducerLifecycles.single.providerId,
+        'styio-project-diagnostics',
+      );
+      final cancelledProducer = await shell.cancelWorkspaceDiagnosticsProducer(
+        shell.diagnosticsProducerLifecycles.single,
+      );
+      expect(cancelledProducer?.toJson()['status'], 'cancelled');
+      expect(shell.diagnosticsProducerLifecycles.single.canCancel, isFalse);
       expect(diagnosticsJson['providerId'], 'static');
       expect(diagnosticsJson['totalCount'], 1);
       expect(shell.testDiscovery?.testCount, 1);

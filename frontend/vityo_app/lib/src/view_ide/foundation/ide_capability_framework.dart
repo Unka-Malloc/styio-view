@@ -355,9 +355,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/interaction',
           summary:
-              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore review outcomes, WorkspaceDiagnosticsRuntimeOutputBinding producer telemetry, WorkspaceDiagnosticsProducerExecutionPlan native toolchain handoff triggers and WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots, WorkspaceDiagnosticsProducerCancellationRoute, Problems producer lifecycle progress/cancel controls, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
+              'Diagnostics interaction can consume workspace diagnostics provider snapshots, serializable diagnostics filters, persisted panel state, panel-state restoration in ProblemsSurface, source groups, reusable diagnostics view models, quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore review outcomes, WorkspaceDiagnosticsRuntimeOutputBinding producer telemetry, WorkspaceDiagnosticsProducerExecutionPlan native toolchain handoff triggers and WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots, WorkspaceDiagnosticsProducerCancellationRoute, ShellRuntime diagnostics producer cancellation bridge, Problems producer lifecycle progress/cancel controls, RuntimeOutputLiveBuffer quick-fix action telemetry, WorkspaceQuickFixReviewPlan bridges into concrete Problems diff/apply controls, focused problem actions, and keyboard-navigable Problems panel bindings.',
           todo:
-              'TODO: bind diagnostics producer cancellation routes to concrete native process handles where available.',
+              'TODO: bind diagnostics producer cancellation routes to concrete native process handles for every production diagnostics provider.',
           runtimeMaturityBlocking: false,
           dependencies: <String>['workspace.diagnostics'],
         ),
@@ -476,9 +476,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/workspace/workspace_diagnostics.dart',
           summary:
-              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, WorkspaceDiagnosticsRuntimeOutputBinding output-panel events, WorkspaceDiagnosticsProducerExecutionPlan toolchain execution triggers, WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots, diagnostics producer cancellation adapter contracts, runtime task cancellation metadata, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore persisted review outcomes, preview/apply action routing, and native tool result diagnostic snapshots.',
+              'WorkspaceDiagnosticsSnapshot and WorkspaceDiagnosticsProviderRegistry provide shared workspace problem facts for Problems, Agent, and code actions, including document grouping, source grouping, persisted filters, workspace diagnostic stream snapshots, WorkspaceDiagnosticsRuntimeOutputBinding output-panel events, WorkspaceDiagnosticsProducerExecutionPlan toolchain execution triggers, WorkspaceDiagnosticsProducerLifecycleController progress/cancel snapshots and registered plan lookup, diagnostics producer cancellation adapter contracts, WorkspaceDiagnosticsController producer cancellation dispatch, runtime task cancellation metadata, attached quick-fix facts, source-kind classification, workspace quick-fix confirmation plans, WorkspaceQuickFixTelemetryStore persisted review outcomes, preview/apply action routing, and native tool result diagnostic snapshots.',
           todo:
-              'TODO: bind diagnostics producer process-handle adapter contract is wired; bind it to real ToolchainManager/native process handles.',
+              'TODO: bind diagnostics producer process-handle adapters to real ToolchainManager/native process handles for every production provider.',
           dependencies: <String>[
             'foundation.registry',
             'service.styio-language',

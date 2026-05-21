@@ -66,6 +66,8 @@ void main() {
     final result = await pending;
 
     expect(planned.ready, isTrue);
+    expect(planned.routeKind, 'lifecycle');
+    expect(planned.processHandleBound, isFalse);
     expect(cancelled.cancelled, isTrue);
     expect(cancelled.status, 'cancelled');
     expect(
@@ -147,6 +149,9 @@ void main() {
       final processMetadata =
           cancellationMetadata['metadata']! as Map<String, Object?>;
 
+      expect(planned.processHandleBound, isTrue);
+      expect(planned.processHandleId, 'debug-process-7');
+      expect(planned.toJson()['routeKind'], 'process-handle');
       expect(handle.cancelledTaskIds, <String>[planned.taskId]);
       expect(handle.lastFailedTestName, 'parser syntax');
       expect(handle.lastReason, contains(planned.taskId));

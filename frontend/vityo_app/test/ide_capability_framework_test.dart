@@ -276,6 +276,18 @@ void main() {
       contains('TestingProviderRetryPlan retry action facts'),
     );
     expect(
+      entriesById['interaction.testing']?.summary,
+      contains('FailedTestDebugCancellationRoute process-handle metadata'),
+    );
+    expect(
+      entriesById['interaction.testing']?.todo,
+      contains('debug adapter and test runner process termination'),
+    );
+    expect(
+      entriesById['interaction.testing']?.runtimeMaturityBlocking,
+      isFalse,
+    );
+    expect(
       entriesById['interaction.testing']?.dependencies,
       contains('runtime.execution'),
     );

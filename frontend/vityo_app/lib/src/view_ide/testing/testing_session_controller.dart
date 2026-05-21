@@ -17,12 +17,16 @@ class FailedTestDebugCancellationRoute {
     required this.ready,
     required this.cancelled,
     required this.message,
+    this.routeKind = 'lifecycle',
+    this.processHandleBound = false,
+    this.processHandleId = '',
   });
 
   factory FailedTestDebugCancellationRoute.fromState({
     required RuntimeTaskSnapshot? runtimeTask,
     required TestRunConfiguration? configuration,
     required Map<String, Object?> failedTest,
+    String processHandleId = '',
     bool cancelled = false,
     String? message,
   }) {
@@ -33,6 +37,7 @@ class FailedTestDebugCancellationRoute {
     final isDebugTask = runtimeTask?.definition.kind == RuntimeTaskKind.debug;
     final active = runtimeTask?.active ?? false;
     final ready = runtimeTask != null && isDebugTask && active && !cancelled;
+    final handleId = processHandleId.trim();
     final blockedReason = runtimeTask == null
         ? 'No active test debug runtime task is available.'
         : !isDebugTask
@@ -51,6 +56,9 @@ class FailedTestDebugCancellationRoute {
           : runtimeTask?.status.wireValue ?? 'unavailable',
       ready: ready,
       cancelled: cancelled,
+      routeKind: handleId.isEmpty ? 'lifecycle' : 'process-handle',
+      processHandleBound: handleId.isNotEmpty,
+      processHandleId: handleId,
       message:
           message ??
           (ready
@@ -68,6 +76,9 @@ class FailedTestDebugCancellationRoute {
   final bool ready;
   final bool cancelled;
   final String message;
+  final String routeKind;
+  final bool processHandleBound;
+  final String processHandleId;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -80,8 +91,11 @@ class FailedTestDebugCancellationRoute {
       'ready': ready,
       'cancelled': cancelled,
       'message': message,
+      'routeKind': routeKind,
+      'processHandleBound': processHandleBound,
+      if (processHandleId.isNotEmpty) 'processHandleId': processHandleId,
       'todo':
-          'TODO: bind FailedTestDebugCancellationAdapter to concrete debug adapter and test runner process implementations.',
+          'TODO: bind failed-test debug cancellation route to concrete debug adapter and test runner process implementations.',
     };
   }
 }
@@ -156,6 +170,7 @@ abstract class FailedTestDebugProcessCancellationHandle {
 class FailedTestDebugCancellationAdapter {
   const FailedTestDebugCancellationAdapter({
     required FailedTestDebugCancellationHandler cancel,
+    this.processHandleId = '',
   }) : _cancel = cancel;
 
   factory FailedTestDebugCancellationAdapter.processHandle(
@@ -187,10 +202,12 @@ class FailedTestDebugCancellationAdapter {
               },
             );
           },
+      processHandleId: handle.handleId,
     );
   }
 
   final FailedTestDebugCancellationHandler _cancel;
+  final String processHandleId;
 
   Future<FailedTestDebugCancellationResult> cancel({
     required FailedTestDebugCancellationRoute route,
@@ -474,6 +491,7 @@ class TestingSessionController extends ChangeNotifier {
       runtimeTask: _lastRuntimeTask,
       configuration: _lastRunConfiguration,
       failedTest: failedTest,
+      processHandleId: failedTestDebugCancellationAdapter?.processHandleId ?? '',
     );
     _lastFailedDebugCancellationRoute = route;
     notifyListeners();
@@ -506,6 +524,8 @@ class TestingSessionController extends ChangeNotifier {
           runtimeTask: runtimeTask,
           configuration: _lastRunConfiguration,
           failedTest: failedTest,
+          processHandleId:
+              failedTestDebugCancellationAdapter?.processHandleId ?? '',
           message: adapterResult.message,
         );
         _lastFailedDebugCancellationRoute = rejectedRoute;
@@ -529,6 +549,7 @@ class TestingSessionController extends ChangeNotifier {
       runtimeTask: cancelled,
       configuration: _lastRunConfiguration,
       failedTest: failedTest,
+      processHandleId: failedTestDebugCancellationAdapter?.processHandleId ?? '',
       cancelled: true,
       message:
           'Failed-test debug cancellation routed for ${route.failedTestName}.',

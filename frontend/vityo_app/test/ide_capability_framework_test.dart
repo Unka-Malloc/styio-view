@@ -86,8 +86,12 @@ void main() {
       contains('partial patch results'),
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('SourceControlDiffSessionStore'),
+    );
+    expect(
       entriesById['interaction.source-control']?.todo,
-      contains('persisted diff-session DataStore owner'),
+      contains('restore SourceControlDiffSessionStore state'),
     );
     expect(
       entriesById['interaction.source-control']?.runtimeMaturityBlocking,

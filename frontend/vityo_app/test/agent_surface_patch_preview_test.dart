@@ -111,14 +111,28 @@ void main() {
     final history = AgentCodingSessionHistory(
       workspaceId: 'demo',
       records: <AgentCodingSessionHistoryRecord>[
-        AgentCodingSessionHistoryRecord.failure(
+        AgentCodingSessionHistoryRecord(
           requestId: 'agent-failed',
-          profile: profile,
-          providerKind: AgentProviderKind.cloudOpenAICompatible,
+          profileId: profile.profileId,
+          providerKind: AgentProviderKind.cloudOpenAICompatible.wireValue,
           prompt: 'Recover this failed prompt.',
+          outcome: AgentCodingSessionOutcome.failed,
           errorMessage: 'provider timed out',
           createdAt: DateTime.utc(2026, 5, 20),
           completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+          metadata: const <String, Object?>{
+            'validationResult': <String, Object?>{
+              'status': 'partial',
+              'completedCommandIds': <String>['saveAll'],
+              'missingCommandIds': <String>['runTests'],
+            },
+            'validationPipeline': <String, Object?>{
+              'status': 'running',
+              'nextCommandId': 'runTests',
+              'progressNumerator': 1,
+              'progressDenominator': 5,
+            },
+          },
         ),
       ],
     );
@@ -167,6 +181,14 @@ void main() {
     );
     expect(find.text('Recovery Available'), findsOneWidget);
     expect(find.text('Retry same provider'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('agent-recovery-validation-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Last validation: partial · pipeline running 1/5 · next runTests'),
+      findsOneWidget,
+    );
     expect(find.text('Fail over provider'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-recovery-command-failoverProvider')),

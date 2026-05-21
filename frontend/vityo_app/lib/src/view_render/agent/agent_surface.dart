@@ -367,6 +367,50 @@ class _AgentCodingValidationPlanSummary extends StatelessWidget {
   }
 }
 
+String? _recoveryValidationSummary(AgentCodingSessionHistory history) {
+  if (history.records.isEmpty) {
+    return null;
+  }
+  final latest = history.records.first;
+  final validationResult = _agentSurfaceMetadataObject(
+    latest.metadata['validationResult'],
+  );
+  final validationPipeline = _agentSurfaceMetadataObject(
+    latest.metadata['validationPipeline'],
+  );
+  if (validationResult.isEmpty && validationPipeline.isEmpty) {
+    return null;
+  }
+  final resultStatus = validationResult['status'] as String? ?? 'unknown';
+  final pipelineStatus = validationPipeline['status'] as String? ?? 'unknown';
+  final progressNumerator = validationPipeline['progressNumerator'] as int?;
+  final progressDenominator =
+      validationPipeline['progressDenominator'] as int?;
+  final nextCommandId = validationPipeline['nextCommandId'] as String?;
+  final progress = progressNumerator == null || progressDenominator == null
+      ? ''
+      : ' $progressNumerator/$progressDenominator';
+  final next = nextCommandId == null ? '' : ' · next $nextCommandId';
+  return 'Last validation: $resultStatus · pipeline $pipelineStatus$progress$next';
+}
+
+Map<String, Object?> _agentSurfaceMetadataObject(Object? value) {
+  if (value is Map<String, Object?>) {
+    return value;
+  }
+  if (value is Map) {
+    final result = <String, Object?>{};
+    for (final entry in value.entries) {
+      final key = entry.key;
+      if (key is String) {
+        result[key] = entry.value;
+      }
+    }
+    return result;
+  }
+  return const <String, Object?>{};
+}
+
 class _AgentActivityHistoryBinding extends StatelessWidget {
   const _AgentActivityHistoryBinding({
     required this.controller,
@@ -2070,6 +2114,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   .whereType<AgentCodingSessionRecoveryCommandPlan>()
                   .toList(growable: false)
             : const <AgentCodingSessionRecoveryCommandPlan>[];
+        final recoveryValidationSummary = _recoveryValidationSummary(
+          controller.sessionHistorySnapshot,
+        );
 
         return Container(
           key: const ValueKey('agent-prompt-section'),
@@ -2286,6 +2333,20 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                         recoveryCommand.label,
                         style: theme.textTheme.bodySmall,
                       ),
+                      if (recoveryValidationSummary != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          recoveryValidationSummary,
+                          key: const ValueKey(
+                            'agent-recovery-validation-summary',
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
                       if (recoveryCommands.length > 1) ...[
                         const SizedBox(height: 8),
                         Text(

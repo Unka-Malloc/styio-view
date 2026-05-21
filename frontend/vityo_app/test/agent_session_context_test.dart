@@ -2014,6 +2014,7 @@ void main() {
         containsAll(<String>[
           AppCommandId.refreshLanguageService.name,
           AppCommandId.refreshWorkspaceDiagnostics.name,
+          AppCommandId.collectProjectLanguageContext.name,
           AppCommandId.runTests.name,
           AppCommandId.runTestConfiguration.name,
         ]),
@@ -2024,10 +2025,20 @@ void main() {
           AppCommandId.saveAll.name,
           AppCommandId.refreshLanguageService.name,
           AppCommandId.refreshWorkspaceDiagnostics.name,
+          AppCommandId.collectProjectLanguageContext.name,
           AppCommandId.runTests.name,
           AppCommandId.runTestConfiguration.name,
         ]),
       );
+      final projectLanguagePlan = validationCommandPlans
+          .cast<Map<String, Object?>>()
+          .singleWhere(
+            (commandPlan) =>
+                commandPlan['commandId'] ==
+                AppCommandId.collectProjectLanguageContext.name,
+          );
+      expect(projectLanguagePlan['phase'], 'languageEvidence');
+      expect(projectLanguagePlan['requiresInput'], isFalse);
       final runConfigurationPlan = validationCommandPlans
           .cast<Map<String, Object?>>()
           .singleWhere(

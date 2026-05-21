@@ -697,6 +697,7 @@ class AgentCodingValidationPlan {
         'saveChangedDocuments',
         'runStyioSyntaxValidation',
         'refreshWorkspaceDiagnostics',
+        'collectProjectLanguageContext',
         'runRelevantTests',
         'captureValidationResult',
       ],
@@ -704,6 +705,7 @@ class AgentCodingValidationPlan {
         AppCommandId.saveAll.name,
         AppCommandId.refreshLanguageService.name,
         AppCommandId.refreshWorkspaceDiagnostics.name,
+        AppCommandId.collectProjectLanguageContext.name,
         AppCommandId.runTests.name,
         AppCommandId.runTestConfiguration.name,
       ],
@@ -711,6 +713,7 @@ class AgentCodingValidationPlan {
         AppCommandId.saveAll.name,
         AppCommandId.refreshLanguageService.name,
         AppCommandId.refreshWorkspaceDiagnostics.name,
+        AppCommandId.collectProjectLanguageContext.name,
         AppCommandId.runTests.name,
         AppCommandId.runTestConfiguration.name,
       ],
@@ -726,6 +729,10 @@ class AgentCodingValidationPlan {
         AgentCodingValidationCommandPlan.forCommand(
           commandId: AppCommandId.refreshWorkspaceDiagnostics,
           phase: 'diagnostics',
+        ),
+        AgentCodingValidationCommandPlan.forCommand(
+          commandId: AppCommandId.collectProjectLanguageContext,
+          phase: 'languageEvidence',
         ),
         AgentCodingValidationCommandPlan.forCommand(
           commandId: AppCommandId.runTests,

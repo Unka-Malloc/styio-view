@@ -53,6 +53,25 @@ void main() {
         'styio.service.status.missing',
       ]),
     );
+    final blockedProviderContext = AgentSessionContext.fromEditorState(
+      document: document,
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      providerExecutionResolution: const AgentProviderExecutionResolution(
+        profileId: 'blocked-provider',
+        status: AgentProviderExecutionResolutionStatus.blocked,
+        endpoints: <AgentProviderEndpointReadiness>[],
+      ),
+    );
+    final blockedReadiness =
+        blockedProviderContext.toJson()['codingReadiness']!
+            as Map<String, Object?>;
+    expect(blockedReadiness['status'], 'blocked');
+    expect(blockedReadiness['canDispatchProviderRequest'], isFalse);
+    expect(
+      blockedReadiness['issueCodes'],
+      contains('agent.provider.route.blocked'),
+    );
 
     final agentChannel = context.toJsonForChannels(const <String>['agent']);
     expect(agentChannel['codingReadiness'], isA<Map<String, Object?>>());
@@ -2008,7 +2027,10 @@ void main() {
       expect(patchValidationSnapshot['resultStatus'], 'notStarted');
       expect(patchValidationSnapshot['pipelineStatus'], 'ready');
       expect(patchValidationSnapshot['nextCommandId'], 'saveAll');
-      expect(patchValidationSnapshot['missingCommandIds'], contains('runTests'));
+      expect(
+        patchValidationSnapshot['missingCommandIds'],
+        contains('runTests'),
+      );
       expect(recentPatchApplications.length, 1);
       expect(
         (recentPatchApplications.single! as Map<String, Object?>)['patchId'],
@@ -2110,18 +2132,19 @@ void main() {
           message: '$commandId completed.',
         ),
     ];
-    final context = AgentSessionContext.fromEditorState(
-      document: const DocumentState(
-        documentId: 'src/main.styio',
-        text: 'value := 1\n',
-        revision: 1,
-      ),
-      selection: const SelectionState.collapsed(0),
-      diagnostics: const <Diagnostic>[],
-    ).withAgentCodingState(
-      lastPatchApplication: patchApplication,
-      recentCommandResults: commandResults,
-    );
+    final context =
+        AgentSessionContext.fromEditorState(
+          document: const DocumentState(
+            documentId: 'src/main.styio',
+            text: 'value := 1\n',
+            revision: 1,
+          ),
+          selection: const SelectionState.collapsed(0),
+          diagnostics: const <Diagnostic>[],
+        ).withAgentCodingState(
+          lastPatchApplication: patchApplication,
+          recentCommandResults: commandResults,
+        );
 
     final agentJson = context.toJson()['agent']! as Map<String, Object?>;
     final lastPatchApplication =
@@ -2152,7 +2175,10 @@ void main() {
     expect(validationResult['missingCommandIds'], isEmpty);
     expect(patchValidationSnapshot['resultStatus'], 'passed');
     expect(patchValidationSnapshot['pipelineStatus'], 'complete');
-    expect(patchValidationSnapshot['completedCommandIds'], contains('runTests'));
+    expect(
+      patchValidationSnapshot['completedCommandIds'],
+      contains('runTests'),
+    );
   });
 
   test('agent session context serializes current pending patch', () {

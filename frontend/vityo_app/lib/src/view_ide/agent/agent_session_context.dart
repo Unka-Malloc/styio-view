@@ -117,6 +117,31 @@ class AgentCodingExecutionReadiness {
               'TODO: bind ProviderRegistry route selection to the coding assistant UI.',
         ),
       );
+    } else {
+      final providerHealth = providerExecutionResolution.toHealthReport();
+      if (!providerHealth.executable) {
+        issues.add(
+          AgentCodingExecutionReadinessIssue(
+            code: 'agent.provider.route.blocked',
+            message: providerHealth.message,
+            severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
+            ownerLayer: 'service',
+            todo:
+                'TODO: resolve provider credentials, endpoint reachability, or route execution before dispatching agent coding requests.',
+          ),
+        );
+      } else if (!providerHealth.ready) {
+        issues.add(
+          AgentCodingExecutionReadinessIssue(
+            code: 'agent.provider.route.degraded',
+            message: providerHealth.message,
+            severity: AgentCodingExecutionReadinessIssueSeverity.attention,
+            ownerLayer: 'service',
+            todo:
+                'TODO: surface provider fallback health in the Agent panel before autonomous edits.',
+          ),
+        );
+      }
     }
     if (languageServiceStatus == null) {
       issues.add(
@@ -469,9 +494,7 @@ class AgentCodingChangeReviewGate {
       requiresUserReview: requiresUserReview,
       issues: List<AgentCodingChangeReviewIssue>.unmodifiable(issues),
       requiredReviewSteps: List<String>.unmodifiable(requiredReviewSteps),
-      reviewSurfaceActionIds: List<String>.unmodifiable(
-        reviewSurfaceActionIds,
-      ),
+      reviewSurfaceActionIds: List<String>.unmodifiable(reviewSurfaceActionIds),
       todoItems: List<String>.unmodifiable(
         issues.map((issue) => issue.todo).whereType<String>(),
       ),
@@ -1725,8 +1748,7 @@ class AgentCodingLoopContext {
             pipeline: effectiveValidationPipeline,
           );
     final effectiveLastPatchApplicationWithValidation =
-        effectiveLastPatchApplication == null ||
-            patchValidationSnapshot == null
+        effectiveLastPatchApplication == null || patchValidationSnapshot == null
         ? effectiveLastPatchApplication
         : effectiveLastPatchApplication.withValidationSnapshot(
             patchValidationSnapshot,

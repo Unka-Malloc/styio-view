@@ -681,6 +681,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('provider execution health blocking/degraded readiness facts'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('AgentCodingChangeReviewGate patch review facts'),
     );
     expect(

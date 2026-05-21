@@ -1352,6 +1352,7 @@ class SourceControlAgentContextSnapshot {
     this.pendingBranchSwitchPlan,
     this.lastBranchSwitchResult,
     this.historySnapshot,
+    this.suggestedCommandIds = const <String>[],
   });
 
   factory SourceControlAgentContextSnapshot.fromState({
@@ -1366,7 +1367,7 @@ class SourceControlAgentContextSnapshot {
     SourceControlHistorySnapshot? historySnapshot,
     int diffLineLimit = 80,
   }) {
-    return SourceControlAgentContextSnapshot(
+    final snapshot = SourceControlAgentContextSnapshot(
       workspaceRoot: workspaceRoot,
       status: status,
       diffReview: diffPreview?.reviewSummary,
@@ -1377,6 +1378,9 @@ class SourceControlAgentContextSnapshot {
       pendingBranchSwitchPlan: pendingBranchSwitchPlan,
       lastBranchSwitchResult: lastBranchSwitchResult,
       historySnapshot: historySnapshot,
+    );
+    return snapshot.withSuggestedCommandIds(
+      _suggestedSourceControlCommandIds(snapshot),
     );
   }
 
@@ -1390,6 +1394,7 @@ class SourceControlAgentContextSnapshot {
   final SourceControlBranchSwitchPlan? pendingBranchSwitchPlan;
   final SourceControlBranchSwitchResult? lastBranchSwitchResult;
   final SourceControlHistorySnapshot? historySnapshot;
+  final List<String> suggestedCommandIds;
 
   bool get loaded => status != null;
   bool get available => status?.available ?? false;
@@ -1427,6 +1432,27 @@ class SourceControlAgentContextSnapshot {
     );
   }
 
+  SourceControlAgentContextSnapshot withSuggestedCommandIds(
+    List<String> commandIds,
+  ) {
+    if (commandIds.isEmpty && suggestedCommandIds.isEmpty) {
+      return this;
+    }
+    return SourceControlAgentContextSnapshot(
+      workspaceRoot: workspaceRoot,
+      status: status,
+      diffReview: diffReview,
+      diffWindow: diffWindow,
+      pendingActionPlan: pendingActionPlan,
+      lastActionResult: lastActionResult,
+      branchSnapshot: branchSnapshot,
+      pendingBranchSwitchPlan: pendingBranchSwitchPlan,
+      lastBranchSwitchResult: lastBranchSwitchResult,
+      historySnapshot: historySnapshot,
+      suggestedCommandIds: commandIds,
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'workspaceRoot': workspaceRoot,
@@ -1440,6 +1466,8 @@ class SourceControlAgentContextSnapshot {
       'stagedPaths': stagedPaths,
       'unstagedPaths': unstagedPaths,
       'conflictedPaths': conflictedPaths,
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
       'hasDiffPreview': hasDiffPreview,
       'requiresHumanConfirmation': requiresHumanConfirmation,
       if (diffReview != null) 'diffReview': diffReview!.toJson(),
@@ -1463,6 +1491,30 @@ class SourceControlAgentContextSnapshot {
       changes.where(test).map((change) => change.path),
     );
   }
+}
+
+List<String> _suggestedSourceControlCommandIds(
+  SourceControlAgentContextSnapshot snapshot,
+) {
+  if (!snapshot.loaded ||
+      !snapshot.available ||
+      snapshot.requiresHumanConfirmation) {
+    return const <String>[];
+  }
+  final commandIds = <String>[];
+  // TODO(agent-command-contract): move these command id strings behind a shared
+  // typed command suggestion contract once the Agent command schema stabilizes.
+  if (snapshot.unstagedPaths.isNotEmpty) {
+    commandIds.add('stageSourceControl');
+  }
+  if (snapshot.stagedPaths.isNotEmpty) {
+    commandIds.add('unstageSourceControl');
+    commandIds.add('planSourceControlCommitDraft');
+  }
+  if (snapshot.branchSnapshot != null) {
+    commandIds.add('planSourceControlBranchSwitch');
+  }
+  return List<String>.unmodifiable(commandIds);
 }
 
 class SourceControlCommandRequest {

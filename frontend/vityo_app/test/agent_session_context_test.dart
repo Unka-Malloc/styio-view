@@ -513,7 +513,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 72);
+    expect(json['schemaVersion'], 73);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1334,6 +1334,45 @@ void main() {
     );
   });
 
+  test('agent source control context suggests registered coding commands', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: '/workspace/demo/src/main.styio',
+        text: 'value := 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+      sourceControlContext: SourceControlAgentContextSnapshot.fromState(
+        workspaceRoot: '/workspace/demo',
+        status: const SourceControlStatusSnapshot(
+          providerKind: SourceControlProviderKind.git,
+          branchName: 'ai-dev',
+          changes: <SourceControlFileChange>[
+            SourceControlFileChange(
+              path: 'src/main.styio',
+              stagedStatus: SourceControlFileStatus.modified,
+            ),
+            SourceControlFileChange(
+              path: 'test/main_test.dart',
+              unstagedStatus: SourceControlFileStatus.modified,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final workspaceJson = context.toJson()['workspace']! as Map<String, Object?>;
+    final sourceControlContext =
+        workspaceJson['sourceControlContext']! as Map<String, Object?>;
+
+    expect(sourceControlContext['suggestedCommandIds'], <String>[
+      'stageSourceControl',
+      'unstageSourceControl',
+      'planSourceControlCommitDraft',
+    ]);
+  });
+
   test('agent command catalog exposes every registered app command', () {
     final context = AgentSessionContext.fromEditorState(
       document: const DocumentState(
@@ -1438,7 +1477,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 72);
+    expect(context.schemaVersion, 73);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1821,7 +1860,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 72);
+    expect(json['schemaVersion'], 73);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2096,7 +2135,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 72);
+    expect(context.schemaVersion, 73);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

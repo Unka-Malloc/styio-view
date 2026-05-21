@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'agent_coding_session_history_store.dart';
+import 'agent_coding_dispatch_plan.dart';
 import 'agent_code_patch_applier.dart';
 import 'agent_profile.dart';
 import 'agent_provider_adapter.dart';
@@ -229,6 +230,28 @@ class AgentCodingSessionController extends ChangeNotifier {
         plan: codingValidationPlan,
         result: codingValidationResult,
       );
+
+  AgentCodingDispatchPlan previewDispatchPlan() {
+    final prompt = _draftPrompt.trim();
+    final requestContext = _contextForProviderRequest();
+    final readiness = requestContext.codingReadiness.withControllerState(
+      hasDraftPrompt: prompt.isNotEmpty,
+      sending: _sending,
+      applyingPatch: _applyingPatch,
+      applyingIdeCommand: _applyingIdeCommand,
+    );
+    return AgentCodingDispatchPlan.fromContext(
+      profile: profile,
+      adapter: adapter,
+      context: requestContext,
+      readiness: readiness,
+      prompt: prompt,
+      attachmentCount: _attachments.length,
+      conversationTurnCount: _conversationWindow().length,
+      providerSelectionPlan: _providerSelectionPlan,
+      providerExecutionResolution: _providerExecutionResolution,
+    );
+  }
 
   void mountProvider({
     required AgentPromptProfile profile,

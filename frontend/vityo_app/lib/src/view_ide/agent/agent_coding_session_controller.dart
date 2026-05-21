@@ -584,8 +584,23 @@ class AgentCodingSessionController extends ChangeNotifier {
     AgentToolCallExecutor executor, {
     AgentToolCallDispatcher dispatcher = const AgentToolCallDispatcher(),
   }) async {
+    final executionPlan = toolCallExecutionPlan;
+    final blockedInputResults = _blockedToolInputResults(executionPlan);
+    if (blockedInputResults.isNotEmpty) {
+      final events = blockedInputResults
+          .map((result) => result.toLifecycleEvent())
+          .toList(growable: false);
+      recordToolCallEvents(events);
+      _recordRecentToolCallResultContexts(blockedInputResults);
+      return AgentToolCallDispatchReport(
+        status: AgentToolCallDispatchReportStatus.failed,
+        plan: AgentToolCallDispatchPlan.fromExecutionPlan(executionPlan),
+        results: blockedInputResults,
+        events: events,
+      );
+    }
     final report = await dispatcher.dispatchReady(
-      executionPlan: toolCallExecutionPlan,
+      executionPlan: executionPlan,
       timeline: _toolCallTimeline,
       executor: executor,
     );
@@ -1629,6 +1644,40 @@ class AgentCodingSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<AgentToolCallDispatchResult> _blockedToolInputResults(
+    AgentToolCallExecutionPlan executionPlan,
+  ) {
+    final results = <AgentToolCallDispatchResult>[];
+    for (final execution in executionPlan.executions) {
+      if (execution.status != AgentToolCallExecutionStatus.blocked) {
+        continue;
+      }
+      final inputIssues = execution.issues
+          .where(_isToolInputIssue)
+          .toList(growable: false);
+      if (inputIssues.isEmpty) {
+        continue;
+      }
+      final message = _blockedToolInputMessage(execution, inputIssues);
+      results.add(
+        AgentToolCallDispatchResult.failure(
+          callId: execution.callId,
+          toolId: execution.toolId,
+          message: message,
+          output: message,
+          metadata: <String, Object?>{
+            'source': 'agent-tool-input-validation',
+            'blocked': true,
+            'issueCodes': inputIssues
+                .map((issue) => issue.code)
+                .toList(growable: false),
+          },
+        ),
+      );
+    }
+    return results;
+  }
+
   void _trimConversationWindow() {
     if (_conversationTurns.length <= maxConversationTurns) {
       return;
@@ -1669,6 +1718,21 @@ String _agentReadinessBlockMessage(AgentCodingExecutionReadiness readiness) {
     return 'Agent request blocked by coding readiness gate.';
   }
   return 'Agent request blocked by coding readiness gate: ${issueMessages.join(' ')}';
+}
+
+bool _isToolInputIssue(AgentToolCallExecutionIssue issue) {
+  return issue.code.startsWith('agent.tool.input.');
+}
+
+String _blockedToolInputMessage(
+  AgentToolCallExecution execution,
+  List<AgentToolCallExecutionIssue> inputIssues,
+) {
+  final detail = inputIssues
+      .map((issue) => issue.message)
+      .join(' ');
+  return 'The ${execution.toolId} tool was called with invalid arguments: '
+      '$detail Please rewrite the input so it satisfies the expected schema.';
 }
 
 Map<String, Object?> _agentCodingHistoryMetadata(AgentSessionContext context) {

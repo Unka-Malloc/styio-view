@@ -227,6 +227,49 @@ void main() {
     },
   );
 
+  test(
+    'agent coding session feeds blocked tool input errors back to provider',
+    () async {
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: const LocalOnlyAgentProviderAdapter(),
+        contextProvider: _context,
+      );
+      var executed = false;
+
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-read',
+          toolId: 'readWorkspaceFile',
+          input: '{"path":123}',
+        ),
+      );
+      final report = await controller.dispatchReadyToolCalls((request) {
+        executed = true;
+        return AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: 'unexpected',
+        );
+      });
+
+      expect(executed, isFalse);
+      expect(report.status, AgentToolCallDispatchReportStatus.failed);
+      expect(report.results.single.success, isFalse);
+      expect(report.results.single.metadata['source'], 'agent-tool-input-validation');
+      expect(report.results.single.output, contains('invalid arguments'));
+      expect(report.results.single.output, contains('Please rewrite the input'));
+      expect(
+        controller.recentToolCallResultContexts.single.success,
+        isFalse,
+      );
+      expect(
+        controller.toolCallTimeline.status,
+        AgentToolCallTimelineStatus.failed,
+      );
+    },
+  );
+
   test('agent coding session records provider executable tool calls', () async {
     final adapter = _FakeAgentProviderAdapter(
       response: const AgentProviderResponseEnvelope(

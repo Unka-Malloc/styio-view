@@ -148,6 +148,29 @@ void main() {
     );
   });
 
+  test('agent coding session records streamed tool call metadata', () async {
+    final adapter = _ToolCallStreamingAgentProviderAdapter();
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: adapter,
+      contextProvider: _context,
+    );
+
+    controller.updatePrompt('Read the current file.');
+    final response = await controller.sendPrompt();
+
+    expect(response, isNotNull);
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.complete,
+    );
+    expect(controller.toolCallTimeline.callIds, <String>['call-read']);
+    expect(
+      controller.toolCallExecutionPlan.status,
+      AgentToolCallExecutionPlanStatus.complete,
+    );
+  });
+
   test(
     'agent coding session blocks provider dispatch when route is blocked',
     () async {
@@ -2218,6 +2241,48 @@ class _StreamingAgentProviderAdapter implements StreamingAgentProviderAdapter {
       text: 'streamed answer',
     );
     yield AgentProviderStreamEvent.completed(requestId: request.requestId);
+  }
+}
+
+class _ToolCallStreamingAgentProviderAdapter
+    implements StreamingAgentProviderAdapter {
+  @override
+  String get adapterId => 'tool-call-streaming';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.localOnlyFallback;
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(AgentProviderRequest request) {
+    throw StateError('tool-call streaming adapter send should not be used');
+  }
+
+  @override
+  Stream<AgentProviderStreamEvent> stream(AgentProviderRequest request) async* {
+    yield AgentProviderStreamEvent.started(request.requestId);
+    yield AgentProviderStreamEvent.delta(
+      requestId: request.requestId,
+      text: '',
+      metadata: const <String, Object?>{
+        'toolCallEventKind': 'tool-call',
+        'toolCallId': 'call-read',
+        'toolId': 'readWorkspaceFile',
+        'toolInput': '{"path":"main.styio"}',
+      },
+    );
+    yield AgentProviderStreamEvent.completed(
+      requestId: request.requestId,
+      metadata: const <String, Object?>{
+        'toolCallEventKind': 'tool-result',
+        'toolCallId': 'call-read',
+        'toolId': 'readWorkspaceFile',
+        'toolResult': 'value = 1',
+        'finishReason': 'stop',
+      },
+    );
   }
 }
 

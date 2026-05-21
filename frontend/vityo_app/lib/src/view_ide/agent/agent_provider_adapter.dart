@@ -258,32 +258,40 @@ class AgentProviderStreamEvent {
     DateTime? emittedAt,
   }) : emittedAt = emittedAt ?? DateTime.now().toUtc();
 
-  factory AgentProviderStreamEvent.started(String requestId) {
+  factory AgentProviderStreamEvent.started(
+    String requestId, {
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
     return AgentProviderStreamEvent(
       kind: AgentProviderStreamEventKind.started,
       requestId: requestId,
+      metadata: metadata,
     );
   }
 
   factory AgentProviderStreamEvent.delta({
     required String requestId,
     required String text,
+    Map<String, Object?> metadata = const <String, Object?>{},
   }) {
     return AgentProviderStreamEvent(
       kind: AgentProviderStreamEventKind.contentDelta,
       requestId: requestId,
       deltaText: text,
+      metadata: metadata,
     );
   }
 
   factory AgentProviderStreamEvent.part({
     required String requestId,
     required AgentContentPart contentPart,
+    Map<String, Object?> metadata = const <String, Object?>{},
   }) {
     return AgentProviderStreamEvent(
       kind: AgentProviderStreamEventKind.contentPart,
       requestId: requestId,
       contentPart: contentPart,
+      metadata: metadata,
     );
   }
 

@@ -14,6 +14,7 @@ import 'agent_provider_streaming_runtime.dart';
 import 'agent_session_context.dart';
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
+import 'agent_tool_call_stream_bridge.dart';
 import 'agent_workspace_edit_adapter.dart';
 import '../runtime/runtime.dart';
 
@@ -138,6 +139,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentCodingSessionHistory? _sessionHistorySnapshot;
   final AgentToolCallLifecycleTracker _toolCallLifecycleTracker =
       const AgentToolCallLifecycleTracker();
+  final AgentProviderToolCallStreamBridge _toolCallStreamBridge =
+      const AgentProviderToolCallStreamBridge();
   AgentToolCallTimeline _toolCallTimeline = AgentToolCallTimeline.empty();
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
   final List<AgentConversationTurn> _conversationTurns =
@@ -677,6 +680,10 @@ class AgentCodingSessionController extends ChangeNotifier {
     const binding = AgentProviderStreamRuntimeOutputBinding();
     final events = streamingAdapter.stream(request).map((event) {
       _runtimeOutputBuffer?.addEvent(binding.eventFor(event));
+      final toolCallEvent = _toolCallStreamBridge.eventFor(event);
+      if (toolCallEvent != null) {
+        recordToolCallEvent(toolCallEvent);
+      }
       return event;
     });
     return const AgentProviderStreamingResponseCollector().collect(

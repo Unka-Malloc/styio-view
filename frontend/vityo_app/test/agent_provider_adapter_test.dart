@@ -253,7 +253,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      74,
+      75,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -867,6 +867,7 @@ void main() {
         contains('commands.recentResults includes metadata.requiredCommand'),
       );
       expect(systemMessage['content'], contains('agent.pendingPatch'));
+      expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
       expect(systemMessage['content'], contains('agent.recentPatchProposals'));
       expect(systemMessage['content'], contains('agent.pendingIdeCommands'));
       expect(
@@ -1047,7 +1048,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 74);
+      expect(metadata['contextSchemaVersion'], 75);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);
@@ -1216,6 +1217,12 @@ void main() {
       expect(metadata['pendingPatchEditCount'], 1);
       expect(metadata['pendingPatchDocumentCount'], 1);
       expect(metadata['pendingPatchEditsTruncated'], isFalse);
+      expect(metadata['agentSuggestedCommandCount'], 3);
+      expect(metadata['agentSuggestedCommandIds'], <String>[
+        'runBuild',
+        'retryAgentProvider',
+        'replayAgentPrompt',
+      ]);
       expect(metadata['recentPatchProposalCount'], 1);
       expect(metadata['recentPatchProposalIds'], <String>['patch-pending']);
       expect(metadata['pendingIdeCommandCount'], 1);

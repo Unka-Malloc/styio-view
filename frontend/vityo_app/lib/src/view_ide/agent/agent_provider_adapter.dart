@@ -1742,6 +1742,12 @@ String? _metadataString(Object? value) {
 
 Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
   final metadata = <String, Object?>{};
+  if (agent.suggestedCommandIds.isNotEmpty) {
+    metadata.addAll(<String, Object?>{
+      'agentSuggestedCommandCount': agent.suggestedCommandIds.length,
+      'agentSuggestedCommandIds': agent.suggestedCommandIds,
+    });
+  }
   final pendingPatch = agent.pendingPatch;
   if (pendingPatch != null) {
     metadata.addAll(<String, Object?>{
@@ -1885,6 +1891,7 @@ Vityo structured response contract:
 - If the IDE context includes language.codeActions, use agentCommandInput or agentCommandLabelInput for applyQuickFix and treat edits as IDE-produced quick-fix workspace edit facts before inventing a replacement patch.
 - If commands.diagnosticCommands includes previewQuickFix, suggest previewQuickFix before applyQuickFix for cross-file quick fixes and inspect commands.lastResult.metadata.workspaceEditPreview before applying.
 - If the IDE context includes agent.workspaceEdit.suggestedCommandIds, prefer those command ids for ready workspace-edit follow-up actions before inventing patch application steps.
+- If the IDE context includes agent.suggestedCommandIds, prefer those command ids for pending IDE actions, workspace-edit follow-up actions, or provider recovery commands before inventing manual recovery steps.
 - If the IDE context includes language.documentSymbols, use them as the current document outline before planning broad edits.
 - If the IDE context includes language.inlayHints, use them as language-derived parameter/type hint facts before changing calls or inferred values.
 - If the IDE context includes language.semanticBlocks, use them as structural block ranges before extract, move, fold, or broad rewrite operations.

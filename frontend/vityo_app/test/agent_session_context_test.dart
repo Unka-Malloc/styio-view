@@ -513,7 +513,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 74);
+    expect(json['schemaVersion'], 75);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1477,7 +1477,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 74);
+    expect(context.schemaVersion, 75);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1860,7 +1860,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 74);
+    expect(json['schemaVersion'], 75);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2063,6 +2063,7 @@ void main() {
     final recentCommand =
         recentIdeCommandSuggestions.single! as Map<String, Object?>;
 
+    expect(agentJson['suggestedCommandIds'], <String>['runBuild']);
     expect(command['commandId'], 'runBuild');
     expect(command['reason'], 'Use the registered build command.');
     expect(command['prerequisiteForCommandId'], 'saveAll');
@@ -2135,7 +2136,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 74);
+    expect(context.schemaVersion, 75);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');
@@ -2311,6 +2312,10 @@ void main() {
         agentJson['providerSelection']! as Map<String, Object?>;
     final endpoints = providerExecution['endpoints']! as List<Object?>;
 
+    expect(agentJson['suggestedCommandIds'], <String>[
+      'retryAgentProvider',
+      'replayAgentPrompt',
+    ]);
     expect(failure['kind'], 'timeout');
     expect(failure['message'], 'provider timed out');
     expect(failure['operation'], 'agent.provider.postJson');
@@ -3154,6 +3159,7 @@ void main() {
 
     expect(workspaceEdit['hasPreview'], isTrue);
     expect(workspaceEdit['hasApplyResult'], isTrue);
+    expect(agentJson['suggestedCommandIds'], <String>['applyQuickFix']);
     expect(workspaceEdit['suggestedCommandIds'], <String>['applyQuickFix']);
     expect(previewJson['planId'], 'workspace-fix');
     expect(previewJson['summary'], 'Replace value initializer.');

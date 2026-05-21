@@ -178,7 +178,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 74,
+      schemaVersion: 75,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -507,6 +507,7 @@ class AgentCodingLoopContext {
     this.workspaceEdit,
     this.recentCodingPlans = const <AgentCodingPlanContext>[],
     this.recentDiagnosticSummaries = const <AgentDiagnosticSummaryContext>[],
+    this.suggestedCommandIds = const <String>[],
   });
 
   factory AgentCodingLoopContext.fromPatchApplications({
@@ -536,10 +537,14 @@ class AgentCodingLoopContext {
       lastPatchApplication: lastPatchApplication,
       recentPatchApplications: recentPatchApplications,
     );
+    final pendingIdeCommandList = pendingIdeCommands.toList(growable: false);
+    final savedProviderProfileList = savedProviderProfiles.toList(
+      growable: false,
+    );
     return AgentCodingLoopContext(
       pendingPatch: pendingPatch,
       recentPatchProposals: recentPatchProposals.toList(growable: false),
-      pendingIdeCommands: pendingIdeCommands.toList(growable: false),
+      pendingIdeCommands: pendingIdeCommandList,
       recentIdeCommandSuggestions: recentIdeCommandSuggestions.toList(
         growable: false,
       ),
@@ -547,13 +552,20 @@ class AgentCodingLoopContext {
       providerSelection: providerSelection,
       providerExecution: providerExecution,
       recoveryPlan: recoveryPlan,
-      savedProviderProfiles: savedProviderProfiles.toList(growable: false),
+      savedProviderProfiles: savedProviderProfileList,
       lastPatchApplication: history.isEmpty ? null : history.first,
       recentPatchApplications: history,
       workspaceEdit: workspaceEdit,
       recentCodingPlans: recentCodingPlans.toList(growable: false),
       recentDiagnosticSummaries: recentDiagnosticSummaries.toList(
         growable: false,
+      ),
+      suggestedCommandIds: _suggestedAgentCodingCommandIds(
+        pendingIdeCommands: pendingIdeCommandList,
+        lastProviderFailure: lastProviderFailure,
+        recoveryPlan: recoveryPlan,
+        savedProviderProfiles: savedProviderProfileList,
+        workspaceEdit: workspaceEdit,
       ),
     );
   }
@@ -572,9 +584,12 @@ class AgentCodingLoopContext {
   final AgentWorkspaceEditContext? workspaceEdit;
   final List<AgentCodingPlanContext> recentCodingPlans;
   final List<AgentDiagnosticSummaryContext> recentDiagnosticSummaries;
+  final List<String> suggestedCommandIds;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
       if (pendingPatch != null) 'pendingPatch': pendingPatch!.toJson(),
       if (recentPatchProposals.isNotEmpty)
         'recentPatchProposals': recentPatchProposals
@@ -617,6 +632,55 @@ class AgentCodingLoopContext {
             .toList(growable: false),
     };
   }
+}
+
+List<String> _suggestedAgentCodingCommandIds({
+  required List<AgentPendingIdeCommandContext> pendingIdeCommands,
+  required AgentProviderFailureContext? lastProviderFailure,
+  required AgentCodingSessionRecoveryPlan? recoveryPlan,
+  required List<AgentPromptProfileManifestEntry> savedProviderProfiles,
+  required AgentWorkspaceEditContext? workspaceEdit,
+}) {
+  final commandIds = <String>[];
+  void addCommandId(String? commandId) {
+    final normalized = commandId?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return;
+    }
+    if (!commandIds.contains(normalized)) {
+      commandIds.add(normalized);
+    }
+  }
+
+  for (final command in pendingIdeCommands) {
+    addCommandId(command.commandId);
+  }
+  for (final commandId
+      in workspaceEdit?.suggestedCommandIds ?? const <String>[]) {
+    addCommandId(commandId);
+  }
+  if (recoveryPlan != null) {
+    for (final action in recoveryPlan.availableActions) {
+      final commandPlan = recoveryPlan.commandFor(action);
+      if (commandPlan == null) {
+        continue;
+      }
+      if (commandPlan.requiresProviderSelection &&
+          savedProviderProfiles.isEmpty) {
+        continue;
+      }
+      addCommandId(commandPlan.commandId);
+    }
+    return commandIds;
+  }
+  if (lastProviderFailure != null) {
+    addCommandId(AppCommandId.retryAgentProvider.name);
+    if (savedProviderProfiles.isNotEmpty) {
+      addCommandId(AppCommandId.failoverAgentProvider.name);
+    }
+    addCommandId(AppCommandId.replayAgentPrompt.name);
+  }
+  return commandIds;
 }
 
 class AgentWorkspaceEditContext {

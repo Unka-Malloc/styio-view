@@ -131,6 +131,8 @@ void main() {
       decoded.systemPrompt,
       contains('agent.lastPatchApplication.pendingPatchRetained'),
     );
+    expect(decoded.systemPrompt, contains('agent.suggestedCommandIds'));
+    expect(decoded.systemPrompt, contains('provider recovery commands'));
     expect(decoded.systemPrompt, contains('commands.settingsCommands'));
     expect(decoded.systemPrompt, contains('commands.toolchainCommands'));
     expect(decoded.systemPrompt, contains('metadata.toolchainCommand'));

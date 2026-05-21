@@ -2221,6 +2221,11 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
             _recoveryValidationFailureEvidence(
               controller.sessionHistorySnapshot,
             );
+        final toolCallTimeline = controller.toolCallTimeline;
+        final toolCallExecutionPlan = controller.toolCallExecutionPlan;
+        final workspaceSnapshotCapture =
+            controller.lastWorkspaceSnapshotCaptureResult;
+        final workspaceRevertPlan = controller.lastWorkspaceRevertPlan;
 
         return Container(
           key: const ValueKey('agent-prompt-section'),
@@ -2264,6 +2269,36 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 changeReviewGate: widget.controller.codingChangeReviewGate,
                 autonomyPolicy: widget.controller.codingAutonomyPolicy,
               ),
+              if (toolCallTimeline.status != AgentToolCallTimelineStatus.idle ||
+                  toolCallExecutionPlan.status !=
+                      AgentToolCallExecutionPlanStatus.idle) ...[
+                const SizedBox(height: 8),
+                _AgentToolCallReviewSurface(
+                  timeline: toolCallTimeline,
+                  executionPlan: toolCallExecutionPlan,
+                  onDraftReview: applyingAction || controller.sending
+                      ? null
+                      : () => controller.updatePrompt(
+                          _toolCallReviewPrompt(toolCallExecutionPlan),
+                        ),
+                ),
+              ],
+              if (workspaceSnapshotCapture != null ||
+                  workspaceRevertPlan != null) ...[
+                const SizedBox(height: 8),
+                _AgentWorkspaceSnapshotReviewSurface(
+                  captureResult: workspaceSnapshotCapture,
+                  revertPlan: workspaceRevertPlan,
+                  onDraftRevert:
+                      workspaceRevertPlan?.ready == true &&
+                          !applyingAction &&
+                          !controller.sending
+                      ? () => controller.updatePrompt(
+                          _workspaceRevertPrompt(workspaceRevertPlan!),
+                        )
+                      : null,
+                ),
+              ],
               const SizedBox(height: 8),
               TextFormField(
                 key: const ValueKey('agent-prompt-input'),
@@ -2982,6 +3017,174 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
   }
 }
 
+class _AgentToolCallReviewSurface extends StatelessWidget {
+  const _AgentToolCallReviewSurface({
+    required this.timeline,
+    required this.executionPlan,
+    this.onDraftReview,
+  });
+
+  final AgentToolCallTimeline timeline;
+  final AgentToolCallExecutionPlan executionPlan;
+  final VoidCallback? onDraftReview;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final statusColor = switch (executionPlan.status) {
+      AgentToolCallExecutionPlanStatus.blocked ||
+      AgentToolCallExecutionPlanStatus.failed => theme.colorScheme.error,
+      AgentToolCallExecutionPlanStatus.reviewRequired =>
+        theme.colorScheme.primary,
+      _ => theme.colorScheme.onSurfaceVariant,
+    };
+
+    return DecoratedBox(
+      key: const ValueKey('agent-tool-call-review-card'),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tool execution: ${executionPlan.status.wireValue}',
+              style: theme.textTheme.titleSmall?.copyWith(color: statusColor),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Lifecycle: ${timeline.status.wireValue} · calls ${timeline.calls.length}',
+              style: theme.textTheme.bodySmall,
+            ),
+            for (final execution in executionPlan.executions.take(4)) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${execution.toolId} · ${execution.status.wireValue} · ${execution.callId}',
+                key: ValueKey('agent-tool-call-execution-${execution.callId}'),
+                style: theme.textTheme.bodySmall,
+              ),
+              if (execution.issueCodes.isNotEmpty)
+                Text(
+                  'Issues: ${execution.issueCodes.join(', ')}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+            ],
+            if (executionPlan.executions.length > 4)
+              Text(
+                '+${executionPlan.executions.length - 4} more tool call(s).',
+                style: theme.textTheme.bodySmall,
+              ),
+            if (executionPlan.blockingIssueCodes.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Blocking issues: ${executionPlan.blockingIssueCodes.take(4).join(', ')}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const ValueKey('agent-tool-call-draft-review'),
+              onPressed: onDraftReview,
+              icon: const Icon(Icons.rate_review_outlined),
+              label: const Text('Draft Tool Review'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AgentWorkspaceSnapshotReviewSurface extends StatelessWidget {
+  const _AgentWorkspaceSnapshotReviewSurface({
+    required this.captureResult,
+    required this.revertPlan,
+    this.onDraftRevert,
+  });
+
+  final AgentWorkspaceSnapshotCaptureResult? captureResult;
+  final AgentWorkspaceRevertPlan? revertPlan;
+  final VoidCallback? onDraftRevert;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final capture = captureResult;
+    final snapshot = capture?.snapshot;
+    final plan = revertPlan;
+
+    return DecoratedBox(
+      key: const ValueKey('agent-workspace-snapshot-card'),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              capture == null
+                  ? 'Workspace snapshot: unavailable'
+                  : 'Workspace snapshot: ${capture.status.wireValue}',
+              style: theme.textTheme.titleSmall,
+            ),
+            if (snapshot != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Snapshot ${snapshot.snapshotId} · ${snapshot.documents.length} document(s)',
+                key: const ValueKey('agent-workspace-snapshot-summary'),
+                style: theme.textTheme.bodySmall,
+              ),
+              if (snapshot.unavailableDocumentIds.isNotEmpty)
+                Text(
+                  'Unavailable: ${_documentListSummary(snapshot.unavailableDocumentIds)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+            ],
+            if (plan != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Revert plan: ${plan.status.wireValue} · changed ${plan.diffSummary.changedDocumentCount}',
+                key: const ValueKey('agent-workspace-revert-plan-summary'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: plan.ready
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (plan.diffSummary.modifiedDocumentIds.isNotEmpty)
+                Text(
+                  'Modified: ${_documentListSummary(plan.diffSummary.modifiedDocumentIds)}',
+                  style: theme.textTheme.bodySmall,
+                ),
+            ],
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const ValueKey('agent-workspace-revert-draft-button'),
+              onPressed: onDraftRevert,
+              icon: const Icon(Icons.undo),
+              label: const Text('Draft Revert Prompt'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 String _documentListSummary(List<String> documentIds) {
   final visibleDocumentIds = documentIds.take(5).join(', ');
   final hiddenCount = documentIds.length - 5;
@@ -2989,6 +3192,25 @@ String _documentListSummary(List<String> documentIds) {
     return visibleDocumentIds;
   }
   return '$visibleDocumentIds, + $hiddenCount more';
+}
+
+String _toolCallReviewPrompt(AgentToolCallExecutionPlan plan) {
+  final status = plan.status.wireValue;
+  final callSummary = plan.executions
+      .take(4)
+      .map((execution) => '${execution.toolId}:${execution.status.wireValue}')
+      .join(', ');
+  final issues = plan.blockingIssueCodes.isEmpty
+      ? ''
+      : ' Blocking issues: ${plan.blockingIssueCodes.join(', ')}.';
+  return 'Review pending agent tool calls. Tool execution status: $status. Calls: $callSummary.$issues';
+}
+
+String _workspaceRevertPrompt(AgentWorkspaceRevertPlan plan) {
+  return 'Review the agent workspace revert plan ${plan.snapshotId}. '
+      'Status: ${plan.status.wireValue}. Changed documents: '
+      '${plan.diffSummary.changedDocumentCount}. '
+      'Modified: ${_documentListSummary(plan.diffSummary.modifiedDocumentIds)}.';
 }
 
 List<String> _inactiveDirtyPatchTargets(

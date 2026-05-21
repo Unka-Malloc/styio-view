@@ -696,6 +696,18 @@ void main() {
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
         77,
       );
+      final checkpointIdeCapabilities =
+          checkpointCommandResult?.metadata['ideCapabilities']!
+              as Map<String, Object?>;
+      final checkpointIdeCapabilityClosure =
+          checkpointCommandResult?.metadata['ideCapabilityClosure']!
+              as Map<String, Object?>;
+      expect(checkpointIdeCapabilities['entryCount'], greaterThan(0));
+      expect(checkpointIdeCapabilityClosure['isFrameworkClosed'], isTrue);
+      expect(
+        checkpointIdeCapabilityClosure['runtimeMaturityBlockerCapabilityIds'],
+        contains('runtime.execution'),
+      );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],
         isA<Map<String, Object?>>(),
@@ -734,6 +746,10 @@ void main() {
       expect(agentCheckpointResult?.commandId, 'collectAgentCodingCheckpoint');
       expect(
         agentCheckpointResult?.metadata['projectLanguage'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(
+        agentCheckpointResult?.metadata['ideCapabilityClosure'],
         isA<Map<String, Object?>>(),
       );
       expect(

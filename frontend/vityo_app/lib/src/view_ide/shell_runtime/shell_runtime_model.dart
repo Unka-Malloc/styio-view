@@ -1592,6 +1592,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     final context = agentSessionContext;
     final metadata = <String, Object?>{
       'agentContextSchemaVersion': context.schemaVersion,
+      'ideCapabilities': context.ideCapabilities.toJson(),
+      'ideCapabilityClosure': context.ideCapabilityClosure.toJson(),
       'workspaceRoot': workspaceController.activeProject.workspaceRoot,
       'workspaceDiagnostics': diagnosticsSnapshot.toJson(),
       'sourceControl': sourceControlSnapshot.toJson(),
@@ -1623,7 +1625,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       '${sourceControlSnapshot.changes.length} source change(s), '
       '${projectLanguage['referenceCount'] ?? 0} project reference(s), '
       '${context.language.semanticFeatureMatrix?.codeActionFactCount ?? 0} code action fact(s), '
-      '${workspaceEditPreview?.editCount ?? 0} workspace edit preview edit(s).',
+      '${workspaceEditPreview?.editCount ?? 0} workspace edit preview edit(s), '
+      '${context.ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds.length} maturity blocker(s).',
     );
     notifyListeners();
     return metadata;

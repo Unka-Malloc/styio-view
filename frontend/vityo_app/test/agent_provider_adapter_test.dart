@@ -1084,6 +1084,10 @@ void main() {
       );
       expect(
         systemMessage['content'],
+        contains('metadata.ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
+      );
+      expect(
+        systemMessage['content'],
         contains('metadata.projectLanguage.syntaxValidationAuthority'),
       );
       expect(

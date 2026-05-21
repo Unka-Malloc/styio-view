@@ -367,6 +367,51 @@ void main() {
   );
 
   test(
+    'workspace diagnostics binds typed runtime process handle pid fallback',
+    () {
+      const request = WorkspaceDiagnosticsRequest(
+        documentIds: <String>['src/main.styio'],
+        activeDocumentId: 'src/main.styio',
+      );
+      final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+        providerId: 'styio-project-diagnostics',
+        request: request,
+        command: 'styio',
+        arguments: const <String>['check', '.'],
+      );
+      final dispatch = RuntimeExecutionManagerRegistry.defaultManagers()
+          .dispatch(
+            plan.binding,
+            timestamp: DateTime.utc(2026, 5, 21, 8),
+            metadata: const <String, Object?>{
+              'pid': 7788,
+              'processHandleSource': 'toolchain-manager',
+            },
+          );
+      final registry = WorkspaceDiagnosticsProducerProcessHandleRegistry();
+      final binding = const WorkspaceDiagnosticsProducerProcessHandleBinder().bind(
+        plan: plan,
+        result: dispatch,
+        registry: registry,
+        terminate: (request) async {
+          return const WorkspaceDiagnosticsProducerCancellationResult.accepted(
+            processTerminated: true,
+            message: 'Diagnostics process terminated.',
+          );
+        },
+      );
+      final processHandle =
+          binding.metadata['processHandle']! as Map<String, Object?>;
+
+      expect(binding.registered, isTrue);
+      expect(binding.processHandleId, '7788');
+      expect(processHandle['pid'], 7788);
+      expect(processHandle['source'], 'toolchain-manager');
+      expect(registry.handleForProvider(plan.providerId)?.handleId, '7788');
+    },
+  );
+
+  test(
     'workspace diagnostics controller resolves producer process handles',
     () async {
       const request = WorkspaceDiagnosticsRequest(

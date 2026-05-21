@@ -499,7 +499,10 @@ class WorkspaceDiagnosticsProducerProcessHandleBinder {
         metadata: metadata,
       );
     }
-    final handleId = _handleIdFromResult(result);
+    final processHandle = result.processHandle;
+    final handleId =
+        _handleIdFromProcessHandle(processHandle) ??
+        _handleIdFromResult(result);
     if (handleId == null) {
       return WorkspaceDiagnosticsProducerProcessHandleBindingResult.missingHandle(
         message:
@@ -525,9 +528,21 @@ class WorkspaceDiagnosticsProducerProcessHandleBinder {
         'source': 'runtime-dispatch-result',
         'managerId': result.binding.managerId,
         'routeKind': result.binding.routeKind,
+        if (processHandle != null) 'processHandle': processHandle.toJson(),
         ...metadata,
       },
     );
+  }
+
+  String? _handleIdFromProcessHandle(RuntimeProcessHandleIdentity? handle) {
+    if (handle == null || !handle.available) {
+      return null;
+    }
+    if (handle.processHandleId.isNotEmpty) {
+      return handle.processHandleId;
+    }
+    final pid = handle.pid;
+    return pid == null ? null : '$pid';
   }
 
   String? _handleIdFromResult(RuntimeExecutionDispatchResult result) {

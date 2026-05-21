@@ -193,6 +193,110 @@ class CommandKeybindingConflictReview {
   }
 }
 
+enum CommandShortcutCaptureDecision {
+  allowed,
+  empty,
+  reserved,
+  needsModifierHint,
+}
+
+extension CommandShortcutCaptureDecisionX on CommandShortcutCaptureDecision {
+  String get wireValue {
+    return switch (this) {
+      CommandShortcutCaptureDecision.allowed => 'allowed',
+      CommandShortcutCaptureDecision.empty => 'empty',
+      CommandShortcutCaptureDecision.reserved => 'reserved',
+      CommandShortcutCaptureDecision.needsModifierHint => 'needs-modifier-hint',
+    };
+  }
+}
+
+class CommandShortcutCapturePolicyResult {
+  const CommandShortcutCapturePolicyResult({
+    required this.decision,
+    required this.message,
+    this.shortcut,
+    this.accessibilityHint = '',
+  });
+
+  final CommandShortcutCaptureDecision decision;
+  final String message;
+  final AppCommandShortcutSpec? shortcut;
+  final String accessibilityHint;
+
+  bool get allowed =>
+      decision == CommandShortcutCaptureDecision.allowed ||
+      decision == CommandShortcutCaptureDecision.needsModifierHint;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'decision': decision.wireValue,
+      'allowed': allowed,
+      'message': message,
+      if (shortcut != null) 'shortcut': shortcut!.toJson(),
+      if (accessibilityHint.isNotEmpty) 'accessibilityHint': accessibilityHint,
+    };
+  }
+}
+
+class CommandShortcutCapturePolicy {
+  const CommandShortcutCapturePolicy({
+    this.reservedSignatures = _defaultReservedSignatures,
+  });
+
+  static const Set<String> _defaultReservedSignatures = <String>{
+    'ctrl+tab',
+    'ctrl+shift+tab',
+    'meta+tab',
+    'meta+shift+tab',
+    'meta+space',
+    'meta+keyQ',
+  };
+
+  final Set<String> reservedSignatures;
+
+  CommandShortcutCapturePolicyResult evaluate(
+    AppCommandShortcutSpec? shortcut,
+  ) {
+    if (shortcut == null || shortcut.key.trim().isEmpty) {
+      return const CommandShortcutCapturePolicyResult(
+        decision: CommandShortcutCaptureDecision.empty,
+        message: 'Press a non-modifier key combination to capture a shortcut.',
+        accessibilityHint:
+            'Use Control or Command with a letter, function key, or punctuation key.',
+      );
+    }
+    final signature = commandShortcutSignature(shortcut);
+    if (reservedSignatures.contains(signature)) {
+      return CommandShortcutCapturePolicyResult(
+        decision: CommandShortcutCaptureDecision.reserved,
+        shortcut: shortcut,
+        message: '$signature is reserved by the platform or application host.',
+        accessibilityHint:
+            'Choose a shortcut that does not override system navigation or application quit shortcuts.',
+      );
+    }
+    if (!shortcut.control &&
+        !shortcut.meta &&
+        shortcut.key.toLowerCase().startsWith('key')) {
+      return CommandShortcutCapturePolicyResult(
+        decision: CommandShortcutCaptureDecision.needsModifierHint,
+        shortcut: shortcut,
+        message: '$signature can be saved, but a modifier is recommended.',
+        accessibilityHint:
+            'Letter-only shortcuts can conflict with text input. Prefer Control or Command plus the key.',
+      );
+    }
+    return CommandShortcutCapturePolicyResult(
+      decision: CommandShortcutCaptureDecision.allowed,
+      shortcut: shortcut,
+      message: '$signature is available for this workspace profile.',
+      accessibilityHint:
+          'Shortcut capture uses physical key identity so the binding remains stable across keyboard layouts.',
+    );
+  }
+}
+
 class CommandKeybindingResolver {
   const CommandKeybindingResolver._();
 
@@ -208,8 +312,8 @@ class CommandKeybindingResolver {
     Iterable<AppCommandDescriptor>? descriptors,
   }) {
     final commandsBySignature = <String, List<AppCommandId>>{};
-    final descriptorList =
-        (descriptors ?? StyioCommandRegistry.commands).toList(growable: false);
+    final descriptorList = (descriptors ?? StyioCommandRegistry.commands)
+        .toList(growable: false);
     final descriptorsById = <AppCommandId, AppCommandDescriptor>{
       for (final descriptor in descriptorList) descriptor.id: descriptor,
     };

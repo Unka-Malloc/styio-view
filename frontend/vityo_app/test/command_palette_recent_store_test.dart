@@ -170,6 +170,27 @@ void main() {
       AppCommandId.renameSymbol,
     ]);
   });
+
+  test('command shortcut capture policy blocks reserved shortcuts', () {
+    const policy = CommandShortcutCapturePolicy();
+
+    final reserved = policy.evaluate(
+      const AppCommandShortcutSpec('tab', control: true),
+    );
+    final hinted = policy.evaluate(const AppCommandShortcutSpec('keyK'));
+    final allowed = policy.evaluate(
+      const AppCommandShortcutSpec('keyK', control: true, shift: true),
+    );
+
+    expect(reserved.allowed, isFalse);
+    expect(reserved.decision, CommandShortcutCaptureDecision.reserved);
+    expect(reserved.message, contains('reserved'));
+    expect(hinted.allowed, isTrue);
+    expect(hinted.decision, CommandShortcutCaptureDecision.needsModifierHint);
+    expect(hinted.accessibilityHint, contains('text input'));
+    expect(allowed.allowed, isTrue);
+    expect(allowed.toJson()['decision'], 'allowed');
+  });
 }
 
 Future<FoundationDataStore> _createDataStore() async {

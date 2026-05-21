@@ -429,9 +429,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/commands',
           summary:
-              'Command Palette surface is wired to StyioCommandRegistry, category contribution manifests, shell command execution, reusable query scoring, overlay selection state, live display preference updates, top-level SettingsSurface preference saves, shell-level DataStore preference hydration/persistence, app bootstrap preference hydration, category filter chips, display preferences, Settings UI preference controls, Up/Down/Enter keyboard navigation, typed input draft contracts, keyboard shortcuts, physical key capture, keybinding remap persistence, surface-level keybinding editor, rich conflict review contracts and preview actions, persisted recent command ranking, recent command record hooks, and blocked command availability reasons.',
+              'Command Palette surface is wired to StyioCommandRegistry, category contribution manifests, shell command execution, reusable query scoring, overlay selection state, live display preference updates, top-level SettingsSurface preference saves, shell-level DataStore preference hydration/persistence, app bootstrap preference hydration, category filter chips, display preferences, Settings UI preference controls, Up/Down/Enter keyboard navigation, typed input draft contracts, keyboard shortcuts, physical key capture, reserved shortcut capture policy, accessibility hints, keybinding remap persistence, surface-level keybinding editor, rich conflict review contracts and preview actions, persisted recent command ranking, recent command record hooks, and blocked command availability reasons.',
           todo:
-              'TODO: bind physical key capture to platform-reserved shortcut policy and accessibility hints.',
+              'TODO: replace the generic reserved shortcut list with platform-specific host policies.',
           references: <String>[
             'VS Code command palette',
             'IntelliJ action search',

@@ -95,9 +95,12 @@ void main() {
       ),
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('command-palette-keybinding-shortcut-input')),
+    final shortcutInput = find.byKey(
+      const ValueKey('command-palette-keybinding-shortcut-input'),
     );
+    await tester.ensureVisible(shortcutInput);
+    await tester.pump();
+    await tester.tap(shortcutInput);
     await tester.pump();
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyK);
@@ -117,5 +120,61 @@ void main() {
     expect(shortcut?.control, isTrue);
     expect(shortcut?.key, 'keyK');
     expect(shortcut?.shift, isFalse);
+  });
+
+  testWidgets('command palette blocks reserved keybinding capture', (
+    tester,
+  ) async {
+    CommandKeybindingOverride? savedOverride;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPaletteSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            commands: const <AppCommandDescriptor>[
+              AppCommandDescriptor(
+                id: AppCommandId.save,
+                label: 'Save',
+                shortcutHint: 'Cmd/Ctrl+S',
+                description: 'Save current file.',
+              ),
+            ],
+            keybindingProfile: CommandKeybindingProfile(workspaceId: 'demo'),
+            onSaveKeybindingOverride: (override) async {
+              savedOverride = override;
+            },
+          ),
+        ),
+      ),
+    );
+
+    final shortcutInput = find.byKey(
+      const ValueKey('command-palette-keybinding-shortcut-input'),
+    );
+    await tester.ensureVisible(shortcutInput);
+    await tester.pump();
+    await tester.tap(shortcutInput);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(find.textContaining('reserved'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('command-palette-keybinding-save')),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(savedOverride, isNull);
   });
 }

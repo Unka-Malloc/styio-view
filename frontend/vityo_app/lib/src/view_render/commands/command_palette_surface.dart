@@ -58,6 +58,8 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
   AppCommandCategory? _category;
   var _selectedIndex = 0;
   AppCommandId? _keybindingCommand;
+  CommandShortcutCapturePolicyResult _keybindingCapturePolicyResult =
+      const CommandShortcutCapturePolicy().evaluate(null);
 
   @override
   void initState() {
@@ -284,7 +286,11 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                     border: const OutlineInputBorder(),
                   ),
                 ),
-                if (overlayState.selectedEntry!.command.inputExamples.isNotEmpty)
+                if (overlayState
+                    .selectedEntry!
+                    .command
+                    .inputExamples
+                    .isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Align(
@@ -404,6 +410,13 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     final hasSelectedOverride =
         selectedDescriptor != null &&
         (profile?.hasOverrideFor(selectedDescriptor.id) ?? false);
+    final parsedShortcut = parseCommandShortcutExpression(
+      _keybindingController.text,
+    );
+    final policyResult =
+        _sameShortcut(_keybindingCapturePolicyResult.shortcut, parsedShortcut)
+        ? _keybindingCapturePolicyResult
+        : const CommandShortcutCapturePolicy().evaluate(parsedShortcut);
     return Container(
       key: const ValueKey('command-palette-keybinding-editor'),
       padding: const EdgeInsets.all(12),
@@ -418,7 +431,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
             Text('Keybinding overrides', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Text(
-              'Workspace-level shortcut remap draft. Focus the shortcut field and press the physical key combination to capture it.',
+              'Workspace-level shortcut remap draft. Focus the shortcut field and press the physical key combination to capture it. Reserved shortcuts are blocked before they reach persistence.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -457,9 +470,26 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                 readOnly: true,
                 decoration: const InputDecoration(
                   labelText: 'Captured shortcut',
-                  helperText: 'Focus this field and press a key combination.',
+                  helperText:
+                      'Focus this field and press a key combination. Physical keys are captured for layout-stable shortcuts.',
                   border: OutlineInputBorder(),
                 ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              key: const ValueKey('command-palette-keybinding-capture-policy'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: policyResult.allowed
+                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+                    : theme.colorScheme.errorContainer.withValues(alpha: 0.48),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${policyResult.message} ${policyResult.accessibilityHint}',
+                style: theme.textTheme.bodySmall,
               ),
             ),
             const SizedBox(height: 8),
@@ -471,7 +501,8 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                   key: const ValueKey('command-palette-keybinding-save'),
                   onPressed:
                       selectedDescriptor == null ||
-                          widget.onSaveKeybindingOverride == null
+                          widget.onSaveKeybindingOverride == null ||
+                          !policyResult.allowed
                       ? null
                       : _saveKeybindingOverride,
                   child: const Text('Save override'),
@@ -633,6 +664,15 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     if (shortcut == null) {
       return;
     }
+    final policyResult = const CommandShortcutCapturePolicy().evaluate(
+      shortcut,
+    );
+    if (!policyResult.allowed) {
+      setState(() {
+        _keybindingCapturePolicyResult = policyResult;
+      });
+      return;
+    }
     unawaited(
       widget.onSaveKeybindingOverride!(
         CommandKeybindingOverride(
@@ -648,8 +688,12 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     if (shortcut == null) {
       return KeyEventResult.ignored;
     }
+    final policyResult = const CommandShortcutCapturePolicy().evaluate(
+      shortcut,
+    );
     setState(() {
       _keybindingController.text = commandShortcutSignature(shortcut);
+      _keybindingCapturePolicyResult = policyResult;
     });
     return KeyEventResult.handled;
   }
@@ -721,9 +765,12 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
     final shortcuts =
         widget.keybindingProfile?.effectiveShortcutsFor(descriptor) ??
         descriptor.shortcuts;
-    _keybindingController.text = shortcuts.isEmpty
+    final shortcut = shortcuts.isEmpty ? null : shortcuts.first;
+    _keybindingController.text = shortcut == null
         ? ''
-        : commandShortcutDisplayLabel(shortcuts.first);
+        : commandShortcutDisplayLabel(shortcut);
+    _keybindingCapturePolicyResult = const CommandShortcutCapturePolicy()
+        .evaluate(shortcut);
   }
 
   void _syncCommandInputDraft() {
@@ -750,5 +797,15 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
       }
     }
     return null;
+  }
+
+  bool _sameShortcut(
+    AppCommandShortcutSpec? left,
+    AppCommandShortcutSpec? right,
+  ) {
+    if (left == null || right == null) {
+      return left == right;
+    }
+    return commandShortcutSignature(left) == commandShortcutSignature(right);
   }
 }

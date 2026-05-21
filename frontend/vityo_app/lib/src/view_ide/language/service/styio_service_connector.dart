@@ -2515,9 +2515,13 @@ class StyioServiceResultCache {
   final int maximumEntries;
   final Map<StyioServiceResultCacheKey, StyioServiceResponse> _responses =
       <StyioServiceResultCacheKey, StyioServiceResponse>{};
+  var _lookupHits = 0;
+  var _lookupMisses = 0;
 
   StyioServiceResponse? lookup(StyioServiceResultCacheKey key) {
-    return _responses[key];
+    final response = _lookupExact(key);
+    _recordLookup(response != null);
+    return response;
   }
 
   StyioServiceResponse? lookupDocument({
@@ -2528,7 +2532,7 @@ class StyioServiceResultCache {
     String? configPath,
     String? workingDirectory,
   }) {
-    final exact = lookup(
+    final exact = _lookupExact(
       StyioServiceResultCacheKey(
         documentId: documentId,
         revision: revision,
@@ -2539,6 +2543,7 @@ class StyioServiceResultCache {
       ),
     );
     if (exact != null) {
+      _recordLookup(true);
       return exact;
     }
 
@@ -2555,8 +2560,10 @@ class StyioServiceResultCache {
         })
         .toList(growable: false);
     if (matches.length == 1) {
+      _recordLookup(true);
       return matches.single.value;
     }
+    _recordLookup(false);
     return null;
   }
 
@@ -2633,6 +2640,27 @@ class StyioServiceResultCache {
   }
 
   int get length => _responses.length;
+  int get lookupHits => _lookupHits;
+  int get lookupMisses => _lookupMisses;
+  int get lookupCount => _lookupHits + _lookupMisses;
+  double get lookupHitRate => lookupCount == 0 ? 0 : _lookupHits / lookupCount;
+
+  void resetTelemetry() {
+    _lookupHits = 0;
+    _lookupMisses = 0;
+  }
+
+  StyioServiceResponse? _lookupExact(StyioServiceResultCacheKey key) {
+    return _responses[key];
+  }
+
+  void _recordLookup(bool hit) {
+    if (hit) {
+      _lookupHits += 1;
+    } else {
+      _lookupMisses += 1;
+    }
+  }
 
   StyioServiceResultCacheSnapshot snapshot({String? documentId}) {
     final entries = <StyioServiceResultCacheEntry>[];

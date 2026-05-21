@@ -3534,6 +3534,49 @@ void main() {
     );
   });
 
+  test('result cache records lookup hit and miss telemetry', () {
+    final cache = StyioServiceResultCache();
+    cache.store(
+      const StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: 'fixture://cache-telemetry',
+        revision: 1,
+        toolchainId: 'styio-nightly',
+      ),
+    );
+
+    expect(
+      cache.lookupDocument(
+        documentId: 'fixture://cache-telemetry',
+        revision: 1,
+        protocolVersion: 'styio-cli-jsonl-v1',
+      ),
+      isNotNull,
+    );
+    expect(
+      cache.lookup(
+        const StyioServiceResultCacheKey(
+          documentId: 'fixture://cache-telemetry',
+          revision: 2,
+          protocolVersion: 'styio-cli-jsonl-v1',
+          toolchainId: 'styio-nightly',
+        ),
+      ),
+      isNull,
+    );
+
+    expect(cache.lookupHits, 1);
+    expect(cache.lookupMisses, 1);
+    expect(cache.lookupCount, 2);
+    expect(cache.lookupHitRate, 0.5);
+
+    cache.resetTelemetry();
+
+    expect(cache.lookupHits, 0);
+    expect(cache.lookupMisses, 0);
+    expect(cache.lookupCount, 0);
+  });
+
   test('result cache snapshot exposes manifest counts without payloads', () {
     final cache = StyioServiceResultCache();
     cache.store(

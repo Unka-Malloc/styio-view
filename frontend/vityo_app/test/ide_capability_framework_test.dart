@@ -13,6 +13,7 @@ void main() {
     expect(snapshot.version, 'vityo-ide-capability-framework-v1');
     expect(snapshot.entries.length, ids.length);
     expect(ids, contains('service.styio-language'));
+    expect(ids, contains('service.language-result-cache'));
     expect(ids, contains('agent.coding-loop'));
     expect(ids, contains('editor.document-model'));
     expect(ids, contains('interaction.search'));
@@ -26,6 +27,10 @@ void main() {
     expect(
       entriesById['interaction.search']?.status,
       IdeCapabilityStatus.scaffolded,
+    );
+    expect(
+      entriesById['service.language-result-cache']?.summary,
+      contains('hit/miss telemetry counters'),
     );
     expect(
       entriesById['interaction.search']?.summary,

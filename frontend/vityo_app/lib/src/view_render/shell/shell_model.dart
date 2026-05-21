@@ -84,6 +84,11 @@ class ShellModel extends ShellRuntimeModel {
     await super.handleToolchainRecoveryAction(action);
     if (action.id == 'show-toolchain-logs') {
       selectBottomTab(BottomSurfaceTab.debug);
+    } else if (action.id == 'select-existing-toolchain' ||
+        action.id == 'configure-managed-download' ||
+        action.id == 'enable-toolchain-installation' ||
+        action.id == 'install-managed-toolchain') {
+      selectBottomTab(BottomSurfaceTab.settings);
     }
   }
 

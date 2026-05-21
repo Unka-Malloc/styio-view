@@ -8335,6 +8335,20 @@ class ShellRuntimeModel extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (action.id == 'configure-managed-download') {
+      appendLog('Toolchain managed download configuration route requested.');
+      notifyListeners();
+      return;
+    }
+    if (action.id == 'enable-toolchain-installation') {
+      appendLog('Toolchain installation policy settings route requested.');
+      notifyListeners();
+      return;
+    }
+    if (action.id == 'retry-external-installer') {
+      await executeLastToolchainInstallPlan();
+      return;
+    }
     if (action.id == 'install-managed-toolchain') {
       planManagedToolchainInstallation();
       return;

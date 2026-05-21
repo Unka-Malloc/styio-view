@@ -354,6 +354,10 @@ void main() {
     );
     expect(
       entriesById['toolchain.manager']?.summary,
+      contains('installer recovery route handling'),
+    );
+    expect(
+      entriesById['toolchain.manager']?.summary,
       contains('ToolchainBootstrapExecutionPlan'),
     );
     expect(

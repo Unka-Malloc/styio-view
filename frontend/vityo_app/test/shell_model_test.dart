@@ -2720,6 +2720,59 @@ void main() {
         ),
         isTrue,
       );
+
+      shell.selectBottomTab(BottomSurfaceTab.runtime);
+      await shell.handleToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
+          id: 'configure-managed-download',
+          label: 'Configure managed download',
+          description: 'Provide the managed download endpoint.',
+        ),
+      );
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.settings);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains(
+            'Toolchain managed download configuration route requested',
+          ),
+        ),
+        isTrue,
+      );
+
+      shell.selectBottomTab(BottomSurfaceTab.runtime);
+      await shell.handleToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
+          id: 'enable-toolchain-installation',
+          label: 'Enable toolchain installation',
+          description: 'Open the install policy settings.',
+        ),
+      );
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.settings);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains(
+            'Toolchain installation policy settings route requested',
+          ),
+        ),
+        isTrue,
+      );
+
+      final installHistoryCount =
+          toolchainReport.value.installHistory?.entries.length ?? 0;
+      await shell.handleToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
+          id: 'retry-external-installer',
+          label: 'Retry external installer',
+          description: 'Retry the most recent installer command.',
+        ),
+      );
+
+      expect(
+        toolchainReport.value.installHistory?.entries.length,
+        greaterThan(installHistoryCount),
+      );
     },
   );
 

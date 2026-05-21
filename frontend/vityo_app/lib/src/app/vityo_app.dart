@@ -41,6 +41,8 @@ class _VityoAppState extends State<VityoApp> {
       deploymentAdapter: widget.bootstrap.deploymentAdapter,
       toolchainManagementAdapter: widget.bootstrap.toolchainManagementAdapter,
       agentCodingController: widget.bootstrap.agentCodingController,
+      agentExtensionToolExecutionRegistry:
+          widget.bootstrap.agentExtensionToolExecutionRegistry,
       agentProviderConfigurator: widget.bootstrap.agentProviderConfigurator,
       refreshActiveLanguageService:
           widget.bootstrap.refreshActiveLanguageService,

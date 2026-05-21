@@ -76,6 +76,7 @@ class AppBootstrap {
     required this.toolchainManagementAdapter,
     required this.agentCodingController,
     required this.agentProviderConfigurator,
+    this.agentExtensionToolExecutionRegistry,
     this.commandPalettePreferencesStore,
     this.themeOverrideStore,
     this.refreshActiveLanguageService,
@@ -113,6 +114,8 @@ class AppBootstrap {
   final ToolchainManagementAdapter toolchainManagementAdapter;
   final AgentCodingSessionController agentCodingController;
   final AgentProviderConfigurator agentProviderConfigurator;
+  final ExtensionAgentToolExecutionRegistry?
+  agentExtensionToolExecutionRegistry;
   final CommandPaletteDisplayPreferencesStore? commandPalettePreferencesStore;
   final VityoThemeOverrideStore? themeOverrideStore;
   final ToolchainManager? toolchainManager;
@@ -605,6 +608,24 @@ class AppBootstrap {
     return ExtensionAgentToolContributionCatalog.fromRoutes(
       extensionContributionRoutes,
     ).toRegistry();
+  }
+
+  @visibleForTesting
+  static ExtensionAgentToolExecutionRegistry?
+  createAgentExtensionToolExecutionRegistry({
+    ExtensionContributionRouteManifest? extensionContributionRoutes,
+    Map<String, ExtensionAgentToolHandler> handlers =
+        const <String, ExtensionAgentToolHandler>{},
+  }) {
+    if (extensionContributionRoutes == null) {
+      return null;
+    }
+    return ExtensionAgentToolExecutionRegistry(
+      catalog: ExtensionAgentToolContributionCatalog.fromRoutes(
+        extensionContributionRoutes,
+      ),
+      handlers: handlers,
+    );
   }
 
   static Future<AgentProviderAdapter> _createConfiguredAgentAdapter({

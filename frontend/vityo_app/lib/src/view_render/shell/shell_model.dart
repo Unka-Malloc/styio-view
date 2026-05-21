@@ -34,6 +34,7 @@ class ShellModel extends ShellRuntimeModel {
     required super.deploymentAdapter,
     required super.toolchainManagementAdapter,
     super.agentCodingController,
+    super.agentExtensionToolExecutionRegistry,
     super.agentProviderConfigurator,
     super.refreshActiveLanguageService,
     super.styioServiceSubscriptionController,

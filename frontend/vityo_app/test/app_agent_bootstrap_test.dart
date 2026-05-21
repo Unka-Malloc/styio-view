@@ -6,6 +6,7 @@ import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_registry.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_dispatcher.dart';
 import 'package:vityo_app/src/agent/agent_tool_registry.dart';
 import 'package:vityo_app/src/app/app_bootstrap.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
@@ -95,6 +96,28 @@ void main() {
         dispatchPlan.toolPermissionPlan.allowedToolIds,
         contains('collectExtensionContext'),
       );
+
+      final executionRegistry =
+          AppBootstrap.createAgentExtensionToolExecutionRegistry(
+            extensionContributionRoutes: routes,
+          );
+      final dispatchResult = await executionRegistry!.dispatch(
+        const AgentToolCallDispatchRequest(
+          callId: 'call-extension-context',
+          toolId: 'collectExtensionContext',
+          inputText: '{}',
+        ),
+      );
+      expect(
+        executionRegistry.toolIds,
+        contains('collectExtensionContext'),
+      );
+      expect(
+        executionRegistry.handlerToolIds,
+        isNot(contains('collectExtensionContext')),
+      );
+      expect(dispatchResult.success, isFalse);
+      expect(dispatchResult.metadata['missingHandler'], isTrue);
     },
   );
 

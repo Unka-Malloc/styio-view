@@ -209,6 +209,14 @@ class DapProtocolRequestFactory {
       arguments: <String, Object?>{'terminateDebuggee': terminateDebuggee},
     );
   }
+
+  DapRequest terminate({required int seq, bool restart = false}) {
+    return DapRequest(
+      seq: seq,
+      command: 'terminate',
+      arguments: <String, Object?>{'restart': restart},
+    );
+  }
 }
 
 class DapLaunchRequestPlan {

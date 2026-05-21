@@ -244,6 +244,237 @@ class DebugSessionTerminationPlan {
   }
 }
 
+enum DebugSessionTerminationExecutionStatus {
+  executed,
+  blocked,
+  skipped,
+  failed,
+}
+
+extension DebugSessionTerminationExecutionStatusX
+    on DebugSessionTerminationExecutionStatus {
+  String get wireValue {
+    return switch (this) {
+      DebugSessionTerminationExecutionStatus.executed => 'executed',
+      DebugSessionTerminationExecutionStatus.blocked => 'blocked',
+      DebugSessionTerminationExecutionStatus.skipped => 'skipped',
+      DebugSessionTerminationExecutionStatus.failed => 'failed',
+    };
+  }
+}
+
+class DebugProcessTerminationResult {
+  const DebugProcessTerminationResult({
+    required this.accepted,
+    required this.processTerminated,
+    required this.message,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const DebugProcessTerminationResult.accepted({
+    bool processTerminated = true,
+    String message = 'Debug process termination accepted.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: true,
+         processTerminated: processTerminated,
+         message: message,
+         metadata: metadata,
+       );
+
+  const DebugProcessTerminationResult.rejected({
+    String message = 'Debug process termination rejected.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         accepted: false,
+         processTerminated: false,
+         message: message,
+         metadata: metadata,
+       );
+
+  final bool accepted;
+  final bool processTerminated;
+  final String message;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'accepted': accepted,
+      'processTerminated': processTerminated,
+      'message': message,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class DebugSessionTerminationExecutionResult {
+  const DebugSessionTerminationExecutionResult({
+    required this.plan,
+    required this.status,
+    required this.message,
+    this.requestCommand = '',
+    this.processResult,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final DebugSessionTerminationPlan plan;
+  final DebugSessionTerminationExecutionStatus status;
+  final String message;
+  final String requestCommand;
+  final DebugProcessTerminationResult? processResult;
+  final Map<String, Object?> metadata;
+
+  bool get executed =>
+      status == DebugSessionTerminationExecutionStatus.executed;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'executed': executed,
+      'message': message,
+      'requestCommand': requestCommand,
+      'plan': plan.toJson(),
+      if (processResult != null) 'processResult': processResult!.toJson(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+typedef DebugProcessTerminationHandler =
+    Future<DebugProcessTerminationResult> Function({
+      required DapDebugSessionHandle handle,
+      required DebugSessionTerminationPlan plan,
+      required String reason,
+    });
+
+class DebugSessionTerminationExecutor {
+  const DebugSessionTerminationExecutor({
+    this.requestFactory = const DapProtocolRequestFactory(),
+    this.processTerminationHandler,
+  });
+
+  final DapProtocolRequestFactory requestFactory;
+  final DebugProcessTerminationHandler? processTerminationHandler;
+
+  Future<DebugSessionTerminationExecutionResult> execute({
+    required DapDebugSessionHandle handle,
+    required DebugSessionTerminationPlan plan,
+    String reason = '',
+  }) async {
+    if (!plan.canTerminate) {
+      return DebugSessionTerminationExecutionResult(
+        plan: plan,
+        status: DebugSessionTerminationExecutionStatus.skipped,
+        message: plan.message,
+      );
+    }
+    try {
+      return switch (plan.action) {
+        DebugSessionTerminationAction.none =>
+          DebugSessionTerminationExecutionResult(
+            plan: plan,
+            status: DebugSessionTerminationExecutionStatus.skipped,
+            message: plan.message,
+          ),
+        DebugSessionTerminationAction.markFinished => await _markFinished(
+          handle: handle,
+          plan: plan,
+          reason: reason,
+        ),
+        DebugSessionTerminationAction.dapDisconnect => await _sendDapRequest(
+          handle: handle,
+          plan: plan,
+          request: requestFactory.disconnect(seq: handle.snapshot.nextSeq),
+          reason: reason,
+        ),
+        DebugSessionTerminationAction.dapTerminate => await _sendDapRequest(
+          handle: handle,
+          plan: plan,
+          request: requestFactory.terminate(seq: handle.snapshot.nextSeq),
+          reason: reason,
+        ),
+        DebugSessionTerminationAction.killProcess => await _killProcess(
+          handle: handle,
+          plan: plan,
+          reason: reason,
+        ),
+      };
+    } on Object catch (error) {
+      return DebugSessionTerminationExecutionResult(
+        plan: plan,
+        status: DebugSessionTerminationExecutionStatus.failed,
+        message: 'Debug session termination failed: $error.',
+      );
+    }
+  }
+
+  Future<DebugSessionTerminationExecutionResult> _sendDapRequest({
+    required DapDebugSessionHandle handle,
+    required DebugSessionTerminationPlan plan,
+    required DapRequest request,
+    required String reason,
+  }) async {
+    await handle.sendRequest(request);
+    await handle.close();
+    return DebugSessionTerminationExecutionResult(
+      plan: plan,
+      status: DebugSessionTerminationExecutionStatus.executed,
+      requestCommand: request.command,
+      message: reason.trim().isEmpty
+          ? 'Debug session termination ${plan.action.wireValue} executed.'
+          : reason.trim(),
+      metadata: <String, Object?>{'requestSeq': request.seq},
+    );
+  }
+
+  Future<DebugSessionTerminationExecutionResult> _markFinished({
+    required DapDebugSessionHandle handle,
+    required DebugSessionTerminationPlan plan,
+    required String reason,
+  }) async {
+    await handle.close();
+    return DebugSessionTerminationExecutionResult(
+      plan: plan,
+      status: DebugSessionTerminationExecutionStatus.executed,
+      message: reason.trim().isEmpty
+          ? 'Debug session marked finished.'
+          : reason.trim(),
+    );
+  }
+
+  Future<DebugSessionTerminationExecutionResult> _killProcess({
+    required DapDebugSessionHandle handle,
+    required DebugSessionTerminationPlan plan,
+    required String reason,
+  }) async {
+    final handler = processTerminationHandler;
+    if (handler == null) {
+      return DebugSessionTerminationExecutionResult(
+        plan: plan,
+        status: DebugSessionTerminationExecutionStatus.blocked,
+        message:
+            'Debug process termination is blocked: no process termination handler is registered.',
+      );
+    }
+    final result = await handler(handle: handle, plan: plan, reason: reason);
+    if (!result.accepted) {
+      return DebugSessionTerminationExecutionResult(
+        plan: plan,
+        status: DebugSessionTerminationExecutionStatus.blocked,
+        message: result.message,
+        processResult: result,
+      );
+    }
+    await handle.close();
+    return DebugSessionTerminationExecutionResult(
+      plan: plan,
+      status: DebugSessionTerminationExecutionStatus.executed,
+      message: result.message,
+      processResult: result,
+    );
+  }
+}
+
 class DapDebugAdapterLauncher {
   const DapDebugAdapterLauncher({required this.transportFactory});
 

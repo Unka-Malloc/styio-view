@@ -353,6 +353,7 @@ class DebugRuntimeExecutionResult {
     required this.outputEvents,
     required this.dispatchResult,
     this.handle,
+    this.terminationExecution,
   });
 
   final DapDebugAdapterExecutionPlan plan;
@@ -361,6 +362,7 @@ class DebugRuntimeExecutionResult {
   final List<RuntimeOutputEvent> outputEvents;
   final RuntimeExecutionDispatchResult dispatchResult;
   final DapDebugSessionHandle? handle;
+  final DebugSessionTerminationExecutionResult? terminationExecution;
 
   bool get launched => status == DebugRuntimeExecutionStatus.launched;
   bool get failed => status == DebugRuntimeExecutionStatus.failed;
@@ -381,6 +383,8 @@ class DebugRuntimeExecutionResult {
           .map((event) => event.toJson())
           .toList(growable: false),
       if (handle != null) 'session': handle!.snapshot.toJson(),
+      if (terminationExecution != null)
+        'terminationExecution': terminationExecution!.toJson(),
     };
   }
 }
@@ -390,14 +394,18 @@ class DebugRuntimeExecutionAdapter {
     required this.launcher,
     required this.workspaceId,
     RuntimeExecutionManagerRegistry? registry,
+    DebugSessionTerminationExecutor? terminationExecutor,
     RuntimeTaskClock? clock,
   }) : _registry =
            registry ?? RuntimeExecutionManagerRegistry.defaultManagers(),
+       _terminationExecutor =
+           terminationExecutor ?? const DebugSessionTerminationExecutor(),
        _clock = clock ?? DateTime.now().toUtc;
 
   final DapDebugAdapterLauncher launcher;
   final String workspaceId;
   final RuntimeExecutionManagerRegistry _registry;
+  final DebugSessionTerminationExecutor _terminationExecutor;
   final RuntimeTaskClock _clock;
 
   Future<DebugRuntimeExecutionResult> executePlan({
@@ -493,7 +501,21 @@ class DebugRuntimeExecutionAdapter {
         message: 'Debug execution cancellation skipped: no active session.',
       );
     }
-    await handle.close();
+    final terminationExecution = await _terminationExecutor.execute(
+      handle: handle,
+      plan: handle.terminationPlan(),
+      reason: reason,
+    );
+    if (!terminationExecution.executed) {
+      return _controlResult(
+        plan: execution.plan,
+        buffer: buffer,
+        dispatchResult: execution.dispatchResult,
+        status: DebugRuntimeExecutionStatus.blocked,
+        telemetryStatus: DebugLaunchTelemetryStatus.blocked,
+        message: terminationExecution.message,
+      );
+    }
     final record = DebugLaunchTelemetryRecord.fromSessionSnapshot(
       workspaceId: workspaceId,
       plan: execution.plan,
@@ -505,6 +527,7 @@ class DebugRuntimeExecutionAdapter {
         'debugRuntimeExecutionStatus':
             DebugRuntimeExecutionStatus.cancelled.wireValue,
         'cancelledBy': 'DebugRuntimeExecutionAdapter',
+        'terminationExecution': terminationExecution.toJson(),
       },
     );
     final telemetry = DebugLaunchTelemetrySnapshot(
@@ -524,6 +547,7 @@ class DebugRuntimeExecutionAdapter {
       outputEvents: outputEvents,
       dispatchResult: execution.dispatchResult,
       handle: handle,
+      terminationExecution: terminationExecution,
     );
   }
 

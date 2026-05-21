@@ -377,8 +377,12 @@ void main() {
       contains('DebugSessionTerminationPlan'),
     );
     expect(
+      entriesById['debugger.dap']?.summary,
+      contains('DebugSessionTerminationExecutor'),
+    );
+    expect(
       entriesById['debugger.dap']?.todo,
-      contains('concrete debug process termination execution'),
+      contains('production process-kill handlers'),
     );
     expect(entriesById['debugger.dap']?.runtimeMaturityBlocking, isFalse);
     expect(

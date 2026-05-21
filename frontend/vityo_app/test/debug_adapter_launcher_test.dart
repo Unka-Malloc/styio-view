@@ -103,6 +103,62 @@ void main() {
     },
   );
 
+  test('DAP debug session termination executor sends disconnect', () async {
+    late _FakeDapByteTransport fakeTransport;
+    final launcher = DapDebugAdapterLauncher(
+      transportFactory: (launch) async {
+        fakeTransport = _FakeDapByteTransport();
+        return fakeTransport;
+      },
+    );
+    final handle = await launcher.launch(_readyLaunch());
+
+    final result = await const DebugSessionTerminationExecutor().execute(
+      handle: handle,
+      plan: handle.terminationPlan(),
+      reason: 'User stopped debugging.',
+    );
+
+    expect(result.status, DebugSessionTerminationExecutionStatus.executed);
+    expect(result.requestCommand, 'disconnect');
+    expect(result.toJson()['status'], 'executed');
+    expect(_decodedCommand(fakeTransport.sentBytes.last), 'disconnect');
+  });
+
+  test('DAP debug session termination executor binds process killer', () async {
+    late _FakeDapByteTransport fakeTransport;
+    final launcher = DapDebugAdapterLauncher(
+      transportFactory: (launch) async {
+        fakeTransport = _FakeDapByteTransport();
+        return fakeTransport;
+      },
+    );
+    final killedDebuggers = <String>[];
+    final handle = await launcher.launch(_readyLaunch());
+    final executor = DebugSessionTerminationExecutor(
+      processTerminationHandler:
+          ({required handle, required plan, required reason}) async {
+            killedDebuggers.add(plan.debuggerId);
+            return const DebugProcessTerminationResult.accepted(
+              message: 'Killed debug adapter process.',
+              metadata: <String, Object?>{'pid': 9001},
+            );
+          },
+    );
+
+    final result = await executor.execute(
+      handle: handle,
+      plan: handle.terminationPlan(force: true, processHandleAvailable: true),
+      reason: 'Force stop.',
+    );
+
+    expect(result.status, DebugSessionTerminationExecutionStatus.executed);
+    expect(result.plan.action, DebugSessionTerminationAction.killProcess);
+    expect(result.processResult?.processTerminated, isTrue);
+    expect(killedDebuggers, <String>['lldb-dap']);
+    expect(_decodedCommand(fakeTransport.sentBytes.last), isNot('disconnect'));
+  });
+
   test('DAP debug launch telemetry store persists execution records', () async {
     final store = DebugLaunchTelemetryStore.fromDataStore(
       dataStore: await _createDataStore(),
@@ -236,6 +292,11 @@ void main() {
         cancelled.outputEvents.map((event) => event.message),
         contains('cancelled debug-styio: User cancelled debug session.'),
       );
+      expect(
+        cancelled.terminationExecution?.status,
+        DebugSessionTerminationExecutionStatus.executed,
+      );
+      expect(_decodedCommand(fakeTransport.sentBytes.last), 'disconnect');
     },
   );
 

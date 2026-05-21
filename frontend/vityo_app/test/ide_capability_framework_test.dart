@@ -202,15 +202,19 @@ void main() {
     );
     expect(
       entriesById['service.semantic-snapshot']?.summary,
+      contains('StyioServiceDaemonSupervisorControls'),
+    );
+    expect(
+      entriesById['service.semantic-snapshot']?.summary,
       contains('restart dispatch controls'),
     );
     expect(
       entriesById['service.semantic-snapshot']?.summary,
-      contains('language-service refresh callback restart bridge'),
+      contains('language-service refresh callback fallback'),
     );
     expect(
       entriesById['service.semantic-snapshot']?.todo,
-      contains('dedicated production process supervisor controls'),
+      contains('real StyioService daemon process adapters'),
     );
     expect(
       entriesById['service.semantic-snapshot']?.runtimeMaturityBlocking,

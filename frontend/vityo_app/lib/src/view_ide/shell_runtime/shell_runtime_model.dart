@@ -447,6 +447,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     this.agentProviderConfigurator,
     this.refreshActiveLanguageService,
     this.styioServiceSubscriptionController,
+    this.styioServiceDaemonProcessSupervisor,
     ValueListenable<LanguageServiceStatusSurface>? languageServiceStatus,
     this.toolchainStatusReport,
     this.workspaceDiagnosticsController,
@@ -580,6 +581,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   final AgentProviderConfigurator? agentProviderConfigurator;
   final Future<void> Function()? refreshActiveLanguageService;
   final StyioServiceSubscriptionController? styioServiceSubscriptionController;
+  final StyioServiceDaemonProcessSupervisor?
+  styioServiceDaemonProcessSupervisor;
   final EditorDocumentResourceBinding _editorFileBinding;
   final RuntimeEventAdapter runtimeEventAdapter;
   final ValueListenable<LanguageServiceStatusSurface> languageServiceStatus;
@@ -1166,9 +1169,17 @@ class ShellRuntimeModel extends ChangeNotifier {
       );
       return null;
     }
+    final effectiveProcessSupervisor =
+        processSupervisor ?? styioServiceDaemonProcessSupervisor;
+    final supervisorControls = effectiveProcessSupervisor == null
+        ? null
+        : StyioServiceDaemonSupervisorControls(
+            controller: controller,
+            processSupervisor: effectiveProcessSupervisor,
+          );
     final restartHandler =
         restart ??
-        processSupervisor?.restartStyioServiceDaemon ??
+        supervisorControls?.restartHandler ??
         (refreshActiveLanguageService == null
             ? null
             : _restartStyioServiceDaemonFromLanguageRefresh);

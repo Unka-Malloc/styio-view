@@ -37,6 +37,7 @@ class ShellModel extends ShellRuntimeModel {
     super.agentProviderConfigurator,
     super.refreshActiveLanguageService,
     super.styioServiceSubscriptionController,
+    super.styioServiceDaemonProcessSupervisor,
     super.toolchainManager,
     super.editorSessionDataStore,
     super.editorSessionWorkspaceId,

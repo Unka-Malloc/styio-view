@@ -232,64 +232,125 @@ void main() {
     expect(exhausted.delayBeforeRestart, Duration.zero);
   });
 
-  test('StyioService daemon restart dispatch records handler outcome', () async {
-    final connector = _FactoryStyioServiceConnector(
-      (request) => StyioServiceResponse(
-        status: StyioServiceStatus.succeeded,
-        documentId: request.documentId,
-        revision: request.revision,
-      ),
-    );
-    final controller = StyioServiceSubscriptionController(
-      driver: StyioServiceAnalysisDriver(connector: connector),
-    );
-    addTearDown(controller.dispose);
-    final daemonEvents = StreamController<StyioServiceDaemonEvent>();
-    addTearDown(daemonEvents.close);
-    controller.bindDaemonEventStream(
-      providerId: 'styio-daemon.fixture',
-      events: daemonEvents.stream,
-    );
-    final failedEvent = controller.events.firstWhere(
-      (event) => event.kind == StyioServiceSubscriptionEventKind.failed,
-    );
+  test(
+    'StyioService daemon restart dispatch records handler outcome',
+    () async {
+      final connector = _FactoryStyioServiceConnector(
+        (request) => StyioServiceResponse(
+          status: StyioServiceStatus.succeeded,
+          documentId: request.documentId,
+          revision: request.revision,
+        ),
+      );
+      final controller = StyioServiceSubscriptionController(
+        driver: StyioServiceAnalysisDriver(connector: connector),
+      );
+      addTearDown(controller.dispose);
+      final daemonEvents = StreamController<StyioServiceDaemonEvent>();
+      addTearDown(daemonEvents.close);
+      controller.bindDaemonEventStream(
+        providerId: 'styio-daemon.fixture',
+        events: daemonEvents.stream,
+      );
+      final failedEvent = controller.events.firstWhere(
+        (event) => event.kind == StyioServiceSubscriptionEventKind.failed,
+      );
 
-    daemonEvents.addError(StateError('daemon crashed'));
-    await failedEvent;
-    final scheduled = await controller.dispatchDaemonRestart(
-      failedAttempt: 0,
-      reason: StyioServiceDaemonRestartReason.manual,
-      policy: const StyioServiceDaemonRestartPolicy(
-        initialDelay: Duration.zero,
-      ),
-    );
-    final dispatched = await controller.dispatchDaemonRestart(
-      failedAttempt: 0,
-      reason: StyioServiceDaemonRestartReason.manual,
-      policy: const StyioServiceDaemonRestartPolicy(
-        initialDelay: Duration.zero,
-      ),
-      restart: (plan) async => StyioServiceDaemonLifecycleSnapshot(
-        state: StyioServiceDaemonLifecycleState.active,
-        providerId: plan.providerId,
-        message: 'StyioService daemon restart handler ran.',
-      ),
-    );
-    final blocked = await controller.dispatchDaemonRestart(
-      failedAttempt: 3,
-      reason: StyioServiceDaemonRestartReason.streamFailed,
-      policy: const StyioServiceDaemonRestartPolicy(maxAttempts: 3),
-    );
+      daemonEvents.addError(StateError('daemon crashed'));
+      await failedEvent;
+      final scheduled = await controller.dispatchDaemonRestart(
+        failedAttempt: 0,
+        reason: StyioServiceDaemonRestartReason.manual,
+        policy: const StyioServiceDaemonRestartPolicy(
+          initialDelay: Duration.zero,
+        ),
+      );
+      final dispatched = await controller.dispatchDaemonRestart(
+        failedAttempt: 0,
+        reason: StyioServiceDaemonRestartReason.manual,
+        policy: const StyioServiceDaemonRestartPolicy(
+          initialDelay: Duration.zero,
+        ),
+        restart: (plan) async => StyioServiceDaemonLifecycleSnapshot(
+          state: StyioServiceDaemonLifecycleState.active,
+          providerId: plan.providerId,
+          message: 'StyioService daemon restart handler ran.',
+        ),
+      );
+      final blocked = await controller.dispatchDaemonRestart(
+        failedAttempt: 3,
+        reason: StyioServiceDaemonRestartReason.streamFailed,
+        policy: const StyioServiceDaemonRestartPolicy(maxAttempts: 3),
+      );
 
-    expect(scheduled.status, StyioServiceDaemonRestartDispatchStatus.scheduled);
-    expect(scheduled.toJson()['dispatched'], isFalse);
-    expect(dispatched.status, StyioServiceDaemonRestartDispatchStatus.dispatched);
-    expect(dispatched.dispatched, isTrue);
-    expect(dispatched.lifecycle?.active, isTrue);
-    expect(controller.daemonLifecycle.state, StyioServiceDaemonLifecycleState.active);
-    expect(blocked.status, StyioServiceDaemonRestartDispatchStatus.blocked);
-    expect(blocked.plan.restartable, isFalse);
-  });
+      expect(
+        scheduled.status,
+        StyioServiceDaemonRestartDispatchStatus.scheduled,
+      );
+      expect(scheduled.toJson()['dispatched'], isFalse);
+      expect(
+        dispatched.status,
+        StyioServiceDaemonRestartDispatchStatus.dispatched,
+      );
+      expect(dispatched.dispatched, isTrue);
+      expect(dispatched.lifecycle?.active, isTrue);
+      expect(
+        controller.daemonLifecycle.state,
+        StyioServiceDaemonLifecycleState.active,
+      );
+      expect(blocked.status, StyioServiceDaemonRestartDispatchStatus.blocked);
+      expect(blocked.plan.restartable, isFalse);
+    },
+  );
+
+  test(
+    'StyioService daemon supervisor controls dispatch process restart',
+    () async {
+      final connector = _FactoryStyioServiceConnector(
+        (request) => StyioServiceResponse(
+          status: StyioServiceStatus.succeeded,
+          documentId: request.documentId,
+          revision: request.revision,
+        ),
+      );
+      final controller = StyioServiceSubscriptionController(
+        driver: StyioServiceAnalysisDriver(connector: connector),
+      );
+      addTearDown(controller.dispose);
+      final daemonEvents = StreamController<StyioServiceDaemonEvent>();
+      addTearDown(daemonEvents.close);
+      controller.bindDaemonEventStream(
+        providerId: 'styio-daemon.fixture',
+        events: daemonEvents.stream,
+      );
+      final failedEvent = controller.events.firstWhere(
+        (event) => event.kind == StyioServiceSubscriptionEventKind.failed,
+      );
+      daemonEvents.addError(StateError('daemon crashed'));
+      await failedEvent;
+      final supervisor = _CountingStyioServiceDaemonProcessSupervisor();
+      final controls = StyioServiceDaemonSupervisorControls(
+        controller: controller,
+        processSupervisor: supervisor,
+      );
+
+      final dispatched = await controls.dispatchRestart(
+        policy: const StyioServiceDaemonRestartPolicy(
+          initialDelay: Duration.zero,
+        ),
+      );
+
+      expect(controls.processSupervisorAttached, isTrue);
+      expect(
+        dispatched.status,
+        StyioServiceDaemonRestartDispatchStatus.dispatched,
+      );
+      expect(dispatched.lifecycle?.active, isTrue);
+      expect(supervisor.restartCount, 1);
+      expect(controls.toJson()['processSupervisorAttached'], isTrue);
+      expect(controls.toJson()['daemonLifecycle'], isA<Map<String, Object?>>());
+    },
+  );
 }
 
 typedef _StyioServiceResponseFactory =
@@ -336,4 +397,21 @@ class _PendingStyioServiceRequest {
 
   final StyioServiceDocument document;
   final Completer<StyioServiceResponse> completer;
+}
+
+class _CountingStyioServiceDaemonProcessSupervisor
+    implements StyioServiceDaemonProcessSupervisor {
+  int restartCount = 0;
+
+  @override
+  Future<StyioServiceDaemonLifecycleSnapshot> restartStyioServiceDaemon(
+    StyioServiceDaemonRestartPlan plan,
+  ) async {
+    restartCount += 1;
+    return StyioServiceDaemonLifecycleSnapshot(
+      state: StyioServiceDaemonLifecycleState.active,
+      providerId: plan.providerId,
+      message: 'StyioService daemon restarted by supervisor controls.',
+    );
+  }
 }

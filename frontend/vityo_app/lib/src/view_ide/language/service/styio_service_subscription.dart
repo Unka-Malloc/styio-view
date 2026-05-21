@@ -331,6 +331,43 @@ class StyioServiceDaemonRestartDispatchResult {
   }
 }
 
+class StyioServiceDaemonSupervisorControls {
+  const StyioServiceDaemonSupervisorControls({
+    required this.controller,
+    this.processSupervisor,
+  });
+
+  final StyioServiceSubscriptionController controller;
+  final StyioServiceDaemonProcessSupervisor? processSupervisor;
+
+  bool get processSupervisorAttached => processSupervisor != null;
+  StyioServiceDaemonRestartHandler? get restartHandler =>
+      processSupervisor?.restartStyioServiceDaemon;
+
+  Future<StyioServiceDaemonRestartDispatchResult> dispatchRestart({
+    int failedAttempt = 0,
+    StyioServiceDaemonRestartReason reason =
+        StyioServiceDaemonRestartReason.manual,
+    StyioServiceDaemonRestartPolicy policy =
+        const StyioServiceDaemonRestartPolicy(),
+  }) {
+    return controller.dispatchDaemonRestart(
+      failedAttempt: failedAttempt,
+      reason: reason,
+      policy: policy,
+      restart: restartHandler,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'processSupervisorAttached': processSupervisorAttached,
+      'daemonLifecycle': controller.daemonLifecycle.toJson(),
+      'daemonStreamListening': controller.daemonStreamListening,
+    };
+  }
+}
+
 class StyioServiceSubscriptionController {
   StyioServiceSubscriptionController({required this.driver});
 

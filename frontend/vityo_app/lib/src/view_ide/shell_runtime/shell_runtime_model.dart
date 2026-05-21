@@ -854,6 +854,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       documentSymbols: editorController.analysis.documentSymbols,
       inlayHints: editorController.analysis.inlayHints,
       semanticBlocks: editorController.analysis.semanticBlocks,
+      semanticFeatureMatrix: editorController.semanticFeatureMatrix,
       languageServiceStatus: languageServiceStatus.value,
       lastCommandResult: _lastAgentIdeCommandResult,
       recentCommandResults: _agentIdeCommandResults,

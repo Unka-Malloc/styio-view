@@ -234,6 +234,12 @@ class EditorSessionController extends ChangeNotifier {
     return codeActionFactsForDiagnostics(diagnosticsAtSelection);
   }
 
+  SemanticSnapshotFeatureMatrix get semanticFeatureMatrix {
+    return SemanticSnapshotProvider(
+      languageService: _languageService,
+    ).snapshotFor(_document).featureMatrix;
+  }
+
   List<DiagnosticQuickFix> get contextActionsAtSelection {
     final actions = <DiagnosticQuickFix>[];
     final seenSignatures = <String>{};

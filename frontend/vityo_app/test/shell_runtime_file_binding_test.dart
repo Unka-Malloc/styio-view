@@ -1768,6 +1768,18 @@ void main() {
               range: SourceRange(start: 0, end: 5),
             ),
           ],
+          quickFixes: <DiagnosticQuickFix>[
+            DiagnosticQuickFix(
+              label: 'Fix focused warning',
+              detail: 'Apply a deterministic fix.',
+              edits: <FormattingEdit>[
+                FormattingEdit(
+                  range: SourceRange(start: 0, end: 5),
+                  newText: 'fixed',
+                ),
+              ],
+            ),
+          ],
           safeDeletePlan: SafeDeletePlan(
             target: DocumentSymbol(
               name: 'unused',
@@ -1843,6 +1855,16 @@ void main() {
     expect(
       shell.agentSessionContext.language.focusedDiagnostics.single.code,
       'focused-warning',
+    );
+    expect(
+      shell.agentSessionContext.language.semanticFeatureMatrix
+          ?.codeActionFactCount,
+      1,
+    );
+    expect(
+      shell.agentSessionContext.language.semanticFeatureMatrix
+          ?.unavailableFeatures,
+      isNot(contains('code-actions')),
     );
     expect(shell.agentSessionContext.language.refactorPreviewCount, 2);
     expect(
@@ -6326,6 +6348,7 @@ class _NoopStyioLanguageService implements StyioLanguageService {
     this.safeDeletePlan,
     this.inlineVariablePlan,
     this.surroundTemplates = const <SurroundTemplate>[],
+    this.quickFixes = const <DiagnosticQuickFix>[],
   });
 
   final ParameterInfoPayload? parameterInfo;
@@ -6335,6 +6358,7 @@ class _NoopStyioLanguageService implements StyioLanguageService {
   final SafeDeletePlan? safeDeletePlan;
   final InlineVariablePlan? inlineVariablePlan;
   final List<SurroundTemplate> surroundTemplates;
+  final List<DiagnosticQuickFix> quickFixes;
 
   @override
   StyioDocumentAnalysis analyzeDocument(DocumentState document) {
@@ -6405,7 +6429,7 @@ class _NoopStyioLanguageService implements StyioLanguageService {
   List<DiagnosticQuickFix> quickFixesForDiagnostic(
     DocumentState document,
     Diagnostic diagnostic,
-  ) => const <DiagnosticQuickFix>[];
+  ) => quickFixes;
 
   @override
   List<ReferenceSpan> referencesAt(DocumentState document, int offset) =>

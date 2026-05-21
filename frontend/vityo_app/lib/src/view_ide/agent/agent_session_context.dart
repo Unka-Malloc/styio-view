@@ -2700,6 +2700,7 @@ class AgentSemanticFeatureMatrixContext {
     required this.localFallbackFeatureCount,
     required this.unavailableFeatureCount,
     required this.unavailableFeatures,
+    required this.codeActionFactCount,
   });
 
   final String source;
@@ -2708,6 +2709,7 @@ class AgentSemanticFeatureMatrixContext {
   final int localFallbackFeatureCount;
   final int unavailableFeatureCount;
   final List<String> unavailableFeatures;
+  final int codeActionFactCount;
 
   factory AgentSemanticFeatureMatrixContext.fromMatrix(
     SemanticSnapshotFeatureMatrix matrix,
@@ -2721,6 +2723,7 @@ class AgentSemanticFeatureMatrixContext {
       unavailableFeatures: matrix.unavailableFeatures
           .map((feature) => feature.wireValue)
           .toList(growable: false),
+      codeActionFactCount: matrix.codeActionFactCount,
     );
   }
 
@@ -2732,6 +2735,7 @@ class AgentSemanticFeatureMatrixContext {
       'localFallbackFeatureCount': localFallbackFeatureCount,
       'unavailableFeatureCount': unavailableFeatureCount,
       'unavailableFeatures': unavailableFeatures,
+      'codeActionFactCount': codeActionFactCount,
     };
   }
 }

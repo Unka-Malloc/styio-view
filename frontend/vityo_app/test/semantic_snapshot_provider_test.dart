@@ -207,6 +207,7 @@ void main() {
       SemanticSnapshotFeatureConfidence.serviceBacked,
     );
     expect(snapshotResult.toJson()['codeActionFactCount'], 1);
+    expect(snapshotResult.featureMatrix.toJson()['codeActionFactCount'], 1);
     expect(result.source, SemanticSnapshotProviderSource.serviceAnalysis);
     expect(result.available, isTrue);
     expect(result.actions.single.diagnosticCode, 'local.unclosed-delimiter');

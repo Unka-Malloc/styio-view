@@ -155,6 +155,7 @@ class SemanticSnapshotFeatureMatrix {
   const SemanticSnapshotFeatureMatrix({
     required this.source,
     required this.supports,
+    this.codeActionFactCount = 0,
   });
 
   factory SemanticSnapshotFeatureMatrix.fromSnapshot({
@@ -172,6 +173,7 @@ class SemanticSnapshotFeatureMatrix {
         : SemanticSnapshotFeatureConfidence.localFallback;
     return SemanticSnapshotFeatureMatrix(
       source: source,
+      codeActionFactCount: codeActionFactCount,
       supports: <SemanticSnapshotFeatureSupport>[
         SemanticSnapshotFeatureSupport(
           feature: SemanticSnapshotConsumerFeature.hover,
@@ -249,6 +251,7 @@ class SemanticSnapshotFeatureMatrix {
 
   final SemanticSnapshotProviderSource source;
   final List<SemanticSnapshotFeatureSupport> supports;
+  final int codeActionFactCount;
 
   bool supportsFeature(SemanticSnapshotConsumerFeature feature) {
     return supportFor(feature).available;
@@ -314,6 +317,7 @@ class SemanticSnapshotFeatureMatrix {
       'serviceBackedFeatureCount': serviceBackedFeatureCount,
       'localFallbackFeatureCount': localFallbackFeatureCount,
       'unavailableFeatureCount': unavailableFeatureCount,
+      'codeActionFactCount': codeActionFactCount,
       'supports': supports
           .map((support) => support.toJson())
           .toList(growable: false),

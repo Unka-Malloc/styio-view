@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/agent/agent_builtin_tool_executor.dart';
 import 'package:vityo_app/src/agent/agent_code_patch_applier.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
@@ -34,7 +35,9 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
 void main() {
   testWidgets('agent surface exposes tool call review status', (tester) async {
     final controller = AgentCodingSessionController(
-      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
       adapter: const LocalOnlyAgentProviderAdapter(),
       contextProvider: _context,
     );
@@ -199,12 +202,72 @@ void main() {
     expect(editorController.document.text, 'value = 1\n');
     expect(controller.lastWorkspaceRevertPlan, isNull);
   });
+
+  testWidgets('agent surface runs approved workspace patch tools', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    AgentCodePatch? appliedPatch;
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-apply-patch',
+        toolId: 'applyWorkspacePatch',
+        input:
+            '{"patch":{"patchId":"patch-tool","summary":"Change value.","edits":[{"documentId":"main.styio","start":8,"end":9,"replacementText":"2"}]}}',
+      ),
+    );
+    controller.approveToolCallExecution('call-apply-patch');
+
+    await _pumpSurface(
+      tester,
+      controller,
+      onApplyAgentWorkspacePatch: (patch) async {
+        appliedPatch = patch;
+        return const AgentCodePatchApplicationResult(
+          applied: true,
+          message: 'workspace patch applied',
+          appliedEditCount: 1,
+          appliedOperationCounts: <String, int>{'replace': 1},
+          appliedDocumentIds: <String>['main.styio'],
+        );
+      },
+    );
+
+    expect(
+      find.text('applyWorkspacePatch · ready · call-apply-patch'),
+      findsOneWidget,
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-run-approved')),
+    );
+    await tester.pump();
+
+    expect(appliedPatch?.patchId, 'patch-tool');
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.complete,
+    );
+    expect(
+      controller.toolCallExecutionPlan.executionFor('call-apply-patch')?.status,
+      AgentToolCallExecutionStatus.completed,
+    );
+  });
 }
 
 Future<void> _pumpSurface(
   WidgetTester tester,
   AgentCodingSessionController controller, {
   Future<void> Function()? onApplyWorkspaceRevertPlan,
+  AgentWorkspacePatchToolRunner? onApplyAgentWorkspacePatch,
   Future<bool> Function(AgentIdeCommandSuggestion)? onApplyIdeCommandSuggestion,
 }) async {
   await tester.pumpWidget(
@@ -226,6 +289,7 @@ Future<void> _pumpSurface(
             codingController: controller,
             onApplyPendingPatch: () async {},
             onApplyWorkspaceRevertPlan: onApplyWorkspaceRevertPlan,
+            onApplyAgentWorkspacePatch: onApplyAgentWorkspacePatch,
             onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
             onSaveProviderProfile: (profile, {bearerToken}) async {},
           ),

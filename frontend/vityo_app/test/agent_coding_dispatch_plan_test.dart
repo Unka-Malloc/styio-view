@@ -32,7 +32,7 @@ void main() {
     expect(
       plan.todoItems,
       contains(
-        'TODO: bind ProviderRegistry route selection to the coding assistant UI.',
+        'TODO: attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
       ),
     );
     expect(json['status'], 'ready');

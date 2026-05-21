@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_registry.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/agent/agent_tool_registry.dart';
 import 'package:vityo_app/src/app/app_bootstrap.dart';
@@ -19,18 +20,37 @@ void main() {
   test(
     'agent bootstrap keeps local-only mode without persisted profile',
     () async {
+      final registry = AgentProviderRegistry(
+        registrations: <AgentProviderRegistration>[
+          AgentProviderRegistration(
+            providerId: 'hosted',
+            displayName: 'Hosted Agent Provider',
+            kind: AgentProviderKind.cloudOpenAICompatible,
+            supportedRoutes: const <String>['web-hosted'],
+            supportedProtocols: const <String>['openai-compatible'],
+            createAdapter: (_) async => const LocalOnlyAgentProviderAdapter(),
+          ),
+        ],
+      );
       final controller = await AppBootstrap.createAgentCodingSessionController(
         platformTarget: PlatformTarget.web,
         loadPersistedProfile: () async => null,
         createConfiguredAdapter: (_) {
           fail('default bootstrap must not create a network provider');
         },
+        selectConfiguredProvider: registry.selectionPlan,
         contextProvider: _context,
       );
       addTearDown(controller.dispose);
 
       expect(controller.profile.profileId, 'default-web');
       expect(controller.adapter, isA<LocalOnlyAgentProviderAdapter>());
+      expect(controller.providerSelectionPlan?.ready, isTrue);
+      expect(
+        controller.providerSelectionPlan?.selectedProvider?.providerId,
+        'hosted',
+      );
+      expect(controller.providerExecutionResolution, isNull);
     },
   );
 

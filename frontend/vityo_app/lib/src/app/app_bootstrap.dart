@@ -380,6 +380,7 @@ class AppBootstrap {
         return agentProfileStore.readProfile(workspaceId: projectSnapshot.id);
       },
       createConfiguredAdapter: agentProviderRegistry.createAdapter,
+      selectConfiguredProvider: agentProviderRegistry.selectionPlan,
       resolveConfiguredExecution: agentProviderFactory.resolveExecution,
       sessionHistoryStore: agentSessionHistoryStore,
       sessionHistoryWorkspaceId: projectSnapshot.id,
@@ -531,6 +532,8 @@ class AppBootstrap {
     required Future<AgentPromptProfile?> Function() loadPersistedProfile,
     required Future<AgentProviderAdapter> Function(AgentPromptProfile profile)
     createConfiguredAdapter,
+    AgentProviderSelectionPlan Function(AgentPromptProfile profile)?
+    selectConfiguredProvider,
     Future<AgentProviderExecutionResolution> Function(
       AgentPromptProfile profile,
     )?
@@ -554,15 +557,25 @@ class AppBootstrap {
             profile: profile,
             createConfiguredAdapter: createConfiguredAdapter,
           );
+    var providerSelectionPlan = _selectConfiguredAgentProvider(
+      profile: profile,
+      selectConfiguredProvider: selectConfiguredProvider,
+    );
     final executionResolution = persistedProfile == null
         ? null
         : await _resolveConfiguredAgentExecution(
             profile: profile,
             resolveConfiguredExecution: resolveConfiguredExecution,
           );
+    if (providerSelectionPlan != null && executionResolution != null) {
+      providerSelectionPlan = providerSelectionPlan.withExecutionResolution(
+        executionResolution,
+      );
+    }
     final controller = AgentCodingSessionController(
       profile: profile,
       adapter: adapter,
+      providerSelectionPlan: providerSelectionPlan,
       providerExecutionResolution: executionResolution,
       contextProvider: contextProvider,
       sessionHistoryStore: sessionHistoryStore,
@@ -603,6 +616,21 @@ class AppBootstrap {
       return await createConfiguredAdapter(profile);
     } on Object {
       return const LocalOnlyAgentProviderAdapter();
+    }
+  }
+
+  static AgentProviderSelectionPlan? _selectConfiguredAgentProvider({
+    required AgentPromptProfile profile,
+    required AgentProviderSelectionPlan Function(AgentPromptProfile profile)?
+    selectConfiguredProvider,
+  }) {
+    if (selectConfiguredProvider == null) {
+      return null;
+    }
+    try {
+      return selectConfiguredProvider(profile);
+    } on Object {
+      return null;
     }
   }
 

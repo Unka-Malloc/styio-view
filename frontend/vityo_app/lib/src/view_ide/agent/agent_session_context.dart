@@ -119,7 +119,7 @@ class AgentCodingExecutionReadiness {
           severity: AgentCodingExecutionReadinessIssueSeverity.attention,
           ownerLayer: 'service',
           todo:
-              'TODO: bind ProviderRegistry route selection to the coding assistant UI.',
+              'TODO: attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
         ),
       );
     } else {
@@ -268,7 +268,7 @@ class AgentCodingExecutionReadiness {
           severity: AgentCodingExecutionReadinessIssueSeverity.attention,
           ownerLayer: 'service',
           todo:
-              'TODO: bind ProviderRegistry route selection to the coding assistant UI.',
+              'TODO: attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
         ),
       );
     } else {

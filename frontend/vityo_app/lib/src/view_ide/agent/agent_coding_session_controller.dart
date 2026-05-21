@@ -1104,16 +1104,16 @@ class AgentCodingSessionController extends ChangeNotifier {
     final result = await const AgentProviderStreamingRuntime().run(
       adapter: adapter,
       request: request,
+      onOutputEvent: (event) {
+        _runtimeOutputBuffer?.addEvent(event);
+      },
+      onProviderEvent: (event) {
+        final toolCallEvent = _toolCallStreamBridge.eventFor(event);
+        if (toolCallEvent != null) {
+          recordToolCallEvent(toolCallEvent);
+        }
+      },
     );
-    for (final event in result.outputEvents) {
-      _runtimeOutputBuffer?.addEvent(event);
-    }
-    for (final event in result.providerEvents) {
-      final toolCallEvent = _toolCallStreamBridge.eventFor(event);
-      if (toolCallEvent != null) {
-        recordToolCallEvent(toolCallEvent);
-      }
-    }
     if (result.succeeded && result.response != null) {
       return result.response!;
     }

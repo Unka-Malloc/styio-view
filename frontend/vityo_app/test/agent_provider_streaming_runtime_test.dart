@@ -27,6 +27,33 @@ void main() {
     expect(result.toJson()['providerEventCount'], 3);
   });
 
+  test('agent streaming runtime publishes live event callbacks', () async {
+    final providerKinds = <AgentProviderStreamEventKind>[];
+    final outputKinds = <String>[];
+    final result = await const AgentProviderStreamingRuntime().run(
+      adapter: const _StreamingAdapter(),
+      request: _request('streaming-runtime-live-request'),
+      onProviderEvent: (event) {
+        providerKinds.add(event.kind);
+      },
+      onOutputEvent: (event) {
+        outputKinds.add(event.metadata['streamEventKind']! as String);
+      },
+    );
+
+    expect(result.succeeded, isTrue);
+    expect(providerKinds, <AgentProviderStreamEventKind>[
+      AgentProviderStreamEventKind.started,
+      AgentProviderStreamEventKind.contentDelta,
+      AgentProviderStreamEventKind.completed,
+    ]);
+    expect(outputKinds, <String>['started', 'contentDelta', 'completed']);
+    expect(
+      result.outputEvents.map((event) => event.metadata['streamEventKind']),
+      outputKinds,
+    );
+  });
+
   test('agent streaming runtime synthesizes events for send adapters', () async {
     final result = await const AgentProviderStreamingRuntime().run(
       adapter: const _StaticAdapter(),

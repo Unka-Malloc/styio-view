@@ -2,6 +2,11 @@ import '../runtime/runtime.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_retry_policy.dart';
 
+typedef AgentProviderStreamingEventSink =
+    void Function(AgentProviderStreamEvent event);
+typedef AgentProviderRuntimeOutputEventSink =
+    void Function(RuntimeOutputEvent event);
+
 enum AgentProviderStreamingRunStatus { succeeded, failed }
 
 extension AgentProviderStreamingRunStatusX on AgentProviderStreamingRunStatus {
@@ -62,11 +67,18 @@ class AgentProviderStreamingRuntime {
   Future<AgentProviderStreamingRunResult> run({
     required AgentProviderAdapter adapter,
     required AgentProviderRequest request,
+    AgentProviderStreamingEventSink? onProviderEvent,
+    AgentProviderRuntimeOutputEventSink? onOutputEvent,
   }) async {
     final events = <AgentProviderStreamEvent>[];
+    final outputEvents = <RuntimeOutputEvent>[];
 
     void record(AgentProviderStreamEvent event) {
       events.add(event);
+      final outputEvent = binding.eventFor(event);
+      outputEvents.add(outputEvent);
+      onProviderEvent?.call(event);
+      onOutputEvent?.call(outputEvent);
     }
 
     try {
@@ -86,6 +98,7 @@ class AgentProviderStreamingRuntime {
         status: AgentProviderStreamingRunStatus.succeeded,
         requestId: request.requestId,
         events: events,
+        outputEvents: outputEvents,
         response: response,
       );
     } on Object catch (error) {
@@ -108,6 +121,7 @@ class AgentProviderStreamingRuntime {
         status: AgentProviderStreamingRunStatus.failed,
         requestId: request.requestId,
         events: events,
+        outputEvents: outputEvents,
         error: error,
         errorMessage: message,
       );
@@ -164,11 +178,13 @@ class AgentProviderStreamingRuntime {
     required AgentProviderStreamingRunStatus status,
     required String requestId,
     required List<AgentProviderStreamEvent> events,
+    required List<RuntimeOutputEvent> outputEvents,
     AgentProviderResponseEnvelope? response,
     Object? error,
     String? errorMessage,
   }) {
     final providerEvents = List<AgentProviderStreamEvent>.unmodifiable(events);
+    final runtimeEvents = List<RuntimeOutputEvent>.unmodifiable(outputEvents);
     return AgentProviderStreamingRunResult(
       status: status,
       requestId: requestId,
@@ -176,7 +192,7 @@ class AgentProviderStreamingRuntime {
       error: error,
       errorMessage: errorMessage,
       providerEvents: providerEvents,
-      outputEvents: binding.eventsFor(providerEvents),
+      outputEvents: runtimeEvents,
     );
   }
 }

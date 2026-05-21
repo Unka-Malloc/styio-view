@@ -2064,6 +2064,8 @@ void main() {
     final pendingPatch = agentJson['pendingPatch']! as Map<String, Object?>;
     final recentPatchProposals =
         agentJson['recentPatchProposals']! as List<Object?>;
+    final changeReviewGate =
+        agentJson['changeReviewGate']! as Map<String, Object?>;
     final edits = pendingPatch['edits']! as List<Object?>;
     final firstEdit = edits.single! as Map<String, Object?>;
 
@@ -2082,6 +2084,16 @@ void main() {
     expect(
       (recentPatchProposals.single! as Map<String, Object?>)['patchId'],
       'patch-pending',
+    );
+    expect(changeReviewGate['status'], 'needsReview');
+    expect(changeReviewGate['canApplyPreview'], isTrue);
+    expect(changeReviewGate['requiresUserReview'], isTrue);
+    expect(
+      changeReviewGate['requiredReviewSteps'],
+      containsAll(<String>[
+        'reviewWorkspaceEditPreview',
+        'confirmGeneratedPatchScope',
+      ]),
     );
   });
 

@@ -707,6 +707,7 @@ class AgentSessionContext {
         recentCodingPlans: recentCodingPlans,
         recentDiagnosticSummaries: recentDiagnosticSummaries,
         ideCapabilityClosure: ideCapabilityClosure,
+        codingReadiness: codingReadiness,
       ),
       commands: commandContext,
       language: AgentLanguageContext.fromSelection(
@@ -940,6 +941,7 @@ class AgentSessionContext {
         recentCodingPlans: recentCodingPlanList,
         recentDiagnosticSummaries: recentDiagnosticSummaryList,
         ideCapabilityClosure: ideCapabilityClosure ?? this.ideCapabilityClosure,
+        codingReadiness: codingReadiness,
       ),
       commands: AgentCommandCatalogContext(
         persistenceCommands: commands.persistenceCommands,
@@ -992,6 +994,11 @@ class AgentCodingLoopContext {
     this.workspaceEdit,
     this.recentCodingPlans = const <AgentCodingPlanContext>[],
     this.recentDiagnosticSummaries = const <AgentDiagnosticSummaryContext>[],
+    this.changeReviewGate = const AgentCodingChangeReviewGate(
+      status: AgentCodingChangeReviewGateStatus.idle,
+      canApplyPreview: false,
+      requiresUserReview: false,
+    ),
     this.suggestedCommandIds = const <String>[],
   });
 
@@ -1018,6 +1025,9 @@ class AgentCodingLoopContext {
     Iterable<AgentDiagnosticSummaryContext> recentDiagnosticSummaries =
         const <AgentDiagnosticSummaryContext>[],
     IdeCapabilityClosureReport? ideCapabilityClosure,
+    AgentCodingExecutionReadiness codingReadiness =
+        const AgentCodingExecutionReadiness.unknown(),
+    AgentCodingChangeReviewGate? changeReviewGate,
   }) {
     final history = _agentPatchApplicationHistory(
       lastPatchApplication: lastPatchApplication,
@@ -1046,6 +1056,16 @@ class AgentCodingLoopContext {
       recentDiagnosticSummaries: recentDiagnosticSummaries.toList(
         growable: false,
       ),
+      changeReviewGate:
+          changeReviewGate ??
+          AgentCodingChangeReviewGate.fromControllerState(
+            hasPendingPatch: pendingPatch != null,
+            hasWorkspaceEditPreview:
+                pendingPatch != null || workspaceEdit != null,
+            applyingPatch: false,
+            applyingIdeCommand: false,
+            executionReadiness: codingReadiness,
+          ),
       suggestedCommandIds: _suggestedAgentCodingCommandIds(
         pendingIdeCommands: pendingIdeCommandList,
         lastProviderFailure: lastProviderFailure,
@@ -1071,6 +1091,7 @@ class AgentCodingLoopContext {
   final AgentWorkspaceEditContext? workspaceEdit;
   final List<AgentCodingPlanContext> recentCodingPlans;
   final List<AgentDiagnosticSummaryContext> recentDiagnosticSummaries;
+  final AgentCodingChangeReviewGate changeReviewGate;
   final List<String> suggestedCommandIds;
 
   Map<String, Object?> toJson() {
@@ -1109,6 +1130,8 @@ class AgentCodingLoopContext {
             .map((application) => application.toJson())
             .toList(growable: false),
       if (workspaceEdit != null) 'workspaceEdit': workspaceEdit!.toJson(),
+      if (changeReviewGate.status != AgentCodingChangeReviewGateStatus.idle)
+        'changeReviewGate': changeReviewGate.toJson(),
       if (recentCodingPlans.isNotEmpty)
         'recentCodingPlans': recentCodingPlans
             .map((plan) => plan.toJson())

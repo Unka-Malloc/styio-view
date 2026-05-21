@@ -6702,7 +6702,12 @@ class ShellRuntimeModel extends ChangeNotifier {
           fallbackInstallKind: fallbackInstallKind,
         );
       },
-      onProjectAction: _dispatchToolchainBootstrapProjectAction,
+      onProjectAction: (step) {
+        return _dispatchToolchainBootstrapProjectAction(
+          step,
+          fallbackInstallKind: fallbackInstallKind,
+        );
+      },
     );
     final result = await router.dispatch(summary.executionPlan(), actionId);
     _lastToolchainBootstrapActionDispatch = result;
@@ -6794,16 +6799,41 @@ class ShellRuntimeModel extends ChangeNotifier {
 
   Future<ToolchainBootstrapActionDispatchResult>
   _dispatchToolchainBootstrapProjectAction(
-    ToolchainBootstrapActionStep step,
-  ) async {
+    ToolchainBootstrapActionStep step, {
+    required ToolchainKind fallbackInstallKind,
+  }) async {
     if (step.actionId == 'open-toolchain-settings') {
       return ToolchainBootstrapActionDispatchResult.dispatched(
         step,
         message: 'Toolchain settings panel should stay focused.',
       );
     }
-    if (step.actionId == 'bootstrap-styio-toolchain' ||
-        step.actionId == 'validate-project-toolchain') {
+    if (step.actionId == 'bootstrap-styio-toolchain') {
+      final summary = await refreshToolchainBootstrapSummary(
+        reason: step.actionId,
+      );
+      if (summary?.ready ?? false) {
+        return ToolchainBootstrapActionDispatchResult.dispatched(
+          step,
+          message: 'Project Styio toolchain bootstrap is already ready.',
+        );
+      }
+      final plan = planManagedToolchainInstallation(kind: fallbackInstallKind);
+      if (plan == null) {
+        return ToolchainBootstrapActionDispatchResult.blocked(
+          step,
+          message: 'No project bootstrap install plan could be prepared.',
+          todo:
+              'TODO: bind project bootstrap to the production Styio installer runner.',
+        );
+      }
+      return ToolchainBootstrapActionDispatchResult.dispatched(
+        step,
+        message:
+            'Project bootstrap prepared managed install plan for ${fallbackInstallKind.wireValue}.',
+      );
+    }
+    if (step.actionId == 'validate-project-toolchain') {
       await refreshToolchainBootstrapSummary(reason: step.actionId);
       return ToolchainBootstrapActionDispatchResult.dispatched(
         step,

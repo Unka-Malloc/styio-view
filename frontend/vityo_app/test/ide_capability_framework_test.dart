@@ -344,6 +344,10 @@ void main() {
     );
     expect(
       entriesById['toolchain.manager']?.summary,
+      contains('project bootstrap managed install planning'),
+    );
+    expect(
+      entriesById['toolchain.manager']?.summary,
       contains('ToolchainBootstrapExecutionPlan'),
     );
     expect(

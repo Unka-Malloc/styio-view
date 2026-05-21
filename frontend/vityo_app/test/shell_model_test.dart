@@ -2645,6 +2645,18 @@ void main() {
         shell.lastAgentIdeCommandResult?.metadata,
         contains('toolchainBootstrap'),
       );
+      final bootstrapCommandDispatch =
+          shell.lastAgentIdeCommandResult!
+                  .metadata['toolchainBootstrapActionDispatch']!
+              as Map<String, Object?>;
+      expect(
+        bootstrapCommandDispatch['message'],
+        contains('Project bootstrap prepared managed install plan'),
+      );
+      expect(
+        shell.lastToolchainInstallPlan?.status,
+        ToolchainInstallPlanStatus.planned,
+      );
 
       await shell.handleToolchainRecoveryAction(
         const ToolchainRecoveryAction(

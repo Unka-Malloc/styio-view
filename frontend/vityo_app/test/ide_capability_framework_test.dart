@@ -56,6 +56,19 @@ void main() {
       contains('persisted result filter state'),
     );
     expect(
+      entriesById['interaction.search']?.summary,
+      contains('WorkspaceSearchWatcherPolicy'),
+    );
+    expect(
+      entriesById['interaction.search']?.summary,
+      contains('WorkspaceSearchWatcherRecoveryPlan'),
+    );
+    expect(
+      entriesById['interaction.search']?.todo,
+      contains('timer-backed project-scale batching'),
+    );
+    expect(entriesById['interaction.search']?.runtimeMaturityBlocking, isFalse);
+    expect(
       entriesById['interaction.source-control']?.summary,
       contains('SourceControlHunkSelectionState'),
     );

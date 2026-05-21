@@ -383,9 +383,10 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/workspace',
           summary:
-              'Workspace text search service, in-memory search index snapshot, WorkspaceSearchIndexController stale-revision refresh execution, WorkspaceSearchIndexFileSystemWatcherBinding File System Manager watch refresh execution, persistent index invalidation key contract, symbol search service with semantic snapshot source/confidence propagation and Search Surface rendering, file quick open service, replace preview contract with before/after diff summary, virtualized replace-preview document windows, persisted multi-file diff expansion state, replace apply confirmation, search history persistence, persisted result filter state, search history/index/filter/expansion summaries in the user surface, agent search command, Agent workspace replace preview/apply command routing, and match-level navigation callback are wired.',
+              'Workspace text search service, in-memory search index snapshot, WorkspaceSearchIndexController stale-revision refresh execution, WorkspaceSearchIndexFileSystemWatcherBinding File System Manager watch refresh execution, WorkspaceSearchWatcherPolicy debounce/queue/ignore contracts, WorkspaceSearchWatcherRefreshPlan batched refresh facts, WorkspaceSearchWatcherRecoveryPlan persisted recovery action facts, persistent index invalidation key contract, symbol search service with semantic snapshot source/confidence propagation and Search Surface rendering, file quick open service, replace preview contract with before/after diff summary, virtualized replace-preview document windows, persisted multi-file diff expansion state, replace apply confirmation, search history persistence, persisted result filter state, search history/index/filter/expansion summaries in the user surface, agent search command, Agent workspace replace preview/apply command routing, and match-level navigation callback are wired.',
           todo:
-              'TODO: replace search watcher safeguards with debounced project-scale batching, persisted watcher recovery, and ignore-rule filtering.',
+              'TODO: replace watcher plan execution with timer-backed project-scale batching and DataStore-backed recovery persistence.',
+          runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code search service',
             'IntelliJ Search Everywhere',

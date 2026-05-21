@@ -453,12 +453,148 @@ enum WorkspaceSearchIndexWatcherStatus {
   failed,
 }
 
+enum WorkspaceSearchWatcherRecoveryAction {
+  none,
+  rebuildIndex,
+  restartWatcher,
+  disableWatcher,
+}
+
+class WorkspaceSearchWatcherPolicy {
+  const WorkspaceSearchWatcherPolicy({
+    this.debounceWindow = const Duration(milliseconds: 250),
+    this.maxEventsPerBatch = 100,
+    this.maxQueuedEvents = 1000,
+    this.ignoredPathPrefixes = const <String>[],
+    this.ignoredPathSuffixes = const <String>[],
+  });
+
+  final Duration debounceWindow;
+  final int maxEventsPerBatch;
+  final int maxQueuedEvents;
+  final List<String> ignoredPathPrefixes;
+  final List<String> ignoredPathSuffixes;
+
+  bool ignores(FileSystemManagerEvent event) {
+    final path = event.normalizedPath.isEmpty
+        ? event.path
+        : event.normalizedPath;
+    return ignoredPathPrefixes.any(path.startsWith) ||
+        ignoredPathSuffixes.any(path.endsWith);
+  }
+
+  bool refreshesForEvent(FileSystemManagerEvent event) {
+    return !ignores(event) && _workspaceSearchRefreshesForEvent(event);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'debounceMillis': debounceWindow.inMilliseconds,
+      'maxEventsPerBatch': maxEventsPerBatch,
+      'maxQueuedEvents': maxQueuedEvents,
+      if (ignoredPathPrefixes.isNotEmpty)
+        'ignoredPathPrefixes': ignoredPathPrefixes,
+      if (ignoredPathSuffixes.isNotEmpty)
+        'ignoredPathSuffixes': ignoredPathSuffixes,
+    };
+  }
+}
+
+class WorkspaceSearchWatcherRefreshPlan {
+  const WorkspaceSearchWatcherRefreshPlan({
+    required this.policy,
+    required this.events,
+    required this.refreshEvents,
+    required this.ignoredEvents,
+    required this.nonRefreshableEvents,
+    required this.truncated,
+    required this.reason,
+  });
+
+  factory WorkspaceSearchWatcherRefreshPlan.fromEvents({
+    required List<FileSystemManagerEvent> events,
+    WorkspaceSearchWatcherPolicy policy = const WorkspaceSearchWatcherPolicy(),
+  }) {
+    final queuedEvents = events.take(policy.maxQueuedEvents).toList();
+    final ignoredEvents = queuedEvents
+        .where(policy.ignores)
+        .toList(growable: false);
+    final nonRefreshableEvents = queuedEvents
+        .where(
+          (event) =>
+              !policy.ignores(event) &&
+              !_workspaceSearchRefreshesForEvent(event),
+        )
+        .toList(growable: false);
+    final refreshableEvents = queuedEvents
+        .where(policy.refreshesForEvent)
+        .toList(growable: false);
+    final refreshEvents = refreshableEvents
+        .take(policy.maxEventsPerBatch)
+        .toList(growable: false);
+    final truncated =
+        events.length > policy.maxQueuedEvents ||
+        refreshableEvents.length > policy.maxEventsPerBatch;
+    final reason = refreshEvents.isNotEmpty
+        ? 'Workspace search watcher refresh planned for ${refreshEvents.length} event(s).'
+        : ignoredEvents.isNotEmpty
+        ? 'Workspace search watcher ignored ${ignoredEvents.length} event(s).'
+        : 'Workspace search watcher found no refreshable events.';
+    return WorkspaceSearchWatcherRefreshPlan(
+      policy: policy,
+      events: List<FileSystemManagerEvent>.unmodifiable(queuedEvents),
+      refreshEvents: List<FileSystemManagerEvent>.unmodifiable(refreshEvents),
+      ignoredEvents: List<FileSystemManagerEvent>.unmodifiable(ignoredEvents),
+      nonRefreshableEvents: List<FileSystemManagerEvent>.unmodifiable(
+        nonRefreshableEvents,
+      ),
+      truncated: truncated,
+      reason: reason,
+    );
+  }
+
+  final WorkspaceSearchWatcherPolicy policy;
+  final List<FileSystemManagerEvent> events;
+  final List<FileSystemManagerEvent> refreshEvents;
+  final List<FileSystemManagerEvent> ignoredEvents;
+  final List<FileSystemManagerEvent> nonRefreshableEvents;
+  final bool truncated;
+  final String reason;
+
+  bool get shouldRefresh => refreshEvents.isNotEmpty;
+  int get eventCount => events.length;
+  int get refreshEventCount => refreshEvents.length;
+  int get ignoredEventCount => ignoredEvents.length;
+  int get nonRefreshableEventCount => nonRefreshableEvents.length;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'eventCount': eventCount,
+      'refreshEventCount': refreshEventCount,
+      'ignoredEventCount': ignoredEventCount,
+      'nonRefreshableEventCount': nonRefreshableEventCount,
+      'shouldRefresh': shouldRefresh,
+      'truncated': truncated,
+      'reason': reason,
+      'policy': policy.toJson(),
+      'refreshEvents': refreshEvents
+          .map(_workspaceSearchFileSystemEventJson)
+          .toList(growable: false),
+      if (ignoredEvents.isNotEmpty)
+        'ignoredEvents': ignoredEvents
+            .map(_workspaceSearchFileSystemEventJson)
+            .toList(growable: false),
+    };
+  }
+}
+
 class WorkspaceSearchIndexWatcherSnapshot {
   const WorkspaceSearchIndexWatcherSnapshot({
     required this.status,
     required this.workspaceRoot,
     required this.recursive,
     this.event,
+    this.refreshPlan,
     this.refreshSnapshot,
     this.message = '',
   });
@@ -467,6 +603,7 @@ class WorkspaceSearchIndexWatcherSnapshot {
   final String workspaceRoot;
   final bool recursive;
   final FileSystemManagerEvent? event;
+  final WorkspaceSearchWatcherRefreshPlan? refreshPlan;
   final WorkspaceSearchIndexRefreshSnapshot? refreshSnapshot;
   final String message;
 
@@ -485,7 +622,61 @@ class WorkspaceSearchIndexWatcherSnapshot {
       'ready': ready,
       if (message.isNotEmpty) 'message': message,
       if (event != null) 'event': _workspaceSearchFileSystemEventJson(event!),
+      if (refreshPlan != null) 'refreshPlan': refreshPlan!.toJson(),
       if (refreshSnapshot != null) 'refresh': refreshSnapshot!.toJson(),
+    };
+  }
+}
+
+class WorkspaceSearchWatcherRecoveryPlan {
+  const WorkspaceSearchWatcherRecoveryPlan({
+    required this.action,
+    required this.workspaceRoot,
+    required this.persistenceKey,
+    required this.canRetry,
+    required this.message,
+  });
+
+  factory WorkspaceSearchWatcherRecoveryPlan.fromSnapshot(
+    WorkspaceSearchIndexWatcherSnapshot snapshot, {
+    int failureCount = 0,
+    String persistenceKey = 'workspace-search-watcher',
+  }) {
+    final action = switch (snapshot.status) {
+      WorkspaceSearchIndexWatcherStatus.failed =>
+        failureCount >= 3
+            ? WorkspaceSearchWatcherRecoveryAction.disableWatcher
+            : WorkspaceSearchWatcherRecoveryAction.restartWatcher,
+      WorkspaceSearchIndexWatcherStatus.stopped =>
+        WorkspaceSearchWatcherRecoveryAction.rebuildIndex,
+      _ => WorkspaceSearchWatcherRecoveryAction.none,
+    };
+    return WorkspaceSearchWatcherRecoveryPlan(
+      action: action,
+      workspaceRoot: snapshot.workspaceRoot,
+      persistenceKey: persistenceKey,
+      canRetry:
+          action == WorkspaceSearchWatcherRecoveryAction.restartWatcher ||
+          action == WorkspaceSearchWatcherRecoveryAction.rebuildIndex,
+      message: action == WorkspaceSearchWatcherRecoveryAction.none
+          ? 'Workspace search watcher does not need recovery.'
+          : 'Workspace search watcher recovery action ${action.name} is planned.',
+    );
+  }
+
+  final WorkspaceSearchWatcherRecoveryAction action;
+  final String workspaceRoot;
+  final String persistenceKey;
+  final bool canRetry;
+  final String message;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'action': action.name,
+      'workspaceRoot': workspaceRoot,
+      'persistenceKey': persistenceKey,
+      'canRetry': canRetry,
+      'message': message,
     };
   }
 }
@@ -498,6 +689,7 @@ class WorkspaceSearchIndexFileSystemWatcherBinding {
     required this.currentDocuments,
     this.recursive = true,
     this.maxDocuments = 5000,
+    this.watcherPolicy = const WorkspaceSearchWatcherPolicy(),
   });
 
   final WorkspaceSearchIndexController controller;
@@ -506,6 +698,7 @@ class WorkspaceSearchIndexFileSystemWatcherBinding {
   final WorkspaceSearchDocumentSnapshotProvider currentDocuments;
   final bool recursive;
   final int maxDocuments;
+  final WorkspaceSearchWatcherPolicy watcherPolicy;
 
   Stream<WorkspaceSearchIndexWatcherSnapshot> watchAndRefresh() async* {
     yield WorkspaceSearchIndexWatcherSnapshot(
@@ -540,12 +733,17 @@ class WorkspaceSearchIndexFileSystemWatcherBinding {
   Future<WorkspaceSearchIndexWatcherSnapshot> refreshFromEvent(
     FileSystemManagerEvent event,
   ) async {
-    if (!_workspaceSearchRefreshesForEvent(event)) {
+    final refreshPlan = WorkspaceSearchWatcherRefreshPlan.fromEvents(
+      events: <FileSystemManagerEvent>[event],
+      policy: watcherPolicy,
+    );
+    if (!refreshPlan.shouldRefresh) {
       return WorkspaceSearchIndexWatcherSnapshot(
         status: WorkspaceSearchIndexWatcherStatus.listening,
         workspaceRoot: workspaceRoot,
         recursive: recursive,
         event: event,
+        refreshPlan: refreshPlan,
         message: 'Workspace search index ignored file system event.',
       );
     }
@@ -558,6 +756,7 @@ class WorkspaceSearchIndexFileSystemWatcherBinding {
       workspaceRoot: workspaceRoot,
       recursive: recursive,
       event: event,
+      refreshPlan: refreshPlan,
       refreshSnapshot: refresh,
       message:
           'Workspace search index refreshed from file system ${event.kind.name} event.',

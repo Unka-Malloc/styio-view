@@ -497,6 +497,79 @@ void main() {
   );
 
   test(
+    'workspace search watcher safeguards expose refresh and recovery plans',
+    () {
+      const policy = WorkspaceSearchWatcherPolicy(
+        debounceWindow: Duration(milliseconds: 75),
+        maxEventsPerBatch: 1,
+        maxQueuedEvents: 3,
+        ignoredPathPrefixes: <String>['/workspace/vityo/.git/'],
+        ignoredPathSuffixes: <String>['.tmp'],
+      );
+      final plan = WorkspaceSearchWatcherRefreshPlan.fromEvents(
+        policy: policy,
+        events: const <FileSystemManagerEvent>[
+          FileSystemManagerEvent(
+            kind: FileSystemManagerEventKind.modified,
+            path: '/workspace/vityo/src/main.styio',
+            normalizedPath: '/workspace/vityo/src/main.styio',
+          ),
+          FileSystemManagerEvent(
+            kind: FileSystemManagerEventKind.modified,
+            path: '/workspace/vityo/.git/index',
+            normalizedPath: '/workspace/vityo/.git/index',
+          ),
+          FileSystemManagerEvent(
+            kind: FileSystemManagerEventKind.unknown,
+            path: '/workspace/vityo/src/unknown',
+            normalizedPath: '/workspace/vityo/src/unknown',
+          ),
+          FileSystemManagerEvent(
+            kind: FileSystemManagerEventKind.deleted,
+            path: '/workspace/vityo/src/extra.styio',
+            normalizedPath: '/workspace/vityo/src/extra.styio',
+          ),
+        ],
+      );
+      const failedSnapshot = WorkspaceSearchIndexWatcherSnapshot(
+        status: WorkspaceSearchIndexWatcherStatus.failed,
+        workspaceRoot: '/workspace/vityo',
+        recursive: true,
+        message: 'watch failed',
+      );
+      final retryPlan = WorkspaceSearchWatcherRecoveryPlan.fromSnapshot(
+        failedSnapshot,
+        failureCount: 1,
+      );
+      final disablePlan = WorkspaceSearchWatcherRecoveryPlan.fromSnapshot(
+        failedSnapshot,
+        failureCount: 3,
+      );
+
+      expect(plan.shouldRefresh, isTrue);
+      expect(plan.eventCount, 3);
+      expect(plan.refreshEventCount, 1);
+      expect(plan.ignoredEventCount, 1);
+      expect(plan.nonRefreshableEventCount, 1);
+      expect(plan.truncated, isTrue);
+      expect(
+        (plan.toJson()['policy']! as Map<String, Object?>)['debounceMillis'],
+        75,
+      );
+      expect(
+        retryPlan.action,
+        WorkspaceSearchWatcherRecoveryAction.restartWatcher,
+      );
+      expect(retryPlan.canRetry, isTrue);
+      expect(
+        disablePlan.action,
+        WorkspaceSearchWatcherRecoveryAction.disableWatcher,
+      );
+      expect(disablePlan.canRetry, isFalse);
+    },
+  );
+
+  test(
     'workspace search records load failures and truncates matches',
     () async {
       final service = WorkspaceSearchService(

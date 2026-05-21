@@ -325,6 +325,39 @@ void main() {
       AgentToolCallExecutionStatus.completed,
     );
   });
+
+  testWidgets('agent surface exposes controller recovery context tools',
+      (tester) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-recovery',
+        toolId: 'collectAgentRecoveryContext',
+        input: '{}',
+      ),
+    );
+
+    await _pumpSurface(tester, controller);
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-run-approved')),
+    );
+    await tester.pump();
+
+    expect(
+      controller.recentToolCallResultContexts.single.output,
+      contains('"source":"agent-recovery-context"'),
+    );
+    expect(
+      controller.toolCallExecutionPlan.executionFor('call-recovery')?.status,
+      AgentToolCallExecutionStatus.completed,
+    );
+  });
 }
 
 Future<void> _pumpSurface(

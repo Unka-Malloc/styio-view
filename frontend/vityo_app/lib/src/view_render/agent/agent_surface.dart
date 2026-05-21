@@ -1959,6 +1959,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
               changeReviewGate: widget.controller.codingChangeReviewGate,
               autonomyPolicy: widget.controller.codingAutonomyPolicy,
             ),
+        recoveryContextProvider: () =>
+            widget.controller.sessionHistorySnapshot.toRecoveryContext(),
       );
       await widget.controller.dispatchReadyToolCalls(executor.execute);
     } finally {

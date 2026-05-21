@@ -283,6 +283,71 @@ void main() {
   );
 
   test(
+    'agent coding session persists tool replay reports in history metadata',
+    () async {
+      final historyStore = _MemoryAgentCodingSessionHistoryStore(
+        AgentCodingSessionHistory(workspaceId: 'demo'),
+      );
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-replay-history',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(kind: AgentContentPartKind.text, text: 'Ready.'),
+          ],
+        ),
+      );
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+        sessionHistoryStore: historyStore,
+        sessionHistoryWorkspaceId: 'demo',
+      );
+      addTearDown(controller.dispose);
+
+      controller.updatePrompt('Create history before replay.');
+      await controller.sendPrompt();
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-read',
+          toolId: 'readWorkspaceFile',
+          input: '{"path":"main.styio"}',
+        ),
+      );
+      await controller.dispatchReadyToolCalls((request) {
+        return AgentToolCallDispatchResult.failure(
+          callId: request.callId,
+          toolId: request.toolId,
+          message: 'temporary read failure',
+        );
+      });
+      await controller.replayToolCallJournal((request) {
+        return AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: '{"text":"value = 1"}',
+        );
+      });
+
+      final history = await historyStore.readHistory(workspaceId: 'demo');
+      final metadata = history.records.single.metadata;
+      final report =
+          metadata['lastToolCallReplayReport'] as Map<String, Object?>;
+
+      expect(report['status'], 'replayed');
+      expect(metadata['toolCallReplayReportCount'], 1);
+      expect(metadata['toolCallReplayReports'], isA<List<Object?>>());
+      expect(
+        controller.sessionHistorySnapshot.records.single.metadata[
+            'lastToolCallReplayReport'],
+        isA<Map<String, Object?>>(),
+      );
+    },
+  );
+
+  test(
     'agent coding session feeds blocked tool input errors back to provider',
     () async {
       final controller = AgentCodingSessionController(

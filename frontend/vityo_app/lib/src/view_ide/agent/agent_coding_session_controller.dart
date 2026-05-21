@@ -676,11 +676,13 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
     _refreshToolCallExecutionJournal();
     notifyListeners();
-    return AgentToolCallReplayReport.fromResults(
+    final report = AgentToolCallReplayReport.fromResults(
       plan: plan,
       results: results,
       events: events,
     );
+    await _persistLatestAgentToolReplayReport(report);
+    return report;
   }
 
   void _refreshToolCallExecutionJournal({
@@ -1575,6 +1577,54 @@ class AgentCodingSessionController extends ChangeNotifier {
         operation: 'agent.history.validation-persist',
         message:
             'Agent validation snapshot persistence failed: ${sanitizeAgentError(error.toString())}',
+      );
+    }
+  }
+
+  Future<void> _persistLatestAgentToolReplayReport(
+    AgentToolCallReplayReport report,
+  ) async {
+    final store = sessionHistoryStore;
+    if (store == null) {
+      return;
+    }
+    try {
+      final current =
+          _sessionHistorySnapshot ??
+          await store.readHistory(workspaceId: sessionHistoryWorkspaceId);
+      if (current.records.isEmpty) {
+        return;
+      }
+      final latest = current.records.first;
+      final replayReportPayload = report.toJson();
+      final previousReports =
+          latest.metadata['toolCallReplayReports'] is List
+          ? (latest.metadata['toolCallReplayReports'] as List)
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      item.map((key, value) => MapEntry(key.toString(), value)),
+                )
+                .toList(growable: false)
+          : const <Map<String, Object?>>[];
+      final replayReports = <Map<String, Object?>>[
+        replayReportPayload,
+        ...previousReports.take(4),
+      ];
+      final metadata = <String, Object?>{
+        ...latest.metadata,
+        'lastToolCallReplayReport': replayReportPayload,
+        'toolCallReplayReports': replayReports,
+        'toolCallReplayReportCount': replayReports.length,
+      };
+      final next = current.replaceLatest(latest.copyWith(metadata: metadata));
+      _sessionHistorySnapshot = next;
+      await store.saveHistory(next);
+    } on Object catch (error) {
+      _publishAgentRuntimeDiagnostic(
+        operation: 'agent.history.tool-replay-persist',
+        message:
+            'Agent tool replay report persistence failed: ${sanitizeAgentError(error.toString())}',
       );
     }
   }

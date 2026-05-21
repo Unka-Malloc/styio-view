@@ -14,6 +14,7 @@ import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
 import 'package:vityo_app/src/agent/agent_tool_registry.dart';
 import 'package:vityo_app/src/agent/agent_tool_permission_policy_store.dart';
 import 'package:vityo_app/src/agent/agent_workspace_snapshot.dart';
+import 'package:vityo_app/src/agent/agent_workspace_snapshot_store.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
@@ -2196,6 +2197,87 @@ void main() {
     },
   );
 
+  test('agent coding session restores persisted workspace snapshot', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_agent_workspace_snapshot_controller_test_',
+    );
+    addTearDown(() async {
+      if (await tempRoot.exists()) {
+        await tempRoot.delete(recursive: true);
+      }
+    });
+    final store = AgentWorkspaceSnapshotStore.fromDataStore(
+      dataStore: _foundationDataStore(tempRoot),
+    );
+    final editorController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 1,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+    const patch = AgentCodePatch(
+      patchId: 'patch-persisted-snapshot',
+      summary: 'Update value.',
+      edits: <AgentCodePatchEdit>[
+        AgentCodePatchEdit(
+          documentId: 'main.styio',
+          start: 8,
+          end: 9,
+          replacementText: '2',
+        ),
+      ],
+    );
+    final first = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-persisted-snapshot',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(
+              kind: AgentContentPartKind.codePatch,
+              text: 'Patch ready.',
+              patch: patch,
+            ),
+          ],
+        ),
+      ),
+      contextProvider: _context,
+      workspaceSnapshotStore: store,
+      workspaceSnapshotWorkspaceId: 'demo',
+    );
+    addTearDown(first.dispose);
+
+    first.updatePrompt('Capture a snapshot.');
+    await first.sendPrompt();
+    await first.capturePendingPatchSnapshot(
+      AgentWorkspaceSnapshotService(editorController: editorController),
+    );
+
+    final second = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+      workspaceSnapshotStore: store,
+      workspaceSnapshotWorkspaceId: 'demo',
+    );
+    addTearDown(second.dispose);
+    await second.loadWorkspaceSnapshot();
+
+    expect(
+      second.lastWorkspaceSnapshotCaptureResult?.message,
+      contains('Restored workspace snapshot'),
+    );
+    expect(second.lastWorkspaceSnapshot?.patchId, 'patch-persisted-snapshot');
+    expect(
+      second.lastWorkspaceSnapshot?.documentFor('main.styio')?.text,
+      'value = 1\n',
+    );
+  });
+
   test(
     'agent coding session clears patch result when pending patch is dismissed',
     () async {
@@ -3406,6 +3488,23 @@ class _CompletingAgentProviderAdapter implements AgentProviderAdapter {
   void complete(AgentProviderResponseEnvelope response) {
     _completer.complete(response);
   }
+}
+
+FoundationDataStore _foundationDataStore(Directory root) {
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: root.path,
+      homePath: root.path,
+    ),
+  );
+  return FoundationDataStore(
+    resourceCoordinator: FoundationResourceCoordinator(
+      resourceManager: resourceManager,
+      fileSystemManager: fileSystemManager,
+    ),
+    fileSystemManager: fileSystemManager,
+  );
 }
 
 class _CancellableCompletingAgentProviderAdapter

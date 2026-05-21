@@ -19,6 +19,7 @@ export 'agent_tool_permission.dart';
 export 'agent_tool_permission_policy_store.dart';
 export 'agent_tool_registry.dart';
 export 'agent_workspace_snapshot.dart';
+export 'agent_workspace_snapshot_store.dart';
 export 'agent_command_metadata.dart';
 export 'extension_agent_provider_contributions.dart';
 export 'extension_agent_tool_contributions.dart';

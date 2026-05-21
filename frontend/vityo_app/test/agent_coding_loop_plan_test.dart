@@ -72,7 +72,7 @@ void main() {
     expect(review.status, AgentCodingLoopStepStatus.waiting);
     expect(validation.status, AgentCodingLoopStepStatus.waiting);
     expect(plan.todoItems.join('\n'), contains('extension-host execution'));
-    expect(plan.todoItems.join('\n'), contains('workspace snapshot/revert'));
+    expect(plan.todoItems.join('\n'), contains('restored workspace snapshot'));
     expect(plan.todoItems.join('\n'), isNot(contains('result truncation')));
   });
 

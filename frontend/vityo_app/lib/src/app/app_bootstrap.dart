@@ -361,6 +361,10 @@ class AppBootstrap {
         AgentCodingSessionHistoryStore.fromDataStore(
           dataStore: foundationDataStore,
         );
+    final agentWorkspaceSnapshotStore =
+        AgentWorkspaceSnapshotStore.fromDataStore(
+          dataStore: foundationDataStore,
+        );
     final agentProviderFactory = createAgentProviderFactory(
       configurationStore: configurationStore,
       transport: NetworkAgentProviderTransport(
@@ -379,6 +383,8 @@ class AppBootstrap {
       resolveConfiguredExecution: agentProviderFactory.resolveExecution,
       sessionHistoryStore: agentSessionHistoryStore,
       sessionHistoryWorkspaceId: projectSnapshot.id,
+      workspaceSnapshotStore: agentWorkspaceSnapshotStore,
+      workspaceSnapshotWorkspaceId: projectSnapshot.id,
       contextProvider: () => AgentSessionContext.fromEditorState(
         document: editorController.document,
         selection: editorController.selection,
@@ -527,6 +533,8 @@ class AppBootstrap {
     resolveConfiguredExecution,
     AgentCodingSessionHistoryStore? sessionHistoryStore,
     String sessionHistoryWorkspaceId = 'default',
+    AgentWorkspaceSnapshotStore? workspaceSnapshotStore,
+    String? workspaceSnapshotWorkspaceId,
     AgentToolRegistry? toolRegistry,
     ExtensionContributionRouteManifest? extensionContributionRoutes,
     required AgentSessionContextProvider contextProvider,
@@ -554,6 +562,8 @@ class AppBootstrap {
       contextProvider: contextProvider,
       sessionHistoryStore: sessionHistoryStore,
       sessionHistoryWorkspaceId: sessionHistoryWorkspaceId,
+      workspaceSnapshotStore: workspaceSnapshotStore,
+      workspaceSnapshotWorkspaceId: workspaceSnapshotWorkspaceId,
       toolRegistry:
           toolRegistry ??
           createAgentToolRegistry(
@@ -561,6 +571,7 @@ class AppBootstrap {
           ),
     );
     await controller.loadSessionHistory();
+    await controller.loadWorkspaceSnapshot();
     return controller;
   }
 

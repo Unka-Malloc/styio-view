@@ -40,12 +40,34 @@ class AgentWorkspaceSnapshotDocument {
   final int revision;
   final String? filePath;
 
+  factory AgentWorkspaceSnapshotDocument.fromPersistedJson(
+    Map<String, Object?> json,
+  ) {
+    return AgentWorkspaceSnapshotDocument(
+      documentId: json['documentId'] as String? ?? '',
+      existed: json['existed'] as bool? ?? false,
+      text: json['text'] as String? ?? '',
+      revision: json['revision'] as int? ?? 0,
+      filePath: json['filePath'] as String?,
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'documentId': documentId,
       'existed': existed,
       'revision': revision,
       'textLength': text.length,
+      if (filePath != null) 'filePath': filePath,
+    };
+  }
+
+  Map<String, Object?> toPersistedJson() {
+    return <String, Object?>{
+      'documentId': documentId,
+      'existed': existed,
+      'revision': revision,
+      'text': text,
       if (filePath != null) 'filePath': filePath,
     };
   }
@@ -59,6 +81,15 @@ class AgentWorkspaceSnapshotUnavailableDocument {
 
   final String documentId;
   final String reason;
+
+  factory AgentWorkspaceSnapshotUnavailableDocument.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return AgentWorkspaceSnapshotUnavailableDocument(
+      documentId: json['documentId'] as String? ?? '',
+      reason: json['reason'] as String? ?? '',
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{'documentId': documentId, 'reason': reason};
@@ -84,6 +115,24 @@ class AgentWorkspaceChangeSnapshot {
   final List<AgentWorkspaceSnapshotDocument> documents;
   final List<AgentWorkspaceSnapshotUnavailableDocument> unavailableDocuments;
   final List<String> todoItems;
+
+  factory AgentWorkspaceChangeSnapshot.fromPersistedJson(
+    Map<String, Object?> json,
+  ) {
+    return AgentWorkspaceChangeSnapshot(
+      snapshotId: json['snapshotId'] as String? ?? '',
+      patchId: json['patchId'] as String? ?? '',
+      activeDocumentId: json['activeDocumentId'] as String? ?? '',
+      capturedAt:
+          DateTime.tryParse(json['capturedAt'] as String? ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      documents: _snapshotDocumentsFromJson(json['documents']),
+      unavailableDocuments: _unavailableSnapshotDocumentsFromJson(
+        json['unavailableDocuments'],
+      ),
+      todoItems: _jsonStringList(json['todoItems']),
+    );
+  }
 
   List<String> get documentIds {
     return documents
@@ -127,6 +176,64 @@ class AgentWorkspaceChangeSnapshot {
       'todoItems': todoItems,
     };
   }
+
+  Map<String, Object?> toPersistedJson() {
+    return <String, Object?>{
+      'snapshotId': snapshotId,
+      'patchId': patchId,
+      'activeDocumentId': activeDocumentId,
+      'capturedAt': capturedAt.toIso8601String(),
+      'documents': documents
+          .map((document) => document.toPersistedJson())
+          .toList(growable: false),
+      'unavailableDocuments': unavailableDocuments
+          .map((document) => document.toJson())
+          .toList(growable: false),
+      'todoItems': todoItems,
+    };
+  }
+}
+
+List<AgentWorkspaceSnapshotDocument> _snapshotDocumentsFromJson(Object? value) {
+  if (value is! List) {
+    return const <AgentWorkspaceSnapshotDocument>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (item) => AgentWorkspaceSnapshotDocument.fromPersistedJson(
+          item.map<String, Object?>(
+            (key, value) => MapEntry(key.toString(), value),
+          ),
+        ),
+      )
+      .where((document) => document.documentId.trim().isNotEmpty)
+      .toList(growable: false);
+}
+
+List<AgentWorkspaceSnapshotUnavailableDocument>
+_unavailableSnapshotDocumentsFromJson(Object? value) {
+  if (value is! List) {
+    return const <AgentWorkspaceSnapshotUnavailableDocument>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (item) => AgentWorkspaceSnapshotUnavailableDocument.fromJson(
+          item.map<String, Object?>(
+            (key, value) => MapEntry(key.toString(), value),
+          ),
+        ),
+      )
+      .where((document) => document.documentId.trim().isNotEmpty)
+      .toList(growable: false);
+}
+
+List<String> _jsonStringList(Object? value) {
+  if (value is! List) {
+    return const <String>[];
+  }
+  return value.whereType<String>().toList(growable: false);
 }
 
 class AgentWorkspaceSnapshotCaptureResult {
@@ -275,7 +382,7 @@ class AgentWorkspaceSnapshotService {
             unavailable,
           ),
       todoItems: const <String>[
-        'TODO: persist this snapshot through Foundation DataStore before executing provider-authored workspace mutations.',
+        'TODO: build restored snapshot revert plans automatically when the workspace document store is available after restart.',
       ],
     );
 
@@ -374,7 +481,7 @@ class AgentWorkspaceSnapshotService {
       ),
       diffSummary: diffSummary,
       todoItems: const <String>[
-        'TODO: bind this revert plan to the Agent Surface revert/unrevert controls after generated change review.',
+        'TODO: keep restored revert plans visible until the user applies or discards them.',
       ],
     );
   }

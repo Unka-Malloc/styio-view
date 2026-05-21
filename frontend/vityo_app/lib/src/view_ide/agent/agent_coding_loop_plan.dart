@@ -120,7 +120,7 @@ class AgentCodingLoopPlan {
         label: 'Capture workspace snapshot',
         commandIds: const <String>['collectAgentCodingCheckpoint'],
         todoItems: const <String>[
-          'TODO: persist workspace snapshot/revert anchors through Foundation DataStore for cross-session recovery.',
+          'TODO: build restored workspace snapshot revert plans automatically when the workspace document store is available.',
         ],
       ),
       AgentCodingLoopStep(

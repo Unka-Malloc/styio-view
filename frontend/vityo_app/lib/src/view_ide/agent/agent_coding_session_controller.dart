@@ -23,6 +23,7 @@ import 'agent_tool_permission.dart';
 import 'agent_tool_permission_policy_store.dart';
 import 'agent_tool_registry.dart';
 import 'agent_workspace_snapshot.dart';
+import 'agent_workspace_snapshot_store.dart';
 import 'agent_workspace_edit_adapter.dart';
 import '../runtime/runtime.dart';
 
@@ -92,6 +93,8 @@ class AgentCodingSessionController extends ChangeNotifier {
     this.sessionHistoryMaxEntries = 50,
     this.toolPermissionPolicyStore,
     String? toolPermissionPolicyWorkspaceId,
+    this.workspaceSnapshotStore,
+    String? workspaceSnapshotWorkspaceId,
     RuntimeOutputLiveBuffer? runtimeOutputBuffer,
     AgentToolRegistry? toolRegistry,
     AgentProviderSelectionPlan? providerSelectionPlan,
@@ -102,6 +105,8 @@ class AgentCodingSessionController extends ChangeNotifier {
        _providerExecutionResolution = providerExecutionResolution,
        _toolPermissionPolicyWorkspaceId =
            toolPermissionPolicyWorkspaceId ?? sessionHistoryWorkspaceId,
+       _workspaceSnapshotWorkspaceId =
+           workspaceSnapshotWorkspaceId ?? sessionHistoryWorkspaceId,
        _mountedProviderProfileKey = profile.profileId;
 
   AgentPromptProfile profile;
@@ -115,6 +120,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   final int sessionHistoryMaxEntries;
   final AgentToolPermissionPolicyStore? toolPermissionPolicyStore;
   final String _toolPermissionPolicyWorkspaceId;
+  final AgentWorkspaceSnapshotStore? workspaceSnapshotStore;
+  final String _workspaceSnapshotWorkspaceId;
   final RuntimeOutputLiveBuffer? _runtimeOutputBuffer;
   final AgentToolRegistry _toolRegistry;
 
@@ -685,6 +692,36 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
   }
 
+  Future<void> loadWorkspaceSnapshot() async {
+    final store = workspaceSnapshotStore;
+    if (store == null) {
+      return;
+    }
+    try {
+      final snapshot = await store.readSnapshot(
+        workspaceId: _workspaceSnapshotWorkspaceId,
+      );
+      if (snapshot == null) {
+        return;
+      }
+      _lastWorkspaceSnapshot = snapshot;
+      _lastWorkspaceSnapshotCaptureResult = AgentWorkspaceSnapshotCaptureResult(
+        status: snapshot.complete
+            ? AgentWorkspaceSnapshotCaptureStatus.captured
+            : AgentWorkspaceSnapshotCaptureStatus.partial,
+        message:
+            'Restored workspace snapshot ${snapshot.snapshotId} from Foundation DataStore.',
+        snapshot: snapshot,
+      );
+      _lastWorkspaceRevertPlan = null;
+      notifyListeners();
+    } on Object catch (error) {
+      _lastError =
+          'Agent workspace snapshot restore failed: ${sanitizeAgentError(error.toString())}';
+      notifyListeners();
+    }
+  }
+
   Future<bool> approveToolCallExecutionForProject(
     String callId, {
     String? reason,
@@ -1200,6 +1237,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _lastWorkspaceSnapshotCaptureResult = result;
     _lastWorkspaceSnapshot = result.snapshot;
     _lastWorkspaceRevertPlan = null;
+    unawaited(_persistWorkspaceSnapshot(result.snapshot));
     notifyListeners();
   }
 
@@ -1528,6 +1566,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _lastWorkspaceSnapshotCaptureResult = result;
     _lastWorkspaceSnapshot = result.snapshot;
     _lastWorkspaceRevertPlan = null;
+    await _persistWorkspaceSnapshot(result.snapshot);
     notifyListeners();
     return result;
   }
@@ -1563,6 +1602,38 @@ class AgentCodingSessionController extends ChangeNotifier {
     _lastWorkspaceSnapshotCaptureResult = null;
     _lastWorkspaceSnapshot = null;
     _lastWorkspaceRevertPlan = null;
+    unawaited(_deleteWorkspaceSnapshot());
+  }
+
+  Future<void> _persistWorkspaceSnapshot(
+    AgentWorkspaceChangeSnapshot? snapshot,
+  ) async {
+    final store = workspaceSnapshotStore;
+    if (store == null || snapshot == null) {
+      return;
+    }
+    try {
+      await store.saveSnapshot(
+        workspaceId: _workspaceSnapshotWorkspaceId,
+        snapshot: snapshot,
+      );
+    } on Object catch (error) {
+      _lastError =
+          'Agent workspace snapshot persistence failed: ${sanitizeAgentError(error.toString())}';
+    }
+  }
+
+  Future<void> _deleteWorkspaceSnapshot() async {
+    final store = workspaceSnapshotStore;
+    if (store == null) {
+      return;
+    }
+    try {
+      await store.deleteSnapshot(workspaceId: _workspaceSnapshotWorkspaceId);
+    } on Object catch (error) {
+      _lastError =
+          'Agent workspace snapshot cleanup failed: ${sanitizeAgentError(error.toString())}';
+    }
   }
 
   RuntimeOutputEvent _patchApplicationRuntimeOutputEvent({

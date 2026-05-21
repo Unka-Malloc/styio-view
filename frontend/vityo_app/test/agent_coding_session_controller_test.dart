@@ -2256,6 +2256,7 @@ void main() {
     await first.capturePendingPatchSnapshot(
       AgentWorkspaceSnapshotService(editorController: editorController),
     );
+    AgentCodePatchApplier(editorController: editorController).apply(patch);
 
     final second = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
@@ -2265,7 +2266,11 @@ void main() {
       workspaceSnapshotWorkspaceId: 'demo',
     );
     addTearDown(second.dispose);
-    await second.loadWorkspaceSnapshot();
+    await second.loadWorkspaceSnapshot(
+      snapshotService: AgentWorkspaceSnapshotService(
+        editorController: editorController,
+      ),
+    );
 
     expect(
       second.lastWorkspaceSnapshotCaptureResult?.message,
@@ -2274,6 +2279,14 @@ void main() {
     expect(second.lastWorkspaceSnapshot?.patchId, 'patch-persisted-snapshot');
     expect(
       second.lastWorkspaceSnapshot?.documentFor('main.styio')?.text,
+      'value = 1\n',
+    );
+    expect(
+      second.lastWorkspaceRevertPlan?.status,
+      AgentWorkspaceRevertPlanStatus.ready,
+    );
+    expect(
+      second.lastWorkspaceRevertPlan?.patch.edits.single.replacementText,
       'value = 1\n',
     );
   });

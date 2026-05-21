@@ -385,6 +385,10 @@ class AppBootstrap {
       sessionHistoryWorkspaceId: projectSnapshot.id,
       workspaceSnapshotStore: agentWorkspaceSnapshotStore,
       workspaceSnapshotWorkspaceId: projectSnapshot.id,
+      workspaceSnapshotService: AgentWorkspaceSnapshotService(
+        editorController: editorController,
+        workspaceDocumentStore: workspaceDocumentStore,
+      ),
       contextProvider: () => AgentSessionContext.fromEditorState(
         document: editorController.document,
         selection: editorController.selection,
@@ -535,6 +539,7 @@ class AppBootstrap {
     String sessionHistoryWorkspaceId = 'default',
     AgentWorkspaceSnapshotStore? workspaceSnapshotStore,
     String? workspaceSnapshotWorkspaceId,
+    AgentWorkspaceSnapshotService? workspaceSnapshotService,
     AgentToolRegistry? toolRegistry,
     ExtensionContributionRouteManifest? extensionContributionRoutes,
     required AgentSessionContextProvider contextProvider,
@@ -571,7 +576,9 @@ class AppBootstrap {
           ),
     );
     await controller.loadSessionHistory();
-    await controller.loadWorkspaceSnapshot();
+    await controller.loadWorkspaceSnapshot(
+      snapshotService: workspaceSnapshotService,
+    );
     return controller;
   }
 

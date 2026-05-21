@@ -692,7 +692,9 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadWorkspaceSnapshot() async {
+  Future<void> loadWorkspaceSnapshot({
+    AgentWorkspaceSnapshotService? snapshotService,
+  }) async {
     final store = workspaceSnapshotStore;
     if (store == null) {
       return;
@@ -713,7 +715,9 @@ class AgentCodingSessionController extends ChangeNotifier {
             'Restored workspace snapshot ${snapshot.snapshotId} from Foundation DataStore.',
         snapshot: snapshot,
       );
-      _lastWorkspaceRevertPlan = null;
+      _lastWorkspaceRevertPlan = snapshotService == null
+          ? null
+          : await snapshotService.buildRevertPlan(snapshot);
       notifyListeners();
     } on Object catch (error) {
       _lastError =

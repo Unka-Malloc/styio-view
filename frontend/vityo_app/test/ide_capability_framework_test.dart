@@ -110,8 +110,16 @@ void main() {
       contains('shell hunk discard confirmation routing'),
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('SourceControlMergeWorkflowPlan'),
+    );
+    expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('SourceControlConflictResolutionPlan'),
+    );
+    expect(
       entriesById['interaction.source-control']?.todo,
-      contains('merge workflow UI'),
+      contains('merge editor UI'),
     );
     expect(
       entriesById['interaction.source-control']?.runtimeMaturityBlocking,

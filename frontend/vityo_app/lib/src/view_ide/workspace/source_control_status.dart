@@ -494,6 +494,9 @@ class SourceControlFileChange {
 
   bool get staged => stagedStatus != null;
   bool get unstaged => unstagedStatus != null;
+  bool get conflicted =>
+      stagedStatus == SourceControlFileStatus.conflicted ||
+      unstagedStatus == SourceControlFileStatus.conflicted;
 
   String get summary {
     final parts = <String>[
@@ -510,6 +513,142 @@ class SourceControlFileChange {
       if (stagedStatus != null) 'stagedStatus': stagedStatus!.wireValue,
       if (unstagedStatus != null) 'unstagedStatus': unstagedStatus!.wireValue,
       'summary': summary,
+    };
+  }
+}
+
+enum SourceControlConflictResolutionKind {
+  openMergeEditor,
+  acceptCurrent,
+  acceptIncoming,
+  acceptBoth,
+  markResolved,
+}
+
+extension SourceControlConflictResolutionKindX
+    on SourceControlConflictResolutionKind {
+  String get wireValue {
+    return switch (this) {
+      SourceControlConflictResolutionKind.openMergeEditor =>
+        'open-merge-editor',
+      SourceControlConflictResolutionKind.acceptCurrent => 'accept-current',
+      SourceControlConflictResolutionKind.acceptIncoming => 'accept-incoming',
+      SourceControlConflictResolutionKind.acceptBoth => 'accept-both',
+      SourceControlConflictResolutionKind.markResolved => 'mark-resolved',
+    };
+  }
+}
+
+class SourceControlConflictResolutionPlan {
+  const SourceControlConflictResolutionPlan({
+    required this.path,
+    required this.canResolve,
+    required this.requiresHumanConfirmation,
+    required this.resolutionKinds,
+    required this.summary,
+    this.blockedReason = '',
+  });
+
+  factory SourceControlConflictResolutionPlan.fromChange(
+    SourceControlFileChange change,
+  ) {
+    final path = change.path.trim();
+    final blockedReason = path.isEmpty
+        ? 'Source control conflict resolution requires a file path.'
+        : !change.conflicted
+        ? 'Source control conflict resolution requires a conflicted file.'
+        : '';
+    return SourceControlConflictResolutionPlan(
+      path: path,
+      canResolve: blockedReason.isEmpty,
+      requiresHumanConfirmation: true,
+      resolutionKinds: const <SourceControlConflictResolutionKind>[
+        SourceControlConflictResolutionKind.openMergeEditor,
+        SourceControlConflictResolutionKind.acceptCurrent,
+        SourceControlConflictResolutionKind.acceptIncoming,
+        SourceControlConflictResolutionKind.acceptBoth,
+        SourceControlConflictResolutionKind.markResolved,
+      ],
+      blockedReason: blockedReason,
+      summary: blockedReason.isEmpty
+          ? 'Resolve source control conflict for $path.'
+          : blockedReason,
+    );
+  }
+
+  final String path;
+  final bool canResolve;
+  final bool requiresHumanConfirmation;
+  final List<SourceControlConflictResolutionKind> resolutionKinds;
+  final String summary;
+  final String blockedReason;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'path': path,
+      'canResolve': canResolve,
+      'requiresHumanConfirmation': requiresHumanConfirmation,
+      'resolutionKinds': resolutionKinds
+          .map((kind) => kind.wireValue)
+          .toList(growable: false),
+      'summary': summary,
+      if (blockedReason.isNotEmpty) 'blockedReason': blockedReason,
+    };
+  }
+}
+
+class SourceControlMergeWorkflowPlan {
+  const SourceControlMergeWorkflowPlan({
+    required this.providerKind,
+    required this.conflictPlans,
+    required this.canOpenMergeWorkflow,
+    required this.requiresHumanConfirmation,
+    required this.summary,
+  });
+
+  factory SourceControlMergeWorkflowPlan.fromStatus(
+    SourceControlStatusSnapshot snapshot,
+  ) {
+    final conflictPlans = snapshot.changes
+        .where((change) => change.conflicted)
+        .map(SourceControlConflictResolutionPlan.fromChange)
+        .toList(growable: false);
+    final canOpen = snapshot.available && conflictPlans.isNotEmpty;
+    return SourceControlMergeWorkflowPlan(
+      providerKind: snapshot.providerKind,
+      conflictPlans: List<SourceControlConflictResolutionPlan>.unmodifiable(
+        conflictPlans,
+      ),
+      canOpenMergeWorkflow: canOpen,
+      requiresHumanConfirmation: conflictPlans.isNotEmpty,
+      summary: canOpen
+          ? 'Source control merge workflow has ${conflictPlans.length} conflicted file(s).'
+          : 'Source control merge workflow has no conflicted files.',
+    );
+  }
+
+  final SourceControlProviderKind providerKind;
+  final List<SourceControlConflictResolutionPlan> conflictPlans;
+  final bool canOpenMergeWorkflow;
+  final bool requiresHumanConfirmation;
+  final String summary;
+
+  int get conflictCount => conflictPlans.length;
+  List<String> get conflictedPaths {
+    return conflictPlans.map((plan) => plan.path).toList(growable: false);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerKind': providerKind.wireValue,
+      'conflictCount': conflictCount,
+      'conflictedPaths': conflictedPaths,
+      'canOpenMergeWorkflow': canOpenMergeWorkflow,
+      'requiresHumanConfirmation': requiresHumanConfirmation,
+      'summary': summary,
+      'conflictPlans': conflictPlans
+          .map((plan) => plan.toJson())
+          .toList(growable: false),
     };
   }
 }
@@ -1355,6 +1494,7 @@ class SourceControlAgentContextSnapshot {
     this.pendingBranchSwitchPlan,
     this.lastBranchSwitchResult,
     this.historySnapshot,
+    this.mergeWorkflowPlan,
     this.suggestedCommandIds = const <String>[],
   });
 
@@ -1387,6 +1527,9 @@ class SourceControlAgentContextSnapshot {
       pendingBranchSwitchPlan: pendingBranchSwitchPlan,
       lastBranchSwitchResult: lastBranchSwitchResult,
       historySnapshot: historySnapshot,
+      mergeWorkflowPlan: status == null
+          ? null
+          : SourceControlMergeWorkflowPlan.fromStatus(status),
     );
     return snapshot.withSuggestedCommandIds(
       _suggestedSourceControlCommandIds(snapshot),
@@ -1407,6 +1550,7 @@ class SourceControlAgentContextSnapshot {
   final SourceControlBranchSwitchPlan? pendingBranchSwitchPlan;
   final SourceControlBranchSwitchResult? lastBranchSwitchResult;
   final SourceControlHistorySnapshot? historySnapshot;
+  final SourceControlMergeWorkflowPlan? mergeWorkflowPlan;
   final List<String> suggestedCommandIds;
 
   bool get loaded => status != null;
@@ -1418,7 +1562,8 @@ class SourceControlAgentContextSnapshot {
     return (pendingActionPlan?.requiresConfirmation ?? false) ||
         (pendingHunkConfirmation != null &&
             pendingHunkConfirmation.requiresConfirmation &&
-            !pendingHunkConfirmation.confirmed);
+            !pendingHunkConfirmation.confirmed) ||
+        (mergeWorkflowPlan?.requiresHumanConfirmation ?? false);
   }
 
   String get providerKind {
@@ -1469,6 +1614,7 @@ class SourceControlAgentContextSnapshot {
       pendingBranchSwitchPlan: pendingBranchSwitchPlan,
       lastBranchSwitchResult: lastBranchSwitchResult,
       historySnapshot: historySnapshot,
+      mergeWorkflowPlan: mergeWorkflowPlan,
       suggestedCommandIds: commandIds,
     );
   }
@@ -1509,6 +1655,8 @@ class SourceControlAgentContextSnapshot {
       if (lastBranchSwitchResult != null)
         'lastBranchSwitchResult': lastBranchSwitchResult!.toJson(),
       if (historySnapshot != null) 'history': historySnapshot!.toJson(),
+      if (mergeWorkflowPlan != null)
+        'mergeWorkflowPlan': mergeWorkflowPlan!.toJson(),
     };
   }
 

@@ -644,6 +644,8 @@ diff --git a/src/main.styio b/src/main.styio
     final diffReview = json['diffReview']! as Map<String, Object?>;
     final pendingActionPlan =
         json['pendingActionPlan']! as Map<String, Object?>;
+    final mergeWorkflowPlan =
+        json['mergeWorkflowPlan']! as Map<String, Object?>;
 
     expect(context.loaded, isTrue);
     expect(context.providerKind, 'git');
@@ -655,12 +657,49 @@ diff --git a/src/main.styio b/src/main.styio
     ]);
     expect(context.conflictedPaths, <String>['src/conflict.styio']);
     expect(context.requiresHumanConfirmation, isTrue);
+    expect(context.mergeWorkflowPlan?.conflictCount, 1);
+    expect(context.mergeWorkflowPlan?.canOpenMergeWorkflow, isTrue);
     expect(json['workspaceRoot'], '/workspace/vityo');
     expect(json['changeCount'], 3);
+    expect(mergeWorkflowPlan['conflictedPaths'], <String>[
+      'src/conflict.styio',
+    ]);
+    expect(mergeWorkflowPlan['requiresHumanConfirmation'], isTrue);
     expect(diffReview['additionCount'], 1);
     expect(diffReview['deletionCount'], 1);
     expect((json['diffWindow']! as Map<String, Object?>)['lineCount'], 5);
     expect(pendingActionPlan['risk'], 'destructive');
+  });
+
+  test('source control merge workflow plan exposes conflict resolutions', () {
+    const snapshot = SourceControlStatusSnapshot(
+      providerKind: SourceControlProviderKind.git,
+      branchName: 'ai-dev',
+      changes: <SourceControlFileChange>[
+        SourceControlFileChange(
+          path: 'src/conflict.styio',
+          unstagedStatus: SourceControlFileStatus.conflicted,
+        ),
+        SourceControlFileChange(
+          path: 'src/main.styio',
+          unstagedStatus: SourceControlFileStatus.modified,
+        ),
+      ],
+    );
+
+    final plan = SourceControlMergeWorkflowPlan.fromStatus(snapshot);
+    final resolution = plan.conflictPlans.single;
+
+    expect(plan.conflictCount, 1);
+    expect(plan.conflictedPaths, <String>['src/conflict.styio']);
+    expect(plan.canOpenMergeWorkflow, isTrue);
+    expect(plan.requiresHumanConfirmation, isTrue);
+    expect(resolution.canResolve, isTrue);
+    expect(
+      resolution.resolutionKinds,
+      contains(SourceControlConflictResolutionKind.openMergeEditor),
+    );
+    expect(plan.toJson()['conflictCount'], 1);
   });
 
   test('source control status controller confirms planned action', () async {

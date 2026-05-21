@@ -134,6 +134,69 @@ void main() {
     expect(find.text('Error: provider timed out'), findsOneWidget);
   });
 
+  testWidgets('agent activity history surface renders tool call journal', (
+    tester,
+  ) async {
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord(
+          requestId: 'agent-tools',
+          profileId: 'default-agent',
+          providerKind: 'cloud_openai_compatible',
+          prompt: 'Use workspace tools.',
+          outcome: AgentCodingSessionOutcome.succeeded,
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+          metadata: const <String, Object?>{
+            'toolCallExecutionJournal': <String, Object?>{
+              'status': 'failed',
+              'entryCount': 2,
+              'sourceEventCount': 4,
+              'replayCandidateCount': 1,
+              'entries': <Object?>[
+                <String, Object?>{
+                  'callId': 'tool-1',
+                  'toolId': 'workspace.patch',
+                  'status': 'completed',
+                },
+                <String, Object?>{
+                  'callId': 'tool-2',
+                  'toolId': 'workspace.test',
+                  'status': 'failed',
+                  'errorMessage': 'tests failed',
+                },
+              ],
+            },
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: AgentActivityHistorySurface(history: history)),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-activity-tool-call-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Tool calls: failed · 2 entries · 1 replayable · 4 event(s)'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-activity-tool-call-failure-evidence')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Tool call evidence: workspace.test · failed · tests failed'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent activity history surface renders blocked validation plan', (
     tester,
   ) async {

@@ -80,6 +80,10 @@ class _AgentActivityRecordTile extends StatelessWidget {
     final validationFailureEvidence = _activityValidationFailureEvidence(
       record.metadata,
     );
+    final toolCallSummary = _activityToolCallSummary(record.metadata);
+    final toolCallFailureEvidence = _activityToolCallFailureEvidence(
+      record.metadata,
+    );
     final statusColor = record.succeeded
         ? theme.colorScheme.primary
         : theme.colorScheme.error;
@@ -163,6 +167,30 @@ class _AgentActivityRecordTile extends StatelessWidget {
               ),
             ),
           ],
+          if (toolCallSummary != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              toolCallSummary,
+              key: const ValueKey('agent-activity-tool-call-summary'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.secondary,
+              ),
+            ),
+          ],
+          if (toolCallFailureEvidence != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              toolCallFailureEvidence,
+              key: const ValueKey('agent-activity-tool-call-failure-evidence'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -181,6 +209,58 @@ class _AgentActivityRecordTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _activityToolCallSummary(Map<String, Object?> metadata) {
+  final journal = _metadataObject(metadata['toolCallExecutionJournal']);
+  if (journal.isEmpty) {
+    return null;
+  }
+  final status = journal['status'] as String? ?? 'unknown';
+  final entries = _metadataIterable(journal['entries']);
+  final entryCount = _metadataInt(journal['entryCount']) ?? entries.length;
+  final replayCandidateCount = _metadataInt(journal['replayCandidateCount']);
+  final sourceEventCount = _metadataInt(journal['sourceEventCount']);
+  final parts = <String>[
+    'Tool calls: $status',
+    '$entryCount entr${entryCount == 1 ? 'y' : 'ies'}',
+  ];
+  if (replayCandidateCount != null && replayCandidateCount > 0) {
+    parts.add('$replayCandidateCount replayable');
+  }
+  if (sourceEventCount != null && sourceEventCount > 0) {
+    parts.add('$sourceEventCount event(s)');
+  }
+  return parts.join(' · ');
+}
+
+String? _activityToolCallFailureEvidence(Map<String, Object?> metadata) {
+  final journal = _metadataObject(metadata['toolCallExecutionJournal']);
+  if (journal.isEmpty) {
+    return null;
+  }
+  for (final value in _metadataIterable(journal['entries'])) {
+    final entry = _metadataObject(value);
+    final status = entry['status'] as String?;
+    if (status != 'failed' && status != 'permission_blocked') {
+      continue;
+    }
+    final toolId = entry['toolId'] as String?;
+    final callId = entry['callId'] as String?;
+    final label = toolId == null || toolId.trim().isEmpty
+        ? callId ?? 'unknown'
+        : toolId;
+    final errorMessage = (entry['errorMessage'] as String?)?.trim();
+    final permissionReason = (entry['permissionReason'] as String?)?.trim();
+    final evidence = errorMessage == null || errorMessage.isEmpty
+        ? permissionReason
+        : errorMessage;
+    if (evidence == null || evidence.isEmpty) {
+      return 'Tool call evidence: $label · $status';
+    }
+    return 'Tool call evidence: $label · $status · $evidence';
+  }
+  return null;
 }
 
 String? _activityValidationSummary(Map<String, Object?> metadata) {
@@ -241,6 +321,26 @@ Map<String, Object?> _metadataObject(Object? value) {
     return result;
   }
   return const <String, Object?>{};
+}
+
+int? _metadataInt(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  return null;
+}
+
+List<Object?> _metadataIterable(Object? value) {
+  if (value is List<Object?>) {
+    return value;
+  }
+  if (value is Iterable) {
+    return value.toList(growable: false);
+  }
+  return const <Object?>[];
 }
 
 class _ActivityChip extends StatelessWidget {

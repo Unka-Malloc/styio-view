@@ -178,7 +178,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 73,
+      schemaVersion: 74,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -620,7 +620,11 @@ class AgentCodingLoopContext {
 }
 
 class AgentWorkspaceEditContext {
-  const AgentWorkspaceEditContext({this.preview, this.lastApplyResult});
+  const AgentWorkspaceEditContext({
+    this.preview,
+    this.lastApplyResult,
+    this.suggestedCommandIds = const <String>[],
+  });
 
   static AgentWorkspaceEditContext? fromWorkspaceEditState({
     WorkspaceEditPreview? lastPreview,
@@ -636,11 +640,13 @@ class AgentWorkspaceEditContext {
       lastApplyResult: lastApplyResult == null
           ? null
           : AgentWorkspaceEditApplyResultContext.fromResult(lastApplyResult),
+      suggestedCommandIds: _suggestedWorkspaceEditCommandIds(lastPreview),
     );
   }
 
   final AgentWorkspaceEditPreviewContext? preview;
   final AgentWorkspaceEditApplyResultContext? lastApplyResult;
+  final List<String> suggestedCommandIds;
 
   bool get hasPreview => preview != null;
   bool get hasApplyResult => lastApplyResult != null;
@@ -649,10 +655,22 @@ class AgentWorkspaceEditContext {
     return <String, Object?>{
       'hasPreview': hasPreview,
       'hasApplyResult': hasApplyResult,
+      if (suggestedCommandIds.isNotEmpty)
+        'suggestedCommandIds': suggestedCommandIds,
       if (preview != null) 'preview': preview!.toJson(),
       if (lastApplyResult != null) 'lastApplyResult': lastApplyResult!.toJson(),
     };
   }
+}
+
+List<String> _suggestedWorkspaceEditCommandIds(WorkspaceEditPreview? preview) {
+  if (preview == null || !preview.canApply) {
+    return const <String>[];
+  }
+  return switch (preview.source) {
+    WorkspaceEditSource.codeAction => const <String>['applyQuickFix'],
+    _ => const <String>[],
+  };
 }
 
 class AgentWorkspaceEditPreviewContext {

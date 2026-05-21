@@ -513,7 +513,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 73);
+    expect(json['schemaVersion'], 74);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1477,7 +1477,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 73);
+    expect(context.schemaVersion, 74);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1860,7 +1860,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 73);
+    expect(json['schemaVersion'], 74);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2135,7 +2135,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 73);
+    expect(context.schemaVersion, 74);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');
@@ -3154,6 +3154,7 @@ void main() {
 
     expect(workspaceEdit['hasPreview'], isTrue);
     expect(workspaceEdit['hasApplyResult'], isTrue);
+    expect(workspaceEdit['suggestedCommandIds'], <String>['applyQuickFix']);
     expect(previewJson['planId'], 'workspace-fix');
     expect(previewJson['summary'], 'Replace value initializer.');
     expect(previewJson['canApply'], isTrue);

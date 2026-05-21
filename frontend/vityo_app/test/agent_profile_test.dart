@@ -151,6 +151,10 @@ void main() {
     expect(decoded.systemPrompt, contains('agent.workspaceEdit.preview'));
     expect(
       decoded.systemPrompt,
+      contains('agent.workspaceEdit.suggestedCommandIds'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('agent.workspaceEdit.lastApplyResult'),
     );
     expect(decoded.systemPrompt, contains('metadata.workspaceEditPreview'));

@@ -1268,6 +1268,8 @@ void main() {
       final hover = projectLanguage['hover']! as Map<String, Object?>;
       final languageServiceStatus =
           projectLanguage['languageServiceStatus']! as Map<String, Object?>;
+      final semanticFeatureMatrix =
+          projectLanguage['semanticFeatureMatrix']! as Map<String, Object?>;
       final syntaxValidationReport =
           projectLanguage['syntaxValidationReport']! as Map<String, Object?>;
       final syntaxValidationAuthority =
@@ -1284,6 +1286,11 @@ void main() {
         contains('nextReference'),
       );
       expect(languageServiceStatus['severity'], isA<String>());
+      expect(semanticFeatureMatrix['preferredSource'], isA<String>());
+      expect(
+        semanticFeatureMatrix['conflictPolicy'],
+        contains('Prefer StyioService'),
+      );
       expect(
         syntaxValidationAuthority['fallbackSource'],
         'vityo-ide-syntax-contract',

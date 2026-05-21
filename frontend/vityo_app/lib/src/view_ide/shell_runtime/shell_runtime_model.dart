@@ -1676,6 +1676,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       analysis: analysis,
     );
     final status = languageServiceStatus.value;
+    final semanticFeatureMatrix = AgentSemanticFeatureMatrixContext.fromMatrix(
+      editorController.semanticFeatureMatrix,
+    ).toJson();
     final syntaxValidationAuthority = <String, Object?>{
       'preferredSource': status.syntaxValidationReady
           ? 'styio-service'
@@ -1697,6 +1700,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       'offset': offset,
       'documentCount': documents.length,
       'languageServiceStatus': status.toJson(),
+      'semanticFeatureMatrix': semanticFeatureMatrix,
       'syntaxValidationAuthority': syntaxValidationAuthority,
       'syntaxValidationReport': syntaxValidationReport.toJson(),
       if (suggestedCommandIds.isNotEmpty)

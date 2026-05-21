@@ -16,6 +16,10 @@ typedef AgentWorkspacePatchToolRunner =
     Future<AgentCodePatchApplicationResult> Function(AgentCodePatch patch);
 typedef AgentValidationContextProvider = AgentCodingValidationToolContext
     Function();
+typedef AgentExtensionToolRunner =
+    Future<AgentToolCallDispatchResult> Function(
+      AgentToolCallDispatchRequest request,
+    );
 
 class AgentCodingValidationToolContext {
   const AgentCodingValidationToolContext({
@@ -100,6 +104,7 @@ class AgentBuiltinToolExecutor {
     this.ideCommandRunner,
     this.workspacePatchRunner,
     this.validationContextProvider,
+    this.extensionToolRunner,
     this.checkpointChannels = const <String>[
       'file',
       'selection',
@@ -120,6 +125,7 @@ class AgentBuiltinToolExecutor {
   final AgentIdeCommandToolRunner? ideCommandRunner;
   final AgentWorkspacePatchToolRunner? workspacePatchRunner;
   final AgentValidationContextProvider? validationContextProvider;
+  final AgentExtensionToolRunner? extensionToolRunner;
   final List<String> checkpointChannels;
 
   Future<AgentToolCallDispatchResult> execute(
@@ -135,13 +141,31 @@ class AgentBuiltinToolExecutor {
         request,
       ),
       'collectAgentCodingCheckpoint' => _collectAgentCodingCheckpoint(request),
-      _ => AgentToolCallDispatchResult.failure(
+      _ => _runExtensionTool(request),
+    };
+  }
+
+  Future<AgentToolCallDispatchResult> _runExtensionTool(
+    AgentToolCallDispatchRequest request,
+  ) async {
+    final runner = extensionToolRunner;
+    if (runner == null) {
+      return AgentToolCallDispatchResult.failure(
         callId: request.callId,
         toolId: request.toolId,
         message:
-            'Agent builtin tool ${request.toolId} is not implemented by this executor.',
-      ),
-    };
+            'Agent extension tool ${request.toolId} cannot run because no AgentExtensionToolRunner is attached.',
+      );
+    }
+    try {
+      return await runner(request);
+    } on Object catch (error) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message: 'Agent extension tool ${request.toolId} failed: $error',
+      );
+    }
   }
 
   Future<AgentToolCallDispatchResult> _collectStyioLanguageContext(

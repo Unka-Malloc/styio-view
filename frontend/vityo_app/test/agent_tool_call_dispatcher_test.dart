@@ -283,6 +283,48 @@ void main() {
     expect(result.metadata['runnableCommandCount'], 1);
   });
 
+  test('agent builtin executor delegates extension tools', () async {
+    AgentToolCallDispatchRequest? receivedRequest;
+    final executor = AgentBuiltinToolExecutor(
+      context: _context(),
+      extensionToolRunner: (request) async {
+        receivedRequest = request;
+        return AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: '{"extension":"ok"}',
+          metadata: const <String, Object?>{'source': 'extension-host'},
+        );
+      },
+    );
+    final result = await executor.execute(
+      const AgentToolCallDispatchRequest(
+        callId: 'call-extension',
+        toolId: 'collectExtensionContext',
+        inputText: '{"extensionId":"demo"}',
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(receivedRequest?.toolId, 'collectExtensionContext');
+    expect(result.output, '{"extension":"ok"}');
+    expect(result.metadata['source'], 'extension-host');
+  });
+
+  test('agent builtin executor requires extension tool runner', () async {
+    final executor = AgentBuiltinToolExecutor(context: _context());
+    final result = await executor.execute(
+      const AgentToolCallDispatchRequest(
+        callId: 'call-extension',
+        toolId: 'collectExtensionContext',
+        inputText: '{"extensionId":"demo"}',
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.message, contains('no AgentExtensionToolRunner'));
+  });
+
   test('agent builtin executor previews workspace edits', () async {
     final executor = AgentBuiltinToolExecutor(context: _context());
     final result = await executor.execute(

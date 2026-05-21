@@ -652,6 +652,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('validation-summary-aware persisted coding session history'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('ShellRuntime retry/replay recovery command dispatch'),
     );
     expect(

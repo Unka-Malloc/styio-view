@@ -676,6 +676,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('recovery validation failure evidence prompt drafting'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('validation failure command evidence persistence'),
     );
     expect(

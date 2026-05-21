@@ -33,6 +33,11 @@ void main() {
         capabilitySnapshot: const StyioServiceCapabilityDetector().detect(
           response,
         ),
+        cacheSnapshot: const StyioServiceResultCacheSnapshot(
+          entries: <StyioServiceResultCacheEntry>[],
+          lookupHits: 3,
+          lookupMisses: 1,
+        ),
       ),
     );
     var refreshRequested = false;
@@ -74,6 +79,9 @@ void main() {
     expect(find.text('StyioService ready'), findsOneWidget);
     expect(find.text('health degraded'), findsOneWidget);
     expect(find.textContaining('missing '), findsWidgets);
+    expect(find.text('cache lookups 4'), findsOneWidget);
+    expect(find.text('cache hits 3'), findsOneWidget);
+    expect(find.text('cache misses 1'), findsOneWidget);
     expect(find.textContaining('completion available'), findsOneWidget);
     final refreshAction = find.byKey(
       const ValueKey('language-service-refresh-action'),

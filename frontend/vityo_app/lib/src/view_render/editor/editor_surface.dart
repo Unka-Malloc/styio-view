@@ -5486,6 +5486,15 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
             _CapabilityPill(label: 'fresh ${status.freshCapabilityCount}'),
             _CapabilityPill(label: 'missing ${status.missingCapabilityCount}'),
             _CapabilityPill(label: 'blocked ${status.blockedCapabilityCount}'),
+            if (status.cacheLookupCount > 0) ...[
+              _CapabilityPill(
+                label: 'cache lookups ${status.cacheLookupCount}',
+              ),
+              _CapabilityPill(label: 'cache hits ${status.cacheLookupHits}'),
+              _CapabilityPill(
+                label: 'cache misses ${status.cacheLookupMisses}',
+              ),
+            ],
             for (final entry in primaryStates)
               _CapabilityPill(label: '${entry.key} ${entry.value}'),
           ],

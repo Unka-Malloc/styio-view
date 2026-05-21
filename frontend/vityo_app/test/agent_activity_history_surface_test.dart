@@ -197,6 +197,48 @@ void main() {
     );
   });
 
+  testWidgets('agent activity history surface renders tool continuation', (
+    tester,
+  ) async {
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord(
+          requestId: 'agent-tool-continuation',
+          profileId: 'default-agent',
+          providerKind: 'cloud_openai_compatible',
+          prompt: 'Continue after tool results.',
+          outcome: AgentCodingSessionOutcome.succeeded,
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+          metadata: const <String, Object?>{
+            'toolResultContinuation': true,
+            'toolResultContinuationCount': 2,
+            'toolResultContinuationFailedCount': 1,
+            'toolResultContinuationCallIds': <String>['call-read', 'call-test'],
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: AgentActivityHistorySurface(history: history)),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-activity-tool-continuation-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Tool continuation: 2 result(s) · failed 1 · calls call-read, call-test',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent activity history surface restores prompt from record', (
     tester,
   ) async {

@@ -91,6 +91,9 @@ class _AgentActivityRecordTile extends StatelessWidget {
     final toolCallFailureEvidence = _activityToolCallFailureEvidence(
       record.metadata,
     );
+    final toolContinuationSummary = _activityToolContinuationSummary(
+      record.metadata,
+    );
     final statusColor = record.succeeded
         ? theme.colorScheme.primary
         : theme.colorScheme.error;
@@ -198,6 +201,18 @@ class _AgentActivityRecordTile extends StatelessWidget {
               ),
             ),
           ],
+          if (toolContinuationSummary != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              toolContinuationSummary,
+              key: const ValueKey('agent-activity-tool-continuation-summary'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -279,6 +294,21 @@ String? _activityToolCallFailureEvidence(Map<String, Object?> metadata) {
     return 'Tool call evidence: $label · $status · $evidence';
   }
   return null;
+}
+
+String? _activityToolContinuationSummary(Map<String, Object?> metadata) {
+  if (metadata['toolResultContinuation'] != true) {
+    return null;
+  }
+  final count = _metadataInt(metadata['toolResultContinuationCount']) ?? 0;
+  final failedCount =
+      _metadataInt(metadata['toolResultContinuationFailedCount']) ?? 0;
+  final callIds = _metadataIterable(
+    metadata['toolResultContinuationCallIds'],
+  ).whereType<String>().take(3).toList(growable: false);
+  final calls = callIds.isEmpty ? '' : ' · calls ${callIds.join(', ')}';
+  final failed = failedCount == 0 ? '' : ' · failed $failedCount';
+  return 'Tool continuation: $count result(s)$failed$calls';
 }
 
 String? _activityValidationSummary(Map<String, Object?> metadata) {

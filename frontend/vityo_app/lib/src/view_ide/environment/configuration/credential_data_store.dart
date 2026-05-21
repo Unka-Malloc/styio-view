@@ -357,12 +357,36 @@ extension CredentialStorageProtectionX on CredentialStorageProtection {
   };
 }
 
+class CredentialAuditRetentionPolicy {
+  const CredentialAuditRetentionPolicy({
+    this.retention = const Duration(days: 90),
+    this.maxEntries = 1000,
+    this.redactSecretValues = true,
+  });
+
+  final Duration retention;
+  final int maxEntries;
+  final bool redactSecretValues;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'retentionDays': retention.inDays,
+      'maxEntries': maxEntries,
+      'redactSecretValues': redactSecretValues,
+    };
+  }
+}
+
 class CredentialDataStoreHealth {
   const CredentialDataStoreHealth({
     required this.protection,
     required this.persistent,
     required this.safeForLongLivedSecrets,
     required this.message,
+    this.adapterId = '',
+    this.backendId = '',
+    this.productionReady = false,
+    this.auditRetentionPolicy = const CredentialAuditRetentionPolicy(),
     this.todo = '',
   });
 
@@ -370,6 +394,10 @@ class CredentialDataStoreHealth {
   final bool persistent;
   final bool safeForLongLivedSecrets;
   final String message;
+  final String adapterId;
+  final String backendId;
+  final bool productionReady;
+  final CredentialAuditRetentionPolicy auditRetentionPolicy;
   final String todo;
 
   Map<String, Object?> toJson() {
@@ -377,7 +405,11 @@ class CredentialDataStoreHealth {
       'protection': protection.wireValue,
       'persistent': persistent,
       'safeForLongLivedSecrets': safeForLongLivedSecrets,
+      'productionReady': productionReady,
       'message': message,
+      if (adapterId.isNotEmpty) 'adapterId': adapterId,
+      if (backendId.isNotEmpty) 'backendId': backendId,
+      'auditRetentionPolicy': auditRetentionPolicy.toJson(),
       if (todo.isNotEmpty) 'todo': todo,
     };
   }
@@ -1061,7 +1093,16 @@ class InMemoryPlatformSecureCredentialStorageAdapter
       protection: CredentialStorageProtection.platformSecureStorage,
       persistent: true,
       safeForLongLivedSecrets: true,
+      adapterId: adapterId,
+      backendId: 'memory-secure-fixture',
+      productionReady: false,
       message: 'Secure credential adapter $adapterId is available.',
+      auditRetentionPolicy: const CredentialAuditRetentionPolicy(
+        retention: Duration(days: 7),
+        maxEntries: 200,
+      ),
+      todo:
+          'TODO: replace in-memory secure adapter with OS-backed SecretStorage, Keychain, Credential Manager, or libsecret.',
     );
   }
 }

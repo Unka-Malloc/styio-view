@@ -72,6 +72,18 @@ void main() {
       isFalse,
     );
     expect(
+      entriesById['environment.credential-store']?.summary,
+      contains('audit retention policies'),
+    );
+    expect(
+      entriesById['environment.credential-store']?.todo,
+      contains('production backends'),
+    );
+    expect(
+      entriesById['environment.credential-store']?.runtimeMaturityBlocking,
+      isFalse,
+    );
+    expect(
       entriesById['presentation.problems-panel']?.status,
       IdeCapabilityStatus.scaffolded,
     );

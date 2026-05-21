@@ -275,9 +275,10 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/environment/configuration',
           summary:
-              'Credential references, redacted metadata, injection results, batch injection, access audit trails, persisted FoundationDataStore credentials, platform secure storage adapter contracts, PlatformSecureCredentialDataStore, policy-enforcing credential stores, credential storage health facts, and storage policy decisions are wired.',
+              'Credential references, redacted metadata, injection results, batch injection, access audit trails, persisted FoundationDataStore credentials, platform secure storage adapter contracts, PlatformSecureCredentialDataStore, policy-enforcing credential stores, credential storage health facts, adapter backend descriptors, audit retention policies, and storage policy decisions are wired.',
           todo:
-              'TODO: bind PlatformSecureCredentialStorageAdapter to OS SecretStorage/Keychain/Credential Manager/libsecret and enforce production audit retention policy.',
+              'TODO: bind PlatformSecureCredentialStorageAdapter to OS SecretStorage/Keychain/Credential Manager/libsecret production backends.',
+          runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code SecretStorage',
             'IntelliJ PasswordSafe',

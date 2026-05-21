@@ -94,6 +94,10 @@ void main() {
       );
       expect(foundationHealth.persistent, isTrue);
       expect(foundationHealth.safeForLongLivedSecrets, isFalse);
+      expect(
+        memoryHealth.toJson()['auditRetentionPolicy'],
+        containsPair('redactSecretValues', true),
+      );
       expect(foundationHealth.toJson()['todo'], startsWith('TODO:'));
     },
   );
@@ -178,6 +182,7 @@ void main() {
       );
       final loaded = await store.read(key);
       final health = await store.health();
+      final healthJson = health.toJson();
       final snapshotText = (await store.snapshot()).toJson().toString();
 
       expect(loaded?.secretValue, 'secure-live-token');
@@ -186,6 +191,14 @@ void main() {
         CredentialStorageProtection.platformSecureStorage,
       );
       expect(health.safeForLongLivedSecrets, isTrue);
+      expect(healthJson['adapterId'], 'in-memory-platform-secure-storage');
+      expect(healthJson['backendId'], 'memory-secure-fixture');
+      expect(healthJson['productionReady'], isFalse);
+      expect(
+        healthJson['auditRetentionPolicy'],
+        containsPair('retentionDays', 7),
+      );
+      expect(healthJson['todo'], contains('OS-backed'));
       expect(snapshotText, isNot(contains('secure-live-token')));
       expect(snapshotText, contains('se****en'));
     },

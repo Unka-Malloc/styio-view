@@ -119,7 +119,7 @@ void main() {
     },
   );
 
-  test('OpenAI Responses tool schema constrains IDE command ids', () async {
+  test('OpenAI Responses tool schema constrains coding contracts', () async {
     final profile = AgentPromptProfile.openAICodexSparkForPlatform(
       PlatformTarget.linux,
     );
@@ -162,11 +162,23 @@ void main() {
     final prerequisiteForCommandId =
         commandProperties['prerequisiteForCommandId']!
             as Map<String, Object?>;
+    final patch = itemProperties['patch']! as Map<String, Object?>;
+    final patchProperties = patch['properties']! as Map<String, Object?>;
+    final edits = patchProperties['edits']! as Map<String, Object?>;
+    final editItems = edits['items']! as Map<String, Object?>;
+    final editProperties = editItems['properties']! as Map<String, Object?>;
+    final operation = editProperties['operation']! as Map<String, Object?>;
 
     expect(commandId['enum'], contains('renameSymbol'));
     expect(commandId['enum'], contains('runBuild'));
     expect(commandId['enum'], isNot(contains('deleteWorkspace')));
     expect(prerequisiteForCommandId['enum'], commandId['enum']);
+    expect(patch['required'], contains('edits'));
+    expect(operation['enum'], <String>['replace', 'create', 'delete']);
+    expect(editItems['required'], contains('documentId'));
+    expect(editItems['required'], contains('start'));
+    expect(editItems['required'], contains('end'));
+    expect(editItems['required'], contains('replacementText'));
   });
 
   test('agent code patch edit parses delete operation from JSON', () {

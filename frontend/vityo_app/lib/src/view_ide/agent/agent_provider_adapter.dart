@@ -1573,6 +1573,73 @@ Map<String, Object?> _vityoStructuredContentPartsSchema() {
             'patch': <String, Object?>{
               'type': 'object',
               'additionalProperties': true,
+              'properties': <String, Object?>{
+                'patchId': <String, Object?>{
+                  'type': 'string',
+                  'description':
+                      'Stable patch id used to track and preview this patch.',
+                },
+                'summary': <String, Object?>{
+                  'type': 'string',
+                  'description': 'Short summary of the patch intent.',
+                },
+                'baseRevision': <String, Object?>{
+                  'type': 'integer',
+                  'description':
+                      'Optional active document revision for replace edits.',
+                },
+                'edits': <String, Object?>{
+                  'type': 'array',
+                  'description':
+                      'Concrete file edits. Use replace for text ranges, create for new files, and delete for file deletion.',
+                  'items': <String, Object?>{
+                    'type': 'object',
+                    'additionalProperties': true,
+                    'properties': <String, Object?>{
+                      'documentId': <String, Object?>{
+                        'type': 'string',
+                        'description':
+                            'Workspace document id or path targeted by this edit.',
+                      },
+                      'operation': <String, Object?>{
+                        'type': 'string',
+                        'enum': <String>['replace', 'create', 'delete'],
+                        'description':
+                            'Patch edit operation. Omit only when replace is intended.',
+                      },
+                      'start': <String, Object?>{
+                        'type': 'integer',
+                        'description':
+                            'Zero-based inclusive start offset for replace/delete ranges.',
+                      },
+                      'end': <String, Object?>{
+                        'type': 'integer',
+                        'description':
+                            'Zero-based exclusive end offset for replace/delete ranges.',
+                      },
+                      'replacementText': <String, Object?>{
+                        'type': 'string',
+                        'description':
+                            'Replacement text for replace/create operations. Empty for delete.',
+                      },
+                      'baseRevision': <String, Object?>{
+                        'type': 'integer',
+                        'description':
+                            'Optional document revision this edit was prepared against.',
+                      },
+                    },
+                    // TODO(agent-patch-schema): split required fields by
+                    // operation when provider schema support is consistent.
+                    'required': <String>[
+                      'documentId',
+                      'start',
+                      'end',
+                      'replacementText',
+                    ],
+                  },
+                },
+              },
+              'required': <String>['edits'],
             },
             'command': <String, Object?>{
               'type': 'object',

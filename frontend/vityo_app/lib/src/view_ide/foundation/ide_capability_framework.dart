@@ -91,6 +91,7 @@ class IdeCapabilityDescriptor {
     required this.ownerPath,
     this.summary = '',
     this.todo = '',
+    this.runtimeMaturityBlocking,
     this.references = const <String>[],
     this.dependencies = const <String>[],
   });
@@ -102,11 +103,18 @@ class IdeCapabilityDescriptor {
   final String ownerPath;
   final String summary;
   final String todo;
+  final bool? runtimeMaturityBlocking;
   final List<String> references;
   final List<String> dependencies;
 
   bool get needsFollowUp =>
       status == IdeCapabilityStatus.todo || todo.isNotEmpty;
+
+  bool get blocksRuntimeMaturity {
+    return runtimeMaturityBlocking ??
+        (status == IdeCapabilityStatus.todo ||
+            status == IdeCapabilityStatus.scaffolded);
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -117,6 +125,7 @@ class IdeCapabilityDescriptor {
       'ownerPath': ownerPath,
       if (summary.isNotEmpty) 'summary': summary,
       if (todo.isNotEmpty) 'todo': todo,
+      'runtimeMaturityBlocking': blocksRuntimeMaturity,
       if (references.isNotEmpty) 'references': references,
       if (dependencies.isNotEmpty) 'dependencies': dependencies,
       'needsFollowUp': needsFollowUp,
@@ -512,6 +521,7 @@ class VityoIdeCapabilityFramework {
               'ExecutionSession, runtime events, native tool results, runtime execution plans, dependency readiness checks, runtime execution handoff contracts, manager binding routes, default RuntimeExecutionManagerRegistry registrations, dispatch-to-live-output-buffer results, ShellManagerRuntimeExecutionAdapter local shell execution, ToolchainManagerRuntimeExecutionAdapter, ToolchainInstallRuntimeExecutionAdapter managed tool execution, HostedRuntimeExecutionAdapter hosted workflow execution, output-channel attachment contracts, runtime task lifecycle snapshots, persisted runtime task history, and extension task contribution definitions, ExtensionRuntimeTaskExecutionPlan, ExtensionRuntimeTaskExecutionBridge dispatch, ExtensionRuntimeTaskTelemetrySnapshot, ExtensionRuntimeTaskDataStoreTelemetrySink, ExtensionRuntimeTaskRetryPolicy, ExtensionRuntimeTaskRetryPlan, and ExtensionRuntimeTaskCancellationRegistry expose stable serializable execution contracts for UI and Agent consumers.',
           todo:
               'TODO: connect extension task cancellation handles to ShellManager/ProcessManager termination adapters.',
+          runtimeMaturityBlocking: false,
           references: <String>['VS Code tasks', 'Theia task service'],
         ),
         IdeCapabilityDescriptor(

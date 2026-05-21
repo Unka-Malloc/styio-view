@@ -706,7 +706,7 @@ void main() {
       expect(checkpointIdeCapabilityClosure['isFrameworkClosed'], isTrue);
       expect(
         checkpointIdeCapabilityClosure['runtimeMaturityBlockerCapabilityIds'],
-        contains('runtime.execution'),
+        isNot(contains('runtime.execution')),
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],

@@ -72,7 +72,7 @@ void main() {
     expect(ideCapabilityClosureJson['hardFailureCount'], 0);
     expect(
       ideCapabilityClosureJson['runtimeMaturityBlockerCapabilityIds'],
-      contains('runtime.execution'),
+      isNot(contains('runtime.execution')),
     );
     expect(ideCapabilityIds, contains('interaction.search'));
     expect(ideCapabilityIds, contains('runtime.execution'));

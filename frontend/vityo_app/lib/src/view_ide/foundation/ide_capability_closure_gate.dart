@@ -38,6 +38,7 @@ class IdeCapabilityClosureItem {
     required this.severity,
     required this.ownerPath,
     required this.reason,
+    required this.blocksRuntimeMaturity,
     this.todo = '',
   });
 
@@ -48,6 +49,7 @@ class IdeCapabilityClosureItem {
   final IdeCapabilityClosureSeverity severity;
   final String ownerPath;
   final String reason;
+  final bool blocksRuntimeMaturity;
   final String todo;
 
   bool get isHardFailure => severity == IdeCapabilityClosureSeverity.fail;
@@ -62,6 +64,7 @@ class IdeCapabilityClosureItem {
       'severity': severity.wireValue,
       'ownerPath': ownerPath,
       'reason': reason,
+      'blocksRuntimeMaturity': blocksRuntimeMaturity,
       if (todo.isNotEmpty) 'todo': todo,
     };
   }
@@ -111,6 +114,24 @@ class IdeCapabilityClosureReport {
     return todoItems.map((item) => item.capabilityId).toList(growable: false);
   }
 
+  List<String> get runtimeMaturityBlockingTodoCapabilityIds {
+    final ids = todoItems
+        .where((item) => item.blocksRuntimeMaturity)
+        .map((item) => item.capabilityId)
+        .toList(growable: false);
+    ids.sort();
+    return List<String>.unmodifiable(ids);
+  }
+
+  List<String> get nonBlockingTodoCapabilityIds {
+    final ids = todoItems
+        .where((item) => !item.blocksRuntimeMaturity)
+        .map((item) => item.capabilityId)
+        .toList(growable: false);
+    ids.sort();
+    return List<String>.unmodifiable(ids);
+  }
+
   List<String> get failedCapabilityIds {
     return failedItems
         .map((item) => item.capabilityId)
@@ -119,7 +140,7 @@ class IdeCapabilityClosureReport {
 
   List<String> get runtimeMaturityBlockerCapabilityIds {
     final ids = <String>{
-      ...todoCapabilityIds,
+      ...runtimeMaturityBlockingTodoCapabilityIds,
       ...failedCapabilityIds,
       ...missingRequiredCapabilityIds,
       for (final gap in dependencyGaps) gap.capabilityId,
@@ -138,6 +159,9 @@ class IdeCapabilityClosureReport {
 
   bool get isFrameworkClosed => !hasHardFailures;
   bool get isRuntimeMature => isFrameworkClosed && todoItems.isEmpty;
+  bool get isRuntimeContractMature {
+    return isFrameworkClosed && runtimeMaturityBlockerCapabilityIds.isEmpty;
+  }
 
   Map<String, int> get severityCounts {
     return <String, int>{
@@ -153,12 +177,16 @@ class IdeCapabilityClosureReport {
       'version': version,
       'isFrameworkClosed': isFrameworkClosed,
       'isRuntimeMature': isRuntimeMature,
+      'isRuntimeContractMature': isRuntimeContractMature,
       'readyCount': readyCount,
       'todoCount': todoCount,
       'failedCount': failedCount,
       'hardFailureCount': hardFailureCount,
       'severityCounts': severityCounts,
       'todoCapabilityIds': todoCapabilityIds,
+      'runtimeMaturityBlockingTodoCapabilityIds':
+          runtimeMaturityBlockingTodoCapabilityIds,
+      'nonBlockingTodoCapabilityIds': nonBlockingTodoCapabilityIds,
       'failedCapabilityIds': failedCapabilityIds,
       'runtimeMaturityBlockerCapabilityIds':
           runtimeMaturityBlockerCapabilityIds,
@@ -216,6 +244,7 @@ class IdeCapabilityClosureGate {
           severity: IdeCapabilityClosureSeverity.fail,
           ownerPath: '',
           reason: 'Required capability is not declared in the framework.',
+          blocksRuntimeMaturity: true,
           todo: 'TODO: add this required IDE capability to the framework.',
         ),
     ];
@@ -266,6 +295,7 @@ class IdeCapabilityClosureGate {
         severity: IdeCapabilityClosureSeverity.todo,
         ownerPath: entry.ownerPath,
         reason: 'Framework slot exists and implementation detail is deferred.',
+        blocksRuntimeMaturity: entry.blocksRuntimeMaturity,
         todo: entry.todo,
       );
     }
@@ -278,6 +308,7 @@ class IdeCapabilityClosureGate {
       severity: IdeCapabilityClosureSeverity.ready,
       ownerPath: entry.ownerPath,
       reason: 'Capability is declared and wired to an owner path.',
+      blocksRuntimeMaturity: false,
       todo: entry.todo,
     );
   }
@@ -291,6 +322,7 @@ class IdeCapabilityClosureGate {
       severity: IdeCapabilityClosureSeverity.fail,
       ownerPath: entry.ownerPath,
       reason: reason,
+      blocksRuntimeMaturity: true,
       todo: entry.todo,
     );
   }

@@ -39,7 +39,21 @@ void main() {
     );
     expect(
       decoded.systemPrompt,
+      contains('ideCapabilityClosure.isRuntimeContractMature'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
+    );
+    expect(
+      decoded.systemPrompt,
+      contains(
+        'ideCapabilityClosure.runtimeMaturityBlockingTodoCapabilityIds',
+      ),
+    );
+    expect(
+      decoded.systemPrompt,
+      contains('ideCapabilityClosure.nonBlockingTodoCapabilityIds'),
     );
     expect(decoded.systemPrompt, contains('Clang'));
     expect(decoded.systemPrompt, contains('commands.persistenceCommands'));

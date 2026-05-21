@@ -232,6 +232,10 @@ void main() {
       contains('termination adapters'),
     );
     expect(
+      entriesById['runtime.execution']?.runtimeMaturityBlocking,
+      isFalse,
+    );
+    expect(
       entriesById['interaction.language-service-status']?.summary,
       contains('syntax-validation readiness'),
     );

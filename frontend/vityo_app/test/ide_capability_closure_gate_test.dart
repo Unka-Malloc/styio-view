@@ -9,6 +9,7 @@ void main() {
 
     expect(report.isFrameworkClosed, isTrue);
     expect(report.isRuntimeMature, isFalse);
+    expect(report.isRuntimeContractMature, isFalse);
     expect(report.hasHardFailures, isFalse);
     expect(report.missingRequiredCapabilityIds, isEmpty);
     expect(report.dependencyGaps, isEmpty);
@@ -22,9 +23,59 @@ void main() {
     expect(report.failedItems, isEmpty);
     expect(json['isFrameworkClosed'], isTrue);
     expect(json['isRuntimeMature'], isFalse);
+    expect(json['isRuntimeContractMature'], isFalse);
+    expect(
+      report.nonBlockingTodoCapabilityIds,
+      contains('runtime.execution'),
+    );
+    expect(
+      report.runtimeMaturityBlockerCapabilityIds,
+      isNot(contains('runtime.execution')),
+    );
     expect(
       json['severityCounts'],
       containsPair(IdeCapabilityClosureSeverity.todo.wireValue, greaterThan(0)),
+    );
+  });
+
+  test('IDE capability closure gate separates detail TODOs from blockers', () {
+    final baseSnapshot = const VityoIdeCapabilityFramework().snapshot();
+    final snapshot = IdeCapabilityFrameworkSnapshot(
+      version: 'detail-todo-test',
+      entries: <IdeCapabilityDescriptor>[
+        for (final entry in baseSnapshot.entries)
+          IdeCapabilityDescriptor(
+            id: entry.id,
+            layer: entry.layer,
+            title: entry.title,
+            status: entry.status,
+            ownerPath: entry.ownerPath,
+            summary: entry.summary,
+            todo: entry.todo,
+            runtimeMaturityBlocking: entry.needsFollowUp ? false : null,
+            references: entry.references,
+            dependencies: entry.dependencies,
+          ),
+      ],
+    );
+
+    final report = const IdeCapabilityClosureGate().evaluate(snapshot);
+    final json = report.toJson();
+
+    expect(report.isFrameworkClosed, isTrue);
+    expect(report.isRuntimeMature, isFalse);
+    expect(report.isRuntimeContractMature, isTrue);
+    expect(report.todoCapabilityIds, isNotEmpty);
+    expect(
+      report.nonBlockingTodoCapabilityIds,
+      contains('runtime.execution'),
+    );
+    expect(report.runtimeMaturityBlockingTodoCapabilityIds, isEmpty);
+    expect(report.runtimeMaturityBlockerCapabilityIds, isEmpty);
+    expect(json['isRuntimeContractMature'], isTrue);
+    expect(
+      json['nonBlockingTodoCapabilityIds'],
+      contains('runtime.execution'),
     );
   });
 

@@ -499,6 +499,7 @@ class AgentCodingSessionController extends ChangeNotifier {
           response: response,
           createdAt: requestStartedAt,
           completedAt: DateTime.now().toUtc(),
+          metadata: _agentCodingHistoryMetadata(requestContext.agent),
         ),
       );
       return response;
@@ -1113,6 +1114,46 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
     return '${text.substring(0, maxConversationTurnTextLength)}\n[truncated ${text.length - maxConversationTurnTextLength} char(s)]';
   }
+}
+
+Map<String, Object?> _agentCodingHistoryMetadata(
+  AgentCodingLoopContext agent,
+) {
+  final metadata = <String, Object?>{};
+  final lastPatchApplication = agent.lastPatchApplication;
+  if (lastPatchApplication != null) {
+    metadata['lastPatchApplication'] = <String, Object?>{
+      'patchId': lastPatchApplication.patchId,
+      'applied': lastPatchApplication.applied,
+      'pendingPatchRetained': lastPatchApplication.pendingPatchRetained,
+      'changedDocumentIds': lastPatchApplication.changedDocumentIds,
+      'message': lastPatchApplication.message,
+    };
+  }
+  if (agent.validationPlan.status !=
+      AgentCodingValidationPlanStatus.notNeeded) {
+    metadata['validationPlan'] = <String, Object?>{
+      'status': agent.validationPlan.status.wireValue,
+      'shouldRun': agent.validationPlan.shouldRun,
+      'registeredCommandIds': agent.validationPlan.registeredCommandIds,
+    };
+    metadata['validationResult'] = <String, Object?>{
+      'status': agent.validationResult.status.wireValue,
+      'completedCommandIds': agent.validationResult.completedCommandIds,
+      'failedCommandIds': agent.validationResult.failedCommandIds,
+      'missingCommandIds': agent.validationResult.missingCommandIds,
+      'resultCount': agent.validationResult.resultCount,
+    };
+    metadata['validationPipeline'] = <String, Object?>{
+      'status': agent.validationPipeline.status.wireValue,
+      if (agent.validationPipeline.nextCommandId != null)
+        'nextCommandId': agent.validationPipeline.nextCommandId,
+      'progressNumerator': agent.validationPipeline.progressNumerator,
+      'progressDenominator': agent.validationPipeline.progressDenominator,
+      'remainingCommandIds': agent.validationPipeline.remainingCommandIds,
+    };
+  }
+  return metadata;
 }
 
 String _ideCommandResultConversationText(AgentCommandResultContext result) {

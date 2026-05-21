@@ -285,6 +285,93 @@ void main() {
     );
   });
 
+  test('controller records validation summary in session history metadata', () async {
+    final editorController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 1,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+    const patch = AgentCodePatch(
+      patchId: 'patch-validated',
+      summary: 'Validated change.',
+      edits: <AgentCodePatchEdit>[
+        AgentCodePatchEdit(
+          documentId: 'main.styio',
+          start: 8,
+          end: 9,
+          replacementText: '2',
+        ),
+      ],
+    );
+    final historyStore = _MemoryAgentCodingSessionHistoryStore(
+      AgentCodingSessionHistory(workspaceId: 'demo'),
+    );
+    final adapter = _FakeAgentProviderAdapter(
+      response: const AgentProviderResponseEnvelope(
+        requestId: 'agent-validation-history',
+        role: 'assistant',
+        finishReason: 'stop',
+        contentParts: <AgentContentPart>[
+          AgentContentPart(
+            kind: AgentContentPartKind.codePatch,
+            text: 'Patch ready.',
+            patch: patch,
+          ),
+        ],
+      ),
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: adapter,
+      contextProvider: _context,
+      sessionHistoryStore: historyStore,
+      sessionHistoryWorkspaceId: 'demo',
+    );
+    addTearDown(controller.dispose);
+
+    controller.updatePrompt('Apply validated patch.');
+    await controller.sendPrompt();
+    final applied = controller.applyPendingPatch(
+      AgentCodePatchApplier(editorController: editorController),
+    );
+    expect(applied?.applied, isTrue);
+    for (final commandId in <String>[
+      'saveAll',
+      'refreshLanguageService',
+      'refreshWorkspaceDiagnostics',
+      'collectProjectLanguageContext',
+      'runTests',
+    ]) {
+      controller.recordIdeCommandResult(
+        AgentCommandResultContext(
+          commandId: commandId,
+          applied: true,
+          message: '$commandId completed.',
+        ),
+      );
+    }
+    controller.updatePrompt('Continue after validation.');
+    await controller.sendPrompt();
+
+    final metadata = historyStore.history.records.first.metadata;
+    final validationResult =
+        metadata['validationResult']! as Map<String, Object?>;
+    final validationPipeline =
+        metadata['validationPipeline']! as Map<String, Object?>;
+    final lastPatchApplication =
+        metadata['lastPatchApplication']! as Map<String, Object?>;
+
+    expect(lastPatchApplication['patchId'], 'patch-validated');
+    expect(validationResult['status'], 'passed');
+    expect(validationResult['completedCommandIds'], contains('runTests'));
+    expect(validationPipeline['status'], 'complete');
+    expect(validationPipeline['progressNumerator'], 5);
+    expect(validationPipeline['progressDenominator'], 5);
+  });
+
   test('agent coding session restores recovery request draft', () async {
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
     final history = AgentCodingSessionHistory(

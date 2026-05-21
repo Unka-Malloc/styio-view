@@ -67,9 +67,11 @@ class AgentToolCallExecutionJournalEntry {
       inputText: state.inputText,
       resultSample: dispatchResult == null || !successResult
           ? state.resultSample
-          : _sample(dispatchResult.output.isEmpty
-                ? dispatchResult.message
-                : dispatchResult.output),
+          : _sample(
+              dispatchResult.output.isEmpty
+                  ? dispatchResult.message
+                  : dispatchResult.output,
+            ),
       errorMessage: dispatchResult == null || successResult
           ? state.errorMessage
           : dispatchResult.message,
@@ -108,10 +110,7 @@ class AgentToolCallExecutionJournalEntry {
       callId: callId,
       toolId: toolId,
       inputText: inputText.isEmpty ? '{}' : inputText,
-      metadata: <String, Object?>{
-        ...metadata,
-        'replayedFromJournal': true,
-      },
+      metadata: <String, Object?>{...metadata, 'replayedFromJournal': true},
     );
   }
 
@@ -142,9 +141,7 @@ class AgentToolCallExecutionJournal {
     required this.status,
     required this.entries,
     this.sourceEventCount = 0,
-    this.todoItems = const <String>[
-      'TODO: persist this journal through AgentCodingSessionHistoryStore so interrupted tool chains can be resumed after reload.',
-    ],
+    this.todoItems = const <String>[],
   });
 
   factory AgentToolCallExecutionJournal.fromTimeline({
@@ -210,10 +207,7 @@ class AgentToolCallExecutionJournal {
 }
 
 class AgentToolCallReplayIssue {
-  const AgentToolCallReplayIssue({
-    required this.code,
-    required this.message,
-  });
+  const AgentToolCallReplayIssue({required this.code, required this.message});
 
   final String code;
   final String message;
@@ -341,7 +335,8 @@ AgentToolCallExecutionJournalStatus _journalStatus(
   AgentToolCallTimelineStatus status,
 ) {
   return switch (status) {
-    AgentToolCallTimelineStatus.idle => AgentToolCallExecutionJournalStatus.idle,
+    AgentToolCallTimelineStatus.idle =>
+      AgentToolCallExecutionJournalStatus.idle,
     AgentToolCallTimelineStatus.running =>
       AgentToolCallExecutionJournalStatus.running,
     AgentToolCallTimelineStatus.blocked =>

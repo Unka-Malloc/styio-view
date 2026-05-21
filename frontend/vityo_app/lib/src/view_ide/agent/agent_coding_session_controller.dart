@@ -671,6 +671,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         events: events,
       );
       _refreshToolCallExecutionJournal(dispatchReport: report);
+      await _persistLatestAgentToolExecutionJournal();
       notifyListeners();
       return report;
     }
@@ -686,6 +687,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       _recordRecentToolCallResultContexts(report.results);
     }
     _refreshToolCallExecutionJournal(dispatchReport: report);
+    await _persistLatestAgentToolExecutionJournal();
     notifyListeners();
     return report;
   }
@@ -1737,6 +1739,35 @@ class AgentCodingSessionController extends ChangeNotifier {
         operation: 'agent.history.tool-replay-persist',
         message:
             'Agent tool replay report persistence failed: ${sanitizeAgentError(error.toString())}',
+      );
+    }
+  }
+
+  Future<void> _persistLatestAgentToolExecutionJournal() async {
+    final store = sessionHistoryStore;
+    if (store == null || _toolCallExecutionJournal.entries.isEmpty) {
+      return;
+    }
+    try {
+      final current =
+          _sessionHistorySnapshot ??
+          await store.readHistory(workspaceId: sessionHistoryWorkspaceId);
+      if (current.records.isEmpty) {
+        return;
+      }
+      final latest = current.records.first;
+      final metadata = <String, Object?>{
+        ...latest.metadata,
+        'toolCallExecutionJournal': _toolCallExecutionJournal.toJson(),
+      };
+      final next = current.replaceLatest(latest.copyWith(metadata: metadata));
+      _sessionHistorySnapshot = next;
+      await store.saveHistory(next);
+    } on Object catch (error) {
+      _publishAgentRuntimeDiagnostic(
+        operation: 'agent.history.tool-journal-persist',
+        message:
+            'Agent tool execution journal persistence failed: ${sanitizeAgentError(error.toString())}',
       );
     }
   }

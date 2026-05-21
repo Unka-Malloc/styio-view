@@ -392,6 +392,8 @@ void main() {
       );
       addTearDown(controller.dispose);
 
+      controller.updatePrompt('Create history before tool dispatch.');
+      await controller.sendPrompt();
       controller.recordToolCallEvent(
         const AgentToolCallEvent.callStarted(
           callId: 'call-read',
@@ -406,8 +408,6 @@ void main() {
           output: '{"text":"value = 1"}',
         ),
       );
-      controller.updatePrompt('Continue with persisted tool journal.');
-      await controller.sendPrompt();
 
       final history = await historyStore.readHistory(workspaceId: 'demo');
       final metadata = history.records.single.metadata;

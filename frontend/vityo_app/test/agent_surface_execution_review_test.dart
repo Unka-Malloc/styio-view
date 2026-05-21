@@ -975,6 +975,39 @@ void main() {
     );
   });
 
+  testWidgets('agent surface shows non-blocking loop guard attention', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-read-warning',
+        toolId: 'readWorkspaceFile',
+        input: '{"path":"warning.styio"}',
+      ),
+    );
+    await controller.dispatchReadyToolCalls((request) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message: 'temporary read failure',
+      );
+    });
+
+    await _pumpSurface(tester, controller);
+
+    expect(find.text('Loop guard: attention'), findsOneWidget);
+    expect(
+      find.text('agent.loop.failedToolResultObserved:1'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent surface shows blocked loop guard', (tester) async {
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),

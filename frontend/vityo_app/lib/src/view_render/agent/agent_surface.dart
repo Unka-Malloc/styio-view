@@ -221,10 +221,14 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
     final autonomyBlocked =
         autonomyPolicy.mode == AgentCodingAutonomyMode.blocked;
     final loopGuardBlocked = loopGuard.blocked;
+    final loopGuardAttention =
+        loopGuard.status == AgentCodingLoopGuardStatus.attention;
     final statusColor = requiresReview
         ? theme.colorScheme.primary
         : loopGuardBlocked
         ? theme.colorScheme.error
+        : loopGuardAttention
+        ? theme.colorScheme.tertiary
         : autonomyBlocked
         ? theme.colorScheme.error
         : theme.colorScheme.onSurfaceVariant;
@@ -282,9 +286,24 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
               'Loop guard: ${loopGuard.status.wireValue}',
               key: const ValueKey('agent-loop-guard-status'),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: loopGuardBlocked ? theme.colorScheme.error : null,
+                color: loopGuardBlocked
+                    ? theme.colorScheme.error
+                    : loopGuardAttention
+                    ? theme.colorScheme.tertiary
+                    : null,
               ),
             ),
+            if (loopGuard.attentionReasons.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              for (final reason in loopGuard.attentionReasons.take(3))
+                Text(
+                  reason,
+                  key: ValueKey('agent-loop-guard-attention-$reason'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.tertiary,
+                  ),
+                ),
+            ],
             if (loopGuard.blockingReasons.isNotEmpty) ...[
               const SizedBox(height: 4),
               for (final reason in loopGuard.blockingReasons.take(3))

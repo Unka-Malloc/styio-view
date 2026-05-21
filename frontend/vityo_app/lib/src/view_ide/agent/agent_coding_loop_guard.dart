@@ -14,6 +14,7 @@ class AgentCodingLoopGuard {
     this.toolReplayReportCount = 0,
     this.failedToolResultCount = 0,
     this.hasProviderFailure = false,
+    this.attentionReasons = const <String>[],
     this.blockingReasons = const <String>[],
     this.todoItems = const <String>[],
   });
@@ -23,6 +24,7 @@ class AgentCodingLoopGuard {
       toolReplayReportCount = 0,
       failedToolResultCount = 0,
       hasProviderFailure = false,
+      attentionReasons = const <String>[],
       blockingReasons = const <String>[],
       todoItems = const <String>[];
 
@@ -64,14 +66,26 @@ class AgentCodingLoopGuard {
     if (toolReplayReportCount > 0 ||
         failedToolResultCount > 0 ||
         hasProviderFailure) {
+      final attentionReasons = <String>[];
+      if (toolReplayReportCount > 0) {
+        attentionReasons.add(
+          'agent.loop.replayReportObserved:$toolReplayReportCount',
+        );
+      }
+      if (failedToolResultCount > 0) {
+        attentionReasons.add(
+          'agent.loop.failedToolResultObserved:$failedToolResultCount',
+        );
+      }
+      if (hasProviderFailure) {
+        attentionReasons.add('agent.loop.providerFailureObserved');
+      }
       return AgentCodingLoopGuard(
         status: AgentCodingLoopGuardStatus.attention,
         toolReplayReportCount: toolReplayReportCount,
         failedToolResultCount: failedToolResultCount,
         hasProviderFailure: hasProviderFailure,
-        todoItems: const <String>[
-          'TODO: surface non-blocking agent loop guard warnings in Agent Surface.',
-        ],
+        attentionReasons: List<String>.unmodifiable(attentionReasons),
       );
     }
     return const AgentCodingLoopGuard.clear();
@@ -81,6 +95,7 @@ class AgentCodingLoopGuard {
   final int toolReplayReportCount;
   final int failedToolResultCount;
   final bool hasProviderFailure;
+  final List<String> attentionReasons;
   final List<String> blockingReasons;
   final List<String> todoItems;
 
@@ -93,6 +108,7 @@ class AgentCodingLoopGuard {
       'toolReplayReportCount': toolReplayReportCount,
       'failedToolResultCount': failedToolResultCount,
       'hasProviderFailure': hasProviderFailure,
+      if (attentionReasons.isNotEmpty) 'attentionReasons': attentionReasons,
       if (blockingReasons.isNotEmpty) 'blockingReasons': blockingReasons,
       if (todoItems.isNotEmpty) 'todoItems': todoItems,
     };

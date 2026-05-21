@@ -63,6 +63,11 @@ void main() {
     expect(snapshot.status, AgentCodingLoopStepStatus.ready);
     expect(tooling.status, AgentCodingLoopStepStatus.ready);
     expect(permission.status, AgentCodingLoopStepStatus.ready);
+    expect(permission.blockingReasons, isEmpty);
+    expect(
+      permission.todoItems.join('\n'),
+      contains('OpenCode-style per-tool ask/allow/deny'),
+    );
     expect(dispatch.status, AgentCodingLoopStepStatus.ready);
     expect(review.status, AgentCodingLoopStepStatus.waiting);
     expect(validation.status, AgentCodingLoopStepStatus.waiting);

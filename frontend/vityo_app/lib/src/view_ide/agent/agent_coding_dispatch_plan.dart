@@ -3,6 +3,7 @@ import 'agent_provider_adapter.dart';
 import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
 import 'agent_session_context.dart';
+import 'agent_tool_permission.dart';
 import 'agent_tool_registry.dart';
 
 enum AgentCodingDispatchStatus { ready, blocked }
@@ -31,6 +32,7 @@ class AgentCodingDispatchPlan {
     required this.attachmentCount,
     required this.conversationTurnCount,
     required this.toolSelection,
+    required this.toolPermissionPlan,
     required this.todoItems,
     this.providerSelectionPlan,
     this.providerExecutionResolution,
@@ -59,9 +61,16 @@ class AgentCodingDispatchPlan {
       profile: profile,
       providerKind: adapter.kind,
     );
+    final toolPermissionPlan = AgentToolPermissionPlan.fromSelection(
+      toolSelection,
+    );
     todos.addAll(toolSelection.todoItems);
+    todos.addAll(toolPermissionPlan.todoItems);
+    final canDispatch =
+        readiness.canDispatchProviderRequest &&
+        !toolPermissionPlan.blocksDispatch;
     return AgentCodingDispatchPlan(
-      status: readiness.canDispatchProviderRequest
+      status: canDispatch
           ? AgentCodingDispatchStatus.ready
           : AgentCodingDispatchStatus.blocked,
       profileId: profile.profileId,
@@ -78,6 +87,7 @@ class AgentCodingDispatchPlan {
       attachmentCount: attachmentCount,
       conversationTurnCount: conversationTurnCount,
       toolSelection: toolSelection,
+      toolPermissionPlan: toolPermissionPlan,
       providerSelectionPlan: providerSelectionPlan,
       providerExecutionResolution: providerExecutionResolution,
       todoItems: List<String>.unmodifiable(todos),
@@ -99,6 +109,7 @@ class AgentCodingDispatchPlan {
   final int attachmentCount;
   final int conversationTurnCount;
   final AgentToolSelection toolSelection;
+  final AgentToolPermissionPlan toolPermissionPlan;
   final AgentProviderSelectionPlan? providerSelectionPlan;
   final AgentProviderExecutionResolution? providerExecutionResolution;
   final List<String> todoItems;
@@ -106,13 +117,17 @@ class AgentCodingDispatchPlan {
 
   bool get ready => status == AgentCodingDispatchStatus.ready;
 
-  List<String> get issueCodes => readiness.issueCodes;
+  List<String> get issueCodes {
+    return <String>[...readiness.issueCodes, ...toolPermissionPlan.issueCodes];
+  }
 
   List<String> get blockingIssueCodes {
-    return readiness.issues
-        .where((issue) => issue.isBlocking)
-        .map((issue) => issue.code)
-        .toList(growable: false);
+    return <String>[
+      ...readiness.issues
+          .where((issue) => issue.isBlocking)
+          .map((issue) => issue.code),
+      ...toolPermissionPlan.blockingIssueCodes,
+    ];
   }
 
   Map<String, Object?> toJson() {
@@ -141,6 +156,7 @@ class AgentCodingDispatchPlan {
       if (providerExecutionResolution != null)
         'providerExecution': providerExecutionResolution!.toJson(),
       'tools': toolSelection.toJson(),
+      'toolPermissions': toolPermissionPlan.toJson(),
       'skills': <String, Object?>{
         'activeSkillCount': activeSkillIds.length,
         'activeSkillIds': activeSkillIds,

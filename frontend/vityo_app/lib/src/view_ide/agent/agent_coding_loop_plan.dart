@@ -134,14 +134,19 @@ class AgentCodingLoopPlan {
       AgentCodingLoopStep(
         stepId: 'evaluate-agent-tool-permissions',
         phase: AgentCodingLoopPhase.permission,
-        status: dispatchPlan.ready
+        status: dispatchPlan.toolPermissionPlan.blocksDispatch
+            ? AgentCodingLoopStepStatus.blocked
+            : dispatchPlan.ready
             ? AgentCodingLoopStepStatus.ready
             : AgentCodingLoopStepStatus.waiting,
         label: 'Evaluate agent tool permissions',
         commandIds: const <String>['collectAgentCodingCheckpoint'],
-        todoItems: const <String>[
-          'TODO: bind OpenCode-style per-tool ask/allow/deny/corrected permission decisions to Vityo Agent Surface without adding a global OS permission layer.',
-        ],
+        blockingReasons: dispatchPlan.toolPermissionPlan.blockingIssueCodes,
+        todoItems: dispatchPlan.toolPermissionPlan.todoItems.isEmpty
+            ? const <String>[
+                'TODO: bind OpenCode-style per-tool ask/allow/deny/corrected permission decisions to Vityo Agent Surface without adding a global OS permission layer.',
+              ]
+            : dispatchPlan.toolPermissionPlan.todoItems,
       ),
       AgentCodingLoopStep(
         stepId: 'dispatch-provider-request',

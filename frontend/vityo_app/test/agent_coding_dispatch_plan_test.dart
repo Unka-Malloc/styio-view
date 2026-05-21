@@ -21,6 +21,8 @@ void main() {
     final json = plan.toJson();
     final providerJson = json['provider']! as Map<String, Object?>;
     final toolsJson = json['tools']! as Map<String, Object?>;
+    final toolPermissionsJson =
+        json['toolPermissions']! as Map<String, Object?>;
     final skillsJson = json['skills']! as Map<String, Object?>;
 
     expect(plan.status, AgentCodingDispatchStatus.ready);
@@ -41,6 +43,14 @@ void main() {
     expect(toolsJson['toolIds'], contains('readWorkspaceFile'));
     expect(toolsJson['toolIds'], contains('previewWorkspaceEdit'));
     expect(toolsJson['todoItems'], isA<List<Object?>>());
+    expect(toolPermissionsJson['status'], 'review_required');
+    expect(toolPermissionsJson['reviewToolIds'], contains('runIdeCommand'));
+    expect(
+      toolPermissionsJson['allowedToolIds'],
+      contains('readWorkspaceFile'),
+    );
+    expect(plan.toolPermissionPlan.requiresReview, isTrue);
+    expect(plan.toolPermissionPlan.blocksDispatch, isFalse);
     expect(
       skillsJson['activeSkillIds'],
       contains('styio-language-service-truth'),

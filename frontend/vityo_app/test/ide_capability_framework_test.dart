@@ -224,8 +224,12 @@ void main() {
       contains('ExtensionRuntimeTaskDataStoreTelemetrySink, ExtensionRuntimeTaskRetryPolicy'),
     );
     expect(
+      entriesById['runtime.execution']?.summary,
+      contains('ExtensionRuntimeTaskCancellationRegistry'),
+    );
+    expect(
       entriesById['runtime.execution']?.todo,
-      contains('cancellation process handles'),
+      contains('termination adapters'),
     );
     expect(
       entriesById['interaction.language-service-status']?.summary,

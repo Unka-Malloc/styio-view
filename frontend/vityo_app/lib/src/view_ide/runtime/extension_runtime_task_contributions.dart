@@ -226,6 +226,14 @@ class ExtensionRuntimeTaskExecutionPlan {
   }
 }
 
+String _cancellationHandleKey(
+  String extensionId,
+  String contributionId,
+  String taskId,
+) {
+  return '$extensionId::$contributionId::$taskId';
+}
+
 enum ExtensionRuntimeTaskTelemetryKind { dispatch, retry, cancellation }
 
 enum ExtensionRuntimeTaskRetryFailureKind {
@@ -357,6 +365,188 @@ class ExtensionRuntimeTaskRetryPlan {
       'message': message,
       'policy': policy.toJson(),
     };
+  }
+}
+
+enum ExtensionRuntimeTaskCancellationState {
+  registered,
+  requested,
+  completed,
+  unavailable,
+}
+
+class ExtensionRuntimeTaskCancellationHandle {
+  const ExtensionRuntimeTaskCancellationHandle({
+    required this.extensionId,
+    required this.contributionId,
+    required this.taskId,
+    required this.processHandleId,
+    required this.state,
+    required this.canCancel,
+    required this.message,
+    this.requestedAt,
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory ExtensionRuntimeTaskCancellationHandle.fromPlan({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required String processHandleId,
+    String message = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final taskId = plan.executionPlan.definition.id;
+    final handleId = processHandleId.trim();
+    return ExtensionRuntimeTaskCancellationHandle(
+      extensionId: plan.contribution.extensionId,
+      contributionId: plan.contribution.contributionId,
+      taskId: taskId,
+      processHandleId: handleId,
+      state: ExtensionRuntimeTaskCancellationState.registered,
+      canCancel: handleId.isNotEmpty,
+      message: message.trim().isEmpty
+          ? 'Cancellation handle is registered for extension runtime task $taskId.'
+          : message.trim(),
+      metadata: metadata,
+    );
+  }
+
+  factory ExtensionRuntimeTaskCancellationHandle.unavailable({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    String message = '',
+  }) {
+    final taskId = plan.executionPlan.definition.id;
+    return ExtensionRuntimeTaskCancellationHandle(
+      extensionId: plan.contribution.extensionId,
+      contributionId: plan.contribution.contributionId,
+      taskId: taskId,
+      processHandleId: '',
+      state: ExtensionRuntimeTaskCancellationState.unavailable,
+      canCancel: false,
+      message: message.trim().isEmpty
+          ? 'No cancellation handle is registered for extension runtime task $taskId.'
+          : message.trim(),
+    );
+  }
+
+  final String extensionId;
+  final String contributionId;
+  final String taskId;
+  final String processHandleId;
+  final ExtensionRuntimeTaskCancellationState state;
+  final bool canCancel;
+  final String message;
+  final DateTime? requestedAt;
+  final Map<String, Object?> metadata;
+
+  ExtensionRuntimeTaskCancellationHandle markRequested({
+    required DateTime timestamp,
+    String reason = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final reasonSuffix = reason.trim().isEmpty ? '' : ': ${reason.trim()}';
+    if (!canCancel) {
+      return ExtensionRuntimeTaskCancellationHandle(
+        extensionId: extensionId,
+        contributionId: contributionId,
+        taskId: taskId,
+        processHandleId: processHandleId,
+        state: ExtensionRuntimeTaskCancellationState.unavailable,
+        canCancel: false,
+        requestedAt: timestamp,
+        message: 'Extension runtime task $taskId cannot be cancelled$reasonSuffix.',
+        metadata: <String, Object?>{...this.metadata, ...metadata},
+      );
+    }
+    return ExtensionRuntimeTaskCancellationHandle(
+      extensionId: extensionId,
+      contributionId: contributionId,
+      taskId: taskId,
+      processHandleId: processHandleId,
+      state: ExtensionRuntimeTaskCancellationState.requested,
+      canCancel: canCancel,
+      requestedAt: timestamp,
+      message: 'Cancellation requested for extension runtime task $taskId$reasonSuffix.',
+      metadata: <String, Object?>{...this.metadata, ...metadata},
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'contributionId': contributionId,
+      'taskId': taskId,
+      'processHandleId': processHandleId,
+      'state': state.name,
+      'canCancel': canCancel,
+      'message': message,
+      if (requestedAt != null) 'requestedAt': requestedAt!.toIso8601String(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionRuntimeTaskCancellationRegistry {
+  ExtensionRuntimeTaskCancellationRegistry({
+    Iterable<ExtensionRuntimeTaskCancellationHandle> handles = const [],
+  }) : _handles = <String, ExtensionRuntimeTaskCancellationHandle>{
+         for (final handle in handles)
+           _cancellationHandleKey(
+             handle.extensionId,
+             handle.contributionId,
+             handle.taskId,
+           ): handle,
+       };
+
+  final Map<String, ExtensionRuntimeTaskCancellationHandle> _handles;
+
+  List<ExtensionRuntimeTaskCancellationHandle> get handles {
+    return _handles.values.toList(growable: false);
+  }
+
+  ExtensionRuntimeTaskCancellationHandle register({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required String processHandleId,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final handle = ExtensionRuntimeTaskCancellationHandle.fromPlan(
+      plan: plan,
+      processHandleId: processHandleId,
+      metadata: metadata,
+    );
+    _handles[_keyForPlan(plan)] = handle;
+    return handle;
+  }
+
+  ExtensionRuntimeTaskCancellationHandle? lookup(
+    ExtensionRuntimeTaskExecutionPlan plan,
+  ) {
+    return _handles[_keyForPlan(plan)];
+  }
+
+  ExtensionRuntimeTaskCancellationHandle requestCancellation({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required DateTime timestamp,
+    String reason = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final handle =
+        lookup(plan) ??
+        ExtensionRuntimeTaskCancellationHandle.unavailable(plan: plan);
+    final requested = handle.markRequested(
+      timestamp: timestamp,
+      reason: reason,
+      metadata: metadata,
+    );
+    _handles[_keyForPlan(plan)] = requested;
+    return requested;
+  }
+
+  String _keyForPlan(ExtensionRuntimeTaskExecutionPlan plan) {
+    return _cancellationHandleKey(
+      plan.contribution.extensionId,
+      plan.contribution.contributionId,
+      plan.executionPlan.definition.id,
+    );
   }
 }
 

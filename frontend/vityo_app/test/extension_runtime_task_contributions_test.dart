@@ -261,6 +261,42 @@ void main() {
     expect(invalidConfiguration.retryable, isFalse);
   });
 
+  test('extension runtime task cancellation registry binds process handles', () {
+    final plan = _createRuntimeTaskPlan();
+    final registry = ExtensionRuntimeTaskCancellationRegistry();
+
+    final handle = registry.register(
+      plan: plan,
+      processHandleId: 'process-build-1',
+      metadata: const <String, Object?>{'pid': 42},
+    );
+    final requested = registry.requestCancellation(
+      plan: plan,
+      timestamp: DateTime.utc(2026, 5, 21, 2),
+      reason: 'user cancelled task',
+      metadata: const <String, Object?>{'source': 'editor'},
+    );
+    final missing = ExtensionRuntimeTaskCancellationRegistry()
+        .requestCancellation(
+          plan: plan,
+          timestamp: DateTime.utc(2026, 5, 21, 2, 1),
+          reason: 'missing process handle',
+        );
+
+    expect(handle.state, ExtensionRuntimeTaskCancellationState.registered);
+    expect(handle.canCancel, isTrue);
+    expect(handle.toJson()['processHandleId'], 'process-build-1');
+    expect(requested.state, ExtensionRuntimeTaskCancellationState.requested);
+    expect(requested.canCancel, isTrue);
+    expect(requested.message, contains('user cancelled task'));
+    expect(requested.toJson()['requestedAt'], '2026-05-21T02:00:00.000Z');
+    expect(requested.metadata['pid'], 42);
+    expect(requested.metadata['source'], 'editor');
+    expect(registry.lookup(plan)?.state, requested.state);
+    expect(missing.state, ExtensionRuntimeTaskCancellationState.unavailable);
+    expect(missing.canCancel, isFalse);
+  });
+
   test('extension runtime task catalog reports missing command metadata', () {
     final route = const ExtensionContributionRouter().routeContribution(
       extensionId: 'broken.tasks',

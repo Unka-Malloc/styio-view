@@ -345,6 +345,10 @@ void main() {
       contains('ShellRuntimeModel bootstrap action dispatch'),
     );
     expect(
+      entriesById['toolchain.manager']?.summary,
+      contains('SettingsSurface bootstrap dispatch result rendering'),
+    );
+    expect(
       entriesById['toolchain.manager']?.todo,
       contains('concrete installer UX'),
     );

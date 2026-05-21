@@ -249,6 +249,13 @@ void main() {
               installerActionIds: <String>['install-managed-styio-toolchain'],
               projectBootstrapActionIds: <String>['open-toolchain-settings'],
             ),
+            toolchainBootstrapActionDispatch:
+                const ToolchainBootstrapActionDispatchResult(
+                  status: ToolchainBootstrapActionDispatchStatus.dispatched,
+                  actionId: 'install-managed-styio-toolchain',
+                  message:
+                      'Managed install plan prepared for language-service.',
+                ),
             onToolchainRecoveryAction: (action) async {
               handledActions.add(action.id);
             },
@@ -335,6 +342,22 @@ void main() {
     expect(find.text('Toolchain Bootstrap'), findsOneWidget);
     expect(find.text('manager unresolved'), findsOneWidget);
     expect(find.text('styio selectable'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('settings-toolchain-bootstrap-dispatch-result'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Last dispatch: dispatched · install-managed-styio-toolchain',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Managed install plan prepared for language-service.'),
+      findsOneWidget,
+    );
 
     final executeInstallPlanButton = find.byKey(
       const ValueKey('settings-toolchain-execute-install-plan'),

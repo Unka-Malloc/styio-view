@@ -17,6 +17,7 @@ class SettingsSurface extends StatelessWidget {
     this.toolchainInstallPlan,
     this.toolchainInstallExecution,
     this.toolchainBootstrapSummary,
+    this.toolchainBootstrapActionDispatch,
     this.onToolchainRecoveryAction,
     this.onToolchainBootstrapAction,
     this.onSelectToolchain,
@@ -38,6 +39,8 @@ class SettingsSurface extends StatelessWidget {
   final ToolchainInstallPlanSurface? toolchainInstallPlan;
   final ToolchainInstallExecutionSurface? toolchainInstallExecution;
   final ToolchainManagerBootstrapSummary? toolchainBootstrapSummary;
+  final ToolchainBootstrapActionDispatchResult?
+  toolchainBootstrapActionDispatch;
   final Future<void> Function(ToolchainRecoveryAction action)?
   onToolchainRecoveryAction;
   final Future<void> Function(String actionId)? onToolchainBootstrapAction;
@@ -83,6 +86,7 @@ class SettingsSurface extends StatelessWidget {
                 installPlan: toolchainInstallPlan,
                 installExecution: toolchainInstallExecution,
                 bootstrapSummary: toolchainBootstrapSummary,
+                bootstrapActionDispatch: toolchainBootstrapActionDispatch,
                 onRecoveryAction: onToolchainRecoveryAction,
                 onBootstrapAction: onToolchainBootstrapAction,
                 onSelectToolchain: onSelectToolchain,
@@ -523,6 +527,7 @@ class _ToolchainSettingsCard extends StatelessWidget {
     required this.installPlan,
     required this.installExecution,
     required this.bootstrapSummary,
+    required this.bootstrapActionDispatch,
     required this.onRecoveryAction,
     required this.onBootstrapAction,
     required this.onSelectToolchain,
@@ -535,6 +540,7 @@ class _ToolchainSettingsCard extends StatelessWidget {
   final ToolchainInstallPlanSurface? installPlan;
   final ToolchainInstallExecutionSurface? installExecution;
   final ToolchainManagerBootstrapSummary? bootstrapSummary;
+  final ToolchainBootstrapActionDispatchResult? bootstrapActionDispatch;
   final Future<void> Function(ToolchainRecoveryAction action)? onRecoveryAction;
   final Future<void> Function(String actionId)? onBootstrapAction;
   final Future<void> Function(String id)? onSelectToolchain;
@@ -618,6 +624,7 @@ class _ToolchainSettingsCard extends StatelessWidget {
             const SizedBox(height: 12),
             _ToolchainBootstrapSummaryView(
               summary: bootstrapSummary!,
+              dispatchResult: bootstrapActionDispatch,
               onBootstrapAction: onBootstrapAction,
             ),
           ],
@@ -660,10 +667,12 @@ class _ToolchainSettingsCard extends StatelessWidget {
 class _ToolchainBootstrapSummaryView extends StatelessWidget {
   const _ToolchainBootstrapSummaryView({
     required this.summary,
+    required this.dispatchResult,
     required this.onBootstrapAction,
   });
 
   final ToolchainManagerBootstrapSummary summary;
+  final ToolchainBootstrapActionDispatchResult? dispatchResult;
   final Future<void> Function(String actionId)? onBootstrapAction;
 
   @override
@@ -697,6 +706,42 @@ class _ToolchainBootstrapSummaryView extends StatelessWidget {
               Chip(label: Text('styio ${summary.styioLifecycle.state.name}')),
             ],
           ),
+          if (dispatchResult != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              key: const ValueKey(
+                'settings-toolchain-bootstrap-dispatch-result',
+              ),
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Last dispatch: '
+                    '${dispatchResult!.status.wireValue} · '
+                    '${dispatchResult!.actionId}',
+                    style: theme.textTheme.labelLarge,
+                  ),
+                  if (dispatchResult!.message.isNotEmpty)
+                    Text(
+                      dispatchResult!.message,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  if (dispatchResult!.todo.isNotEmpty)
+                    Text(
+                      dispatchResult!.todo,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           _ToolchainBootstrapActionGroup(
             label: 'Settings',

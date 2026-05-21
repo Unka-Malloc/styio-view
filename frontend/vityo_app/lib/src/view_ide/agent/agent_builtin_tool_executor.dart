@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../editor/document_state.dart';
 import '../workspace/workspace_document_store_types.dart';
 import 'agent_code_patch_applier.dart';
+import 'agent_coding_session_history_store.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_session_context.dart';
 import 'agent_tool_call_dispatcher.dart';
@@ -15,6 +16,8 @@ typedef AgentIdeCommandToolRunner =
 typedef AgentWorkspacePatchToolRunner =
     Future<AgentCodePatchApplicationResult> Function(AgentCodePatch patch);
 typedef AgentValidationContextProvider = AgentCodingValidationToolContext
+    Function();
+typedef AgentRecoveryContextProvider = AgentCodingSessionRecoveryContext
     Function();
 typedef AgentExtensionToolRunner =
     Future<AgentToolCallDispatchResult> Function(
@@ -104,6 +107,7 @@ class AgentBuiltinToolExecutor {
     this.ideCommandRunner,
     this.workspacePatchRunner,
     this.validationContextProvider,
+    this.recoveryContextProvider,
     this.extensionToolRunner,
     this.checkpointChannels = const <String>[
       'file',
@@ -125,6 +129,7 @@ class AgentBuiltinToolExecutor {
   final AgentIdeCommandToolRunner? ideCommandRunner;
   final AgentWorkspacePatchToolRunner? workspacePatchRunner;
   final AgentValidationContextProvider? validationContextProvider;
+  final AgentRecoveryContextProvider? recoveryContextProvider;
   final AgentExtensionToolRunner? extensionToolRunner;
   final List<String> checkpointChannels;
 
@@ -140,6 +145,7 @@ class AgentBuiltinToolExecutor {
       'collectAgentValidationContext' => _collectAgentValidationContext(
         request,
       ),
+      'collectAgentRecoveryContext' => _collectAgentRecoveryContext(request),
       'collectAgentCodingCheckpoint' => _collectAgentCodingCheckpoint(request),
       _ => _runExtensionTool(request),
     };
@@ -212,6 +218,47 @@ class AgentBuiltinToolExecutor {
             validationContext.validationPipeline.runnableCommandIds.length,
         'failedCommandCount':
             validationContext.validationResult.failedCommandIds.length,
+      },
+    );
+  }
+
+  Future<AgentToolCallDispatchResult> _collectAgentRecoveryContext(
+    AgentToolCallDispatchRequest request,
+  ) async {
+    final recoveryContext = recoveryContextProvider?.call();
+    if (recoveryContext == null) {
+      return AgentToolCallDispatchResult.success(
+        callId: request.callId,
+        toolId: request.toolId,
+        output: jsonEncode(<String, Object?>{
+          'source': 'agent-session-context',
+          'recovery': <String, Object?>{
+            'recoveryPlan': context.agent.recoveryPlan?.toJson(),
+            'lastProviderFailure': context.agent.lastProviderFailure?.toJson(),
+            'suggestedCommandIds': context.agent.suggestedCommandIds,
+            'TODO':
+                'Attach AgentCodingSessionHistoryStore to expose full replay drafts and latest request history.',
+          },
+        }),
+        metadata: <String, Object?>{
+          'hasRecoveryPlan': context.agent.recoveryPlan != null,
+          'suggestedCommandCount': context.agent.suggestedCommandIds.length,
+        },
+      );
+    }
+    return AgentToolCallDispatchResult.success(
+      callId: request.callId,
+      toolId: request.toolId,
+      output: jsonEncode(<String, Object?>{
+        'source': 'agent-recovery-context',
+        'recovery': recoveryContext.toJson(),
+      }),
+      metadata: <String, Object?>{
+        'hasRecoverableSession': recoveryContext.hasRecoverableSession,
+        'hasReplayDraft': recoveryContext.hasReplayDraft,
+        'readyToDispatchAny': recoveryContext.readyToDispatchAny,
+        'commandPlanCount': recoveryContext.commandPlans.length,
+        'requestDraftCount': recoveryContext.requestDrafts.length,
       },
     );
   }

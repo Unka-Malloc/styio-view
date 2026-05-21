@@ -2669,6 +2669,15 @@ class _ThrowingAgentCodingSessionHistoryStore
   }
 
   @override
+  Future<AgentCodingSessionRecoveryContext> readRecoveryContext({
+    required String workspaceId,
+    String? targetProviderProfileKey,
+    String? targetProviderProfileId,
+  }) async {
+    throw StateError(readMessage);
+  }
+
+  @override
   Future<void> saveHistory(AgentCodingSessionHistory history) async {
     throw StateError('save failed');
   }
@@ -2712,6 +2721,18 @@ class _MemoryAgentCodingSessionHistoryStore
     required String workspaceId,
   }) async {
     return (await readHistory(workspaceId: workspaceId)).toRecoveryPlan();
+  }
+
+  @override
+  Future<AgentCodingSessionRecoveryContext> readRecoveryContext({
+    required String workspaceId,
+    String? targetProviderProfileKey,
+    String? targetProviderProfileId,
+  }) async {
+    return (await readHistory(workspaceId: workspaceId)).toRecoveryContext(
+      targetProviderProfileKey:
+          targetProviderProfileKey ?? targetProviderProfileId,
+    );
   }
 
   @override

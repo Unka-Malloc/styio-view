@@ -173,4 +173,49 @@ void main() {
     );
     expect(failoverDraft?.toJson()['TODO'], contains('confirmation'));
   });
+
+  test('agent coding session history builds recovery context', () {
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.linux);
+    final record = AgentCodingSessionHistoryRecord.failure(
+      requestId: 'agent-replay',
+      profile: profile,
+      providerKind: AgentProviderKind.cloudOpenAICompatible,
+      prompt: 'Replay this coding request.',
+      errorMessage: 'Tool call interrupted.',
+      createdAt: DateTime.utc(2026, 5, 22),
+      completedAt: DateTime.utc(2026, 5, 22, 0, 1),
+    );
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[record],
+      updatedAt: DateTime.utc(2026, 5, 22, 0, 2),
+    );
+
+    final recoveryContext = history.toRecoveryContext(
+      targetProviderProfileKey: 'fallback-profile',
+    );
+    final payload = recoveryContext.toJson();
+
+    expect(recoveryContext.hasRecoverableSession, isTrue);
+    expect(recoveryContext.hasReplayDraft, isTrue);
+    expect(recoveryContext.readyToDispatchAny, isTrue);
+    expect(recoveryContext.commandPlans.map((plan) => plan.commandId), <String>[
+      'retryAgentProvider',
+      'failoverAgentProvider',
+      'replayAgentPrompt',
+    ]);
+    expect(recoveryContext.requestDrafts.length, 3);
+    expect(payload['hasReplayDraft'], isTrue);
+    expect(payload['latestRecord'], isA<Map<Object?, Object?>>());
+    expect(
+      (payload['latestRecord'] as Map<Object?, Object?>)['errorMessage'],
+      'Tool call interrupted.',
+    );
+    expect(
+      (payload['requestDrafts'] as List<Object?>)
+          .whereType<Map<Object?, Object?>>()
+          .map((draft) => draft['readyToDispatch']),
+      everyElement(isTrue),
+    );
+  });
 }

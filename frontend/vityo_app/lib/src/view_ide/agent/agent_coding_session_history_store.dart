@@ -549,6 +549,117 @@ class AgentCodingSessionRecoveryRequestDraft {
   }
 }
 
+class AgentCodingSessionRecoveryContext {
+  const AgentCodingSessionRecoveryContext({
+    required this.workspaceId,
+    required this.checkpoint,
+    required this.recoveryPlan,
+    this.latestRecord,
+    this.commandPlans = const <AgentCodingSessionRecoveryCommandPlan>[],
+    this.requestDrafts = const <AgentCodingSessionRecoveryRequestDraft>[],
+    this.todoItems = const <String>[
+      'TODO: bind this recovery context to Agent Surface retry/replay controls before autonomous resume.',
+    ],
+  });
+
+  factory AgentCodingSessionRecoveryContext.fromHistory(
+    AgentCodingSessionHistory history, {
+    String? targetProviderProfileKey,
+    String? targetProviderProfileId,
+  }) {
+    final checkpoint = history.toCheckpoint();
+    final recoveryPlan = AgentCodingSessionRecoveryPlan.fromCheckpoint(
+      checkpoint,
+    );
+    final commandPlans = <AgentCodingSessionRecoveryCommandPlan>[];
+    final requestDrafts = <AgentCodingSessionRecoveryRequestDraft>[];
+    for (final action in recoveryPlan.availableActions) {
+      final commandPlan = recoveryPlan.commandFor(action);
+      if (commandPlan == null) {
+        continue;
+      }
+      commandPlans.add(commandPlan);
+      final draft = history.toRecoveryRequestDraft(
+        action,
+        targetProviderProfileKey: targetProviderProfileKey,
+        targetProviderProfileId: targetProviderProfileId,
+      );
+      if (draft != null) {
+        requestDrafts.add(draft);
+      }
+    }
+    return AgentCodingSessionRecoveryContext(
+      workspaceId: history.workspaceId,
+      checkpoint: checkpoint,
+      recoveryPlan: recoveryPlan,
+      latestRecord: history.records.isEmpty ? null : history.records.first,
+      commandPlans: List<AgentCodingSessionRecoveryCommandPlan>.unmodifiable(
+        commandPlans,
+      ),
+      requestDrafts: List<AgentCodingSessionRecoveryRequestDraft>.unmodifiable(
+        requestDrafts,
+      ),
+    );
+  }
+
+  final String workspaceId;
+  final AgentCodingSessionCheckpoint checkpoint;
+  final AgentCodingSessionRecoveryPlan recoveryPlan;
+  final AgentCodingSessionHistoryRecord? latestRecord;
+  final List<AgentCodingSessionRecoveryCommandPlan> commandPlans;
+  final List<AgentCodingSessionRecoveryRequestDraft> requestDrafts;
+  final List<String> todoItems;
+
+  bool get hasRecoverableSession =>
+      recoveryPlan.status == AgentCodingSessionRecoveryStatus.available;
+  bool get hasReplayDraft => requestDrafts.any(
+    (draft) => draft.action == AgentCodingSessionRecoveryAction.replayPrompt,
+  );
+  bool get readyToDispatchAny =>
+      requestDrafts.any((draft) => draft.readyToDispatch);
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'workspaceId': workspaceId,
+      'hasRecoverableSession': hasRecoverableSession,
+      'hasReplayDraft': hasReplayDraft,
+      'readyToDispatchAny': readyToDispatchAny,
+      'checkpoint': checkpoint.toJson(),
+      'recoveryPlan': recoveryPlan.toJson(),
+      if (latestRecord != null) 'latestRecord': _latestRecordPayload(),
+      'commandPlans': commandPlans
+          .map((commandPlan) => commandPlan.toJson())
+          .toList(growable: false),
+      'requestDrafts': requestDrafts
+          .map((draft) => draft.toJson())
+          .toList(growable: false),
+      'todoItems': todoItems,
+    };
+  }
+
+  Map<String, Object?> _latestRecordPayload() {
+    final record = latestRecord!;
+    return <String, Object?>{
+      'requestId': record.requestId,
+      'profileId': record.profileId,
+      'providerKind': record.providerKind,
+      'outcome': record.outcome.wireValue,
+      'prompt': record.prompt,
+      'createdAt': record.createdAt.toIso8601String(),
+      'completedAt': record.completedAt.toIso8601String(),
+      'contentPartCount': record.contentPartCount,
+      'patchCount': record.patchCount,
+      'ideCommandCount': record.ideCommandCount,
+      'planCount': record.planCount,
+      'diagnosticSummaryCount': record.diagnosticSummaryCount,
+      if (record.responseTextSample.isNotEmpty)
+        'responseTextSample': record.responseTextSample,
+      if (record.errorMessage != null) 'errorMessage': record.errorMessage,
+      if (record.metadata.isNotEmpty) 'metadata': record.metadata,
+    };
+  }
+}
+
 class AgentCodingSessionHistory {
   AgentCodingSessionHistory({
     required this.workspaceId,
@@ -624,6 +735,17 @@ class AgentCodingSessionHistory {
     return AgentCodingSessionRecoveryRequestDraft(
       commandPlan: commandPlan,
       prompt: records.first.prompt,
+      targetProviderProfileKey:
+          targetProviderProfileKey ?? targetProviderProfileId,
+    );
+  }
+
+  AgentCodingSessionRecoveryContext toRecoveryContext({
+    String? targetProviderProfileKey,
+    String? targetProviderProfileId,
+  }) {
+    return AgentCodingSessionRecoveryContext.fromHistory(
+      this,
       targetProviderProfileKey:
           targetProviderProfileKey ?? targetProviderProfileId,
     );
@@ -723,6 +845,18 @@ class AgentCodingSessionHistoryStore {
   }) async {
     final history = await readHistory(workspaceId: workspaceId);
     return history.toRecoveryPlan();
+  }
+
+  Future<AgentCodingSessionRecoveryContext> readRecoveryContext({
+    required String workspaceId,
+    String? targetProviderProfileKey,
+    String? targetProviderProfileId,
+  }) async {
+    final history = await readHistory(workspaceId: workspaceId);
+    return history.toRecoveryContext(
+      targetProviderProfileKey:
+          targetProviderProfileKey ?? targetProviderProfileId,
+    );
   }
 }
 

@@ -6212,6 +6212,18 @@ class _MemoryAgentCodingSessionHistoryStore
   }
 
   @override
+  Future<AgentCodingSessionRecoveryContext> readRecoveryContext({
+    required String workspaceId,
+    String? targetProviderProfileKey,
+    String? targetProviderProfileId,
+  }) async {
+    return history.toRecoveryContext(
+      targetProviderProfileKey:
+          targetProviderProfileKey ?? targetProviderProfileId,
+    );
+  }
+
+  @override
   Future<void> saveHistory(AgentCodingSessionHistory history) async {
     this.history = history;
   }

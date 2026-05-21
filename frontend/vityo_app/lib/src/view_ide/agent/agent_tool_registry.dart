@@ -303,6 +303,21 @@ class AgentToolRegistry {
           'TODO: bind validation commands to a full OpenCode-style replayable execution log and provider-visible failure recovery plan.',
     ),
     AgentToolDefinition(
+      toolId: 'collectAgentRecoveryContext',
+      displayName: 'Collect Agent Recovery Context',
+      description:
+          'Collect recoverable agent session state, replay drafts, and retry/failover command plans.',
+      priority: 61,
+      permissionMode: AgentToolPermissionMode.never,
+      capabilities: <String>[
+        'agent.recovery',
+        'agent.replay',
+        'agent.session.history',
+      ],
+      todo:
+          'TODO: persist tool-call result chains with the recovery context so replay can resume after provider/tool interruption.',
+    ),
+    AgentToolDefinition(
       toolId: 'collectAgentCodingCheckpoint',
       displayName: 'Collect Agent Coding Checkpoint',
       description:

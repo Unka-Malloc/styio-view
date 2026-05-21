@@ -283,6 +283,44 @@ void main() {
     expect(result.metadata['runnableCommandCount'], 1);
   });
 
+  test('agent builtin executor collects recovery context', () async {
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.linux);
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord.failure(
+          requestId: 'agent-recovery',
+          profile: profile,
+          providerKind: AgentProviderKind.cloudOpenAICompatible,
+          prompt: 'Recover the agent session.',
+          errorMessage: 'Provider stream failed.',
+          createdAt: DateTime.utc(2026, 5, 22),
+          completedAt: DateTime.utc(2026, 5, 22, 0, 1),
+        ),
+      ],
+    );
+    final executor = AgentBuiltinToolExecutor(
+      context: _context(),
+      recoveryContextProvider: () =>
+          history.toRecoveryContext(targetProviderProfileKey: 'backup'),
+    );
+    final result = await executor.execute(
+      const AgentToolCallDispatchRequest(
+        callId: 'call-recovery',
+        toolId: 'collectAgentRecoveryContext',
+        inputText: '{}',
+      ),
+    );
+    final output = jsonDecode(result.output);
+
+    expect(result.success, isTrue);
+    expect(output['source'], 'agent-recovery-context');
+    expect(output['recovery']['hasRecoverableSession'], isTrue);
+    expect(output['recovery']['hasReplayDraft'], isTrue);
+    expect(result.metadata['hasReplayDraft'], isTrue);
+    expect(result.metadata['requestDraftCount'], 3);
+  });
+
   test('agent builtin executor delegates extension tools', () async {
     AgentToolCallDispatchRequest? receivedRequest;
     final executor = AgentBuiltinToolExecutor(

@@ -96,6 +96,37 @@ void main() {
       loopGuard['blockingReasons'],
       contains('agent.loop.replayReportLimit:3'),
     );
+
+    final checkpointContext = context.withAgentCodingState(
+      workspaceCheckpoint: AgentWorkspaceCheckpointContext(
+        captureStatus: 'captured',
+        snapshotId: 'agent-snapshot-1',
+        patchId: 'patch-1',
+        activeDocumentId: '/workspace/demo/src/main.styio',
+        capturedAt: DateTime.utc(2026, 5, 22, 1, 2, 3),
+        captureMessage: 'Captured 1 workspace document snapshot.',
+        capturedDocumentCount: 1,
+        revertPlanStatus: 'ready',
+        revertReady: true,
+        revertPatchId: 'revert-agent-snapshot-1',
+        revertChangedDocumentCount: 1,
+        revertModifiedDocumentIds: const <String>[
+          '/workspace/demo/src/main.styio',
+        ],
+      ),
+    );
+    final checkpointAgent =
+        checkpointContext.toJsonForChannels(const <String>['agent'])['agent']!
+            as Map<String, Object?>;
+    final workspaceCheckpoint =
+        checkpointAgent['workspaceCheckpoint']! as Map<String, Object?>;
+    expect(workspaceCheckpoint['captureStatus'], 'captured');
+    expect(workspaceCheckpoint['snapshotId'], 'agent-snapshot-1');
+    expect(workspaceCheckpoint['patchId'], 'patch-1');
+    expect(workspaceCheckpoint['capturedDocumentCount'], 1);
+    expect(workspaceCheckpoint['revertPlanStatus'], 'ready');
+    expect(workspaceCheckpoint['revertReady'], isTrue);
+    expect(workspaceCheckpoint['revertChangedDocumentCount'], 1);
   });
 
   test('agent session context serializes editor and runtime facts', () {
@@ -591,7 +622,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 80);
+    expect(json['schemaVersion'], 81);
     final registeredCommandIds =
         commandsJson['registeredCommandIds']! as List<Object?>;
     expect(commandsJson['commandCount'], registeredCommandIds.length);
@@ -1579,7 +1610,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 80);
+    expect(context.schemaVersion, 81);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1962,7 +1993,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 80);
+    expect(json['schemaVersion'], 81);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2449,7 +2480,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 80);
+    expect(context.schemaVersion, 81);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

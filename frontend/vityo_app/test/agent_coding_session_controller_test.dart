@@ -340,8 +340,11 @@ void main() {
       expect(metadata['toolCallReplayReportCount'], 1);
       expect(metadata['toolCallReplayReports'], isA<List<Object?>>());
       expect(
-        controller.sessionHistorySnapshot.records.single.metadata[
-            'lastToolCallReplayReport'],
+        controller
+            .sessionHistorySnapshot
+            .records
+            .single
+            .metadata['lastToolCallReplayReport'],
         isA<Map<String, Object?>>(),
       );
     },
@@ -356,7 +359,10 @@ void main() {
           role: 'assistant',
           finishReason: 'stop',
           contentParts: <AgentContentPart>[
-            AgentContentPart(kind: AgentContentPartKind.text, text: 'Followed.'),
+            AgentContentPart(
+              kind: AgentContentPartKind.text,
+              text: 'Followed.',
+            ),
           ],
         ),
       );
@@ -391,10 +397,9 @@ void main() {
       controller.updatePrompt('Continue after replay.');
       await controller.sendPrompt();
 
-      final replayedResult = adapter.requests.single.toolCallResults
-          .firstWhere(
-            (result) => result.metadata['replayedFromJournal'] == true,
-          );
+      final replayedResult = adapter.requests.single.toolCallResults.firstWhere(
+        (result) => result.metadata['replayedFromJournal'] == true,
+      );
 
       expect(replayedResult.callId, 'call-read');
       expect(replayedResult.metadata['replayToolId'], 'readWorkspaceFile');
@@ -431,13 +436,16 @@ void main() {
       expect(executed, isFalse);
       expect(report.status, AgentToolCallDispatchReportStatus.failed);
       expect(report.results.single.success, isFalse);
-      expect(report.results.single.metadata['source'], 'agent-tool-input-validation');
-      expect(report.results.single.output, contains('invalid arguments'));
-      expect(report.results.single.output, contains('Please rewrite the input'));
       expect(
-        controller.recentToolCallResultContexts.single.success,
-        isFalse,
+        report.results.single.metadata['source'],
+        'agent-tool-input-validation',
       );
+      expect(report.results.single.output, contains('invalid arguments'));
+      expect(
+        report.results.single.output,
+        contains('Please rewrite the input'),
+      );
+      expect(controller.recentToolCallResultContexts.single.success, isFalse);
       expect(
         controller.toolCallTimeline.status,
         AgentToolCallTimelineStatus.failed,
@@ -1741,22 +1749,23 @@ void main() {
           ),
         ],
       );
+      final adapter = _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-snapshot',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[
+            AgentContentPart(
+              kind: AgentContentPartKind.codePatch,
+              text: 'Patch ready.',
+              patch: patch,
+            ),
+          ],
+        ),
+      );
       final controller = AgentCodingSessionController(
         profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
-        adapter: _FakeAgentProviderAdapter(
-          response: const AgentProviderResponseEnvelope(
-            requestId: 'agent-request-snapshot',
-            role: 'assistant',
-            finishReason: 'stop',
-            contentParts: <AgentContentPart>[
-              AgentContentPart(
-                kind: AgentContentPartKind.codePatch,
-                text: 'Patch ready.',
-                patch: patch,
-              ),
-            ],
-          ),
-        ),
+        adapter: adapter,
         contextProvider: _context,
       );
 
@@ -1783,6 +1792,14 @@ void main() {
         controller.lastWorkspaceRevertPlan?.status,
         AgentWorkspaceRevertPlanStatus.ready,
       );
+      final workspaceCheckpoint = controller.workspaceCheckpointContext!;
+      expect(workspaceCheckpoint.captureStatus, 'captured');
+      expect(workspaceCheckpoint.snapshotId, startsWith('agent-snapshot-'));
+      expect(workspaceCheckpoint.patchId, 'patch-snapshot-active');
+      expect(workspaceCheckpoint.capturedDocumentCount, 1);
+      expect(workspaceCheckpoint.revertPlanStatus, 'ready');
+      expect(workspaceCheckpoint.revertReady, isTrue);
+      expect(workspaceCheckpoint.revertChangedDocumentCount, 1);
       expect(revertEdit.documentId, 'main.styio');
       expect(revertEdit.replacementText, 'value = 1\n');
       expect(editorController.document.text, 'value = 2\n');

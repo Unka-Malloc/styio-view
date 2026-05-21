@@ -290,6 +290,8 @@ class AgentCodingSessionController extends ChangeNotifier {
         result: codingValidationResult,
       );
   AgentCodingLoopGuard get codingLoopGuard => _currentCodingLoopGuard();
+  AgentWorkspaceCheckpointContext? get workspaceCheckpointContext =>
+      _workspaceCheckpointContext();
 
   AgentCodingLoopPlan get codingLoopPlan {
     return AgentCodingLoopPlan.fromState(
@@ -1523,6 +1525,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       providerExecutionResolution: _providerExecutionResolution,
       recoveryPlan: sessionRecoveryPlan,
       loopGuard: _currentCodingLoopGuard(),
+      workspaceCheckpoint: _workspaceCheckpointContext(),
       lastPatchApplication: _lastPatchApplicationContext,
       recentPatchApplications: _recentPatchApplicationContexts,
       recentCodingPlans: _recentCodingPlanContexts,
@@ -1678,6 +1681,42 @@ class AgentCodingSessionController extends ChangeNotifier {
           .where((result) => !result.success)
           .length,
       hasProviderFailure: _lastProviderFailure != null,
+    );
+  }
+
+  AgentWorkspaceCheckpointContext? _workspaceCheckpointContext() {
+    final capture = _lastWorkspaceSnapshotCaptureResult;
+    final snapshot = _lastWorkspaceSnapshot;
+    final revertPlan = _lastWorkspaceRevertPlan;
+    if (capture == null && snapshot == null && revertPlan == null) {
+      return null;
+    }
+    final diffSummary = revertPlan?.diffSummary;
+    return AgentWorkspaceCheckpointContext(
+      captureStatus: capture?.status.wireValue ?? 'unknown',
+      snapshotId: snapshot?.snapshotId ?? revertPlan?.snapshotId,
+      patchId: snapshot?.patchId,
+      activeDocumentId: snapshot?.activeDocumentId,
+      capturedAt: snapshot?.capturedAt,
+      captureMessage: capture?.message,
+      capturedDocumentCount: snapshot?.documents.length ?? 0,
+      unavailableDocumentIds:
+          snapshot?.unavailableDocumentIds ?? const <String>[],
+      revertPlanStatus: revertPlan?.status.wireValue,
+      revertReady: revertPlan?.ready ?? false,
+      revertPatchId: revertPlan?.patch.patchId,
+      revertChangedDocumentCount: diffSummary?.changedDocumentCount ?? 0,
+      revertAddedDocumentIds: diffSummary?.addedDocumentIds ?? const <String>[],
+      revertDeletedDocumentIds:
+          diffSummary?.deletedDocumentIds ?? const <String>[],
+      revertModifiedDocumentIds:
+          diffSummary?.modifiedDocumentIds ?? const <String>[],
+      revertUnavailableDocumentIds:
+          diffSummary?.unavailableDocumentIds ?? const <String>[],
+      todoItems: <String>{
+        ...?snapshot?.todoItems,
+        ...?revertPlan?.todoItems,
+      }.toList(growable: false),
     );
   }
 

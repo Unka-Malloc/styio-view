@@ -609,7 +609,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      80,
+      81,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -1224,6 +1224,7 @@ void main() {
       );
       expect(systemMessage['content'], contains('agent.pendingPatch'));
       expect(systemMessage['content'], contains('agent.suggestedCommandIds'));
+      expect(systemMessage['content'], contains('agent.workspaceCheckpoint'));
       expect(systemMessage['content'], contains('agent.changeReviewGate'));
       expect(systemMessage['content'], contains('agent.autonomyPolicy'));
       expect(systemMessage['content'], contains('agent.loopGuard'));
@@ -1441,7 +1442,7 @@ void main() {
         contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 80);
+      expect(metadata['contextSchemaVersion'], 81);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

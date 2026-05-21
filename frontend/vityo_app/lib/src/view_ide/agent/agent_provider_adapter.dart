@@ -2152,6 +2152,24 @@ Map<String, Object?> _agentCodingMetadata(AgentCodingLoopContext agent) {
       'agentLoopGuardBlockingReasons': agent.loopGuard.blockingReasons,
     });
   }
+  final workspaceCheckpoint = agent.workspaceCheckpoint;
+  if (workspaceCheckpoint != null) {
+    metadata.addAll(<String, Object?>{
+      'agentWorkspaceCheckpointCaptureStatus':
+          workspaceCheckpoint.captureStatus,
+      'agentWorkspaceCheckpointSnapshotId': workspaceCheckpoint.snapshotId,
+      'agentWorkspaceCheckpointPatchId': workspaceCheckpoint.patchId,
+      'agentWorkspaceCheckpointCapturedDocumentCount':
+          workspaceCheckpoint.capturedDocumentCount,
+      'agentWorkspaceCheckpointUnavailableDocumentIds':
+          workspaceCheckpoint.unavailableDocumentIds,
+      'agentWorkspaceCheckpointRevertPlanStatus':
+          workspaceCheckpoint.revertPlanStatus,
+      'agentWorkspaceCheckpointRevertReady': workspaceCheckpoint.revertReady,
+      'agentWorkspaceCheckpointRevertChangedDocumentCount':
+          workspaceCheckpoint.revertChangedDocumentCount,
+    });
+  }
   metadata.addAll(<String, Object?>{
     'agentAutonomyMode': agent.autonomyPolicy.mode.wireValue,
     'agentAutonomyCanProposePatches': agent.autonomyPolicy.canProposePatches,
@@ -2298,6 +2316,7 @@ Vityo structured response contract:
 - If commands.diagnosticCommands includes previewQuickFix, suggest previewQuickFix before applyQuickFix for cross-file quick fixes and inspect commands.lastResult.metadata.workspaceEditPreview before applying.
 - If the IDE context includes agent.workspaceEdit.suggestedCommandIds, prefer those command ids for ready workspace-edit follow-up actions before inventing patch application steps.
 - If the IDE context includes agent.suggestedCommandIds, prefer those command ids for pending IDE actions, workspace-edit follow-up actions, or provider recovery commands before inventing manual recovery steps.
+- If the IDE context includes agent.workspaceCheckpoint, treat it as the current OpenCode-style workspace restore anchor. Read snapshotId, captureStatus, revertPlanStatus, and revertReady before proposing apply, replay, recovery, or revert actions; do not assume the checkpoint contains full document text.
 - If the IDE context includes agent.changeReviewGate, agent.autonomyPolicy, agent.loopGuard, or agent.validationPlan, inspect them before applying, revising, replaying tools, or validating generated changes. If agent.loopGuard.blocked is true, stop autonomous retry loops and propose user review or recovery instead of another tool replay. Use agent.validationPlan.registeredCommandIds and agent.validationPlan.commandPlans for IDE-owned validation commands and required inputs.
 - If the IDE context includes commands.registeredCommandIds, verify ide_command.commandId against that list before emitting any IDE command suggestion.
 - If the IDE context includes language.documentSymbols, use them as the current document outline before planning broad edits.

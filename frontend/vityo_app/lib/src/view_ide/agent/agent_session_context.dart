@@ -1313,6 +1313,7 @@ class AgentSessionContext {
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
+    AgentWorkspaceCheckpointContext? workspaceCheckpoint,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
         const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
@@ -1378,7 +1379,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 80,
+      schemaVersion: 81,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -1420,6 +1421,7 @@ class AgentSessionContext {
               ),
         recoveryPlan: recoveryPlan,
         loopGuard: loopGuard,
+        workspaceCheckpoint: workspaceCheckpoint,
         savedProviderProfiles: savedProviderProfiles,
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
@@ -1573,6 +1575,7 @@ class AgentSessionContext {
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard? loopGuard,
+    AgentWorkspaceCheckpointContext? workspaceCheckpoint,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
         const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
@@ -1615,6 +1618,7 @@ class AgentSessionContext {
         providerExecutionResolution == null &&
         recoveryPlan == null &&
         loopGuard == null &&
+        workspaceCheckpoint == null &&
         savedProviderProfileList.isEmpty &&
         lastPatchApplication == null &&
         workspaceEdit == null) {
@@ -1663,6 +1667,7 @@ class AgentSessionContext {
               ),
         recoveryPlan: recoveryPlan ?? agent.recoveryPlan,
         loopGuard: loopGuard ?? agent.loopGuard,
+        workspaceCheckpoint: workspaceCheckpoint ?? agent.workspaceCheckpoint,
         savedProviderProfiles: savedProviderProfileList.isEmpty
             ? agent.savedProviderProfiles
             : savedProviderProfileList,
@@ -1710,6 +1715,68 @@ class AgentSessionContext {
   }
 }
 
+class AgentWorkspaceCheckpointContext {
+  const AgentWorkspaceCheckpointContext({
+    required this.captureStatus,
+    this.snapshotId,
+    this.patchId,
+    this.activeDocumentId,
+    this.capturedAt,
+    this.captureMessage,
+    this.capturedDocumentCount = 0,
+    this.unavailableDocumentIds = const <String>[],
+    this.revertPlanStatus,
+    this.revertReady = false,
+    this.revertPatchId,
+    this.revertChangedDocumentCount = 0,
+    this.revertAddedDocumentIds = const <String>[],
+    this.revertDeletedDocumentIds = const <String>[],
+    this.revertModifiedDocumentIds = const <String>[],
+    this.revertUnavailableDocumentIds = const <String>[],
+    this.todoItems = const <String>[],
+  });
+
+  final String captureStatus;
+  final String? snapshotId;
+  final String? patchId;
+  final String? activeDocumentId;
+  final DateTime? capturedAt;
+  final String? captureMessage;
+  final int capturedDocumentCount;
+  final List<String> unavailableDocumentIds;
+  final String? revertPlanStatus;
+  final bool revertReady;
+  final String? revertPatchId;
+  final int revertChangedDocumentCount;
+  final List<String> revertAddedDocumentIds;
+  final List<String> revertDeletedDocumentIds;
+  final List<String> revertModifiedDocumentIds;
+  final List<String> revertUnavailableDocumentIds;
+  final List<String> todoItems;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'captureStatus': captureStatus,
+      if (snapshotId != null) 'snapshotId': snapshotId,
+      if (patchId != null) 'patchId': patchId,
+      if (activeDocumentId != null) 'activeDocumentId': activeDocumentId,
+      if (capturedAt != null) 'capturedAt': capturedAt!.toIso8601String(),
+      if (captureMessage != null) 'captureMessage': captureMessage,
+      'capturedDocumentCount': capturedDocumentCount,
+      'unavailableDocumentIds': unavailableDocumentIds,
+      if (revertPlanStatus != null) 'revertPlanStatus': revertPlanStatus,
+      'revertReady': revertReady,
+      if (revertPatchId != null) 'revertPatchId': revertPatchId,
+      'revertChangedDocumentCount': revertChangedDocumentCount,
+      'revertAddedDocumentIds': revertAddedDocumentIds,
+      'revertDeletedDocumentIds': revertDeletedDocumentIds,
+      'revertModifiedDocumentIds': revertModifiedDocumentIds,
+      'revertUnavailableDocumentIds': revertUnavailableDocumentIds,
+      if (todoItems.isNotEmpty) 'todoItems': todoItems,
+    };
+  }
+}
+
 class AgentCodingLoopContext {
   const AgentCodingLoopContext({
     this.pendingPatch,
@@ -1721,6 +1788,7 @@ class AgentCodingLoopContext {
     this.providerExecution,
     this.recoveryPlan,
     this.loopGuard = const AgentCodingLoopGuard.clear(),
+    this.workspaceCheckpoint,
     this.savedProviderProfiles = const <AgentPromptProfileManifestEntry>[],
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
@@ -1752,6 +1820,7 @@ class AgentCodingLoopContext {
     AgentProviderExecutionContext? providerExecution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
     AgentCodingLoopGuard loopGuard = const AgentCodingLoopGuard.clear(),
+    AgentWorkspaceCheckpointContext? workspaceCheckpoint,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
         const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
@@ -1838,6 +1907,7 @@ class AgentCodingLoopContext {
       providerExecution: providerExecution,
       recoveryPlan: recoveryPlan,
       loopGuard: loopGuard,
+      workspaceCheckpoint: workspaceCheckpoint,
       savedProviderProfiles: savedProviderProfileList,
       lastPatchApplication: effectiveLastPatchApplicationWithValidation,
       recentPatchApplications: effectiveHistory,
@@ -1872,6 +1942,7 @@ class AgentCodingLoopContext {
   final AgentProviderExecutionContext? providerExecution;
   final AgentCodingSessionRecoveryPlan? recoveryPlan;
   final AgentCodingLoopGuard loopGuard;
+  final AgentWorkspaceCheckpointContext? workspaceCheckpoint;
   final List<AgentPromptProfileManifestEntry> savedProviderProfiles;
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
@@ -1911,6 +1982,8 @@ class AgentCodingLoopContext {
       if (recoveryPlan != null) 'recoveryPlan': recoveryPlan!.toJson(),
       if (loopGuard.status != AgentCodingLoopGuardStatus.clear)
         'loopGuard': loopGuard.toJson(),
+      if (workspaceCheckpoint != null)
+        'workspaceCheckpoint': workspaceCheckpoint!.toJson(),
       'savedProviderProfileCount': savedProviderProfiles.length,
       if (savedProviderProfiles.isNotEmpty)
         'savedProviderProfiles': savedProviderProfiles

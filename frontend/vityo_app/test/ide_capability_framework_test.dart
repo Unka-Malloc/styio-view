@@ -668,6 +668,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('recovery continue-validation action routing'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('RuntimeOutputLiveBuffer agent activity publishing'),
     );
     expect(

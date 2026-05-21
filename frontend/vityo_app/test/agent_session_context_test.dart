@@ -12,6 +12,7 @@ import 'package:vityo_app/src/view_ide/interaction/language_service_status_surfa
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_event_bridge.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
+import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/view_ide/testing/testing.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
@@ -1268,6 +1269,55 @@ void main() {
       (toolchainsJson['activeCompiler']! as Map<String, Object?>)['id'],
       'native-clang-cpp-compiler',
     );
+  });
+
+  test('agent command catalog exposes every registered app command', () {
+    final context = AgentSessionContext.fromEditorState(
+      document: const DocumentState(
+        documentId: 'src/main.styio',
+        text: 'state value = 1\n',
+        revision: 1,
+      ),
+      selection: const SelectionState.collapsed(0),
+      diagnostics: const <Diagnostic>[],
+    );
+
+    final commandsJson = context.toJson()['commands']! as Map<String, Object?>;
+    const catalogKeys = <String>[
+      'persistenceCommands',
+      'executionCommands',
+      'diagnosticCommands',
+      'languageServiceCommands',
+      'sourceControlCommands',
+      'workspaceFileCommands',
+      'codingCommands',
+      'navigationCommands',
+      'refactorCommands',
+      'dependencyCommands',
+      'toolchainCommands',
+      'deploymentCommands',
+      'moduleCommands',
+      'surfaceCommands',
+      'nativeToolCommands',
+      'testingCommands',
+      'debugCommands',
+      'settingsCommands',
+    ];
+    final exposedCommandIds = <String>{};
+    for (final catalogKey in catalogKeys) {
+      final commands = commandsJson[catalogKey]! as List<Object?>;
+      for (final command in commands) {
+        exposedCommandIds.add(
+          (command! as Map<String, Object?>)['id']! as String,
+        );
+      }
+    }
+    final registeredCommandIds = AppCommandId.values
+        .map((commandId) => commandId.name)
+        .toSet();
+
+    expect(exposedCommandIds, containsAll(registeredCommandIds));
+    expect(registeredCommandIds.difference(exposedCommandIds), isEmpty);
   });
 
   test('agent command context reports native tool command readiness', () {

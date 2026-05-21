@@ -1170,6 +1170,10 @@ void main() {
         systemMessage['content'],
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
+      expect(
+        systemMessage['content'],
+        contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
+      );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
       expect(metadata['contextSchemaVersion'], 77);
       expect(metadata['selectionStartLine'], 0);

@@ -37,6 +37,10 @@ void main() {
       decoded.systemPrompt,
       contains('ideCapabilityClosure.isRuntimeMature'),
     );
+    expect(
+      decoded.systemPrompt,
+      contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
+    );
     expect(decoded.systemPrompt, contains('Clang'));
     expect(decoded.systemPrompt, contains('commands.persistenceCommands'));
     expect(decoded.systemPrompt, contains('save/save-all'));

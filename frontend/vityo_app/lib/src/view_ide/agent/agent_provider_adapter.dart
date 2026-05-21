@@ -666,16 +666,7 @@ class AgentIdeCommandSuggestion {
 }
 
 AppCommandDescriptor? _appCommandDescriptorForName(String commandId) {
-  final normalized = commandId.trim();
-  if (normalized.isEmpty) {
-    return null;
-  }
-  for (final id in AppCommandId.values) {
-    if (id.name == normalized) {
-      return StyioCommandRegistry.descriptorFor(id);
-    }
-  }
-  return null;
+  return StyioCommandRegistry.descriptorForName(commandId);
 }
 
 class AgentCodePatch {

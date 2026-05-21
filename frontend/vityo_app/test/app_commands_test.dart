@@ -38,6 +38,16 @@ void main() {
     }
   });
 
+  test('command registry resolves descriptors from agent command id names', () {
+    expect(
+      StyioCommandRegistry.descriptorForName(' runBuild ')?.id,
+      AppCommandId.runBuild,
+    );
+    expect(StyioCommandRegistry.isRegisteredName('renameSymbol'), isTrue);
+    expect(StyioCommandRegistry.descriptorForName('deleteWorkspace'), isNull);
+    expect(StyioCommandRegistry.isRegisteredName('deleteWorkspace'), isFalse);
+  });
+
   test(
     'command registry resolves descriptors and shortcuts for source ops',
     () {

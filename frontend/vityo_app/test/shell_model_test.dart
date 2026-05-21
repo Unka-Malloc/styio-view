@@ -390,6 +390,16 @@ void main() {
         contains('src/a.styio, src/b.styio'),
       );
 
+      final unregisteredApplied = await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(commandId: 'deleteWorkspace'),
+      );
+      final unregisteredResult =
+          shell.agentSessionContext.commands.lastResult;
+      expect(unregisteredApplied, isFalse);
+      expect(unregisteredResult?.commandId, 'deleteWorkspace');
+      expect(unregisteredResult?.message, contains('not registered'));
+      expect(unregisteredResult?.metadata['registered'], isFalse);
+
       final agentStageApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(
           commandId: 'stageSourceControl',
@@ -684,7 +694,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        71,
+        77,
       );
       expect(
         checkpointCommandResult?.metadata['sourceControlContext'],

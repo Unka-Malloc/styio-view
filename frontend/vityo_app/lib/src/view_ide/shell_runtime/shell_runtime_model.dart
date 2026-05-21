@@ -2543,7 +2543,27 @@ class ShellRuntimeModel extends ChangeNotifier {
   Future<bool> applyAgentIdeCommandSuggestion(
     AgentIdeCommandSuggestion suggestion,
   ) async {
-    switch (suggestion.commandId) {
+    final registeredCommand = StyioCommandRegistry.descriptorForName(
+      suggestion.commandId,
+    );
+    if (registeredCommand == null) {
+      _recordAgentIdeCommandResult(
+        suggestion,
+        applied: false,
+        message:
+            'Agent command ${suggestion.commandId} skipped: command is not registered in the IDE command catalog.',
+        metadata: <String, Object?>{
+          'registered': false,
+          'knownCommandCount': StyioCommandRegistry.commands.length,
+          // TODO(agent-command-registry): include dynamic extension command ids
+          // once extension-contributed commands can be safely invoked by agents.
+        },
+      );
+      appendLog(_lastAgentIdeCommandResult!.message);
+      return false;
+    }
+
+    switch (registeredCommand.id.name) {
       case 'save':
         final snapshot = await saveActiveWorkspaceFileChanges();
         final applied =
@@ -3624,7 +3644,13 @@ class ShellRuntimeModel extends ChangeNotifier {
           suggestion,
           applied: false,
           message:
-              'Agent command ${suggestion.commandId} skipped: unsupported command.',
+              'Agent command ${registeredCommand.id.name} skipped: registered command has no agent executor.',
+          metadata: <String, Object?>{
+            'registered': true,
+            'commandCategory': registeredCommand.id.category.wireValue,
+            // TODO(agent-command-execution): bind this registered command to an
+            // explicit agent executor or mark it as UI-only in the registry.
+          },
         );
         appendLog(_lastAgentIdeCommandResult!.message);
         return false;

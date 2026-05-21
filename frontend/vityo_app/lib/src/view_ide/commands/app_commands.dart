@@ -930,6 +930,21 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get moduleCommands =>
       commandsForCategory(AppCommandCategory.module);
 
+  static AppCommandDescriptor? descriptorForName(String name) {
+    final normalized = name.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    for (final command in commands) {
+      if (command.id.name == normalized) {
+        return command;
+      }
+    }
+    return null;
+  }
+
+  static bool isRegisteredName(String name) => descriptorForName(name) != null;
+
   static AppCommandDescriptor descriptorFor(AppCommandId id) =>
       commands.firstWhere((command) => command.id == id);
 }

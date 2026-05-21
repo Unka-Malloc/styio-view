@@ -162,6 +162,19 @@ void main() {
     expect(missingInputJson['inputLabel'], 'New symbol name');
     expect(missingInputJson['inputContract'], contains('active language'));
     expect(missingInputJson['inputExamples'], contains('newName'));
+
+    final unknownCommand = AgentIdeCommandSuggestion.fromJson(
+      <String, Object?>{
+        'commandId': 'deleteWorkspace',
+        'reason': 'This command is not registered.',
+      },
+    );
+    final unknownCommandJson = unknownCommand.toJson();
+
+    expect(unknownCommand.registered, isFalse);
+    expect(unknownCommand.requiresInput, isFalse);
+    expect(unknownCommand.inputMissing, isFalse);
+    expect(unknownCommandJson['registered'], isFalse);
   });
 
   test('agent coding plan content part preserves steps and criteria', () {

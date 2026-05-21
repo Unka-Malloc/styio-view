@@ -360,6 +360,7 @@ class AgentCodingChangeReviewGate {
     required this.requiresUserReview,
     this.issues = const <AgentCodingChangeReviewIssue>[],
     this.requiredReviewSteps = const <String>[],
+    this.reviewSurfaceActionIds = const <String>[],
     this.todoItems = const <String>[],
   });
 
@@ -385,6 +386,12 @@ class AgentCodingChangeReviewGate {
       'confirmGeneratedPatchScope',
       'capturePostApplyResult',
     ]);
+    const reviewSurfaceActionIds = <String>[
+      'reviewWorkspaceEditPreview',
+      'applyPendingPatch',
+      'dismissPendingPatch',
+      'collectAgentCodingCheckpoint',
+    ];
     if (applyingPatch || applyingIdeCommand) {
       issues.add(
         const AgentCodingChangeReviewIssue(
@@ -397,6 +404,7 @@ class AgentCodingChangeReviewGate {
         status: AgentCodingChangeReviewGateStatus.applying,
         issues: issues,
         requiredReviewSteps: reviewSteps,
+        reviewSurfaceActionIds: reviewSurfaceActionIds,
         canApplyPreview: false,
         requiresUserReview: true,
       );
@@ -428,8 +436,6 @@ class AgentCodingChangeReviewGate {
         code: 'agent.change.requires-review',
         message: 'Generated code changes require explicit user review.',
         ownerLayer: 'interaction',
-        todo:
-            'TODO: bind this gate to the concrete diff review and apply controls.',
       ),
     );
     final blocked = issues.any(
@@ -443,6 +449,7 @@ class AgentCodingChangeReviewGate {
           : AgentCodingChangeReviewGateStatus.needsReview,
       issues: issues,
       requiredReviewSteps: reviewSteps,
+      reviewSurfaceActionIds: reviewSurfaceActionIds,
       canApplyPreview: !blocked,
       requiresUserReview: true,
     );
@@ -452,6 +459,7 @@ class AgentCodingChangeReviewGate {
     required AgentCodingChangeReviewGateStatus status,
     required List<AgentCodingChangeReviewIssue> issues,
     required List<String> requiredReviewSteps,
+    List<String> reviewSurfaceActionIds = const <String>[],
     required bool canApplyPreview,
     required bool requiresUserReview,
   }) {
@@ -461,6 +469,9 @@ class AgentCodingChangeReviewGate {
       requiresUserReview: requiresUserReview,
       issues: List<AgentCodingChangeReviewIssue>.unmodifiable(issues),
       requiredReviewSteps: List<String>.unmodifiable(requiredReviewSteps),
+      reviewSurfaceActionIds: List<String>.unmodifiable(
+        reviewSurfaceActionIds,
+      ),
       todoItems: List<String>.unmodifiable(
         issues.map((issue) => issue.todo).whereType<String>(),
       ),
@@ -472,6 +483,7 @@ class AgentCodingChangeReviewGate {
   final bool requiresUserReview;
   final List<AgentCodingChangeReviewIssue> issues;
   final List<String> requiredReviewSteps;
+  final List<String> reviewSurfaceActionIds;
   final List<String> todoItems;
 
   List<String> get issueCodes =>
@@ -486,6 +498,8 @@ class AgentCodingChangeReviewGate {
       'requiresUserReview': requiresUserReview,
       'issueCodes': issueCodes,
       'requiredReviewSteps': requiredReviewSteps,
+      if (reviewSurfaceActionIds.isNotEmpty)
+        'reviewSurfaceActionIds': reviewSurfaceActionIds,
       'issues': issues.map((issue) => issue.toJson()).toList(growable: false),
       'todoItems': todoItems,
     };
@@ -556,7 +570,7 @@ class AgentCodingAutonomyPolicy {
         ],
         todoItems: <String>[
           ...changeReviewGate.todoItems,
-          'TODO: wire reviewed apply confirmation to WorkspaceEdit application.',
+          'TODO: persist reviewed apply approval and workspace trust audit trail.',
         ],
       );
     }

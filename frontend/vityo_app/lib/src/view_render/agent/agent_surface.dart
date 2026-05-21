@@ -230,6 +230,11 @@ class _AgentCodingLoopGateSummary extends StatelessWidget {
                     : 'Validation blocked until a reviewable patch preview exists.',
                 style: theme.textTheme.bodySmall,
               ),
+              if (changeReviewGate.reviewSurfaceActionIds.isNotEmpty)
+                Text(
+                  'Review actions: ${changeReviewGate.reviewSurfaceActionIds.join(', ')}',
+                  style: theme.textTheme.bodySmall,
+                ),
             ],
           ],
         ),

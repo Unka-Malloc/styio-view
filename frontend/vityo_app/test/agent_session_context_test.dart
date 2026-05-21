@@ -2229,6 +2229,15 @@ void main() {
         'confirmGeneratedPatchScope',
       ]),
     );
+    expect(
+      changeReviewGate['reviewSurfaceActionIds'],
+      containsAll(<String>[
+        'reviewWorkspaceEditPreview',
+        'applyPendingPatch',
+        'dismissPendingPatch',
+        'collectAgentCodingCheckpoint',
+      ]),
+    );
     expect(autonomyPolicy['mode'], 'reviewBeforeApply');
     expect(autonomyPolicy['canProposePatches'], isTrue);
     expect(autonomyPolicy['canApplyWithoutReview'], isFalse);

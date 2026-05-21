@@ -1098,9 +1098,20 @@ void main() {
         ]),
       );
       expect(
+        gate.reviewSurfaceActionIds,
+        containsAll(<String>[
+          'reviewWorkspaceEditPreview',
+          'applyPendingPatch',
+          'dismissPendingPatch',
+          'collectAgentCodingCheckpoint',
+        ]),
+      );
+      expect(
         gate.todoItems,
-        contains(
-          'TODO: bind this gate to the concrete diff review and apply controls.',
+        isNot(
+          contains(
+            'TODO: bind this gate to the concrete diff review and apply controls.',
+          ),
         ),
       );
       expect(gate.toJson()['status'], 'needsReview');

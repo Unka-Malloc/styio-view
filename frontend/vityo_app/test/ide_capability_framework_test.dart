@@ -661,6 +661,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('concrete review surface action ids'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('AgentCodingAutonomyPolicy review-before-apply contracts'),
     );
     expect(

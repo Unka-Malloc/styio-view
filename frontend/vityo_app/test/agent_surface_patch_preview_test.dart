@@ -2223,6 +2223,12 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.textContaining('Review actions: reviewWorkspaceEditPreview'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('applyPendingPatch'), findsOneWidget);
+    expect(find.textContaining('dismissPendingPatch'), findsOneWidget);
+    expect(
       find.widgetWithText(OutlinedButton, 'Collect Checkpoint'),
       findsOneWidget,
     );

@@ -337,6 +337,10 @@ void main() {
       contains('ToolchainBootstrapExecutionPlan'),
     );
     expect(
+      entriesById['toolchain.manager']?.summary,
+      contains('ToolchainBootstrapActionRouter dispatch contracts'),
+    );
+    expect(
       entriesById['toolchain.manager']?.todo,
       contains('concrete installer UX'),
     );

@@ -110,5 +110,37 @@ void main() {
       (json['agentContext']! as Map<String, Object?>)['activeToolchains'],
       isNotEmpty,
     );
+
+    final routedActionIds = <String>[];
+    final router = ToolchainBootstrapActionRouter(
+      onSettingsAction: (step) async {
+        routedActionIds.add(step.actionId);
+        return ToolchainBootstrapActionDispatchResult.dispatched(
+          step,
+          message: 'settings action routed',
+        );
+      },
+    );
+    final routed = await router.dispatch(executionPlan, 'select-styio-compiler');
+    final missing = await const ToolchainBootstrapActionRouter().dispatch(
+      executionPlan,
+      'select-styio-compiler',
+    );
+    final unknown = await router.dispatch(executionPlan, 'unknown-action');
+
+    expect(routed.dispatched, isTrue);
+    expect(routed.status, ToolchainBootstrapActionDispatchStatus.dispatched);
+    expect(routed.surface, ToolchainBootstrapActionSurface.settings);
+    expect(routed.toJson()['status'], 'dispatched');
+    expect(routedActionIds, <String>['select-styio-compiler']);
+    expect(
+      missing.status,
+      ToolchainBootstrapActionDispatchStatus.missingHandler,
+    );
+    expect(missing.todo, contains('TODO'));
+    expect(
+      unknown.status,
+      ToolchainBootstrapActionDispatchStatus.unknownAction,
+    );
   });
 }

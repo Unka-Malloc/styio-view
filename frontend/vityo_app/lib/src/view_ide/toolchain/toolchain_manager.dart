@@ -416,6 +416,166 @@ class ToolchainBootstrapExecutionPlan {
   }
 }
 
+enum ToolchainBootstrapActionDispatchStatus {
+  dispatched,
+  blocked,
+  missingHandler,
+  unknownAction,
+  alreadyReady,
+}
+
+extension ToolchainBootstrapActionDispatchStatusX
+    on ToolchainBootstrapActionDispatchStatus {
+  String get wireValue {
+    return switch (this) {
+      ToolchainBootstrapActionDispatchStatus.dispatched => 'dispatched',
+      ToolchainBootstrapActionDispatchStatus.blocked => 'blocked',
+      ToolchainBootstrapActionDispatchStatus.missingHandler => 'missing-handler',
+      ToolchainBootstrapActionDispatchStatus.unknownAction => 'unknown-action',
+      ToolchainBootstrapActionDispatchStatus.alreadyReady => 'already-ready',
+    };
+  }
+}
+
+class ToolchainBootstrapActionDispatchResult {
+  const ToolchainBootstrapActionDispatchResult({
+    required this.status,
+    required this.actionId,
+    this.surface,
+    this.message = '',
+    this.todo = '',
+  });
+
+  factory ToolchainBootstrapActionDispatchResult.dispatched(
+    ToolchainBootstrapActionStep step, {
+    String message = 'Toolchain bootstrap action dispatched.',
+  }) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.dispatched,
+      actionId: step.actionId,
+      surface: step.surface,
+      message: message,
+    );
+  }
+
+  factory ToolchainBootstrapActionDispatchResult.blocked(
+    ToolchainBootstrapActionStep step, {
+    required String message,
+    String todo = '',
+  }) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.blocked,
+      actionId: step.actionId,
+      surface: step.surface,
+      message: message,
+      todo: todo,
+    );
+  }
+
+  factory ToolchainBootstrapActionDispatchResult.missingHandler(
+    ToolchainBootstrapActionStep step,
+  ) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.missingHandler,
+      actionId: step.actionId,
+      surface: step.surface,
+      message:
+          'No ${step.surface.wireValue} handler is registered for ${step.actionId}.',
+      todo:
+          'TODO: bind ${step.surface.wireValue} bootstrap action handler to concrete UI or project runner.',
+    );
+  }
+
+  factory ToolchainBootstrapActionDispatchResult.unknownAction(
+    String actionId,
+  ) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.unknownAction,
+      actionId: actionId,
+      message: 'Unknown toolchain bootstrap action: $actionId.',
+    );
+  }
+
+  factory ToolchainBootstrapActionDispatchResult.alreadyReady(
+    String actionId,
+  ) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.alreadyReady,
+      actionId: actionId,
+      message: 'Toolchain bootstrap is already ready.',
+    );
+  }
+
+  final ToolchainBootstrapActionDispatchStatus status;
+  final String actionId;
+  final ToolchainBootstrapActionSurface? surface;
+  final String message;
+  final String todo;
+
+  bool get dispatched =>
+      status == ToolchainBootstrapActionDispatchStatus.dispatched;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'actionId': actionId,
+      if (surface != null) 'surface': surface!.wireValue,
+      if (message.isNotEmpty) 'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+typedef ToolchainBootstrapActionHandler =
+    Future<ToolchainBootstrapActionDispatchResult> Function(
+      ToolchainBootstrapActionStep step,
+    );
+
+class ToolchainBootstrapActionRouter {
+  const ToolchainBootstrapActionRouter({
+    this.onSettingsAction,
+    this.onInstallerAction,
+    this.onProjectAction,
+  });
+
+  final ToolchainBootstrapActionHandler? onSettingsAction;
+  final ToolchainBootstrapActionHandler? onInstallerAction;
+  final ToolchainBootstrapActionHandler? onProjectAction;
+
+  Future<ToolchainBootstrapActionDispatchResult> dispatch(
+    ToolchainBootstrapExecutionPlan plan,
+    String actionId,
+  ) async {
+    if (plan.ready) {
+      return ToolchainBootstrapActionDispatchResult.alreadyReady(actionId);
+    }
+
+    ToolchainBootstrapActionStep? matchedStep;
+    for (final step in plan.steps) {
+      if (step.actionId == actionId) {
+        matchedStep = step;
+        break;
+      }
+    }
+
+    if (matchedStep == null) {
+      return ToolchainBootstrapActionDispatchResult.unknownAction(actionId);
+    }
+
+    final handler = switch (matchedStep.surface) {
+      ToolchainBootstrapActionSurface.settings => onSettingsAction,
+      ToolchainBootstrapActionSurface.installer => onInstallerAction,
+      ToolchainBootstrapActionSurface.project => onProjectAction,
+    };
+
+    if (handler == null) {
+      return ToolchainBootstrapActionDispatchResult.missingHandler(matchedStep);
+    }
+
+    return handler(matchedStep);
+  }
+}
+
 enum ToolchainManagerRuntimeExecutionStatus { executed, blocked, wrongRoute }
 
 extension ToolchainManagerRuntimeExecutionStatusX

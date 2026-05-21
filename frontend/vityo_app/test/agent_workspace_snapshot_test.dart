@@ -69,7 +69,7 @@ void main() {
       expect(snapshot.documentFor('src/main.styio')!.text, 'value = 1\n');
       expect(snapshot.documentFor('src/other.styio')!.revision, 2);
       expect(snapshot.toJson()['documentCount'], 2);
-      expect(snapshot.todoItems.join('\n'), contains('restored snapshot'));
+      expect(snapshot.todoItems, isEmpty);
     },
   );
 
@@ -178,7 +178,7 @@ void main() {
       expect(activeRevert.replacementText, 'value = 1\n');
       expect(createdFileRevert.operation, AgentCodePatchEditOperation.delete);
       expect(plan.toJson()['status'], 'ready');
-      expect(plan.todoItems.join('\n'), contains('restored revert plans'));
+      expect(plan.todoItems, isEmpty);
     },
   );
 

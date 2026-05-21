@@ -384,9 +384,6 @@ class AgentWorkspaceSnapshotService {
           List<AgentWorkspaceSnapshotUnavailableDocument>.unmodifiable(
             unavailable,
           ),
-      todoItems: const <String>[
-        'TODO: build restored snapshot revert plans automatically when the workspace document store is available after restart.',
-      ],
     );
 
     final status = unavailable.isEmpty
@@ -483,9 +480,6 @@ class AgentWorkspaceSnapshotService {
         edits: List<AgentCodePatchEdit>.unmodifiable(edits),
       ),
       diffSummary: diffSummary,
-      todoItems: const <String>[
-        'TODO: keep restored revert plans visible until the user applies or discards them.',
-      ],
     );
   }
 

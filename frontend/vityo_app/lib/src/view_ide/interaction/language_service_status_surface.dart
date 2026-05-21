@@ -57,6 +57,10 @@ class LanguageServiceStatusSurface {
     this.providerReadiness = 'unknown',
     this.providerReadinessSummary = '',
     this.providerMissingCapabilityCount = 0,
+    this.cacheLookupHits = 0,
+    this.cacheLookupMisses = 0,
+    this.cacheLookupCount = 0,
+    this.cacheLookupHitRate = 0,
   });
 
   factory LanguageServiceStatusSurface.unavailable({
@@ -146,6 +150,10 @@ class LanguageServiceStatusSurface {
       providerReadinessSummary: providerReadiness?.summary ?? '',
       providerMissingCapabilityCount:
           providerReadiness?.missingCapabilities.length ?? 0,
+      cacheLookupHits: snapshot.cacheLookupHits,
+      cacheLookupMisses: snapshot.cacheLookupMisses,
+      cacheLookupCount: snapshot.cacheLookupCount,
+      cacheLookupHitRate: snapshot.cacheLookupHitRate,
       capabilities: capabilitySnapshot == null
           ? const <LanguageServiceCapabilityStatusItem>[]
           : snapshot.primaryCapabilities
@@ -174,6 +182,10 @@ class LanguageServiceStatusSurface {
   final String providerReadiness;
   final String providerReadinessSummary;
   final int providerMissingCapabilityCount;
+  final int cacheLookupHits;
+  final int cacheLookupMisses;
+  final int cacheLookupCount;
+  final double cacheLookupHitRate;
 
   bool get actionable {
     return severity == LanguageServiceStatusSeverity.unavailable ||
@@ -241,6 +253,10 @@ class LanguageServiceStatusSurface {
       if (providerReadinessSummary.isNotEmpty)
         'providerReadinessSummary': providerReadinessSummary,
       'providerMissingCapabilityCount': providerMissingCapabilityCount,
+      'cacheLookupHits': cacheLookupHits,
+      'cacheLookupMisses': cacheLookupMisses,
+      'cacheLookupCount': cacheLookupCount,
+      'cacheLookupHitRate': cacheLookupHitRate,
       'primaryCapabilityStates': primaryCapabilityStates,
       'capabilities': capabilities
           .map((capability) => capability.toJson())

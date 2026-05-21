@@ -32,6 +32,7 @@ class StyioServiceRuntimeStatusSnapshot {
     required this.disposed,
     required this.providerManifest,
     this.capabilitySnapshot,
+    this.cacheSnapshot,
     this.allowLocalFallback = true,
     this.primaryCapabilities = const <StyioServiceCapability>[
       StyioServiceCapability.diagnostics,
@@ -47,6 +48,7 @@ class StyioServiceRuntimeStatusSnapshot {
   final bool disposed;
   final LanguageProviderRegistryManifest providerManifest;
   final StyioServiceCapabilitySnapshot? capabilitySnapshot;
+  final StyioServiceResultCacheSnapshot? cacheSnapshot;
   final bool allowLocalFallback;
   final Iterable<StyioServiceCapability> primaryCapabilities;
 
@@ -94,6 +96,11 @@ class StyioServiceRuntimeStatusSnapshot {
     return capabilitySnapshot?.healthSummary.blockedCapabilities.length ?? 0;
   }
 
+  int get cacheLookupHits => cacheSnapshot?.lookupHits ?? 0;
+  int get cacheLookupMisses => cacheSnapshot?.lookupMisses ?? 0;
+  int get cacheLookupCount => cacheSnapshot?.lookupCount ?? 0;
+  double get cacheLookupHitRate => cacheSnapshot?.lookupHitRate ?? 0;
+
   Map<String, String> get primaryCapabilityStates {
     return <String, String>{
       for (final capability in primaryCapabilities)
@@ -111,10 +118,15 @@ class StyioServiceRuntimeStatusSnapshot {
       'capabilityHealth': capabilityHealth,
       'missingCapabilityCount': missingCapabilityCount,
       'blockedCapabilityCount': blockedCapabilityCount,
+      'cacheLookupHits': cacheLookupHits,
+      'cacheLookupMisses': cacheLookupMisses,
+      'cacheLookupCount': cacheLookupCount,
+      'cacheLookupHitRate': cacheLookupHitRate,
       'primaryCapabilityStates': primaryCapabilityStates,
       'providerManifest': providerManifest.toJson(),
       if (capabilitySnapshot != null)
         'capabilitySnapshot': capabilitySnapshot!.toJson(),
+      if (cacheSnapshot != null) 'cacheSnapshot': cacheSnapshot!.toJson(),
     };
   }
 }
@@ -147,6 +159,10 @@ class StyioServiceRuntimeOutputBinding {
           'capabilityHealth': snapshot.capabilityHealth,
           'missingCapabilityCount': snapshot.missingCapabilityCount,
           'blockedCapabilityCount': snapshot.blockedCapabilityCount,
+          'cacheLookupHits': snapshot.cacheLookupHits,
+          'cacheLookupMisses': snapshot.cacheLookupMisses,
+          'cacheLookupCount': snapshot.cacheLookupCount,
+          'cacheLookupHitRate': snapshot.cacheLookupHitRate,
           'providerCount': snapshot.providerManifest.entries.length,
         },
       ),
@@ -198,6 +214,10 @@ class StyioServiceRuntimeOutputBinding {
       'capabilityHealth': snapshot.capabilityHealth,
       'missingCapabilityCount': snapshot.missingCapabilityCount,
       'blockedCapabilityCount': snapshot.blockedCapabilityCount,
+      'cacheLookupHits': snapshot.cacheLookupHits,
+      'cacheLookupMisses': snapshot.cacheLookupMisses,
+      'cacheLookupCount': snapshot.cacheLookupCount,
+      'cacheLookupHitRate': snapshot.cacheLookupHitRate,
       'outputEventCount': outputSnapshot.events.length,
       'outputSnapshot': outputSnapshot.toJson(),
     };
@@ -296,6 +316,7 @@ class StyioServiceRuntimeSession<T> {
       capabilitySnapshot: result == null
           ? null
           : const StyioServiceCapabilityDetector().detectReport(result.report),
+      cacheSnapshot: result?.report.cacheSnapshot,
     );
   }
 

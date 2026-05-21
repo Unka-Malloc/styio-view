@@ -369,7 +369,7 @@ class VityoIdeCapabilityFramework {
           ownerPath:
               'lib/src/view_ide/interaction/language_service_status_surface.dart',
           summary:
-              'LanguageServiceStatusSurface and LanguageServiceStatusController map StyioService runtime events, capability health summaries, Styio language provider readiness derived from StyioService capability snapshots, syntax-validation readiness, semantic-fact readiness, and unavailable capability summaries into ValueListenable status snapshots for editor, shell, and Agent consumers.',
+              'LanguageServiceStatusSurface and LanguageServiceStatusController map StyioService runtime events, capability health summaries, Styio language provider readiness derived from StyioService capability snapshots, cache telemetry, syntax-validation readiness, semantic-fact readiness, and unavailable capability summaries into ValueListenable status snapshots for editor, shell, and Agent consumers.',
           dependencies: <String>['service.styio-language'],
           references: <String>[
             'VS Code language status item',

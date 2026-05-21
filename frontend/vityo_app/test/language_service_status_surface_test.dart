@@ -45,6 +45,11 @@ void main() {
       disposed: false,
       providerManifest: LanguageProviderRegistry<String>().manifest(),
       capabilitySnapshot: capabilitySnapshot,
+      cacheSnapshot: const StyioServiceResultCacheSnapshot(
+        entries: <StyioServiceResultCacheEntry>[],
+        lookupHits: 3,
+        lookupMisses: 1,
+      ),
       allowLocalFallback: false,
     );
     const providerReadiness = StyioLanguageProviderReadinessReport(
@@ -110,6 +115,14 @@ void main() {
     expect(surface.toJson()['providerReadiness'], 'degraded');
     expect(surface.toJson()['providerReadinessSummary'], contains('1/2'));
     expect(surface.toJson()['providerMissingCapabilityCount'], 1);
+    expect(surface.cacheLookupHits, 3);
+    expect(surface.cacheLookupMisses, 1);
+    expect(surface.cacheLookupCount, 4);
+    expect(surface.cacheLookupHitRate, 0.75);
+    expect(surface.toJson()['cacheLookupHits'], 3);
+    expect(surface.toJson()['cacheLookupMisses'], 1);
+    expect(surface.toJson()['cacheLookupCount'], 4);
+    expect(surface.toJson()['cacheLookupHitRate'], 0.75);
     expect(surface.toJson()['refreshRecommended'], isTrue);
     expect(
       surface.toJson()['unavailablePrimaryCapabilities'],
@@ -171,6 +184,7 @@ void main() {
       outputSnapshot.events.first.metadata['missingCapabilityCount'],
       greaterThan(0),
     );
+    expect(outputSnapshot.events.first.metadata['cacheLookupCount'], 0);
     expect(outputSnapshot.events.first.metadata['allowLocalFallback'], isFalse);
     expect(outputSnapshot.events.first.message, contains('health degraded'));
     expect(

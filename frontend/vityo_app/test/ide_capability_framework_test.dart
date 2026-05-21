@@ -488,6 +488,10 @@ void main() {
     expect(entriesById['runtime.execution']?.runtimeMaturityBlocking, isFalse);
     expect(
       entriesById['interaction.language-service-status']?.summary,
+      contains('cache telemetry'),
+    );
+    expect(
+      entriesById['interaction.language-service-status']?.summary,
       contains('syntax-validation readiness'),
     );
     expect(

@@ -96,6 +96,39 @@ class IdeCapabilityClosureReport {
     return items.where((item) => item.isHardFailure);
   }
 
+  int get readyCount => readyItems.length;
+  int get todoCount => todoItems.length;
+  int get failedCount => failedItems.length;
+
+  int get hardFailureCount {
+    return failedCount +
+        missingRequiredCapabilityIds.length +
+        dependencyGaps.length +
+        duplicateCapabilityIds.length;
+  }
+
+  List<String> get todoCapabilityIds {
+    return todoItems.map((item) => item.capabilityId).toList(growable: false);
+  }
+
+  List<String> get failedCapabilityIds {
+    return failedItems
+        .map((item) => item.capabilityId)
+        .toList(growable: false);
+  }
+
+  List<String> get runtimeMaturityBlockerCapabilityIds {
+    final ids = <String>{
+      ...todoCapabilityIds,
+      ...failedCapabilityIds,
+      ...missingRequiredCapabilityIds,
+      for (final gap in dependencyGaps) gap.capabilityId,
+      ...duplicateCapabilityIds,
+    }.toList(growable: false);
+    ids.sort();
+    return List<String>.unmodifiable(ids);
+  }
+
   bool get hasHardFailures {
     return failedItems.isNotEmpty ||
         missingRequiredCapabilityIds.isNotEmpty ||
@@ -120,7 +153,15 @@ class IdeCapabilityClosureReport {
       'version': version,
       'isFrameworkClosed': isFrameworkClosed,
       'isRuntimeMature': isRuntimeMature,
+      'readyCount': readyCount,
+      'todoCount': todoCount,
+      'failedCount': failedCount,
+      'hardFailureCount': hardFailureCount,
       'severityCounts': severityCounts,
+      'todoCapabilityIds': todoCapabilityIds,
+      'failedCapabilityIds': failedCapabilityIds,
+      'runtimeMaturityBlockerCapabilityIds':
+          runtimeMaturityBlockerCapabilityIds,
       'missingRequiredCapabilityIds': missingRequiredCapabilityIds,
       'duplicateCapabilityIds': duplicateCapabilityIds,
       'dependencyGaps': dependencyGaps

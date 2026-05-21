@@ -578,6 +578,14 @@ void main() {
       ideCapabilityClosureJson['severityCounts'],
       containsPair('todo', greaterThan(0)),
     );
+    expect(ideCapabilityClosureJson['readyCount'], greaterThan(0));
+    expect(ideCapabilityClosureJson['todoCount'], greaterThan(0));
+    expect(ideCapabilityClosureJson['failedCount'], 0);
+    expect(ideCapabilityClosureJson['hardFailureCount'], 0);
+    expect(
+      ideCapabilityClosureJson['runtimeMaturityBlockerCapabilityIds'],
+      contains('runtime.execution'),
+    );
     expect(
       (ideCapabilitiesJson['statusCounts']!
           as Map<String, Object?>)['scaffolded'],
@@ -587,7 +595,7 @@ void main() {
       ideCapabilityEntries
           .map((entry) => (entry! as Map<String, Object?>)['id'])
           .toSet(),
-      contains('agent.coding-loop'),
+      contains('runtime.execution'),
     );
     expect(documentJson['documentId'], '/workspace/demo/src/main.styio');
     expect(documentJson['revision'], 4);

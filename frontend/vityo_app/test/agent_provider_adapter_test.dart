@@ -69,8 +69,13 @@ void main() {
     expect(ideCapabilitiesJson['missingRequiredCapabilityIds'], isEmpty);
     expect(ideCapabilityClosureJson['isFrameworkClosed'], isTrue);
     expect(ideCapabilityClosureJson['isRuntimeMature'], isFalse);
+    expect(ideCapabilityClosureJson['hardFailureCount'], 0);
+    expect(
+      ideCapabilityClosureJson['runtimeMaturityBlockerCapabilityIds'],
+      contains('runtime.execution'),
+    );
     expect(ideCapabilityIds, contains('interaction.search'));
-    expect(ideCapabilityIds, contains('agent.coding-loop'));
+    expect(ideCapabilityIds, contains('runtime.execution'));
   });
 
   test(

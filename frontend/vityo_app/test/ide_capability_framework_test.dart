@@ -221,11 +221,11 @@ void main() {
     );
     expect(
       entriesById['runtime.execution']?.summary,
-      contains('ExtensionRuntimeTaskDataStoreTelemetrySink'),
+      contains('ExtensionRuntimeTaskDataStoreTelemetrySink, ExtensionRuntimeTaskRetryPolicy'),
     );
     expect(
       entriesById['runtime.execution']?.todo,
-      contains('retry policy'),
+      contains('cancellation process handles'),
     );
     expect(
       entriesById['interaction.language-service-status']?.summary,

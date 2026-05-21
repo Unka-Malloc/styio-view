@@ -228,6 +228,138 @@ class ExtensionRuntimeTaskExecutionPlan {
 
 enum ExtensionRuntimeTaskTelemetryKind { dispatch, retry, cancellation }
 
+enum ExtensionRuntimeTaskRetryFailureKind {
+  transient,
+  timeout,
+  unavailable,
+  invalidConfiguration,
+  cancelled,
+  unknown,
+}
+
+class ExtensionRuntimeTaskRetryPolicy {
+  const ExtensionRuntimeTaskRetryPolicy({
+    this.maxAttempts = 3,
+    this.initialDelay = const Duration(milliseconds: 250),
+    this.backoffMultiplier = 2,
+  });
+
+  final int maxAttempts;
+  final Duration initialDelay;
+  final int backoffMultiplier;
+
+  bool shouldRetry({
+    required int failedAttempt,
+    required ExtensionRuntimeTaskRetryFailureKind failureKind,
+  }) {
+    if (failedAttempt >= maxAttempts) {
+      return false;
+    }
+    return switch (failureKind) {
+      ExtensionRuntimeTaskRetryFailureKind.transient => true,
+      ExtensionRuntimeTaskRetryFailureKind.timeout => true,
+      ExtensionRuntimeTaskRetryFailureKind.unavailable => true,
+      ExtensionRuntimeTaskRetryFailureKind.unknown => true,
+      ExtensionRuntimeTaskRetryFailureKind.invalidConfiguration => false,
+      ExtensionRuntimeTaskRetryFailureKind.cancelled => false,
+    };
+  }
+
+  Duration delayForNextAttempt(int failedAttempt) {
+    if (failedAttempt <= 0) {
+      return Duration.zero;
+    }
+    var multiplier = 1;
+    for (var index = 1; index < failedAttempt; index += 1) {
+      multiplier *= backoffMultiplier;
+    }
+    return initialDelay * multiplier;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'maxAttempts': maxAttempts,
+      'initialDelayMs': initialDelay.inMilliseconds,
+      'backoffMultiplier': backoffMultiplier,
+    };
+  }
+}
+
+class ExtensionRuntimeTaskRetryPlan {
+  const ExtensionRuntimeTaskRetryPlan({
+    required this.extensionId,
+    required this.contributionId,
+    required this.taskId,
+    required this.attempt,
+    required this.nextAttempt,
+    required this.retryable,
+    required this.failureKind,
+    required this.delayBeforeNextAttempt,
+    required this.message,
+    required this.policy,
+  });
+
+  factory ExtensionRuntimeTaskRetryPlan.fromFailure({
+    required ExtensionRuntimeTaskExecutionPlan plan,
+    required int failedAttempt,
+    required ExtensionRuntimeTaskRetryFailureKind failureKind,
+    String reason = '',
+    ExtensionRuntimeTaskRetryPolicy policy =
+        const ExtensionRuntimeTaskRetryPolicy(),
+  }) {
+    final retryable = policy.shouldRetry(
+      failedAttempt: failedAttempt,
+      failureKind: failureKind,
+    );
+    final delay = retryable
+        ? policy.delayForNextAttempt(failedAttempt)
+        : Duration.zero;
+    final nextAttempt = retryable ? failedAttempt + 1 : failedAttempt;
+    final taskId = plan.executionPlan.definition.id;
+    final reasonSuffix = reason.trim().isEmpty ? '' : ': ${reason.trim()}';
+    return ExtensionRuntimeTaskRetryPlan(
+      extensionId: plan.contribution.extensionId,
+      contributionId: plan.contribution.contributionId,
+      taskId: taskId,
+      attempt: failedAttempt,
+      nextAttempt: nextAttempt,
+      retryable: retryable,
+      failureKind: failureKind,
+      delayBeforeNextAttempt: delay,
+      message: retryable
+          ? 'Extension runtime task $taskId can retry attempt $nextAttempt after ${delay.inMilliseconds}ms$reasonSuffix.'
+          : 'Extension runtime task $taskId cannot retry after attempt $failedAttempt$reasonSuffix.',
+      policy: policy,
+    );
+  }
+
+  final String extensionId;
+  final String contributionId;
+  final String taskId;
+  final int attempt;
+  final int nextAttempt;
+  final bool retryable;
+  final ExtensionRuntimeTaskRetryFailureKind failureKind;
+  final Duration delayBeforeNextAttempt;
+  final String message;
+  final ExtensionRuntimeTaskRetryPolicy policy;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'contributionId': contributionId,
+      'taskId': taskId,
+      'attempt': attempt,
+      'nextAttempt': nextAttempt,
+      'retryable': retryable,
+      'failureKind': failureKind.name,
+      'delayBeforeNextAttemptMs': delayBeforeNextAttempt.inMilliseconds,
+      'message': message,
+      'policy': policy.toJson(),
+    };
+  }
+}
+
 class ExtensionRuntimeTaskTelemetryRecord {
   const ExtensionRuntimeTaskTelemetryRecord({
     required this.kind,

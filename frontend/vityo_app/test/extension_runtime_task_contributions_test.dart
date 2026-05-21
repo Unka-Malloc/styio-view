@@ -208,6 +208,59 @@ void main() {
     expect(snapshot.toJson()['recordCount'], 2);
   });
 
+  test('extension runtime task retry policy plans backoff windows', () {
+    final plan = _createRuntimeTaskPlan();
+    const policy = ExtensionRuntimeTaskRetryPolicy(
+      maxAttempts: 3,
+      initialDelay: Duration(milliseconds: 100),
+      backoffMultiplier: 3,
+    );
+
+    final firstRetry = ExtensionRuntimeTaskRetryPlan.fromFailure(
+      plan: plan,
+      failedAttempt: 1,
+      failureKind: ExtensionRuntimeTaskRetryFailureKind.transient,
+      reason: 'transient worker failure',
+      policy: policy,
+    );
+    final secondRetry = ExtensionRuntimeTaskRetryPlan.fromFailure(
+      plan: plan,
+      failedAttempt: 2,
+      failureKind: ExtensionRuntimeTaskRetryFailureKind.timeout,
+      policy: policy,
+    );
+    final exhausted = ExtensionRuntimeTaskRetryPlan.fromFailure(
+      plan: plan,
+      failedAttempt: 3,
+      failureKind: ExtensionRuntimeTaskRetryFailureKind.unavailable,
+      policy: policy,
+    );
+    final invalidConfiguration = ExtensionRuntimeTaskRetryPlan.fromFailure(
+      plan: plan,
+      failedAttempt: 1,
+      failureKind: ExtensionRuntimeTaskRetryFailureKind.invalidConfiguration,
+      policy: policy,
+    );
+
+    expect(firstRetry.retryable, isTrue);
+    expect(firstRetry.nextAttempt, 2);
+    expect(firstRetry.delayBeforeNextAttempt, const Duration(milliseconds: 100));
+    expect(firstRetry.toJson()['extensionId'], 'styio.tasks');
+    expect(firstRetry.toJson()['contributionId'], 'build');
+    expect(firstRetry.toJson()['failureKind'], 'transient');
+    expect(firstRetry.toJson()['policy'], policy.toJson());
+    expect(firstRetry.message, contains('transient worker failure'));
+    expect(secondRetry.retryable, isTrue);
+    expect(
+      secondRetry.delayBeforeNextAttempt,
+      const Duration(milliseconds: 300),
+    );
+    expect(exhausted.retryable, isFalse);
+    expect(exhausted.nextAttempt, 3);
+    expect(exhausted.delayBeforeNextAttempt, Duration.zero);
+    expect(invalidConfiguration.retryable, isFalse);
+  });
+
   test('extension runtime task catalog reports missing command metadata', () {
     final route = const ExtensionContributionRouter().routeContribution(
       extensionId: 'broken.tasks',
@@ -230,6 +283,25 @@ void main() {
       ExtensionRuntimeTaskContributionStatus.missingCommand,
     );
   });
+}
+
+ExtensionRuntimeTaskExecutionPlan _createRuntimeTaskPlan() {
+  return ExtensionRuntimeTaskExecutionPlan.fromContribution(
+    const ExtensionRuntimeTaskContribution(
+      extensionId: 'styio.tasks',
+      contributionId: 'build',
+      target: 'runtime.tasks',
+      status: ExtensionRuntimeTaskContributionStatus.ready,
+      message: 'ready',
+      definition: RuntimeTaskDefinition(
+        id: 'build',
+        label: 'Build',
+        kind: RuntimeTaskKind.build,
+        command: 'styio',
+        arguments: <String>['build'],
+      ),
+    ),
+  );
 }
 
 FoundationDataStore _createDataStore(Directory tempRoot) {

@@ -1633,79 +1633,11 @@ List<Map<String, Object?>> _openAIResponsesExecutableToolDefinitions(
 Map<String, Object?> _openAIResponsesExecutableToolDefinition(
   AgentToolDefinition tool,
 ) {
-  return _openAIResponsesFunctionTool(
-    name: tool.toolId,
-    description: tool.description,
-    properties: <String, Object?>{
-      for (final property in tool.schema)
-        property.name: _openAIResponsesPropertySchema(property),
-    },
-    required: tool.schema
-        .where((property) => property.required)
-        .map((property) => property.name)
-        .toList(growable: false),
-  );
-}
-
-Map<String, Object?> _openAIResponsesPropertySchema(
-  AgentToolSchemaProperty property,
-) {
-  final schema = _openAIResponsesPropertyTypeSchema(property.type);
-  if (property.description.isNotEmpty) {
-    schema['description'] = property.description;
-  }
-  return schema;
-}
-
-Map<String, Object?> _openAIResponsesPropertyTypeSchema(String type) {
-  final types = type
-      .split('|')
-      .map((item) => item.trim().toLowerCase())
-      .where((item) => item.isNotEmpty)
-      .toList(growable: false);
-  if (types.length > 1) {
-    return <String, Object?>{
-      'oneOf': types.map(_openAIResponsesPropertyTypeSchema).toList(),
-    };
-  }
-  final normalized = types.isEmpty ? 'object' : types.single;
-  return switch (normalized) {
-    'string' => <String, Object?>{'type': 'string'},
-    'array' => <String, Object?>{
-      'type': 'array',
-      'items': <String, Object?>{
-        'type': 'object',
-        'additionalProperties': true,
-      },
-    },
-    'boolean' || 'bool' => <String, Object?>{'type': 'boolean'},
-    'number' => <String, Object?>{'type': 'number'},
-    'integer' || 'int' => <String, Object?>{'type': 'integer'},
-    'object' => <String, Object?>{
-      'type': 'object',
-      'additionalProperties': true,
-    },
-    'any' || 'json' => <String, Object?>{'additionalProperties': true},
-    _ => <String, Object?>{'additionalProperties': true},
-  };
-}
-
-Map<String, Object?> _openAIResponsesFunctionTool({
-  required String name,
-  required String description,
-  required Map<String, Object?> properties,
-  required List<String> required,
-}) {
   return <String, Object?>{
     'type': 'function',
-    'name': name,
-    'description': description,
-    'parameters': <String, Object?>{
-      'type': 'object',
-      'additionalProperties': false,
-      'properties': properties,
-      'required': required,
-    },
+    'name': tool.toolId,
+    'description': tool.description,
+    'parameters': tool.parametersJsonSchema(),
   };
 }
 

@@ -55,6 +55,21 @@ void main() {
     expect(readTool['permissionMode'], 'never');
   });
 
+  test('agent tool definitions expose JSON schema parameters', () {
+    final readTool = AgentToolRegistry().tools.singleWhere(
+      (tool) => tool.toolId == 'readWorkspaceFile',
+    );
+    final parameters = readTool.parametersJsonSchema();
+    final properties = parameters['properties']! as Map<String, Object?>;
+    final path = properties['path']! as Map<String, Object?>;
+
+    expect(parameters['type'], 'object');
+    expect(parameters['additionalProperties'], isFalse);
+    expect(parameters['required'], <String>['path']);
+    expect(path['type'], 'string');
+    expect(path['description'], contains('Workspace-relative'));
+  });
+
   test('agent tool registry resolves provider-specific output budgets', () {
     final profile = AgentPromptProfile.openAICodexSparkForPlatform(
       PlatformTarget.linux,

@@ -32,6 +32,14 @@ class AgentToolSchemaProperty {
       if (description.isNotEmpty) 'description': description,
     };
   }
+
+  Map<String, Object?> toJsonSchema() {
+    final schema = _agentToolPropertyTypeJsonSchema(type);
+    if (description.isNotEmpty) {
+      schema['description'] = description;
+    }
+    return schema;
+  }
 }
 
 class AgentToolDefinition {
@@ -98,6 +106,22 @@ class AgentToolDefinition {
   int? outputLimitFor(AgentToolSelectionContext context) {
     return _positiveLimit(providerOutputLimits[context.providerKind]) ??
         _positiveLimit(outputLimit);
+  }
+
+  Map<String, Object?> parametersJsonSchema({
+    bool additionalProperties = false,
+  }) {
+    return <String, Object?>{
+      'type': 'object',
+      'additionalProperties': additionalProperties,
+      'properties': <String, Object?>{
+        for (final property in schema) property.name: property.toJsonSchema(),
+      },
+      'required': schema
+          .where((property) => property.required)
+          .map((property) => property.name)
+          .toList(growable: false),
+    };
   }
 
   Map<String, Object?> toJson() {
@@ -441,4 +465,37 @@ int _compareTools(AgentToolDefinition left, AgentToolDefinition right) {
     return priority;
   }
   return left.toolId.compareTo(right.toolId);
+}
+
+Map<String, Object?> _agentToolPropertyTypeJsonSchema(String type) {
+  final types = type
+      .split('|')
+      .map((item) => item.trim().toLowerCase())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+  if (types.length > 1) {
+    return <String, Object?>{
+      'oneOf': types.map(_agentToolPropertyTypeJsonSchema).toList(),
+    };
+  }
+  final normalized = types.isEmpty ? 'object' : types.single;
+  return switch (normalized) {
+    'string' => <String, Object?>{'type': 'string'},
+    'array' => <String, Object?>{
+      'type': 'array',
+      'items': <String, Object?>{
+        'type': 'object',
+        'additionalProperties': true,
+      },
+    },
+    'boolean' || 'bool' => <String, Object?>{'type': 'boolean'},
+    'number' => <String, Object?>{'type': 'number'},
+    'integer' || 'int' => <String, Object?>{'type': 'integer'},
+    'object' => <String, Object?>{
+      'type': 'object',
+      'additionalProperties': true,
+    },
+    'any' || 'json' => <String, Object?>{'additionalProperties': true},
+    _ => <String, Object?>{'additionalProperties': true},
+  };
 }

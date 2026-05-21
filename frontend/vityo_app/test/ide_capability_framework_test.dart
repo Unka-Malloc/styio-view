@@ -676,6 +676,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('validation failure command evidence persistence'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('RuntimeOutputLiveBuffer agent activity publishing'),
     );
     expect(

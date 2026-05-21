@@ -180,8 +180,12 @@ void main() {
       contains('restart dispatch controls'),
     );
     expect(
+      entriesById['service.semantic-snapshot']?.summary,
+      contains('language-service refresh callback restart bridge'),
+    );
+    expect(
       entriesById['service.semantic-snapshot']?.todo,
-      contains('production process supervisor controls'),
+      contains('dedicated production process supervisor controls'),
     );
     expect(
       entriesById['service.semantic-snapshot']?.runtimeMaturityBlocking,

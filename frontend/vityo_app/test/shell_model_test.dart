@@ -117,6 +117,7 @@ void main() {
       );
       daemonEvents.addError(StateError('daemon crashed'));
       await failedEvent;
+      var refreshCount = 0;
 
       final shell = ShellModel(
         platformTarget: PlatformTarget.macos,
@@ -161,11 +162,14 @@ void main() {
         deploymentAdapter: const _SuccessfulDeploymentAdapter(),
         toolchainManagementAdapter:
             const _SuccessfulToolchainManagementAdapter(),
+        refreshActiveLanguageService: () async {
+          refreshCount += 1;
+        },
         styioServiceSubscriptionController: subscriptionController,
       );
       addTearDown(shell.dispose);
 
-      final scheduled = await shell.dispatchStyioServiceDaemonRestart(
+      final refreshed = await shell.dispatchStyioServiceDaemonRestart(
         policy: const StyioServiceDaemonRestartPolicy(
           initialDelay: Duration.zero,
         ),
@@ -186,9 +190,11 @@ void main() {
               as Map<String, Object?>;
 
       expect(
-        scheduled?.status,
-        StyioServiceDaemonRestartDispatchStatus.scheduled,
+        refreshed?.status,
+        StyioServiceDaemonRestartDispatchStatus.dispatched,
       );
+      expect(refreshCount, 1);
+      expect(refreshed?.message, contains('language service refresh callback'));
       expect(
         dispatched?.status,
         StyioServiceDaemonRestartDispatchStatus.dispatched,

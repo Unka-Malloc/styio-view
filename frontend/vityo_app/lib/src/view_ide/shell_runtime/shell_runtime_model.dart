@@ -1135,16 +1135,43 @@ class ShellRuntimeModel extends ChangeNotifier {
       );
       return null;
     }
+    final restartHandler =
+        restart ??
+        (refreshActiveLanguageService == null
+            ? null
+            : _restartStyioServiceDaemonFromLanguageRefresh);
     final result = await controller.dispatchDaemonRestart(
       failedAttempt: failedAttempt,
       reason: reason,
       policy: policy,
-      restart: restart,
+      restart: restartHandler,
     );
     _lastStyioServiceDaemonRestartDispatch = result;
     appendLog(result.message);
     notifyListeners();
     return result;
+  }
+
+  Future<StyioServiceDaemonLifecycleSnapshot>
+  _restartStyioServiceDaemonFromLanguageRefresh(
+    StyioServiceDaemonRestartPlan plan,
+  ) async {
+    final refresh = refreshActiveLanguageService;
+    if (refresh == null) {
+      return StyioServiceDaemonLifecycleSnapshot(
+        state: plan.lifecycle.state,
+        providerId: plan.providerId,
+        message:
+            'StyioService daemon restart skipped: no language service refresh callback is configured.',
+      );
+    }
+    await refresh();
+    return StyioServiceDaemonLifecycleSnapshot(
+      state: StyioServiceDaemonLifecycleState.active,
+      providerId: plan.providerId,
+      message:
+          'StyioService daemon restart dispatched through the language service refresh callback.',
+    );
   }
 
   String? _styioServiceDocumentPath(DocumentState document) {

@@ -1,5 +1,6 @@
 import '../module_host/module_host.dart';
 import 'agent_provider_kind.dart';
+import 'agent_tool_call_dispatcher.dart';
 import 'agent_tool_registry.dart';
 
 enum ExtensionAgentToolContributionStatus {
@@ -147,6 +148,88 @@ class ExtensionAgentToolContributionCatalog {
       'readyToolCount': readyTools.length,
       'contributions': contributions
           .map((contribution) => contribution.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+typedef ExtensionAgentToolHandler =
+    Future<AgentToolCallDispatchResult> Function(
+      AgentToolCallDispatchRequest request,
+    );
+
+class ExtensionAgentToolExecutionRegistry {
+  ExtensionAgentToolExecutionRegistry({
+    required ExtensionAgentToolContributionCatalog catalog,
+    Map<String, ExtensionAgentToolHandler> handlers =
+        const <String, ExtensionAgentToolHandler>{},
+  }) : _toolIds = catalog.readyTools.map((tool) => tool.toolId).toSet(),
+       _handlers = Map<String, ExtensionAgentToolHandler>.unmodifiable(
+         handlers,
+       );
+
+  final Set<String> _toolIds;
+  final Map<String, ExtensionAgentToolHandler> _handlers;
+
+  Set<String> get toolIds => Set<String>.unmodifiable(_toolIds);
+
+  Set<String> get handlerToolIds {
+    return Set<String>.unmodifiable(_handlers.keys.toSet());
+  }
+
+  bool canHandle(String toolId) {
+    return _toolIds.contains(toolId) && _handlers.containsKey(toolId);
+  }
+
+  Future<AgentToolCallDispatchResult> dispatch(
+    AgentToolCallDispatchRequest request,
+  ) async {
+    if (!_toolIds.contains(request.toolId)) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message:
+            'Extension agent tool ${request.toolId} is not declared by the active extension catalog.',
+        metadata: const <String, Object?>{
+          'source': 'extension-agent-tool-execution-registry',
+          'missingDeclaration': true,
+        },
+      );
+    }
+    final handler = _handlers[request.toolId];
+    if (handler == null) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message:
+            'Extension agent tool ${request.toolId} has no registered execution handler.',
+        metadata: const <String, Object?>{
+          'source': 'extension-agent-tool-execution-registry',
+          'missingHandler': true,
+        },
+      );
+    }
+    try {
+      return await handler(request);
+    } on Object catch (error) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.callId,
+        toolId: request.toolId,
+        message: 'Extension agent tool ${request.toolId} failed: $error',
+        metadata: const <String, Object?>{
+          'source': 'extension-agent-tool-execution-registry',
+        },
+      );
+    }
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'schema': 'vityo.extension-agent-tool-execution-registry.v1',
+      'toolIds': toolIds.toList(growable: false),
+      'handlerToolIds': handlerToolIds.toList(growable: false),
+      'missingHandlerToolIds': _toolIds
+          .where((toolId) => !_handlers.containsKey(toolId))
           .toList(growable: false),
     };
   }

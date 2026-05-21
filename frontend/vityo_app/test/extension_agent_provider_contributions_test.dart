@@ -150,4 +150,87 @@ void main() {
     expect(catalog.contributions, isEmpty);
     expect(catalog.readyManifests, isEmpty);
   });
+
+  test('extension agent tool execution registry dispatches handlers', () async {
+    final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
+      ExtensionContributionRouteManifest(
+        routes: <ExtensionContributionRoute>[
+          const ExtensionContributionRouter().routeContribution(
+            extensionId: 'agent.tools',
+            contribution: const ExtensionContributionPoint(
+              kind: ExtensionContributionKind.agent,
+              id: 'collect-extension-context',
+              target: 'agent.tools',
+              metadata: <String, Object?>{
+                'toolId': 'collectExtensionContext',
+                'description': 'Collect context from an extension.',
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+    final registry = ExtensionAgentToolExecutionRegistry(
+      catalog: catalog,
+      handlers: <String, ExtensionAgentToolHandler>{
+        'collectExtensionContext': (request) async {
+          return AgentToolCallDispatchResult.success(
+            callId: request.callId,
+            toolId: request.toolId,
+            output: '{"extension":"ok"}',
+            metadata: const <String, Object?>{'source': 'extension-host'},
+          );
+        },
+      },
+    );
+
+    final result = await registry.dispatch(
+      const AgentToolCallDispatchRequest(
+        callId: 'call-extension',
+        toolId: 'collectExtensionContext',
+        inputText: '{"extensionId":"demo"}',
+      ),
+    );
+
+    expect(registry.canHandle('collectExtensionContext'), isTrue);
+    expect(result.success, isTrue);
+    expect(result.output, '{"extension":"ok"}');
+    expect(registry.toJson()['missingHandlerToolIds'], isEmpty);
+  });
+
+  test('extension agent tool execution registry reports missing handlers', () async {
+    final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
+      ExtensionContributionRouteManifest(
+        routes: <ExtensionContributionRoute>[
+          const ExtensionContributionRouter().routeContribution(
+            extensionId: 'agent.tools',
+            contribution: const ExtensionContributionPoint(
+              kind: ExtensionContributionKind.agent,
+              id: 'collect-extension-context',
+              target: 'agent.tools',
+              metadata: <String, Object?>{
+                'toolId': 'collectExtensionContext',
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+    final registry = ExtensionAgentToolExecutionRegistry(catalog: catalog);
+
+    final result = await registry.dispatch(
+      const AgentToolCallDispatchRequest(
+        callId: 'call-extension',
+        toolId: 'collectExtensionContext',
+        inputText: '{"extensionId":"demo"}',
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.message, contains('no registered execution handler'));
+    expect(result.metadata['missingHandler'], isTrue);
+    expect(registry.toJson()['missingHandlerToolIds'], <String>[
+      'collectExtensionContext',
+    ]);
+  });
 }

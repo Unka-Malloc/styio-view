@@ -2099,6 +2099,10 @@ void main() {
       (recentPatchProposals.single! as Map<String, Object?>)['patchId'],
       'patch-pending',
     );
+    expect(
+      agentJson['suggestedCommandIds'],
+      contains(AppCommandId.collectAgentCodingCheckpoint.name),
+    );
     expect(changeReviewGate['status'], 'needsReview');
     expect(changeReviewGate['canApplyPreview'], isTrue);
     expect(changeReviewGate['requiresUserReview'], isTrue);

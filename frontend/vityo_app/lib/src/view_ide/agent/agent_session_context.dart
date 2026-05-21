@@ -1306,6 +1306,7 @@ class AgentCodingLoopContext {
         recoveryPlan: recoveryPlan,
         savedProviderProfiles: savedProviderProfileList,
         workspaceEdit: workspaceEdit,
+        changeReviewGate: effectiveChangeReviewGate,
         ideCapabilityClosure: ideCapabilityClosure,
       ),
     );
@@ -1389,6 +1390,7 @@ List<String> _suggestedAgentCodingCommandIds({
   required AgentCodingSessionRecoveryPlan? recoveryPlan,
   required List<AgentPromptProfileManifestEntry> savedProviderProfiles,
   required AgentWorkspaceEditContext? workspaceEdit,
+  required AgentCodingChangeReviewGate changeReviewGate,
   required IdeCapabilityClosureReport? ideCapabilityClosure,
 }) {
   final commandIds = <String>[];
@@ -1408,6 +1410,10 @@ List<String> _suggestedAgentCodingCommandIds({
   for (final commandId
       in workspaceEdit?.suggestedCommandIds ?? const <String>[]) {
     addCommandId(commandId);
+  }
+  if (changeReviewGate.status ==
+      AgentCodingChangeReviewGateStatus.needsReview) {
+    addCommandId(AppCommandId.collectAgentCodingCheckpoint.name);
   }
   if (recoveryPlan != null) {
     for (final action in recoveryPlan.availableActions) {

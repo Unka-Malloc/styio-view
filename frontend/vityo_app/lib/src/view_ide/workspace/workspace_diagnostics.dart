@@ -272,6 +272,40 @@ typedef WorkspaceDiagnosticsProducerCancellationHandler =
       required String reason,
     });
 
+typedef WorkspaceDiagnosticsProducerTerminator =
+    Future<WorkspaceDiagnosticsProducerCancellationResult> Function(
+      WorkspaceDiagnosticsProducerTerminationRequest request,
+    );
+
+class WorkspaceDiagnosticsProducerTerminationRequest {
+  const WorkspaceDiagnosticsProducerTerminationRequest({
+    required this.plan,
+    required this.current,
+    required this.reason,
+    required this.processHandleId,
+    required this.managerId,
+    required this.routeKind,
+  });
+
+  final WorkspaceDiagnosticsProducerExecutionPlan plan;
+  final WorkspaceDiagnosticsProducerLifecycleSnapshot current;
+  final String reason;
+  final String processHandleId;
+  final String managerId;
+  final String routeKind;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerId': plan.providerId,
+      'taskId': current.taskId,
+      'reason': reason,
+      'processHandleId': processHandleId,
+      'managerId': managerId,
+      'routeKind': routeKind,
+    };
+  }
+}
+
 abstract class WorkspaceDiagnosticsProcessCancellationHandle {
   const WorkspaceDiagnosticsProcessCancellationHandle();
 
@@ -283,6 +317,49 @@ abstract class WorkspaceDiagnosticsProcessCancellationHandle {
     required WorkspaceDiagnosticsProducerLifecycleSnapshot current,
     required String reason,
   });
+}
+
+class WorkspaceDiagnosticsRuntimeProcessCancellationHandle
+    extends WorkspaceDiagnosticsProcessCancellationHandle {
+  const WorkspaceDiagnosticsRuntimeProcessCancellationHandle({
+    required this.handleId,
+    required this.managerId,
+    required this.routeKind,
+    required WorkspaceDiagnosticsProducerTerminator terminate,
+  }) : _terminate = terminate;
+
+  @override
+  final String handleId;
+  final String managerId;
+  final String routeKind;
+  final WorkspaceDiagnosticsProducerTerminator _terminate;
+
+  @override
+  Future<WorkspaceDiagnosticsProducerCancellationResult>
+  cancelDiagnosticsProducer({
+    required WorkspaceDiagnosticsProducerExecutionPlan plan,
+    required WorkspaceDiagnosticsProducerLifecycleSnapshot current,
+    required String reason,
+  }) {
+    return _terminate(
+      WorkspaceDiagnosticsProducerTerminationRequest(
+        plan: plan,
+        current: current,
+        reason: reason,
+        processHandleId: handleId,
+        managerId: managerId,
+        routeKind: routeKind,
+      ),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'processHandleId': handleId,
+      'managerId': managerId,
+      'routeKind': routeKind,
+    };
+  }
 }
 
 class WorkspaceDiagnosticsProducerCancellationAdapter {
@@ -321,6 +398,166 @@ class WorkspaceDiagnosticsProducerCancellationAdapter {
     required String reason,
   }) {
     return _cancel(plan: plan, current: current, reason: reason);
+  }
+}
+
+enum WorkspaceDiagnosticsProducerProcessHandleBindingStatus {
+  registered,
+  missingHandle,
+  skipped,
+}
+
+class WorkspaceDiagnosticsProducerProcessHandleBindingResult {
+  const WorkspaceDiagnosticsProducerProcessHandleBindingResult({
+    required this.status,
+    required this.message,
+    this.providerId = '',
+    this.processHandleId = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  const WorkspaceDiagnosticsProducerProcessHandleBindingResult.registered({
+    required String providerId,
+    required String processHandleId,
+    String message = 'Diagnostics producer process handle registered.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         status:
+             WorkspaceDiagnosticsProducerProcessHandleBindingStatus.registered,
+         providerId: providerId,
+         processHandleId: processHandleId,
+         message: message,
+         metadata: metadata,
+       );
+
+  const WorkspaceDiagnosticsProducerProcessHandleBindingResult.missingHandle({
+    String message =
+        'Diagnostics producer dispatch did not expose a process handle.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         status: WorkspaceDiagnosticsProducerProcessHandleBindingStatus
+             .missingHandle,
+         message: message,
+         metadata: metadata,
+       );
+
+  const WorkspaceDiagnosticsProducerProcessHandleBindingResult.skipped({
+    String message =
+        'Diagnostics producer dispatch was not eligible for handle binding.',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : this(
+         status: WorkspaceDiagnosticsProducerProcessHandleBindingStatus.skipped,
+         message: message,
+         metadata: metadata,
+       );
+
+  final WorkspaceDiagnosticsProducerProcessHandleBindingStatus status;
+  final String message;
+  final String providerId;
+  final String processHandleId;
+  final Map<String, Object?> metadata;
+
+  bool get registered =>
+      status ==
+      WorkspaceDiagnosticsProducerProcessHandleBindingStatus.registered;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.name,
+      'registered': registered,
+      'message': message,
+      if (providerId.isNotEmpty) 'providerId': providerId,
+      if (processHandleId.isNotEmpty) 'processHandleId': processHandleId,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class WorkspaceDiagnosticsProducerProcessHandleBinder {
+  const WorkspaceDiagnosticsProducerProcessHandleBinder({
+    this.handleIdKeys = const <String>[
+      'processHandleId',
+      'processId',
+      'pid',
+      'diagnosticsProcessHandleId',
+    ],
+  });
+
+  final List<String> handleIdKeys;
+
+  WorkspaceDiagnosticsProducerProcessHandleBindingResult bind({
+    required WorkspaceDiagnosticsProducerExecutionPlan plan,
+    required RuntimeExecutionDispatchResult result,
+    required WorkspaceDiagnosticsProducerProcessHandleRegistry registry,
+    required WorkspaceDiagnosticsProducerTerminator terminate,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    if (!result.dispatched) {
+      return WorkspaceDiagnosticsProducerProcessHandleBindingResult.skipped(
+        message:
+            'Diagnostics producer ${plan.providerId} was not dispatched; no process handle was bound.',
+        metadata: metadata,
+      );
+    }
+    final handleId = _handleIdFromResult(result);
+    if (handleId == null) {
+      return WorkspaceDiagnosticsProducerProcessHandleBindingResult.missingHandle(
+        message:
+            'Diagnostics producer ${plan.providerId} dispatch did not expose a process handle.',
+        metadata: metadata,
+      );
+    }
+    registry.register(
+      providerId: plan.providerId,
+      handle: WorkspaceDiagnosticsRuntimeProcessCancellationHandle(
+        handleId: handleId,
+        managerId: result.binding.managerId,
+        routeKind: result.binding.routeKind,
+        terminate: terminate,
+      ),
+    );
+    return WorkspaceDiagnosticsProducerProcessHandleBindingResult.registered(
+      providerId: plan.providerId,
+      processHandleId: handleId,
+      message:
+          'Diagnostics producer ${plan.providerId} process handle $handleId registered.',
+      metadata: <String, Object?>{
+        'source': 'runtime-dispatch-result',
+        'managerId': result.binding.managerId,
+        'routeKind': result.binding.routeKind,
+        ...metadata,
+      },
+    );
+  }
+
+  String? _handleIdFromResult(RuntimeExecutionDispatchResult result) {
+    for (final source in <Map<String, Object?>>[
+      result.metadata,
+      result.outputEvent.metadata,
+      result.binding.metadata,
+      result.binding.handoff.metadata,
+      result.binding.handoff.plan.metadata,
+    ]) {
+      final handleId = _handleIdFromMetadata(source);
+      if (handleId != null) {
+        return handleId;
+      }
+    }
+    return null;
+  }
+
+  String? _handleIdFromMetadata(Map<String, Object?> metadata) {
+    for (final key in handleIdKeys) {
+      final value = metadata[key];
+      if (value == null) {
+        continue;
+      }
+      final handleId = '$value'.trim();
+      if (handleId.isNotEmpty) {
+        return handleId;
+      }
+    }
+    return null;
   }
 }
 

@@ -312,6 +312,61 @@ void main() {
   );
 
   test(
+    'workspace diagnostics binds runtime process handles into cancellation registry',
+    () async {
+      const request = WorkspaceDiagnosticsRequest(
+        documentIds: <String>['src/main.styio'],
+        activeDocumentId: 'src/main.styio',
+      );
+      final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+        providerId: 'styio-project-diagnostics',
+        request: request,
+        command: 'styio',
+        arguments: const <String>['check', '.'],
+      );
+      final dispatch = RuntimeExecutionManagerRegistry.defaultManagers()
+          .dispatch(
+            plan.binding,
+            timestamp: DateTime.utc(2026, 5, 21, 7),
+            metadata: const <String, Object?>{'processHandleId': 'diag-42'},
+          );
+      final registry = WorkspaceDiagnosticsProducerProcessHandleRegistry();
+      final terminationRequests =
+          <WorkspaceDiagnosticsProducerTerminationRequest>[];
+      final binding = const WorkspaceDiagnosticsProducerProcessHandleBinder().bind(
+        plan: plan,
+        result: dispatch,
+        registry: registry,
+        terminate: (request) async {
+          terminationRequests.add(request);
+          return const WorkspaceDiagnosticsProducerCancellationResult.accepted(
+            processTerminated: true,
+            message: 'Diagnostics process terminated.',
+          );
+        },
+      );
+      final controller = WorkspaceDiagnosticsProducerLifecycleController();
+      controller.start(plan, message: 'Styio diagnostics started.');
+      final adapter = registry.adapterForProvider('styio-project-diagnostics');
+
+      final cancelled = await controller.requestProcessCancellation(
+        plan,
+        reason: 'agent cancelled diagnostics',
+        adapter: adapter!,
+      );
+
+      expect(binding.registered, isTrue);
+      expect(binding.processHandleId, 'diag-42');
+      expect(registry.handleForProvider(plan.providerId)?.handleId, 'diag-42');
+      expect(cancelled.status, RuntimeTaskStatus.cancelled);
+      expect(cancelled.cancellationRequested, isTrue);
+      expect(terminationRequests.single.processHandleId, 'diag-42');
+      expect(terminationRequests.single.managerId, 'toolchain-manager');
+      expect(terminationRequests.single.routeKind, 'toolchain-task');
+    },
+  );
+
+  test(
     'workspace diagnostics controller resolves producer process handles',
     () async {
       const request = WorkspaceDiagnosticsRequest(

@@ -377,11 +377,15 @@ void main() {
     );
     expect(
       entriesById['interaction.diagnostics']?.summary,
+      contains('WorkspaceDiagnosticsProducerProcessHandleBinder'),
+    );
+    expect(
+      entriesById['interaction.diagnostics']?.summary,
       contains('ShellRuntime diagnostics producer cancellation bridge'),
     );
     expect(
       entriesById['interaction.diagnostics']?.todo,
-      contains('process handle registry'),
+      contains('processHandleId/pid metadata'),
     );
     expect(
       entriesById['interaction.diagnostics']?.runtimeMaturityBlocking,
@@ -394,6 +398,10 @@ void main() {
     expect(
       entriesById['workspace.diagnostics']?.summary,
       contains('WorkspaceDiagnosticsProducerProcessHandleRegistry'),
+    );
+    expect(
+      entriesById['workspace.diagnostics']?.summary,
+      contains('WorkspaceDiagnosticsProducerProcessHandleBinder'),
     );
     expect(
       entriesById['workspace.diagnostics']?.summary,

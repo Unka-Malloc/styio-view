@@ -1562,6 +1562,12 @@ void main() {
     );
     expect(telemetry.metadata['selectionMode'], 'input');
     expect(telemetry.metadata['input'], '2');
+    expect(telemetry.metadata['quickFixLabel'], 'Replace with second');
+    expect(telemetry.metadata['quickFixEditCount'], 1);
+    expect(
+      shell.agentSessionContext.commands.lastResult?.metadata['quickFixLabel'],
+      'Replace with second',
+    );
 
     expect(
       await shell.applyAgentIdeCommandSuggestion(

@@ -2622,7 +2622,11 @@ class ShellRuntimeModel extends ChangeNotifier {
         return applied;
       case 'applyQuickFix':
         final quickFixInput = suggestion.input?.trim();
-        if (editorController.applyQuickFixAtSelection(input: quickFixInput)) {
+        final selectedQuickFix = editorController.quickFixAtSelectionForInput(
+          quickFixInput,
+        );
+        if (selectedQuickFix != null) {
+          editorController.applyDiagnosticQuickFix(selectedQuickFix);
           final quickFixMessage =
               quickFixInput == null || quickFixInput.isEmpty
                   ? 'Agent command applyQuickFix applied at editor selection.'
@@ -2642,12 +2646,27 @@ class ShellRuntimeModel extends ChangeNotifier {
                       : 'input',
               if (quickFixInput != null && quickFixInput.isNotEmpty)
                 'input': quickFixInput,
+              'quickFixLabel': selectedQuickFix.label,
+              'quickFixDetail': selectedQuickFix.detail,
+              'quickFixEditCount': selectedQuickFix.edits.length,
             },
           );
           _recordAgentIdeCommandResult(
             suggestion,
             applied: true,
             message: quickFixMessage,
+            metadata: <String, Object?>{
+              'scope': 'selection',
+              'selectionMode':
+                  quickFixInput == null || quickFixInput.isEmpty
+                      ? 'first'
+                      : 'input',
+              if (quickFixInput != null && quickFixInput.isNotEmpty)
+                'input': quickFixInput,
+              'quickFixLabel': selectedQuickFix.label,
+              'quickFixDetail': selectedQuickFix.detail,
+              'quickFixEditCount': selectedQuickFix.edits.length,
+            },
           );
           notifyListeners();
           return true;

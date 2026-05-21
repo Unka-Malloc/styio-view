@@ -689,6 +689,93 @@ void main() {
     );
   });
 
+  testWidgets('agent surface runs extension tools through execution registry', (
+    tester,
+  ) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+      toolRegistry: AgentToolRegistry(
+        tools: const <AgentToolDefinition>[
+          ...AgentToolRegistry.defaultAgentTools,
+          AgentToolDefinition(
+            toolId: 'collectExtensionContext',
+            displayName: 'Collect Extension Context',
+            description: 'Collect context from an extension.',
+            permissionMode: AgentToolPermissionMode.review,
+          ),
+        ],
+      ),
+    );
+    addTearDown(controller.dispose);
+    final registry = ExtensionAgentToolExecutionRegistry(
+      catalog: const ExtensionAgentToolContributionCatalog(
+        contributions: <ExtensionAgentToolContribution>[
+          ExtensionAgentToolContribution(
+            extensionId: 'agent.tools',
+            contributionId: 'collect-extension-context',
+            target: 'agent.tools',
+            status: ExtensionAgentToolContributionStatus.ready,
+            message: 'Ready.',
+            tool: AgentToolDefinition(
+              toolId: 'collectExtensionContext',
+              displayName: 'Collect Extension Context',
+              description: 'Collect context from an extension.',
+              permissionMode: AgentToolPermissionMode.review,
+            ),
+          ),
+        ],
+      ),
+      handlers: <String, ExtensionAgentToolHandler>{
+        'collectExtensionContext': (request) async {
+          return AgentToolCallDispatchResult.success(
+            callId: request.callId,
+            toolId: request.toolId,
+            output: '{"extension":"ok"}',
+            metadata: const <String, Object?>{'source': 'extension-registry'},
+          );
+        },
+      },
+    );
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-extension-registry',
+        toolId: 'collectExtensionContext',
+        input: '{"extensionId":"demo"}',
+      ),
+    );
+
+    await _pumpSurface(
+      tester,
+      controller,
+      extensionToolExecutionRegistry: registry,
+    );
+    await _tapVisible(
+      tester,
+      find.byKey(
+        const ValueKey('agent-tool-call-approve-call-extension-registry'),
+      ),
+    );
+    await tester.pump();
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-run-approved')),
+    );
+    await tester.pump();
+
+    expect(
+      controller.recentToolCallResultContexts.single.metadata['source'],
+      'extension-registry',
+    );
+    expect(
+      controller.toolCallExecutionPlan
+          .executionFor('call-extension-registry')
+          ?.status,
+      AgentToolCallExecutionStatus.completed,
+    );
+  });
+
   testWidgets('agent surface exposes controller recovery context tools', (
     tester,
   ) async {
@@ -812,6 +899,7 @@ Future<void> _pumpSurface(
   AgentWorkspacePatchToolRunner? onApplyAgentWorkspacePatch,
   AgentWorkspaceSnapshotService? workspaceSnapshotService,
   AgentExtensionToolRunner? onRunAgentExtensionTool,
+  ExtensionAgentToolExecutionRegistry? extensionToolExecutionRegistry,
   Future<bool> Function(AgentIdeCommandSuggestion)? onApplyIdeCommandSuggestion,
 }) async {
   await tester.pumpWidget(
@@ -836,6 +924,7 @@ Future<void> _pumpSurface(
             onApplyAgentWorkspacePatch: onApplyAgentWorkspacePatch,
             workspaceSnapshotService: workspaceSnapshotService,
             onRunAgentExtensionTool: onRunAgentExtensionTool,
+            extensionToolExecutionRegistry: extensionToolExecutionRegistry,
             onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
             onSaveProviderProfile: (profile, {bearerToken}) async {},
           ),

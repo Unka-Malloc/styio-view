@@ -444,6 +444,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     CommandPaletteLivePreferenceController? commandPalettePreferenceController,
     ClangCppVersionPreference? clangCppVersionPreference,
     AgentCodingSessionController? agentCodingController,
+    this.agentExtensionToolExecutionRegistry,
     this.agentProviderConfigurator,
     this.refreshActiveLanguageService,
     this.styioServiceSubscriptionController,
@@ -578,6 +579,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   commandPalettePreferenceController;
   ClangCppVersionPreference? _clangCppVersionPreference;
   late final AgentCodingSessionController agentCodingController;
+  final ExtensionAgentToolExecutionRegistry?
+  agentExtensionToolExecutionRegistry;
   final AgentProviderConfigurator? agentProviderConfigurator;
   final Future<void> Function()? refreshActiveLanguageService;
   final StyioServiceSubscriptionController? styioServiceSubscriptionController;

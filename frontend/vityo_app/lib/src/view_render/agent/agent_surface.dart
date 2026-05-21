@@ -27,6 +27,7 @@ class AgentSurface extends StatelessWidget {
     this.onApplyAgentWorkspacePatch,
     this.workspaceSnapshotService,
     this.onRunAgentExtensionTool,
+    this.extensionToolExecutionRegistry,
     this.onApplyIdeCommandSuggestion,
     this.onResolveIdeCommandResult,
     this.onMountSavedProviderProfile,
@@ -44,6 +45,7 @@ class AgentSurface extends StatelessWidget {
   final AgentWorkspacePatchToolRunner? onApplyAgentWorkspacePatch;
   final AgentWorkspaceSnapshotService? workspaceSnapshotService;
   final AgentExtensionToolRunner? onRunAgentExtensionTool;
+  final ExtensionAgentToolExecutionRegistry? extensionToolExecutionRegistry;
   final Future<bool> Function(AgentIdeCommandSuggestion suggestion)?
   onApplyIdeCommandSuggestion;
   final AgentCommandResultContext? Function(
@@ -122,6 +124,8 @@ class AgentSurface extends StatelessWidget {
                   onApplyAgentWorkspacePatch: onApplyAgentWorkspacePatch,
                   workspaceSnapshotService: workspaceSnapshotService,
                   onRunAgentExtensionTool: onRunAgentExtensionTool,
+                  extensionToolExecutionRegistry:
+                      extensionToolExecutionRegistry,
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
                   onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
@@ -171,6 +175,8 @@ class AgentSurface extends StatelessWidget {
                   onApplyAgentWorkspacePatch: onApplyAgentWorkspacePatch,
                   workspaceSnapshotService: workspaceSnapshotService,
                   onRunAgentExtensionTool: onRunAgentExtensionTool,
+                  extensionToolExecutionRegistry:
+                      extensionToolExecutionRegistry,
                   onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
                   onResolveIdeCommandResult: onResolveIdeCommandResult,
                 ),
@@ -1848,6 +1854,7 @@ class _AgentPromptSection extends StatefulWidget {
     this.onApplyAgentWorkspacePatch,
     this.workspaceSnapshotService,
     this.onRunAgentExtensionTool,
+    this.extensionToolExecutionRegistry,
     this.onApplyIdeCommandSuggestion,
     this.onResolveIdeCommandResult,
   });
@@ -1860,6 +1867,7 @@ class _AgentPromptSection extends StatefulWidget {
   final AgentWorkspacePatchToolRunner? onApplyAgentWorkspacePatch;
   final AgentWorkspaceSnapshotService? workspaceSnapshotService;
   final AgentExtensionToolRunner? onRunAgentExtensionTool;
+  final ExtensionAgentToolExecutionRegistry? extensionToolExecutionRegistry;
   final Future<bool> Function(AgentIdeCommandSuggestion suggestion)?
   onApplyIdeCommandSuggestion;
   final AgentCommandResultContext? Function(
@@ -2013,7 +2021,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
       workspaceSnapshotCaptureRecorder:
           widget.controller.recordWorkspaceSnapshotCaptureResult,
       workspaceRevertPlanRecorder: widget.controller.recordWorkspaceRevertPlan,
-      extensionToolRunner: widget.onRunAgentExtensionTool,
+      extensionToolRunner:
+          widget.onRunAgentExtensionTool ??
+          widget.extensionToolExecutionRegistry?.dispatch,
       validationContextProvider: () =>
           AgentCodingValidationToolContext.fromSessionContext(
             widget.sessionContext,

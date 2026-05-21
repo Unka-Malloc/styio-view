@@ -17,6 +17,7 @@ import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
 import 'agent_tool_call_stream_bridge.dart';
+import 'agent_tool_registry.dart';
 import 'agent_workspace_snapshot.dart';
 import 'agent_workspace_edit_adapter.dart';
 import '../runtime/runtime.dart';
@@ -84,9 +85,11 @@ class AgentCodingSessionController extends ChangeNotifier {
     this.sessionHistoryWorkspaceId = 'default',
     this.sessionHistoryMaxEntries = 50,
     RuntimeOutputLiveBuffer? runtimeOutputBuffer,
+    AgentToolRegistry? toolRegistry,
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
   }) : _runtimeOutputBuffer = runtimeOutputBuffer,
+       _toolRegistry = toolRegistry ?? AgentToolRegistry(),
        _providerSelectionPlan = providerSelectionPlan,
        _providerExecutionResolution = providerExecutionResolution,
        _mountedProviderProfileKey = profile.profileId;
@@ -101,6 +104,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   final String sessionHistoryWorkspaceId;
   final int sessionHistoryMaxEntries;
   final RuntimeOutputLiveBuffer? _runtimeOutputBuffer;
+  final AgentToolRegistry _toolRegistry;
 
   int _requestSequence = 0;
   int _activeRequestSerial = 0;
@@ -303,6 +307,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       prompt: prompt,
       attachmentCount: _attachments.length,
       conversationTurnCount: _conversationWindow().length,
+      toolRegistry: _toolRegistry,
       providerSelectionPlan: _providerSelectionPlan,
       providerExecutionResolution: _providerExecutionResolution,
     );

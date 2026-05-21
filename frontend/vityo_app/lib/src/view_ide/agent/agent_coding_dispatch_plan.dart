@@ -48,6 +48,7 @@ class AgentCodingDispatchPlan {
     required String prompt,
     required int attachmentCount,
     required int conversationTurnCount,
+    AgentToolRegistry? toolRegistry,
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
   }) {
@@ -57,7 +58,7 @@ class AgentCodingDispatchPlan {
           providerSelectionPlan.todo.isNotEmpty)
         providerSelectionPlan.todo,
     };
-    final toolSelection = AgentToolRegistry().selectForProfile(
+    final toolSelection = (toolRegistry ?? AgentToolRegistry()).selectForProfile(
       profile: profile,
       providerKind: adapter.kind,
     );

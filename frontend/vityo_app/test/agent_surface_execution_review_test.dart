@@ -6,8 +6,10 @@ import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_dispatcher.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
+import 'package:vityo_app/src/agent/agent_tool_registry.dart';
 import 'package:vityo_app/src/agent/agent_workspace_snapshot.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
@@ -261,6 +263,68 @@ void main() {
       AgentToolCallExecutionStatus.completed,
     );
   });
+
+  testWidgets('agent surface runs approved extension tools', (tester) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+      toolRegistry: AgentToolRegistry(
+        tools: const <AgentToolDefinition>[
+          ...AgentToolRegistry.defaultAgentTools,
+          AgentToolDefinition(
+            toolId: 'collectExtensionContext',
+            displayName: 'Collect Extension Context',
+            description: 'Collect context from an extension.',
+            permissionMode: AgentToolPermissionMode.review,
+          ),
+        ],
+      ),
+    );
+    addTearDown(controller.dispose);
+    AgentToolCallDispatchRequest? receivedRequest;
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-extension',
+        toolId: 'collectExtensionContext',
+        input: '{"extensionId":"demo"}',
+      ),
+    );
+
+    await _pumpSurface(
+      tester,
+      controller,
+      onRunAgentExtensionTool: (request) async {
+        receivedRequest = request;
+        return AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: '{"extension":"ok"}',
+        );
+      },
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-approve-call-extension')),
+    );
+    await tester.pump();
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-run-approved')),
+    );
+    await tester.pump();
+
+    expect(receivedRequest?.toolId, 'collectExtensionContext');
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.complete,
+    );
+    expect(
+      controller.toolCallExecutionPlan.executionFor('call-extension')?.status,
+      AgentToolCallExecutionStatus.completed,
+    );
+  });
 }
 
 Future<void> _pumpSurface(
@@ -268,6 +332,7 @@ Future<void> _pumpSurface(
   AgentCodingSessionController controller, {
   Future<void> Function()? onApplyWorkspaceRevertPlan,
   AgentWorkspacePatchToolRunner? onApplyAgentWorkspacePatch,
+  AgentExtensionToolRunner? onRunAgentExtensionTool,
   Future<bool> Function(AgentIdeCommandSuggestion)? onApplyIdeCommandSuggestion,
 }) async {
   await tester.pumpWidget(
@@ -290,6 +355,7 @@ Future<void> _pumpSurface(
             onApplyPendingPatch: () async {},
             onApplyWorkspaceRevertPlan: onApplyWorkspaceRevertPlan,
             onApplyAgentWorkspacePatch: onApplyAgentWorkspacePatch,
+            onRunAgentExtensionTool: onRunAgentExtensionTool,
             onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
             onSaveProviderProfile: (profile, {bearerToken}) async {},
           ),

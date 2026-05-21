@@ -2029,6 +2029,13 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     }
   }
 
+  Future<void> _sendToolResultContinuation() async {
+    if (widget.controller.sending) {
+      return;
+    }
+    await widget.controller.dispatchToolResultContinuation(confirmed: true);
+  }
+
   AgentBuiltinToolExecutor _agentToolExecutor() {
     return AgentBuiltinToolExecutor(
       context: widget.sessionContext,
@@ -2554,6 +2561,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           recentToolCallResultCount == 0
                       ? null
                       : () => controller.restoreToolResultContinuationDraft(),
+                  onSendContinuation:
+                      applyingAction ||
+                          controller.sending ||
+                          recentToolCallResultCount == 0
+                      ? null
+                      : () => unawaited(_sendToolResultContinuation()),
                 ),
               ],
               if (projectToolPermissionRules.isNotEmpty) ...[
@@ -3403,6 +3416,7 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
     this.toolLoopRuntimeReport,
     this.toolResultCount = 0,
     this.onDraftContinuation,
+    this.onSendContinuation,
   });
 
   final AgentToolCallTimeline timeline;
@@ -3422,6 +3436,7 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   final AgentCodingToolLoopRuntimeReport? toolLoopRuntimeReport;
   final int toolResultCount;
   final VoidCallback? onDraftContinuation;
+  final VoidCallback? onSendContinuation;
 
   @override
   Widget build(BuildContext context) {
@@ -3636,6 +3651,13 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                     onPressed: dispatching ? null : onDraftContinuation,
                     icon: const Icon(Icons.auto_awesome_motion_outlined),
                     label: const Text('Draft Tool Continuation'),
+                  ),
+                if (toolResultCount > 0)
+                  FilledButton.icon(
+                    key: const ValueKey('agent-tool-call-send-continuation'),
+                    onPressed: dispatching ? null : onSendContinuation,
+                    icon: const Icon(Icons.send_outlined),
+                    label: const Text('Send Tool Continuation'),
                   ),
               ],
             ),

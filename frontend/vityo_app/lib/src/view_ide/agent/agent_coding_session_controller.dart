@@ -469,6 +469,26 @@ class AgentCodingSessionController extends ChangeNotifier {
     return true;
   }
 
+  Future<AgentProviderResponseEnvelope?> dispatchToolResultContinuation({
+    String? prompt,
+    bool confirmed = false,
+  }) async {
+    if (_recentToolCallResultContexts.isEmpty) {
+      _lastError =
+          'Agent tool continuation blocked: no tool results are available.';
+      notifyListeners();
+      return null;
+    }
+    if (!confirmed) {
+      _lastError =
+          'Agent tool continuation blocked: explicit user confirmation is required.';
+      notifyListeners();
+      return null;
+    }
+    updatePrompt(prompt ?? _toolResultContinuationPrompt());
+    return sendPrompt();
+  }
+
   Future<AgentCodingSessionRecoveryDispatchResult> dispatchRecoveryRequestDraft(
     AgentCodingSessionRecoveryAction action, {
     String? targetProviderProfileKey,

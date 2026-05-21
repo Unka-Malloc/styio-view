@@ -474,8 +474,8 @@ void main() {
     );
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
-      adapter: const _FakeAgentProviderAdapter(
-        response: AgentProviderResponseEnvelope(
+      adapter: _FakeAgentProviderAdapter(
+        response: const AgentProviderResponseEnvelope(
           requestId: 'surface-snapshot-request',
           role: 'assistant',
           finishReason: 'stop',
@@ -698,9 +698,22 @@ void main() {
   });
 
   testWidgets('agent surface runs approved extension tools', (tester) async {
+    final adapter = _FakeAgentProviderAdapter(
+      response: const AgentProviderResponseEnvelope(
+        requestId: 'agent-request-tool-continuation',
+        role: 'assistant',
+        finishReason: 'stop',
+        contentParts: <AgentContentPart>[
+          AgentContentPart(
+            kind: AgentContentPartKind.text,
+            text: 'Continuation complete.',
+          ),
+        ],
+      ),
+    );
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
-      adapter: const LocalOnlyAgentProviderAdapter(),
+      adapter: adapter,
       contextProvider: _context,
       toolRegistry: AgentToolRegistry(
         tools: const <AgentToolDefinition>[
@@ -777,6 +790,20 @@ void main() {
     expect(
       controller.toolCallExecutionPlan.executionFor('call-extension')?.status,
       AgentToolCallExecutionStatus.completed,
+    );
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-tool-call-send-continuation')),
+    );
+    await tester.pump();
+    expect(
+      adapter.requests.single.toolCallResults.single.callId,
+      'call-extension',
+    );
+    expect(controller.recentToolCallResultContexts, isEmpty);
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.idle,
     );
   });
 
@@ -1038,9 +1065,10 @@ AgentSessionContext _context() {
 }
 
 class _FakeAgentProviderAdapter implements AgentProviderAdapter {
-  const _FakeAgentProviderAdapter({required this.response});
+  _FakeAgentProviderAdapter({required this.response});
 
   final AgentProviderResponseEnvelope response;
+  final List<AgentProviderRequest> requests = <AgentProviderRequest>[];
 
   @override
   String get adapterId => 'fake';
@@ -1055,6 +1083,7 @@ class _FakeAgentProviderAdapter implements AgentProviderAdapter {
   Future<AgentProviderResponseEnvelope> send(
     AgentProviderRequest request,
   ) async {
+    requests.add(request);
     return response;
   }
 }

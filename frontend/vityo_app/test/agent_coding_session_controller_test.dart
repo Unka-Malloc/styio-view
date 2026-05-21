@@ -487,9 +487,12 @@ void main() {
         controller.draftPrompt,
         contains('Continue after 1 agent tool result(s).'),
       );
-
-      controller.updatePrompt('Continue with tool result.');
-      await controller.sendPrompt();
+      expect(await controller.dispatchToolResultContinuation(), isNull);
+      expect(
+        controller.lastError,
+        contains('explicit user confirmation is required'),
+      );
+      await controller.dispatchToolResultContinuation(confirmed: true);
 
       final request = adapter.requests.single;
       expect(request.toolCallResults.single.callId, 'call-read');
@@ -511,6 +514,11 @@ void main() {
       expect(request.toJson()['toolCallResults'], isA<List<Object?>>());
       expect(controller.recentToolCallResultContexts, isEmpty);
       expect(controller.restoreToolResultContinuationDraft(), isFalse);
+      expect(
+        await controller.dispatchToolResultContinuation(confirmed: true),
+        isNull,
+      );
+      expect(controller.lastError, contains('no tool results are available'));
     },
   );
 

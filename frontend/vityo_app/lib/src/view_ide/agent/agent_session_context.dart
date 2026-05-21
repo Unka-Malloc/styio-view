@@ -1389,7 +1389,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 85,
+      schemaVersion: 86,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -1778,8 +1778,11 @@ class AgentConversationCompactionContext {
     required this.maxRetainedTurnCount,
     required this.maxTurnTextLength,
     this.truncatedRetainedTurnCount = 0,
+    this.summary = '',
+    this.summaryTurnCount = 0,
+    this.summaryUpdatedAt,
     this.todoItems = const <String>[
-      'TODO: replace window-only conversation retention with an OpenCode-style anchored compaction summary before long autonomous coding sessions.',
+      'TODO: replace deterministic extractive summaries with provider-assisted OpenCode-style semantic compaction when a trusted model route is available.',
     ],
   });
 
@@ -1789,6 +1792,9 @@ class AgentConversationCompactionContext {
     required int sentTurnCount,
     required int maxRetainedTurnCount,
     required int maxTurnTextLength,
+    String summary = '',
+    int summaryTurnCount = 0,
+    DateTime? summaryUpdatedAt,
   }) {
     final retainedTexts = retainedTurnTexts.toList(growable: false);
     final truncatedCount = retainedTexts
@@ -1811,6 +1817,9 @@ class AgentConversationCompactionContext {
       maxRetainedTurnCount: maxRetainedTurnCount,
       maxTurnTextLength: maxTurnTextLength,
       truncatedRetainedTurnCount: truncatedCount,
+      summary: summary,
+      summaryTurnCount: summaryTurnCount,
+      summaryUpdatedAt: summaryUpdatedAt,
     );
   }
 
@@ -1821,10 +1830,14 @@ class AgentConversationCompactionContext {
   final int maxRetainedTurnCount;
   final int maxTurnTextLength;
   final int truncatedRetainedTurnCount;
+  final String summary;
+  final int summaryTurnCount;
+  final DateTime? summaryUpdatedAt;
   final List<String> todoItems;
 
   bool get hasOmittedTurns => omittedTurnCount > 0;
   bool get hasTruncatedTurns => truncatedRetainedTurnCount > 0;
+  bool get hasSummary => summary.trim().isNotEmpty;
   bool get active => status != AgentConversationCompactionStatus.clear;
 
   Map<String, Object?> toJson() {
@@ -1839,6 +1852,11 @@ class AgentConversationCompactionContext {
       'maxTurnTextLength': maxTurnTextLength,
       'truncatedRetainedTurnCount': truncatedRetainedTurnCount,
       'hasTruncatedTurns': hasTruncatedTurns,
+      'hasSummary': hasSummary,
+      'summaryTurnCount': summaryTurnCount,
+      if (hasSummary) 'summary': summary,
+      if (summaryUpdatedAt != null)
+        'summaryUpdatedAt': summaryUpdatedAt!.toIso8601String(),
       if (todoItems.isNotEmpty) 'todoItems': todoItems,
     };
   }

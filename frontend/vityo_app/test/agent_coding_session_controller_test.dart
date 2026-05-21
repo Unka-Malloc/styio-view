@@ -1466,20 +1466,14 @@ void main() {
       expect(controller.conversationTurns.first.text, 'three');
       expect(adapter.requests.last.conversationTurns.length, 2);
       expect(adapter.requests.last.conversationTurns.first.text, 'two');
-      expect(
-        adapter.requests.last.context.agent.conversationCompaction?.status,
-        AgentConversationCompactionStatus.windowed,
-      );
-      expect(
-        adapter
-            .requests
-            .last
-            .context
-            .agent
-            .conversationCompaction
-            ?.omittedTurnCount,
-        2,
-      );
+      final compaction =
+          adapter.requests.last.context.agent.conversationCompaction!;
+      expect(compaction.status, AgentConversationCompactionStatus.windowed);
+      expect(compaction.omittedTurnCount, 2);
+      expect(compaction.hasSummary, isTrue);
+      expect(compaction.summaryTurnCount, 2);
+      expect(compaction.summary, contains('- user: one'));
+      expect(compaction.summary, contains('- assistant: ok'));
     },
   );
 
@@ -1510,20 +1504,14 @@ void main() {
 
       expect(controller.conversationTurns, isEmpty);
       expect(adapter.requests.last.conversationTurns, isEmpty);
-      expect(
-        adapter.requests.last.context.agent.conversationCompaction?.status,
-        AgentConversationCompactionStatus.windowed,
-      );
-      expect(
-        adapter
-            .requests
-            .last
-            .context
-            .agent
-            .conversationCompaction
-            ?.omittedTurnCount,
-        2,
-      );
+      final compaction =
+          adapter.requests.last.context.agent.conversationCompaction!;
+      expect(compaction.status, AgentConversationCompactionStatus.windowed);
+      expect(compaction.omittedTurnCount, 2);
+      expect(compaction.hasSummary, isTrue);
+      expect(compaction.summaryTurnCount, 2);
+      expect(compaction.summary, contains('- user: one'));
+      expect(compaction.summary, contains('- assistant: ok'));
     },
   );
 
@@ -1567,20 +1555,12 @@ void main() {
         adapter.requests.last.conversationTurns.first.text,
         '0123456789\n[truncated 6 char(s)]',
       );
-      expect(
-        adapter.requests.last.context.agent.conversationCompaction?.status,
-        AgentConversationCompactionStatus.truncated,
-      );
-      expect(
-        adapter
-            .requests
-            .last
-            .context
-            .agent
-            .conversationCompaction
-            ?.truncatedRetainedTurnCount,
-        2,
-      );
+      final compaction =
+          adapter.requests.last.context.agent.conversationCompaction!;
+      expect(compaction.status, AgentConversationCompactionStatus.truncated);
+      expect(compaction.truncatedRetainedTurnCount, 2);
+      expect(compaction.hasSummary, isFalse);
+      expect(compaction.summary, isEmpty);
     },
   );
 

@@ -318,6 +318,8 @@ void main() {
                 maxRetainedTurnCount: 2,
                 maxTurnTextLength: 10,
                 truncatedRetainedTurnCount: 1,
+                summary: 'Anchored summary\n- user: previous request',
+                summaryTurnCount: 3,
               ),
               toolCallTimeline: toolCallTimeline,
               toolCallExecutionJournal: toolCallJournal,
@@ -414,6 +416,12 @@ void main() {
     expect(
       metadata['agentConversationCompactionTruncatedRetainedTurnCount'],
       1,
+    );
+    expect(metadata['agentConversationCompactionHasSummary'], isTrue);
+    expect(metadata['agentConversationCompactionSummaryTurnCount'], 3);
+    expect(
+      metadata['agentConversationCompactionSummaryLength'],
+      greaterThan(0),
     );
     expect(metadata['agentToolCallTimelineStatus'], 'running');
     expect(metadata['agentToolCallTimelineCallCount'], 1);
@@ -754,7 +762,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      85,
+      86,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -1374,6 +1382,7 @@ void main() {
         systemMessage['content'],
         contains('agent.conversationCompaction'),
       );
+      expect(systemMessage['content'], contains('summaryTurnCount'));
       expect(systemMessage['content'], contains('agent.toolCallTimeline'));
       expect(
         systemMessage['content'],
@@ -1600,7 +1609,7 @@ void main() {
         contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 85);
+      expect(metadata['contextSchemaVersion'], 86);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

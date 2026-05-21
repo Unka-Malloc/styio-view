@@ -75,6 +75,8 @@ const int _maxAgentPendingIdeCommandContexts = 10;
 const int _maxAgentRecentIdeCommandSuggestionContexts = 12;
 const int _maxAgentRecentCodingPlanContexts = 8;
 const int _maxAgentRecentDiagnosticSummaryContexts = 8;
+const int _maxAgentConversationCompactionSummaryLength = 4000;
+const int _maxAgentConversationCompactionTurnSampleLength = 400;
 
 class AgentCodingSessionController extends ChangeNotifier {
   AgentCodingSessionController({
@@ -168,6 +170,9 @@ class AgentCodingSessionController extends ChangeNotifier {
   final List<AgentConversationTurn> _conversationTurns =
       <AgentConversationTurn>[];
   int _omittedConversationTurnCount = 0;
+  int _conversationCompactionSummaryTurnCount = 0;
+  String _conversationCompactionSummary = '';
+  DateTime? _conversationCompactionSummaryUpdatedAt;
 
   String get draftPrompt => _draftPrompt;
   bool get sending => _sending;
@@ -378,6 +383,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _attachments.clear();
     _conversationTurns.clear();
     _omittedConversationTurnCount = 0;
+    _clearConversationCompactionSummary();
     notifyListeners();
   }
 
@@ -1038,6 +1044,7 @@ class AgentCodingSessionController extends ChangeNotifier {
         _recentPatchProposalContexts.isEmpty &&
         _recentIdeCommandSuggestionContexts.isEmpty &&
         _omittedConversationTurnCount == 0 &&
+        _conversationCompactionSummary.isEmpty &&
         _toolCallTimeline.status == AgentToolCallTimelineStatus.idle &&
         _toolCallReviewDecisions.isEmpty &&
         _lastError == null &&
@@ -1051,6 +1058,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _applyingIdeCommand = false;
     _conversationTurns.clear();
     _omittedConversationTurnCount = 0;
+    _clearConversationCompactionSummary();
     _lastResponse = null;
     _pendingPatch = null;
     _lastPatchApplicationResult = null;
@@ -1888,6 +1896,9 @@ class AgentCodingSessionController extends ChangeNotifier {
       sentTurnCount: sentTurnCount,
       maxRetainedTurnCount: maxConversationTurns,
       maxTurnTextLength: maxConversationTurnTextLength,
+      summary: _conversationCompactionSummary,
+      summaryTurnCount: _conversationCompactionSummaryTurnCount,
+      summaryUpdatedAt: _conversationCompactionSummaryUpdatedAt,
     );
   }
 
@@ -1956,6 +1967,7 @@ class AgentCodingSessionController extends ChangeNotifier {
 
   void _trimConversationWindow() {
     if (maxConversationTurns <= 0) {
+      _appendConversationCompactionSummary(_conversationTurns);
       _omittedConversationTurnCount += _conversationTurns.length;
       _conversationTurns.clear();
       return;
@@ -1964,8 +1976,56 @@ class AgentCodingSessionController extends ChangeNotifier {
       return;
     }
     final omittedCount = _conversationTurns.length - maxConversationTurns;
+    _appendConversationCompactionSummary(_conversationTurns.take(omittedCount));
     _omittedConversationTurnCount += omittedCount;
     _conversationTurns.removeRange(0, omittedCount);
+  }
+
+  void _appendConversationCompactionSummary(
+    Iterable<AgentConversationTurn> omittedTurns,
+  ) {
+    final turns = omittedTurns.toList(growable: false);
+    if (turns.isEmpty) {
+      return;
+    }
+    final lines = turns
+        .map((turn) {
+          final role = turn.role.wireValue;
+          final text = _conversationCompactionTurnSample(turn.text);
+          return '- $role: $text';
+        })
+        .join('\n');
+    final next = _conversationCompactionSummary.isEmpty
+        ? lines
+        : '${_conversationCompactionSummary.trim()}\n$lines';
+    _conversationCompactionSummary = _truncateCompactionSummary(next);
+    _conversationCompactionSummaryTurnCount += turns.length;
+    _conversationCompactionSummaryUpdatedAt = DateTime.now().toUtc();
+  }
+
+  void _clearConversationCompactionSummary() {
+    _conversationCompactionSummary = '';
+    _conversationCompactionSummaryTurnCount = 0;
+    _conversationCompactionSummaryUpdatedAt = null;
+  }
+
+  String _conversationCompactionTurnSample(String text) {
+    final normalized = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized.length <= _maxAgentConversationCompactionTurnSampleLength) {
+      return normalized;
+    }
+    final omitted =
+        normalized.length - _maxAgentConversationCompactionTurnSampleLength;
+    return '${normalized.substring(0, _maxAgentConversationCompactionTurnSampleLength)} [...$omitted char(s) omitted]';
+  }
+
+  String _truncateCompactionSummary(String summary) {
+    if (summary.length <= _maxAgentConversationCompactionSummaryLength) {
+      return summary;
+    }
+    final omitted =
+        summary.length - _maxAgentConversationCompactionSummaryLength;
+    return '${summary.substring(summary.length - _maxAgentConversationCompactionSummaryLength)}\n[older compaction summary omitted $omitted char(s)]';
   }
 
   void _trimAttachments() {

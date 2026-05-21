@@ -6,7 +6,7 @@ import '../../view_ide/language/language_contract.dart';
 import '../platform/viewport_profile.dart';
 import '../../view_ide/editor/document_state.dart';
 import '../../view_ide/editor/editor_controller.dart';
-import '../../view_ide/editor/editor_render_layers.dart';
+import '../../view_ide/editor/render_plan/render_plan.dart';
 import '../../view_ide/editor/selection_state.dart';
 import 'editor_text_style_binding.dart';
 
@@ -874,6 +874,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   late final FocusNode _extractFunctionFocusNode;
   late final FocusNode _changeSignatureNameFocusNode;
   late final FocusNode _changeSignatureParametersFocusNode;
+  late final ScrollController _sourceScrollController;
   late final TextEditingController _inlineRenameController;
   late final TextEditingController _introduceVariableController;
   late final TextEditingController _extractFunctionController;
@@ -921,6 +922,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _changeSignatureParametersFocusNode = FocusNode(
       debugLabel: 'editor-change-signature-parameters',
     );
+    _sourceScrollController = ScrollController()
+      ..addListener(_handleSourceScrollChanged);
     _inlineRenameController = TextEditingController();
     _introduceVariableController = TextEditingController();
     _extractFunctionController = TextEditingController();
@@ -938,6 +941,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _extractFunctionFocusNode.dispose();
     _changeSignatureNameFocusNode.dispose();
     _changeSignatureParametersFocusNode.dispose();
+    _sourceScrollController
+      ..removeListener(_handleSourceScrollChanged)
+      ..dispose();
     _inlineRenameController.dispose();
     _introduceVariableController.dispose();
     _extractFunctionController.dispose();
@@ -947,6 +953,12 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   }
 
   void _handleFocusChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _handleSourceScrollChanged() {
     if (mounted) {
       setState(() {});
     }
@@ -2576,6 +2588,23 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
             constraints.maxHeight < 240;
         final cramped = constraints.maxHeight < 120;
         final contentPadding = dense ? 12.0 : 18.0;
+        final scrollOffset = _sourceScrollController.hasClients
+            ? _sourceScrollController.offset
+            : _sourceScrollController.initialScrollOffset;
+        final viewportBinding =
+            EditorRenderViewportBinding.fromScrollControllerFacts(
+              scrollOffsetPixels: scrollOffset,
+              viewportHeightPixels: constraints.maxHeight,
+              lineHeightPixels: _estimatedLineHeight,
+              overscanLineCount: dense ? 4 : 8,
+              totalLineCount: widget.document.lines.length,
+            );
+        final renderPipelinePlan = EditorRenderPipelinePlan.fromRenderFacts(
+          renderPlan: widget.renderPlan,
+          lineCount: widget.document.lines.length,
+          viewportBinding: viewportBinding,
+          maxRenderedLines: _maxRenderedPreviewLines,
+        );
 
         return Focus(
           focusNode: _focusNode,
@@ -2614,6 +2643,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                               ? 'editing'
                               : 'click to focus',
                         ),
+                        _CapabilityPill(
+                          label: viewportBinding.boundToScrollController
+                              ? 'viewport bound'
+                              : 'viewport unbound',
+                        ),
+                        _CapabilityPill(
+                          label:
+                              'visible ${viewportBinding.viewportFirstLine + 1}+${viewportBinding.viewportLineCapacity}',
+                        ),
+                        _CapabilityPill(
+                          label: 'renderer ${renderPipelinePlan.rendererKind}',
+                        ),
                       ],
                     ),
                   if (!dense && !cramped) ...[
@@ -2628,7 +2669,17 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                   if (!cramped) const SizedBox(height: 14),
                   Expanded(
                     child: ListView(
+                      key: const ValueKey('source-buffer-scroll'),
+                      controller: _sourceScrollController,
                       children: [
+                        KeyedSubtree(
+                          key: ValueKey(
+                            viewportBinding.boundToScrollController
+                                ? 'source-viewport-binding-bound'
+                                : 'source-viewport-binding-unbound',
+                          ),
+                          child: const SizedBox.shrink(),
+                        ),
                         if (_inlineRenameOpen) ...[
                           _buildInlineRenamePanel(context),
                           const SizedBox(height: 12),

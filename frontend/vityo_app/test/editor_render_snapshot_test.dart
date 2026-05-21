@@ -4,6 +4,7 @@ import 'package:vityo_app/src/view_ide/editor/editor.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/view_render/editor/editor.dart';
+import 'package:vityo_app/src/view_render/platform/platform.dart';
 
 void main() {
   test('editor render plan round trips active layers', () {
@@ -214,5 +215,67 @@ void main() {
     expect(plan.toJson()['fallbackReason'], contains('above limit 50'));
     expect(restored.renderWindow.renderLineCount, 90);
     expect(restored.usingFallback, isTrue);
+  });
+
+  test('editor render viewport binding derives scroll controller facts', () {
+    final binding = EditorRenderViewportBinding.fromScrollControllerFacts(
+      scrollOffsetPixels: 204,
+      viewportHeightPixels: 340,
+      lineHeightPixels: 34,
+      overscanLineCount: 6,
+      totalLineCount: 80,
+    );
+
+    expect(binding.boundToScrollController, isTrue);
+    expect(binding.viewportFirstLine, 6);
+    expect(binding.viewportLineCapacity, 10);
+    expect(binding.overscanLineCount, 6);
+    expect(binding.toJson()['todo'], isNull);
+  });
+
+  testWidgets('editor surface exposes bound scroll viewport facts', (
+    tester,
+  ) async {
+    final text = List<String>.generate(
+      60,
+      (index) => 'value_$index := $index',
+    ).join('\n');
+    final controller = EditorSessionController(
+      initialDocument: DocumentState(
+        documentId: 'scroll.styio',
+        text: text,
+        revision: 1,
+      ),
+      languageService: const LocalStyioLanguageService(),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 720,
+            child: EditorSurface(
+              controller: controller,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 720,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey('source-viewport-binding-bound'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('source-buffer-scroll')), findsOneWidget);
   });
 }

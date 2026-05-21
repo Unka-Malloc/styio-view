@@ -411,6 +411,36 @@ class EditorRenderViewportBinding {
     );
   }
 
+  factory EditorRenderViewportBinding.fromScrollControllerFacts({
+    required double scrollOffsetPixels,
+    required double viewportHeightPixels,
+    double lineHeightPixels = 20,
+    int overscanLineCount = 8,
+    int? totalLineCount,
+  }) {
+    final effectiveLineHeight = lineHeightPixels <= 0 ? 20.0 : lineHeightPixels;
+    final firstLine = (scrollOffsetPixels / effectiveLineHeight).floor();
+    final capacity = (viewportHeightPixels / effectiveLineHeight).ceil();
+    final normalizedCapacity = capacity < 1 ? 1 : capacity;
+    final normalizedOverscan = overscanLineCount < 0 ? 0 : overscanLineCount;
+    final maxFirstLine = totalLineCount == null || totalLineCount <= 0
+        ? firstLine
+        : totalLineCount - 1;
+    final normalizedFirstLine = firstLine < 0
+        ? 0
+        : firstLine > maxFirstLine
+        ? maxFirstLine
+        : firstLine;
+    return EditorRenderViewportBinding(
+      viewportFirstLine: normalizedFirstLine,
+      viewportLineCapacity: normalizedCapacity,
+      overscanLineCount: normalizedOverscan,
+      scrollOffsetPixels: scrollOffsetPixels < 0 ? 0 : scrollOffsetPixels,
+      lineHeightPixels: effectiveLineHeight,
+      boundToScrollController: true,
+    );
+  }
+
   factory EditorRenderViewportBinding.fromJson(Map<String, Object?> json) {
     return EditorRenderViewportBinding(
       viewportFirstLine: json['viewportFirstLine'] as int? ?? 0,

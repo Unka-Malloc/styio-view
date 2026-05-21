@@ -454,9 +454,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_render/editor',
           summary:
-              'Editor surface renders document, tabs, selection, token/semantic/diagnostic layers, folding, hover, completion, code-action facts, language-service health status pills, EditorCodeActionWidgetState, EditorSemanticThemeBinding render styles, concrete Flutter TextSpan/TextStyle binding, EditorRenderViewportBinding scroll facts, EditorRenderPipelinePlan renderer/fallback facts, and serializable EditorRenderSnapshot contracts for UI and Agent consumers.',
+              'Editor surface renders document, tabs, selection, token/semantic/diagnostic layers, folding, hover, completion, code-action facts, language-service health status pills, EditorCodeActionWidgetState, EditorSemanticThemeBinding render styles, concrete Flutter TextSpan/TextStyle binding, EditorRenderViewportBinding concrete ScrollController facts, EditorRenderPipelinePlan renderer/fallback facts, viewport-bound source scroll telemetry, and serializable EditorRenderSnapshot contracts for UI and Agent consumers.',
           todo:
-              'TODO: bind EditorRenderViewportBinding to the concrete scroll controller viewport and high-volume editor layer backend.',
+              'TODO: bind high-volume editor layer backend beyond the current Flutter ListView preview renderer.',
           runtimeMaturityBlocking: false,
           references: <String>['Monaco editor', 'VS Code workbench editor'],
         ),

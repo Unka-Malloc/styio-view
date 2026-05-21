@@ -245,8 +245,12 @@ void main() {
       contains('EditorRenderPipelinePlan'),
     );
     expect(
+      entriesById['editor.rendering']?.summary,
+      contains('concrete ScrollController facts'),
+    );
+    expect(
       entriesById['editor.rendering']?.todo,
-      contains('concrete scroll controller'),
+      contains('high-volume editor layer backend'),
     );
     expect(entriesById['editor.rendering']?.runtimeMaturityBlocking, isFalse);
     expect(
@@ -602,7 +606,7 @@ void main() {
     );
     expect(
       entriesById['editor.rendering']?.todo,
-      contains('scroll controller viewport'),
+      contains('Flutter ListView preview renderer'),
     );
     expect(
       entriesById['workspace.edit-application']?.status,

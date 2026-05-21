@@ -1207,6 +1207,8 @@ void main() {
       ),
       languageService: const SimpleStyioLanguageService(),
     );
+    final buffer = RuntimeOutputLiveBuffer();
+    addTearDown(buffer.dispose);
     const patch = AgentCodePatch(
       patchId: 'patch-1',
       summary: 'Update value.',
@@ -1236,6 +1238,7 @@ void main() {
         ),
       ),
       contextProvider: _context,
+      runtimeOutputBuffer: buffer,
     );
 
     controller.updatePrompt('Change value.');
@@ -1248,6 +1251,13 @@ void main() {
     expect(controller.pendingPatch, isNull);
     expect(controller.lastPatchApplicationResult?.appliedEditCount, 1);
     expect(editorController.document.text, 'value = 2\n');
+    final patchEvent = buffer.snapshot.events.singleWhere(
+      (event) => event.metadata['operation'] == 'agent.patch.apply',
+    );
+    expect(patchEvent.channelId, 'agent.activity');
+    expect(patchEvent.metadata['patchId'], 'patch-1');
+    expect(patchEvent.metadata['outcome'], 'succeeded');
+    expect(patchEvent.metadata['appliedEditCount'], 1);
   });
 
   test('agent coding session records skipped no-op patch documents', () async {

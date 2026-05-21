@@ -872,10 +872,42 @@ class AgentCodingSessionController extends ChangeNotifier {
       result: result,
       recordedAt: recordedAt,
     );
+    _runtimeOutputBuffer?.addEvent(
+      _patchApplicationRuntimeOutputEvent(
+        patch: patch,
+        result: result,
+        recordedAt: recordedAt,
+      ),
+    );
     _recordRecentPatchApplicationContext(_lastPatchApplicationContext!);
     _appendConversationTurn(
       role: AgentConversationRole.user,
       text: _patchApplicationConversationText(patch, result),
+    );
+  }
+
+  RuntimeOutputEvent _patchApplicationRuntimeOutputEvent({
+    required AgentCodePatch patch,
+    required AgentCodePatchApplicationResult result,
+    required DateTime recordedAt,
+  }) {
+    return RuntimeOutputEvent(
+      channelId: 'agent.activity',
+      label: 'Agent Activity',
+      kind: RuntimeOutputChannelKind.agent,
+      message: result.message,
+      timestamp: recordedAt,
+      metadata: <String, Object?>{
+        'operation': 'agent.patch.apply',
+        'patchId': patch.patchId,
+        'applied': result.applied,
+        'appliedEditCount': result.appliedEditCount,
+        'changedDocumentCount': result.appliedDocumentIds.length,
+        'createdDocumentCount': result.createdDocumentIds.length,
+        'deletedDocumentCount': result.deletedDocumentIds.length,
+        'skippedNoOpDocumentCount': result.skippedNoOpDocumentIds.length,
+        'outcome': result.applied ? 'succeeded' : 'failed',
+      },
     );
   }
 

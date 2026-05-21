@@ -740,6 +740,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('patch application runtime activity evidence'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('patch application validation snapshot binding'),
     );
     expect(

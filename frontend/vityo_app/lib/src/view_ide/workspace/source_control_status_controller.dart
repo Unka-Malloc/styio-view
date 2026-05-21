@@ -27,6 +27,8 @@ class SourceControlStatusController extends ChangeNotifier {
   SourceControlDiffSnapshot? _diffPreview;
   SourceControlActionResult? _lastActionResult;
   SourceControlPartialPatchResult? _lastPartialPatchResult;
+  SourceControlHunkSelectionState? _hunkSelectionState;
+  SourceControlHunkDiscardConfirmationPlan? _pendingHunkDiscardConfirmation;
   SourceControlBranchSnapshot? _branchSnapshot;
   SourceControlBranchSwitchPlan? _pendingBranchSwitchPlan;
   SourceControlBranchSwitchResult? _lastBranchSwitchResult;
@@ -45,6 +47,10 @@ class SourceControlStatusController extends ChangeNotifier {
   SourceControlActionResult? get lastActionResult => _lastActionResult;
   SourceControlPartialPatchResult? get lastPartialPatchResult =>
       _lastPartialPatchResult;
+  SourceControlHunkSelectionState? get hunkSelectionState =>
+      _hunkSelectionState;
+  SourceControlHunkDiscardConfirmationPlan?
+  get pendingHunkDiscardConfirmation => _pendingHunkDiscardConfirmation;
   SourceControlBranchSnapshot? get branchSnapshot => _branchSnapshot;
   SourceControlBranchSwitchPlan? get pendingBranchSwitchPlan =>
       _pendingBranchSwitchPlan;
@@ -61,6 +67,9 @@ class SourceControlStatusController extends ChangeNotifier {
       diffPreview: _diffPreview,
       pendingActionPlan: _pendingActionPlan,
       lastActionResult: _lastActionResult,
+      hunkSelectionState: _hunkSelectionState,
+      pendingHunkDiscardConfirmation: _pendingHunkDiscardConfirmation,
+      lastPartialPatchResult: _lastPartialPatchResult,
       branchSnapshot: _branchSnapshot,
       pendingBranchSwitchPlan: _pendingBranchSwitchPlan,
       lastBranchSwitchResult: _lastBranchSwitchResult,
@@ -165,6 +174,117 @@ class SourceControlStatusController extends ChangeNotifier {
           );
     if (generation == _partialPatchGeneration) {
       _lastPartialPatchResult = result;
+      notifyListeners();
+    }
+    return result;
+  }
+
+  SourceControlHunkSelectionState? bindHunkSelection({
+    SourceControlDiffSnapshot? snapshot,
+    List<int> selectedHunkIndexes = const <int>[],
+  }) {
+    final activeSnapshot = snapshot ?? _diffPreview;
+    if (activeSnapshot == null) {
+      return null;
+    }
+    final selection = SourceControlHunkSelectionState.fromDiff(
+      snapshot: activeSnapshot,
+      selectedHunkIndexes: selectedHunkIndexes,
+    );
+    _hunkSelectionState = selection;
+    _pendingHunkDiscardConfirmation = null;
+    notifyListeners();
+    return selection;
+  }
+
+  SourceControlHunkSelectionState? toggleHunkSelection(int hunkIndex) {
+    final current = _hunkSelectionState;
+    if (current == null) {
+      return bindHunkSelection(selectedHunkIndexes: <int>[hunkIndex]);
+    }
+    final next = current.toggle(hunkIndex);
+    _hunkSelectionState = next;
+    _pendingHunkDiscardConfirmation = null;
+    notifyListeners();
+    return next;
+  }
+
+  SourceControlHunkSelectionState? selectAllHunks() {
+    final current = _hunkSelectionState;
+    final activeSnapshot = current?.snapshot ?? _diffPreview;
+    if (activeSnapshot == null) {
+      return null;
+    }
+    final next = SourceControlHunkSelectionState.all(activeSnapshot);
+    _hunkSelectionState = next;
+    _pendingHunkDiscardConfirmation = null;
+    notifyListeners();
+    return next;
+  }
+
+  SourceControlHunkSelectionState? clearHunkSelection() {
+    final current = _hunkSelectionState;
+    final activeSnapshot = current?.snapshot ?? _diffPreview;
+    if (activeSnapshot == null) {
+      return null;
+    }
+    final next = SourceControlHunkSelectionState.fromDiff(
+      snapshot: activeSnapshot,
+    );
+    _hunkSelectionState = next;
+    _pendingHunkDiscardConfirmation = null;
+    notifyListeners();
+    return next;
+  }
+
+  SourceControlDiffHunkActionPlan? planSelectedHunkAction(
+    SourceControlActionKind kind,
+  ) {
+    final selection = _hunkSelectionState;
+    if (selection == null) {
+      return null;
+    }
+    final plan = selection.toActionPlan(kind: kind);
+    _pendingHunkDiscardConfirmation = kind == SourceControlActionKind.discard
+        ? SourceControlHunkDiscardConfirmationPlan.fromActionPlan(plan)
+        : null;
+    notifyListeners();
+    return plan;
+  }
+
+  Future<SourceControlPartialPatchResult> confirmPendingHunkDiscard() async {
+    final pending = _pendingHunkDiscardConfirmation;
+    if (pending == null) {
+      return const SourceControlPartialPatchResult(
+        kind: SourceControlActionKind.discard,
+        path: '',
+        selectedHunkIndexes: <int>[],
+        applied: false,
+        message:
+            'Source control hunk discard skipped: no pending confirmation plan.',
+      );
+    }
+    final confirmed = SourceControlHunkDiscardConfirmationPlan.fromActionPlan(
+      pending.actionPlan,
+      confirmed: true,
+    );
+    _pendingHunkDiscardConfirmation = confirmed;
+    if (!confirmed.canRun) {
+      final result = SourceControlPartialPatchResult(
+        kind: SourceControlActionKind.discard,
+        path: confirmed.path,
+        selectedHunkIndexes: confirmed.selectedHunkIndexes,
+        applied: false,
+        message: confirmed.blockedReason,
+      );
+      _lastPartialPatchResult = result;
+      notifyListeners();
+      return result;
+    }
+    final result = await runHunkAction(confirmed.actionPlan);
+    if (result.applied) {
+      _pendingHunkDiscardConfirmation = null;
+      _hunkSelectionState = _hunkSelectionState?.clear();
       notifyListeners();
     }
     return result;
@@ -293,6 +413,10 @@ class SourceControlStatusController extends ChangeNotifier {
           );
     if (generation == _diffGeneration) {
       _diffPreview = nextSnapshot;
+      _hunkSelectionState = SourceControlHunkSelectionState.fromDiff(
+        snapshot: nextSnapshot,
+      );
+      _pendingHunkDiscardConfirmation = null;
       notifyListeners();
     }
     return nextSnapshot;
@@ -305,12 +429,16 @@ class SourceControlStatusController extends ChangeNotifier {
     _generation++;
     _diffGeneration++;
     _actionGeneration++;
+    _partialPatchGeneration++;
     _branchGeneration++;
     _branchSwitchGeneration++;
     _historyGeneration++;
     _snapshot = null;
     _diffPreview = null;
     _lastActionResult = null;
+    _lastPartialPatchResult = null;
+    _hunkSelectionState = null;
+    _pendingHunkDiscardConfirmation = null;
     _branchSnapshot = null;
     _pendingBranchSwitchPlan = null;
     _lastBranchSwitchResult = null;

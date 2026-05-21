@@ -729,6 +729,74 @@ diff --git a/src/main.styio b/src/main.styio
   });
 
   test(
+    'source control status controller persists hunk selection confirmations',
+    () async {
+      const diff = SourceControlDiffSnapshot(
+        providerKind: SourceControlProviderKind.git,
+        path: 'src/main.styio',
+        unifiedDiff: '''
+diff --git a/src/main.styio b/src/main.styio
+--- a/src/main.styio
++++ b/src/main.styio
+@@ -1,1 +1,1 @@
+-old
++new
+@@ -8,1 +8,1 @@
+-before
++after
+''',
+      );
+      final controller = SourceControlStatusController(
+        provider: const StaticSourceControlStatusProvider(
+          SourceControlStatusSnapshot(
+            providerKind: SourceControlProviderKind.git,
+            changes: <SourceControlFileChange>[],
+          ),
+        ),
+        diffProvider: const StaticSourceControlDiffProvider(diff),
+        partialPatchProvider: const _FakeSourceControlPartialPatchProvider(),
+        workspaceRoot: '/workspace/vityo',
+      );
+      addTearDown(controller.dispose);
+
+      await controller.previewDiff('src/main.styio');
+      final selection = controller.toggleHunkSelection(0);
+      final plan = controller.planSelectedHunkAction(
+        SourceControlActionKind.discard,
+      );
+      final pendingJson = controller.agentContextSnapshot.toJson();
+
+      expect(selection?.selectedHunkIndexes, <int>[0]);
+      expect(plan?.requiresConfirmation, isTrue);
+      expect(controller.pendingHunkDiscardConfirmation?.readyForDialog, isTrue);
+      expect(pendingJson['requiresHumanConfirmation'], isTrue);
+      expect(
+        (pendingJson['hunkSelectionState']!
+            as Map<String, Object?>)['selectedHunkIndexes'],
+        <int>[0],
+      );
+      expect(
+        (pendingJson['pendingHunkDiscardConfirmation']!
+            as Map<String, Object?>)['confirmed'],
+        isFalse,
+      );
+
+      final result = await controller.confirmPendingHunkDiscard();
+      final confirmedJson = controller.agentContextSnapshot.toJson();
+
+      expect(result.applied, isTrue);
+      expect(result.selectedHunkIndexes, <int>[0]);
+      expect(controller.pendingHunkDiscardConfirmation, isNull);
+      expect(controller.hunkSelectionState?.hasSelection, isFalse);
+      expect(
+        (confirmedJson['lastPartialPatchResult']!
+            as Map<String, Object?>)['applied'],
+        isTrue,
+      );
+    },
+  );
+
+  test(
     'source control controller caches branch and history planning facts',
     () async {
       final controller = SourceControlStatusController(

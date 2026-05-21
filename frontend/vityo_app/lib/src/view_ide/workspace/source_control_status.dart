@@ -1348,6 +1348,9 @@ class SourceControlAgentContextSnapshot {
     this.diffWindow,
     this.pendingActionPlan,
     this.lastActionResult,
+    this.hunkSelectionState,
+    this.pendingHunkDiscardConfirmation,
+    this.lastPartialPatchResult,
     this.branchSnapshot,
     this.pendingBranchSwitchPlan,
     this.lastBranchSwitchResult,
@@ -1361,6 +1364,9 @@ class SourceControlAgentContextSnapshot {
     SourceControlDiffSnapshot? diffPreview,
     SourceControlActionPlan? pendingActionPlan,
     SourceControlActionResult? lastActionResult,
+    SourceControlHunkSelectionState? hunkSelectionState,
+    SourceControlHunkDiscardConfirmationPlan? pendingHunkDiscardConfirmation,
+    SourceControlPartialPatchResult? lastPartialPatchResult,
     SourceControlBranchSnapshot? branchSnapshot,
     SourceControlBranchSwitchPlan? pendingBranchSwitchPlan,
     SourceControlBranchSwitchResult? lastBranchSwitchResult,
@@ -1374,6 +1380,9 @@ class SourceControlAgentContextSnapshot {
       diffWindow: diffPreview?.window(lineLimit: diffLineLimit),
       pendingActionPlan: pendingActionPlan,
       lastActionResult: lastActionResult,
+      hunkSelectionState: hunkSelectionState,
+      pendingHunkDiscardConfirmation: pendingHunkDiscardConfirmation,
+      lastPartialPatchResult: lastPartialPatchResult,
       branchSnapshot: branchSnapshot,
       pendingBranchSwitchPlan: pendingBranchSwitchPlan,
       lastBranchSwitchResult: lastBranchSwitchResult,
@@ -1390,6 +1399,10 @@ class SourceControlAgentContextSnapshot {
   final SourceControlDiffWindow? diffWindow;
   final SourceControlActionPlan? pendingActionPlan;
   final SourceControlActionResult? lastActionResult;
+  final SourceControlHunkSelectionState? hunkSelectionState;
+  final SourceControlHunkDiscardConfirmationPlan?
+  pendingHunkDiscardConfirmation;
+  final SourceControlPartialPatchResult? lastPartialPatchResult;
   final SourceControlBranchSnapshot? branchSnapshot;
   final SourceControlBranchSwitchPlan? pendingBranchSwitchPlan;
   final SourceControlBranchSwitchResult? lastBranchSwitchResult;
@@ -1401,7 +1414,11 @@ class SourceControlAgentContextSnapshot {
   bool get clean => status?.clean ?? true;
   bool get hasDiffPreview => diffReview != null;
   bool get requiresHumanConfirmation {
-    return pendingActionPlan?.requiresConfirmation ?? false;
+    final pendingHunkConfirmation = pendingHunkDiscardConfirmation;
+    return (pendingActionPlan?.requiresConfirmation ?? false) ||
+        (pendingHunkConfirmation != null &&
+            pendingHunkConfirmation.requiresConfirmation &&
+            !pendingHunkConfirmation.confirmed);
   }
 
   String get providerKind {
@@ -1445,6 +1462,9 @@ class SourceControlAgentContextSnapshot {
       diffWindow: diffWindow,
       pendingActionPlan: pendingActionPlan,
       lastActionResult: lastActionResult,
+      hunkSelectionState: hunkSelectionState,
+      pendingHunkDiscardConfirmation: pendingHunkDiscardConfirmation,
+      lastPartialPatchResult: lastPartialPatchResult,
       branchSnapshot: branchSnapshot,
       pendingBranchSwitchPlan: pendingBranchSwitchPlan,
       lastBranchSwitchResult: lastBranchSwitchResult,
@@ -1476,6 +1496,13 @@ class SourceControlAgentContextSnapshot {
         'pendingActionPlan': pendingActionPlan!.toJson(),
       if (lastActionResult != null)
         'lastActionResult': lastActionResult!.toJson(),
+      if (hunkSelectionState != null)
+        'hunkSelectionState': hunkSelectionState!.toJson(),
+      if (pendingHunkDiscardConfirmation != null)
+        'pendingHunkDiscardConfirmation': pendingHunkDiscardConfirmation!
+            .toJson(),
+      if (lastPartialPatchResult != null)
+        'lastPartialPatchResult': lastPartialPatchResult!.toJson(),
       if (branchSnapshot != null) 'branches': branchSnapshot!.toJson(),
       if (pendingBranchSwitchPlan != null)
         'pendingBranchSwitchPlan': pendingBranchSwitchPlan!.toJson(),

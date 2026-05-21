@@ -56,6 +56,26 @@ void main() {
       contains('persisted result filter state'),
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('SourceControlHunkSelectionState'),
+    );
+    expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('SourceControlHunkDiscardConfirmationPlan'),
+    );
+    expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('partial patch results'),
+    );
+    expect(
+      entriesById['interaction.source-control']?.todo,
+      contains('persisted diff-session DataStore owner'),
+    );
+    expect(
+      entriesById['interaction.source-control']?.runtimeMaturityBlocking,
+      isFalse,
+    );
+    expect(
       entriesById['environment.platform']?.summary,
       contains('PlatformManagerRecoveryActionRouter settings routes'),
     );
@@ -293,7 +313,9 @@ void main() {
     );
     expect(
       entriesById['runtime.execution']?.summary,
-      contains('ExtensionRuntimeTaskDataStoreTelemetrySink, ExtensionRuntimeTaskRetryPolicy'),
+      contains(
+        'ExtensionRuntimeTaskDataStoreTelemetrySink, ExtensionRuntimeTaskRetryPolicy',
+      ),
     );
     expect(
       entriesById['runtime.execution']?.summary,
@@ -303,10 +325,7 @@ void main() {
       entriesById['runtime.execution']?.todo,
       contains('termination adapters'),
     );
-    expect(
-      entriesById['runtime.execution']?.runtimeMaturityBlocking,
-      isFalse,
-    );
+    expect(entriesById['runtime.execution']?.runtimeMaturityBlocking, isFalse);
     expect(
       entriesById['interaction.language-service-status']?.summary,
       contains('syntax-validation readiness'),

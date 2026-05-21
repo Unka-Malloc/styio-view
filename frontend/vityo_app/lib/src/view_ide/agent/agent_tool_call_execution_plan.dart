@@ -204,9 +204,6 @@ class AgentToolCallExecutionPlan {
     return AgentToolCallExecutionPlan(
       status: _planStatus(executions),
       executions: List<AgentToolCallExecution>.unmodifiable(executions),
-      todoItems: const <String>[
-        'TODO: bind this execution plan to actual tool dispatch so schema, registry, permission, and lifecycle gates run before tool execution.',
-      ],
     );
   }
 

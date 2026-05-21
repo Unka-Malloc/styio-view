@@ -37,6 +37,7 @@ void main() {
     );
     expect(execution.issueCodes, isEmpty);
     expect(plan.toJson()['status'], 'review_required');
+    expect(plan.todoItems, isEmpty);
   });
 
   test('agent tool call execution plan applies review decisions', () {

@@ -141,8 +141,27 @@ void main() {
     final json = suggestion.toJson();
 
     expect(suggestion.commandId, 'saveAll');
+    expect(suggestion.registered, isTrue);
+    expect(suggestion.requiresInput, isFalse);
+    expect(suggestion.inputMissing, isFalse);
     expect(suggestion.prerequisiteForCommandId, 'runBuild');
+    expect(json['registered'], isTrue);
+    expect(json['requiresInput'], isFalse);
+    expect(json['inputMissing'], isFalse);
     expect(json['prerequisiteForCommandId'], 'runBuild');
+
+    final missingInput = AgentIdeCommandSuggestion.fromJson(<String, Object?>{
+      'commandId': 'renameSymbol',
+      'reason': 'Rename the selected symbol.',
+    });
+    final missingInputJson = missingInput.toJson();
+
+    expect(missingInput.registered, isTrue);
+    expect(missingInput.requiresInput, isTrue);
+    expect(missingInput.inputMissing, isTrue);
+    expect(missingInputJson['inputLabel'], 'New symbol name');
+    expect(missingInputJson['inputContract'], contains('active language'));
+    expect(missingInputJson['inputExamples'], contains('newName'));
   });
 
   test('agent coding plan content part preserves steps and criteria', () {

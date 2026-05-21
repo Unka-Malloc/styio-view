@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../commands/app_commands.dart';
 import 'agent_command_metadata.dart';
 import 'agent_profile.dart';
 import 'agent_session_context.dart';
@@ -622,9 +623,28 @@ class AgentIdeCommandSuggestion {
   final String reason;
   final String? prerequisiteForCommandId;
 
+  AppCommandDescriptor? get descriptor => _appCommandDescriptorForName(
+    commandId,
+  );
+
+  bool get registered => descriptor != null;
+
+  bool get requiresInput => descriptor?.requiresInput ?? false;
+
+  bool get inputMissing => requiresInput && (input?.trim().isEmpty ?? true);
+
   Map<String, Object?> toJson() {
+    final commandDescriptor = descriptor;
     return <String, Object?>{
       'commandId': commandId,
+      'registered': registered,
+      if (commandDescriptor != null) ...<String, Object?>{
+        'requiresInput': commandDescriptor.requiresInput,
+        'inputMissing': inputMissing,
+        'inputLabel': commandDescriptor.inputLabel,
+        'inputContract': commandDescriptor.inputContract,
+        'inputExamples': commandDescriptor.inputExamples,
+      },
       if (input != null) 'input': input,
       'reason': reason,
       if (prerequisiteForCommandId != null)
@@ -643,6 +663,19 @@ class AgentIdeCommandSuggestion {
           json['prerequisite_for_command_id'] as String?,
     );
   }
+}
+
+AppCommandDescriptor? _appCommandDescriptorForName(String commandId) {
+  final normalized = commandId.trim();
+  if (normalized.isEmpty) {
+    return null;
+  }
+  for (final id in AppCommandId.values) {
+    if (id.name == normalized) {
+      return StyioCommandRegistry.descriptorFor(id);
+    }
+  }
+  return null;
 }
 
 class AgentCodePatch {

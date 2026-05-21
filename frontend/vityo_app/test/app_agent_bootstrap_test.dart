@@ -32,6 +32,38 @@ void main() {
     },
   );
 
+  test(
+    'agent bootstrap provider factory resolves host environment API key',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_bootstrap_provider_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final configurationStore = _createConfigurationStore(tempRoot);
+      final factory = AppBootstrap.createAgentProviderFactory(
+        configurationStore: configurationStore,
+        transport: const _NoopAgentProviderTransport(),
+        environment: const <String, String>{'OPENAI_API_KEY': 'host-token'},
+      );
+      final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      );
+
+      final execution = await factory.resolveExecution(profile);
+
+      expect(execution.status, AgentProviderExecutionResolutionStatus.ready);
+      expect(execution.selectedEndpointIndex, 0);
+      expect(
+        execution.endpoints.single.credentialReadiness,
+        AgentProviderCredentialReadiness.available,
+      );
+    },
+  );
+
+  test('host environment reader is exposed through configuration layer', () {
+    expect(readHostEnvironment(), isA<Map<String, String>>());
+  });
+
   test('agent bootstrap restores persisted session history', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_app_agent_history_bootstrap_test_',
@@ -181,6 +213,26 @@ void main() {
   );
 }
 
+ConfigurationStore _createConfigurationStore(Directory root) {
+  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final resourceManager = LocalResourceManager(
+    facts: ResourceFacts.linuxDebianArm(
+      systemTempPath: root.path,
+      homePath: root.path,
+    ),
+  );
+  return ConfigurationStore(
+    dataStore: FoundationDataStore(
+      resourceCoordinator: FoundationResourceCoordinator(
+        resourceManager: resourceManager,
+        fileSystemManager: fileSystemManager,
+      ),
+      fileSystemManager: fileSystemManager,
+    ),
+    credentialDataStore: InMemoryCredentialDataStore(),
+  );
+}
+
 AgentSessionContext _context() {
   return AgentSessionContext.fromEditorState(
     document: const DocumentState(
@@ -191,6 +243,19 @@ AgentSessionContext _context() {
     selection: const SelectionState.collapsed(0),
     diagnostics: const [],
   );
+}
+
+class _NoopAgentProviderTransport implements AgentProviderTransport {
+  const _NoopAgentProviderTransport();
+
+  @override
+  Future<Map<String, Object?>> postJson({
+    required Uri endpoint,
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+  }) {
+    throw UnimplementedError('No network call expected.');
+  }
 }
 
 class _FakeAgentProviderAdapter implements AgentProviderAdapter {

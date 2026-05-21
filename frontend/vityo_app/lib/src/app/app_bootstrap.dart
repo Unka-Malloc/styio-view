@@ -360,12 +360,13 @@ class AppBootstrap {
         AgentCodingSessionHistoryStore.fromDataStore(
           dataStore: foundationDataStore,
         );
-    final agentProviderFactory = ConfiguredAgentProviderAdapterFactory(
+    final agentProviderFactory = createAgentProviderFactory(
       configurationStore: configurationStore,
       transport: NetworkAgentProviderTransport(
         networkManager: platformManagers.network,
       ),
       localServiceManager: platformManagers.localService,
+      environment: readHostEnvironment(),
     );
     final agentProviderRegistry = agentProviderFactory.createRegistry();
     final agentCodingController = await createAgentCodingSessionController(
@@ -457,6 +458,21 @@ class AppBootstrap {
     return ConfigurationStore(
       dataStore: dataStore,
       credentialDataStore: credentialDataStore,
+    );
+  }
+
+  @visibleForTesting
+  static ConfiguredAgentProviderAdapterFactory createAgentProviderFactory({
+    required ConfigurationStore configurationStore,
+    required AgentProviderTransport transport,
+    LocalServiceManager? localServiceManager,
+    Map<String, String> environment = const <String, String>{},
+  }) {
+    return ConfiguredAgentProviderAdapterFactory(
+      configurationStore: configurationStore,
+      transport: transport,
+      localServiceManager: localServiceManager,
+      environment: environment,
     );
   }
 

@@ -1562,6 +1562,27 @@ void main() {
     );
     expect(telemetry.metadata['selectionMode'], 'input');
     expect(telemetry.metadata['input'], '2');
+
+    expect(
+      await shell.applyAgentIdeCommandSuggestion(
+        const AgentIdeCommandSuggestion(
+          commandId: 'applyQuickFix',
+          input: 'missing fix',
+        ),
+      ),
+      isFalse,
+    );
+
+    expect(shell.editorController.document.text, 'second = 1\n');
+    final failedTelemetry = shell.runtimeOutputBuffer.snapshot.events.lastWhere(
+      (event) => event.metadata['action'] == 'agent.applyQuickFix',
+    );
+    expect(
+      failedTelemetry.message,
+      'Agent command applyQuickFix skipped: no editor quick fix matched input.',
+    );
+    expect(failedTelemetry.metadata['reason'], 'no-matching-quick-fix');
+    expect(failedTelemetry.metadata['input'], 'missing fix');
   });
 
   test('shell runtime applies agent navigation command suggestions', () async {

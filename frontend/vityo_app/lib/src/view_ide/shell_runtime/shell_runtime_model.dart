@@ -2647,6 +2647,33 @@ class ShellRuntimeModel extends ChangeNotifier {
           notifyListeners();
           return true;
         }
+        if (quickFixInput != null &&
+            quickFixInput.isNotEmpty &&
+            editorController.contextActionsAtSelection.isNotEmpty) {
+          const message =
+              'Agent command applyQuickFix skipped: no editor quick fix matched input.';
+          final metadata = <String, Object?>{
+            'scope': 'selection',
+            'selectionMode': 'input',
+            'input': quickFixInput,
+            'reason': 'no-matching-quick-fix',
+          };
+          appendLog('$message input="$quickFixInput"');
+          _publishDiagnosticActionTelemetry(
+            action: 'agent.applyQuickFix',
+            succeeded: false,
+            message: message,
+            metadata: metadata,
+          );
+          _recordAgentIdeCommandResult(
+            suggestion,
+            applied: false,
+            message: message,
+            metadata: metadata,
+          );
+          notifyListeners();
+          return false;
+        }
         final workspacePreview = _lastWorkspaceEditPreview;
         if (workspacePreview == null) {
           final preview = await previewFirstProjectWorkspaceQuickFix();

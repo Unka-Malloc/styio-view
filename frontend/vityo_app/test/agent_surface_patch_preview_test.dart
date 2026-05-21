@@ -202,7 +202,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Failure evidence: runTests · runTests failed.'),
+      find.byKey(const ValueKey('agent-recovery-validation-failure-evidence')),
       findsOneWidget,
     );
     expect(
@@ -252,7 +252,7 @@ void main() {
 
     expect(
       controller.draftPrompt,
-      'Fix the latest agent validation failure. Failed validation commands: runTests.',
+      'Fix the latest agent validation failure. Failed validation commands: runTests. Failure evidence: runTests · runTests failed.',
     );
 
     await _tapVisible(

@@ -2467,10 +2467,15 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           onPressed: applyingAction || controller.sending
                               ? null
                               : () {
+                                  final evidence =
+                                      recoveryValidationFailureEvidence == null
+                                      ? ''
+                                      : ' $recoveryValidationFailureEvidence';
                                   controller.updatePrompt(
                                     'Fix the latest agent validation failure. '
                                     'Failed validation commands: '
-                                    '${recoveryValidationFailedCommandIds.join(', ')}.',
+                                    '${recoveryValidationFailedCommandIds.join(', ')}.'
+                                    '$evidence',
                                   );
                                   setState(() {
                                     _recoveryDispatchMessage = null;

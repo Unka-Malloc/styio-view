@@ -974,6 +974,9 @@ void main() {
         systemMessage['content'],
         contains('language.semanticFeatureMatrix'),
       );
+      expect(systemMessage['content'], contains('preferredSource'));
+      expect(systemMessage['content'], contains('fallbackActive'));
+      expect(systemMessage['content'], contains('conflictPolicy'));
       expect(systemMessage['content'], contains('language.documentSymbols'));
       expect(systemMessage['content'], contains('language.inlayHints'));
       expect(systemMessage['content'], contains('language.semanticBlocks'));

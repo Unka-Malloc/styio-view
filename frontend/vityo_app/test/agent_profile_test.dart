@@ -232,6 +232,9 @@ void main() {
       decoded.systemPrompt,
       contains('language.serviceStatus.semanticFactsReady'),
     );
+    expect(decoded.systemPrompt, contains('semanticFeatureMatrix preferredSource'));
+    expect(decoded.systemPrompt, contains('fallbackActive'));
+    expect(decoded.systemPrompt, contains('conflictPolicy'));
     expect(
       decoded.systemPrompt,
       contains('language.serviceStatus.unavailablePrimaryCapabilities'),

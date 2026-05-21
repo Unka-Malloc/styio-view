@@ -750,6 +750,14 @@ void main() {
 
     expect(receivedRequest?.toolId, 'collectExtensionContext');
     expect(
+      find.byKey(const ValueKey('agent-tool-loop-runtime-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Tool loop runtime: complete · rounds 1/4'),
+      findsOneWidget,
+    );
+    expect(
       controller.toolCallTimeline.status,
       AgentToolCallTimelineStatus.complete,
     );

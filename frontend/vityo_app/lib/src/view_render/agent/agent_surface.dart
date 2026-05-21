@@ -1892,6 +1892,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
   late final TextEditingController _promptController;
   bool _applyingPatch = false;
   bool _dispatchingToolCalls = false;
+  AgentCodingToolLoopRuntimeReport? _lastToolLoopRuntimeReport;
   String? _lastCommandApplicationMessage;
   String? _recoveryDispatchMessage;
   AgentIdeCommandSuggestion? _lastRetryableCommandSuggestion;
@@ -1987,13 +1988,19 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
     }
     setState(() {
       _dispatchingToolCalls = true;
+      _lastToolLoopRuntimeReport = null;
     });
     try {
       final executor = _agentToolExecutor();
-      await const AgentCodingToolLoopRuntime().run(
+      final report = await const AgentCodingToolLoopRuntime().run(
         controller: widget.controller,
         executor: executor.execute,
       );
+      if (mounted) {
+        setState(() {
+          _lastToolLoopRuntimeReport = report;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -2519,6 +2526,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           controller.denyToolCallExecutionForProject(callId),
                         ),
                   dispatching: _dispatchingToolCalls,
+                  toolLoopRuntimeReport: _lastToolLoopRuntimeReport,
                   onRunReadyCalls:
                       toolCallExecutionPlan.status ==
                               AgentToolCallExecutionPlanStatus.ready &&
@@ -3383,6 +3391,7 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
     this.onRunReadyCalls,
     this.onReplayJournal,
     this.onDraftReview,
+    this.toolLoopRuntimeReport,
   });
 
   final AgentToolCallTimeline timeline;
@@ -3399,6 +3408,7 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   final VoidCallback? onRunReadyCalls;
   final VoidCallback? onReplayJournal;
   final VoidCallback? onDraftReview;
+  final AgentCodingToolLoopRuntimeReport? toolLoopRuntimeReport;
 
   @override
   Widget build(BuildContext context) {
@@ -3436,6 +3446,17 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
               Text(
                 'Replay plan: ${replayPlan.status.wireValue} · requests ${replayPlan.requests.length}',
                 style: theme.textTheme.bodySmall,
+              ),
+            if (toolLoopRuntimeReport != null)
+              Text(
+                'Tool loop runtime: ${toolLoopRuntimeReport!.status.wireValue} · rounds ${toolLoopRuntimeReport!.dispatchRoundCount}/${toolLoopRuntimeReport!.maxDispatchRounds}',
+                key: const ValueKey('agent-tool-loop-runtime-summary'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _toolLoopRuntimeStatusColor(
+                    theme,
+                    toolLoopRuntimeReport!.status,
+                  ),
+                ),
               ),
             for (final execution in executionPlan.executions.take(4)) ...[
               const SizedBox(height: 4),
@@ -3634,6 +3655,19 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
     }
     onDenyCallWithFeedback?.call(callId, normalized);
   }
+}
+
+Color _toolLoopRuntimeStatusColor(
+  ThemeData theme,
+  AgentCodingToolLoopRuntimeStatus status,
+) {
+  return switch (status) {
+    AgentCodingToolLoopRuntimeStatus.blocked ||
+    AgentCodingToolLoopRuntimeStatus.failed ||
+    AgentCodingToolLoopRuntimeStatus.limitReached => theme.colorScheme.error,
+    AgentCodingToolLoopRuntimeStatus.complete => theme.colorScheme.primary,
+    _ => theme.colorScheme.onSurfaceVariant,
+  };
 }
 
 class _AgentWorkspaceSnapshotReviewSurface extends StatelessWidget {

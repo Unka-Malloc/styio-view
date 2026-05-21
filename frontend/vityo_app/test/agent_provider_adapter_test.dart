@@ -253,7 +253,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      62,
+      63,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -716,6 +716,7 @@ void main() {
         contains('agent.recentDiagnosticSummaries'),
       );
       expect(systemMessage['content'], contains('agent.recoveryPlan'));
+      expect(systemMessage['content'], contains('agent.savedProviderProfiles'));
       expect(systemMessage['content'], contains('commands catalog'));
       expect(systemMessage['content'], contains('Styio-first skills'));
       expect(systemMessage['content'], contains('C++/Clang skills'));
@@ -992,7 +993,7 @@ void main() {
         contains('ideCapabilityClosure.isRuntimeMature'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 62);
+      expect(metadata['contextSchemaVersion'], 63);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

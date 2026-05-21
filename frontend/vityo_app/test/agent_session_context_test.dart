@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
+import 'package:vityo_app/src/agent/agent_prompt_profile_store.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_registry.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
@@ -512,7 +513,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 62);
+    expect(json['schemaVersion'], 63);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -1345,13 +1346,31 @@ void main() {
       selection: const SelectionState.collapsed(0),
       diagnostics: const <Diagnostic>[],
       recoveryPlan: recoveryPlan,
+      savedProviderProfiles: const <AgentPromptProfileManifestEntry>[
+        AgentPromptProfileManifestEntry(
+          key: 'cloud-key',
+          profileId: 'cloud',
+          displayName: 'Cloud Agent',
+          route: 'web-hosted',
+          protocol: 'openai-compatible',
+          model: 'gpt-test',
+          requiresCredential: true,
+        ),
+      ],
     );
 
     final agentJson = context.toJson()['agent']! as Map<String, Object?>;
     final recoveryJson = agentJson['recoveryPlan']! as Map<String, Object?>;
     final checkpointJson = recoveryJson['checkpoint']! as Map<String, Object?>;
+    final savedProfilesJson =
+        agentJson['savedProviderProfiles']! as List<Object?>;
+    final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 62);
+    expect(context.schemaVersion, 63);
+    expect(agentJson['savedProviderProfileCount'], 1);
+    expect(savedProfileJson['key'], 'cloud-key');
+    expect(savedProfileJson['profileId'], 'cloud');
+    expect(savedProfileJson['requiresCredential'], isTrue);
     expect(recoveryJson['status'], 'available');
     expect(recoveryJson['recommendedAction'], 'retrySameProvider');
     expect(
@@ -1730,7 +1749,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 62);
+    expect(json['schemaVersion'], 63);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2005,7 +2024,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 62);
+    expect(context.schemaVersion, 63);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

@@ -39,6 +39,9 @@ typedef AgentPromptProfileSync =
       required AgentPromptProfile profile,
     });
 
+typedef AgentSavedProviderProfileManifestLoader =
+    Future<AgentPromptProfileManifest> Function();
+
 typedef AgentBearerTokenSaver =
     Future<CredentialReference> Function({
       required String workspaceId,
@@ -82,6 +85,7 @@ class AgentProviderConfigurator {
     AgentProviderSelectionPlanner? selectProvider,
     AgentProviderExecutionResolver? resolveExecution,
     AgentPromptProfileSync? syncProfile,
+    AgentSavedProviderProfileManifestLoader? loadProfileManifest,
     AgentBearerTokenSaver? saveBearerToken,
     AgentProviderRetryExecutor? retryExecutor,
     AgentProviderResponseRetryTelemetrySink? retryTelemetrySink,
@@ -91,6 +95,7 @@ class AgentProviderConfigurator {
        _selectProvider = selectProvider,
        _resolveExecution = resolveExecution,
        _syncProfile = syncProfile,
+       _loadProfileManifest = loadProfileManifest,
        _saveBearerToken = saveBearerToken,
        _retryExecutor = retryExecutor,
        _retryTelemetrySink = retryTelemetrySink;
@@ -126,6 +131,9 @@ class AgentProviderConfigurator {
       resolveExecution: providerFactory.resolveExecution,
       retryExecutor: retryExecutor,
       retryTelemetrySink: retryTelemetrySink,
+      loadProfileManifest: () {
+        return profileStore.readProfileManifest(workspaceId: workspaceId);
+      },
       saveBearerToken:
           ({
             required workspaceId,
@@ -169,6 +177,7 @@ class AgentProviderConfigurator {
   final AgentProviderSelectionPlanner? _selectProvider;
   final AgentProviderExecutionResolver? _resolveExecution;
   final AgentPromptProfileSync? _syncProfile;
+  final AgentSavedProviderProfileManifestLoader? _loadProfileManifest;
   final AgentBearerTokenSaver? _saveBearerToken;
   final AgentProviderRetryExecutor? _retryExecutor;
   final AgentProviderResponseRetryTelemetrySink? _retryTelemetrySink;
@@ -354,6 +363,14 @@ class AgentProviderConfigurator {
         retryEnabled: false,
       );
     }
+  }
+
+  Future<AgentPromptProfileManifest> savedProfileManifest() async {
+    final loader = _loadProfileManifest;
+    if (loader == null) {
+      return const AgentPromptProfileManifest();
+    }
+    return loader();
   }
 
   AgentProviderAdapter _adapterWithRetry(

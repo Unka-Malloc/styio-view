@@ -526,6 +526,9 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
     this.agentCodingController.contextProvider = () => agentSessionContext;
     this.agentCodingController.addListener(_handleAgentCodingSessionChanged);
+    if (agentProviderConfigurator != null) {
+      unawaited(refreshAgentProviderProfileManifest());
+    }
     workspaceController.addListener(_handleWorkspaceChanged);
     editorController.addListener(_handleDocumentChanged);
     this.languageServiceStatus.addListener(_handleLanguageServiceStatusChanged);
@@ -637,6 +640,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   AgentWorkspaceSearchResultContext? _lastAgentWorkspaceSearch;
   AgentWorkspaceSymbolSearchResultContext? _lastAgentWorkspaceSymbolSearch;
   AgentCommandResultContext? _lastAgentIdeCommandResult;
+  AgentPromptProfileManifest _agentProviderProfileManifest =
+      const AgentPromptProfileManifest();
   WorkspaceFileCommandRouteResult? _pendingWorkspaceFileCommandConfirmation;
   WorkspaceEditPreview? _lastWorkspaceEditPreview;
   WorkspaceEditApplyResultViewModel? _lastWorkspaceEditApplyResult;
@@ -658,6 +663,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       List<NativeToolResultRecord>.unmodifiable(_nativeToolResults);
   AgentCommandResultContext? get lastAgentIdeCommandResult =>
       _lastAgentIdeCommandResult;
+  AgentPromptProfileManifest get agentProviderProfileManifest =>
+      _agentProviderProfileManifest;
   WorkspaceFileCommandRouteResult?
   get pendingWorkspaceFileCommandConfirmation =>
       _pendingWorkspaceFileCommandConfirmation;
@@ -945,7 +952,27 @@ class ShellRuntimeModel extends ChangeNotifier {
       clangCppVersionPreference: _clangCppVersionPreference,
       semanticPanelViewModels: semanticPanelViewModels,
       recoveryPlan: agentCodingController.sessionRecoveryPlan,
+      savedProviderProfiles: _agentProviderProfileManifest.entries,
     );
+  }
+
+  Future<AgentPromptProfileManifest>
+  refreshAgentProviderProfileManifest() async {
+    final configurator = agentProviderConfigurator;
+    if (configurator == null) {
+      _agentProviderProfileManifest = const AgentPromptProfileManifest();
+      return _agentProviderProfileManifest;
+    }
+    try {
+      _agentProviderProfileManifest = await configurator.savedProfileManifest();
+      notifyListeners();
+    } on Object catch (error) {
+      appendLog(
+        'Agent provider profile manifest refresh failed: '
+        '${sanitizeAgentError(error.toString())}',
+      );
+    }
+    return _agentProviderProfileManifest;
   }
 
   Future<List<SemanticSnapshotPanelEventState>> restoreSemanticPanelEvents({
@@ -1549,6 +1576,7 @@ class ShellRuntimeModel extends ChangeNotifier {
     final diagnosticsSnapshot = await refreshWorkspaceDiagnostics();
     final sourceControlSnapshot = await refreshSourceControlStatus();
     final projectLanguage = await collectProjectLanguageContext();
+    final profileManifest = await refreshAgentProviderProfileManifest();
     final workspaceEditPreview = await previewFirstProjectWorkspaceQuickFix();
     final changedPath = sourceControlSnapshot.changes.isNotEmpty
         ? sourceControlSnapshot.changes.first.path
@@ -1567,6 +1595,11 @@ class ShellRuntimeModel extends ChangeNotifier {
       'projectLanguage': projectLanguage,
       'languageServiceStatus': context.language.serviceStatus?.toJson(),
       'testing': context.testing.toJson(),
+      'savedProviderProfileCount': profileManifest.entries.length,
+      if (profileManifest.entries.isNotEmpty)
+        'savedProviderProfiles': profileManifest.entries
+            .map((profile) => profile.toJson())
+            .toList(growable: false),
       'dirtyDocumentIds': dirtyDocumentPaths,
       'openDocumentIds': workspaceController.openFilePaths,
       if (diffSnapshot != null) 'sourceControlDiff': diffSnapshot.toJson(),
@@ -5966,6 +5999,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       bearerToken: bearerToken,
       retryTelemetrySink: _publishAgentProviderRetryTelemetry,
     );
+    await refreshAgentProviderProfileManifest();
     appendLog(result.message);
     return result;
   }
@@ -5985,6 +6019,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       controller: agentCodingController,
       retryTelemetrySink: _publishAgentProviderRetryTelemetry,
     );
+    await refreshAgentProviderProfileManifest();
     appendLog(result.message);
     return result;
   }

@@ -18,6 +18,7 @@ import '../workspace/workspace.dart';
 import 'agent_coding_session_history_store.dart';
 import 'agent_coding_skill.dart';
 import 'agent_profile.dart';
+import 'agent_prompt_profile_store.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
@@ -124,6 +125,8 @@ class AgentSessionContext {
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
+    Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
+        const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
@@ -164,7 +167,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 62,
+      schemaVersion: 63,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -205,6 +208,7 @@ class AgentSessionContext {
                 providerExecutionResolution,
               ),
         recoveryPlan: recoveryPlan,
+        savedProviderProfiles: savedProviderProfiles,
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
         workspaceEdit: AgentWorkspaceEditContext.fromWorkspaceEditState(
@@ -358,6 +362,8 @@ class AgentSessionContext {
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
+    Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
+        const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
@@ -381,6 +387,9 @@ class AgentSessionContext {
     final recentDiagnosticSummaryList = recentDiagnosticSummaries.toList(
       growable: false,
     );
+    final savedProviderProfileList = savedProviderProfiles.toList(
+      growable: false,
+    );
     if (pendingPatch == null &&
         recentPatchProposalList.isEmpty &&
         lastCommandResult == null &&
@@ -393,6 +402,7 @@ class AgentSessionContext {
         providerSelectionPlan == null &&
         providerExecutionResolution == null &&
         recoveryPlan == null &&
+        savedProviderProfileList.isEmpty &&
         lastPatchApplication == null &&
         workspaceEdit == null) {
       final recentPatchApplicationList = recentPatchApplications.toList(
@@ -434,6 +444,9 @@ class AgentSessionContext {
                 providerExecutionResolution,
               ),
         recoveryPlan: recoveryPlan ?? agent.recoveryPlan,
+        savedProviderProfiles: savedProviderProfileList.isEmpty
+            ? agent.savedProviderProfiles
+            : savedProviderProfileList,
         lastPatchApplication: lastPatchApplication,
         recentPatchApplications: recentPatchApplications,
         workspaceEdit: workspaceEdit ?? agent.workspaceEdit,
@@ -484,6 +497,7 @@ class AgentCodingLoopContext {
     this.providerSelection,
     this.providerExecution,
     this.recoveryPlan,
+    this.savedProviderProfiles = const <AgentPromptProfileManifestEntry>[],
     this.lastPatchApplication,
     this.recentPatchApplications = const <AgentPatchApplicationContext>[],
     this.workspaceEdit,
@@ -503,6 +517,8 @@ class AgentCodingLoopContext {
     AgentProviderSelectionContext? providerSelection,
     AgentProviderExecutionContext? providerExecution,
     AgentCodingSessionRecoveryPlan? recoveryPlan,
+    Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
+        const <AgentPromptProfileManifestEntry>[],
     AgentPatchApplicationContext? lastPatchApplication,
     Iterable<AgentPatchApplicationContext> recentPatchApplications =
         const <AgentPatchApplicationContext>[],
@@ -527,6 +543,7 @@ class AgentCodingLoopContext {
       providerSelection: providerSelection,
       providerExecution: providerExecution,
       recoveryPlan: recoveryPlan,
+      savedProviderProfiles: savedProviderProfiles.toList(growable: false),
       lastPatchApplication: history.isEmpty ? null : history.first,
       recentPatchApplications: history,
       workspaceEdit: workspaceEdit,
@@ -545,6 +562,7 @@ class AgentCodingLoopContext {
   final AgentProviderSelectionContext? providerSelection;
   final AgentProviderExecutionContext? providerExecution;
   final AgentCodingSessionRecoveryPlan? recoveryPlan;
+  final List<AgentPromptProfileManifestEntry> savedProviderProfiles;
   final AgentPatchApplicationContext? lastPatchApplication;
   final List<AgentPatchApplicationContext> recentPatchApplications;
   final AgentWorkspaceEditContext? workspaceEdit;
@@ -573,6 +591,11 @@ class AgentCodingLoopContext {
       if (providerExecution != null)
         'providerExecution': providerExecution!.toJson(),
       if (recoveryPlan != null) 'recoveryPlan': recoveryPlan!.toJson(),
+      'savedProviderProfileCount': savedProviderProfiles.length,
+      if (savedProviderProfiles.isNotEmpty)
+        'savedProviderProfiles': savedProviderProfiles
+            .map((profile) => profile.toJson())
+            .toList(growable: false),
       if (lastPatchApplication != null)
         'lastPatchApplication': lastPatchApplication!.toJson(),
       if (recentPatchApplications.isNotEmpty)

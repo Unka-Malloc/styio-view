@@ -1918,6 +1918,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.lastProviderFailure, read it as the latest structured provider transport failure before proposing retry, failover, or provider reconfiguration.
 - If the IDE context includes agent.providerExecution, read status, selectedEndpointIndex, credentialReadiness, requiresCredential, and missingCredentialEndpointCount before assuming the current assistant is backed by a real provider instead of fallback or local-only execution.
 - If the IDE context includes agent.recoveryPlan, read status, recommendedAction, availableActions, and checkpoint before proposing provider retry, failover, replay, or unrelated new coding work after a failed agent request.
+- If agent.savedProviderProfiles is present, choose failoverAgentProvider input from those profile ids or keys instead of inventing a provider profile id.
 - If the IDE context includes agent.recentPatchApplications, read it as newest-first structured IDE patch application outcomes before deciding whether to retry, repair, or continue after a patch.
 - If the IDE context includes agent.lastPatchApplication, treat it as the latest structured IDE patch application outcome.
 - If agent.lastPatchApplication.skippedNoOpDocumentIds is non-empty, treat those documents as unchanged by the last patch attempt before retrying or proposing another patch.

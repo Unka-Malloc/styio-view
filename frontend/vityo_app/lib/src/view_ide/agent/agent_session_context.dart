@@ -492,6 +492,96 @@ class AgentCodingChangeReviewGate {
   }
 }
 
+enum AgentCodingAutonomyMode { proposalOnly, reviewBeforeApply, blocked }
+
+extension AgentCodingAutonomyModeX on AgentCodingAutonomyMode {
+  String get wireValue => switch (this) {
+    AgentCodingAutonomyMode.proposalOnly => 'proposalOnly',
+    AgentCodingAutonomyMode.reviewBeforeApply => 'reviewBeforeApply',
+    AgentCodingAutonomyMode.blocked => 'blocked',
+  };
+}
+
+class AgentCodingAutonomyPolicy {
+  const AgentCodingAutonomyPolicy({
+    required this.mode,
+    required this.canProposePatches,
+    required this.canApplyWithoutReview,
+    required this.requiresExplicitUserApproval,
+    this.reasons = const <String>[],
+    this.todoItems = const <String>[],
+  });
+
+  const AgentCodingAutonomyPolicy.proposalOnly()
+    : mode = AgentCodingAutonomyMode.proposalOnly,
+      canProposePatches = true,
+      canApplyWithoutReview = false,
+      requiresExplicitUserApproval = true,
+      reasons = const <String>[
+        'Agent may propose edits, but Vityo has no reviewed pending patch.',
+      ],
+      todoItems = const <String>[
+        'TODO: bind autonomy policy choices to Settings UI and workspace trust.',
+      ];
+
+  factory AgentCodingAutonomyPolicy.fromGates({
+    required AgentCodingExecutionReadiness readiness,
+    required AgentCodingChangeReviewGate changeReviewGate,
+  }) {
+    if (readiness.hasBlockingIssue ||
+        changeReviewGate.status == AgentCodingChangeReviewGateStatus.blocked) {
+      return AgentCodingAutonomyPolicy(
+        mode: AgentCodingAutonomyMode.blocked,
+        canProposePatches: false,
+        canApplyWithoutReview: false,
+        requiresExplicitUserApproval: true,
+        reasons: <String>[
+          'Agent coding is blocked by readiness or change review gate.',
+        ],
+        todoItems: <String>[
+          ...readiness.todoItems,
+          ...changeReviewGate.todoItems,
+          'TODO: surface blocked autonomy policy in the agent coding panel.',
+        ],
+      );
+    }
+    if (changeReviewGate.requiresUserReview) {
+      return AgentCodingAutonomyPolicy(
+        mode: AgentCodingAutonomyMode.reviewBeforeApply,
+        canProposePatches: true,
+        canApplyWithoutReview: false,
+        requiresExplicitUserApproval: true,
+        reasons: <String>[
+          'Generated changes must pass the Vityo review gate before apply.',
+        ],
+        todoItems: <String>[
+          ...changeReviewGate.todoItems,
+          'TODO: wire reviewed apply confirmation to WorkspaceEdit application.',
+        ],
+      );
+    }
+    return const AgentCodingAutonomyPolicy.proposalOnly();
+  }
+
+  final AgentCodingAutonomyMode mode;
+  final bool canProposePatches;
+  final bool canApplyWithoutReview;
+  final bool requiresExplicitUserApproval;
+  final List<String> reasons;
+  final List<String> todoItems;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'mode': mode.wireValue,
+      'canProposePatches': canProposePatches,
+      'canApplyWithoutReview': canApplyWithoutReview,
+      'requiresExplicitUserApproval': requiresExplicitUserApproval,
+      'reasons': reasons,
+      'todoItems': todoItems,
+    };
+  }
+}
+
 class AgentSessionContext {
   const AgentSessionContext({
     required this.schemaVersion,
@@ -999,6 +1089,7 @@ class AgentCodingLoopContext {
       canApplyPreview: false,
       requiresUserReview: false,
     ),
+    this.autonomyPolicy = const AgentCodingAutonomyPolicy.proposalOnly(),
     this.suggestedCommandIds = const <String>[],
   });
 
@@ -1037,6 +1128,16 @@ class AgentCodingLoopContext {
     final savedProviderProfileList = savedProviderProfiles.toList(
       growable: false,
     );
+    final effectiveChangeReviewGate =
+        changeReviewGate ??
+        AgentCodingChangeReviewGate.fromControllerState(
+          hasPendingPatch: pendingPatch != null,
+          hasWorkspaceEditPreview:
+              pendingPatch != null || workspaceEdit != null,
+          applyingPatch: false,
+          applyingIdeCommand: false,
+          executionReadiness: codingReadiness,
+        );
     return AgentCodingLoopContext(
       pendingPatch: pendingPatch,
       recentPatchProposals: recentPatchProposals.toList(growable: false),
@@ -1056,16 +1157,11 @@ class AgentCodingLoopContext {
       recentDiagnosticSummaries: recentDiagnosticSummaries.toList(
         growable: false,
       ),
-      changeReviewGate:
-          changeReviewGate ??
-          AgentCodingChangeReviewGate.fromControllerState(
-            hasPendingPatch: pendingPatch != null,
-            hasWorkspaceEditPreview:
-                pendingPatch != null || workspaceEdit != null,
-            applyingPatch: false,
-            applyingIdeCommand: false,
-            executionReadiness: codingReadiness,
-          ),
+      changeReviewGate: effectiveChangeReviewGate,
+      autonomyPolicy: AgentCodingAutonomyPolicy.fromGates(
+        readiness: codingReadiness,
+        changeReviewGate: effectiveChangeReviewGate,
+      ),
       suggestedCommandIds: _suggestedAgentCodingCommandIds(
         pendingIdeCommands: pendingIdeCommandList,
         lastProviderFailure: lastProviderFailure,
@@ -1092,6 +1188,7 @@ class AgentCodingLoopContext {
   final List<AgentCodingPlanContext> recentCodingPlans;
   final List<AgentDiagnosticSummaryContext> recentDiagnosticSummaries;
   final AgentCodingChangeReviewGate changeReviewGate;
+  final AgentCodingAutonomyPolicy autonomyPolicy;
   final List<String> suggestedCommandIds;
 
   Map<String, Object?> toJson() {
@@ -1132,6 +1229,7 @@ class AgentCodingLoopContext {
       if (workspaceEdit != null) 'workspaceEdit': workspaceEdit!.toJson(),
       if (changeReviewGate.status != AgentCodingChangeReviewGateStatus.idle)
         'changeReviewGate': changeReviewGate.toJson(),
+      'autonomyPolicy': autonomyPolicy.toJson(),
       if (recentCodingPlans.isNotEmpty)
         'recentCodingPlans': recentCodingPlans
             .map((plan) => plan.toJson())

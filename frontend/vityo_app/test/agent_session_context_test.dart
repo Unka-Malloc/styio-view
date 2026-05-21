@@ -2066,6 +2066,7 @@ void main() {
         agentJson['recentPatchProposals']! as List<Object?>;
     final changeReviewGate =
         agentJson['changeReviewGate']! as Map<String, Object?>;
+    final autonomyPolicy = agentJson['autonomyPolicy']! as Map<String, Object?>;
     final edits = pendingPatch['edits']! as List<Object?>;
     final firstEdit = edits.single! as Map<String, Object?>;
 
@@ -2095,6 +2096,10 @@ void main() {
         'confirmGeneratedPatchScope',
       ]),
     );
+    expect(autonomyPolicy['mode'], 'reviewBeforeApply');
+    expect(autonomyPolicy['canProposePatches'], isTrue);
+    expect(autonomyPolicy['canApplyWithoutReview'], isFalse);
+    expect(autonomyPolicy['requiresExplicitUserApproval'], isTrue);
   });
 
   test('agent session context serializes pending IDE command suggestions', () {

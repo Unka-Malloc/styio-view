@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'agent_tool_call_dispatcher.dart';
 import 'agent_tool_call_lifecycle.dart';
 
@@ -115,6 +117,9 @@ class AgentToolCallExecutionJournalEntry {
   }
 
   Map<String, Object?> toJson() {
+    final redactedInputText = _redactAgentToolJournalText(inputText);
+    final redactedResultSample = _redactAgentToolJournalText(resultSample);
+    final redactedMetadata = _redactAgentToolJournalData(metadata);
     return <String, Object?>{
       'callId': callId,
       'toolId': toolId,
@@ -124,14 +129,14 @@ class AgentToolCallExecutionJournalEntry {
       'hasDispatchInput': hasDispatchInput,
       'replayCandidate': replayCandidate,
       'inputLength': inputText.length,
-      if (inputText.isNotEmpty) 'inputText': inputText,
-      if (resultSample.isNotEmpty) 'resultSample': resultSample,
-      if (errorMessage.isNotEmpty) 'errorMessage': errorMessage,
-      if (permissionReason.isNotEmpty) 'permissionReason': permissionReason,
+      if (inputText.isNotEmpty) 'inputText': redactedInputText,
+      if (resultSample.isNotEmpty) 'resultSample': redactedResultSample,
+      if (errorMessage.isNotEmpty)
+        'errorMessage': _redactAgentToolJournalText(errorMessage),
+      if (permissionReason.isNotEmpty)
+        'permissionReason': _redactAgentToolJournalText(permissionReason),
       'eventCount': eventCount,
-      if (metadata.isNotEmpty) 'metadata': metadata,
-      'TODO':
-          'Redact sensitive tool input fields before this journal is persisted beyond the workspace recovery store.',
+      if (redactedMetadata.isNotEmpty) 'metadata': redactedMetadata,
     };
   }
 }
@@ -353,4 +358,100 @@ String _sample(String value, {int maxLength = 20000}) {
     return value;
   }
   return value.substring(0, maxLength);
+}
+
+const _agentToolJournalRedacted = '[redacted]';
+
+final _sensitiveJournalKeyWords = <String>{
+  'authorization',
+  'bearer',
+  'credential',
+  'credentials',
+  'password',
+  'passwd',
+  'token',
+  'apikey',
+  'secret',
+  'privatekey',
+  'accesskey',
+  'refreshtoken',
+};
+
+bool _isSensitiveAgentToolJournalKey(String key) {
+  final normalized = key.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  if (_sensitiveJournalKeyWords.contains(normalized)) {
+    return true;
+  }
+  return _sensitiveJournalKeyWords.any(
+    (word) =>
+        normalized.endsWith(word) ||
+        (word == 'secret' && normalized.contains(word)),
+  );
+}
+
+Map<String, Object?> _redactAgentToolJournalData(
+  Map<String, Object?> metadata,
+) {
+  return <String, Object?>{
+    for (final entry in metadata.entries)
+      entry.key: _redactAgentToolJournalValue(
+        entry.value,
+        parentKey: entry.key,
+      ),
+  };
+}
+
+Object? _redactAgentToolJournalValue(Object? value, {String? parentKey}) {
+  if (parentKey != null && _isSensitiveAgentToolJournalKey(parentKey)) {
+    return _agentToolJournalRedacted;
+  }
+  if (value is Map) {
+    return <String, Object?>{
+      for (final entry in value.entries)
+        entry.key.toString(): _redactAgentToolJournalValue(
+          entry.value,
+          parentKey: entry.key.toString(),
+        ),
+    };
+  }
+  if (value is Iterable) {
+    return value
+        .map((item) => _redactAgentToolJournalValue(item))
+        .toList(growable: false);
+  }
+  if (value is String) {
+    return _redactAgentToolJournalText(value);
+  }
+  return value;
+}
+
+String _redactAgentToolJournalText(String value) {
+  if (value.isEmpty) {
+    return value;
+  }
+  try {
+    final decoded = jsonDecode(value);
+    return jsonEncode(_redactAgentToolJournalValue(decoded));
+  } on FormatException {
+    return _redactAgentToolJournalFreeText(value);
+  }
+}
+
+String _redactAgentToolJournalFreeText(String value) {
+  var redacted = value.replaceAllMapped(
+    RegExp(r'(Authorization\s*:\s*Bearer\s+)[^\r\n,;]+', caseSensitive: false),
+    (match) => '${match.group(1)}$_agentToolJournalRedacted',
+  );
+  redacted = redacted.replaceAll(
+    RegExp(r'Bearer\s+[^\s,;}\]]+', caseSensitive: false),
+    'Bearer $_agentToolJournalRedacted',
+  );
+  redacted = redacted.replaceAllMapped(
+    RegExp(
+      r'\b((?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|passwd|secret|credential|private[_-]?key|access[_-]?key)\b\s*[:=]\s*)("[^"]*"|[^\s,;}\]]+)',
+      caseSensitive: false,
+    ),
+    (match) => '${match.group(1)}$_agentToolJournalRedacted',
+  );
+  return redacted;
 }

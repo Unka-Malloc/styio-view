@@ -91,6 +91,8 @@ void main() {
         status: AgentProviderExecutionResolutionStatus.blocked,
         endpoints: <AgentProviderEndpointReadiness>[],
       );
+      final buffer = RuntimeOutputLiveBuffer();
+      addTearDown(buffer.dispose);
       final adapter = _FakeAgentProviderAdapter(
         response: const AgentProviderResponseEnvelope(
           requestId: 'agent-blocked',
@@ -106,6 +108,7 @@ void main() {
         adapter: adapter,
         contextProvider: _context,
         providerExecutionResolution: resolution,
+        runtimeOutputBuffer: buffer,
       );
 
       controller.updatePrompt('Try to dispatch.');
@@ -124,6 +127,10 @@ void main() {
       expect(adapter.requests, isEmpty);
       expect(controller.lastError, contains('Agent request blocked'));
       expect(controller.lastError, contains('agent.provider.route.blocked'));
+      final event = buffer.snapshot.events.single;
+      expect(event.channelId, 'agent.activity');
+      expect(event.metadata['outcome'], 'failed');
+      expect(event.message, contains('agent.provider.route.blocked'));
     },
   );
 

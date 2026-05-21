@@ -693,6 +693,10 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('blocked dispatch runtime activity evidence'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('AgentCodingChangeReviewGate patch review facts'),
     );
     expect(

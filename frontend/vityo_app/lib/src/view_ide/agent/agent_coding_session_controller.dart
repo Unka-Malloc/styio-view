@@ -447,6 +447,18 @@ class AgentCodingSessionController extends ChangeNotifier {
     );
     if (!readiness.canDispatchProviderRequest) {
       _lastError = sanitizeAgentError(_agentReadinessBlockMessage(readiness));
+      final blockedAt = DateTime.now().toUtc();
+      await _appendAgentCodingSessionHistory(
+        AgentCodingSessionHistoryRecord.failure(
+          requestId: _nextRequestId(),
+          profile: profile,
+          providerKind: adapter.kind,
+          prompt: prompt,
+          errorMessage: _lastError!,
+          createdAt: blockedAt,
+          completedAt: blockedAt,
+        ),
+      );
       notifyListeners();
       return null;
     }

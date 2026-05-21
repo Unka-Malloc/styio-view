@@ -198,6 +198,10 @@ void main() {
     );
     expect(
       decoded.systemPrompt,
+      contains('metadata.projectLanguage.syntaxValidationAuthority'),
+    );
+    expect(
+      decoded.systemPrompt,
       contains('metadata.projectLanguage.syntaxValidationReport'),
     );
     expect(

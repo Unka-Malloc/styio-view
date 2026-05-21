@@ -333,6 +333,19 @@ void main() {
     );
     expect(entriesById['toolchain.manager']?.runtimeMaturityBlocking, isFalse);
     expect(
+      entriesById['extension.manifest']?.summary,
+      contains('ExtensionActivationPlan'),
+    );
+    expect(entriesById['extension.manifest']?.runtimeMaturityBlocking, isFalse);
+    expect(
+      entriesById['extension.marketplace']?.summary,
+      contains('ExtensionMarketplaceUpdatePlan'),
+    );
+    expect(
+      entriesById['extension.marketplace']?.runtimeMaturityBlocking,
+      isFalse,
+    );
+    expect(
       entriesById['interaction.testing']?.status,
       IdeCapabilityStatus.scaffolded,
     );

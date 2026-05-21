@@ -105,6 +105,43 @@ void main() {
     },
   );
 
+  test('extension manifest activation plan gates enabled and trusted ids', () {
+    final registry = ExtensionManifestRegistry()
+      ..register(
+        const ExtensionManifest(
+          extensionId: 'styio.language',
+          displayName: 'Styio Language',
+          version: '1.0.0',
+          publisher: 'vityo',
+          entrypoint: 'styio_language.dart',
+          activationEvents: <String>['onLanguage:styio'],
+          trustedByDefault: true,
+        ),
+      )
+      ..register(
+        const ExtensionManifest(
+          extensionId: 'external.theme',
+          displayName: 'External Theme',
+          version: '1.0.0',
+          publisher: 'external',
+          entrypoint: 'theme.dart',
+          activationEvents: <String>['onLanguage:styio'],
+        ),
+      );
+
+    final plan = ExtensionActivationPlan.fromRegistry(
+      registry: registry,
+      event: 'onLanguage:styio',
+      enabledExtensionIds: const <String>['styio.language', 'external.theme'],
+      trustedExtensionIds: const <String>['styio.language'],
+    );
+
+    expect(plan.canActivate, isTrue);
+    expect(plan.activatableExtensionIds, <String>['styio.language']);
+    expect(plan.blockedExtensionIds, <String>['external.theme']);
+    expect(plan.toJson()['blockedCount'], 1);
+  });
+
   test(
     'extension manifest registry persists through Foundation DataStore',
     () async {

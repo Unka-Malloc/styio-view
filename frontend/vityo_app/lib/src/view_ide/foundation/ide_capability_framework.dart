@@ -609,9 +609,10 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/module_host',
           summary:
-              'Module manifests can be projected into stable extension manifests with activation events, contribution points, capability flags, registry lookup, Foundation DataStore persistence, extension activation sessions, persisted activation history, lifecycle snapshots, lifecycle hook catalogs/runners, host isolation plans, trust-policy gating, host supervisor snapshots, ExtensionHostSupervisorExecutionBridge runtime dispatch, activation telemetry events, theme/view contribution catalogs, and contribution route manifests for target registries.',
+              'Module manifests can be projected into stable extension manifests with activation events, ExtensionActivationPlan enabled/trusted gating, contribution points, capability flags, registry lookup, Foundation DataStore persistence, extension activation sessions, persisted activation history, lifecycle snapshots, lifecycle hook catalogs/runners, host isolation plans, trust-policy gating, host supervisor snapshots, ExtensionHostSupervisorExecutionBridge runtime dispatch, activation telemetry events, theme/view contribution catalogs, and contribution route manifests for target registries.',
           todo:
               'TODO: bind ExtensionHostSupervisorExecutionBridge dispatch results to concrete process/service sandbox launchers and activation telemetry UI.',
+          runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code extension manifest',
             'Theia extension model',
@@ -624,9 +625,10 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/module_host',
           summary:
-              'Extensions surface is wired to visible and mounted module manifests, lifecycle state, enable/disable/trust actions, update flags, refreshModules handoff, rendered marketplace index search results, install-plan controls, install execution steps, package download/verification executor contracts, manifest registration after verified install, signature verification policy gates, lifecycle policy decisions, host-isolation planning, and Foundation DataStore-backed marketplace cache.',
+              'Extensions surface is wired to visible and mounted module manifests, lifecycle state, enable/disable/trust actions, update flags, ExtensionMarketplaceUpdatePlan version comparison, refreshModules handoff, rendered marketplace index search results, install-plan controls, install execution steps, package download/verification executor contracts, manifest registration after verified install, signature verification policy gates, lifecycle policy decisions, host-isolation planning, and Foundation DataStore-backed marketplace cache.',
           todo:
               'TODO: bind marketplace executor to concrete network/cache IO, add update download execution, and persist lifecycle policy choices.',
+          runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code extension gallery',
             'IntelliJ plugin repository',

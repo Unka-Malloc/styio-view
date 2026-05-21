@@ -73,6 +73,42 @@ void main() {
     );
   });
 
+  test(
+    'extension marketplace update plan compares installed listing versions',
+    () {
+      const installed = ExtensionManifest(
+        extensionId: 'styio.language',
+        displayName: 'Styio Language',
+        version: '1.0.0',
+        publisher: 'vityo',
+        entrypoint: 'styio_language.dart',
+      );
+      const listing = ExtensionMarketplaceListing(
+        manifest: ExtensionManifest(
+          extensionId: 'styio.language',
+          displayName: 'Styio Language',
+          version: '1.1.0',
+          publisher: 'vityo',
+          entrypoint: 'styio_language.dart',
+        ),
+        sourceUri: 'https://marketplace.vityo.invalid/styio.language-1.1.0.zip',
+        verified: true,
+      );
+      final registry = ExtensionManifestRegistry()..register(installed);
+
+      final plan = ExtensionMarketplaceUpdatePlan.fromListing(
+        listing: listing,
+        installedRegistry: registry,
+      );
+
+      expect(plan.status, ExtensionMarketplaceUpdateStatus.updateAvailable);
+      expect(plan.canUpdate, isTrue);
+      expect(plan.installedVersion, '1.0.0');
+      expect(plan.availableVersion, '1.1.0');
+      expect(plan.toJson()['status'], 'update-available');
+    },
+  );
+
   test('extension marketplace installer composes execution steps', () {
     const listing = ExtensionMarketplaceListing(
       manifest: ExtensionManifest(

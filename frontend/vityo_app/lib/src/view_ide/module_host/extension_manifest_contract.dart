@@ -248,6 +248,65 @@ class ExtensionManifestRegistry {
   }
 }
 
+class ExtensionActivationPlan {
+  const ExtensionActivationPlan({
+    required this.event,
+    required this.candidates,
+    required this.activatableExtensionIds,
+    required this.blockedExtensionIds,
+  });
+
+  factory ExtensionActivationPlan.fromRegistry({
+    required ExtensionManifestRegistry registry,
+    required String event,
+    Iterable<String> enabledExtensionIds = const <String>[],
+    Iterable<String> trustedExtensionIds = const <String>[],
+  }) {
+    final enabled = enabledExtensionIds.toSet();
+    final trusted = trustedExtensionIds.toSet();
+    final candidates = registry.activationCandidates(event);
+    final activatableIds = <String>[];
+    final blockedIds = <String>[];
+    for (final candidate in candidates) {
+      final enabledForActivation =
+          enabled.isEmpty || enabled.contains(candidate.extensionId);
+      final trustedForActivation =
+          candidate.trustedByDefault || trusted.contains(candidate.extensionId);
+      if (enabledForActivation && trustedForActivation) {
+        activatableIds.add(candidate.extensionId);
+      } else {
+        blockedIds.add(candidate.extensionId);
+      }
+    }
+    return ExtensionActivationPlan(
+      event: event,
+      candidates: List<ExtensionManifest>.unmodifiable(candidates),
+      activatableExtensionIds: List<String>.unmodifiable(activatableIds),
+      blockedExtensionIds: List<String>.unmodifiable(blockedIds),
+    );
+  }
+
+  final String event;
+  final List<ExtensionManifest> candidates;
+  final List<String> activatableExtensionIds;
+  final List<String> blockedExtensionIds;
+
+  bool get canActivate => activatableExtensionIds.isNotEmpty;
+  int get candidateCount => candidates.length;
+  int get blockedCount => blockedExtensionIds.length;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'event': event,
+      'candidateCount': candidateCount,
+      'activatableExtensionIds': activatableExtensionIds,
+      'blockedExtensionIds': blockedExtensionIds,
+      'blockedCount': blockedCount,
+      'canActivate': canActivate,
+    };
+  }
+}
+
 class ExtensionManifestRegistryStore {
   ExtensionManifestRegistryStore.fromDataStore({
     required FoundationDataStore dataStore,

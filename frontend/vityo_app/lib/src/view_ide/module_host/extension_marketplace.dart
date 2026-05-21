@@ -127,6 +127,105 @@ class ExtensionInstallPlan {
   }
 }
 
+enum ExtensionMarketplaceUpdateStatus {
+  updateAvailable,
+  upToDate,
+  notInstalled,
+  blockedInvalidListing,
+}
+
+extension ExtensionMarketplaceUpdateStatusX
+    on ExtensionMarketplaceUpdateStatus {
+  String get wireValue {
+    return switch (this) {
+      ExtensionMarketplaceUpdateStatus.updateAvailable => 'update-available',
+      ExtensionMarketplaceUpdateStatus.upToDate => 'up-to-date',
+      ExtensionMarketplaceUpdateStatus.notInstalled => 'not-installed',
+      ExtensionMarketplaceUpdateStatus.blockedInvalidListing =>
+        'blocked-invalid-listing',
+    };
+  }
+}
+
+class ExtensionMarketplaceUpdatePlan {
+  const ExtensionMarketplaceUpdatePlan({
+    required this.extensionId,
+    required this.status,
+    required this.installedVersion,
+    required this.availableVersion,
+    required this.message,
+    this.listing,
+  });
+
+  factory ExtensionMarketplaceUpdatePlan.fromListing({
+    required ExtensionMarketplaceListing listing,
+    required ExtensionManifestRegistry installedRegistry,
+  }) {
+    if (!listing.valid) {
+      return ExtensionMarketplaceUpdatePlan(
+        extensionId: listing.extensionId,
+        status: ExtensionMarketplaceUpdateStatus.blockedInvalidListing,
+        installedVersion: '',
+        availableVersion: listing.manifest.version,
+        message: 'Extension update blocked: marketplace listing is invalid.',
+        listing: listing,
+      );
+    }
+    final installed = installedRegistry.lookup(listing.extensionId);
+    if (installed == null) {
+      return ExtensionMarketplaceUpdatePlan(
+        extensionId: listing.extensionId,
+        status: ExtensionMarketplaceUpdateStatus.notInstalled,
+        installedVersion: '',
+        availableVersion: listing.manifest.version,
+        message: 'Extension is not installed.',
+        listing: listing,
+      );
+    }
+    if (installed.version == listing.manifest.version) {
+      return ExtensionMarketplaceUpdatePlan(
+        extensionId: listing.extensionId,
+        status: ExtensionMarketplaceUpdateStatus.upToDate,
+        installedVersion: installed.version,
+        availableVersion: listing.manifest.version,
+        message: 'Extension ${listing.extensionId} is up to date.',
+        listing: listing,
+      );
+    }
+    return ExtensionMarketplaceUpdatePlan(
+      extensionId: listing.extensionId,
+      status: ExtensionMarketplaceUpdateStatus.updateAvailable,
+      installedVersion: installed.version,
+      availableVersion: listing.manifest.version,
+      message:
+          'Extension ${listing.extensionId} can update ${installed.version} -> ${listing.manifest.version}.',
+      listing: listing,
+    );
+  }
+
+  final String extensionId;
+  final ExtensionMarketplaceUpdateStatus status;
+  final String installedVersion;
+  final String availableVersion;
+  final String message;
+  final ExtensionMarketplaceListing? listing;
+
+  bool get canUpdate =>
+      status == ExtensionMarketplaceUpdateStatus.updateAvailable;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'status': status.wireValue,
+      'installedVersion': installedVersion,
+      'availableVersion': availableVersion,
+      'message': message,
+      'canUpdate': canUpdate,
+      if (listing != null) 'listing': listing!.toJson(),
+    };
+  }
+}
+
 enum ExtensionInstallExecutionStatus {
   ready,
   alreadyInstalled,

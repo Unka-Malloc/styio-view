@@ -189,6 +189,10 @@ void main() {
       find.text('Last validation: partial · pipeline running 1/5 · next runTests'),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('agent-recovery-continue-validation')),
+      findsOneWidget,
+    );
     expect(find.text('Fail over provider'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-recovery-command-failoverProvider')),
@@ -211,6 +215,14 @@ void main() {
           ?.text,
       'Recover this failed prompt.',
     );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-recovery-continue-validation')),
+    );
+    await tester.pump();
+
+    expect(appliedRecoveryCommand?.commandId, 'runTests');
 
     await _tapVisible(
       tester,

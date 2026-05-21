@@ -394,6 +394,21 @@ String? _recoveryValidationSummary(AgentCodingSessionHistory history) {
   return 'Last validation: $resultStatus · pipeline $pipelineStatus$progress$next';
 }
 
+String? _recoveryValidationNextCommandId(AgentCodingSessionHistory history) {
+  if (history.records.isEmpty) {
+    return null;
+  }
+  final latest = history.records.first;
+  final validationPipeline = _agentSurfaceMetadataObject(
+    latest.metadata['validationPipeline'],
+  );
+  final nextCommandId = validationPipeline['nextCommandId'] as String?;
+  if (nextCommandId == null || nextCommandId.trim().isEmpty) {
+    return null;
+  }
+  return nextCommandId;
+}
+
 Map<String, Object?> _agentSurfaceMetadataObject(Object? value) {
   if (value is Map<String, Object?>) {
     return value;
@@ -2117,6 +2132,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final recoveryValidationSummary = _recoveryValidationSummary(
           controller.sessionHistorySnapshot,
         );
+        final recoveryValidationCommandId = _recoveryValidationNextCommandId(
+          controller.sessionHistorySnapshot,
+        );
 
         return Container(
           key: const ValueKey('agent-prompt-section'),
@@ -2344,6 +2362,32 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                      if (recoveryValidationCommandId != null) ...[
+                        const SizedBox(height: 8),
+                        FilledButton.icon(
+                          key: const ValueKey(
+                            'agent-recovery-continue-validation',
+                          ),
+                          onPressed:
+                              widget.onApplyIdeCommandSuggestion == null ||
+                                  applyingAction ||
+                                  controller.sending
+                              ? null
+                              : () => unawaited(
+                                  _applyIdeCommandSuggestion(
+                                    AgentIdeCommandSuggestion(
+                                      commandId: recoveryValidationCommandId,
+                                      reason:
+                                          'Continue validation from the latest recovered agent history.',
+                                    ),
+                                  ),
+                                ),
+                          icon: const Icon(Icons.play_arrow),
+                          label: Text(
+                            'Continue Validation: $recoveryValidationCommandId',
                           ),
                         ),
                       ],

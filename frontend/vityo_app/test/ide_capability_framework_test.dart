@@ -617,6 +617,29 @@ void main() {
     );
     expect(
       entriesById['agent.coding-loop']?.summary,
+      contains('AgentCodingExecutionReadiness issue facts'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('AgentCodingChangeReviewGate patch review facts'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('AgentCodingAutonomyPolicy review-before-apply contracts'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains(
+        'AgentCodingValidationPlan and '
+        'AgentCodingValidationCommandPlan registered command routing',
+      ),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
+      contains('provider adapter coding gate metadata summaries'),
+    );
+    expect(
+      entriesById['agent.coding-loop']?.summary,
       contains('checkpoint result prompt replay'),
     );
     expect(

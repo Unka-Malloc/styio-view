@@ -93,11 +93,13 @@ class SemanticSnapshotProviderResult {
     required this.snapshot,
     required this.source,
     required this.message,
+    this.codeActionFactCount = 0,
   });
 
   final SemanticSnapshot snapshot;
   final SemanticSnapshotProviderSource source;
   final String message;
+  final int codeActionFactCount;
 
   bool get usedFallback =>
       source == SemanticSnapshotProviderSource.localBuilderFallback;
@@ -106,6 +108,7 @@ class SemanticSnapshotProviderResult {
     return SemanticSnapshotFeatureMatrix.fromSnapshot(
       snapshot: snapshot,
       source: source,
+      codeActionFactCount: codeActionFactCount,
     );
   }
 
@@ -118,6 +121,7 @@ class SemanticSnapshotProviderResult {
       'tokenCount': snapshot.tokens.length,
       'elementCount': snapshot.elements.length,
       'referenceCount': snapshot.references.length,
+      'codeActionFactCount': codeActionFactCount,
       'usedFallback': usedFallback,
       'featureMatrix': featureMatrix.toJson(),
     };
@@ -156,6 +160,7 @@ class SemanticSnapshotFeatureMatrix {
   factory SemanticSnapshotFeatureMatrix.fromSnapshot({
     required SemanticSnapshot snapshot,
     required SemanticSnapshotProviderSource source,
+    int codeActionFactCount = 0,
   }) {
     final hasTokens = snapshot.tokens.isNotEmpty;
     final hasElements = snapshot.elements.isNotEmpty;
@@ -228,12 +233,15 @@ class SemanticSnapshotFeatureMatrix {
               ? 'StyioService-backed resolved elements and references are available.'
               : 'Rename safety must come from StyioService semantic facts.',
         ),
-        const SemanticSnapshotFeatureSupport(
+        SemanticSnapshotFeatureSupport(
           feature: SemanticSnapshotConsumerFeature.codeActions,
-          available: false,
-          confidence: SemanticSnapshotFeatureConfidence.unavailable,
-          reason:
-              'Code actions require StyioService raw edit facts, not just snapshot facts.',
+          available: codeActionFactCount > 0,
+          confidence: codeActionFactCount > 0
+              ? SemanticSnapshotFeatureConfidence.serviceBacked
+              : SemanticSnapshotFeatureConfidence.unavailable,
+          reason: codeActionFactCount > 0
+              ? 'StyioService raw edit code action facts are available.'
+              : 'Code actions require StyioService raw edit facts, not just snapshot facts.',
         ),
       ],
     );
@@ -507,12 +515,21 @@ class SemanticSnapshotProvider {
   final bool allowLocalBuilderFallback;
 
   SemanticSnapshotProviderResult snapshotFor(DocumentState document) {
-    final serviceSnapshot = languageService.semanticSnapshot(document);
+    final serviceAnalysis = languageService.analyzeDocument(document);
+    final serviceSnapshot = SemanticSnapshot.fromAnalysis(
+      document: document,
+      analysis: serviceAnalysis,
+    );
+    final codeActionFactCount = _codeActionFactCount(
+      document: document,
+      diagnostics: serviceAnalysis.diagnostics,
+    );
     if (!_shouldUseFallback(document, serviceSnapshot)) {
       return SemanticSnapshotProviderResult(
         snapshot: serviceSnapshot,
         source: SemanticSnapshotProviderSource.serviceAnalysis,
         message: 'Semantic snapshot produced from StyioService analysis facts.',
+        codeActionFactCount: codeActionFactCount,
       );
     }
 
@@ -523,6 +540,7 @@ class SemanticSnapshotProvider {
         source: SemanticSnapshotProviderSource.serviceAnalysis,
         message:
             'Semantic snapshot kept service analysis facts; local fallback produced no additional semantic facts.',
+        codeActionFactCount: codeActionFactCount,
       );
     }
 
@@ -531,7 +549,21 @@ class SemanticSnapshotProvider {
       source: SemanticSnapshotProviderSource.localBuilderFallback,
       message:
           'TODO: replace local semantic snapshot fallback once StyioService emits complete symbol and reference facts.',
+      codeActionFactCount: codeActionFactCount,
     );
+  }
+
+  int _codeActionFactCount({
+    required DocumentState document,
+    required Iterable<Diagnostic> diagnostics,
+  }) {
+    var count = 0;
+    for (final diagnostic in diagnostics) {
+      count += languageService
+          .quickFixesForDiagnostic(document, diagnostic)
+          .length;
+    }
+    return count;
   }
 
   SemanticSnapshotCodeActionResult codeActionsForDiagnostic({

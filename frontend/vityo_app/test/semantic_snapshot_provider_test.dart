@@ -186,12 +186,27 @@ void main() {
         );
     const provider = SemanticSnapshotProvider(languageService: service);
 
+    final snapshotResult = provider.snapshotFor(document);
     final result = provider.codeActionsForDiagnostic(
       document: document,
       diagnostic: diagnostic,
     );
     final json = result.toJson();
 
+    expect(snapshotResult.codeActionFactCount, 1);
+    expect(
+      snapshotResult.featureMatrix.supportsFeature(
+        SemanticSnapshotConsumerFeature.codeActions,
+      ),
+      isTrue,
+    );
+    expect(
+      snapshotResult.featureMatrix
+          .supportFor(SemanticSnapshotConsumerFeature.codeActions)
+          .confidence,
+      SemanticSnapshotFeatureConfidence.serviceBacked,
+    );
+    expect(snapshotResult.toJson()['codeActionFactCount'], 1);
     expect(result.source, SemanticSnapshotProviderSource.serviceAnalysis);
     expect(result.available, isTrue);
     expect(result.actions.single.diagnosticCode, 'local.unclosed-delimiter');

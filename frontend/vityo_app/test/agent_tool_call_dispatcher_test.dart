@@ -211,6 +211,70 @@ void main() {
     expect(output['checkpoint']['schemaVersion'], isA<int>());
     expect(output['checkpoint']['workspace'], isA<Map<Object?, Object?>>());
   });
+
+  test('agent builtin executor runs registered IDE commands', () async {
+    AgentIdeCommandSuggestion? suggestion;
+    final executor = AgentBuiltinToolExecutor(
+      context: _context(),
+      ideCommandRunner: (incoming) async {
+        suggestion = incoming;
+        return AgentCommandResultContext(
+          commandId: incoming.commandId,
+          input: incoming.input,
+          applied: true,
+          message: 'runTests completed',
+          completedAt: DateTime.utc(2026, 5, 22),
+        );
+      },
+    );
+    final result = await executor.execute(
+      AgentToolCallDispatchRequest(
+        callId: 'call-command',
+        toolId: 'runIdeCommand',
+        inputText: jsonEncode(<String, Object?>{'commandId': 'runTests'}),
+      ),
+    );
+    final output = jsonDecode(result.output);
+
+    expect(result.success, isTrue);
+    expect(suggestion?.commandId, 'runTests');
+    expect(output['source'], 'ide-command-runner');
+    expect(output['result']['commandId'], 'runTests');
+    expect(output['result']['message'], 'runTests completed');
+  });
+
+  test('agent builtin executor rejects unregistered IDE commands', () async {
+    final executor = AgentBuiltinToolExecutor(
+      context: _context(),
+      ideCommandRunner: (_) async {
+        throw StateError('should not run');
+      },
+    );
+    final result = await executor.execute(
+      AgentToolCallDispatchRequest(
+        callId: 'call-command',
+        toolId: 'runIdeCommand',
+        inputText: jsonEncode(<String, Object?>{'commandId': 'missingCommand'}),
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.message, contains('not registered'));
+  });
+
+  test('agent builtin executor requires IDE command runner', () async {
+    final executor = AgentBuiltinToolExecutor(context: _context());
+    final result = await executor.execute(
+      AgentToolCallDispatchRequest(
+        callId: 'call-command',
+        toolId: 'runIdeCommand',
+        inputText: jsonEncode(<String, Object?>{'commandId': 'runTests'}),
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.message, contains('no AgentIdeCommandToolRunner'));
+  });
 }
 
 Future<AgentToolCallDispatchReport> _dispatchBuiltinRead(

@@ -133,6 +133,13 @@ void main() {
               'progressNumerator': 1,
               'progressDenominator': 5,
             },
+            'validationFailedCommandResults': <Object?>[
+              <String, Object?>{
+                'commandId': 'runTests',
+                'applied': false,
+                'message': 'runTests failed.',
+              },
+            ],
           },
         ),
       ],
@@ -192,6 +199,10 @@ void main() {
     );
     expect(
       find.text('Validation failed commands: runTests'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Failure evidence: runTests · runTests failed.'),
       findsOneWidget,
     );
     expect(

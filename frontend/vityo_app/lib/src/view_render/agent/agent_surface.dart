@@ -426,6 +426,26 @@ List<String> _recoveryValidationFailedCommandIds(
   return const <String>[];
 }
 
+String? _recoveryValidationFailureEvidence(
+  AgentCodingSessionHistory history,
+) {
+  if (history.records.isEmpty) {
+    return null;
+  }
+  final latest = history.records.first;
+  final failedResults = latest.metadata['validationFailedCommandResults'];
+  if (failedResults is! Iterable || failedResults.isEmpty) {
+    return null;
+  }
+  final firstResult = _agentSurfaceMetadataObject(failedResults.first);
+  final commandId = firstResult['commandId'] as String?;
+  final message = firstResult['message'] as String?;
+  if (commandId == null || message == null || message.trim().isEmpty) {
+    return null;
+  }
+  return 'Failure evidence: $commandId · $message';
+}
+
 Map<String, Object?> _agentSurfaceMetadataObject(Object? value) {
   if (value is Map<String, Object?>) {
     return value;
@@ -2156,6 +2176,10 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
             _recoveryValidationFailedCommandIds(
               controller.sessionHistorySnapshot,
             );
+        final recoveryValidationFailureEvidence =
+            _recoveryValidationFailureEvidence(
+              controller.sessionHistorySnapshot,
+            );
 
         return Container(
           key: const ValueKey('agent-prompt-section'),
@@ -2423,6 +2447,18 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                             color: theme.colorScheme.error,
                           ),
                         ),
+                        if (recoveryValidationFailureEvidence != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            recoveryValidationFailureEvidence,
+                            key: const ValueKey(
+                              'agent-recovery-validation-failure-evidence',
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         OutlinedButton.icon(
                           key: const ValueKey(

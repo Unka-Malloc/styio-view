@@ -343,7 +343,6 @@ void main() {
       'refreshLanguageService',
       'refreshWorkspaceDiagnostics',
       'collectProjectLanguageContext',
-      'runTests',
     ]) {
       controller.recordIdeCommandResult(
         AgentCommandResultContext(
@@ -353,6 +352,19 @@ void main() {
         ),
       );
     }
+    controller.recordIdeCommandResult(
+      const AgentCommandResultContext(
+        commandId: 'runTests',
+        applied: false,
+        message: 'runTests failed.',
+        metadata: <String, Object?>{
+          'testResult': <String, Object?>{
+            'status': 'failed',
+            'failedCount': 1,
+          },
+        },
+      ),
+    );
     controller.updatePrompt('Continue after validation.');
     await controller.sendPrompt();
 
@@ -361,15 +373,21 @@ void main() {
         metadata['validationResult']! as Map<String, Object?>;
     final validationPipeline =
         metadata['validationPipeline']! as Map<String, Object?>;
+    final failedCommandResults =
+        metadata['validationFailedCommandResults']! as List<Object?>;
     final lastPatchApplication =
         metadata['lastPatchApplication']! as Map<String, Object?>;
 
     expect(lastPatchApplication['patchId'], 'patch-validated');
-    expect(validationResult['status'], 'passed');
-    expect(validationResult['completedCommandIds'], contains('runTests'));
-    expect(validationPipeline['status'], 'complete');
-    expect(validationPipeline['progressNumerator'], 5);
+    expect(validationResult['status'], 'failed');
+    expect(validationResult['failedCommandIds'], contains('runTests'));
+    expect(validationPipeline['status'], 'failed');
+    expect(validationPipeline['progressNumerator'], 4);
     expect(validationPipeline['progressDenominator'], 5);
+    final failedRun =
+        failedCommandResults.single! as Map<String, Object?>;
+    expect(failedRun['commandId'], 'runTests');
+    expect(failedRun['message'], 'runTests failed.');
   });
 
   test('agent coding session restores recovery request draft', () async {

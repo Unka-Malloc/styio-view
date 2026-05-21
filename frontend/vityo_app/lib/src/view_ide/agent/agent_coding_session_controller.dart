@@ -499,7 +499,7 @@ class AgentCodingSessionController extends ChangeNotifier {
           response: response,
           createdAt: requestStartedAt,
           completedAt: DateTime.now().toUtc(),
-          metadata: _agentCodingHistoryMetadata(requestContext.agent),
+          metadata: _agentCodingHistoryMetadata(requestContext),
         ),
       );
       return response;
@@ -1117,8 +1117,9 @@ class AgentCodingSessionController extends ChangeNotifier {
 }
 
 Map<String, Object?> _agentCodingHistoryMetadata(
-  AgentCodingLoopContext agent,
+  AgentSessionContext context,
 ) {
+  final agent = context.agent;
   final metadata = <String, Object?>{};
   final lastPatchApplication = agent.lastPatchApplication;
   if (lastPatchApplication != null) {
@@ -1152,6 +1153,14 @@ Map<String, Object?> _agentCodingHistoryMetadata(
       'progressDenominator': agent.validationPipeline.progressDenominator,
       'remainingCommandIds': agent.validationPipeline.remainingCommandIds,
     };
+    final failedCommandIds = agent.validationResult.failedCommandIds.toSet();
+    final failedCommandResults = context.commands.recentResults
+        .where((result) => failedCommandIds.contains(result.commandId))
+        .map((result) => result.toJson())
+        .toList(growable: false);
+    if (failedCommandResults.isNotEmpty) {
+      metadata['validationFailedCommandResults'] = failedCommandResults;
+    }
   }
   return metadata;
 }

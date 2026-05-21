@@ -191,6 +191,76 @@ void main() {
   );
 
   test(
+    'credential resolver exposes redacted lookup plan without Codex OAuth scraping',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_agent_credential_lookup_plan_test_',
+      );
+      addTearDown(() async {
+        if (await tempRoot.exists()) {
+          await tempRoot.delete(recursive: true);
+        }
+      });
+      final credentials = InMemoryCredentialDataStore();
+      const credentialKey = CredentialDataStoreKey(
+        namespace: 'agent.provider',
+        name: 'openai-codex-spark',
+        scope: CredentialScope.user,
+      );
+      const credentialReference = CredentialReference(
+        key: credentialKey,
+        kind: CredentialKind.remoteServiceCredential,
+        displayName: 'OpenAI Codex Spark credential',
+      );
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final resourceManager = LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      );
+      final configurationStore = ConfigurationStore(
+        dataStore: FoundationDataStore(
+          resourceCoordinator: FoundationResourceCoordinator(
+            resourceManager: resourceManager,
+            fileSystemManager: fileSystemManager,
+          ),
+          fileSystemManager: fileSystemManager,
+        ),
+        credentialDataStore: credentials,
+      );
+      const endpoint = AgentProviderEndpoint(
+        route: AgentProviderRoute.webHosted,
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.3-codex-spark',
+        protocol: 'openai-responses',
+        credentialReference: credentialReference,
+        requiresCredential: true,
+      );
+      final resolver = AgentProviderCredentialResolver(
+        configurationStore: configurationStore,
+        environment: const <String, String>{
+          'OPENAI_API_KEY': '  env-codex-spark-token  ',
+        },
+      );
+
+      final resolution = await resolver.resolveBearerTokenForEndpoint(endpoint);
+      final planJson = resolution.lookupPlan.toJson();
+      final planText = jsonEncode(planJson);
+
+      expect(resolution.bearerToken, 'env-codex-spark-token');
+      expect(planJson['selectedSource'], 'environment-variable');
+      expect(planJson['resolvesLocally'], isTrue);
+      expect(planText, contains('credential-data-store'));
+      expect(planText, contains('environment-variable'));
+      expect(planText, contains('openai-codex-spark'));
+      expect(planText, isNot(contains('env-codex-spark-token')));
+      expect(planText, isNot(contains('.codex')));
+      expect(planText, isNot(contains('auth.json')));
+    },
+  );
+
+  test(
     'configured provider sends controller prompt through network transport',
     () async {
       final tempRoot = await Directory.systemTemp.createTemp(

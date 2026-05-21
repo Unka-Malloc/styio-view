@@ -5,6 +5,129 @@ import 'agent_provider_adapter.dart';
 import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
 
+enum AgentProviderCredentialLookupSource {
+  credentialDataStore,
+  environmentVariable,
+  hostedSession,
+  noClientCredential,
+}
+
+extension AgentProviderCredentialLookupSourceX
+    on AgentProviderCredentialLookupSource {
+  String get wireValue {
+    return switch (this) {
+      AgentProviderCredentialLookupSource.credentialDataStore =>
+        'credential-data-store',
+      AgentProviderCredentialLookupSource.environmentVariable =>
+        'environment-variable',
+      AgentProviderCredentialLookupSource.hostedSession => 'hosted-session',
+      AgentProviderCredentialLookupSource.noClientCredential =>
+        'no-client-credential',
+    };
+  }
+}
+
+enum AgentProviderCredentialLookupStatus { available, unavailable, skipped }
+
+extension AgentProviderCredentialLookupStatusX
+    on AgentProviderCredentialLookupStatus {
+  String get wireValue {
+    return switch (this) {
+      AgentProviderCredentialLookupStatus.available => 'available',
+      AgentProviderCredentialLookupStatus.unavailable => 'unavailable',
+      AgentProviderCredentialLookupStatus.skipped => 'skipped',
+    };
+  }
+}
+
+class AgentProviderCredentialLookupStep {
+  const AgentProviderCredentialLookupStep({
+    required this.source,
+    required this.status,
+    this.targetName = '',
+    this.reference,
+    this.message = '',
+    this.todo = '',
+  });
+
+  final AgentProviderCredentialLookupSource source;
+  final AgentProviderCredentialLookupStatus status;
+  final String targetName;
+  final CredentialReference? reference;
+  final String message;
+  final String todo;
+
+  bool get available => status == AgentProviderCredentialLookupStatus.available;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'source': source.wireValue,
+      'status': status.wireValue,
+      if (targetName.isNotEmpty) 'targetName': targetName,
+      if (reference != null) 'reference': reference!.toJson(),
+      if (message.isNotEmpty) 'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+class AgentProviderCredentialLookupPlan {
+  const AgentProviderCredentialLookupPlan({
+    required this.policy,
+    required this.requiresCredential,
+    required this.steps,
+    this.message = '',
+    this.todo = '',
+  });
+
+  final AgentProviderCredentialPolicy policy;
+  final bool requiresCredential;
+  final List<AgentProviderCredentialLookupStep> steps;
+  final String message;
+  final String todo;
+
+  bool get resolvesLocally {
+    return steps.any((step) => step.available);
+  }
+
+  AgentProviderCredentialLookupStep? get selectedStep {
+    for (final step in steps) {
+      if (step.available) {
+        return step;
+      }
+    }
+    return null;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'policy': policy.wireValue,
+      'requiresCredential': requiresCredential,
+      'resolvesLocally': resolvesLocally,
+      if (selectedStep != null)
+        'selectedSource': selectedStep!.source.wireValue,
+      if (message.isNotEmpty) 'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
+      'steps': steps.map((step) => step.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class AgentProviderCredentialResolution {
+  const AgentProviderCredentialResolution({
+    required this.lookupPlan,
+    this.bearerToken,
+  });
+
+  final String? bearerToken;
+  final AgentProviderCredentialLookupPlan lookupPlan;
+
+  bool get resolved {
+    final token = bearerToken;
+    return token != null && token.trim().isNotEmpty;
+  }
+}
+
 class AgentProviderCredentialResolver {
   const AgentProviderCredentialResolver({
     required this.configurationStore,
@@ -15,9 +138,41 @@ class AgentProviderCredentialResolver {
   final Map<String, String> environment;
 
   Future<String?> bearerTokenForEndpoint(AgentProviderEndpoint endpoint) async {
+    return (await resolveBearerTokenForEndpoint(endpoint)).bearerToken;
+  }
+
+  Future<AgentProviderCredentialResolution> resolveBearerTokenForEndpoint(
+    AgentProviderEndpoint endpoint,
+  ) async {
     if (!endpoint.credentialPolicy.allowsClientCredentialLookup) {
-      return null;
+      final source =
+          endpoint.credentialPolicy ==
+              AgentProviderCredentialPolicy.hostedSessionCredential
+          ? AgentProviderCredentialLookupSource.hostedSession
+          : AgentProviderCredentialLookupSource.noClientCredential;
+      return AgentProviderCredentialResolution(
+        lookupPlan: AgentProviderCredentialLookupPlan(
+          policy: endpoint.credentialPolicy,
+          requiresCredential: endpoint.requiresCredential,
+          message:
+              'Client-side credential lookup is disabled by provider policy.',
+          todo: source == AgentProviderCredentialLookupSource.hostedSession
+              ? 'TODO: resolve hosted session credentials through the server-side agent route.'
+              : '',
+          steps: <AgentProviderCredentialLookupStep>[
+            AgentProviderCredentialLookupStep(
+              source: source,
+              status: AgentProviderCredentialLookupStatus.skipped,
+              targetName: endpoint.baseUrl,
+              reference: endpoint.credentialReference,
+              message:
+                  'Vityo does not read local Codex CLI OAuth files or private provider auth caches.',
+            ),
+          ],
+        ),
+      );
     }
+    final steps = <AgentProviderCredentialLookupStep>[];
     final reference = endpoint.credentialReference;
     if (reference != null) {
       final result = await configurationStore.injectCredential(
@@ -27,21 +182,93 @@ class AgentProviderCredentialResolver {
         ),
       );
       if (result.injected) {
-        return result.injectedValue!.value;
+        steps.add(
+          AgentProviderCredentialLookupStep(
+            source: AgentProviderCredentialLookupSource.credentialDataStore,
+            status: AgentProviderCredentialLookupStatus.available,
+            targetName: 'Authorization',
+            reference: reference,
+            message: 'Credential DataStore provided a bearer token.',
+          ),
+        );
+        return AgentProviderCredentialResolution(
+          bearerToken: result.injectedValue!.value,
+          lookupPlan: AgentProviderCredentialLookupPlan(
+            policy: endpoint.credentialPolicy,
+            requiresCredential: endpoint.requiresCredential,
+            message: 'Agent provider credential resolved locally.',
+            steps: List<AgentProviderCredentialLookupStep>.unmodifiable(steps),
+          ),
+        );
       }
+      steps.add(
+        AgentProviderCredentialLookupStep(
+          source: AgentProviderCredentialLookupSource.credentialDataStore,
+          status: AgentProviderCredentialLookupStatus.unavailable,
+          targetName: 'Authorization',
+          reference: reference,
+          message: 'Credential DataStore result: ${result.status.name}.',
+          todo:
+              'TODO: ask the user to configure this credential in Credential DataStore.',
+        ),
+      );
     }
 
     final environmentName = endpoint.apiKeyEnvironmentName.trim();
     if (environmentName.isEmpty) {
-      return null;
+      return AgentProviderCredentialResolution(
+        lookupPlan: AgentProviderCredentialLookupPlan(
+          policy: endpoint.credentialPolicy,
+          requiresCredential: endpoint.requiresCredential,
+          message: 'No credential reference or environment variable is set.',
+          todo: endpoint.requiresCredential
+              ? 'TODO: configure a CredentialReference for this provider profile.'
+              : '',
+          steps: List<AgentProviderCredentialLookupStep>.unmodifiable(steps),
+        ),
+      );
     }
     final environmentValue = environment[environmentName]?.trim();
     if (environmentValue == null || environmentValue.isEmpty) {
-      return null;
+      steps.add(
+        AgentProviderCredentialLookupStep(
+          source: AgentProviderCredentialLookupSource.environmentVariable,
+          status: AgentProviderCredentialLookupStatus.unavailable,
+          targetName: environmentName,
+          message: 'Environment variable is not available to Vityo.',
+        ),
+      );
+      return AgentProviderCredentialResolution(
+        lookupPlan: AgentProviderCredentialLookupPlan(
+          policy: endpoint.credentialPolicy,
+          requiresCredential: endpoint.requiresCredential,
+          message: 'Agent provider credential is not available locally.',
+          todo: endpoint.requiresCredential
+              ? 'TODO: configure Credential DataStore or an explicit provider environment variable.'
+              : '',
+          steps: List<AgentProviderCredentialLookupStep>.unmodifiable(steps),
+        ),
+      );
     }
-    // TODO: add provider-specific OAuth/device-flow support through
-    // Configuration/CredentialDataStore only; never scrape Codex CLI auth files.
-    return environmentValue;
+    steps.add(
+      AgentProviderCredentialLookupStep(
+        source: AgentProviderCredentialLookupSource.environmentVariable,
+        status: AgentProviderCredentialLookupStatus.available,
+        targetName: environmentName,
+        message: 'Environment variable provided a bearer token.',
+      ),
+    );
+    return AgentProviderCredentialResolution(
+      bearerToken: environmentValue,
+      lookupPlan: AgentProviderCredentialLookupPlan(
+        policy: endpoint.credentialPolicy,
+        requiresCredential: endpoint.requiresCredential,
+        message: 'Agent provider credential resolved locally.',
+        todo:
+            'TODO: add provider-specific OAuth/device-flow support through Configuration/CredentialDataStore only.',
+        steps: List<AgentProviderCredentialLookupStep>.unmodifiable(steps),
+      ),
+    );
   }
 }
 

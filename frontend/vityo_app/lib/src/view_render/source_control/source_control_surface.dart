@@ -19,6 +19,7 @@ class SourceControlSurface extends StatelessWidget {
     this.historySnapshot,
     this.adapterRegistry,
     this.lastHunkActionResult,
+    this.pendingHunkDiscardConfirmation,
     this.onOpenFile,
     this.onSaveAll,
     this.onRefresh,
@@ -29,6 +30,7 @@ class SourceControlSurface extends StatelessWidget {
     this.onOpenCommit,
     this.onConfirmDiffAction,
     this.onSelectHunkAction,
+    this.onConfirmHunkDiscard,
   });
 
   final ViewportProfile viewportProfile;
@@ -43,6 +45,8 @@ class SourceControlSurface extends StatelessWidget {
   final SourceControlHistorySnapshot? historySnapshot;
   final SourceControlProviderAdapterRegistry? adapterRegistry;
   final SourceControlPartialPatchResult? lastHunkActionResult;
+  final SourceControlHunkDiscardConfirmationPlan?
+  pendingHunkDiscardConfirmation;
   final Future<void> Function(String documentId)? onOpenFile;
   final Future<void> Function()? onSaveAll;
   final Future<void> Function()? onRefresh;
@@ -56,6 +60,7 @@ class SourceControlSurface extends StatelessWidget {
   onConfirmDiffAction;
   final Future<void> Function(SourceControlDiffHunkActionPlan plan)?
   onSelectHunkAction;
+  final Future<void> Function()? onConfirmHunkDiscard;
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +342,10 @@ class SourceControlSurface extends StatelessWidget {
                 _DiffHunkActionSelection(
                   snapshot: diffPreview!,
                   lastHunkActionResult: lastHunkActionResult,
+                  pendingHunkDiscardConfirmation:
+                      pendingHunkDiscardConfirmation,
                   onSelectHunkAction: onSelectHunkAction,
+                  onConfirmHunkDiscard: onConfirmHunkDiscard,
                 ),
                 const SizedBox(height: 12),
               ],
@@ -473,13 +481,18 @@ class _DiffHunkActionSelection extends StatelessWidget {
   const _DiffHunkActionSelection({
     required this.snapshot,
     this.lastHunkActionResult,
+    this.pendingHunkDiscardConfirmation,
     this.onSelectHunkAction,
+    this.onConfirmHunkDiscard,
   });
 
   final SourceControlDiffSnapshot snapshot;
   final SourceControlPartialPatchResult? lastHunkActionResult;
+  final SourceControlHunkDiscardConfirmationPlan?
+  pendingHunkDiscardConfirmation;
   final Future<void> Function(SourceControlDiffHunkActionPlan plan)?
   onSelectHunkAction;
+  final Future<void> Function()? onConfirmHunkDiscard;
 
   @override
   Widget build(BuildContext context) {
@@ -505,6 +518,13 @@ class _DiffHunkActionSelection extends StatelessWidget {
           if (lastHunkActionResult != null) ...[
             const SizedBox(height: 8),
             _HunkActionResultRow(result: lastHunkActionResult!),
+          ],
+          if (pendingHunkDiscardConfirmation != null) ...[
+            const SizedBox(height: 8),
+            _HunkDiscardConfirmationCard(
+              plan: pendingHunkDiscardConfirmation!,
+              onConfirmHunkDiscard: onConfirmHunkDiscard,
+            ),
           ],
           const SizedBox(height: 8),
           if (hunks.isEmpty)
@@ -584,6 +604,88 @@ class _DiffHunkActionSelection extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _HunkDiscardConfirmationCard extends StatelessWidget {
+  const _HunkDiscardConfirmationCard({
+    required this.plan,
+    this.onConfirmHunkDiscard,
+  });
+
+  final SourceControlHunkDiscardConfirmationPlan plan;
+  final Future<void> Function()? onConfirmHunkDiscard;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('source-control-hunk-discard-confirmation'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.18),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.4),
+        ),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(plan.dialogTitle, style: theme.textTheme.labelLarge),
+          const SizedBox(height: 4),
+          Text(plan.warning, style: theme.textTheme.bodySmall),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              Chip(label: Text('path ${plan.path}')),
+              Chip(label: Text('selected ${plan.selectedHunkIndexes.length}')),
+              if (!plan.readyForDialog) Chip(label: Text(plan.blockedReason)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            key: const ValueKey('source-control-review-hunk-discard'),
+            onPressed: plan.readyForDialog && onConfirmHunkDiscard != null
+                ? () => _showDiscardDialog(context)
+                : null,
+            icon: const Icon(Icons.warning_amber_rounded),
+            label: Text(plan.confirmLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDiscardDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          key: const ValueKey('source-control-hunk-discard-dialog'),
+          title: Text(plan.dialogTitle),
+          content: Text(plan.warning),
+          actions: [
+            TextButton(
+              key: const ValueKey('source-control-cancel-hunk-discard'),
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const ValueKey('source-control-confirm-hunk-discard'),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(plan.confirmLabel),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed == true) {
+      await onConfirmHunkDiscard?.call();
+    }
   }
 }
 

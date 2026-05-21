@@ -281,6 +281,16 @@ class SourceControlStatusController extends ChangeNotifier {
     return plan;
   }
 
+  SourceControlHunkDiscardConfirmationPlan planHunkDiscardConfirmation(
+    SourceControlDiffHunkActionPlan plan,
+  ) {
+    final confirmation =
+        SourceControlHunkDiscardConfirmationPlan.fromActionPlan(plan);
+    _pendingHunkDiscardConfirmation = confirmation;
+    notifyListeners();
+    return confirmation;
+  }
+
   Future<SourceControlPartialPatchResult> confirmPendingHunkDiscard() async {
     final pending = _pendingHunkDiscardConfirmation;
     if (pending == null) {

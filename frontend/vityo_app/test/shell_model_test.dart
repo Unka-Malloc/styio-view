@@ -416,10 +416,16 @@ void main() {
             providerKind: SourceControlProviderKind.git,
             path: documentPath,
             unifiedDiff:
-                'diff --git a/src/main.styio b/src/main.styio\n+changed\n',
+                'diff --git a/src/main.styio b/src/main.styio\n'
+                '--- a/src/main.styio\n'
+                '+++ b/src/main.styio\n'
+                '@@ -1 +1 @@\n'
+                '-old\n'
+                '+changed\n',
           ),
         ),
         actionProvider: const _ShellSourceControlActionProvider(),
+        partialPatchProvider: const _ShellSourceControlPartialPatchProvider(),
         branchProvider: const StaticSourceControlBranchProvider(
           SourceControlBranchSnapshot(
             providerKind: SourceControlProviderKind.git,
@@ -520,6 +526,21 @@ void main() {
       );
       expect(diffConfirmationResult.applied, isTrue);
       expect(diffConfirmationResult.paths, <String>[documentPath]);
+      final hunkPlan = SourceControlDiffHunkActionPlan.fromDiff(
+        snapshot: diffPreview,
+        kind: SourceControlActionKind.discard,
+        selectedHunkIndexes: const <int>[0],
+      );
+      await shell.planSourceControlHunkAction(hunkPlan);
+      expect(
+        sourceControlController.pendingHunkDiscardConfirmation?.readyForDialog,
+        isTrue,
+      );
+      final hunkDiscardResult = await shell
+          .confirmPendingSourceControlHunkDiscard();
+      expect(hunkDiscardResult.applied, isTrue);
+      expect(hunkDiscardResult.kind, SourceControlActionKind.discard);
+      expect(hunkDiscardResult.selectedHunkIndexes, <int>[0]);
 
       final agentDiffApplied = await shell.applyAgentIdeCommandSuggestion(
         const AgentIdeCommandSuggestion(
@@ -857,7 +878,7 @@ void main() {
       );
       expect(
         checkpointCommandResult?.metadata['agentContextSchemaVersion'],
-        78,
+        79,
       );
       final checkpointIdeCapabilities =
           checkpointCommandResult?.metadata['ideCapabilities']!
@@ -3526,6 +3547,28 @@ class _ShellSourceControlActionProvider extends SourceControlActionProvider {
       applied: true,
       paths: request.paths,
       message: 'confirmed in $workspaceRoot',
+    );
+  }
+}
+
+class _ShellSourceControlPartialPatchProvider
+    extends SourceControlPartialPatchProvider {
+  const _ShellSourceControlPartialPatchProvider();
+
+  @override
+  SourceControlProviderKind get providerKind => SourceControlProviderKind.git;
+
+  @override
+  Future<SourceControlPartialPatchResult> runHunkAction({
+    required String workspaceRoot,
+    required SourceControlDiffHunkActionPlan plan,
+  }) async {
+    return SourceControlPartialPatchResult(
+      kind: plan.kind,
+      path: plan.path,
+      selectedHunkIndexes: plan.selectedHunkIndexes,
+      applied: true,
+      message: 'hunk action confirmed in $workspaceRoot',
     );
   }
 }

@@ -230,7 +230,12 @@ class VityoShellScaffold extends StatelessWidget {
               shell.planSourceControlCommitDraft(message: '');
             },
             onConfirmDiffAction: shell.confirmSourceControlDiffAction,
-            onSelectHunkAction: shell.confirmSourceControlHunkAction,
+            pendingHunkDiscardConfirmation:
+                sourceControlController?.pendingHunkDiscardConfirmation,
+            onSelectHunkAction: shell.planSourceControlHunkAction,
+            onConfirmHunkDiscard: () async {
+              await shell.confirmPendingSourceControlHunkDiscard();
+            },
           );
         }
 

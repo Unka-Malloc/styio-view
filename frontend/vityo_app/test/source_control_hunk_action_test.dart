@@ -131,6 +131,15 @@ void main() {
       unifiedDiff: _diff,
     );
     SourceControlDiffHunkActionPlan? selectedPlan;
+    var discardConfirmed = false;
+    final pendingDiscard =
+        SourceControlHunkDiscardConfirmationPlan.fromActionPlan(
+          SourceControlDiffHunkActionPlan.fromDiff(
+            snapshot: snapshot,
+            kind: SourceControlActionKind.discard,
+            selectedHunkIndexes: const <int>[1],
+          ),
+        );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -154,8 +163,12 @@ void main() {
               arguments: <String>['apply', '--reverse', '-'],
               exitCode: 0,
             ),
+            pendingHunkDiscardConfirmation: pendingDiscard,
             onSelectHunkAction: (plan) async {
               selectedPlan = plan;
+            },
+            onConfirmHunkDiscard: () async {
+              discardConfirmed = true;
             },
           ),
         ),
@@ -171,6 +184,10 @@ void main() {
       find.byKey(const ValueKey('source-control-hunk-action-result')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('source-control-hunk-discard-confirmation')),
+      findsOneWidget,
+    );
     expect(find.text('hunk action applied'), findsOneWidget);
     expect(find.text('Applied discard to 1 selected hunk(s).'), findsOneWidget);
     await tester.ensureVisible(
@@ -184,5 +201,22 @@ void main() {
     expect(selectedPlan?.kind, SourceControlActionKind.discard);
     expect(selectedPlan?.selectedHunkIndexes, <int>[1]);
     expect(selectedPlan?.canSelect, isTrue);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('source-control-review-hunk-discard')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('source-control-review-hunk-discard')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-control-hunk-discard-dialog')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('source-control-confirm-hunk-discard')),
+    );
+    await tester.pumpAndSettle();
+    expect(discardConfirmed, isTrue);
   });
 }

@@ -94,8 +94,16 @@ void main() {
       contains('diff-session restore/persist hooks'),
     );
     expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('hunk discard modal UI'),
+    );
+    expect(
+      entriesById['interaction.source-control']?.summary,
+      contains('shell hunk discard confirmation routing'),
+    );
+    expect(
       entriesById['interaction.source-control']?.todo,
-      contains('concrete modal UI'),
+      contains('merge workflow UI'),
     );
     expect(
       entriesById['interaction.source-control']?.runtimeMaturityBlocking,

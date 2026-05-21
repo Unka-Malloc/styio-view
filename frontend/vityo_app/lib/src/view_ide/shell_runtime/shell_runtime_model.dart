@@ -1510,6 +1510,49 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result;
   }
 
+  Future<void> planSourceControlHunkAction(
+    SourceControlDiffHunkActionPlan plan,
+  ) async {
+    if (plan.kind != SourceControlActionKind.discard) {
+      await confirmSourceControlHunkAction(plan);
+      return;
+    }
+    final controller = sourceControlStatusController;
+    if (controller == null) {
+      await confirmSourceControlHunkAction(plan);
+      return;
+    }
+    final confirmation = controller.planHunkDiscardConfirmation(plan);
+    appendLog(
+      confirmation.readyForDialog
+          ? 'Source control hunk discard confirmation planned: ${confirmation.confirmLabel} in ${confirmation.path}.'
+          : 'Source control hunk discard confirmation blocked: ${confirmation.blockedReason}',
+    );
+    notifyListeners();
+  }
+
+  Future<SourceControlPartialPatchResult>
+  confirmPendingSourceControlHunkDiscard() async {
+    final controller = sourceControlStatusController;
+    final result = controller == null
+        ? const SourceControlPartialPatchResult(
+            kind: SourceControlActionKind.discard,
+            path: '',
+            selectedHunkIndexes: <int>[],
+            applied: false,
+            message:
+                'Source control hunk discard skipped: no source control controller is configured.',
+          )
+        : await controller.confirmPendingHunkDiscard();
+    appendLog(_sourceControlHunkActionMessage(result));
+    if (result.applied) {
+      await refreshSourceControlStatus();
+    } else {
+      notifyListeners();
+    }
+    return result;
+  }
+
   String _sourceControlHunkActionMessage(
     SourceControlPartialPatchResult result,
   ) {

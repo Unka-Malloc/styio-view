@@ -167,7 +167,7 @@ class AgentSessionContext {
         ideCapabilityFramework ??
         const VityoIdeCapabilityFramework().snapshot();
     return AgentSessionContext(
-      schemaVersion: 67,
+      schemaVersion: 68,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -5276,6 +5276,7 @@ class AgentDiagnosticContext {
     required this.severity,
     required this.code,
     required this.message,
+    required this.suggestedCommandIds,
     required this.start,
     required this.end,
     required this.coordinateBase,
@@ -5288,6 +5289,7 @@ class AgentDiagnosticContext {
   final String severity;
   final String code;
   final String message;
+  final List<String> suggestedCommandIds;
   final int start;
   final int end;
   final String coordinateBase;
@@ -5312,6 +5314,10 @@ class AgentDiagnosticContext {
       severity: diagnostic.severity.name,
       code: diagnostic.code,
       message: diagnostic.message,
+      suggestedCommandIds: const <String>[
+        'previewQuickFix',
+        'applyQuickFix',
+      ],
       start: start,
       end: end,
       coordinateBase: 'zero-based',
@@ -5327,6 +5333,7 @@ class AgentDiagnosticContext {
       'severity': severity,
       'code': code,
       'message': message,
+      'suggestedCommandIds': suggestedCommandIds,
       'start': start,
       'end': end,
       'coordinateBase': coordinateBase,

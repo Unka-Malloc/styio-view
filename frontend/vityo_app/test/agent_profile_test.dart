@@ -82,6 +82,7 @@ void main() {
     expect(decoded.systemPrompt, contains('language.focusToken'));
     expect(decoded.systemPrompt, contains('token nearest'));
     expect(decoded.systemPrompt, contains('language.focusedDiagnostics'));
+    expect(decoded.systemPrompt, contains('suggestedCommandIds'));
     expect(decoded.systemPrompt, contains('diagnostics nearest'));
     expect(decoded.systemPrompt, contains('language.resolvedElement'));
     expect(decoded.systemPrompt, contains('language.resolvedReference'));

@@ -513,7 +513,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 67);
+    expect(json['schemaVersion'], 68);
     expect(workspaceDiagnostics['providerId'], 'workspace-diagnostics');
     expect(workspaceDiagnostics['totalCount'], 1);
     expect(sourceControl['providerKind'], 'git');
@@ -606,6 +606,10 @@ void main() {
     expect((diagnosticsJson.single! as Map<String, Object?>)['startColumn'], 0);
     expect((diagnosticsJson.single! as Map<String, Object?>)['endLine'], 0);
     expect((diagnosticsJson.single! as Map<String, Object?>)['endColumn'], 5);
+    expect(
+      (diagnosticsJson.single! as Map<String, Object?>)['suggestedCommandIds'],
+      contains('applyQuickFix'),
+    );
     expect(languageJson['focusedDiagnosticCount'], 1);
     expect(languageJson['focusedDiagnosticsTruncated'], isFalse);
     expect(
@@ -620,6 +624,11 @@ void main() {
     expect(
       (languageFocusedDiagnostics.single! as Map<String, Object?>)['startLine'],
       0,
+    );
+    expect(
+      (languageFocusedDiagnostics.single!
+          as Map<String, Object?>)['suggestedCommandIds'],
+      contains('previewQuickFix'),
     );
     expect(
       (languageFocusedDiagnostics.single!
@@ -1405,7 +1414,7 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 67);
+    expect(context.schemaVersion, 68);
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -1788,7 +1797,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 67);
+    expect(json['schemaVersion'], 68);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2063,7 +2072,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 67);
+    expect(context.schemaVersion, 68);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

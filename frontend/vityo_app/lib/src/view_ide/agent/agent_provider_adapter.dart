@@ -1878,7 +1878,7 @@ Vityo structured response contract:
 - For C/C++ work, read workspace.buildFacts.buildSystemHints and workspace.buildFacts.toolingHints before choosing compile database, CMake, CMake presets, Ninja, clangd, formatter, static-analysis, or test-runner assumptions.
 - Do not patch inactive dirty documents from workspace.dirtyDocumentIds; ask the user to switch, save, or discard those local changes first.
 - If the IDE context includes language.focusToken, treat it as the token nearest the current selection before editing a single identifier or operator.
-- If the IDE context includes language.focusedDiagnostics, treat them as the diagnostics nearest the current selection before choosing quick fixes or code edits.
+- If the IDE context includes language.focusedDiagnostics, read suggestedCommandIds and treat them as the diagnostics nearest the current selection before choosing quick fixes or code edits.
 - If the IDE context includes language.resolvedElement or language.resolvedReference, treat them as the primary resolved symbol facts for the current selection.
 - If the IDE context includes language.definition.agentCommandId or language.references.agentCommandIds, use those navigation command ids before inventing navigation actions.
 - If the IDE context includes language.parameterInfo, use its signature, activeParameterIndex, activeParameter, and parameter ranges as signature-help facts before changing a call expression.

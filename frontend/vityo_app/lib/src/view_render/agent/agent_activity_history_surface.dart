@@ -155,9 +155,7 @@ class _AgentActivityRecordTile extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               validationFailureEvidence,
-              key: const ValueKey(
-                'agent-activity-validation-failure-evidence',
-              ),
+              key: const ValueKey('agent-activity-validation-failure-evidence'),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -186,16 +184,26 @@ class _AgentActivityRecordTile extends StatelessWidget {
 }
 
 String? _activityValidationSummary(Map<String, Object?> metadata) {
+  final validationPlan = _metadataObject(metadata['validationPlan']);
   final validationResult = _metadataObject(metadata['validationResult']);
   final validationPipeline = _metadataObject(metadata['validationPipeline']);
-  if (validationResult.isEmpty && validationPipeline.isEmpty) {
+  if (validationPlan.isEmpty &&
+      validationResult.isEmpty &&
+      validationPipeline.isEmpty) {
     return null;
+  }
+  final planStatus = validationPlan['status'] as String?;
+  final planReason = validationPlan['reason'] as String?;
+  if (validationResult.isEmpty && validationPipeline.isEmpty) {
+    final reason = planReason == null || planReason.trim().isEmpty
+        ? ''
+        : ' · $planReason';
+    return 'Validation: plan ${planStatus ?? 'unknown'}$reason';
   }
   final resultStatus = validationResult['status'] as String? ?? 'unknown';
   final pipelineStatus = validationPipeline['status'] as String? ?? 'unknown';
   final progressNumerator = validationPipeline['progressNumerator'] as int?;
-  final progressDenominator =
-      validationPipeline['progressDenominator'] as int?;
+  final progressDenominator = validationPipeline['progressDenominator'] as int?;
   final nextCommandId = validationPipeline['nextCommandId'] as String?;
   final progress = progressNumerator == null || progressDenominator == null
       ? ''

@@ -134,6 +134,50 @@ void main() {
     expect(find.text('Error: provider timed out'), findsOneWidget);
   });
 
+  testWidgets('agent activity history surface renders blocked validation plan', (
+    tester,
+  ) async {
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord(
+          requestId: 'agent-validation-blocked',
+          profileId: 'default-agent',
+          providerKind: 'cloud_openai_compatible',
+          prompt: 'Apply generated edits.',
+          outcome: AgentCodingSessionOutcome.failed,
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+          errorMessage: 'Agent coding validation is blocked.',
+          metadata: const <String, Object?>{
+            'validationPlan': <String, Object?>{
+              'status': 'blocked',
+              'reason':
+                  'Agent coding validation is blocked by autonomy policy.',
+            },
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: AgentActivityHistorySurface(history: history)),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-activity-validation-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Validation: plan blocked · Agent coding validation is blocked by autonomy policy.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent surface embeds activity history when provided', (
     tester,
   ) async {

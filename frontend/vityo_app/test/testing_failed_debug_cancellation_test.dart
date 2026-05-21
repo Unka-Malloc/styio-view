@@ -166,6 +166,84 @@ void main() {
     },
   );
 
+  test(
+    'testing controller resolves failed-test debug cancellation handle registry',
+    () async {
+      final completer = Completer<TestRunResult>();
+      final lifecycle = RuntimeTaskLifecycleController();
+      final handle = _FakeFailedTestDebugProcessCancellationHandle(
+        handleId: 'debug-adapter-process-9',
+        result: const FailedTestDebugCancellationResult.accepted(
+          processTerminated: true,
+          message: 'Terminated registered debug adapter process.',
+          metadata: <String, Object?>{'pid': 909},
+        ),
+      );
+      final registry = FailedTestDebugCancellationHandleRegistry()
+        ..register(
+          FailedTestDebugCancellationHandleRegistration(
+            kind: FailedTestDebugCancellationHandleKind.debugAdapter,
+            providerId: 'fixture-runner',
+            handle: handle,
+          ),
+        );
+      final controller = TestingSessionController(
+        runtimeTaskLifecycleController: lifecycle,
+        runProvider: _PendingTestRunProvider(completer.future),
+        failedTestDebugCancellationHandleRegistry: registry,
+      );
+      addTearDown(controller.dispose);
+      controller.recordRunResult(
+        const TestRunResult(
+          providerId: 'fixture-runner',
+          status: TestRunStatus.failed,
+          message: 'failed',
+          failedCount: 1,
+          cases: <TestCaseResult>[
+            TestCaseResult(
+              id: 'parser.syntax',
+              name: 'parser syntax',
+              status: TestRunStatus.failed,
+            ),
+          ],
+        ),
+      );
+
+      final pending = controller.rerunFailed(
+        workspaceRoot: '/workspace/vityo',
+        debug: true,
+      );
+      await Future<void>.delayed(Duration.zero);
+      final planned = controller.planFailedTestDebugCancellation(
+        failedTest: const <String, Object?>{
+          'id': 'parser.syntax',
+          'name': 'parser syntax',
+        },
+      );
+      final cancelled = await controller.cancelFailedTestDebug(
+        failedTest: const <String, Object?>{
+          'id': 'parser.syntax',
+          'name': 'parser syntax',
+        },
+      );
+      completer.complete(
+        const TestRunResult(
+          providerId: 'fixture-runner',
+          status: TestRunStatus.passed,
+          message: 'late pass ignored after cancellation.',
+        ),
+      );
+      await pending;
+
+      expect(planned.processHandleBound, isTrue);
+      expect(planned.processHandleId, 'debug-adapter-process-9');
+      expect(cancelled.cancelled, isTrue);
+      expect(handle.cancelledTaskIds, <String>[planned.taskId]);
+      expect(registry.registrationCount, 1);
+      expect(registry.toJson()['registrationCount'], 1);
+    },
+  );
+
   testWidgets('testing surface emits failed-test debug cancellation action', (
     tester,
   ) async {

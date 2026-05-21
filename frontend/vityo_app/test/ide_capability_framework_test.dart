@@ -516,8 +516,12 @@ void main() {
       contains('FailedTestDebugCancellationRoute process-handle metadata'),
     );
     expect(
+      entriesById['interaction.testing']?.summary,
+      contains('FailedTestDebugCancellationHandleRegistry'),
+    );
+    expect(
       entriesById['interaction.testing']?.todo,
-      contains('debug adapter and test runner process termination'),
+      contains('production debug adapter and test runner processes'),
     );
     expect(
       entriesById['interaction.testing']?.runtimeMaturityBlocking,

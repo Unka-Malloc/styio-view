@@ -95,7 +95,7 @@ class FailedTestDebugCancellationRoute {
       'processHandleBound': processHandleBound,
       if (processHandleId.isNotEmpty) 'processHandleId': processHandleId,
       'todo':
-          'TODO: bind failed-test debug cancellation route to concrete debug adapter and test runner process implementations.',
+          'TODO: populate failed-test debug cancellation handle registry from concrete debug adapter and test runner processes.',
     };
   }
 }
@@ -226,6 +226,122 @@ class FailedTestDebugCancellationAdapter {
   }
 }
 
+enum FailedTestDebugCancellationHandleKind { debugAdapter, testRunner }
+
+class FailedTestDebugCancellationHandleRegistration {
+  const FailedTestDebugCancellationHandleRegistration({
+    required this.kind,
+    required this.handle,
+    this.providerId = '',
+    this.configurationId = '',
+  });
+
+  final FailedTestDebugCancellationHandleKind kind;
+  final FailedTestDebugProcessCancellationHandle handle;
+  final String providerId;
+  final String configurationId;
+
+  bool matches({required String providerId, required String configurationId}) {
+    final providerMatches =
+        this.providerId.trim().isEmpty || this.providerId == providerId;
+    final configurationMatches =
+        this.configurationId.trim().isEmpty ||
+        this.configurationId == configurationId;
+    return providerMatches && configurationMatches;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.name,
+      'providerId': providerId,
+      'configurationId': configurationId,
+      'processHandleId': handle.handleId,
+    };
+  }
+}
+
+class FailedTestDebugCancellationHandleRegistry {
+  FailedTestDebugCancellationHandleRegistry({
+    Iterable<FailedTestDebugCancellationHandleRegistration> registrations =
+        const <FailedTestDebugCancellationHandleRegistration>[],
+  }) : _registrations = <FailedTestDebugCancellationHandleRegistration>[
+         ...registrations,
+       ];
+
+  final List<FailedTestDebugCancellationHandleRegistration> _registrations;
+
+  int get registrationCount => _registrations.length;
+
+  void register(FailedTestDebugCancellationHandleRegistration registration) {
+    _registrations.removeWhere(
+      (existing) =>
+          existing.kind == registration.kind &&
+          existing.providerId == registration.providerId &&
+          existing.configurationId == registration.configurationId,
+    );
+    _registrations.add(registration);
+  }
+
+  bool unregister({
+    required FailedTestDebugCancellationHandleKind kind,
+    String providerId = '',
+    String configurationId = '',
+  }) {
+    final before = _registrations.length;
+    _registrations.removeWhere(
+      (existing) =>
+          existing.kind == kind &&
+          existing.providerId == providerId &&
+          existing.configurationId == configurationId,
+    );
+    return _registrations.length != before;
+  }
+
+  FailedTestDebugCancellationHandleRegistration? registrationFor({
+    required String providerId,
+    required String configurationId,
+  }) {
+    final matches = _registrations
+        .where(
+          (registration) => registration.matches(
+            providerId: providerId,
+            configurationId: configurationId,
+          ),
+        )
+        .toList(growable: false);
+    if (matches.isEmpty) {
+      return null;
+    }
+    matches.sort((left, right) => left.kind.index.compareTo(right.kind.index));
+    return matches.first;
+  }
+
+  FailedTestDebugCancellationAdapter? adapterFor({
+    required String providerId,
+    required String configurationId,
+  }) {
+    final registration = registrationFor(
+      providerId: providerId,
+      configurationId: configurationId,
+    );
+    if (registration == null) {
+      return null;
+    }
+    return FailedTestDebugCancellationAdapter.processHandle(
+      registration.handle,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'registrationCount': registrationCount,
+      'registrations': _registrations
+          .map((registration) => registration.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
 class TestingSessionController extends ChangeNotifier {
   TestingSessionController({
     this.discoveryProvider,
@@ -233,6 +349,7 @@ class TestingSessionController extends ChangeNotifier {
     this.providerCatalog,
     this.rerunPlanner = const FailedTestRerunPlanner(),
     this.failedTestDebugCancellationAdapter,
+    this.failedTestDebugCancellationHandleRegistry,
     RuntimeTaskLifecycleController? runtimeTaskLifecycleController,
     RuntimeTaskHistoryStore? runtimeTaskHistoryStore,
     TestRunHistoryStore? testRunHistoryStore,
@@ -253,6 +370,8 @@ class TestingSessionController extends ChangeNotifier {
   final TestingProviderCatalog? providerCatalog;
   final FailedTestRerunPlanner rerunPlanner;
   final FailedTestDebugCancellationAdapter? failedTestDebugCancellationAdapter;
+  final FailedTestDebugCancellationHandleRegistry?
+  failedTestDebugCancellationHandleRegistry;
   final RuntimeTaskLifecycleController? _runtimeTaskLifecycleController;
   final RuntimeTaskHistoryStore? _runtimeTaskHistoryStore;
   final TestRunHistoryStore? _testRunHistoryStore;
@@ -487,11 +606,12 @@ class TestingSessionController extends ChangeNotifier {
   FailedTestDebugCancellationRoute planFailedTestDebugCancellation({
     Map<String, Object?> failedTest = const <String, Object?>{},
   }) {
+    final adapter = _failedTestDebugCancellationAdapterFor();
     final route = FailedTestDebugCancellationRoute.fromState(
       runtimeTask: _lastRuntimeTask,
       configuration: _lastRunConfiguration,
       failedTest: failedTest,
-      processHandleId: failedTestDebugCancellationAdapter?.processHandleId ?? '',
+      processHandleId: adapter?.processHandleId ?? '',
     );
     _lastFailedDebugCancellationRoute = route;
     notifyListeners();
@@ -509,7 +629,7 @@ class TestingSessionController extends ChangeNotifier {
     }
     final cancellationMessage =
         'Cancelled failed-test debug task ${route.taskId} for ${route.failedTestName}.';
-    final adapter = failedTestDebugCancellationAdapter;
+    final adapter = _failedTestDebugCancellationAdapterFor();
     FailedTestDebugCancellationResult? adapterResult;
     if (adapter != null) {
       adapterResult = await adapter.cancel(
@@ -524,8 +644,7 @@ class TestingSessionController extends ChangeNotifier {
           runtimeTask: runtimeTask,
           configuration: _lastRunConfiguration,
           failedTest: failedTest,
-          processHandleId:
-              failedTestDebugCancellationAdapter?.processHandleId ?? '',
+          processHandleId: adapter.processHandleId,
           message: adapterResult.message,
         );
         _lastFailedDebugCancellationRoute = rejectedRoute;
@@ -549,7 +668,7 @@ class TestingSessionController extends ChangeNotifier {
       runtimeTask: cancelled,
       configuration: _lastRunConfiguration,
       failedTest: failedTest,
-      processHandleId: failedTestDebugCancellationAdapter?.processHandleId ?? '',
+      processHandleId: adapter?.processHandleId ?? '',
       cancelled: true,
       message:
           'Failed-test debug cancellation routed for ${route.failedTestName}.',
@@ -557,6 +676,18 @@ class TestingSessionController extends ChangeNotifier {
     _lastFailedDebugCancellationRoute = cancelledRoute;
     notifyListeners();
     return cancelledRoute;
+  }
+
+  FailedTestDebugCancellationAdapter? _failedTestDebugCancellationAdapterFor() {
+    final directAdapter = failedTestDebugCancellationAdapter;
+    if (directAdapter != null) {
+      return directAdapter;
+    }
+    final configuration = _lastRunConfiguration;
+    return failedTestDebugCancellationHandleRegistry?.adapterFor(
+      providerId: configuration?.providerId ?? _lastRun?.providerId ?? '',
+      configurationId: configuration?.id ?? '',
+    );
   }
 
   Future<TestRunResult> rerunFailed({

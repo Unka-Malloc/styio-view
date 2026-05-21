@@ -7,6 +7,7 @@ import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_credential_resolver.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_result_context.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
@@ -202,6 +203,62 @@ void main() {
     expect(diagnosticSuggestedCommandItem['enum'], commandId['enum']);
   });
 
+  test('OpenAI compatible provider sends agent tool results', () async {
+    final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.web);
+    final transport = _RecordingAgentProviderTransport();
+    final adapter = OpenAICompatibleAgentProviderAdapter(
+      transport: transport,
+      endpoint: profile.endpoint,
+    );
+
+    await adapter.send(
+      AgentProviderRequest(
+        requestId: 'agent-request-tool-results',
+        profile: profile,
+        context: AgentSessionContext.fromEditorState(
+          document: const DocumentState(
+            documentId: '/workspace/demo/src/main.styio',
+            text: 'value = 1\n',
+            revision: 1,
+          ),
+          selection: const SelectionState.collapsed(0),
+          diagnostics: const [],
+        ),
+        userPrompt: 'Continue after tool execution.',
+        toolCallResults: <AgentToolCallResultContext>[
+          AgentToolCallResultContext(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            status: AgentToolCallResultContextStatus.success,
+            message: 'Agent tool call completed.',
+            output: '{"text":"value = 1"}',
+            createdAt: DateTime.utc(2026, 5, 22),
+            metadata: const <String, Object?>{'source': 'test'},
+          ),
+        ],
+      ),
+    );
+
+    final messages = transport.body['messages']! as List<Object?>;
+    final toolResultMessage = messages.cast<Map<String, Object?>>().firstWhere(
+      (message) => message['name'] == 'vityo_agent_tool_results',
+    );
+    final content =
+        jsonDecode(toolResultMessage['content']! as String)
+            as Map<String, Object?>;
+    final results = content['toolCallResults']! as List<Object?>;
+    final result = results.single! as Map<String, Object?>;
+    final metadata = transport.body['metadata']! as Map<String, Object?>;
+
+    expect(toolResultMessage['role'], 'user');
+    expect(result['callId'], 'call-read');
+    expect(result['toolId'], 'readWorkspaceFile');
+    expect(result['success'], isTrue);
+    expect(result['output'], '{"text":"value = 1"}');
+    expect(metadata['toolCallResultCount'], 1);
+    expect(metadata['toolCallResultIds'], <String>['call-read']);
+  });
+
   test('agent code patch edit parses delete operation from JSON', () {
     final edit = AgentCodePatchEdit.fromJson(<String, Object?>{
       'documentId': 'obsolete.txt',
@@ -366,7 +423,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      77,
+      79,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -1197,7 +1254,7 @@ void main() {
         contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 77);
+      expect(metadata['contextSchemaVersion'], 79);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);

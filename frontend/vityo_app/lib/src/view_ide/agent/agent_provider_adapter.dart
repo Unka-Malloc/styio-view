@@ -1316,6 +1316,11 @@ Map<String, Object?> _openAICompatibleRequestBody(
         .map(_attachmentJsonForProvider)
         .toList(growable: false),
   });
+  final toolResultsJson = jsonEncode(<String, Object?>{
+    'toolCallResults': request.toolCallResults
+        .map((result) => result.toJson())
+        .toList(growable: false),
+  });
   final historicalMessages = request.conversationTurns
       .where((turn) => turn.text.trim().isNotEmpty)
       .map(
@@ -1344,6 +1349,12 @@ Map<String, Object?> _openAICompatibleRequestBody(
           'role': 'user',
           'name': 'vityo_agent_attachments',
           'content': attachmentsJson,
+        },
+      if (request.toolCallResults.isNotEmpty)
+        <String, Object?>{
+          'role': 'user',
+          'name': 'vityo_agent_tool_results',
+          'content': toolResultsJson,
         },
       <String, Object?>{'role': 'user', 'content': request.userPrompt},
     ],
@@ -1482,6 +1493,11 @@ Map<String, Object?> _openAICompatibleRequestBody(
                 attachment.content.length > _maxAgentAttachmentContentLength,
           )
           .length,
+      'toolCallResultCount': request.toolCallResults.length,
+      if (request.toolCallResults.isNotEmpty)
+        'toolCallResultIds': request.toolCallResults
+            .map((result) => result.callId)
+            .toList(growable: false),
       'conversationTurnCount': request.conversationTurns.length,
     },
   };

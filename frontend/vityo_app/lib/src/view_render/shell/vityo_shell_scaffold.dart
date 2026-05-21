@@ -15,6 +15,7 @@ import '../../backend_toolchain/toolchain_management_adapter.dart';
 import '../../module_host/module_definition.dart';
 import '../../module_host/module_manifest.dart';
 import '../../platform/platform_target.dart';
+import '../../view_ide/agent/agent.dart' show AgentWorkspaceSnapshotService;
 import '../platform/platform.dart';
 import '../problems/problems.dart';
 import '../runtime/runtime.dart';
@@ -183,6 +184,10 @@ class VityoShellScaffold extends StatelessWidget {
           onApplyPendingPatch: () async {
             await shell.applyAgentPendingPatch();
           },
+          workspaceSnapshotService: AgentWorkspaceSnapshotService(
+            editorController: shell.editorController,
+            workspaceDocumentStore: shell.workspaceDocumentStore,
+          ),
           onApplyIdeCommandSuggestion: (suggestion) async {
             return shell.applyAgentIdeCommandSuggestion(suggestion);
           },

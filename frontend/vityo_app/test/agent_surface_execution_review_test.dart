@@ -198,6 +198,14 @@ void main() {
   testWidgets('agent surface runs approved workspace patch tools', (
     tester,
   ) async {
+    final editorController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'main.styio',
+        text: 'value = 1\n',
+        revision: 1,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.openAICodexSparkForPlatform(
         PlatformTarget.linux,
@@ -230,6 +238,9 @@ void main() {
           appliedDocumentIds: <String>['main.styio'],
         );
       },
+      workspaceSnapshotService: AgentWorkspaceSnapshotService(
+        editorController: editorController,
+      ),
     );
 
     expect(
@@ -244,6 +255,13 @@ void main() {
     await tester.pump();
 
     expect(appliedPatch?.patchId, 'patch-tool');
+    expect(
+      controller
+          .recentToolCallResultContexts
+          .single
+          .metadata['workspaceSnapshotCaptured'],
+      isTrue,
+    );
     expect(
       controller.toolCallTimeline.status,
       AgentToolCallTimelineStatus.complete,
@@ -437,6 +455,7 @@ Future<void> _pumpSurface(
   AgentCodingSessionController controller, {
   Future<void> Function()? onApplyWorkspaceRevertPlan,
   AgentWorkspacePatchToolRunner? onApplyAgentWorkspacePatch,
+  AgentWorkspaceSnapshotService? workspaceSnapshotService,
   AgentExtensionToolRunner? onRunAgentExtensionTool,
   Future<bool> Function(AgentIdeCommandSuggestion)? onApplyIdeCommandSuggestion,
 }) async {
@@ -460,6 +479,7 @@ Future<void> _pumpSurface(
             onApplyPendingPatch: () async {},
             onApplyWorkspaceRevertPlan: onApplyWorkspaceRevertPlan,
             onApplyAgentWorkspacePatch: onApplyAgentWorkspacePatch,
+            workspaceSnapshotService: workspaceSnapshotService,
             onRunAgentExtensionTool: onRunAgentExtensionTool,
             onApplyIdeCommandSuggestion: onApplyIdeCommandSuggestion,
             onSaveProviderProfile: (profile, {bearerToken}) async {},

@@ -712,6 +712,393 @@ class ExtensionMarketplaceInstallExecutor {
   }
 }
 
+enum ExtensionMarketplaceIoOperationKind {
+  fetchIndex,
+  downloadPackage,
+  writePackageCache,
+  downloadUpdatePackage,
+  persistLifecyclePolicy,
+}
+
+extension ExtensionMarketplaceIoOperationKindX
+    on ExtensionMarketplaceIoOperationKind {
+  String get wireValue => switch (this) {
+    ExtensionMarketplaceIoOperationKind.fetchIndex => 'fetch-index',
+    ExtensionMarketplaceIoOperationKind.downloadPackage => 'download-package',
+    ExtensionMarketplaceIoOperationKind.writePackageCache =>
+      'write-package-cache',
+    ExtensionMarketplaceIoOperationKind.downloadUpdatePackage =>
+      'download-update-package',
+    ExtensionMarketplaceIoOperationKind.persistLifecyclePolicy =>
+      'persist-lifecycle-policy',
+  };
+}
+
+enum ExtensionMarketplaceIoOperationStatus {
+  completed,
+  blocked,
+  missingHandler,
+  failed,
+}
+
+extension ExtensionMarketplaceIoOperationStatusX
+    on ExtensionMarketplaceIoOperationStatus {
+  String get wireValue => switch (this) {
+    ExtensionMarketplaceIoOperationStatus.completed => 'completed',
+    ExtensionMarketplaceIoOperationStatus.blocked => 'blocked',
+    ExtensionMarketplaceIoOperationStatus.missingHandler => 'missing-handler',
+    ExtensionMarketplaceIoOperationStatus.failed => 'failed',
+  };
+}
+
+typedef ExtensionMarketplaceIoOperationHandler =
+    Future<ExtensionMarketplaceIoOperationResult> Function(
+      ExtensionMarketplaceIoOperationRequest request,
+    );
+
+class ExtensionMarketplaceIoOperationRequest {
+  const ExtensionMarketplaceIoOperationRequest({
+    required this.kind,
+    required this.listing,
+    required this.timestamp,
+    this.updatePlan,
+    this.lifecycleDecision,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final ExtensionMarketplaceIoOperationKind kind;
+  final ExtensionMarketplaceListing listing;
+  final DateTime timestamp;
+  final ExtensionMarketplaceUpdatePlan? updatePlan;
+  final ExtensionInstallLifecyclePolicyDecision? lifecycleDecision;
+  final Map<String, Object?> metadata;
+
+  String get extensionId => listing.extensionId;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'kind': kind.wireValue,
+      'extensionId': extensionId,
+      'timestamp': timestamp.toIso8601String(),
+      'listing': listing.toJson(),
+      if (updatePlan != null) 'updatePlan': updatePlan!.toJson(),
+      if (lifecycleDecision != null)
+        'lifecycleDecision': lifecycleDecision!.toJson(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionMarketplaceIoOperationRegistration {
+  const ExtensionMarketplaceIoOperationRegistration({
+    required this.handlerId,
+    required this.label,
+    required this.kind,
+    required this.handler,
+    this.available = true,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String handlerId;
+  final String label;
+  final ExtensionMarketplaceIoOperationKind kind;
+  final ExtensionMarketplaceIoOperationHandler handler;
+  final bool available;
+  final Map<String, Object?> metadata;
+
+  bool accepts(ExtensionMarketplaceIoOperationRequest request) {
+    return available && kind == request.kind;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'handlerId': handlerId,
+      'label': label,
+      'kind': kind.wireValue,
+      'available': available,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionMarketplaceIoOperationResult {
+  const ExtensionMarketplaceIoOperationResult({
+    required this.request,
+    required this.status,
+    required this.message,
+    this.handler,
+    this.artifactUri = '',
+    this.cacheKey = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory ExtensionMarketplaceIoOperationResult.completed({
+    required ExtensionMarketplaceIoOperationRequest request,
+    required ExtensionMarketplaceIoOperationRegistration handler,
+    required String message,
+    String artifactUri = '',
+    String cacheKey = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionMarketplaceIoOperationResult(
+      request: request,
+      status: ExtensionMarketplaceIoOperationStatus.completed,
+      handler: handler,
+      message: message,
+      artifactUri: artifactUri,
+      cacheKey: cacheKey,
+      metadata: metadata,
+    );
+  }
+
+  factory ExtensionMarketplaceIoOperationResult.blocked({
+    required ExtensionMarketplaceIoOperationRequest request,
+    required String message,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionMarketplaceIoOperationResult(
+      request: request,
+      status: ExtensionMarketplaceIoOperationStatus.blocked,
+      message: message,
+      metadata: metadata,
+    );
+  }
+
+  factory ExtensionMarketplaceIoOperationResult.missingHandler({
+    required ExtensionMarketplaceIoOperationRequest request,
+  }) {
+    return ExtensionMarketplaceIoOperationResult(
+      request: request,
+      status: ExtensionMarketplaceIoOperationStatus.missingHandler,
+      message:
+          'Extension marketplace IO handler is missing for operation '
+          '${request.kind.wireValue}.',
+    );
+  }
+
+  factory ExtensionMarketplaceIoOperationResult.failed({
+    required ExtensionMarketplaceIoOperationRequest request,
+    required Object error,
+  }) {
+    return ExtensionMarketplaceIoOperationResult(
+      request: request,
+      status: ExtensionMarketplaceIoOperationStatus.failed,
+      message: 'Extension marketplace IO operation failed: $error',
+      metadata: <String, Object?>{'error': error.toString()},
+    );
+  }
+
+  final ExtensionMarketplaceIoOperationRequest request;
+  final ExtensionMarketplaceIoOperationStatus status;
+  final String message;
+  final ExtensionMarketplaceIoOperationRegistration? handler;
+  final String artifactUri;
+  final String cacheKey;
+  final Map<String, Object?> metadata;
+
+  bool get completed =>
+      status == ExtensionMarketplaceIoOperationStatus.completed;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'completed': completed,
+      'message': message,
+      'kind': request.kind.wireValue,
+      'extensionId': request.extensionId,
+      if (handler != null) 'handler': handler!.toJson(),
+      if (artifactUri.isNotEmpty) 'artifactUri': artifactUri,
+      if (cacheKey.isNotEmpty) 'cacheKey': cacheKey,
+      'request': request.toJson(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionMarketplaceIoOperationRegistry {
+  ExtensionMarketplaceIoOperationRegistry({
+    Iterable<ExtensionMarketplaceIoOperationRegistration> handlers =
+        const <ExtensionMarketplaceIoOperationRegistration>[],
+  }) {
+    for (final handler in handlers) {
+      register(handler);
+    }
+  }
+
+  final List<ExtensionMarketplaceIoOperationRegistration> _handlers =
+      <ExtensionMarketplaceIoOperationRegistration>[];
+
+  List<ExtensionMarketplaceIoOperationRegistration> get handlers {
+    return List<ExtensionMarketplaceIoOperationRegistration>.unmodifiable(
+      _handlers,
+    );
+  }
+
+  void register(ExtensionMarketplaceIoOperationRegistration handler) {
+    _handlers.removeWhere(
+      (candidate) => candidate.handlerId == handler.handlerId,
+    );
+    _handlers.add(handler);
+  }
+
+  ExtensionMarketplaceIoOperationRegistration? resolve(
+    ExtensionMarketplaceIoOperationRequest request,
+  ) {
+    for (final handler in _handlers) {
+      if (handler.accepts(request)) {
+        return handler;
+      }
+    }
+    return null;
+  }
+
+  Future<ExtensionMarketplaceIoOperationResult> execute(
+    ExtensionMarketplaceIoOperationRequest request,
+  ) async {
+    final handler = resolve(request);
+    if (handler == null) {
+      return ExtensionMarketplaceIoOperationResult.missingHandler(
+        request: request,
+      );
+    }
+    try {
+      final result = await handler.handler(request);
+      return ExtensionMarketplaceIoOperationResult(
+        request: result.request,
+        status: result.status,
+        handler: result.handler ?? handler,
+        message: result.message,
+        artifactUri: result.artifactUri,
+        cacheKey: result.cacheKey,
+        metadata: <String, Object?>{...handler.metadata, ...result.metadata},
+      );
+    } catch (error) {
+      return ExtensionMarketplaceIoOperationResult.failed(
+        request: request,
+        error: error,
+      );
+    }
+  }
+}
+
+class ExtensionMarketplaceIoBatchResult {
+  const ExtensionMarketplaceIoBatchResult({required this.results});
+
+  final List<ExtensionMarketplaceIoOperationResult> results;
+
+  bool get completed => results.every((result) => result.completed);
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'completed': completed,
+      'resultCount': results.length,
+      'results': results
+          .map((result) => result.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+class ExtensionMarketplaceIoBridge {
+  const ExtensionMarketplaceIoBridge({required this.registry});
+
+  final ExtensionMarketplaceIoOperationRegistry registry;
+
+  Future<ExtensionMarketplaceIoBatchResult> executeInstallIo({
+    required ExtensionMarketplaceListing listing,
+    required ExtensionInstallLifecyclePolicyDecision lifecycleDecision,
+    required DateTime timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return _executeRequests(<ExtensionMarketplaceIoOperationRequest>[
+      ExtensionMarketplaceIoOperationRequest(
+        kind: ExtensionMarketplaceIoOperationKind.downloadPackage,
+        listing: listing,
+        lifecycleDecision: lifecycleDecision,
+        timestamp: timestamp,
+        metadata: metadata,
+      ),
+      ExtensionMarketplaceIoOperationRequest(
+        kind: ExtensionMarketplaceIoOperationKind.writePackageCache,
+        listing: listing,
+        lifecycleDecision: lifecycleDecision,
+        timestamp: timestamp,
+        metadata: metadata,
+      ),
+      ExtensionMarketplaceIoOperationRequest(
+        kind: ExtensionMarketplaceIoOperationKind.persistLifecyclePolicy,
+        listing: listing,
+        lifecycleDecision: lifecycleDecision,
+        timestamp: timestamp,
+        metadata: metadata,
+      ),
+    ]);
+  }
+
+  Future<ExtensionMarketplaceIoBatchResult> executeUpdateIo({
+    required ExtensionMarketplaceUpdatePlan updatePlan,
+    required DateTime timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final listing = updatePlan.listing;
+    if (listing == null) {
+      return Future<ExtensionMarketplaceIoBatchResult>.value(
+        ExtensionMarketplaceIoBatchResult(
+          results: <ExtensionMarketplaceIoOperationResult>[
+            ExtensionMarketplaceIoOperationResult.blocked(
+              request: ExtensionMarketplaceIoOperationRequest(
+                kind: ExtensionMarketplaceIoOperationKind.downloadUpdatePackage,
+                listing: const ExtensionMarketplaceListing(
+                  manifest: ExtensionManifest(
+                    extensionId: '',
+                    displayName: '',
+                    version: '',
+                    publisher: '',
+                    entrypoint: '',
+                  ),
+                  sourceUri: '',
+                ),
+                updatePlan: updatePlan,
+                timestamp: timestamp,
+                metadata: metadata,
+              ),
+              message:
+                  'Extension marketplace update IO blocked because the update '
+                  'plan has no listing.',
+            ),
+          ],
+        ),
+      );
+    }
+    return _executeRequests(<ExtensionMarketplaceIoOperationRequest>[
+      ExtensionMarketplaceIoOperationRequest(
+        kind: ExtensionMarketplaceIoOperationKind.downloadUpdatePackage,
+        listing: listing,
+        updatePlan: updatePlan,
+        timestamp: timestamp,
+        metadata: metadata,
+      ),
+      ExtensionMarketplaceIoOperationRequest(
+        kind: ExtensionMarketplaceIoOperationKind.writePackageCache,
+        listing: listing,
+        updatePlan: updatePlan,
+        timestamp: timestamp,
+        metadata: metadata,
+      ),
+    ]);
+  }
+
+  Future<ExtensionMarketplaceIoBatchResult> _executeRequests(
+    List<ExtensionMarketplaceIoOperationRequest> requests,
+  ) async {
+    final results = <ExtensionMarketplaceIoOperationResult>[];
+    for (final request in requests) {
+      results.add(await registry.execute(request));
+    }
+    return ExtensionMarketplaceIoBatchResult(results: results);
+  }
+}
+
 class ExtensionMarketplaceIndex {
   const ExtensionMarketplaceIndex({
     required this.workspaceId,

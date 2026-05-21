@@ -296,6 +296,185 @@ void main() {
   );
 
   test(
+    'extension marketplace IO bridge executes install operations in order',
+    () async {
+      const listing = ExtensionMarketplaceListing(
+        manifest: ExtensionManifest(
+          extensionId: 'styio.language',
+          displayName: 'Styio Language',
+          version: '1.0.0',
+          publisher: 'vityo',
+          entrypoint: 'styio_language.dart',
+          trustedByDefault: true,
+        ),
+        sourceUri: 'https://marketplace.vityo.invalid/styio.language.zip',
+        verified: true,
+      );
+      const lifecycleDecision = ExtensionInstallLifecyclePolicyDecision(
+        extensionId: 'styio.language',
+        enabledAfterInstall: true,
+        trustedAfterInstall: true,
+        activateAfterInstall: true,
+        message: 'Enable trusted extension after install.',
+      );
+      final observedKinds = <ExtensionMarketplaceIoOperationKind>[];
+      late ExtensionMarketplaceIoOperationRegistration downloadHandler;
+      late ExtensionMarketplaceIoOperationRegistration cacheHandler;
+      late ExtensionMarketplaceIoOperationRegistration lifecycleHandler;
+      downloadHandler = _marketplaceIoHandler(
+        id: 'download',
+        kind: ExtensionMarketplaceIoOperationKind.downloadPackage,
+        observedKinds: observedKinds,
+        cacheKey: 'cache/styio.language.zip',
+        self: () => downloadHandler,
+      );
+      cacheHandler = _marketplaceIoHandler(
+        id: 'cache',
+        kind: ExtensionMarketplaceIoOperationKind.writePackageCache,
+        observedKinds: observedKinds,
+        cacheKey: 'cache/styio.language.zip',
+        self: () => cacheHandler,
+      );
+      lifecycleHandler = _marketplaceIoHandler(
+        id: 'lifecycle',
+        kind: ExtensionMarketplaceIoOperationKind.persistLifecyclePolicy,
+        observedKinds: observedKinds,
+        self: () => lifecycleHandler,
+      );
+      final bridge = ExtensionMarketplaceIoBridge(
+        registry: ExtensionMarketplaceIoOperationRegistry(
+          handlers: <ExtensionMarketplaceIoOperationRegistration>[
+            downloadHandler,
+            cacheHandler,
+            lifecycleHandler,
+          ],
+        ),
+      );
+
+      final result = await bridge.executeInstallIo(
+        listing: listing,
+        lifecycleDecision: lifecycleDecision,
+        timestamp: DateTime.utc(2026, 5, 21),
+      );
+
+      expect(result.completed, isTrue);
+      expect(observedKinds, <ExtensionMarketplaceIoOperationKind>[
+        ExtensionMarketplaceIoOperationKind.downloadPackage,
+        ExtensionMarketplaceIoOperationKind.writePackageCache,
+        ExtensionMarketplaceIoOperationKind.persistLifecyclePolicy,
+      ]);
+      expect(result.results.first.cacheKey, 'cache/styio.language.zip');
+      expect(result.toJson()['resultCount'], 3);
+    },
+  );
+
+  test(
+    'extension marketplace IO bridge executes update download flow',
+    () async {
+      const listing = ExtensionMarketplaceListing(
+        manifest: ExtensionManifest(
+          extensionId: 'styio.language',
+          displayName: 'Styio Language',
+          version: '1.1.0',
+          publisher: 'vityo',
+          entrypoint: 'styio_language.dart',
+        ),
+        sourceUri: 'https://marketplace.vityo.invalid/styio.language-1.1.0.zip',
+        verified: true,
+      );
+      final updatePlan = ExtensionMarketplaceUpdatePlan.fromListing(
+        listing: listing,
+        installedRegistry: ExtensionManifestRegistry()
+          ..register(
+            const ExtensionManifest(
+              extensionId: 'styio.language',
+              displayName: 'Styio Language',
+              version: '1.0.0',
+              publisher: 'vityo',
+              entrypoint: 'styio_language.dart',
+            ),
+          ),
+      );
+      final observedKinds = <ExtensionMarketplaceIoOperationKind>[];
+      late ExtensionMarketplaceIoOperationRegistration updateDownloadHandler;
+      late ExtensionMarketplaceIoOperationRegistration cacheHandler;
+      updateDownloadHandler = _marketplaceIoHandler(
+        id: 'update-download',
+        kind: ExtensionMarketplaceIoOperationKind.downloadUpdatePackage,
+        observedKinds: observedKinds,
+        cacheKey: 'cache/styio.language-1.1.0.zip',
+        self: () => updateDownloadHandler,
+      );
+      cacheHandler = _marketplaceIoHandler(
+        id: 'cache',
+        kind: ExtensionMarketplaceIoOperationKind.writePackageCache,
+        observedKinds: observedKinds,
+        cacheKey: 'cache/styio.language-1.1.0.zip',
+        self: () => cacheHandler,
+      );
+      final bridge = ExtensionMarketplaceIoBridge(
+        registry: ExtensionMarketplaceIoOperationRegistry(
+          handlers: <ExtensionMarketplaceIoOperationRegistration>[
+            updateDownloadHandler,
+            cacheHandler,
+          ],
+        ),
+      );
+
+      final result = await bridge.executeUpdateIo(
+        updatePlan: updatePlan,
+        timestamp: DateTime.utc(2026, 5, 21),
+      );
+
+      expect(result.completed, isTrue);
+      expect(observedKinds, <ExtensionMarketplaceIoOperationKind>[
+        ExtensionMarketplaceIoOperationKind.downloadUpdatePackage,
+        ExtensionMarketplaceIoOperationKind.writePackageCache,
+      ]);
+      expect(result.results.first.request.updatePlan?.canUpdate, isTrue);
+      expect(result.results.first.cacheKey, 'cache/styio.language-1.1.0.zip');
+    },
+  );
+
+  test('extension marketplace IO bridge reports missing handlers', () async {
+    const listing = ExtensionMarketplaceListing(
+      manifest: ExtensionManifest(
+        extensionId: 'styio.language',
+        displayName: 'Styio Language',
+        version: '1.0.0',
+        publisher: 'vityo',
+        entrypoint: 'styio_language.dart',
+      ),
+      sourceUri: 'https://marketplace.vityo.invalid/styio.language.zip',
+      verified: true,
+    );
+    const lifecycleDecision = ExtensionInstallLifecyclePolicyDecision(
+      extensionId: 'styio.language',
+      enabledAfterInstall: true,
+      trustedAfterInstall: true,
+      activateAfterInstall: true,
+      message: 'Enable trusted extension after install.',
+    );
+    final bridge = ExtensionMarketplaceIoBridge(
+      registry: ExtensionMarketplaceIoOperationRegistry(),
+    );
+
+    final result = await bridge.executeInstallIo(
+      listing: listing,
+      lifecycleDecision: lifecycleDecision,
+      timestamp: DateTime.utc(2026, 5, 21),
+    );
+
+    expect(result.completed, isFalse);
+    expect(
+      result.results.map((entry) => entry.status).toSet(),
+      <ExtensionMarketplaceIoOperationStatus>{
+        ExtensionMarketplaceIoOperationStatus.missingHandler,
+      },
+    );
+  });
+
+  test(
     'extension marketplace index persists through Foundation DataStore',
     () async {
       final tempRoot = await Directory.systemTemp.createTemp(
@@ -371,6 +550,30 @@ class _FakePackageDownloader implements ExtensionPackageDownloader {
       message: 'Downloaded ${listing.extensionId}.',
     );
   }
+}
+
+ExtensionMarketplaceIoOperationRegistration _marketplaceIoHandler({
+  required String id,
+  required ExtensionMarketplaceIoOperationKind kind,
+  required List<ExtensionMarketplaceIoOperationKind> observedKinds,
+  required ExtensionMarketplaceIoOperationRegistration Function() self,
+  String cacheKey = '',
+}) {
+  return ExtensionMarketplaceIoOperationRegistration(
+    handlerId: id,
+    label: id,
+    kind: kind,
+    handler: (request) async {
+      observedKinds.add(request.kind);
+      return ExtensionMarketplaceIoOperationResult.completed(
+        request: request,
+        handler: self(),
+        message: '${request.kind.wireValue} completed.',
+        artifactUri: request.listing.sourceUri,
+        cacheKey: cacheKey,
+      );
+    },
+  );
 }
 
 class _RejectingPackageVerifier implements ExtensionPackageVerifier {

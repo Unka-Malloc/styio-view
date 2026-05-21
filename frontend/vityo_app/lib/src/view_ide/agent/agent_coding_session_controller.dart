@@ -166,6 +166,8 @@ class AgentCodingSessionController extends ChangeNotifier {
       );
   final Map<String, AgentToolCallReviewDecision> _toolCallReviewDecisions =
       <String, AgentToolCallReviewDecision>{};
+  final List<AgentToolPermissionRule> _sessionToolPermissionRules =
+      <AgentToolPermissionRule>[];
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
   final List<AgentConversationTurn> _conversationTurns =
       <AgentConversationTurn>[];
@@ -253,6 +255,8 @@ class AgentCodingSessionController extends ChangeNotifier {
       List<AgentToolCallReviewDecision>.unmodifiable(
         _toolCallReviewDecisions.values,
       );
+  List<AgentToolPermissionRule> get sessionToolPermissionRules =>
+      List<AgentToolPermissionRule>.unmodifiable(_sessionToolPermissionRules);
   AgentToolCallExecutionPlan get toolCallExecutionPlan {
     final dispatchPlan = previewDispatchPlan();
     return AgentToolCallExecutionPlan.fromTimeline(
@@ -336,6 +340,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       attachmentCount: _attachments.length,
       conversationTurnCount: _conversationWindow().length,
       toolRegistry: _toolRegistry,
+      toolPermissionRules: _sessionToolPermissionRules,
       providerSelectionPlan: _providerSelectionPlan,
       providerExecutionResolution: _providerExecutionResolution,
     );
@@ -581,39 +586,68 @@ class AgentCodingSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool approveToolCallExecution(String callId, {String? reason}) {
-    return _recordToolCallReviewDecision(
-      callId,
-      (call) => AgentToolCallReviewDecision.approved(
-        callId: call.callId,
-        toolId: call.toolId,
-        reason: reason ?? 'User approved this agent tool call.',
-        decidedAt: DateTime.now().toUtc(),
-      ),
-    );
-  }
-
-  bool denyToolCallExecution(String callId, {String? reason}) {
-    return _recordToolCallReviewDecision(
-      callId,
-      (call) => AgentToolCallReviewDecision.denied(
-        callId: call.callId,
-        toolId: call.toolId,
-        reason: reason ?? 'User denied this agent tool call.',
-        decidedAt: DateTime.now().toUtc(),
-      ),
-    );
-  }
-
-  bool _recordToolCallReviewDecision(
-    String callId,
-    AgentToolCallReviewDecision Function(AgentToolCallState call) buildDecision,
-  ) {
+  bool approveToolCallExecution(
+    String callId, {
+    String? reason,
+    bool rememberForSession = false,
+  }) {
     final call = _toolCallTimeline.callFor(callId);
     if (call == null || call.callId.trim().isEmpty) {
       return false;
     }
-    _toolCallReviewDecisions[call.callId] = buildDecision(call);
+    final decisionReason = reason ?? 'User approved this agent tool call.';
+    _toolCallReviewDecisions[call.callId] =
+        AgentToolCallReviewDecision.approved(
+          callId: call.callId,
+          toolId: call.toolId,
+          reason: decisionReason,
+          decidedAt: DateTime.now().toUtc(),
+        );
+    if (rememberForSession) {
+      _upsertSessionToolPermissionRule(
+        toolId: call.toolId,
+        action: AgentToolPermissionAction.allow,
+        reason: decisionReason,
+      );
+    }
+    notifyListeners();
+    return true;
+  }
+
+  bool denyToolCallExecution(
+    String callId, {
+    String? reason,
+    bool rememberForSession = false,
+  }) {
+    final call = _toolCallTimeline.callFor(callId);
+    if (call == null || call.callId.trim().isEmpty) {
+      return false;
+    }
+    final decisionReason = reason ?? 'User denied this agent tool call.';
+    _toolCallReviewDecisions[call.callId] = AgentToolCallReviewDecision.denied(
+      callId: call.callId,
+      toolId: call.toolId,
+      reason: decisionReason,
+      decidedAt: DateTime.now().toUtc(),
+    );
+    if (rememberForSession) {
+      _upsertSessionToolPermissionRule(
+        toolId: call.toolId,
+        action: AgentToolPermissionAction.deny,
+        reason: decisionReason,
+      );
+    }
+    notifyListeners();
+    return true;
+  }
+
+  bool clearSessionToolPermissionRule(String toolId) {
+    final ruleId = _sessionToolPermissionRuleId(toolId);
+    final before = _sessionToolPermissionRules.length;
+    _sessionToolPermissionRules.removeWhere((rule) => rule.ruleId == ruleId);
+    if (_sessionToolPermissionRules.length == before) {
+      return false;
+    }
     notifyListeners();
     return true;
   }
@@ -1749,7 +1783,10 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   AgentToolPermissionPlan _currentToolPermissionPlan() {
-    return AgentToolPermissionPlan.fromSelection(_currentToolSelection());
+    return AgentToolPermissionPlan.fromSelection(
+      _currentToolSelection(),
+      rules: _sessionToolPermissionRules,
+    );
   }
 
   AgentToolSelection _currentToolSelection() {
@@ -1757,6 +1794,32 @@ class AgentCodingSessionController extends ChangeNotifier {
       profile: profile,
       providerKind: adapter.kind,
     );
+  }
+
+  void _upsertSessionToolPermissionRule({
+    required String toolId,
+    required AgentToolPermissionAction action,
+    required String reason,
+  }) {
+    final normalizedToolId = toolId.trim();
+    if (normalizedToolId.isEmpty) {
+      return;
+    }
+    final ruleId = _sessionToolPermissionRuleId(normalizedToolId);
+    _sessionToolPermissionRules.removeWhere((rule) => rule.ruleId == ruleId);
+    _sessionToolPermissionRules.add(
+      AgentToolPermissionRule(
+        ruleId: ruleId,
+        toolIdPattern: normalizedToolId,
+        action: action,
+        priority: 1000,
+        reason: reason,
+      ),
+    );
+  }
+
+  String _sessionToolPermissionRuleId(String toolId) {
+    return 'session-tool-permission-${toolId.trim()}';
   }
 
   void _recordRecentPatchProposalContext(AgentCodePatch? patch) {

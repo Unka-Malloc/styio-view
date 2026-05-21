@@ -126,6 +126,127 @@ void main() {
     expect(executionPlan.blockingIssueCodes, isEmpty);
   });
 
+  test(
+    'agent coding session remembers tool permission approval for session',
+    () {
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.openAICodexSparkForPlatform(
+          PlatformTarget.linux,
+        ),
+        adapter: _FakeAgentProviderAdapter(
+          kind: AgentProviderKind.cloudOpenAICompatible,
+          response: const AgentProviderResponseEnvelope(
+            requestId: 'agent-request-permission',
+            role: 'assistant',
+            finishReason: 'stop',
+            contentParts: <AgentContentPart>[],
+          ),
+        ),
+        contextProvider: _context,
+      );
+
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-preview-1',
+          toolId: 'previewWorkspaceEdit',
+          input: '{}',
+        ),
+      );
+      expect(
+        controller.toolCallExecutionPlan.executionFor('call-preview-1')?.status,
+        AgentToolCallExecutionStatus.reviewRequired,
+      );
+
+      final approved = controller.approveToolCallExecution(
+        'call-preview-1',
+        rememberForSession: true,
+        reason: 'Allow preview edits for this session.',
+      );
+      controller.clearToolCallTimeline();
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-preview-2',
+          toolId: 'previewWorkspaceEdit',
+          input: '{}',
+        ),
+      );
+
+      final permission = controller.toolPermissionPlan.decisions.firstWhere(
+        (decision) => decision.toolId == 'previewWorkspaceEdit',
+      );
+      expect(approved, isTrue);
+      expect(permission.status, AgentToolPermissionDecisionStatus.allowed);
+      expect(permission.ruleId, 'session-tool-permission-previewWorkspaceEdit');
+      expect(
+        controller.toolCallExecutionPlan.executionFor('call-preview-2')?.status,
+        AgentToolCallExecutionStatus.ready,
+      );
+      expect(
+        controller.sessionToolPermissionRules.single.action,
+        AgentToolPermissionAction.allow,
+      );
+    },
+  );
+
+  test('agent coding session remembers tool permission denial for session', () {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: _FakeAgentProviderAdapter(
+        kind: AgentProviderKind.cloudOpenAICompatible,
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-permission',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[],
+        ),
+      ),
+      contextProvider: _context,
+    );
+
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-1',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"saveAll"}',
+      ),
+    );
+    final denied = controller.denyToolCallExecution(
+      'call-command-1',
+      rememberForSession: true,
+      reason: 'Do not run IDE commands in this session.',
+    );
+    controller.clearToolCallTimeline();
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-command-2',
+        toolId: 'runIdeCommand',
+        input: '{"commandId":"saveAll"}',
+      ),
+    );
+
+    final execution = controller.toolCallExecutionPlan.executionFor(
+      'call-command-2',
+    )!;
+    expect(denied, isTrue);
+    expect(
+      controller.previewDispatchPlan().toolPermissionPlan.blocksDispatch,
+      isTrue,
+    );
+    expect(execution.status, AgentToolCallExecutionStatus.blocked);
+    expect(
+      execution.issueCodes,
+      contains('agent.tool.permission.denied.runIdeCommand'),
+    );
+
+    expect(controller.clearSessionToolPermissionRule('runIdeCommand'), isTrue);
+    expect(
+      controller.toolCallExecutionPlan.executionFor('call-command-2')?.status,
+      AgentToolCallExecutionStatus.reviewRequired,
+    );
+  });
+
   test('agent coding session clears tool call timeline with conversation', () {
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),

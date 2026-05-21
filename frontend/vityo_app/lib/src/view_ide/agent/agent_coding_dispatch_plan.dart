@@ -49,6 +49,8 @@ class AgentCodingDispatchPlan {
     required int attachmentCount,
     required int conversationTurnCount,
     AgentToolRegistry? toolRegistry,
+    Iterable<AgentToolPermissionRule> toolPermissionRules =
+        const <AgentToolPermissionRule>[],
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
   }) {
@@ -58,12 +60,11 @@ class AgentCodingDispatchPlan {
           providerSelectionPlan.todo.isNotEmpty)
         providerSelectionPlan.todo,
     };
-    final toolSelection = (toolRegistry ?? AgentToolRegistry()).selectForProfile(
-      profile: profile,
-      providerKind: adapter.kind,
-    );
+    final toolSelection = (toolRegistry ?? AgentToolRegistry())
+        .selectForProfile(profile: profile, providerKind: adapter.kind);
     final toolPermissionPlan = AgentToolPermissionPlan.fromSelection(
       toolSelection,
+      rules: toolPermissionRules,
     );
     todos.addAll(toolSelection.todoItems);
     todos.addAll(toolPermissionPlan.todoItems);

@@ -1943,6 +1943,15 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
             ? null
             : _runIdeCommandTool,
         workspacePatchRunner: widget.onApplyAgentWorkspacePatch,
+        validationContextProvider: () =>
+            AgentCodingValidationToolContext.fromSessionContext(
+              widget.sessionContext,
+              validationPlan: widget.controller.codingValidationPlan,
+              validationResult: widget.controller.codingValidationResult,
+              validationPipeline: widget.controller.codingValidationPipeline,
+              changeReviewGate: widget.controller.codingChangeReviewGate,
+              autonomyPolicy: widget.controller.codingAutonomyPolicy,
+            ),
       );
       await widget.controller.dispatchReadyToolCalls(executor.execute);
     } finally {

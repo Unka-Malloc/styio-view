@@ -17,6 +17,7 @@ void main() {
     expect(selection.toolIds, contains('previewWorkspaceEdit'));
     expect(selection.toolIds, contains('runIdeCommand'));
     expect(selection.toolIds, contains('collectStyioLanguageContext'));
+    expect(selection.toolIds, contains('collectAgentValidationContext'));
     expect(selection.toolIds, contains('collectAgentCodingCheckpoint'));
     expect(selection.toolIds, isNot(contains('openLocalShell')));
     expect(selection.rejectedToolIds, contains('openLocalShell'));

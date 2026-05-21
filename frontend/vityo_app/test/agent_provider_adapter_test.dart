@@ -163,6 +163,7 @@ void main() {
     expect(toolNames, contains('applyWorkspacePatch'));
     expect(toolNames, contains('runIdeCommand'));
     expect(toolNames, contains('collectStyioLanguageContext'));
+    expect(toolNames, contains('collectAgentValidationContext'));
     expect(toolNames, contains('collectAgentCodingCheckpoint'));
     final ideTool = tools.cast<Map<String, Object?>>().firstWhere(
       (tool) => tool['name'] == 'vityo_ide_command',

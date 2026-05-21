@@ -230,6 +230,59 @@ void main() {
     expect(result.metadata['semanticSpanCount'], isA<int>());
   });
 
+  test('agent builtin executor collects validation context', () async {
+    final executor = AgentBuiltinToolExecutor(
+      context: _context(),
+      validationContextProvider: () =>
+          AgentCodingValidationToolContext.fromSessionContext(
+            _context(),
+            validationPlan: const AgentCodingValidationPlan(
+              status: AgentCodingValidationPlanStatus.ready,
+              shouldRun: true,
+              reason: 'Generated code was applied and needs validation.',
+              registeredCommandIds: <String>['runTests'],
+              commandPlans: <AgentCodingValidationCommandPlan>[
+                AgentCodingValidationCommandPlan(
+                  commandId: 'runTests',
+                  phase: 'testing',
+                  required: true,
+                  requiresInput: false,
+                ),
+              ],
+            ),
+            validationResult: const AgentCodingValidationResult(
+              status: AgentCodingValidationResultStatus.notStarted,
+              summary: 'Agent coding validation has not started.',
+              requiredCommandIds: <String>['runTests'],
+              missingCommandIds: <String>['runTests'],
+            ),
+            validationPipeline: const AgentCodingValidationPipeline(
+              status: AgentCodingValidationPipelineStatus.ready,
+              summary: 'Agent coding validation is ready to run.',
+              nextCommandId: 'runTests',
+              remainingCommandIds: <String>['runTests'],
+              runnableCommandIds: <String>['runTests'],
+              progressDenominator: 1,
+            ),
+          ),
+    );
+    final result = await executor.execute(
+      const AgentToolCallDispatchRequest(
+        callId: 'call-validation',
+        toolId: 'collectAgentValidationContext',
+        inputText: '{}',
+      ),
+    );
+    final output = jsonDecode(result.output);
+
+    expect(result.success, isTrue);
+    expect(output['source'], 'agent-validation-context');
+    expect(output['validation']['validationPlan']['status'], 'ready');
+    expect(output['validation']['validationPipeline']['nextCommandId'], 'runTests');
+    expect(result.metadata['nextCommandId'], 'runTests');
+    expect(result.metadata['runnableCommandCount'], 1);
+  });
+
   test('agent builtin executor previews workspace edits', () async {
     final executor = AgentBuiltinToolExecutor(context: _context());
     final result = await executor.execute(

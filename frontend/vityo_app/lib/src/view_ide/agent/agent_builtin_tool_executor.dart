@@ -14,6 +14,84 @@ typedef AgentIdeCommandToolRunner =
     );
 typedef AgentWorkspacePatchToolRunner =
     Future<AgentCodePatchApplicationResult> Function(AgentCodePatch patch);
+typedef AgentValidationContextProvider = AgentCodingValidationToolContext
+    Function();
+
+class AgentCodingValidationToolContext {
+  const AgentCodingValidationToolContext({
+    required this.validationPlan,
+    required this.validationResult,
+    required this.validationPipeline,
+    required this.changeReviewGate,
+    required this.autonomyPolicy,
+    required this.validationCommands,
+    required this.recentCommandResults,
+    required this.failedCommandResults,
+    required this.testing,
+  });
+
+  factory AgentCodingValidationToolContext.fromSessionContext(
+    AgentSessionContext context, {
+    AgentCodingValidationPlan? validationPlan,
+    AgentCodingValidationResult? validationResult,
+    AgentCodingValidationPipeline? validationPipeline,
+    AgentCodingChangeReviewGate? changeReviewGate,
+    AgentCodingAutonomyPolicy? autonomyPolicy,
+  }) {
+    final plan = validationPlan ?? context.agent.validationPlan;
+    final result = validationResult ?? context.agent.validationResult;
+    final pipeline = validationPipeline ?? context.agent.validationPipeline;
+    final commandIds = plan.registeredCommandIds.toSet();
+    final validationCommands = _allCommandContexts(context.commands)
+        .where((command) => commandIds.contains(command.id))
+        .toList(growable: false);
+    final failedCommandIds = result.failedCommandIds.toSet();
+    final failedCommandResults = context.commands.recentResults
+        .where((commandResult) => failedCommandIds.contains(commandResult.commandId))
+        .toList(growable: false);
+    return AgentCodingValidationToolContext(
+      validationPlan: plan,
+      validationResult: result,
+      validationPipeline: pipeline,
+      changeReviewGate: changeReviewGate ?? context.agent.changeReviewGate,
+      autonomyPolicy: autonomyPolicy ?? context.agent.autonomyPolicy,
+      validationCommands: validationCommands,
+      recentCommandResults: context.commands.recentResults,
+      failedCommandResults: failedCommandResults,
+      testing: context.testing,
+    );
+  }
+
+  final AgentCodingValidationPlan validationPlan;
+  final AgentCodingValidationResult validationResult;
+  final AgentCodingValidationPipeline validationPipeline;
+  final AgentCodingChangeReviewGate changeReviewGate;
+  final AgentCodingAutonomyPolicy autonomyPolicy;
+  final List<AgentCommandContext> validationCommands;
+  final List<AgentCommandResultContext> recentCommandResults;
+  final List<AgentCommandResultContext> failedCommandResults;
+  final AgentTestingContext testing;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'validationPlan': validationPlan.toJson(),
+      'validationResult': validationResult.toJson(),
+      'validationPipeline': validationPipeline.toJson(),
+      'changeReviewGate': changeReviewGate.toJson(),
+      'autonomyPolicy': autonomyPolicy.toJson(),
+      'validationCommands': validationCommands
+          .map((command) => command.toJson())
+          .toList(growable: false),
+      'recentCommandResults': recentCommandResults
+          .map((result) => result.toJson())
+          .toList(growable: false),
+      'failedCommandResults': failedCommandResults
+          .map((result) => result.toJson())
+          .toList(growable: false),
+      'testing': testing.toJson(),
+    };
+  }
+}
 
 class AgentBuiltinToolExecutor {
   const AgentBuiltinToolExecutor({
@@ -21,6 +99,7 @@ class AgentBuiltinToolExecutor {
     this.documentStore,
     this.ideCommandRunner,
     this.workspacePatchRunner,
+    this.validationContextProvider,
     this.checkpointChannels = const <String>[
       'file',
       'selection',
@@ -40,6 +119,7 @@ class AgentBuiltinToolExecutor {
   final WorkspaceDocumentStore? documentStore;
   final AgentIdeCommandToolRunner? ideCommandRunner;
   final AgentWorkspacePatchToolRunner? workspacePatchRunner;
+  final AgentValidationContextProvider? validationContextProvider;
   final List<String> checkpointChannels;
 
   Future<AgentToolCallDispatchResult> execute(
@@ -51,6 +131,9 @@ class AgentBuiltinToolExecutor {
       'applyWorkspacePatch' => _applyWorkspacePatch(request),
       'runIdeCommand' => _runIdeCommand(request),
       'collectStyioLanguageContext' => _collectStyioLanguageContext(request),
+      'collectAgentValidationContext' => _collectAgentValidationContext(
+        request,
+      ),
       'collectAgentCodingCheckpoint' => _collectAgentCodingCheckpoint(request),
       _ => AgentToolCallDispatchResult.failure(
         callId: request.callId,
@@ -77,6 +160,34 @@ class AgentBuiltinToolExecutor {
         'codeActionCount': context.language.codeActionCount,
         'referenceCount': context.language.referenceCount,
         'semanticSpanCount': context.language.semanticSpanCount,
+      },
+    );
+  }
+
+  Future<AgentToolCallDispatchResult> _collectAgentValidationContext(
+    AgentToolCallDispatchRequest request,
+  ) async {
+    final validationContext =
+        validationContextProvider?.call() ??
+        AgentCodingValidationToolContext.fromSessionContext(context);
+    return AgentToolCallDispatchResult.success(
+      callId: request.callId,
+      toolId: request.toolId,
+      output: jsonEncode(<String, Object?>{
+        'source': 'agent-validation-context',
+        'validation': validationContext.toJson(),
+      }),
+      metadata: <String, Object?>{
+        'planStatus': validationContext.validationPlan.status.wireValue,
+        'resultStatus': validationContext.validationResult.status.wireValue,
+        'pipelineStatus': validationContext.validationPipeline.status.wireValue,
+        'shouldRun': validationContext.validationPlan.shouldRun,
+        if (validationContext.validationPipeline.nextCommandId != null)
+          'nextCommandId': validationContext.validationPipeline.nextCommandId,
+        'runnableCommandCount':
+            validationContext.validationPipeline.runnableCommandIds.length,
+        'failedCommandCount':
+            validationContext.validationResult.failedCommandIds.length,
       },
     );
   }

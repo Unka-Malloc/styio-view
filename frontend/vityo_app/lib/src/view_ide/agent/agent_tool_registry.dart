@@ -278,6 +278,21 @@ class AgentToolRegistry {
           'TODO: replace local fallback facts with StyioService-authored facts when the external service exposes the full semantic contract.',
     ),
     AgentToolDefinition(
+      toolId: 'collectAgentValidationContext',
+      displayName: 'Collect Agent Validation Context',
+      description:
+          'Collect the current agent validation plan, runnable IDE command ids, results, and testing context.',
+      priority: 62,
+      permissionMode: AgentToolPermissionMode.never,
+      capabilities: <String>[
+        'agent.validation',
+        'agent.validation.pipeline',
+        'testing.context',
+      ],
+      todo:
+          'TODO: bind validation commands to a full OpenCode-style replayable execution log and provider-visible failure recovery plan.',
+    ),
+    AgentToolDefinition(
       toolId: 'collectAgentCodingCheckpoint',
       displayName: 'Collect Agent Coding Checkpoint',
       description:

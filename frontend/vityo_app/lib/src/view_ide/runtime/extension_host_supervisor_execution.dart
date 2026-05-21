@@ -96,10 +96,14 @@ class ExtensionHostSupervisorExecutionPlan {
 class ExtensionHostSupervisorExecutionBridge {
   ExtensionHostSupervisorExecutionBridge({
     RuntimeExecutionManagerRegistry? registry,
+    ExtensionHostSandboxLauncherRegistry? sandboxLaunchers,
   }) : _registry =
-           registry ?? RuntimeExecutionManagerRegistry.defaultManagers();
+           registry ?? RuntimeExecutionManagerRegistry.defaultManagers(),
+       _sandboxLaunchers =
+           sandboxLaunchers ?? ExtensionHostSandboxLauncherRegistry();
 
   final RuntimeExecutionManagerRegistry _registry;
+  final ExtensionHostSandboxLauncherRegistry _sandboxLaunchers;
 
   RuntimeExecutionDispatchResult dispatchPlan({
     required ExtensionHostSupervisorExecutionPlan plan,
@@ -139,6 +143,289 @@ class ExtensionHostSupervisorExecutionBridge {
           ),
         )
         .toList(growable: false);
+  }
+
+  Future<ExtensionHostSandboxLaunchResult> launchSandboxForPlan({
+    required ExtensionHostSupervisorExecutionPlan plan,
+    required RuntimeOutputLiveBuffer buffer,
+    required DateTime timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) async {
+    final dispatch = dispatchPlan(
+      plan: plan,
+      buffer: buffer,
+      timestamp: timestamp,
+      metadata: metadata,
+    );
+    return _sandboxLaunchers.launch(
+      ExtensionHostSandboxLaunchRequest(
+        plan: plan,
+        dispatchResult: dispatch,
+        timestamp: timestamp,
+        metadata: metadata,
+      ),
+    );
+  }
+
+  Future<List<ExtensionHostSandboxLaunchResult>> launchSnapshotSandboxes({
+    required ExtensionHostSupervisorSnapshot snapshot,
+    required RuntimeOutputLiveBuffer buffer,
+    required DateTime timestamp,
+    ExtensionManifestRegistry? manifestRegistry,
+  }) async {
+    final results = <ExtensionHostSandboxLaunchResult>[];
+    for (final record in snapshot.records.where((record) => record.active)) {
+      results.add(
+        await launchSandboxForPlan(
+          plan: ExtensionHostSupervisorExecutionPlan.fromRecord(
+            record,
+            manifest: manifestRegistry?.lookup(record.extensionId),
+          ),
+          buffer: buffer,
+          timestamp: timestamp,
+        ),
+      );
+    }
+    return results;
+  }
+}
+
+enum ExtensionHostSandboxLaunchStatus { launched, blocked, missingLauncher }
+
+extension ExtensionHostSandboxLaunchStatusX
+    on ExtensionHostSandboxLaunchStatus {
+  String get wireValue => switch (this) {
+    ExtensionHostSandboxLaunchStatus.launched => 'launched',
+    ExtensionHostSandboxLaunchStatus.blocked => 'blocked',
+    ExtensionHostSandboxLaunchStatus.missingLauncher => 'missing-launcher',
+  };
+}
+
+typedef ExtensionHostSandboxLauncher =
+    Future<ExtensionHostSandboxLaunchResult> Function(
+      ExtensionHostSandboxLaunchRequest request,
+    );
+
+class ExtensionHostSandboxLaunchRequest {
+  const ExtensionHostSandboxLaunchRequest({
+    required this.plan,
+    required this.dispatchResult,
+    required this.timestamp,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final ExtensionHostSupervisorExecutionPlan plan;
+  final RuntimeExecutionDispatchResult dispatchResult;
+  final DateTime timestamp;
+  final Map<String, Object?> metadata;
+
+  String get extensionId => plan.record.extensionId;
+  ExtensionHostSupervisorAction get action => plan.record.action;
+  String get managerId => dispatchResult.binding.managerId;
+  bool get dispatchReady => dispatchResult.dispatched;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'action': action.wireValue,
+      'managerId': managerId,
+      'dispatchReady': dispatchReady,
+      'timestamp': timestamp.toIso8601String(),
+      'plan': plan.toJson(),
+      'dispatchResult': dispatchResult.toJson(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionHostSandboxLauncherRegistration {
+  const ExtensionHostSandboxLauncherRegistration({
+    required this.launcherId,
+    required this.label,
+    required this.action,
+    required this.launcher,
+    this.available = true,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String launcherId;
+  final String label;
+  final ExtensionHostSupervisorAction action;
+  final ExtensionHostSandboxLauncher launcher;
+  final bool available;
+  final Map<String, Object?> metadata;
+
+  bool accepts(ExtensionHostSandboxLaunchRequest request) {
+    return available && action == request.action;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'launcherId': launcherId,
+      'label': label,
+      'action': action.wireValue,
+      'available': available,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionHostSandboxLaunchResult {
+  const ExtensionHostSandboxLaunchResult({
+    required this.request,
+    required this.status,
+    required this.message,
+    this.launcher,
+    this.processHandleId = '',
+    this.pid,
+    this.activationTelemetryId = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  factory ExtensionHostSandboxLaunchResult.launched({
+    required ExtensionHostSandboxLaunchRequest request,
+    required ExtensionHostSandboxLauncherRegistration launcher,
+    String message = 'Extension host sandbox launch accepted.',
+    String processHandleId = '',
+    int? pid,
+    String activationTelemetryId = '',
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionHostSandboxLaunchResult(
+      request: request,
+      status: ExtensionHostSandboxLaunchStatus.launched,
+      launcher: launcher,
+      message: message,
+      processHandleId: processHandleId,
+      pid: pid,
+      activationTelemetryId: activationTelemetryId,
+      metadata: metadata,
+    );
+  }
+
+  factory ExtensionHostSandboxLaunchResult.blocked({
+    required ExtensionHostSandboxLaunchRequest request,
+    required String message,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionHostSandboxLaunchResult(
+      request: request,
+      status: ExtensionHostSandboxLaunchStatus.blocked,
+      message: message,
+      metadata: metadata,
+    );
+  }
+
+  factory ExtensionHostSandboxLaunchResult.missingLauncher({
+    required ExtensionHostSandboxLaunchRequest request,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionHostSandboxLaunchResult(
+      request: request,
+      status: ExtensionHostSandboxLaunchStatus.missingLauncher,
+      message:
+          'Extension host sandbox launcher is missing for action '
+          '${request.action.wireValue}.',
+      metadata: metadata,
+    );
+  }
+
+  final ExtensionHostSandboxLaunchRequest request;
+  final ExtensionHostSandboxLaunchStatus status;
+  final String message;
+  final ExtensionHostSandboxLauncherRegistration? launcher;
+  final String processHandleId;
+  final int? pid;
+  final String activationTelemetryId;
+  final Map<String, Object?> metadata;
+
+  bool get launched => status == ExtensionHostSandboxLaunchStatus.launched;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'launched': launched,
+      'message': message,
+      'extensionId': request.extensionId,
+      'action': request.action.wireValue,
+      'managerId': request.managerId,
+      if (launcher != null) 'launcher': launcher!.toJson(),
+      if (processHandleId.isNotEmpty) 'processHandleId': processHandleId,
+      if (pid != null) 'pid': pid,
+      if (activationTelemetryId.isNotEmpty)
+        'activationTelemetryId': activationTelemetryId,
+      'request': request.toJson(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionHostSandboxLauncherRegistry {
+  ExtensionHostSandboxLauncherRegistry({
+    Iterable<ExtensionHostSandboxLauncherRegistration> launchers =
+        const <ExtensionHostSandboxLauncherRegistration>[],
+  }) {
+    for (final launcher in launchers) {
+      register(launcher);
+    }
+  }
+
+  final List<ExtensionHostSandboxLauncherRegistration> _launchers =
+      <ExtensionHostSandboxLauncherRegistration>[];
+
+  List<ExtensionHostSandboxLauncherRegistration> get launchers {
+    return List<ExtensionHostSandboxLauncherRegistration>.unmodifiable(
+      _launchers,
+    );
+  }
+
+  void register(ExtensionHostSandboxLauncherRegistration launcher) {
+    _launchers.removeWhere(
+      (candidate) => candidate.launcherId == launcher.launcherId,
+    );
+    _launchers.add(launcher);
+  }
+
+  ExtensionHostSandboxLauncherRegistration? resolve(
+    ExtensionHostSandboxLaunchRequest request,
+  ) {
+    for (final launcher in _launchers) {
+      if (launcher.accepts(request)) {
+        return launcher;
+      }
+    }
+    return null;
+  }
+
+  Future<ExtensionHostSandboxLaunchResult> launch(
+    ExtensionHostSandboxLaunchRequest request,
+  ) async {
+    if (!request.plan.ready || !request.dispatchReady) {
+      return ExtensionHostSandboxLaunchResult.blocked(
+        request: request,
+        message:
+            'Extension host sandbox launch blocked because runtime dispatch '
+            'is not ready.',
+        metadata: <String, Object?>{
+          'dispatchStatus': request.dispatchResult.status.wireValue,
+        },
+      );
+    }
+    final launcher = resolve(request);
+    if (launcher == null) {
+      return ExtensionHostSandboxLaunchResult.missingLauncher(request: request);
+    }
+    final result = await launcher.launcher(request);
+    return ExtensionHostSandboxLaunchResult(
+      request: result.request,
+      status: result.status,
+      launcher: result.launcher ?? launcher,
+      message: result.message,
+      processHandleId: result.processHandleId,
+      pid: result.pid,
+      activationTelemetryId: result.activationTelemetryId,
+      metadata: <String, Object?>{...launcher.metadata, ...result.metadata},
+    );
   }
 }
 

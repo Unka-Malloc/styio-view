@@ -179,4 +179,115 @@ void main() {
       expect(plan.toJson()['ready'], isTrue);
     },
   );
+
+  test(
+    'extension host supervisor launches sandbox through registered launcher',
+    () async {
+      final registry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'styio.language',
+            displayName: 'Styio Language',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'language.dart',
+            activationEvents: <String>['onLanguage:styio'],
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'local-process'},
+          ),
+        );
+      final session = ExtensionActivator(
+        clock: () => DateTime.utc(2026, 5, 20),
+      ).activate(registry: registry, event: 'onLanguage:styio');
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 20, 1),
+      ).applyActivation(registry: registry, session: session);
+      final plan = ExtensionHostSupervisorExecutionPlan.fromRecord(
+        snapshot.lookup('styio.language')!,
+        manifest: registry.lookup('styio.language'),
+      );
+      late final ExtensionHostSandboxLauncherRegistration launcher;
+      launcher = ExtensionHostSandboxLauncherRegistration(
+        launcherId: 'local-process-fixture',
+        label: 'Local Process Fixture',
+        action: ExtensionHostSupervisorAction.spawnLocalProcess,
+        metadata: const <String, Object?>{'sandboxKind': 'fixture-process'},
+        launcher: (request) async {
+          return ExtensionHostSandboxLaunchResult.launched(
+            request: request,
+            launcher: launcher,
+            message: 'Fixture sandbox launch accepted.',
+            processHandleId: 'extension-host-proc-1',
+            pid: 4242,
+            activationTelemetryId: 'activation-telemetry-1',
+            metadata: const <String, Object?>{'source': 'test'},
+          );
+        },
+      );
+      final bridge = ExtensionHostSupervisorExecutionBridge(
+        sandboxLaunchers: ExtensionHostSandboxLauncherRegistry(
+          launchers: <ExtensionHostSandboxLauncherRegistration>[launcher],
+        ),
+      );
+      final buffer = RuntimeOutputLiveBuffer();
+
+      final launch = await bridge.launchSandboxForPlan(
+        plan: plan,
+        buffer: buffer,
+        timestamp: DateTime.utc(2026, 5, 20, 2),
+      );
+
+      expect(launch.status, ExtensionHostSandboxLaunchStatus.launched);
+      expect(launch.launched, isTrue);
+      expect(launch.processHandleId, 'extension-host-proc-1');
+      expect(launch.pid, 4242);
+      expect(launch.activationTelemetryId, 'activation-telemetry-1');
+      expect(launch.metadata['sandboxKind'], 'fixture-process');
+      expect(launch.request.dispatchReady, isTrue);
+      expect(launch.toJson()['launcher'], isA<Map<String, Object?>>());
+    },
+  );
+
+  test(
+    'extension host sandbox launch reports missing launcher explicitly',
+    () async {
+      final registry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'styio.language',
+            displayName: 'Styio Language',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'language.dart',
+            activationEvents: <String>['onLanguage:styio'],
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'local-process'},
+          ),
+        );
+      final session = ExtensionActivator(
+        clock: () => DateTime.utc(2026, 5, 20),
+      ).activate(registry: registry, event: 'onLanguage:styio');
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 20, 1),
+      ).applyActivation(registry: registry, session: session);
+      final plan = ExtensionHostSupervisorExecutionPlan.fromRecord(
+        snapshot.lookup('styio.language')!,
+        manifest: registry.lookup('styio.language'),
+      );
+      final buffer = RuntimeOutputLiveBuffer();
+
+      final launch = await ExtensionHostSupervisorExecutionBridge()
+          .launchSandboxForPlan(
+            plan: plan,
+            buffer: buffer,
+            timestamp: DateTime.utc(2026, 5, 20, 2),
+          );
+
+      expect(launch.status, ExtensionHostSandboxLaunchStatus.missingLauncher);
+      expect(launch.launched, isFalse);
+      expect(launch.request.dispatchReady, isTrue);
+      expect(launch.message, contains('missing'));
+      expect(launch.toJson()['action'], 'spawn-local-process');
+    },
+  );
 }

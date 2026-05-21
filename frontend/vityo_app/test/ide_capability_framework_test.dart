@@ -329,11 +329,15 @@ void main() {
     );
     expect(
       entriesById['interaction.diagnostics']?.summary,
+      contains('WorkspaceDiagnosticsProducerProcessHandleRegistry'),
+    );
+    expect(
+      entriesById['interaction.diagnostics']?.summary,
       contains('ShellRuntime diagnostics producer cancellation bridge'),
     );
     expect(
       entriesById['interaction.diagnostics']?.todo,
-      contains('every production diagnostics provider'),
+      contains('process handle registry'),
     );
     expect(
       entriesById['interaction.diagnostics']?.runtimeMaturityBlocking,
@@ -342,6 +346,10 @@ void main() {
     expect(
       entriesById['interaction.diagnostics']?.summary,
       contains('WorkspaceQuickFixTelemetryStore review outcomes'),
+    );
+    expect(
+      entriesById['workspace.diagnostics']?.summary,
+      contains('WorkspaceDiagnosticsProducerProcessHandleRegistry'),
     );
     expect(
       entriesById['workspace.diagnostics']?.summary,

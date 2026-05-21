@@ -324,6 +324,70 @@ class WorkspaceDiagnosticsProducerCancellationAdapter {
   }
 }
 
+class WorkspaceDiagnosticsProducerProcessHandleRegistry {
+  WorkspaceDiagnosticsProducerProcessHandleRegistry({
+    Map<String, WorkspaceDiagnosticsProcessCancellationHandle> handles =
+        const <String, WorkspaceDiagnosticsProcessCancellationHandle>{},
+  }) : _handlesByProvider =
+           Map<String, WorkspaceDiagnosticsProcessCancellationHandle>.of(
+             handles,
+           );
+
+  final Map<String, WorkspaceDiagnosticsProcessCancellationHandle>
+  _handlesByProvider;
+
+  bool get isEmpty => _handlesByProvider.isEmpty;
+  bool get isNotEmpty => _handlesByProvider.isNotEmpty;
+
+  Iterable<String> get providerIds => _handlesByProvider.keys;
+
+  void register({
+    required String providerId,
+    required WorkspaceDiagnosticsProcessCancellationHandle handle,
+  }) {
+    final normalizedProviderId = providerId.trim();
+    if (normalizedProviderId.isEmpty) {
+      return;
+    }
+    _handlesByProvider[normalizedProviderId] = handle;
+  }
+
+  WorkspaceDiagnosticsProcessCancellationHandle? unregister(String providerId) {
+    return _handlesByProvider.remove(providerId.trim());
+  }
+
+  WorkspaceDiagnosticsProcessCancellationHandle? handleForProvider(
+    String providerId,
+  ) {
+    return _handlesByProvider[providerId.trim()];
+  }
+
+  WorkspaceDiagnosticsProducerCancellationAdapter? adapterForProvider(
+    String providerId,
+  ) {
+    final handle = handleForProvider(providerId);
+    if (handle == null) {
+      return null;
+    }
+    return WorkspaceDiagnosticsProducerCancellationAdapter.processHandle(
+      handle,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'providerCount': _handlesByProvider.length,
+      'providers': <Map<String, Object?>>[
+        for (final entry in _handlesByProvider.entries)
+          <String, Object?>{
+            'providerId': entry.key,
+            'processHandleId': entry.value.handleId,
+          },
+      ],
+    };
+  }
+}
+
 class WorkspaceDiagnosticsProducerLifecycleController {
   WorkspaceDiagnosticsProducerLifecycleController({
     RuntimeTaskLifecycleController? taskLifecycleController,

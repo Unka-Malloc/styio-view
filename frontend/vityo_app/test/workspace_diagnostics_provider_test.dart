@@ -312,6 +312,63 @@ void main() {
   );
 
   test(
+    'workspace diagnostics controller resolves producer process handles',
+    () async {
+      const request = WorkspaceDiagnosticsRequest(
+        documentIds: <String>['src/main.styio'],
+        activeDocumentId: 'src/main.styio',
+      );
+      final plan = WorkspaceDiagnosticsProducerExecutionPlan.nativeTool(
+        providerId: 'styio-project-diagnostics',
+        request: request,
+        command: 'styio',
+        arguments: const <String>['check', '.'],
+      );
+      final lifecycleController =
+          WorkspaceDiagnosticsProducerLifecycleController()
+            ..start(plan, message: 'Styio diagnostics started.');
+      final handle = _FakeWorkspaceDiagnosticsProcessCancellationHandle(
+        handleId: 'toolchain-process-99',
+        result: const WorkspaceDiagnosticsProducerCancellationResult.accepted(
+          processTerminated: true,
+          message: 'Terminated registered diagnostics process.',
+          metadata: <String, Object?>{'pid': 99},
+        ),
+      );
+      final registry = WorkspaceDiagnosticsProducerProcessHandleRegistry()
+        ..register(providerId: 'styio-project-diagnostics', handle: handle);
+      final controller = WorkspaceDiagnosticsController(
+        provider: const StaticWorkspaceDiagnosticsProvider(
+          providerId: 'static',
+          snapshot: WorkspaceDiagnosticsSnapshot(
+            providerId: 'static',
+            diagnostics: <WorkspaceDiagnostic>[],
+          ),
+        ),
+        producerLifecycleController: lifecycleController,
+        producerProcessHandleRegistry: registry,
+      );
+      addTearDown(controller.dispose);
+
+      final cancelled = await controller.cancelDiagnosticsProducer(
+        lifecycleController.snapshots.single,
+        reason: 'User cancelled diagnostics.',
+      );
+
+      expect(cancelled?.status, RuntimeTaskStatus.cancelled);
+      expect(cancelled?.message, 'Terminated registered diagnostics process.');
+      expect(handle.cancelledProviderIds, <String>[
+        'styio-project-diagnostics',
+      ]);
+      expect(registry.toJson()['providerCount'], 1);
+      expect(
+        registry.adapterForProvider('styio-project-diagnostics'),
+        isNotNull,
+      );
+    },
+  );
+
+  test(
     'workspace diagnostics producer cancellation adapter can reject requests',
     () async {
       const request = WorkspaceDiagnosticsRequest(

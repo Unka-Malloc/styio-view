@@ -9,6 +9,8 @@ class WorkspaceDiagnosticsController extends ChangeNotifier {
     WorkspaceDiagnosticsFilterStore? filterStore,
     WorkspaceDiagnosticsProducerLifecycleController?
     producerLifecycleController,
+    WorkspaceDiagnosticsProducerProcessHandleRegistry?
+    producerProcessHandleRegistry,
     Map<String, WorkspaceDiagnosticsProducerCancellationAdapter>
         producerCancellationAdapters =
         const <String, WorkspaceDiagnosticsProducerCancellationAdapter>{},
@@ -16,6 +18,7 @@ class WorkspaceDiagnosticsController extends ChangeNotifier {
   }) : _provider = provider,
        _filterStore = filterStore,
        _producerLifecycleController = producerLifecycleController,
+       _producerProcessHandleRegistry = producerProcessHandleRegistry,
        _producerCancellationAdapters =
            Map<String, WorkspaceDiagnosticsProducerCancellationAdapter>.of(
              producerCancellationAdapters,
@@ -26,6 +29,8 @@ class WorkspaceDiagnosticsController extends ChangeNotifier {
   final WorkspaceDiagnosticsFilterStore? _filterStore;
   final WorkspaceDiagnosticsProducerLifecycleController?
   _producerLifecycleController;
+  final WorkspaceDiagnosticsProducerProcessHandleRegistry?
+  _producerProcessHandleRegistry;
   final Map<String, WorkspaceDiagnosticsProducerCancellationAdapter>
   _producerCancellationAdapters;
   final String _workspaceId;
@@ -132,7 +137,9 @@ class WorkspaceDiagnosticsController extends ChangeNotifier {
     if (plan == null) {
       return null;
     }
-    final adapter = _producerCancellationAdapters[snapshot.providerId];
+    final adapter =
+        _producerCancellationAdapters[snapshot.providerId] ??
+        _producerProcessHandleRegistry?.adapterForProvider(snapshot.providerId);
     final result = adapter == null
         ? lifecycleController.requestCancellation(plan, reason: reason)
         : await lifecycleController.requestProcessCancellation(

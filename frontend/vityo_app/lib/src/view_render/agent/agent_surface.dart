@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -2460,8 +2461,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final toolCallTimeline = controller.toolCallTimeline;
         final toolCallExecutionPlan = controller.toolCallExecutionPlan;
         final toolCallReplayPlan = controller.toolCallReplayPlan;
-        final recentToolCallResultCount =
-            controller.recentToolCallResultContexts.length;
+        final recentToolCallResults = controller.recentToolCallResultContexts;
+        final recentToolCallResultCount = recentToolCallResults.length;
         final projectToolPermissionRules =
             controller.projectToolPermissionRules;
         final workspaceSnapshotCapture =
@@ -2562,6 +2563,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                   dispatching: _dispatchingToolCalls,
                   toolLoopRuntimeReport: _lastToolLoopRuntimeReport,
                   toolResultCount: recentToolCallResultCount,
+                  toolResultContexts: recentToolCallResults,
                   onRunReadyCalls:
                       toolCallExecutionPlan.status ==
                               AgentToolCallExecutionPlanStatus.ready &&
@@ -3440,6 +3442,7 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
     this.onDraftReview,
     this.toolLoopRuntimeReport,
     this.toolResultCount = 0,
+    this.toolResultContexts = const <AgentToolCallResultContext>[],
     this.onDraftContinuation,
     this.onSendContinuation,
   });
@@ -3460,6 +3463,7 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
   final VoidCallback? onDraftReview;
   final AgentCodingToolLoopRuntimeReport? toolLoopRuntimeReport;
   final int toolResultCount;
+  final List<AgentToolCallResultContext> toolResultContexts;
   final VoidCallback? onDraftContinuation;
   final VoidCallback? onSendContinuation;
 
@@ -3519,6 +3523,10 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
               ),
+            if (toolResultContexts.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _AgentToolResultContextSummaryList(results: toolResultContexts),
+            ],
             for (final execution in executionPlan.executions.take(4)) ...[
               const SizedBox(height: 4),
               Text(
@@ -3750,6 +3758,118 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
     }
     onDenyCallWithFeedback?.call(callId, normalized);
   }
+}
+
+class _AgentToolResultContextSummaryList extends StatelessWidget {
+  const _AgentToolResultContextSummaryList({required this.results});
+
+  final List<AgentToolCallResultContext> results;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final visibleResults = results.take(4).toList(growable: false);
+
+    return Column(
+      key: const ValueKey('agent-tool-result-context-summary'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < visibleResults.length; index++) ...[
+          Text(
+            'Tool result context: ${visibleResults[index].toolId} · ${visibleResults[index].status.wireValue} · ${visibleResults[index].callId}',
+            key: ValueKey(
+              'agent-tool-result-context-call-${visibleResults[index].callId}-$index',
+            ),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: visibleResults[index].success
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.error,
+            ),
+          ),
+          if (_structuredToolResultSummary(visibleResults[index]) != null)
+            Text(
+              'Structured result: ${_structuredToolResultSummary(visibleResults[index])}',
+              key: ValueKey(
+                'agent-tool-result-structured-summary-${visibleResults[index].callId}-$index',
+              ),
+              style: theme.textTheme.bodySmall,
+            ),
+        ],
+        if (results.length > 4)
+          Text(
+            '+${results.length - 4} more tool result(s).',
+            style: theme.textTheme.bodySmall,
+          ),
+      ],
+    );
+  }
+}
+
+String? _structuredToolResultSummary(AgentToolCallResultContext result) {
+  final output = _decodeToolResultObject(result.output);
+  if (output == null) {
+    return null;
+  }
+  final schema = _nonEmptyString(output['schema']);
+  if (schema == 'vityo.agent-surface-context.v1') {
+    final parts = <String>['Agent surface context'];
+    final platformTarget = _nonEmptyString(output['platformTarget']);
+    if (platformTarget != null) {
+      parts.add('platform $platformTarget');
+    }
+    final providerCount = _providerRegistryProviderCount(
+      output['providerRegistry'],
+    );
+    if (providerCount != null) {
+      parts.add('providers $providerCount');
+    }
+    final transportAction = _nonEmptyString(output['transportAction']);
+    if (transportAction != null) {
+      parts.add('transport $transportAction');
+    }
+    return parts.join(' · ');
+  }
+  if (schema != null) {
+    return 'Schema $schema';
+  }
+  return null;
+}
+
+Map<String, Object?>? _decodeToolResultObject(String output) {
+  try {
+    final decoded = jsonDecode(output);
+    if (decoded is! Map) {
+      return null;
+    }
+    return decoded.map(
+      (key, value) => MapEntry(key is String ? key : '$key', value),
+    );
+  } on FormatException {
+    return null;
+  }
+}
+
+String? _nonEmptyString(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final normalized = value.trim();
+  return normalized.isEmpty ? null : normalized;
+}
+
+int? _providerRegistryProviderCount(Object? value) {
+  if (value is! Map) {
+    return null;
+  }
+  final providers = value['providers'];
+  if (providers is List) {
+    return providers.length;
+  }
+  final providerIds = value['providerIds'];
+  if (providerIds is List) {
+    return providerIds.length;
+  }
+  return null;
 }
 
 class _AgentExtensionToolRegistrySummary extends StatelessWidget {

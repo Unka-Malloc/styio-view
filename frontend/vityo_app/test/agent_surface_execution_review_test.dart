@@ -904,7 +904,8 @@ void main() {
           return AgentToolCallDispatchResult.success(
             callId: request.callId,
             toolId: request.toolId,
-            output: '{"extension":"ok"}',
+            output:
+                '{"schema":"vityo.agent-surface-context.v1","platformTarget":"web","providerRegistry":{"providers":[{"id":"local"}]}}',
             metadata: const <String, Object?>{'source': 'extension-registry'},
           );
         },
@@ -951,6 +952,22 @@ void main() {
     expect(
       controller.recentToolCallResultContexts.single.metadata['source'],
       'extension-registry',
+    );
+    expect(
+      find.byKey(const ValueKey('agent-tool-result-context-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Tool result context: collectExtensionContext · success · call-extension-registry',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Structured result: Agent surface context · platform web · providers 1',
+      ),
+      findsOneWidget,
     );
     expect(
       controller.toolCallExecutionPlan

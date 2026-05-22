@@ -2446,6 +2446,51 @@ void main() {
     );
   });
 
+  test('agent session context reports failed patch validation follow-up', () {
+    final context =
+        AgentSessionContext.fromEditorState(
+          document: const DocumentState(
+            documentId: 'src/main.styio',
+            text: 'value := 1\n',
+            revision: 1,
+          ),
+          selection: const SelectionState.collapsed(0),
+          diagnostics: const <Diagnostic>[],
+        ).withAgentCodingState(
+          lastPatchApplication: AgentPatchApplicationContext(
+            patchId: 'patch-failed',
+            summary: 'Failed change.',
+            documentIds: const <String>['src/main.styio'],
+            editCount: 1,
+            applied: false,
+            pendingPatchRetained: true,
+            message: 'Patch failed.',
+            recordedAt: DateTime.utc(2026, 5, 20),
+          ),
+        );
+
+    final agentJson = context.toJson()['agent']! as Map<String, Object?>;
+    final validationPlan = agentJson['validationPlan']! as Map<String, Object?>;
+
+    expect(validationPlan['status'], 'blocked');
+    expect(validationPlan['shouldRun'], isFalse);
+    expect(
+      validationPlan['requiredSteps'],
+      containsAll(<String>[
+        'inspectPatchApplicationFailure',
+        'reviseGeneratedPatch',
+      ]),
+    );
+    expect(
+      validationPlan['todoItems'],
+      contains('Link failed patch application to diagnostics and retry flow.'),
+    );
+    expect(
+      (validationPlan['todoItems']! as List<Object?>).join('\n'),
+      isNot(contains('TODO:')),
+    );
+  });
+
   test('agent session context serializes current pending patch', () {
     final context = AgentSessionContext.fromEditorState(
       document: const DocumentState(
@@ -2557,6 +2602,14 @@ void main() {
     expect(autonomyPolicy['requiresExplicitUserApproval'], isTrue);
     expect(validationPlan['status'], 'waitingForReview');
     expect(validationPlan['shouldRun'], isFalse);
+    expect(
+      validationPlan['todoItems'],
+      contains('Start validation automatically after reviewed apply succeeds.'),
+    );
+    expect(
+      (validationPlan['todoItems']! as List<Object?>).join('\n'),
+      isNot(contains('TODO:')),
+    );
     expect(
       validationPlan['requiredSteps'],
       containsAll(<String>[

@@ -1036,7 +1036,7 @@ class AgentCodingValidationPlan {
           ),
         ],
         todoItems: <String>[
-          'TODO: start validation automatically after reviewed apply succeeds.',
+          'Start validation automatically after reviewed apply succeeds.',
         ],
       );
     }
@@ -1063,7 +1063,7 @@ class AgentCodingValidationPlan {
           ),
         ],
         todoItems: <String>[
-          'TODO: link failed patch application to diagnostics and retry flow.',
+          'Link failed patch application to diagnostics and retry flow.',
         ],
       );
     }

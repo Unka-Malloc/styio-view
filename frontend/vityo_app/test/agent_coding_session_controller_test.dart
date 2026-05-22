@@ -447,6 +447,47 @@ void main() {
   });
 
   test(
+    'agent coding session dispatches streamed provider tool calls',
+    () async {
+      final adapter = _StreamingToolCallOnlyAgentProviderAdapter();
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+        adapter: adapter,
+        contextProvider: _context,
+      );
+
+      controller.updatePrompt('Read the current file through streaming tools.');
+      final response = await controller.sendPrompt();
+
+      expect(response?.finishReason, 'tool_calls');
+      expect(controller.toolCallTimeline.callIds, <String>['call-read']);
+      expect(controller.toolCallExecutionJournal.sourceEventCount, 4);
+      expect(
+        controller.toolCallExecutionPlan.status,
+        AgentToolCallExecutionPlanStatus.ready,
+      );
+
+      await controller.dispatchReadyToolCalls(
+        (request) => AgentToolCallDispatchResult.success(
+          callId: request.callId,
+          toolId: request.toolId,
+          output: '{"text":"value := 1"}',
+        ),
+      );
+
+      expect(
+        controller.recentToolCallResultContexts.single.callId,
+        'call-read',
+      );
+      expect(
+        controller.toolCallTimeline.status,
+        AgentToolCallTimelineStatus.complete,
+      );
+      expect(controller.toolCallExecutionJournal.sourceEventCount, 5);
+    },
+  );
+
+  test(
     'agent coding session forwards dispatched tool results to next request',
     () async {
       final adapter = _FakeAgentProviderAdapter(
@@ -3357,6 +3398,73 @@ class _StructuredFailureAgentProviderAdapter implements AgentProviderAdapter {
       message: 'provider timed out',
       target: 'https://agent.example.test',
       recoveryHint: 'Check the provider endpoint.',
+    );
+  }
+}
+
+class _StreamingToolCallOnlyAgentProviderAdapter
+    implements StreamingAgentProviderAdapter {
+  @override
+  String get adapterId => 'streaming-tool-call-only';
+
+  @override
+  AgentProviderKind get kind => AgentProviderKind.localOnlyFallback;
+
+  @override
+  bool get supportsCodePatch => true;
+
+  @override
+  Future<AgentProviderResponseEnvelope> send(AgentProviderRequest request) {
+    throw StateError(
+      'streaming tool-call-only adapter send should not be used',
+    );
+  }
+
+  @override
+  Stream<AgentProviderStreamEvent> stream(AgentProviderRequest request) async* {
+    yield AgentProviderStreamEvent.started(request.requestId);
+    yield AgentProviderStreamEvent.delta(
+      requestId: request.requestId,
+      text: '',
+      metadata: const <String, Object?>{
+        'toolCallEventKind': 'tool-input-start',
+        'toolCallId': 'call-read',
+        'toolId': 'readWorkspaceFile',
+      },
+    );
+    yield AgentProviderStreamEvent.delta(
+      requestId: request.requestId,
+      text: '',
+      metadata: const <String, Object?>{
+        'toolCallEventKind': 'tool-input-delta',
+        'toolCallId': 'call-read',
+        'toolId': 'readWorkspaceFile',
+        'toolInputDelta': '{"path":"main.styio"}',
+      },
+    );
+    yield AgentProviderStreamEvent.delta(
+      requestId: request.requestId,
+      text: '',
+      metadata: const <String, Object?>{
+        'toolCallEventKind': 'tool-input-end',
+        'toolCallId': 'call-read',
+        'toolId': 'readWorkspaceFile',
+        'toolInput': '{"path":"main.styio"}',
+      },
+    );
+    yield AgentProviderStreamEvent.delta(
+      requestId: request.requestId,
+      text: '',
+      metadata: const <String, Object?>{
+        'toolCallEventKind': 'tool-call',
+        'toolCallId': 'call-read',
+        'toolId': 'readWorkspaceFile',
+        'toolInput': '{"path":"main.styio"}',
+      },
+    );
+    yield AgentProviderStreamEvent.completed(
+      requestId: request.requestId,
+      metadata: const <String, Object?>{'finishReason': 'tool_calls'},
     );
   }
 }

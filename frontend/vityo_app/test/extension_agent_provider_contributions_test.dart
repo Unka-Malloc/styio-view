@@ -109,6 +109,18 @@ void main() {
                     'description': 'Extension id.',
                   },
                 ],
+                'resultSchema': <Object?>[
+                  <String, Object?>{
+                    'name': 'source',
+                    'type': 'string',
+                    'required': true,
+                  },
+                  <String, Object?>{
+                    'name': 'extension',
+                    'type': 'object',
+                    'required': true,
+                  },
+                ],
               },
             ),
           ],
@@ -136,6 +148,14 @@ void main() {
       AgentProviderKind.cloudOpenAICompatible: 2048,
     });
     expect(tool.schema.single.name, 'extensionId');
+    expect(tool.resultSchema.map((property) => property.name), <String>[
+      'source',
+      'extension',
+    ]);
+    expect(tool.resultJsonSchema()['required'], <String>[
+      'source',
+      'extension',
+    ]);
     expect(selection.toolIds, contains('collectExtensionContext'));
     expect(catalog.toJson()['readyToolCount'], 1);
   });

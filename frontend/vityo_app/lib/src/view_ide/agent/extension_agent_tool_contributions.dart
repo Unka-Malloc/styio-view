@@ -71,6 +71,10 @@ class ExtensionAgentToolContribution {
         'capabilities',
       ),
       schema: _metadataToolSchema(route.contribution.metadata),
+      resultSchema: _metadataToolSchema(
+        route.contribution.metadata,
+        key: 'resultSchema',
+      ),
       permissionMode:
           _permissionModeFromWire(
             _metadataString(route.contribution.metadata, 'permissionMode'),
@@ -999,9 +1003,10 @@ String _defaultRpcTransportLabel(ExtensionHostSupervisorAction action) {
 }
 
 List<AgentToolSchemaProperty> _metadataToolSchema(
-  Map<String, Object?> metadata,
-) {
-  final value = metadata['schema'];
+  Map<String, Object?> metadata, {
+  String key = 'schema',
+}) {
+  final value = metadata[key];
   if (value is! List) {
     return const <AgentToolSchemaProperty>[];
   }

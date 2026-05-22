@@ -93,4 +93,43 @@ void main() {
       expect(report.events.single.kind, AgentToolCallEventKind.error);
     },
   );
+
+  test(
+    'tool session processor replays journal entries with metadata',
+    () async {
+      const processor = AgentToolSessionProcessor();
+      final timeline = processor.applyEvents(
+        AgentToolCallTimeline.empty(),
+        const <AgentToolCallEvent>[
+          AgentToolCallEvent.callStarted(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            input: '{"path":"main.styio"}',
+          ),
+          AgentToolCallEvent.error(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            errorMessage: 'temporary failure',
+          ),
+        ],
+      );
+      final journal = processor.buildJournal(timeline: timeline);
+
+      final report = await processor.replayJournal(
+        journal: journal,
+        executor: (request) {
+          return AgentToolCallDispatchResult.success(
+            callId: request.callId,
+            toolId: request.toolId,
+            output: '{"text":"value = 1"}',
+          );
+        },
+      );
+
+      expect(report.status, AgentToolCallReplayReportStatus.replayed);
+      expect(report.results.single.metadata['replayedFromJournal'], isTrue);
+      expect(report.results.single.metadata['replayCallId'], 'call-read');
+      expect(report.events.single.kind, AgentToolCallEventKind.result);
+    },
+  );
 }

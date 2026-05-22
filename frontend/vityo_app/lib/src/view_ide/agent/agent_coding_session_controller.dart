@@ -827,80 +827,21 @@ class AgentCodingSessionController extends ChangeNotifier {
     AgentToolCallExecutor executor, {
     bool includeCompleted = false,
   }) async {
-    final plan = AgentToolCallReplayPlan.fromJournal(
-      _toolCallExecutionJournal,
+    final report = await _toolSessionProcessor.replayJournal(
+      journal: _toolCallExecutionJournal,
+      executor: executor,
       includeCompleted: includeCompleted,
     );
-    if (!plan.ready) {
-      return AgentToolCallReplayReport(
-        status: AgentToolCallReplayReportStatus.blocked,
-        plan: plan,
-      );
+    if (report.events.isNotEmpty) {
+      recordToolCallEvents(report.events);
     }
-
-    final results = <AgentToolCallDispatchResult>[];
-    final events = <AgentToolCallEvent>[];
-    for (final request in plan.requests) {
-      late final AgentToolCallDispatchResult result;
-      try {
-        final rawResult = await Future<AgentToolCallDispatchResult>.value(
-          executor(request),
-        );
-        result = _toolReplayResultWithMetadata(rawResult, request);
-      } on Object catch (error) {
-        result = AgentToolCallDispatchResult.failure(
-          callId: request.callId,
-          toolId: request.toolId,
-          message: 'Agent tool replay ${request.callId} failed: $error',
-          metadata: _toolReplayMetadata(request),
-        );
-      }
-      results.add(result);
-      events.add(result.toLifecycleEvent());
-    }
-    if (events.isNotEmpty) {
-      recordToolCallEvents(events);
-    }
-    if (results.isNotEmpty) {
-      _recordRecentToolCallResultContexts(results);
+    if (report.results.isNotEmpty) {
+      _recordRecentToolCallResultContexts(report.results);
     }
     _refreshToolCallExecutionJournal();
     notifyListeners();
-    final report = AgentToolCallReplayReport.fromResults(
-      plan: plan,
-      results: results,
-      events: events,
-    );
     await _persistLatestAgentToolReplayReport(report);
     return report;
-  }
-
-  AgentToolCallDispatchResult _toolReplayResultWithMetadata(
-    AgentToolCallDispatchResult result,
-    AgentToolCallDispatchRequest request,
-  ) {
-    final metadata = <String, Object?>{
-      ...result.metadata,
-      ..._toolReplayMetadata(request),
-    };
-    return AgentToolCallDispatchResult(
-      callId: result.callId,
-      toolId: result.toolId,
-      success: result.success,
-      message: result.message,
-      output: result.output,
-      metadata: metadata,
-    );
-  }
-
-  Map<String, Object?> _toolReplayMetadata(
-    AgentToolCallDispatchRequest request,
-  ) {
-    return <String, Object?>{
-      'replayedFromJournal': true,
-      'replayCallId': request.callId,
-      'replayToolId': request.toolId,
-    };
   }
 
   void _refreshToolCallExecutionJournal({

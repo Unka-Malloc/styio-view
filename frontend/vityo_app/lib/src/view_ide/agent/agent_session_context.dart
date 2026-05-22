@@ -1379,7 +1379,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 87,
+      schemaVersion: 88,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,

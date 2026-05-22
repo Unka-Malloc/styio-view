@@ -7,11 +7,15 @@ void main() {
     final json = snapshot.toJson();
 
     expect(snapshot.defaultAgentId, defaultAgentRuntimeAgentId);
+    expect(snapshot.activeAgentId, defaultAgentRuntimeAgentId);
+    expect(snapshot.activeAgent?.agentId, defaultAgentRuntimeAgentId);
     expect(snapshot.primaryAgentIds, <String>['vityo-coding-agent']);
     expect(snapshot.subagentIds, <String>['vityo-review-agent']);
     expect(snapshot.agentById('vityo-recovery-agent')?.hidden, isTrue);
     expect(json['agentCount'], 3);
     expect(json['defaultAgentId'], defaultAgentRuntimeAgentId);
+    expect(json['activeAgentId'], defaultAgentRuntimeAgentId);
+    expect(json['activeAgent'], isA<Map<String, Object?>>());
     expect(json['primaryAgentIds'], <String>['vityo-coding-agent']);
     expect(json['subagentIds'], <String>['vityo-review-agent']);
   });
@@ -40,6 +44,10 @@ void main() {
 
       expect(registry.defaultAgent()?.agentId, 'visible-primary');
       expect(registry.snapshot().defaultAgentId, 'visible-primary');
+      expect(
+        registry.snapshot(activeAgentId: 'hidden-primary').activeAgentId,
+        'visible-primary',
+      );
     },
   );
 

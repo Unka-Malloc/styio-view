@@ -807,7 +807,7 @@ void main() {
     );
     expect(
       (json['usage']! as Map<String, Object?>)['contextSchemaVersion'],
-      87,
+      88,
     );
     expect((json['usage']! as Map<String, Object?>)['selectionStartLine'], 0);
     expect((json['usage']! as Map<String, Object?>)['selectionStartColumn'], 0);
@@ -1654,7 +1654,7 @@ void main() {
         contains('ideCapabilityClosure.runtimeMaturityBlockerCapabilityIds'),
       );
       final metadata = transport.body['metadata']! as Map<String, Object?>;
-      expect(metadata['contextSchemaVersion'], 87);
+      expect(metadata['contextSchemaVersion'], 88);
       expect(metadata['selectionStartLine'], 0);
       expect(metadata['selectionStartColumn'], 0);
       expect(metadata['selectionEndLine'], 0);
@@ -1901,6 +1901,7 @@ void main() {
         providerContractMessage['content'],
         contains('agent.agentRegistry'),
       );
+      expect(providerContractMessage['content'], contains('activeAgentId'));
       expect(providerContractMessage['content'], contains('resultSchema'));
       expect(providerContractMessage['content'], contains('resultJsonSchema'));
       expect(

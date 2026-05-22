@@ -68,10 +68,12 @@ class AgentRuntimeDefinition {
 class AgentRegistrySnapshot {
   const AgentRegistrySnapshot({
     required this.defaultAgentId,
+    this.activeAgentId = '',
     required this.agents,
   });
 
   final String defaultAgentId;
+  final String activeAgentId;
   final List<AgentRuntimeDefinition> agents;
 
   int get agentCount => agents.length;
@@ -103,12 +105,18 @@ class AgentRegistrySnapshot {
     return null;
   }
 
+  AgentRuntimeDefinition? get activeAgent {
+    return agentById(activeAgentId.isEmpty ? defaultAgentId : activeAgentId);
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'defaultAgentId': defaultAgentId,
+      'activeAgentId': activeAgentId.isEmpty ? defaultAgentId : activeAgentId,
       'agentCount': agentCount,
       'primaryAgentIds': primaryAgentIds,
       'subagentIds': subagentIds,
+      if (activeAgent != null) 'activeAgent': activeAgent!.toJson(),
       'agents': agents.map((agent) => agent.toJson()).toList(growable: false),
     };
   }
@@ -164,11 +172,26 @@ class AgentRegistry {
     return null;
   }
 
-  AgentRegistrySnapshot snapshot() {
+  AgentRegistrySnapshot snapshot({String? activeAgentId}) {
+    final defaultAgentId = defaultAgent()?.agentId ?? '';
+    final activeAgent = _activeAgent(activeAgentId) ?? defaultAgent();
     return AgentRegistrySnapshot(
-      defaultAgentId: defaultAgent()?.agentId ?? '',
+      defaultAgentId: defaultAgentId,
+      activeAgentId: activeAgent?.agentId ?? defaultAgentId,
       agents: agents,
     );
+  }
+
+  AgentRuntimeDefinition? _activeAgent(String? activeAgentId) {
+    final requested = activeAgentId?.trim();
+    if (requested == null || requested.isEmpty) {
+      return null;
+    }
+    final agent = resolve(requested);
+    if (agent == null || agent.hidden) {
+      return null;
+    }
+    return agent;
   }
 }
 
@@ -236,6 +259,7 @@ defaultAgentRuntimeDefinitions = <AgentRuntimeDefinition>[
 const AgentRegistrySnapshot defaultAgentRegistrySnapshot =
     AgentRegistrySnapshot(
       defaultAgentId: defaultAgentRuntimeAgentId,
+      activeAgentId: defaultAgentRuntimeAgentId,
       agents: defaultAgentRuntimeDefinitions,
     );
 

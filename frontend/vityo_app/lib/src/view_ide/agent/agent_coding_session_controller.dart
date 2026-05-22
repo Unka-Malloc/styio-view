@@ -12,6 +12,7 @@ import 'agent_provider_adapter.dart';
 import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
 import 'agent_provider_streaming_runtime.dart';
+import 'agent_registry.dart';
 import 'agent_session_context.dart';
 import 'agent_tool_call_dispatcher.dart';
 import 'agent_tool_call_execution_journal.dart';
@@ -97,10 +98,14 @@ class AgentCodingSessionController extends ChangeNotifier {
     this.workspaceSnapshotStore,
     String? workspaceSnapshotWorkspaceId,
     RuntimeOutputLiveBuffer? runtimeOutputBuffer,
+    AgentRegistry? agentRegistry,
+    String? activeAgentId,
     AgentToolRegistry? toolRegistry,
     AgentProviderSelectionPlan? providerSelectionPlan,
     AgentProviderExecutionResolution? providerExecutionResolution,
   }) : _runtimeOutputBuffer = runtimeOutputBuffer,
+       _agentRegistry = agentRegistry ?? AgentRegistry(),
+       _activeAgentId = activeAgentId,
        _toolRegistry = toolRegistry ?? AgentToolRegistry(),
        _providerSelectionPlan = providerSelectionPlan,
        _providerExecutionResolution = providerExecutionResolution,
@@ -124,6 +129,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   final AgentWorkspaceSnapshotStore? workspaceSnapshotStore;
   final String _workspaceSnapshotWorkspaceId;
   final RuntimeOutputLiveBuffer? _runtimeOutputBuffer;
+  final AgentRegistry _agentRegistry;
+  String? _activeAgentId;
   final AgentToolRegistry _toolRegistry;
 
   int _requestSequence = 0;
@@ -281,6 +288,25 @@ class AgentCodingSessionController extends ChangeNotifier {
       List<AgentToolPermissionRule>.unmodifiable(_projectToolPermissionRules);
   List<AgentToolPermissionRule> get sessionToolPermissionRules =>
       List<AgentToolPermissionRule>.unmodifiable(_sessionToolPermissionRules);
+  AgentRegistrySnapshot get agentRegistrySnapshot {
+    return _agentRegistry.snapshot(activeAgentId: _activeAgentId);
+  }
+
+  String get activeAgentId => agentRegistrySnapshot.activeAgentId;
+
+  bool selectAgentRuntime(String agentId) {
+    final agent = _agentRegistry.resolve(agentId.trim());
+    if (agent == null || agent.hidden) {
+      return false;
+    }
+    if (_activeAgentId == agent.agentId) {
+      return true;
+    }
+    _activeAgentId = agent.agentId;
+    notifyListeners();
+    return true;
+  }
+
   AgentToolCallExecutionPlan get toolCallExecutionPlan {
     final dispatchPlan = previewDispatchPlan();
     return AgentToolCallExecutionPlan.fromTimeline(
@@ -1740,6 +1766,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       toolCallTimeline: _toolCallTimeline,
       toolCallExecutionJournal: _toolCallExecutionJournal,
       toolReplayPlan: toolCallReplayPlan,
+      agentRegistry: agentRegistrySnapshot,
       toolCatalog: _currentToolSelection(),
       toolPermissionPlan: _currentToolPermissionPlan(),
       lastPatchApplication: _lastPatchApplicationContext,

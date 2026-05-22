@@ -8,6 +8,7 @@ import 'package:vityo_app/src/agent/agent_context.dart';
 import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_registry.dart';
 import 'package:vityo_app/src/agent/agent_provider_route_executor.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_dispatcher.dart';
 import 'package:vityo_app/src/agent/agent_tool_call_execution_plan.dart';
@@ -61,6 +62,10 @@ void main() {
       adapter.requests.single.context.agent.toolCatalog?.toolIds,
       contains('readWorkspaceFile'),
     );
+    expect(
+      adapter.requests.single.context.agent.agentRegistry.activeAgentId,
+      defaultAgentRuntimeAgentId,
+    );
     expect(controller.draftPrompt, '');
     expect(
       controller.lastResponse?.contentParts.single.text,
@@ -71,6 +76,42 @@ void main() {
       AgentConversationRole.assistant,
     ]);
     expect(controller.lastError, isNull);
+  });
+
+  test('agent coding session selects active agent runtime', () async {
+    final adapter = _FakeAgentProviderAdapter(
+      response: const AgentProviderResponseEnvelope(
+        requestId: 'agent-request-runtime',
+        role: 'assistant',
+        finishReason: 'stop',
+        contentParts: <AgentContentPart>[
+          AgentContentPart(kind: AgentContentPartKind.text, text: 'Selected.'),
+        ],
+      ),
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: adapter,
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+
+    expect(controller.activeAgentId, defaultAgentRuntimeAgentId);
+    expect(controller.selectAgentRuntime('vityo-review-agent'), isTrue);
+    expect(controller.activeAgentId, 'vityo-review-agent');
+    expect(controller.selectAgentRuntime('vityo-recovery-agent'), isFalse);
+
+    controller.updatePrompt('Review this file.');
+    await controller.sendPrompt();
+
+    expect(
+      adapter.requests.single.context.agent.agentRegistry.activeAgentId,
+      'vityo-review-agent',
+    );
+    expect(
+      adapter.requests.single.context.agent.agentRegistry.activeAgent?.mode,
+      AgentRuntimeMode.subagent,
+    );
   });
 
   test('agent coding session exposes coding execution readiness gate', () {

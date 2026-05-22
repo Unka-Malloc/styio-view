@@ -88,6 +88,57 @@ void main() {
     expect(response.contentParts.single.text, 'Use the IDE command.');
   });
 
+  test(
+    'agent provider stream collector preserves streamed tool calls',
+    () async {
+      const requestId = 'agent-stream-tool-call';
+
+      final response = await const AgentProviderStreamingResponseCollector()
+          .collect(
+            requestId: requestId,
+            events: Stream<AgentProviderStreamEvent>.fromIterable(
+              <AgentProviderStreamEvent>[
+                AgentProviderStreamEvent.delta(
+                  requestId: requestId,
+                  text: '',
+                  metadata: const <String, Object?>{
+                    'toolCallEventKind': 'tool-input-start',
+                    'toolCallId': 'call-read',
+                    'toolId': 'readWorkspaceFile',
+                  },
+                ),
+                AgentProviderStreamEvent.delta(
+                  requestId: requestId,
+                  text: '',
+                  metadata: const <String, Object?>{
+                    'toolCallEventKind': 'tool-input-delta',
+                    'toolCallId': 'call-read',
+                    'toolId': 'readWorkspaceFile',
+                    'toolInputDelta': '{"path":"main.styio"}',
+                  },
+                ),
+                AgentProviderStreamEvent.completed(
+                  requestId: requestId,
+                  metadata: const <String, Object?>{
+                    'finishReason': 'tool_calls',
+                  },
+                ),
+              ],
+            ),
+          );
+
+      expect(response.finishReason, 'tool_calls');
+      expect(
+        response.toolCallEvents.map((event) => event.kind),
+        <AgentToolCallEventKind>[
+          AgentToolCallEventKind.inputStart,
+          AgentToolCallEventKind.inputDelta,
+        ],
+      );
+      expect(response.toolCallEvents.last.inputDelta, '{"path":"main.styio"}');
+    },
+  );
+
   test('streaming adapter can reuse collector for send contract', () async {
     final adapter = _FakeStreamingAgentProviderAdapter();
     final request = _agentRequest('agent-stream-adapter');

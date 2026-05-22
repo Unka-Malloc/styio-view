@@ -7,6 +7,7 @@ import 'agent_profile.dart';
 import 'agent_provider_kind.dart';
 import 'agent_session_context.dart';
 import 'agent_tool_call_lifecycle.dart';
+import 'agent_tool_call_stream_bridge.dart';
 import 'agent_tool_call_execution_journal.dart';
 import 'agent_tool_call_result_context.dart';
 import 'agent_tool_session_transcript.dart';
@@ -365,7 +366,11 @@ abstract class StreamingAgentProviderAdapter implements AgentProviderAdapter {
 }
 
 class AgentProviderStreamingResponseCollector {
-  const AgentProviderStreamingResponseCollector();
+  const AgentProviderStreamingResponseCollector({
+    this.toolCallStreamBridge = const AgentProviderToolCallStreamBridge(),
+  });
+
+  final AgentProviderToolCallStreamBridge toolCallStreamBridge;
 
   Future<AgentProviderResponseEnvelope> collect({
     required String requestId,
@@ -374,6 +379,7 @@ class AgentProviderStreamingResponseCollector {
     String defaultFinishReason = 'stream_complete',
   }) async {
     final parts = <AgentContentPart>[];
+    final toolCallEvents = <AgentToolCallEvent>[];
     final textBuffer = StringBuffer();
     var finishReason = defaultFinishReason;
     Map<String, Object?>? usage;
@@ -391,6 +397,10 @@ class AgentProviderStreamingResponseCollector {
       if (event.requestId != requestId) {
         continue;
       }
+      final toolCallEvent = toolCallStreamBridge.eventFor(event);
+      if (toolCallEvent != null) {
+        toolCallEvents.add(toolCallEvent);
+      }
       switch (event.kind) {
         case AgentProviderStreamEventKind.started:
           break;
@@ -407,7 +417,10 @@ class AgentProviderStreamingResponseCollector {
         case AgentProviderStreamEventKind.completed:
           final response = event.response;
           if (response != null) {
-            return response;
+            return _responseWithStreamedToolCallEvents(
+              response,
+              toolCallEvents,
+            );
           }
           final finish = event.metadata['finishReason'];
           if (finish is String && finish.trim().isNotEmpty) {
@@ -433,7 +446,28 @@ class AgentProviderStreamingResponseCollector {
       role: role,
       contentParts: List<AgentContentPart>.unmodifiable(parts),
       finishReason: finishReason,
+      toolCallEvents: List<AgentToolCallEvent>.unmodifiable(toolCallEvents),
       usage: usage,
+    );
+  }
+
+  AgentProviderResponseEnvelope _responseWithStreamedToolCallEvents(
+    AgentProviderResponseEnvelope response,
+    List<AgentToolCallEvent> streamedEvents,
+  ) {
+    if (streamedEvents.isEmpty) {
+      return response;
+    }
+    return AgentProviderResponseEnvelope(
+      requestId: response.requestId,
+      providerMessageId: response.providerMessageId,
+      role: response.role,
+      contentParts: response.contentParts,
+      finishReason: response.finishReason,
+      toolCallEvents: List<AgentToolCallEvent>.unmodifiable(
+        <AgentToolCallEvent>[...response.toolCallEvents, ...streamedEvents],
+      ),
+      usage: response.usage,
     );
   }
 }

@@ -11,7 +11,7 @@
   "extension": {
     "activationEvents": ["onStartup"],
     "metadata": {
-      "isolationMode": "local-process"
+      "isolationMode": "in-process"
     },
     "contributions": [
       {

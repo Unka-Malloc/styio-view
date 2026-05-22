@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -409,6 +410,11 @@ class AppBootstrap {
       environment: readHostEnvironment(),
     );
     final agentProviderRegistry = agentProviderFactory.createRegistry();
+    final builtInExtensionRpcTransports =
+        createBuiltInExtensionAgentToolRpcTransports(
+          platformTarget: platformTarget,
+          agentProviderRegistry: agentProviderRegistry,
+        );
     final agentCodingController = await createAgentCodingSessionController(
       platformTarget: platformTarget,
       loadPersistedProfile: () {
@@ -458,6 +464,7 @@ class AppBootstrap {
               extensionStartupPlan.supervisorSnapshot,
           runtimeOutputBuffer: runtimeOutputBuffer,
           extensionManifestRegistry: extensionStartupPlan.manifestRegistry,
+          rpcTransports: builtInExtensionRpcTransports,
         );
 
     return AppBootstrap(
@@ -780,6 +787,72 @@ class AppBootstrap {
   }
 
   @visibleForTesting
+  static Map<ExtensionHostSupervisorAction, ExtensionAgentToolHostRpcTransport>
+  createBuiltInExtensionAgentToolRpcTransports({
+    required PlatformTarget platformTarget,
+    required AgentProviderRegistry agentProviderRegistry,
+  }) {
+    return <ExtensionHostSupervisorAction, ExtensionAgentToolHostRpcTransport>{
+      ExtensionHostSupervisorAction.runInProcess: (request) {
+        return dispatchBuiltInExtensionAgentToolRpc(
+          request: request,
+          platformTarget: platformTarget,
+          agentProviderRegistry: agentProviderRegistry,
+        );
+      },
+    };
+  }
+
+  @visibleForTesting
+  static Future<AgentToolCallDispatchResult>
+  dispatchBuiltInExtensionAgentToolRpc({
+    required ExtensionAgentToolHostRpcRequest request,
+    required PlatformTarget platformTarget,
+    required AgentProviderRegistry agentProviderRegistry,
+  }) async {
+    if (request.handlerId != 'collect-agent-surface-context') {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.toolCall.callId,
+        toolId: request.toolCall.toolId,
+        message:
+            'No built-in in-process extension RPC handler is registered for '
+            '${request.extensionId}/${request.handlerId}.',
+        metadata: <String, Object?>{
+          'source': 'app-bootstrap-in-process-extension-rpc',
+          'missingBuiltInHandler': true,
+          'extensionId': request.extensionId,
+          'handlerId': request.handlerId,
+        },
+      );
+    }
+    final input = _decodeToolInputObject(request.toolCall.inputText);
+    final includeProviderStatus = input['includeProviderStatus'] == true;
+    final output = <String, Object?>{
+      'schema': 'vityo.agent-surface-context.v1',
+      'extensionId': request.extensionId,
+      'contributionId': request.contributionId,
+      'handlerId': request.handlerId,
+      'toolId': request.toolCall.toolId,
+      'platformTarget': platformTarget.wireValue,
+      'transportId': request.transportId,
+      'transportAction': request.action.wireValue,
+      if (includeProviderStatus)
+        'providerRegistry': agentProviderRegistry.manifest().toJson(),
+    };
+    return AgentToolCallDispatchResult.success(
+      callId: request.toolCall.callId,
+      toolId: request.toolCall.toolId,
+      output: jsonEncode(output),
+      metadata: <String, Object?>{
+        'source': 'app-bootstrap-in-process-extension-rpc',
+        'extensionId': request.extensionId,
+        'handlerId': request.handlerId,
+        'includeProviderStatus': includeProviderStatus,
+      },
+    );
+  }
+
+  @visibleForTesting
   static ExtensionAgentToolHostRpcTransportCatalog
   createExtensionAgentToolRpcTransportCatalog({
     required ExtensionContributionRouteManifest extensionContributionRoutes,
@@ -1075,4 +1148,21 @@ class AppBootstrap {
       ),
     );
   }
+}
+
+Map<String, Object?> _decodeToolInputObject(String inputText) {
+  if (inputText.trim().isEmpty) {
+    return const <String, Object?>{};
+  }
+  try {
+    final decoded = jsonDecode(inputText);
+    if (decoded is Map) {
+      return decoded.map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+    }
+  } on Object {
+    return const <String, Object?>{};
+  }
+  return const <String, Object?>{};
 }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -353,6 +354,92 @@ void main() {
       expect(result.metadata['requestAction'], 'spawn-local-process');
       expect(rpcRequest?.handlerId, 'collect-context');
       expect(buffer.snapshot.visibleEvents, isNotEmpty);
+    },
+  );
+
+  test(
+    'agent bootstrap dispatches built-in agent surface extension rpc',
+    () async {
+      final manifestRegistry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'agent.surface.basic',
+            displayName: 'Agent Surface',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'agent_surface.dart',
+            activationEvents: <String>['onStartup'],
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'in-process'},
+            contributions: <ExtensionContributionPoint>[
+              ExtensionContributionPoint(
+                kind: ExtensionContributionKind.agent,
+                id: 'collect-agent-surface-context',
+                target: 'agent.tools',
+                metadata: <String, Object?>{
+                  'toolId': 'collectAgentSurfaceContext',
+                  'handlerId': 'collect-agent-surface-context',
+                  'permissionMode': 'never',
+                },
+              ),
+            ],
+          ),
+        );
+      final routes = const ExtensionContributionRouter().routeRegistry(
+        manifestRegistry,
+      );
+      final session = ExtensionActivator(
+        clock: () => DateTime.utc(2026, 5, 22),
+      ).activate(registry: manifestRegistry, event: 'onStartup');
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 22, 1),
+      ).applyActivation(registry: manifestRegistry, session: session);
+      final providerRegistry = AgentProviderRegistry(
+        registrations: <AgentProviderRegistration>[
+          AgentProviderRegistration(
+            providerId: 'hosted',
+            displayName: 'Hosted Agent Provider',
+            kind: AgentProviderKind.cloudOpenAICompatible,
+            supportedRoutes: const <String>['web-hosted'],
+            supportedProtocols: const <String>['openai-compatible'],
+            createAdapter: (_) async => const LocalOnlyAgentProviderAdapter(),
+          ),
+        ],
+      );
+      final executionRegistry =
+          AppBootstrap.createAgentExtensionToolExecutionRegistry(
+            extensionContributionRoutes: routes,
+            extensionHostSupervisorSnapshot: snapshot,
+            runtimeOutputBuffer: RuntimeOutputLiveBuffer(),
+            extensionManifestRegistry: manifestRegistry,
+            rpcTransports:
+                AppBootstrap.createBuiltInExtensionAgentToolRpcTransports(
+                  platformTarget: PlatformTarget.linux,
+                  agentProviderRegistry: providerRegistry,
+                ),
+          );
+
+      final result = await executionRegistry!.dispatch(
+        const AgentToolCallDispatchRequest(
+          callId: 'call-agent-surface-context',
+          toolId: 'collectAgentSurfaceContext',
+          inputText: '{"includeProviderStatus":true}',
+        ),
+      );
+      final output = Map<String, Object?>.from(
+        jsonDecode(result.output) as Map,
+      );
+
+      expect(result.success, isTrue);
+      expect(
+        result.metadata['source'],
+        'app-bootstrap-in-process-extension-rpc',
+      );
+      expect(result.metadata['includeProviderStatus'], isTrue);
+      expect(output['schema'], 'vityo.agent-surface-context.v1');
+      expect(output['platformTarget'], 'linux');
+      expect(output['transportAction'], 'run-in-process');
+      expect(output['providerRegistry'], isA<Map<String, Object?>>());
     },
   );
 

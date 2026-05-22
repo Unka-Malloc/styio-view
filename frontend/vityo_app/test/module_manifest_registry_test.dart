@@ -88,7 +88,7 @@ void main() {
       );
 
       expect(manifest.extensionActivationEvents, <String>['onStartup']);
-      expect(manifest.extensionMetadata['isolationMode'], 'local-process');
+      expect(manifest.extensionMetadata['isolationMode'], 'in-process');
       expect(
         manifest.extensionContributions.single['id'],
         'collect-agent-surface-context',

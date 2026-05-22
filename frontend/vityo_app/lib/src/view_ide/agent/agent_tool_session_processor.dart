@@ -100,10 +100,12 @@ class AgentToolSessionProcessor {
 
   AgentToolCallExecutionJournal buildJournal({
     required AgentToolCallTimeline timeline,
+    AgentToolCallExecutionPlan? executionPlan,
     AgentToolCallDispatchReport? dispatchReport,
   }) {
     return AgentToolCallExecutionJournal.fromTimeline(
       timeline: timeline,
+      executionPlan: executionPlan,
       dispatchReport: dispatchReport,
     );
   }

@@ -890,6 +890,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   }) {
     _toolCallExecutionJournal = _toolSessionProcessor.buildJournal(
       timeline: _toolCallTimeline,
+      executionPlan: toolCallExecutionPlan,
       dispatchReport: dispatchReport,
     );
   }

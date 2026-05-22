@@ -151,9 +151,16 @@ void main() {
     final execution = controller.toolCallExecutionPlan.executionFor(
       'call-apply-patch-review-agent',
     )!;
+    final journalEntry = controller.toolCallExecutionJournal.entries.single;
     expect(execution.status, AgentToolCallExecutionStatus.blocked);
     expect(
       execution.issueCodes,
+      contains('agent.tool.permission.denied.applyWorkspacePatch'),
+    );
+    expect(journalEntry.executionStatus, 'blocked');
+    expect(journalEntry.permissionStatus, 'denied');
+    expect(
+      journalEntry.executionIssueCodes,
       contains('agent.tool.permission.denied.applyWorkspacePatch'),
     );
   });

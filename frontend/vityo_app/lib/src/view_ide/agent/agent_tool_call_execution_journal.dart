@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'agent_tool_call_dispatcher.dart';
+import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
+import 'agent_tool_permission.dart';
 
 enum AgentToolCallExecutionJournalStatus {
   idle,
@@ -52,6 +54,11 @@ class AgentToolCallExecutionJournalEntry {
     this.resultSample = '',
     this.errorMessage = '',
     this.permissionReason = '',
+    this.executionStatus = '',
+    this.permissionStatus = '',
+    this.reviewDecisionStatus = '',
+    this.executionIssueCodes = const <String>[],
+    this.blockingIssueCodes = const <String>[],
     this.eventCount = 0,
     this.metadata = const <String, Object?>{},
   });
@@ -59,6 +66,7 @@ class AgentToolCallExecutionJournalEntry {
   factory AgentToolCallExecutionJournalEntry.fromState({
     required AgentToolCallState state,
     AgentToolCallDispatchResult? dispatchResult,
+    AgentToolCallExecution? execution,
   }) {
     final successResult = dispatchResult?.success == true;
     return AgentToolCallExecutionJournalEntry(
@@ -78,6 +86,16 @@ class AgentToolCallExecutionJournalEntry {
           ? state.errorMessage
           : dispatchResult.message,
       permissionReason: state.permissionReason,
+      executionStatus: execution?.status.wireValue ?? '',
+      permissionStatus: execution?.permissionStatus?.wireValue ?? '',
+      reviewDecisionStatus: execution?.reviewDecisionStatus?.wireValue ?? '',
+      executionIssueCodes: execution?.issueCodes ?? const <String>[],
+      blockingIssueCodes:
+          execution?.issues
+              .where((issue) => issue.blocking)
+              .map((issue) => issue.code)
+              .toList(growable: false) ??
+          const <String>[],
       eventCount: state.eventCount,
       metadata: <String, Object?>{
         ...state.metadata,
@@ -94,6 +112,11 @@ class AgentToolCallExecutionJournalEntry {
   final String resultSample;
   final String errorMessage;
   final String permissionReason;
+  final String executionStatus;
+  final String permissionStatus;
+  final String reviewDecisionStatus;
+  final List<String> executionIssueCodes;
+  final List<String> blockingIssueCodes;
   final int eventCount;
   final Map<String, Object?> metadata;
 
@@ -112,7 +135,11 @@ class AgentToolCallExecutionJournalEntry {
       callId: callId,
       toolId: toolId,
       inputText: inputText.isEmpty ? '{}' : inputText,
-      metadata: <String, Object?>{...metadata, 'replayedFromJournal': true},
+      metadata: <String, Object?>{
+        ...metadata,
+        ..._executionEvidenceMetadata(),
+        'replayedFromJournal': true,
+      },
     );
   }
 
@@ -135,8 +162,30 @@ class AgentToolCallExecutionJournalEntry {
         'errorMessage': _redactAgentToolJournalText(errorMessage),
       if (permissionReason.isNotEmpty)
         'permissionReason': _redactAgentToolJournalText(permissionReason),
+      if (executionStatus.isNotEmpty) 'executionStatus': executionStatus,
+      if (permissionStatus.isNotEmpty) 'permissionStatus': permissionStatus,
+      if (reviewDecisionStatus.isNotEmpty)
+        'reviewDecisionStatus': reviewDecisionStatus,
+      if (executionIssueCodes.isNotEmpty)
+        'executionIssueCodes': executionIssueCodes,
+      if (blockingIssueCodes.isNotEmpty)
+        'blockingIssueCodes': blockingIssueCodes,
       'eventCount': eventCount,
       if (redactedMetadata.isNotEmpty) 'metadata': redactedMetadata,
+    };
+  }
+
+  Map<String, Object?> _executionEvidenceMetadata() {
+    return <String, Object?>{
+      if (executionStatus.isNotEmpty) 'journalExecutionStatus': executionStatus,
+      if (permissionStatus.isNotEmpty)
+        'journalPermissionStatus': permissionStatus,
+      if (reviewDecisionStatus.isNotEmpty)
+        'journalReviewDecisionStatus': reviewDecisionStatus,
+      if (executionIssueCodes.isNotEmpty)
+        'journalExecutionIssueCodes': executionIssueCodes,
+      if (blockingIssueCodes.isNotEmpty)
+        'journalBlockingIssueCodes': blockingIssueCodes,
     };
   }
 }
@@ -152,6 +201,7 @@ class AgentToolCallExecutionJournal {
   factory AgentToolCallExecutionJournal.fromTimeline({
     required AgentToolCallTimeline timeline,
     AgentToolCallDispatchReport? dispatchReport,
+    AgentToolCallExecutionPlan? executionPlan,
     int? sourceEventCount,
   }) {
     final resultByCallId = <String, AgentToolCallDispatchResult>{
@@ -159,11 +209,17 @@ class AgentToolCallExecutionJournal {
           in dispatchReport?.results ?? const <AgentToolCallDispatchResult>[])
         result.callId: result,
     };
+    final executionByCallId = <String, AgentToolCallExecution>{
+      for (final execution
+          in executionPlan?.executions ?? const <AgentToolCallExecution>[])
+        execution.callId: execution,
+    };
     final entries = <AgentToolCallExecutionJournalEntry>[
       for (final call in timeline.calls)
         AgentToolCallExecutionJournalEntry.fromState(
           state: call,
           dispatchResult: resultByCallId[call.callId],
+          execution: executionByCallId[call.callId],
         ),
     ];
     return AgentToolCallExecutionJournal(

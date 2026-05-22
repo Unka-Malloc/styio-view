@@ -48,6 +48,56 @@ void main() {
     },
   );
 
+  test('tool session processor records execution evidence in journal', () {
+    const processor = AgentToolSessionProcessor();
+    final timeline = processor
+        .applyEvents(AgentToolCallTimeline.empty(), const <AgentToolCallEvent>[
+          AgentToolCallEvent.callStarted(
+            callId: 'call-preview',
+            toolId: 'previewWorkspaceEdit',
+            input: '{"patch":{}}',
+          ),
+        ]);
+    final journal = processor.buildJournal(
+      timeline: timeline,
+      executionPlan: const AgentToolCallExecutionPlan(
+        status: AgentToolCallExecutionPlanStatus.reviewRequired,
+        executions: <AgentToolCallExecution>[
+          AgentToolCallExecution(
+            callId: 'call-preview',
+            toolId: 'previewWorkspaceEdit',
+            status: AgentToolCallExecutionStatus.reviewRequired,
+            permissionStatus: AgentToolPermissionDecisionStatus.reviewRequired,
+            reviewDecisionStatus: AgentToolCallReviewDecisionStatus.denied,
+            issues: <AgentToolCallExecutionIssue>[
+              AgentToolCallExecutionIssue(
+                code: 'agent.tool.review.denied.call-preview',
+                message: 'Denied by user.',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    final entry = journal.entries.single;
+    final json = entry.toJson();
+    final replayRequest = entry.toReplayRequest();
+
+    expect(entry.executionStatus, 'review_required');
+    expect(entry.permissionStatus, 'review_required');
+    expect(entry.reviewDecisionStatus, 'denied');
+    expect(
+      entry.executionIssueCodes,
+      contains('agent.tool.review.denied.call-preview'),
+    );
+    expect(json['permissionStatus'], 'review_required');
+    expect(
+      replayRequest.metadata['journalPermissionStatus'],
+      'review_required',
+    );
+    expect(replayRequest.metadata['journalReviewDecisionStatus'], 'denied');
+  });
+
   test(
     'tool session processor feeds invalid tool input back as result',
     () async {

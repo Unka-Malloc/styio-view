@@ -133,6 +133,75 @@ void main() {
     },
   );
 
+  test(
+    'tool session processor validates replay result schema when available',
+    () async {
+      const processor = AgentToolSessionProcessor();
+      final timeline = processor.applyEvents(
+        AgentToolCallTimeline.empty(),
+        const <AgentToolCallEvent>[
+          AgentToolCallEvent.callStarted(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            input: '{"path":"main.styio"}',
+          ),
+          AgentToolCallEvent.error(
+            callId: 'call-read',
+            toolId: 'readWorkspaceFile',
+            errorMessage: 'temporary failure',
+          ),
+        ],
+      );
+      final journal = processor.buildJournal(timeline: timeline);
+
+      final report = await processor.replayJournal(
+        journal: journal,
+        toolSelection: const AgentToolSelection(
+          context: AgentToolSelectionContext(
+            providerKind: AgentProviderKind.localOnlyFallback,
+            protocol: 'openai-compatible',
+            model: 'local',
+          ),
+          tools: <AgentToolDefinition>[
+            AgentToolDefinition(
+              toolId: 'readWorkspaceFile',
+              displayName: 'Read Workspace File',
+              description: 'Read a file.',
+              resultSchema: <AgentToolSchemaProperty>[
+                AgentToolSchemaProperty(
+                  name: 'source',
+                  type: 'string',
+                  required: true,
+                ),
+                AgentToolSchemaProperty(
+                  name: 'document',
+                  type: 'object',
+                  required: true,
+                ),
+              ],
+            ),
+          ],
+        ),
+        executor: (request) {
+          return AgentToolCallDispatchResult.success(
+            callId: request.callId,
+            toolId: request.toolId,
+            output: '{"document":{"text":"value = 1"}}',
+          );
+        },
+      );
+
+      expect(report.status, AgentToolCallReplayReportStatus.failed);
+      expect(report.results.single.success, isFalse);
+      expect(
+        report.results.single.metadata['source'],
+        'agent-tool-result-validation',
+      );
+      expect(report.results.single.metadata['replayedFromJournal'], isTrue);
+      expect(report.events.single.kind, AgentToolCallEventKind.error);
+    },
+  );
+
   test('tool session processor builds continuation plan for tool results', () {
     const processor = AgentToolSessionProcessor();
 

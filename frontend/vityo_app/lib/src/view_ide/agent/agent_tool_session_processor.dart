@@ -4,6 +4,7 @@ import 'agent_tool_call_execution_journal.dart';
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
+import 'agent_tool_input_validator.dart';
 import 'agent_tool_registry.dart';
 import 'agent_tool_call_stream_bridge.dart';
 import 'agent_tool_session_transcript.dart';
@@ -187,6 +188,7 @@ class AgentToolSessionProcessor {
     required AgentToolCallExecutionJournal journal,
     required AgentToolCallExecutor executor,
     bool includeCompleted = false,
+    AgentToolSelection? toolSelection,
   }) async {
     final plan = AgentToolCallReplayPlan.fromJournal(
       journal,
@@ -207,7 +209,11 @@ class AgentToolSessionProcessor {
         final rawResult = await Future<AgentToolCallDispatchResult>.value(
           executor(request),
         );
-        result = _toolReplayResultWithMetadata(rawResult, request);
+        result = _validatedToolReplayResult(
+          result: _toolReplayResultWithMetadata(rawResult, request),
+          request: request,
+          toolSelection: toolSelection,
+        );
       } on Object catch (error) {
         result = AgentToolCallDispatchResult.failure(
           callId: request.callId,
@@ -287,6 +293,60 @@ class AgentToolSessionProcessor {
       },
     );
   }
+}
+
+AgentToolCallDispatchResult _validatedToolReplayResult({
+  required AgentToolCallDispatchResult result,
+  required AgentToolCallDispatchRequest request,
+  required AgentToolSelection? toolSelection,
+}) {
+  if (!result.success || toolSelection == null) {
+    return result;
+  }
+  final tool = _toolForReplay(toolSelection, request.toolId);
+  if (tool == null || tool.resultSchema.isEmpty) {
+    return result;
+  }
+  final validation = const AgentToolResultValidator().validate(
+    tool: tool,
+    outputText: result.output,
+  );
+  final metadata = <String, Object?>{
+    ...result.metadata,
+    'resultValidation': validation.toJson(),
+  };
+  if (validation.valid) {
+    return AgentToolCallDispatchResult.success(
+      callId: result.callId,
+      toolId: result.toolId,
+      output: result.output,
+      message: result.message,
+      metadata: metadata,
+    );
+  }
+  return AgentToolCallDispatchResult.failure(
+    callId: result.callId,
+    toolId: result.toolId,
+    message: validation.modelFacingMessage,
+    output: result.output,
+    metadata: <String, Object?>{
+      ...metadata,
+      ..._toolReplayMetadata(request),
+      'source': 'agent-tool-result-validation',
+    },
+  );
+}
+
+AgentToolDefinition? _toolForReplay(
+  AgentToolSelection selection,
+  String toolId,
+) {
+  for (final tool in selection.tools) {
+    if (tool.toolId == toolId) {
+      return tool;
+    }
+  }
+  return null;
 }
 
 bool _isToolInputIssue(AgentToolCallExecutionIssue issue) {

@@ -840,6 +840,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       journal: _toolCallExecutionJournal,
       executor: executor,
       includeCompleted: includeCompleted,
+      toolSelection: _currentToolSelection(),
     );
     if (report.events.isNotEmpty) {
       recordToolCallEvents(report.events);

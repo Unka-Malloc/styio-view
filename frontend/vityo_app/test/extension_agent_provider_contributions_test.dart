@@ -302,23 +302,31 @@ void main() {
       ).applyActivation(registry: manifestRegistry, session: session);
       final buffer = RuntimeOutputLiveBuffer();
       ExtensionAgentToolHostInvocation? invocation;
+      final invokerRegistry = ExtensionAgentToolHostInvokerRegistry(
+        registrations: <ExtensionAgentToolHostInvokerRegistration>[
+          ExtensionAgentToolHostInvokerRegistration(
+            extensionId: 'agent.tools',
+            handlerId: 'collect-context',
+            label: 'Collect Context Fixture',
+            metadata: const <String, Object?>{'transport': 'fixture-rpc'},
+            invoker: (request) async {
+              invocation = request;
+              return AgentToolCallDispatchResult.success(
+                callId: request.toolCall.callId,
+                toolId: request.toolCall.toolId,
+                output: '{"extension":"active-host"}',
+                metadata: <String, Object?>{'dispatched': request.dispatched},
+              );
+            },
+          ),
+        ],
+      );
       final hostBridge = ExtensionAgentToolActivatedHostBridge(
         snapshot: snapshot,
         buffer: buffer,
         manifestRegistry: manifestRegistry,
         clock: () => DateTime.utc(2026, 5, 22, 2),
-        invoker: (request) async {
-          invocation = request;
-          return AgentToolCallDispatchResult.success(
-            callId: request.toolCall.callId,
-            toolId: request.toolCall.toolId,
-            output: '{"extension":"active-host"}',
-            metadata: <String, Object?>{
-              'handlerId': request.handlerId,
-              'dispatched': request.dispatched,
-            },
-          );
-        },
+        invoker: invokerRegistry.invoke,
       );
       final registry = ExtensionAgentToolExecutionRegistry.fromHostBridge(
         catalog: catalog,
@@ -337,6 +345,8 @@ void main() {
       expect(result.output, '{"extension":"active-host"}');
       expect(result.metadata['handlerId'], 'collect-context');
       expect(result.metadata['dispatched'], isTrue);
+      expect(result.metadata['invokerLabel'], 'Collect Context Fixture');
+      expect(result.metadata['transport'], 'fixture-rpc');
       expect(invocation?.extensionId, 'agent.tools');
       expect(invocation?.handlerId, 'collect-context');
       expect(invocation?.plan.ready, isTrue);
@@ -346,6 +356,57 @@ void main() {
         buffer.snapshot.visibleEvents.single.metadata['agentToolHostBridge'],
         isTrue,
       );
+      expect(invokerRegistry.toJson()['registrationCount'], 1);
+    },
+  );
+
+  test(
+    'extension agent tool host invoker registry reports missing rpc handlers',
+    () async {
+      final manifestRegistry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'agent.tools',
+            displayName: 'Agent Tools',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'agent_tools.dart',
+            activationEvents: <String>['onCommand:collectContext'],
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'local-process'},
+          ),
+        );
+      final session = ExtensionActivator(
+        clock: () => DateTime.utc(2026, 5, 22),
+      ).activate(registry: manifestRegistry, event: 'onCommand:collectContext');
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 22, 1),
+      ).applyActivation(registry: manifestRegistry, session: session);
+      final bridge = ExtensionAgentToolActivatedHostBridge(
+        snapshot: snapshot,
+        buffer: RuntimeOutputLiveBuffer(),
+        manifestRegistry: manifestRegistry,
+        clock: () => DateTime.utc(2026, 5, 22, 2),
+        invoker: ExtensionAgentToolHostInvokerRegistry().invoke,
+      );
+
+      final result = await bridge.call(
+        const ExtensionAgentToolHostRequest(
+          extensionId: 'agent.tools',
+          contributionId: 'collect-extension-context',
+          handlerId: 'missing-handler',
+          toolCall: AgentToolCallDispatchRequest(
+            callId: 'call-extension',
+            toolId: 'collectExtensionContext',
+            inputText: '{}',
+          ),
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.metadata['missingHostInvokerRegistration'], isTrue);
+      expect(result.metadata['extensionId'], 'agent.tools');
+      expect(result.metadata['handlerId'], 'missing-handler');
     },
   );
 

@@ -388,6 +388,142 @@ class ExtensionAgentToolActivatedHostBridge {
   }
 }
 
+class ExtensionAgentToolHostInvokerRegistration {
+  const ExtensionAgentToolHostInvokerRegistration({
+    required this.extensionId,
+    required this.handlerId,
+    required this.label,
+    required this.invoker,
+    this.available = true,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String extensionId;
+  final String handlerId;
+  final String label;
+  final ExtensionAgentToolHostInvoker invoker;
+  final bool available;
+  final Map<String, Object?> metadata;
+
+  bool accepts(ExtensionAgentToolHostInvocation invocation) {
+    return available &&
+        extensionId == invocation.extensionId &&
+        handlerId == invocation.handlerId;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'handlerId': handlerId,
+      'label': label,
+      'available': available,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionAgentToolHostInvokerRegistry {
+  ExtensionAgentToolHostInvokerRegistry({
+    Iterable<ExtensionAgentToolHostInvokerRegistration> registrations =
+        const <ExtensionAgentToolHostInvokerRegistration>[],
+  }) {
+    for (final registration in registrations) {
+      register(registration);
+    }
+  }
+
+  final List<ExtensionAgentToolHostInvokerRegistration> _registrations =
+      <ExtensionAgentToolHostInvokerRegistration>[];
+
+  List<ExtensionAgentToolHostInvokerRegistration> get registrations {
+    return List<ExtensionAgentToolHostInvokerRegistration>.unmodifiable(
+      _registrations,
+    );
+  }
+
+  void register(ExtensionAgentToolHostInvokerRegistration registration) {
+    _registrations.removeWhere(
+      (candidate) =>
+          candidate.extensionId == registration.extensionId &&
+          candidate.handlerId == registration.handlerId,
+    );
+    _registrations.add(registration);
+  }
+
+  ExtensionAgentToolHostInvokerRegistration? resolve(
+    ExtensionAgentToolHostInvocation invocation,
+  ) {
+    for (final registration in _registrations) {
+      if (registration.accepts(invocation)) {
+        return registration;
+      }
+    }
+    return null;
+  }
+
+  Future<AgentToolCallDispatchResult> invoke(
+    ExtensionAgentToolHostInvocation invocation,
+  ) async {
+    final registration = resolve(invocation);
+    if (registration == null) {
+      return AgentToolCallDispatchResult.failure(
+        callId: invocation.toolCall.callId,
+        toolId: invocation.toolCall.toolId,
+        message:
+            'No Extension Host agent tool invoker is registered for '
+            '${invocation.extensionId}/${invocation.handlerId}.',
+        metadata: <String, Object?>{
+          'source': 'extension-agent-tool-host-invoker-registry',
+          'missingHostInvokerRegistration': true,
+          'extensionId': invocation.extensionId,
+          'handlerId': invocation.handlerId,
+        },
+      );
+    }
+    try {
+      final result = await registration.invoker(invocation);
+      return AgentToolCallDispatchResult(
+        callId: result.callId,
+        toolId: result.toolId,
+        success: result.success,
+        message: result.message,
+        output: result.output,
+        metadata: <String, Object?>{
+          ...registration.metadata,
+          ...result.metadata,
+          'extensionId': invocation.extensionId,
+          'handlerId': invocation.handlerId,
+          'invokerLabel': registration.label,
+        },
+      );
+    } on Object catch (error) {
+      return AgentToolCallDispatchResult.failure(
+        callId: invocation.toolCall.callId,
+        toolId: invocation.toolCall.toolId,
+        message:
+            'Extension Host agent tool invoker '
+            '${invocation.extensionId}/${invocation.handlerId} failed: $error',
+        metadata: <String, Object?>{
+          'source': 'extension-agent-tool-host-invoker-registry',
+          'hostInvokerFailed': true,
+          'extensionId': invocation.extensionId,
+          'handlerId': invocation.handlerId,
+        },
+      );
+    }
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'schema': 'vityo.extension-agent-tool-host-invoker-registry.v1',
+      'registrationCount': _registrations.length,
+      'registrations': _registrations
+          .map((registration) => registration.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
 class ExtensionAgentToolExecutionRegistry {
   ExtensionAgentToolExecutionRegistry({
     required ExtensionAgentToolContributionCatalog catalog,

@@ -71,7 +71,7 @@ void main() {
     expect(validation.status, AgentCodingLoopStepStatus.waiting);
     expect(
       plan.todoItems.join('\n'),
-      contains('ExtensionAgentToolActivatedHostBridge'),
+      contains('ExtensionAgentToolHostInvokerRegistry'),
     );
     expect(
       plan.todoItems.join('\n'),

@@ -168,4 +168,29 @@ void main() {
       'call-shell',
     ]);
   });
+
+  test('tool session processor builds denied review feedback result', () {
+    const processor = AgentToolSessionProcessor();
+    const call = AgentToolCallState(
+      callId: 'call-command',
+      toolId: 'runIdeCommand',
+      status: AgentToolCallStatus.inputReady,
+      inputText: '{"commandId":"runTests"}',
+      inputComplete: true,
+    );
+
+    final result = processor.reviewDeniedResult(
+      call: call,
+      reason: 'Collect validation context first.',
+    );
+
+    expect(result.success, isFalse);
+    expect(result.callId, 'call-command');
+    expect(result.toolId, 'runIdeCommand');
+    expect(result.output, contains('correctiveFeedback'));
+    expect(result.output, contains('Collect validation context first.'));
+    expect(result.metadata['source'], 'agent-tool-review');
+    expect(result.metadata['reviewDecision'], 'denied');
+    expect(result.metadata['recoveryAction'], 'reviseToolRequest');
+  });
 }

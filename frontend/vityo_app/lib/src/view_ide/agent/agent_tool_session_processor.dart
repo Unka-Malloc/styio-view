@@ -241,6 +241,35 @@ class AgentToolSessionProcessor {
       },
     );
   }
+
+  AgentToolCallDispatchResult reviewDeniedResult({
+    required AgentToolCallState call,
+    required String reason,
+  }) {
+    final feedback = reason.trim().isEmpty
+        ? 'User denied this agent tool call.'
+        : reason.trim();
+    final output = <String>[
+      'Agent tool call denied by user review.',
+      'callId: ${call.callId}',
+      'toolId: ${call.toolId}',
+      'correctiveFeedback: $feedback',
+      'recoveryAction: reviseToolRequest',
+    ].join('\n');
+    return AgentToolCallDispatchResult.failure(
+      callId: call.callId,
+      toolId: call.toolId,
+      message: feedback,
+      output: output,
+      metadata: <String, Object?>{
+        'source': 'agent-tool-review',
+        'blocked': true,
+        'reviewDecision': 'denied',
+        'correctiveFeedback': feedback,
+        'recoveryAction': 'reviseToolRequest',
+      },
+    );
+  }
 }
 
 bool _isToolInputIssue(AgentToolCallExecutionIssue issue) {

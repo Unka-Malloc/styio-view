@@ -5,6 +5,58 @@ import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
 import 'agent_tool_session_transcript.dart';
 
+enum AgentToolResultContinuationPlanStatus { unavailable, ready }
+
+extension AgentToolResultContinuationPlanStatusX
+    on AgentToolResultContinuationPlanStatus {
+  String get wireValue => switch (this) {
+    AgentToolResultContinuationPlanStatus.unavailable => 'unavailable',
+    AgentToolResultContinuationPlanStatus.ready => 'ready',
+  };
+}
+
+class AgentToolResultContinuationPlan {
+  const AgentToolResultContinuationPlan({
+    required this.status,
+    required this.prompt,
+    required this.message,
+    required this.resultCount,
+    required this.failedCount,
+    this.metadata = const <String, Object?>{},
+  });
+
+  const AgentToolResultContinuationPlan.unavailable({
+    String message = 'No tool results are available.',
+  }) : this(
+         status: AgentToolResultContinuationPlanStatus.unavailable,
+         prompt: '',
+         message: message,
+         resultCount: 0,
+         failedCount: 0,
+       );
+
+  final AgentToolResultContinuationPlanStatus status;
+  final String prompt;
+  final String message;
+  final int resultCount;
+  final int failedCount;
+  final Map<String, Object?> metadata;
+
+  bool get ready => status == AgentToolResultContinuationPlanStatus.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'ready': ready,
+      'resultCount': resultCount,
+      'failedCount': failedCount,
+      'message': message,
+      if (prompt.isNotEmpty) 'prompt': prompt,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
 class AgentToolSessionProcessor {
   const AgentToolSessionProcessor({
     this.lifecycleTracker = const AgentToolCallLifecycleTracker(),
@@ -156,6 +208,39 @@ class AgentToolSessionProcessor {
       events: events,
     );
   }
+
+  AgentToolResultContinuationPlan buildContinuationPlan({
+    required Iterable<AgentToolCallResultContext> resultContexts,
+    String? prompt,
+  }) {
+    final results = resultContexts.toList(growable: false);
+    if (results.isEmpty) {
+      return const AgentToolResultContinuationPlan.unavailable();
+    }
+    final failedCount = results.where((result) => !result.success).length;
+    final resultCount = results.length;
+    final normalizedPrompt = prompt?.trim();
+    return AgentToolResultContinuationPlan(
+      status: AgentToolResultContinuationPlanStatus.ready,
+      prompt: normalizedPrompt == null || normalizedPrompt.isEmpty
+          ? _toolResultContinuationPrompt(
+              resultCount: resultCount,
+              failedCount: failedCount,
+            )
+          : normalizedPrompt,
+      message: 'Agent tool continuation is ready.',
+      resultCount: resultCount,
+      failedCount: failedCount,
+      metadata: <String, Object?>{
+        'toolResultContinuation': true,
+        'toolResultContinuationCount': resultCount,
+        'toolResultContinuationFailedCount': failedCount,
+        'toolResultContinuationCallIds': results
+            .map((result) => result.callId)
+            .toList(growable: false),
+      },
+    );
+  }
 }
 
 bool _isToolInputIssue(AgentToolCallExecutionIssue issue) {
@@ -195,4 +280,15 @@ Map<String, Object?> _toolReplayMetadata(AgentToolCallDispatchRequest request) {
     'replayCallId': request.callId,
     'replayToolId': request.toolId,
   };
+}
+
+String _toolResultContinuationPrompt({
+  required int resultCount,
+  required int failedCount,
+}) {
+  final failed = failedCount == 0
+      ? ''
+      : ' $failedCount result(s) failed; explain the failure and propose a recovery step.';
+  return 'Continue after $resultCount agent tool result(s). '
+      'Use the attached tool results as the source of truth, summarize the outcome, and propose the next IDE action.$failed';
 }

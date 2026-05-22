@@ -471,10 +471,14 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   bool restoreToolResultContinuationDraft({String? prompt}) {
-    if (_recentToolCallResultContexts.isEmpty) {
+    final plan = _toolSessionProcessor.buildContinuationPlan(
+      resultContexts: _recentToolCallResultContexts,
+      prompt: prompt,
+    );
+    if (!plan.ready) {
       return false;
     }
-    updatePrompt(prompt ?? _toolResultContinuationPrompt());
+    updatePrompt(plan.prompt);
     return true;
   }
 
@@ -482,7 +486,11 @@ class AgentCodingSessionController extends ChangeNotifier {
     String? prompt,
     bool confirmed = false,
   }) async {
-    if (_recentToolCallResultContexts.isEmpty) {
+    final plan = _toolSessionProcessor.buildContinuationPlan(
+      resultContexts: _recentToolCallResultContexts,
+      prompt: prompt,
+    );
+    if (!plan.ready) {
       _lastError =
           'Agent tool continuation blocked: no tool results are available.';
       notifyListeners();
@@ -494,8 +502,8 @@ class AgentCodingSessionController extends ChangeNotifier {
       notifyListeners();
       return null;
     }
-    _pendingToolResultContinuationMetadata = _toolResultContinuationMetadata();
-    updatePrompt(prompt ?? _toolResultContinuationPrompt());
+    _pendingToolResultContinuationMetadata = plan.metadata;
+    updatePrompt(plan.prompt);
     try {
       return await sendPrompt();
     } finally {
@@ -2207,32 +2215,6 @@ class AgentCodingSessionController extends ChangeNotifier {
     return List<AgentToolCallResultContext>.unmodifiable(
       _recentToolCallResultContexts,
     );
-  }
-
-  String _toolResultContinuationPrompt() {
-    final resultCount = _recentToolCallResultContexts.length;
-    final failedCount = _recentToolCallResultContexts
-        .where((result) => !result.success)
-        .length;
-    final failed = failedCount == 0
-        ? ''
-        : ' $failedCount result(s) failed; explain the failure and propose a recovery step.';
-    return 'Continue after $resultCount agent tool result(s). '
-        'Use the attached tool results as the source of truth, summarize the outcome, and propose the next IDE action.$failed';
-  }
-
-  Map<String, Object?> _toolResultContinuationMetadata() {
-    final failedCount = _recentToolCallResultContexts
-        .where((result) => !result.success)
-        .length;
-    return <String, Object?>{
-      'toolResultContinuation': true,
-      'toolResultContinuationCount': _recentToolCallResultContexts.length,
-      'toolResultContinuationFailedCount': failedCount,
-      'toolResultContinuationCallIds': _recentToolCallResultContexts
-          .map((result) => result.callId)
-          .toList(growable: false),
-    };
   }
 
   void _recordRecentToolCallResultContexts(

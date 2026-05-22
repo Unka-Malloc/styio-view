@@ -132,4 +132,40 @@ void main() {
       expect(report.events.single.kind, AgentToolCallEventKind.result);
     },
   );
+
+  test('tool session processor builds continuation plan for tool results', () {
+    const processor = AgentToolSessionProcessor();
+
+    final plan = processor.buildContinuationPlan(
+      resultContexts: <AgentToolCallResultContext>[
+        AgentToolCallResultContext(
+          callId: 'call-read',
+          toolId: 'readWorkspaceFile',
+          status: AgentToolCallResultContextStatus.success,
+          message: 'completed',
+          output: '{"text":"value = 1"}',
+          createdAt: DateTime.utc(2026, 5, 22),
+        ),
+        AgentToolCallResultContext(
+          callId: 'call-shell',
+          toolId: 'runShellCommand',
+          status: AgentToolCallResultContextStatus.failure,
+          message: 'command failed',
+          output: 'exit 1',
+          createdAt: DateTime.utc(2026, 5, 22),
+        ),
+      ],
+    );
+
+    expect(plan.ready, isTrue);
+    expect(plan.resultCount, 2);
+    expect(plan.failedCount, 1);
+    expect(plan.prompt, contains('Continue after 2 agent tool result(s).'));
+    expect(plan.prompt, contains('1 result(s) failed'));
+    expect(plan.metadata['toolResultContinuation'], isTrue);
+    expect(plan.metadata['toolResultContinuationCallIds'], <String>[
+      'call-read',
+      'call-shell',
+    ]);
+  });
 }

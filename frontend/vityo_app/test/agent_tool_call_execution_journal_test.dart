@@ -61,10 +61,11 @@ void main() {
         (payload['entries'] as List<Object?>).single,
         isA<Map<Object?, Object?>>(),
       );
-      expect(
-        AgentToolCallReplayPlan.fromJournal(journal).requests.single.inputText,
-        '{"path":"main.styio"}',
-      );
+      final replayPlan = AgentToolCallReplayPlan.fromJournal(journal);
+      final replayPlanPayload = replayPlan.toJson();
+      expect(replayPlan.requests.single.inputText, '{"path":"main.styio"}');
+      expect(replayPlanPayload['requiresUserConfirmation'], isTrue);
+      expect(replayPlanPayload.containsKey('todoItems'), isFalse);
     },
   );
 
@@ -116,6 +117,12 @@ void main() {
       expect(
         AgentToolCallReplayPlan.fromJournal(journal).status,
         AgentToolCallReplayPlanStatus.blocked,
+      );
+      expect(
+        AgentToolCallReplayPlan.fromJournal(
+          journal,
+        ).toJson()['requiresUserConfirmation'],
+        isFalse,
       );
       expect(
         AgentToolCallReplayPlan.fromJournal(

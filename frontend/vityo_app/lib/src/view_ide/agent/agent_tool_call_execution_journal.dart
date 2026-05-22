@@ -227,10 +227,9 @@ class AgentToolCallReplayPlan {
     required this.status,
     required this.requests,
     this.includeCompleted = false,
+    this.requiresUserConfirmation = true,
     this.issues = const <AgentToolCallReplayIssue>[],
-    this.todoItems = const <String>[
-      'TODO: bind replay plans to explicit Agent Surface user confirmation before dispatch.',
-    ],
+    this.todoItems = const <String>[],
   });
 
   factory AgentToolCallReplayPlan.fromJournal(
@@ -241,6 +240,7 @@ class AgentToolCallReplayPlan {
       return const AgentToolCallReplayPlan(
         status: AgentToolCallReplayPlanStatus.empty,
         requests: <AgentToolCallDispatchRequest>[],
+        requiresUserConfirmation: false,
         issues: <AgentToolCallReplayIssue>[
           AgentToolCallReplayIssue(
             code: 'agent.tool.replay.emptyJournal',
@@ -255,6 +255,7 @@ class AgentToolCallReplayPlan {
         status: AgentToolCallReplayPlanStatus.blocked,
         requests: const <AgentToolCallDispatchRequest>[],
         includeCompleted: includeCompleted,
+        requiresUserConfirmation: false,
         issues: const <AgentToolCallReplayIssue>[
           AgentToolCallReplayIssue(
             code: 'agent.tool.replay.noReplayableInputs',
@@ -274,6 +275,7 @@ class AgentToolCallReplayPlan {
   final AgentToolCallReplayPlanStatus status;
   final List<AgentToolCallDispatchRequest> requests;
   final bool includeCompleted;
+  final bool requiresUserConfirmation;
   final List<AgentToolCallReplayIssue> issues;
   final List<String> todoItems;
 
@@ -285,12 +287,13 @@ class AgentToolCallReplayPlan {
       'status': status.wireValue,
       'ready': ready,
       'includeCompleted': includeCompleted,
+      'requiresUserConfirmation': requiresUserConfirmation,
       'requestCount': requests.length,
       'requests': requests
           .map((request) => request.toJson())
           .toList(growable: false),
       'issues': issues.map((issue) => issue.toJson()).toList(growable: false),
-      'todoItems': todoItems,
+      if (todoItems.isNotEmpty) 'todoItems': todoItems,
     };
   }
 }

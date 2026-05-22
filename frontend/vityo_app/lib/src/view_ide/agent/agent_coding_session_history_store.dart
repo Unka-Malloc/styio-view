@@ -174,9 +174,7 @@ class AgentCodingSessionHistoryRecord {
 
   bool get succeeded => outcome == AgentCodingSessionOutcome.succeeded;
 
-  AgentCodingSessionHistoryRecord copyWith({
-    Map<String, Object?>? metadata,
-  }) {
+  AgentCodingSessionHistoryRecord copyWith({Map<String, Object?>? metadata}) {
     return AgentCodingSessionHistoryRecord(
       requestId: requestId,
       profileId: profileId,
@@ -623,6 +621,8 @@ class AgentCodingSessionRecoveryContext {
   Map<String, Object?> toJson() {
     final toolCallExecutionJournal =
         latestRecord?.metadata['toolCallExecutionJournal'];
+    final toolSessionTranscript =
+        latestRecord?.metadata['toolSessionTranscript'];
     return <String, Object?>{
       'workspaceId': workspaceId,
       'hasRecoverableSession': hasRecoverableSession,
@@ -633,6 +633,8 @@ class AgentCodingSessionRecoveryContext {
       if (latestRecord != null) 'latestRecord': _latestRecordPayload(),
       if (toolCallExecutionJournal != null)
         'toolCallExecutionJournal': toolCallExecutionJournal,
+      if (toolSessionTranscript != null)
+        'toolSessionTranscript': toolSessionTranscript,
       'commandPlans': commandPlans
           .map((commandPlan) => commandPlan.toJson())
           .toList(growable: false),
@@ -709,10 +711,7 @@ class AgentCodingSessionHistory {
     }
     return AgentCodingSessionHistory(
       workspaceId: workspaceId,
-      records: <AgentCodingSessionHistoryRecord>[
-        record,
-        ...records.skip(1),
-      ],
+      records: <AgentCodingSessionHistoryRecord>[record, ...records.skip(1)],
       updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }

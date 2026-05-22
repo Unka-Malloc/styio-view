@@ -533,10 +533,14 @@ void main() {
         isA<Map<String, Object?>>(),
       );
       final metadata = historyStore.history.records.single.metadata;
+      final transcript =
+          metadata['toolSessionTranscript'] as Map<String, Object?>;
       expect(metadata['toolResultContinuation'], isTrue);
       expect(metadata['toolResultContinuationCount'], 1);
       expect(metadata['toolResultContinuationFailedCount'], 0);
       expect(metadata['toolResultContinuationCallIds'], <String>['call-read']);
+      expect(transcript['status'], 'complete');
+      expect(transcript['partCount'], 1);
       expect(controller.recentToolCallResultContexts, isEmpty);
       expect(controller.restoreToolResultContinuationDraft(), isFalse);
       expect(
@@ -642,12 +646,17 @@ void main() {
       final metadata = history.records.single.metadata;
       final journal =
           metadata['toolCallExecutionJournal'] as Map<String, Object?>;
+      final transcript =
+          metadata['toolSessionTranscript'] as Map<String, Object?>;
       final recoveryPayload = history.toRecoveryContext().toJson();
 
       expect(journal['status'], 'complete');
       expect(journal['entryCount'], 1);
       expect(journal['replayCandidateCount'], 0);
+      expect(transcript['status'], 'complete');
+      expect(transcript['partCount'], 1);
       expect(recoveryPayload['toolCallExecutionJournal'], journal);
+      expect(recoveryPayload['toolSessionTranscript'], transcript);
     },
   );
 

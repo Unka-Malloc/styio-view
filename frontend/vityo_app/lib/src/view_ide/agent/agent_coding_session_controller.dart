@@ -966,6 +966,7 @@ class AgentCodingSessionController extends ChangeNotifier {
           metadata: _agentCodingHistoryMetadata(
             requestContext,
             toolCallExecutionJournal: toolCallJournalForHistory,
+            toolSessionTranscript: toolSessionTranscriptForRequest,
             toolResultContinuation: _pendingToolResultContinuationMetadata,
           ),
         ),
@@ -990,6 +991,7 @@ class AgentCodingSessionController extends ChangeNotifier {
             metadata: _agentCodingHistoryMetadata(
               requestContext,
               toolCallExecutionJournal: toolCallJournalForHistory,
+              toolSessionTranscript: toolSessionTranscriptForRequest,
               toolResultContinuation: _pendingToolResultContinuationMetadata,
             ),
           ),
@@ -1887,9 +1889,12 @@ class AgentCodingSessionController extends ChangeNotifier {
         return;
       }
       final latest = current.records.first;
+      final transcript = toolSessionTranscript;
       final metadata = <String, Object?>{
         ...latest.metadata,
         'toolCallExecutionJournal': _toolCallExecutionJournal.toJson(),
+        if (transcript.parts.isNotEmpty)
+          'toolSessionTranscript': transcript.toJson(),
       };
       final next = current.replaceLatest(latest.copyWith(metadata: metadata));
       _sessionHistorySnapshot = next;
@@ -2354,6 +2359,7 @@ String _agentReadinessBlockMessage(AgentCodingExecutionReadiness readiness) {
 Map<String, Object?> _agentCodingHistoryMetadata(
   AgentSessionContext context, {
   AgentToolCallExecutionJournal? toolCallExecutionJournal,
+  AgentToolSessionTranscript? toolSessionTranscript,
   Map<String, Object?>? toolResultContinuation,
 }) {
   final agent = context.agent;
@@ -2364,6 +2370,9 @@ Map<String, Object?> _agentCodingHistoryMetadata(
   if (toolCallExecutionJournal != null &&
       toolCallExecutionJournal.entries.isNotEmpty) {
     metadata['toolCallExecutionJournal'] = toolCallExecutionJournal.toJson();
+  }
+  if (toolSessionTranscript != null && toolSessionTranscript.parts.isNotEmpty) {
+    metadata['toolSessionTranscript'] = toolSessionTranscript.toJson();
   }
   final lastPatchApplication = agent.lastPatchApplication;
   if (lastPatchApplication != null) {

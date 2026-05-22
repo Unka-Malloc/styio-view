@@ -275,7 +275,13 @@ void main() {
     expect(conversationCompaction['truncatedRetainedTurnCount'], 1);
     expect(conversationCompaction['hasSummary'], isTrue);
     expect(conversationCompaction['summaryTurnCount'], 4);
+    expect(
+      conversationCompaction['summaryStrategy'],
+      'deterministic-extractive',
+    );
+    expect(conversationCompaction['providerAssisted'], isFalse);
     expect(conversationCompaction['summary'], contains('previous request'));
+    expect(conversationCompaction.containsKey('todoItems'), isFalse);
     expect(
       conversationCompaction['summaryUpdatedAt'],
       '2026-05-22T02:03:04.000Z',

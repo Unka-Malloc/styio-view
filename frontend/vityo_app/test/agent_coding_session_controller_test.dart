@@ -1905,6 +1905,8 @@ void main() {
       expect(compaction.omittedTurnCount, 2);
       expect(compaction.hasSummary, isTrue);
       expect(compaction.summaryTurnCount, 2);
+      expect(compaction.summaryStrategy, 'deterministic-extractive');
+      expect(compaction.providerAssisted, isFalse);
       expect(compaction.summary, contains('- user: one'));
       expect(compaction.summary, contains('- assistant: ok'));
     },
@@ -1943,6 +1945,8 @@ void main() {
       expect(compaction.omittedTurnCount, 2);
       expect(compaction.hasSummary, isTrue);
       expect(compaction.summaryTurnCount, 2);
+      expect(compaction.summaryStrategy, 'deterministic-extractive');
+      expect(compaction.providerAssisted, isFalse);
       expect(compaction.summary, contains('- user: one'));
       expect(compaction.summary, contains('- assistant: ok'));
     },

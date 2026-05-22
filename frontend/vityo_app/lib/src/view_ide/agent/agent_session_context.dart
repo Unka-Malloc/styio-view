@@ -1769,9 +1769,9 @@ class AgentConversationCompactionContext {
     this.summary = '',
     this.summaryTurnCount = 0,
     this.summaryUpdatedAt,
-    this.todoItems = const <String>[
-      'TODO: replace deterministic extractive summaries with provider-assisted OpenCode-style semantic compaction when a trusted model route is available.',
-    ],
+    this.summaryStrategy = 'deterministic-extractive',
+    this.providerAssisted = false,
+    this.todoItems = const <String>[],
   });
 
   factory AgentConversationCompactionContext.fromConversationState({
@@ -1821,6 +1821,8 @@ class AgentConversationCompactionContext {
   final String summary;
   final int summaryTurnCount;
   final DateTime? summaryUpdatedAt;
+  final String summaryStrategy;
+  final bool providerAssisted;
   final List<String> todoItems;
 
   bool get hasOmittedTurns => omittedTurnCount > 0;
@@ -1842,6 +1844,8 @@ class AgentConversationCompactionContext {
       'hasTruncatedTurns': hasTruncatedTurns,
       'hasSummary': hasSummary,
       'summaryTurnCount': summaryTurnCount,
+      'summaryStrategy': summaryStrategy,
+      'providerAssisted': providerAssisted,
       if (hasSummary) 'summary': summary,
       if (summaryUpdatedAt != null)
         'summaryUpdatedAt': summaryUpdatedAt!.toIso8601String(),

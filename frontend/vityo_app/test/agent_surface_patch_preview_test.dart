@@ -92,6 +92,58 @@ void main() {
     );
   });
 
+  testWidgets('agent surface selects active agent runtime', (tester) async {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: AgentSurface(
+              platformTarget: PlatformTarget.web,
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 900,
+              ),
+              visibleModules: const [],
+              adapterCapabilities: const [],
+              sessionContext: _context(),
+              codingController: controller,
+              onApplyPendingPatch: () async {},
+              onSaveProviderProfile: (profile, {bearerToken}) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Agent Runtime'), findsOneWidget);
+    expect(find.text('Vityo Coding Agent'), findsOneWidget);
+    expect(find.text('Vityo Review Agent'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('agent-runtime-vityo-recovery-agent')),
+      findsNothing,
+    );
+
+    final reviewAgentChip = find.byKey(
+      const ValueKey('agent-runtime-vityo-review-agent'),
+    );
+    await tester.ensureVisible(reviewAgentChip);
+    await tester.tap(reviewAgentChip);
+    await tester.pump();
+
+    expect(controller.activeAgentId, 'vityo-review-agent');
+    expect(find.textContaining('Active: Vityo Review Agent'), findsOneWidget);
+  });
+
   testWidgets('agent surface displays recovery action from history', (
     tester,
   ) async {

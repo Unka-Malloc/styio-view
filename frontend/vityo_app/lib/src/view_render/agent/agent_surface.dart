@@ -97,6 +97,8 @@ class AgentSurface extends StatelessWidget {
                 onMountSavedProviderProfile: onMountSavedProviderProfile,
               ),
               const SizedBox(height: 14),
+              _AgentRuntimeSection(controller: codingController),
+              const SizedBox(height: 14),
               if (viewportProfile.isMobile) ...[
                 _AgentSection(
                   title: 'Provider Route',
@@ -630,6 +632,76 @@ class _AgentProviderProfileSection extends StatefulWidget {
   @override
   State<_AgentProviderProfileSection> createState() =>
       _AgentProviderProfileSectionState();
+}
+
+class _AgentRuntimeSection extends StatelessWidget {
+  const _AgentRuntimeSection({required this.controller});
+
+  final AgentCodingSessionController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final theme = Theme.of(context);
+        final snapshot = controller.agentRegistrySnapshot;
+        final activeAgent = snapshot.activeAgent;
+        final visibleAgents = snapshot.agents
+            .where((agent) => !agent.hidden)
+            .toList(growable: false);
+        return Container(
+          key: const ValueKey('agent-runtime-section'),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8E0D0),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Agent Runtime', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text(
+                activeAgent == null
+                    ? 'No active coding agent is selected.'
+                    : 'Active: ${activeAgent.displayName} · ${activeAgent.mode.wireValue} · max ${activeAgent.maxSteps ?? 0} step(s).',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final agent in visibleAgents)
+                    ChoiceChip(
+                      key: ValueKey('agent-runtime-${agent.agentId}'),
+                      label: Text(agent.displayName),
+                      selected: snapshot.activeAgentId == agent.agentId,
+                      onSelected: (_) {
+                        controller.selectAgentRuntime(agent.agentId);
+                      },
+                    ),
+                ],
+              ),
+              if (activeAgent?.capabilities.isNotEmpty ?? false) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final capability in activeAgent!.capabilities)
+                      Chip(label: Text(capability)),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _AgentProviderProfileSectionState

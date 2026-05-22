@@ -48,7 +48,7 @@ class AgentCodingSkillCatalog {
       instructions: <String>[
         'Do not invent Styio syntax when adding examples, tests, documentation, or code actions.',
         'Keep Vityo responsible for IDE workflow, UI rendering, provider orchestration, and workspace edit application.',
-        'Mark unimplemented Styio semantic details as TODO instead of encoding speculative parser rules in Vityo.',
+        'Record unimplemented Styio semantic details as explicit unsupported capability facts instead of encoding speculative parser rules in Vityo.',
       ],
       validationHints: <String>[
         'Validate Styio fixtures through the configured styio-nightly parser or the embedded StyioService syntax API when available.',
@@ -74,7 +74,7 @@ class AgentCodingSkillCatalog {
       instructions: <String>[
         'Prefer registered IDE commands over direct patches when the command exposes the needed language operation.',
         'Use previewQuickFix before applyQuickFix when the diagnostic fix may touch multiple documents.',
-        'If the Styio command path is scaffolded or unavailable, mark the missing command integration as TODO and keep the patch local to Vityo UI/workflow code.',
+        'If the Styio command path is scaffolded or unavailable, report the missing command integration through capability readiness and keep the patch local to Vityo UI/workflow code.',
       ],
       validationHints: <String>[
         'Cover command-loop changes with agent context, provider prompt, or shell command tests.',
@@ -125,7 +125,7 @@ class AgentCodingSkillCatalog {
       ],
       instructions: <String>[
         'Classify syntax fixture results as true positive, true negative, false positive, or false negative.',
-        'Treat false positives and false negatives as gate failures unless the fixture is explicitly marked TODO.',
+        'Treat false positives and false negatives as gate failures unless the fixture carries an explicit deferred expectation marker.',
         'Keep the confidence matrix separate from normal editor rendering and product UI code.',
       ],
       validationHints: <String>[

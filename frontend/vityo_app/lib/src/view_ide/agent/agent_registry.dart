@@ -226,6 +226,7 @@ defaultAgentRuntimeDefinitions = <AgentRuntimeDefinition>[
         ruleId: 'review-agent-deny-patch-apply',
         toolIdPattern: 'applyWorkspacePatch',
         action: AgentToolPermissionAction.deny,
+        priority: 2000,
         reason:
             'Review agents should report findings without applying patches.',
       ),

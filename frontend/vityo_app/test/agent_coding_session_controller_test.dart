@@ -114,6 +114,101 @@ void main() {
     );
   });
 
+  test('agent coding session applies active agent permission rules', () {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: _FakeAgentProviderAdapter(
+        kind: AgentProviderKind.cloudOpenAICompatible,
+        response: const AgentProviderResponseEnvelope(
+          requestId: 'agent-request-review-permission',
+          role: 'assistant',
+          finishReason: 'stop',
+          contentParts: <AgentContentPart>[],
+        ),
+      ),
+      contextProvider: _context,
+    );
+    addTearDown(controller.dispose);
+
+    expect(controller.selectAgentRuntime('vityo-review-agent'), isTrue);
+
+    final permission = controller.toolPermissionPlan.decisions.firstWhere(
+      (decision) => decision.toolId == 'applyWorkspacePatch',
+    );
+    expect(permission.status, AgentToolPermissionDecisionStatus.denied);
+    expect(permission.ruleId, 'review-agent-deny-patch-apply');
+
+    controller.recordToolCallEvent(
+      const AgentToolCallEvent.callStarted(
+        callId: 'call-apply-patch-review-agent',
+        toolId: 'applyWorkspacePatch',
+        input: '{"patch":{}}',
+      ),
+    );
+
+    final execution = controller.toolCallExecutionPlan.executionFor(
+      'call-apply-patch-review-agent',
+    )!;
+    expect(execution.status, AgentToolCallExecutionStatus.blocked);
+    expect(
+      execution.issueCodes,
+      contains('agent.tool.permission.denied.applyWorkspacePatch'),
+    );
+  });
+
+  test(
+    'agent runtime permission rules take precedence over session approvals',
+    () {
+      final controller = AgentCodingSessionController(
+        profile: AgentPromptProfile.openAICodexSparkForPlatform(
+          PlatformTarget.linux,
+        ),
+        adapter: _FakeAgentProviderAdapter(
+          kind: AgentProviderKind.cloudOpenAICompatible,
+          response: const AgentProviderResponseEnvelope(
+            requestId: 'agent-request-review-permission-approval',
+            role: 'assistant',
+            finishReason: 'stop',
+            contentParts: <AgentContentPart>[],
+          ),
+        ),
+        contextProvider: _context,
+      );
+      addTearDown(controller.dispose);
+
+      controller.selectAgentRuntime('vityo-review-agent');
+      controller.recordToolCallEvent(
+        const AgentToolCallEvent.callStarted(
+          callId: 'call-apply-patch-review-agent-approval',
+          toolId: 'applyWorkspacePatch',
+          input: '{"patch":{}}',
+        ),
+      );
+
+      expect(
+        controller.approveToolCallExecution(
+          'call-apply-patch-review-agent-approval',
+          rememberForSession: true,
+          reason: 'Allow patch application for this session.',
+        ),
+        isTrue,
+      );
+
+      final permission = controller.toolPermissionPlan.decisions.firstWhere(
+        (decision) => decision.toolId == 'applyWorkspacePatch',
+      );
+      final execution = controller.toolCallExecutionPlan.executionFor(
+        'call-apply-patch-review-agent-approval',
+      )!;
+
+      expect(permission.status, AgentToolPermissionDecisionStatus.denied);
+      expect(permission.ruleId, 'review-agent-deny-patch-apply');
+      expect(execution.status, AgentToolCallExecutionStatus.blocked);
+    },
+  );
+
   test('agent coding session exposes coding execution readiness gate', () {
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),

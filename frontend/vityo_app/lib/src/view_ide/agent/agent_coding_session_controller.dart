@@ -2093,7 +2093,11 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   List<AgentToolPermissionRule> _toolPermissionRules() {
+    final activeAgentRules =
+        agentRegistrySnapshot.activeAgent?.permissionRules ??
+        const <AgentToolPermissionRule>[];
     return <AgentToolPermissionRule>[
+      ...activeAgentRules,
       ..._projectToolPermissionRules,
       ..._sessionToolPermissionRules,
     ];

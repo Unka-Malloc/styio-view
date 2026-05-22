@@ -238,7 +238,7 @@ class AgentToolRegistry {
         ),
       ],
       todo:
-          'TODO: route inactive document reads through File System Manager/DataStore once the backend workspace service is attached.',
+          'Route inactive document reads through File System Manager/DataStore once the backend workspace service is attached.',
     ),
     AgentToolDefinition(
       toolId: 'previewWorkspaceEdit',
@@ -286,7 +286,7 @@ class AgentToolRegistry {
         ),
       ],
       todo:
-          'TODO: add conflict review for patches that overlap dirty or externally modified documents.',
+          'Review patches that overlap dirty or externally modified documents before apply.',
     ),
     AgentToolDefinition(
       toolId: 'runIdeCommand',
@@ -323,7 +323,7 @@ class AgentToolRegistry {
         'language.semantic',
       ],
       todo:
-          'TODO: replace local fallback facts with StyioService-authored facts when the external service exposes the full semantic contract.',
+          'Prefer StyioService-authored facts when the external service exposes the full semantic contract.',
     ),
     AgentToolDefinition(
       toolId: 'collectAgentValidationContext',
@@ -383,7 +383,7 @@ class AgentToolRegistry {
         ),
       ],
       todo:
-          'TODO: bind to Execution Manager and PTY Manager with local bridge safety review.',
+          'Bind to Execution Manager and PTY Manager with local bridge safety review.',
     ),
   ];
 

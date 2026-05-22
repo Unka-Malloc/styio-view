@@ -24,6 +24,7 @@ void main() {
     expect(selection.rejectedToolIds, contains('openLocalShell'));
     expect(selection.toJson()['toolCount'], selection.tools.length);
     expect(selection.todoItems.join('\n'), contains('File System Manager'));
+    expect(selection.todoItems.join('\n'), isNot(contains('TODO:')));
     expect(selection.todoItems.join('\n'), isNot(contains('per-tool')));
     expect(
       selection.todoItems.join('\n'),

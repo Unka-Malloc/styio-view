@@ -2511,6 +2511,12 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                 autonomyPolicy: widget.controller.codingAutonomyPolicy,
                 loopGuard: widget.controller.codingLoopGuard,
               ),
+              if (widget.extensionToolExecutionRegistry != null) ...[
+                const SizedBox(height: 8),
+                _AgentExtensionToolRegistrySummary(
+                  registry: widget.extensionToolExecutionRegistry!,
+                ),
+              ],
               if (toolCallTimeline.status != AgentToolCallTimelineStatus.idle ||
                   toolCallExecutionPlan.status !=
                       AgentToolCallExecutionPlanStatus.idle) ...[
@@ -3743,6 +3749,65 @@ class _AgentToolCallReviewSurface extends StatelessWidget {
       return;
     }
     onDenyCallWithFeedback?.call(callId, normalized);
+  }
+}
+
+class _AgentExtensionToolRegistrySummary extends StatelessWidget {
+  const _AgentExtensionToolRegistrySummary({required this.registry});
+
+  final ExtensionAgentToolExecutionRegistry registry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final toolIds = registry.toolIds.toList(growable: false)..sort();
+    final handlerToolIds = registry.handlerToolIds.toList(growable: false)
+      ..sort();
+    final handledToolIds = handlerToolIds.toSet();
+    final missingHandlerToolIds = toolIds
+        .where((toolId) => !handledToolIds.contains(toolId))
+        .toList(growable: false);
+    final statusColor = missingHandlerToolIds.isEmpty
+        ? theme.colorScheme.primary
+        : theme.colorScheme.error;
+
+    return DecoratedBox(
+      key: const ValueKey('agent-extension-tool-registry-summary'),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.54),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Extension tools: ${toolIds.length} declared · ${handlerToolIds.length} executable',
+              key: const ValueKey('agent-extension-tool-registry-counts'),
+              style: theme.textTheme.bodySmall?.copyWith(color: statusColor),
+            ),
+            if (toolIds.isNotEmpty)
+              Text(
+                'Registered extension tools: ${toolIds.take(4).join(', ')}',
+                key: const ValueKey('agent-extension-tool-registry-tools'),
+                style: theme.textTheme.bodySmall,
+              ),
+            if (missingHandlerToolIds.isNotEmpty)
+              Text(
+                'Missing handlers: ${missingHandlerToolIds.take(4).join(', ')}',
+                key: const ValueKey(
+                  'agent-extension-tool-registry-missing-handlers',
+                ),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

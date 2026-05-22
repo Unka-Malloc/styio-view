@@ -923,6 +923,18 @@ void main() {
       controller,
       extensionToolExecutionRegistry: registry,
     );
+    expect(
+      find.byKey(const ValueKey('agent-extension-tool-registry-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Extension tools: 1 declared · 1 executable'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Registered extension tools: collectExtensionContext'),
+      findsOneWidget,
+    );
     await _tapVisible(
       tester,
       find.byKey(

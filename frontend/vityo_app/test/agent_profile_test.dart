@@ -44,6 +44,8 @@ void main() {
     expect(decoded.systemPrompt, contains('allow/deny/ask permission rules'));
     expect(decoded.systemPrompt, contains('agent.agentRegistry'));
     expect(decoded.systemPrompt, contains('subagentIds'));
+    expect(decoded.systemPrompt, contains('resultSchema'));
+    expect(decoded.systemPrompt, contains('resultJsonSchema'));
     expect(
       decoded.systemPrompt,
       contains('ideCapabilityClosure.isRuntimeMature'),

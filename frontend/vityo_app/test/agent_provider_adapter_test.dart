@@ -1901,6 +1901,8 @@ void main() {
         providerContractMessage['content'],
         contains('agent.agentRegistry'),
       );
+      expect(providerContractMessage['content'], contains('resultSchema'));
+      expect(providerContractMessage['content'], contains('resultJsonSchema'));
       expect(
         providerContractMessage['content'],
         contains('deferred capability entries'),

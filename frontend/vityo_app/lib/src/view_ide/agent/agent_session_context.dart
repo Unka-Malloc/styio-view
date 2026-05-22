@@ -609,7 +609,7 @@ class AgentCodingAutonomyPolicy {
         'Agent may propose edits, but Vityo has no reviewed pending patch.',
       ],
       todoItems = const <String>[
-        'TODO: bind autonomy policy choices to Settings UI and workspace trust.',
+        'Bind autonomy policy choices to Settings UI and workspace trust.',
       ];
 
   factory AgentCodingAutonomyPolicy.fromGates({
@@ -643,7 +643,7 @@ class AgentCodingAutonomyPolicy {
         ],
         todoItems: <String>[
           ...changeReviewGate.todoItems,
-          'TODO: persist reviewed apply approval and workspace trust audit trail.',
+          'Persist reviewed apply approval and workspace trust audit trail.',
         ],
       );
     }

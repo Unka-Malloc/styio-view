@@ -33,7 +33,7 @@ void main() {
             ownerLayer: 'foundation',
           ),
         ],
-        todoItems: <String>['TODO: close runtime-contract blockers.'],
+        todoItems: <String>['Close runtime-contract blockers.'],
       ),
       changeReviewGate: const AgentCodingChangeReviewGate(
         status: AgentCodingChangeReviewGateStatus.idle,
@@ -52,10 +52,8 @@ void main() {
     );
 
     expect(policy.mode, AgentCodingAutonomyMode.blocked);
-    expect(
-      policy.todoItems,
-      contains('TODO: close runtime-contract blockers.'),
-    );
+    expect(policy.todoItems, contains('Close runtime-contract blockers.'));
+    expect(policy.todoItems.join('\n'), isNot(contains('TODO:')));
     expect(
       policy.todoItems,
       isNot(

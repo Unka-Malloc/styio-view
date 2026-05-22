@@ -91,6 +91,9 @@ class _AgentActivityRecordTile extends StatelessWidget {
     final toolCallFailureEvidence = _activityToolCallFailureEvidence(
       record.metadata,
     );
+    final toolSessionTranscriptSummary = _activityToolSessionTranscriptSummary(
+      record.metadata,
+    );
     final toolContinuationSummary = _activityToolContinuationSummary(
       record.metadata,
     );
@@ -201,6 +204,20 @@ class _AgentActivityRecordTile extends StatelessWidget {
               ),
             ),
           ],
+          if (toolSessionTranscriptSummary != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              toolSessionTranscriptSummary,
+              key: const ValueKey(
+                'agent-activity-tool-session-transcript-summary',
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.secondary,
+              ),
+            ),
+          ],
           if (toolContinuationSummary != null) ...[
             const SizedBox(height: 6),
             Text(
@@ -294,6 +311,32 @@ String? _activityToolCallFailureEvidence(Map<String, Object?> metadata) {
     return 'Tool call evidence: $label · $status · $evidence';
   }
   return null;
+}
+
+String? _activityToolSessionTranscriptSummary(Map<String, Object?> metadata) {
+  final transcript = _metadataObject(metadata['toolSessionTranscript']);
+  if (transcript.isEmpty) {
+    return null;
+  }
+  final rawParts = _metadataIterable(transcript['parts']);
+  final parts = rawParts
+      .map(_metadataObject)
+      .where((part) => part.isNotEmpty)
+      .toList(growable: false);
+  final status = transcript['status'] as String? ?? 'unknown';
+  final partCount = _metadataInt(transcript['partCount']) ?? parts.length;
+  final failedCount = parts
+      .where((part) => (part['status'] as String?) == 'failed')
+      .length;
+  final toolIds = parts
+      .map((part) => (part['toolId'] as String?)?.trim())
+      .whereType<String>()
+      .where((toolId) => toolId.isNotEmpty)
+      .take(3)
+      .toList(growable: false);
+  final failed = failedCount == 0 ? '' : ' · failed $failedCount';
+  final tools = toolIds.isEmpty ? '' : ' · tools ${toolIds.join(', ')}';
+  return 'Tool transcript: $status · $partCount part${partCount == 1 ? '' : 's'}$failed$tools';
 }
 
 String? _activityToolContinuationSummary(Map<String, Object?> metadata) {

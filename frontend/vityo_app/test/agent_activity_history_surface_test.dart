@@ -197,6 +197,62 @@ void main() {
     );
   });
 
+  testWidgets('agent activity history surface renders tool session transcript', (
+    tester,
+  ) async {
+    final history = AgentCodingSessionHistory(
+      workspaceId: 'demo',
+      records: <AgentCodingSessionHistoryRecord>[
+        AgentCodingSessionHistoryRecord(
+          requestId: 'agent-tool-transcript',
+          profileId: 'default-agent',
+          providerKind: 'cloud_openai_compatible',
+          prompt: 'Review tool transcript.',
+          outcome: AgentCodingSessionOutcome.succeeded,
+          createdAt: DateTime.utc(2026, 5, 20),
+          completedAt: DateTime.utc(2026, 5, 20, 0, 1),
+          metadata: const <String, Object?>{
+            'toolSessionTranscript': <String, Object?>{
+              'status': 'complete',
+              'partCount': 2,
+              'parts': <Object?>[
+                <String, Object?>{
+                  'callId': 'call-read',
+                  'toolId': 'readWorkspaceFile',
+                  'status': 'completed',
+                },
+                <String, Object?>{
+                  'callId': 'call-write',
+                  'toolId': 'writeWorkspaceFile',
+                  'status': 'failed',
+                },
+              ],
+            },
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: AgentActivityHistorySurface(history: history)),
+      ),
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey('agent-activity-tool-session-transcript-summary'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Tool transcript: complete · 2 parts · failed 1 · tools readWorkspaceFile, writeWorkspaceFile',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('agent activity history surface renders tool continuation', (
     tester,
   ) async {

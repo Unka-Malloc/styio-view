@@ -20,6 +20,7 @@ import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_tool_session_transcript.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
@@ -518,7 +519,19 @@ void main() {
         request.context.agent.toolReplayPlan?.status,
         AgentToolCallReplayPlanStatus.blocked,
       );
+      expect(
+        request.toolSessionTranscript?.parts.single.inputText,
+        '{"path":"main.styio"}',
+      );
+      expect(
+        request.toolSessionTranscript?.parts.single.status,
+        AgentToolSessionPartStatus.completed,
+      );
       expect(request.toJson()['toolCallResults'], isA<List<Object?>>());
+      expect(
+        request.toJson()['toolSessionTranscript'],
+        isA<Map<String, Object?>>(),
+      );
       final metadata = historyStore.history.records.single.metadata;
       expect(metadata['toolResultContinuation'], isTrue);
       expect(metadata['toolResultContinuationCount'], 1);

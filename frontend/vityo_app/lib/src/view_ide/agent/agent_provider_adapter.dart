@@ -9,6 +9,7 @@ import 'agent_session_context.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_execution_journal.dart';
 import 'agent_tool_call_result_context.dart';
+import 'agent_tool_session_transcript.dart';
 import 'agent_tool_permission.dart';
 import 'agent_tool_registry.dart';
 
@@ -60,6 +61,7 @@ class AgentProviderRequest {
     this.attachments = const <AgentRequestAttachment>[],
     this.conversationTurns = const <AgentConversationTurn>[],
     this.toolCallResults = const <AgentToolCallResultContext>[],
+    this.toolSessionTranscript,
   });
 
   final String requestId;
@@ -69,6 +71,7 @@ class AgentProviderRequest {
   final List<AgentRequestAttachment> attachments;
   final List<AgentConversationTurn> conversationTurns;
   final List<AgentToolCallResultContext> toolCallResults;
+  final AgentToolSessionTranscript? toolSessionTranscript;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -87,6 +90,8 @@ class AgentProviderRequest {
         'toolCallResults': toolCallResults
             .map((result) => result.toJson())
             .toList(growable: false),
+      if (toolSessionTranscript != null)
+        'toolSessionTranscript': toolSessionTranscript!.toJson(),
     };
   }
 }
@@ -1329,6 +1334,12 @@ Map<String, Object?> _openAICompatibleRequestBody(
         .map((result) => result.toJson())
         .toList(growable: false),
   });
+  final toolSessionTranscript = request.toolSessionTranscript;
+  final toolSessionTranscriptJson = toolSessionTranscript == null
+      ? ''
+      : jsonEncode(<String, Object?>{
+          'toolSessionTranscript': toolSessionTranscript.toJson(),
+        });
   final replayedToolResults = _replayedToolCallResults(request.toolCallResults);
   final truncatedToolResults = request.toolCallResults
       .where((result) => result.outputTruncated)
@@ -1376,6 +1387,13 @@ Map<String, Object?> _openAICompatibleRequestBody(
           'role': 'user',
           'name': 'vityo_agent_tool_results',
           'content': toolResultsJson,
+        },
+      if (toolSessionTranscript != null &&
+          toolSessionTranscript.parts.isNotEmpty)
+        <String, Object?>{
+          'role': 'user',
+          'name': 'vityo_agent_tool_session_transcript',
+          'content': toolSessionTranscriptJson,
         },
       if (replayedToolResults.isNotEmpty)
         <String, Object?>{
@@ -1535,6 +1553,10 @@ Map<String, Object?> _openAICompatibleRequestBody(
         'toolReplayResultIds': replayedToolResults
             .map((result) => result.callId)
             .toList(growable: false),
+      'toolSessionTranscriptPartCount':
+          toolSessionTranscript?.parts.length ?? 0,
+      if (toolSessionTranscript != null)
+        'toolSessionTranscriptStatus': toolSessionTranscript.status.wireValue,
       'conversationTurnCount': request.conversationTurns.length,
     },
   };

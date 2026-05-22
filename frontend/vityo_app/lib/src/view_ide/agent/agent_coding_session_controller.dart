@@ -964,6 +964,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     final toolCallJournalForHistory = _recentToolCallResultContexts.isEmpty
         ? null
         : _toolCallExecutionJournal;
+    final toolSessionTranscriptForRequest = toolSessionTranscript;
 
     final requestSerial = _activeRequestSerial + 1;
     _activeRequestSerial = requestSerial;
@@ -991,6 +992,9 @@ class AgentCodingSessionController extends ChangeNotifier {
         attachments: attachments,
         conversationTurns: _conversationWindow(),
         toolCallResults: _toolCallResultWindow(),
+        toolSessionTranscript: toolSessionTranscriptForRequest.parts.isEmpty
+            ? null
+            : toolSessionTranscriptForRequest,
       );
       _activeProviderRequestId = request.requestId;
       _activeProviderPrompt = prompt;

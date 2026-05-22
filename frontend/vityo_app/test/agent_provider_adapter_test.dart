@@ -16,6 +16,7 @@ import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_tool_session_transcript.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
@@ -379,6 +380,18 @@ void main() {
             metadata: const <String, Object?>{'source': 'test'},
           ),
         ],
+        toolSessionTranscript: const AgentToolSessionTranscript(
+          status: AgentToolCallTimelineStatus.complete,
+          parts: <AgentToolSessionPart>[
+            AgentToolSessionPart(
+              callId: 'call-read',
+              toolId: 'readWorkspaceFile',
+              status: AgentToolSessionPartStatus.completed,
+              inputText: '{"path":"main.styio"}',
+              output: '{"text":"value = 1"}',
+            ),
+          ],
+        ),
       ),
     );
 
@@ -386,18 +399,35 @@ void main() {
     final toolResultMessage = messages.cast<Map<String, Object?>>().firstWhere(
       (message) => message['name'] == 'vityo_agent_tool_results',
     );
+    final toolSessionTranscriptMessage = messages
+        .cast<Map<String, Object?>>()
+        .firstWhere(
+          (message) => message['name'] == 'vityo_agent_tool_session_transcript',
+        );
     final content =
         jsonDecode(toolResultMessage['content']! as String)
             as Map<String, Object?>;
+    final transcriptContent =
+        jsonDecode(toolSessionTranscriptMessage['content']! as String)
+            as Map<String, Object?>;
     final results = content['toolCallResults']! as List<Object?>;
     final result = results.single! as Map<String, Object?>;
+    final transcript =
+        transcriptContent['toolSessionTranscript']! as Map<String, Object?>;
+    final transcriptParts = transcript['parts']! as List<Object?>;
+    final transcriptPart = transcriptParts.single! as Map<String, Object?>;
     final metadata = transport.body['metadata']! as Map<String, Object?>;
 
     expect(toolResultMessage['role'], 'user');
+    expect(toolSessionTranscriptMessage['role'], 'user');
     expect(result['callId'], 'call-read');
     expect(result['toolId'], 'readWorkspaceFile');
     expect(result['success'], isTrue);
     expect(result['output'], '{"text":"value = 1"}');
+    expect(transcript['status'], 'complete');
+    expect(transcriptPart['callId'], 'call-read');
+    expect(transcriptPart['status'], 'completed');
+    expect(transcriptPart['inputText'], '{"path":"main.styio"}');
     expect(result['outputTruncated'], isTrue);
     expect(result['outputOriginalLength'], 120);
     expect(result['outputLimit'], 20);
@@ -406,6 +436,8 @@ void main() {
     expect(metadata['toolCallResultIds'], <String>['call-read']);
     expect(metadata['toolCallResultTruncatedCount'], 1);
     expect(metadata['toolCallResultTruncatedIds'], <String>['call-read']);
+    expect(metadata['toolSessionTranscriptPartCount'], 1);
+    expect(metadata['toolSessionTranscriptStatus'], 'complete');
     expect(
       metadata['agentConversationCompactionStatus'],
       'windowedAndTruncated',

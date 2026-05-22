@@ -2,6 +2,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent.dart';
 
 void main() {
+  test(
+    'agent tool call lifecycle exposes idle timeline without stale TODOs',
+    () {
+      final timeline = const AgentToolCallLifecycleTracker().track(
+        const <AgentToolCallEvent>[],
+      );
+      final payload = timeline.toJson();
+
+      expect(timeline.status, AgentToolCallTimelineStatus.idle);
+      expect(timeline.todoItems, isEmpty);
+      expect(payload.containsKey('todoItems'), isFalse);
+    },
+  );
+
   test('agent tool call lifecycle tracks input streaming through result', () {
     final timeline = const AgentToolCallLifecycleTracker()
         .track(<AgentToolCallEvent>[

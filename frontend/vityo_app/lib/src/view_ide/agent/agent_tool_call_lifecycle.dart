@@ -356,9 +356,7 @@ class AgentToolCallTimeline {
     return const AgentToolCallTimeline(
       status: AgentToolCallTimelineStatus.idle,
       calls: <AgentToolCallState>[],
-      todoItems: <String>[
-        'TODO: persist provider-native tool stream ordering across restored sessions.',
-      ],
+      todoItems: <String>[],
     );
   }
 
@@ -393,7 +391,7 @@ class AgentToolCallTimeline {
       'callIds': callIds,
       'blockedCallIds': blockedCallIds,
       'calls': calls.map((call) => call.toJson()).toList(growable: false),
-      'todoItems': todoItems,
+      if (todoItems.isNotEmpty) 'todoItems': todoItems,
     };
   }
 }

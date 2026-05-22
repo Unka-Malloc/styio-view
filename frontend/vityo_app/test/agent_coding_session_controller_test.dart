@@ -2109,6 +2109,7 @@ void main() {
           ),
         ),
       );
+      expect(gate.todoItems.join('\n'), isNot(contains('TODO:')));
       expect(gate.toJson()['status'], 'needsReview');
     },
   );

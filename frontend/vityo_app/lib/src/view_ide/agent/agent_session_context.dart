@@ -493,7 +493,7 @@ class AgentCodingChangeReviewGate {
           message: 'A pending patch exists without a workspace edit preview.',
           ownerLayer: 'interaction',
           todo:
-              'TODO: require AgentWorkspaceEditPlanAdapter conversion before apply.',
+              'Require AgentWorkspaceEditPlanAdapter conversion before apply.',
         ),
       );
     }
@@ -503,8 +503,7 @@ class AgentCodingChangeReviewGate {
           code: 'agent.execution-readiness.blocked',
           message: 'Agent execution readiness has blocking issues.',
           ownerLayer: 'foundation',
-          todo:
-              'TODO: surface blocking readiness issues in the patch review UI.',
+          todo: 'Surface blocking readiness issues in the patch review UI.',
         ),
       );
     }

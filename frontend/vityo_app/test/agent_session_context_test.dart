@@ -308,6 +308,38 @@ void main() {
     expect(toolPermissions['reviewToolIds'], <String>['applyWorkspacePatch']);
   });
 
+  test('agent change review gate reports blocked remediation facts', () {
+    final gate = AgentCodingChangeReviewGate.fromControllerState(
+      hasPendingPatch: true,
+      hasWorkspaceEditPreview: false,
+      applyingPatch: false,
+      applyingIdeCommand: false,
+      executionReadiness: const AgentCodingExecutionReadiness(
+        status: AgentCodingExecutionReadinessStatus.blocked,
+        issues: <AgentCodingExecutionReadinessIssue>[
+          AgentCodingExecutionReadinessIssue(
+            code: 'ide.runtime-contracts.blocking',
+            message: 'Runtime contracts are not ready.',
+            severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
+            ownerLayer: 'foundation',
+          ),
+        ],
+      ),
+    );
+
+    expect(gate.status, AgentCodingChangeReviewGateStatus.blocked);
+    expect(gate.canApplyPreview, isFalse);
+    expect(gate.hasIssue('agent.change.preview-missing'), isTrue);
+    expect(gate.hasIssue('agent.execution-readiness.blocked'), isTrue);
+    expect(
+      gate.todoItems,
+      contains(
+        'Require AgentWorkspaceEditPlanAdapter conversion before apply.',
+      ),
+    );
+    expect(gate.todoItems.join('\n'), isNot(contains('TODO:')));
+  });
+
   test('agent session context serializes editor and runtime facts', () {
     const document = DocumentState(
       documentId: '/workspace/demo/src/main.styio',

@@ -427,8 +427,13 @@ class AgentToolCallLifecycleTracker {
     };
     final previous = callsById[event.callId];
     callsById[event.callId] = _nextState(previous, event);
-    final calls = callsById.values.toList(growable: false)
-      ..sort((left, right) => left.callId.compareTo(right.callId));
+    final previousOrder = timeline.callIds;
+    final calls = <AgentToolCallState>[
+      for (final callId in previousOrder)
+        if (callsById.containsKey(callId)) callsById[callId]!,
+      for (final entry in callsById.entries)
+        if (!previousOrder.contains(entry.key)) entry.value,
+    ];
     return AgentToolCallTimeline(
       status: _timelineStatus(calls),
       calls: List<AgentToolCallState>.unmodifiable(calls),

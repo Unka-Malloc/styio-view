@@ -68,6 +68,32 @@ void main() {
     expect(timeline.todoItems.join('\n'), isNot(contains('result truncation')));
   });
 
+  test('agent tool call lifecycle preserves first provider stream order', () {
+    final timeline = const AgentToolCallLifecycleTracker()
+        .track(<AgentToolCallEvent>[
+          const AgentToolCallEvent.inputStart(
+            callId: 'call-b',
+            toolId: 'readWorkspaceFile',
+          ),
+          const AgentToolCallEvent.inputStart(
+            callId: 'call-a',
+            toolId: 'writeWorkspaceFile',
+          ),
+          const AgentToolCallEvent.inputDelta(
+            callId: 'call-b',
+            inputDelta: '{"path":"b.styio"}',
+          ),
+          const AgentToolCallEvent.inputEnd(callId: 'call-a'),
+        ]);
+
+    expect(timeline.callIds, <String>['call-b', 'call-a']);
+    expect(timeline.toJson()['callIds'], <String>['call-b', 'call-a']);
+    expect(
+      timeline.todoItems.join('\n'),
+      isNot(contains('persist provider-native tool stream ordering')),
+    );
+  });
+
   test('agent tool call lifecycle exposes provider progress metadata', () {
     final timeline = const AgentToolCallLifecycleTracker().track(
       <AgentToolCallEvent>[

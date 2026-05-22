@@ -185,6 +185,22 @@ void main() {
               'progressNumerator': 1,
               'progressDenominator': 5,
             },
+            'toolCallExecutionJournal': <String, Object?>{
+              'status': 'blocked',
+              'entryCount': 1,
+              'replayCandidateCount': 0,
+              'entries': <Object?>[
+                <String, Object?>{
+                  'callId': 'call-apply',
+                  'toolId': 'applyWorkspacePatch',
+                  'executionStatus': 'blocked',
+                  'permissionStatus': 'denied',
+                  'blockingIssueCodes': <String>[
+                    'agent.tool.permission.denied.applyWorkspacePatch',
+                  ],
+                },
+              ],
+            },
             'validationFailedCommandResults': <Object?>[
               <String, Object?>{
                 'commandId': 'runTests',
@@ -249,6 +265,26 @@ void main() {
       find.text(
         'Last validation: failed · pipeline failed 1/5 · next runTests',
       ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-recovery-audit-summary')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Audit: blocked · 1 tool call(s) · needs review'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-recovery-audit-permission-denied')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Permission denied tools: applyWorkspacePatch'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-recovery-audit-blocking-issues')),
       findsOneWidget,
     );
     expect(find.text('Validation failed commands: runTests'), findsOneWidget);

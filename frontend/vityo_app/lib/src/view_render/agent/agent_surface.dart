@@ -2505,6 +2505,9 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
             controller.lastError != null ||
             controller.lastProviderFailure != null;
         final recoveryPlan = controller.sessionRecoveryPlan;
+        final recoveryAuditSummary = controller.sessionHistorySnapshot
+            .toRecoveryContext()
+            .auditSummary;
         final recoveryCommand =
             recoveryPlan.status == AgentCodingSessionRecoveryStatus.available
             ? recoveryPlan.commandFor(recoveryPlan.recommendedAction)
@@ -2882,6 +2885,46 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                         recoveryCommand.label,
                         style: theme.textTheme.bodySmall,
                       ),
+                      if (recoveryAuditSummary != null &&
+                          recoveryAuditSummary.hasToolExecutionEvidence) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Audit: ${recoveryAuditSummary.toolJournalStatus} · '
+                          '${recoveryAuditSummary.toolJournalEntryCount} tool call(s) · '
+                          '${recoveryAuditSummary.requiresUserReview ? 'needs review' : 'clear'}',
+                          key: const ValueKey('agent-recovery-audit-summary'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: recoveryAuditSummary.requiresUserReview
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.primary,
+                          ),
+                        ),
+                        if (recoveryAuditSummary
+                            .permissionDeniedToolIds
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Permission denied tools: ${recoveryAuditSummary.permissionDeniedToolIds.join(', ')}',
+                            key: const ValueKey(
+                              'agent-recovery-audit-permission-denied',
+                            ),
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                        if (recoveryAuditSummary.blockingIssueCodes.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Blocking issues: ${recoveryAuditSummary.blockingIssueCodes.join(', ')}',
+                              key: const ValueKey(
+                                'agent-recovery-audit-blocking-issues',
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ),
+                      ],
                       if (recoveryValidationSummary != null) ...[
                         const SizedBox(height: 6),
                         Text(

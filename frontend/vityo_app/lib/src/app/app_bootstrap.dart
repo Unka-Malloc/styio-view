@@ -25,7 +25,8 @@ import '../view_ide/language/service/styio_service_connector.dart';
 import '../view_ide/language/service/styio_service_runtime.dart';
 import '../view_ide/language/service/styio_service_subscription.dart';
 import '../view_ide/language/service/styio_workspace_diagnostics_provider.dart';
-import '../view_ide/module_host/extension_contribution_router.dart';
+import '../view_ide/module_host/module_host.dart';
+import '../view_ide/runtime/runtime.dart';
 import '../view_ide/toolchain/clang_cpp_version_configuration.dart';
 import '../view_ide/toolchain/toolchain_catalog.dart';
 import '../view_ide/toolchain/toolchain_configuration_store.dart';
@@ -37,7 +38,6 @@ import '../view_ide/workspace/workspace_diagnostics.dart';
 import '../view_ide/workspace/workspace_diagnostics_controller.dart';
 import '../view_ide/workspace/source_control_status.dart';
 import '../view_ide/workspace/source_control_status_controller.dart';
-import '../module_host/module_registry.dart';
 import '../platform/native_module_loader.dart';
 import '../platform/platform_target.dart';
 import 'state/workspace_document_store.dart';
@@ -635,6 +635,27 @@ class AppBootstrap {
       catalog: catalog,
       handlers: handlers,
     );
+  }
+
+  @visibleForTesting
+  static ExtensionAgentToolHostBridge createExtensionAgentToolHostBridge({
+    required ExtensionHostSupervisorSnapshot snapshot,
+    required RuntimeOutputLiveBuffer buffer,
+    ExtensionManifestRegistry? manifestRegistry,
+    ExtensionHostSupervisorExecutionBridge? supervisorBridge,
+    ExtensionAgentToolHostInvoker? invoker,
+    DateTime Function()? clock,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return ExtensionAgentToolActivatedHostBridge(
+      snapshot: snapshot,
+      buffer: buffer,
+      manifestRegistry: manifestRegistry,
+      supervisorBridge: supervisorBridge,
+      invoker: invoker,
+      clock: clock,
+      metadata: metadata,
+    ).call;
   }
 
   static Future<AgentProviderAdapter> _createConfiguredAgentAdapter({

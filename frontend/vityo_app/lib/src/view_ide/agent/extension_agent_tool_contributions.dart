@@ -1,4 +1,7 @@
 import '../module_host/module_host.dart';
+import '../runtime/extension_host_supervisor_execution.dart';
+import '../runtime/runtime_execution_plan.dart';
+import '../runtime/runtime_output_channels.dart';
 import 'agent_provider_kind.dart';
 import 'agent_tool_call_dispatcher.dart';
 import 'agent_tool_registry.dart';
@@ -137,7 +140,9 @@ class ExtensionAgentToolContributionCatalog {
 
   List<ExtensionAgentToolContribution> get readyContributions {
     return contributions
-        .where((contribution) => contribution.ready && contribution.tool != null)
+        .where(
+          (contribution) => contribution.ready && contribution.tool != null,
+        )
         .toList(growable: false);
   }
 
@@ -201,6 +206,187 @@ typedef ExtensionAgentToolHostBridge =
     Future<AgentToolCallDispatchResult> Function(
       ExtensionAgentToolHostRequest request,
     );
+
+typedef ExtensionAgentToolHostInvoker =
+    Future<AgentToolCallDispatchResult> Function(
+      ExtensionAgentToolHostInvocation invocation,
+    );
+
+class ExtensionAgentToolHostInvocation {
+  const ExtensionAgentToolHostInvocation({
+    required this.request,
+    required this.plan,
+    required this.dispatchResult,
+    required this.timestamp,
+  });
+
+  final ExtensionAgentToolHostRequest request;
+  final ExtensionHostSupervisorExecutionPlan plan;
+  final RuntimeExecutionDispatchResult dispatchResult;
+  final DateTime timestamp;
+
+  String get extensionId => request.extensionId;
+  String get contributionId => request.contributionId;
+  String get handlerId => request.handlerId;
+  AgentToolCallDispatchRequest get toolCall => request.toolCall;
+  bool get dispatched => dispatchResult.dispatched;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'contributionId': contributionId,
+      'handlerId': handlerId,
+      'toolCall': toolCall.toJson(),
+      'dispatched': dispatched,
+      'timestamp': timestamp.toIso8601String(),
+      'plan': plan.toJson(),
+      'dispatchResult': dispatchResult.toJson(),
+    };
+  }
+}
+
+class ExtensionAgentToolActivatedHostBridge {
+  ExtensionAgentToolActivatedHostBridge({
+    required ExtensionHostSupervisorSnapshot snapshot,
+    required RuntimeOutputLiveBuffer buffer,
+    ExtensionManifestRegistry? manifestRegistry,
+    ExtensionHostSupervisorExecutionBridge? supervisorBridge,
+    ExtensionAgentToolHostInvoker? invoker,
+    DateTime Function()? clock,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) : _snapshot = snapshot,
+       _buffer = buffer,
+       _manifestRegistry = manifestRegistry,
+       _supervisorBridge =
+           supervisorBridge ?? ExtensionHostSupervisorExecutionBridge(),
+       _invoker = invoker,
+       _clock = clock ?? DateTime.now,
+       _metadata = Map<String, Object?>.unmodifiable(metadata);
+
+  final ExtensionHostSupervisorSnapshot _snapshot;
+  final RuntimeOutputLiveBuffer _buffer;
+  final ExtensionManifestRegistry? _manifestRegistry;
+  final ExtensionHostSupervisorExecutionBridge _supervisorBridge;
+  final ExtensionAgentToolHostInvoker? _invoker;
+  final DateTime Function() _clock;
+  final Map<String, Object?> _metadata;
+
+  Future<AgentToolCallDispatchResult> call(
+    ExtensionAgentToolHostRequest request,
+  ) async {
+    final record = _snapshot.lookup(request.extensionId);
+    if (record == null) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.toolCall.callId,
+        toolId: request.toolCall.toolId,
+        message:
+            'Extension host ${request.extensionId} is not present in the '
+            'active supervisor snapshot.',
+        metadata: <String, Object?>{
+          'source': 'extension-agent-tool-activated-host-bridge',
+          'missingSupervisorRecord': true,
+          'extensionId': request.extensionId,
+          'handlerId': request.handlerId,
+        },
+      );
+    }
+    if (!record.active) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.toolCall.callId,
+        toolId: request.toolCall.toolId,
+        message:
+            'Extension host ${request.extensionId} is not active '
+            '(${record.status.wireValue}).',
+        metadata: <String, Object?>{
+          'source': 'extension-agent-tool-activated-host-bridge',
+          'inactiveExtensionHost': true,
+          'extensionId': request.extensionId,
+          'handlerId': request.handlerId,
+          'supervisorStatus': record.status.wireValue,
+          'supervisorAction': record.action.wireValue,
+        },
+      );
+    }
+    final timestamp = _clock();
+    final plan = ExtensionHostSupervisorExecutionPlan.fromRecord(
+      record,
+      manifest: _manifestRegistry?.lookup(request.extensionId),
+    );
+    final dispatchResult = _supervisorBridge.dispatchPlan(
+      plan: plan,
+      buffer: _buffer,
+      timestamp: timestamp,
+      metadata: <String, Object?>{
+        'agentToolHostBridge': true,
+        'toolId': request.toolCall.toolId,
+        'callId': request.toolCall.callId,
+        'handlerId': request.handlerId,
+        ..._metadata,
+      },
+    );
+    if (!dispatchResult.dispatched) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.toolCall.callId,
+        toolId: request.toolCall.toolId,
+        message:
+            'Extension host ${request.extensionId} could not be dispatched '
+            'for agent tool ${request.toolCall.toolId}.',
+        metadata: <String, Object?>{
+          'source': 'extension-agent-tool-activated-host-bridge',
+          'extensionHostDispatchBlocked': true,
+          'extensionId': request.extensionId,
+          'handlerId': request.handlerId,
+          'dispatchStatus': dispatchResult.status.wireValue,
+          'managerId': dispatchResult.binding.managerId,
+        },
+      );
+    }
+    final invoker = _invoker;
+    if (invoker == null) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.toolCall.callId,
+        toolId: request.toolCall.toolId,
+        message:
+            'Extension host ${request.extensionId} is active, but no '
+            'agent tool host invoker is attached for handler '
+            '${request.handlerId}.',
+        metadata: <String, Object?>{
+          'source': 'extension-agent-tool-activated-host-bridge',
+          'missingHostInvoker': true,
+          'extensionHostDispatched': true,
+          'extensionId': request.extensionId,
+          'handlerId': request.handlerId,
+          'dispatchStatus': dispatchResult.status.wireValue,
+          'managerId': dispatchResult.binding.managerId,
+        },
+      );
+    }
+    try {
+      return await invoker(
+        ExtensionAgentToolHostInvocation(
+          request: request,
+          plan: plan,
+          dispatchResult: dispatchResult,
+          timestamp: timestamp,
+        ),
+      );
+    } on Object catch (error) {
+      return AgentToolCallDispatchResult.failure(
+        callId: request.toolCall.callId,
+        toolId: request.toolCall.toolId,
+        message:
+            'Extension host ${request.extensionId} failed handler '
+            '${request.handlerId}: $error',
+        metadata: <String, Object?>{
+          'source': 'extension-agent-tool-activated-host-bridge',
+          'hostInvocationFailed': true,
+          'extensionId': request.extensionId,
+          'handlerId': request.handlerId,
+        },
+      );
+    }
+  }
+}
 
 class ExtensionAgentToolExecutionRegistry {
   ExtensionAgentToolExecutionRegistry({

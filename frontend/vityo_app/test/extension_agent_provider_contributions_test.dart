@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/agent/agent.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 
 void main() {
   test('extension agent provider catalog converts agent routes', () {
@@ -205,58 +206,194 @@ void main() {
     expect(registry.toJson()['missingHandlerToolIds'], isEmpty);
   });
 
-  test('extension agent tool execution registry bridges host handlers', () async {
-    final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
-      ExtensionContributionRouteManifest(
-        routes: <ExtensionContributionRoute>[
-          const ExtensionContributionRouter().routeContribution(
-            extensionId: 'agent.tools',
-            contribution: const ExtensionContributionPoint(
-              kind: ExtensionContributionKind.agent,
-              id: 'collect-extension-context',
-              target: 'agent.tools',
-              metadata: <String, Object?>{
-                'toolId': 'collectExtensionContext',
-                'handlerId': 'collect-context',
-              },
+  test(
+    'extension agent tool execution registry bridges host handlers',
+    () async {
+      final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
+        ExtensionContributionRouteManifest(
+          routes: <ExtensionContributionRoute>[
+            const ExtensionContributionRouter().routeContribution(
+              extensionId: 'agent.tools',
+              contribution: const ExtensionContributionPoint(
+                kind: ExtensionContributionKind.agent,
+                id: 'collect-extension-context',
+                target: 'agent.tools',
+                metadata: <String, Object?>{
+                  'toolId': 'collectExtensionContext',
+                  'handlerId': 'collect-context',
+                },
+              ),
             ),
+          ],
+        ),
+      );
+      ExtensionAgentToolHostRequest? hostRequest;
+      final registry = ExtensionAgentToolExecutionRegistry.fromHostBridge(
+        catalog: catalog,
+        hostBridge: (request) async {
+          hostRequest = request;
+          return AgentToolCallDispatchResult.success(
+            callId: request.toolCall.callId,
+            toolId: request.toolCall.toolId,
+            output: '{"extension":"host"}',
+            metadata: <String, Object?>{
+              'source': 'extension-host-bridge',
+              'handlerId': request.handlerId,
+            },
+          );
+        },
+      );
+
+      final result = await registry.dispatch(
+        const AgentToolCallDispatchRequest(
+          callId: 'call-extension',
+          toolId: 'collectExtensionContext',
+          inputText: '{"extensionId":"demo"}',
+        ),
+      );
+
+      expect(registry.canHandle('collectExtensionContext'), isTrue);
+      expect(hostRequest?.extensionId, 'agent.tools');
+      expect(hostRequest?.contributionId, 'collect-extension-context');
+      expect(hostRequest?.handlerId, 'collect-context');
+      expect(hostRequest?.toolCall.inputText, '{"extensionId":"demo"}');
+      expect(result.success, isTrue);
+      expect(result.metadata['handlerId'], 'collect-context');
+    },
+  );
+
+  test(
+    'extension agent tool execution registry bridges activated extension hosts',
+    () async {
+      final manifestRegistry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'agent.tools',
+            displayName: 'Agent Tools',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'agent_tools.dart',
+            activationEvents: <String>['onCommand:collectContext'],
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'local-process'},
+            contributions: <ExtensionContributionPoint>[
+              ExtensionContributionPoint(
+                kind: ExtensionContributionKind.agent,
+                id: 'collect-extension-context',
+                target: 'agent.tools',
+                metadata: <String, Object?>{
+                  'toolId': 'collectExtensionContext',
+                  'handlerId': 'collect-context',
+                  'permissionMode': 'never',
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-    ExtensionAgentToolHostRequest? hostRequest;
-    final registry = ExtensionAgentToolExecutionRegistry.fromHostBridge(
-      catalog: catalog,
-      hostBridge: (request) async {
-        hostRequest = request;
-        return AgentToolCallDispatchResult.success(
-          callId: request.toolCall.callId,
-          toolId: request.toolCall.toolId,
-          output: '{"extension":"host"}',
-          metadata: <String, Object?>{
-            'source': 'extension-host-bridge',
-            'handlerId': request.handlerId,
-          },
         );
-      },
-    );
+      final routes = const ExtensionContributionRouter().routeRegistry(
+        manifestRegistry,
+      );
+      final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(routes);
+      final session = ExtensionActivator(
+        clock: () => DateTime.utc(2026, 5, 22),
+      ).activate(registry: manifestRegistry, event: 'onCommand:collectContext');
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 22, 1),
+      ).applyActivation(registry: manifestRegistry, session: session);
+      final buffer = RuntimeOutputLiveBuffer();
+      ExtensionAgentToolHostInvocation? invocation;
+      final hostBridge = ExtensionAgentToolActivatedHostBridge(
+        snapshot: snapshot,
+        buffer: buffer,
+        manifestRegistry: manifestRegistry,
+        clock: () => DateTime.utc(2026, 5, 22, 2),
+        invoker: (request) async {
+          invocation = request;
+          return AgentToolCallDispatchResult.success(
+            callId: request.toolCall.callId,
+            toolId: request.toolCall.toolId,
+            output: '{"extension":"active-host"}',
+            metadata: <String, Object?>{
+              'handlerId': request.handlerId,
+              'dispatched': request.dispatched,
+            },
+          );
+        },
+      );
+      final registry = ExtensionAgentToolExecutionRegistry.fromHostBridge(
+        catalog: catalog,
+        hostBridge: hostBridge.call,
+      );
 
-    final result = await registry.dispatch(
-      const AgentToolCallDispatchRequest(
-        callId: 'call-extension',
-        toolId: 'collectExtensionContext',
-        inputText: '{"extensionId":"demo"}',
-      ),
-    );
+      final result = await registry.dispatch(
+        const AgentToolCallDispatchRequest(
+          callId: 'call-extension',
+          toolId: 'collectExtensionContext',
+          inputText: '{"extensionId":"demo"}',
+        ),
+      );
 
-    expect(registry.canHandle('collectExtensionContext'), isTrue);
-    expect(hostRequest?.extensionId, 'agent.tools');
-    expect(hostRequest?.contributionId, 'collect-extension-context');
-    expect(hostRequest?.handlerId, 'collect-context');
-    expect(hostRequest?.toolCall.inputText, '{"extensionId":"demo"}');
-    expect(result.success, isTrue);
-    expect(result.metadata['handlerId'], 'collect-context');
-  });
+      expect(result.success, isTrue);
+      expect(result.output, '{"extension":"active-host"}');
+      expect(result.metadata['handlerId'], 'collect-context');
+      expect(result.metadata['dispatched'], isTrue);
+      expect(invocation?.extensionId, 'agent.tools');
+      expect(invocation?.handlerId, 'collect-context');
+      expect(invocation?.plan.ready, isTrue);
+      expect(invocation?.dispatchResult.dispatched, isTrue);
+      expect(buffer.snapshot.visibleEvents, isNotEmpty);
+      expect(
+        buffer.snapshot.visibleEvents.single.metadata['agentToolHostBridge'],
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'extension agent tool activated host bridge blocks inactive hosts',
+    () async {
+      final manifestRegistry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'agent.tools',
+            displayName: 'Agent Tools',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'agent_tools.dart',
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'local-process'},
+          ),
+        );
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 22),
+      ).planRegistry(manifestRegistry);
+      final bridge = ExtensionAgentToolActivatedHostBridge(
+        snapshot: snapshot,
+        buffer: RuntimeOutputLiveBuffer(),
+        manifestRegistry: manifestRegistry,
+        invoker: (_) async {
+          fail('inactive extension hosts must not invoke handlers');
+        },
+      );
+
+      final result = await bridge.call(
+        const ExtensionAgentToolHostRequest(
+          extensionId: 'agent.tools',
+          contributionId: 'collect-extension-context',
+          handlerId: 'collect-context',
+          toolCall: AgentToolCallDispatchRequest(
+            callId: 'call-extension',
+            toolId: 'collectExtensionContext',
+            inputText: '{}',
+          ),
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.metadata['inactiveExtensionHost'], isTrue);
+      expect(result.metadata['supervisorStatus'], 'planned');
+    },
+  );
 
   test(
     'extension agent tool execution registry reports missing handlers',

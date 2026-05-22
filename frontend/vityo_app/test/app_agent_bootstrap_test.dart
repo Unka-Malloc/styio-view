@@ -13,9 +13,11 @@ import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/agent/agent_coding_session_history_store.dart';
+import 'package:vityo_app/src/view_ide/agent/extension_agent_tool_contributions.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime_output_channels.dart';
 
 void main() {
   test(
@@ -108,10 +110,7 @@ void main() {
           inputText: '{}',
         ),
       );
-      expect(
-        executionRegistry.toolIds,
-        contains('collectExtensionContext'),
-      );
+      expect(executionRegistry.toolIds, contains('collectExtensionContext'));
       expect(
         executionRegistry.handlerToolIds,
         isNot(contains('collectExtensionContext')),
@@ -127,9 +126,7 @@ void main() {
                 callId: request.toolCall.callId,
                 toolId: request.toolCall.toolId,
                 output: '{"extension":"bootstrap"}',
-                metadata: <String, Object?>{
-                  'handlerId': request.handlerId,
-                },
+                metadata: <String, Object?>{'handlerId': request.handlerId},
               );
             },
           );
@@ -142,6 +139,28 @@ void main() {
       );
       expect(bridgedResult.success, isTrue);
       expect(bridgedResult.metadata['handlerId'], 'collect-extension-context');
+
+      final activatedHostBridge =
+          AppBootstrap.createExtensionAgentToolHostBridge(
+            snapshot: const ExtensionHostSupervisorSnapshot(
+              records: <ExtensionHostSupervisorRecord>[],
+            ),
+            buffer: RuntimeOutputLiveBuffer(),
+          );
+      final missingHostResult = await activatedHostBridge(
+        const ExtensionAgentToolHostRequest(
+          extensionId: 'agent.tools',
+          contributionId: 'collect-extension-context',
+          handlerId: 'collect-extension-context',
+          toolCall: AgentToolCallDispatchRequest(
+            callId: 'call-extension-context',
+            toolId: 'collectExtensionContext',
+            inputText: '{}',
+          ),
+        ),
+      );
+      expect(missingHostResult.success, isFalse);
+      expect(missingHostResult.metadata['missingSupervisorRecord'], isTrue);
     },
   );
 

@@ -344,16 +344,16 @@ class AgentToolRegistry {
       toolId: 'collectAgentRecoveryContext',
       displayName: 'Collect Agent Recovery Context',
       description:
-          'Collect recoverable agent session state, replay drafts, and retry/failover command plans.',
+          'Collect recoverable agent session state, replay drafts, retry/failover command plans, persisted tool execution journals, and tool session transcripts.',
       priority: 61,
       permissionMode: AgentToolPermissionMode.never,
       capabilities: <String>[
         'agent.recovery',
         'agent.replay',
         'agent.session.history',
+        'agent.tool.execution.journal',
+        'agent.tool.session.transcript',
       ],
-      todo:
-          'TODO: include persisted tool-call result chains in recovery context when the history store schema supports them.',
     ),
     AgentToolDefinition(
       toolId: 'collectAgentCodingCheckpoint',

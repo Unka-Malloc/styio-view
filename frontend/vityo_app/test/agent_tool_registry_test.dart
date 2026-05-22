@@ -25,6 +25,10 @@ void main() {
     expect(selection.toJson()['toolCount'], selection.tools.length);
     expect(selection.todoItems.join('\n'), contains('File System Manager'));
     expect(selection.todoItems.join('\n'), isNot(contains('per-tool')));
+    expect(
+      selection.todoItems.join('\n'),
+      isNot(contains('persisted tool-call result chains')),
+    );
   });
 
   test('agent tool registry exposes local bridge shell tools only locally', () {

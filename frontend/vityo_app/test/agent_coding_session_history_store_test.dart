@@ -171,7 +171,8 @@ void main() {
       failoverDraft?.toJson()['targetProviderProfileKey'],
       'backup-provider-key',
     );
-    expect(failoverDraft?.toJson()['TODO'], contains('confirmation'));
+    expect(failoverDraft?.toJson()['requiresUserConfirmation'], isTrue);
+    expect(failoverDraft?.toJson().containsKey('TODO'), isFalse);
   });
 
   test('agent coding session history builds recovery context', () {
@@ -212,10 +213,11 @@ void main() {
     ]);
     expect(recoveryContext.requestDrafts.length, 3);
     expect(payload['hasReplayDraft'], isTrue);
-    expect(
-      payload['toolCallExecutionJournal'],
-      <String, Object?>{'status': 'failed', 'replayCandidateCount': 1},
-    );
+    expect(payload.containsKey('todoItems'), isFalse);
+    expect(payload['toolCallExecutionJournal'], <String, Object?>{
+      'status': 'failed',
+      'replayCandidateCount': 1,
+    });
     expect(payload['latestRecord'], isA<Map<Object?, Object?>>());
     expect(
       (payload['latestRecord'] as Map<Object?, Object?>)['errorMessage'],

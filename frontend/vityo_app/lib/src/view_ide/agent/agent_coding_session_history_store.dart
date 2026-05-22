@@ -538,13 +538,12 @@ class AgentCodingSessionRecoveryRequestDraft {
       'action': action.wireValue,
       'prompt': prompt,
       'requiresProviderSelection': requiresProviderSelection,
+      'requiresUserConfirmation': true,
       'readyToDispatch': readyToDispatch,
       if (targetProviderProfileKey != null)
         'targetProviderProfileKey': targetProviderProfileKey,
       if (targetProviderProfileKey != null)
         'targetProviderProfileId': targetProviderProfileKey,
-      'TODO':
-          'Bind this recovery request draft to explicit user confirmation before dispatching provider retry, failover, or replay.',
     };
   }
 }
@@ -557,9 +556,7 @@ class AgentCodingSessionRecoveryContext {
     this.latestRecord,
     this.commandPlans = const <AgentCodingSessionRecoveryCommandPlan>[],
     this.requestDrafts = const <AgentCodingSessionRecoveryRequestDraft>[],
-    this.todoItems = const <String>[
-      'TODO: bind this recovery context to Agent Surface retry/replay controls before autonomous resume.',
-    ],
+    this.todoItems = const <String>[],
   });
 
   factory AgentCodingSessionRecoveryContext.fromHistory(
@@ -641,7 +638,7 @@ class AgentCodingSessionRecoveryContext {
       'requestDrafts': requestDrafts
           .map((draft) => draft.toJson())
           .toList(growable: false),
-      'todoItems': todoItems,
+      if (todoItems.isNotEmpty) 'todoItems': todoItems,
     };
   }
 

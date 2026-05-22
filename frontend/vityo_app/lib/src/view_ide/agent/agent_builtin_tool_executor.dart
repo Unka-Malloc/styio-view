@@ -249,13 +249,15 @@ class AgentBuiltinToolExecutor {
             'recoveryPlan': context.agent.recoveryPlan?.toJson(),
             'lastProviderFailure': context.agent.lastProviderFailure?.toJson(),
             'suggestedCommandIds': context.agent.suggestedCommandIds,
-            'TODO':
-                'Attach AgentCodingSessionHistoryStore to expose full replay drafts and latest request history.',
+            'fallbackMode': 'agentSessionContextOnly',
+            'fullHistoryUnavailable': true,
+            'historyStoreRequired': 'AgentCodingSessionHistoryStore',
           },
         }),
         metadata: <String, Object?>{
           'hasRecoveryPlan': context.agent.recoveryPlan != null,
           'suggestedCommandCount': context.agent.suggestedCommandIds.length,
+          'fullHistoryUnavailable': true,
         },
       );
     }

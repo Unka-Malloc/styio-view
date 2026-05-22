@@ -376,6 +376,29 @@ void main() {
     expect(result.metadata['runnableCommandCount'], 1);
   });
 
+  test(
+    'agent builtin executor reports recovery context fallback facts',
+    () async {
+      final executor = AgentBuiltinToolExecutor(context: _context());
+      final result = await executor.execute(
+        const AgentToolCallDispatchRequest(
+          callId: 'call-recovery-fallback',
+          toolId: 'collectAgentRecoveryContext',
+          inputText: '{}',
+        ),
+      );
+      final output = jsonDecode(result.output);
+      final recovery = output['recovery'] as Map<String, Object?>;
+
+      expect(result.success, isTrue);
+      expect(output['source'], 'agent-session-context');
+      expect(recovery['fallbackMode'], 'agentSessionContextOnly');
+      expect(recovery['fullHistoryUnavailable'], isTrue);
+      expect(recovery.containsKey('TODO'), isFalse);
+      expect(result.metadata['fullHistoryUnavailable'], isTrue);
+    },
+  );
+
   test('agent builtin executor collects recovery context', () async {
     final profile = AgentPromptProfile.defaultForPlatform(PlatformTarget.linux);
     final history = AgentCodingSessionHistory(

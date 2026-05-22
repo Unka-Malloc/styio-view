@@ -403,7 +403,7 @@ class AppBootstrap {
         );
     final agentProviderFactory = createAgentProviderFactory(
       configurationStore: configurationStore,
-      transport: NetworkAgentProviderTransport(
+      transport: createNetworkAgentProviderTransport(
         networkManager: platformManagers.network,
       ),
       localServiceManager: platformManagers.localService,

@@ -136,6 +136,44 @@ class NetworkTextResponse {
   }
 }
 
+class NetworkTextStreamChunk {
+  const NetworkTextStreamChunk({
+    required this.status,
+    required this.uri,
+    required this.statusCode,
+    required this.text,
+    this.message,
+  });
+
+  final NetworkRequestStatus status;
+  final Uri uri;
+  final int? statusCode;
+  final String text;
+  final String? message;
+  bool get succeeded => status == NetworkRequestStatus.succeeded;
+
+  NetworkTextResponse toTextResponse() {
+    return NetworkTextResponse(
+      status: status,
+      uri: uri,
+      statusCode: statusCode,
+      body: text,
+      message: message,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.name,
+      'uri': uri.toString(),
+      if (statusCode != null) 'statusCode': statusCode,
+      'textLength': text.length,
+      if (message != null) 'message': message,
+      'succeeded': succeeded,
+    };
+  }
+}
+
 class NetworkBinaryResponse {
   const NetworkBinaryResponse({
     required this.status,
@@ -257,6 +295,16 @@ abstract class CancellableNetworkManager implements NetworkManager {
     required Map<String, String> headers,
     required Map<String, Object?> body,
     required NetworkRequestCancellationToken cancellationToken,
+    Duration timeout = const Duration(seconds: 10),
+  });
+}
+
+abstract class StreamingNetworkManager implements NetworkManager {
+  Stream<NetworkTextStreamChunk> postJsonStream(
+    Uri uri, {
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+    NetworkRequestCancellationToken? cancellationToken,
     Duration timeout = const Duration(seconds: 10),
   });
 }

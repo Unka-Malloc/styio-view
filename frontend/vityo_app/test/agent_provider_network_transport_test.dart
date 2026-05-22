@@ -191,6 +191,76 @@ void main() {
       );
     },
   );
+
+  test(
+    'network agent provider transport streams OpenAI-compatible SSE chunks',
+    () async {
+      final network = _StreamingAgentNetworkManager(
+        chunks: const <String>[
+          'data: {"choices":[{"delta":{"content":"Plan "}}]}\n\n',
+          'data: {"choices":[{"delta":{"content":"ready."},"finish_reason":"stop"}]}\n\n',
+          'data: [DONE]\n\n',
+        ],
+      );
+      final transport = createNetworkAgentProviderTransport(
+        networkManager: network,
+        timeout: const Duration(seconds: 9),
+      );
+
+      final events = await (transport as StreamingAgentProviderTransport)
+          .postJsonStream(
+            requestId: 'agent-stream-network',
+            endpoint: _endpoint,
+            headers: const <String, String>{'Content-Type': 'application/json'},
+            body: const <String, Object?>{'model': 'gpt-test', 'stream': true},
+          )
+          .toList();
+
+      expect(transport, isA<StreamingNetworkAgentProviderTransport>());
+      expect(events.map((event) => event.kind), <AgentProviderStreamEventKind>[
+        AgentProviderStreamEventKind.contentDelta,
+        AgentProviderStreamEventKind.contentDelta,
+        AgentProviderStreamEventKind.completed,
+      ]);
+      expect(events[0].deltaText, 'Plan ');
+      expect(events[1].deltaText, 'ready.');
+      expect(events.last.metadata['finishReason'], 'stop');
+      expect(events.last.metadata['streamTransport'], 'network_sse');
+      expect(network.lastBody['stream'], isTrue);
+      expect(network.lastTimeout, const Duration(seconds: 9));
+    },
+  );
+
+  test(
+    'network agent provider transport streams OpenAI Responses deltas',
+    () async {
+      final network = _StreamingAgentNetworkManager(
+        chunks: const <String>[
+          'data: {"type":"response.output_text.delta","delta":"Patch "}\n\n',
+          'data: {"type":"response.output_text.delta","delta":"done."}\n\n',
+          'data: {"type":"response.completed","response":{"usage":{"outputTokens":2}}}\n\n',
+        ],
+      );
+      final transport = createNetworkAgentProviderTransport(
+        networkManager: network,
+      );
+
+      final events = await (transport as StreamingAgentProviderTransport)
+          .postJsonStream(
+            requestId: 'agent-stream-responses-network',
+            endpoint: _endpoint,
+            headers: const <String, String>{'Content-Type': 'application/json'},
+            body: const <String, Object?>{'model': 'gpt-5.3-codex-spark'},
+          )
+          .toList();
+
+      expect(events.map((event) => event.deltaText).join(), 'Patch done.');
+      expect(events.last.kind, AgentProviderStreamEventKind.completed);
+      expect(events.last.metadata['usage'], <String, Object?>{
+        'outputTokens': 2,
+      });
+    },
+  );
 }
 
 final _endpoint = Uri.parse('https://agent.example.test/chat/completions');
@@ -276,6 +346,41 @@ class _AgentNetworkManager implements NetworkManager {
       operation: operation,
       recoveryHint: recoveryHint,
     );
+  }
+}
+
+class _StreamingAgentNetworkManager extends _AgentNetworkManager
+    implements StreamingNetworkManager {
+  _StreamingAgentNetworkManager({required this.chunks})
+    : super(
+        response: NetworkTextResponse(
+          status: NetworkRequestStatus.succeeded,
+          uri: _endpoint,
+          statusCode: 200,
+          body: '{}',
+        ),
+      );
+
+  final List<String> chunks;
+
+  @override
+  Stream<NetworkTextStreamChunk> postJsonStream(
+    Uri uri, {
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+    NetworkRequestCancellationToken? cancellationToken,
+    Duration timeout = const Duration(seconds: 10),
+  }) async* {
+    lastBody = body;
+    lastTimeout = timeout;
+    for (final chunk in chunks) {
+      yield NetworkTextStreamChunk(
+        status: NetworkRequestStatus.succeeded,
+        uri: uri,
+        statusCode: 200,
+        text: chunk,
+      );
+    }
   }
 }
 

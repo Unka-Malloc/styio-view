@@ -23,7 +23,8 @@ Future<NetworkManager> createPlatformNetworkManager({
   return LocalNetworkManager(facts: facts, adapter: adapter?.networkAdapter);
 }
 
-class LocalNetworkManager implements CancellableNetworkManager {
+class LocalNetworkManager
+    implements CancellableNetworkManager, StreamingNetworkManager {
   LocalNetworkManager({required this.facts, NetworkAdapter? adapter})
     : compatibility = (adapter ?? NetworkAdapter(facts)).adapt();
   factory LocalNetworkManager.linuxDebianArmForTest() =>
@@ -200,6 +201,113 @@ class LocalNetworkManager implements CancellableNetworkManager {
         statusCode: null,
         body: '',
         message: error.toString(),
+      );
+    } finally {
+      cancellationSubscription?.cancel();
+      client.close(force: true);
+    }
+  }
+
+  @override
+  Stream<NetworkTextStreamChunk> postJsonStream(
+    Uri uri, {
+    required Map<String, String> headers,
+    required Map<String, Object?> body,
+    NetworkRequestCancellationToken? cancellationToken,
+    Duration timeout = const Duration(seconds: 10),
+  }) async* {
+    if (!compatibility.supportsHttpClient) {
+      yield NetworkTextStreamChunk(
+        status: NetworkRequestStatus.blocked,
+        uri: uri,
+        statusCode: null,
+        text: '',
+        message: 'HTTP client is not available.',
+      );
+      return;
+    }
+    if (cancellationToken?.isCancelled ?? false) {
+      yield NetworkTextStreamChunk(
+        status: NetworkRequestStatus.cancelled,
+        uri: uri,
+        statusCode: null,
+        text: '',
+        message: 'Network request cancelled.',
+      );
+      return;
+    }
+    final client = HttpClient();
+    NetworkRequestCancellationSubscription? cancellationSubscription;
+    try {
+      cancellationSubscription = cancellationToken?.listen(() {
+        client.close(force: true);
+      });
+      cancellationToken?.throwIfCancelled();
+      final request = await client.postUrl(uri).timeout(timeout);
+      cancellationToken?.throwIfCancelled();
+      headers.forEach(request.headers.set);
+      final encoded = utf8.encode(jsonEncode(body));
+      request.headers.contentLength = encoded.length;
+      request.add(encoded);
+      final response = await request.close().timeout(timeout);
+      cancellationToken?.throwIfCancelled();
+      final succeeded = response.statusCode >= 200 && response.statusCode < 400;
+      if (!succeeded) {
+        final bytes = await response
+            .fold<List<int>>(<int>[], (buffer, chunk) {
+              buffer.addAll(chunk);
+              return buffer;
+            })
+            .timeout(timeout);
+        yield NetworkTextStreamChunk(
+          status: NetworkRequestStatus.failed,
+          uri: uri,
+          statusCode: response.statusCode,
+          text: utf8.decode(bytes),
+          message: '${response.statusCode} ${response.reasonPhrase}',
+        );
+        return;
+      }
+      await for (final chunk
+          in response.transform(utf8.decoder).timeout(timeout)) {
+        cancellationToken?.throwIfCancelled();
+        if (chunk.isEmpty) {
+          continue;
+        }
+        yield NetworkTextStreamChunk(
+          status: NetworkRequestStatus.succeeded,
+          uri: uri,
+          statusCode: response.statusCode,
+          text: chunk,
+        );
+      }
+      cancellationToken?.throwIfCancelled();
+    } on NetworkRequestCancelledException {
+      yield NetworkTextStreamChunk(
+        status: NetworkRequestStatus.cancelled,
+        uri: uri,
+        statusCode: null,
+        text: '',
+        message: 'Network request cancelled.',
+      );
+    } on TimeoutException {
+      yield NetworkTextStreamChunk(
+        status: NetworkRequestStatus.timedOut,
+        uri: uri,
+        statusCode: null,
+        text: '',
+        message: 'Network request timed out.',
+      );
+    } on Object catch (error) {
+      final cancelled = cancellationToken?.isCancelled ?? false;
+      yield NetworkTextStreamChunk(
+        status: cancelled
+            ? NetworkRequestStatus.cancelled
+            : NetworkRequestStatus.failed,
+        uri: uri,
+        statusCode: null,
+        text: '',
+        message: cancelled ? 'Network request cancelled.' : error.toString(),
       );
     } finally {
       cancellationSubscription?.cancel();

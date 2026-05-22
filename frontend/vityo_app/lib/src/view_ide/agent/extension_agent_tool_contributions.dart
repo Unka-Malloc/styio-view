@@ -80,9 +80,7 @@ class ExtensionAgentToolContribution {
       providerOutputLimits: _metadataProviderOutputLimits(
         route.contribution.metadata,
       ),
-      todo:
-          _metadataString(route.contribution.metadata, 'todo') ??
-          'TODO: bind extension agent tool $toolId to an extension-host executor.',
+      todo: _metadataString(route.contribution.metadata, 'todo') ?? '',
     );
     return ExtensionAgentToolContribution(
       extensionId: route.extensionId,

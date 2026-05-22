@@ -130,6 +130,7 @@ void main() {
     expect(tool.toolId, 'collectExtensionContext');
     expect(tool.builtin, isFalse);
     expect(tool.permissionMode, AgentToolPermissionMode.never);
+    expect(tool.todo, isEmpty);
     expect(tool.outputLimit, 4096);
     expect(tool.providerOutputLimits, <AgentProviderKind, int>{
       AgentProviderKind.cloudOpenAICompatible: 2048,

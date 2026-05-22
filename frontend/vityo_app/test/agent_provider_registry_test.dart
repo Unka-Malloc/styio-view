@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_profile.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
@@ -98,7 +100,8 @@ void main() {
     expect(plan.ready, isFalse);
     expect(plan.status, AgentProviderSelectionStatus.unsupportedProfile);
     expect(plan.toJson()['candidateCount'], 0);
-    expect(plan.toJson()['todo'], startsWith('TODO:'));
+    expect(plan.toJson()['todo'], startsWith('Install or enable'));
+    expect(jsonEncode(plan.toJson()), isNot(contains('TODO:')));
     await expectLater(
       registry.createAdapter(profile),
       throwsA(isA<StateError>()),

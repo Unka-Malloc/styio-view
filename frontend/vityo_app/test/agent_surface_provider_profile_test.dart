@@ -484,7 +484,7 @@ void main() {
           capabilities: <String>['plan', 'code_patch'],
         ),
       ],
-      todo: 'TODO: resolve credential before sending.',
+      todo: 'Resolve credential before sending.',
     );
     final controller = AgentCodingSessionController(
       profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),

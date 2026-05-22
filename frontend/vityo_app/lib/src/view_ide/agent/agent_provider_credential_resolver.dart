@@ -157,7 +157,7 @@ class AgentProviderCredentialResolver {
           message:
               'Client-side credential lookup is disabled by provider policy.',
           todo: source == AgentProviderCredentialLookupSource.hostedSession
-              ? 'TODO: resolve hosted session credentials through the server-side agent route.'
+              ? 'Resolve hosted session credentials through the server-side agent route.'
               : '',
           steps: <AgentProviderCredentialLookupStep>[
             AgentProviderCredentialLookupStep(
@@ -209,7 +209,7 @@ class AgentProviderCredentialResolver {
           reference: reference,
           message: 'Credential DataStore result: ${result.status.name}.',
           todo:
-              'TODO: ask the user to configure this credential in Credential DataStore.',
+              'Ask the user to configure this credential in Credential DataStore.',
         ),
       );
     }
@@ -222,7 +222,7 @@ class AgentProviderCredentialResolver {
           requiresCredential: endpoint.requiresCredential,
           message: 'No credential reference or environment variable is set.',
           todo: endpoint.requiresCredential
-              ? 'TODO: configure a CredentialReference for this provider profile.'
+              ? 'Configure a CredentialReference for this provider profile.'
               : '',
           steps: List<AgentProviderCredentialLookupStep>.unmodifiable(steps),
         ),
@@ -244,7 +244,7 @@ class AgentProviderCredentialResolver {
           requiresCredential: endpoint.requiresCredential,
           message: 'Agent provider credential is not available locally.',
           todo: endpoint.requiresCredential
-              ? 'TODO: configure Credential DataStore or an explicit provider environment variable.'
+              ? 'Configure Credential DataStore or an explicit provider environment variable.'
               : '',
           steps: List<AgentProviderCredentialLookupStep>.unmodifiable(steps),
         ),
@@ -264,8 +264,6 @@ class AgentProviderCredentialResolver {
         policy: endpoint.credentialPolicy,
         requiresCredential: endpoint.requiresCredential,
         message: 'Agent provider credential resolved locally.',
-        todo:
-            'TODO: add provider-specific OAuth/device-flow support through Configuration/CredentialDataStore only.',
         steps: List<AgentProviderCredentialLookupStep>.unmodifiable(steps),
       ),
     );

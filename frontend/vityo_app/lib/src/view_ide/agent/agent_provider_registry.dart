@@ -122,8 +122,8 @@ class AgentProviderSelectionPlan {
       todo:
           selectedEndpoint?.credentialReadiness ==
               AgentProviderCredentialReadiness.unavailable
-          ? 'TODO: configure the referenced agent provider credential in Credential DataStore.'
-          : todo.startsWith('TODO: resolve this profile credential')
+          ? 'Configure the referenced agent provider credential in Credential DataStore.'
+          : todo.startsWith('Resolve this profile credential')
           ? ''
           : todo,
     );
@@ -217,9 +217,9 @@ class AgentProviderRegistry {
           ? 'No agent provider registration supports this route and protocol.'
           : 'Agent provider registration is ready.',
       todo: selectedProvider == null
-          ? 'TODO: install or enable an agent provider contribution for this profile.'
+          ? 'Install or enable an agent provider contribution for this profile.'
           : profile.endpoint.requiresCredential
-          ? 'TODO: resolve this profile credential through Credential DataStore before sending.'
+          ? 'Resolve this profile credential through Credential DataStore before sending.'
           : '',
     );
   }

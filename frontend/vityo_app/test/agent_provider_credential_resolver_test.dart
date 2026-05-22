@@ -255,6 +255,7 @@ void main() {
       expect(planText, contains('environment-variable'));
       expect(planText, contains('openai-codex-spark'));
       expect(planText, isNot(contains('env-codex-spark-token')));
+      expect(planText, isNot(contains('TODO:')));
       expect(planText, isNot(contains('.codex')));
       expect(planText, isNot(contains('auth.json')));
     },

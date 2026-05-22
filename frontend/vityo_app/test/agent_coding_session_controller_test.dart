@@ -1291,6 +1291,8 @@ void main() {
           metadata['validationResult']! as Map<String, Object?>;
       final validationPipeline =
           metadata['validationPipeline']! as Map<String, Object?>;
+      final validationCommandResults =
+          metadata['validationCommandResults']! as List<Object?>;
       final failedCommandResults =
           metadata['validationFailedCommandResults']! as List<Object?>;
       final lastPatchApplication =
@@ -1307,6 +1309,20 @@ void main() {
       expect(validationPipeline['status'], 'failed');
       expect(validationPipeline['progressNumerator'], 4);
       expect(validationPipeline['progressDenominator'], 5);
+      expect(validationCommandResults, hasLength(5));
+      expect(
+        validationCommandResults
+            .whereType<Map<String, Object?>>()
+            .map((result) => result['commandId'])
+            .toList(),
+        containsAll(<String>[
+          'saveAll',
+          'refreshLanguageService',
+          'refreshWorkspaceDiagnostics',
+          'collectProjectLanguageContext',
+          'runTests',
+        ]),
+      );
       final failedRun = failedCommandResults.single! as Map<String, Object?>;
       expect(failedRun['commandId'], 'runTests');
       expect(failedRun['message'], 'runTests failed.');

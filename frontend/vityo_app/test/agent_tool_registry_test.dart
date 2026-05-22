@@ -29,6 +29,16 @@ void main() {
       selection.todoItems.join('\n'),
       isNot(contains('persisted tool-call result chains')),
     );
+    expect(
+      selection.todoItems.join('\n'),
+      isNot(contains('validation command result chains')),
+    );
+    expect(
+      selection.tools
+          .singleWhere((tool) => tool.toolId == 'collectAgentValidationContext')
+          .capabilities,
+      contains('agent.validation.command.results'),
+    );
   });
 
   test('agent tool registry exposes local bridge shell tools only locally', () {

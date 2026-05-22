@@ -335,10 +335,9 @@ class AgentToolRegistry {
       capabilities: <String>[
         'agent.validation',
         'agent.validation.pipeline',
+        'agent.validation.command.results',
         'testing.context',
       ],
-      todo:
-          'TODO: persist validation command result chains with replay/recovery context.',
     ),
     AgentToolDefinition(
       toolId: 'collectAgentRecoveryContext',

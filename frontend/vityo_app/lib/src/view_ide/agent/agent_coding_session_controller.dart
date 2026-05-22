@@ -2422,6 +2422,18 @@ Map<String, Object?> _agentCodingHistoryMetadata(
       'progressDenominator': agent.validationPipeline.progressDenominator,
       'remainingCommandIds': agent.validationPipeline.remainingCommandIds,
     };
+    final validationCommandIds = <String>{
+      ...agent.validationResult.completedCommandIds,
+      ...agent.validationResult.failedCommandIds,
+      ...agent.validationResult.missingCommandIds,
+    };
+    final validationCommandResults = context.commands.recentResults
+        .where((result) => validationCommandIds.contains(result.commandId))
+        .map((result) => result.toJson())
+        .toList(growable: false);
+    if (validationCommandResults.isNotEmpty) {
+      metadata['validationCommandResults'] = validationCommandResults;
+    }
     final failedCommandIds = agent.validationResult.failedCommandIds.toSet();
     final failedCommandResults = context.commands.recentResults
         .where((result) => failedCommandIds.contains(result.commandId))

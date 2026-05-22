@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/module_host/module_capability_matrix.dart';
 import 'package:vityo_app/src/module_host/module_definition.dart';
@@ -18,6 +20,22 @@ void main() {
   "enabledByDefault": true,
   "entrypoint": "runtime.dart",
   "distributionPolicyRef": "runtime-policy",
+  "extension": {
+    "activationEvents": ["onStartup"],
+    "metadata": {
+      "isolationMode": "local-process"
+    },
+    "contributions": [
+      {
+        "kind": "agent",
+        "id": "collect-runtime-context",
+        "target": "agent.tools",
+        "metadata": {
+          "toolId": "collectRuntimeContext"
+        }
+      }
+    ]
+  },
   "capabilityFlags": {
     "runtimeEvents": true,
     "nativeBridge": false
@@ -46,10 +64,41 @@ void main() {
     expect(manifest.slot, ModuleSlot.runtimeSurface);
     expect(manifest.capabilityFlags['runtimeEvents'], isTrue);
     expect(manifest.capabilityFlags['nativeBridge'], isFalse);
+    expect(manifest.extensionActivationEvents, <String>['onStartup']);
+    expect(manifest.extensionMetadata['isolationMode'], 'local-process');
+    expect(
+      manifest.extensionContributions.single['id'],
+      'collect-runtime-context',
+    );
     expect(matrix.moduleId, manifest.moduleId);
     expect(matrix.ruleFor(PlatformTarget.android).supported, isTrue);
-    expect(matrix.ruleFor(PlatformTarget.android).distributionChannel, 'self-hosted');
+    expect(
+      matrix.ruleFor(PlatformTarget.android).distributionChannel,
+      'self-hosted',
+    );
   });
+
+  test(
+    'agent surface module asset declares extension agent tool contribution',
+    () {
+      final manifest = ModuleManifest.parse(
+        File(
+          'assets/module_manifests/agent.surface.basic.json',
+        ).readAsStringSync(),
+      );
+
+      expect(manifest.extensionActivationEvents, <String>['onStartup']);
+      expect(manifest.extensionMetadata['isolationMode'], 'local-process');
+      expect(
+        manifest.extensionContributions.single['id'],
+        'collect-agent-surface-context',
+      );
+      final metadata = Map<String, Object?>.from(
+        manifest.extensionContributions.single['metadata'] as Map,
+      );
+      expect(metadata['toolId'], 'collectAgentSurfaceContext');
+    },
+  );
 
   test('module registry hides unsupported platform entries', () {
     const module = ModuleDefinition(
@@ -102,7 +151,13 @@ void main() {
     expect(module.isVisibleOn(PlatformTarget.android), isFalse);
     expect(androidRegistry.visibleModules, isEmpty);
     expect(androidRegistry.mountedModules, isEmpty);
-    expect(desktopRegistry.visibleModules.single.manifest.moduleId, 'debug.console');
-    expect(desktopRegistry.mountedModules.single.manifest.moduleId, 'debug.console');
+    expect(
+      desktopRegistry.visibleModules.single.manifest.moduleId,
+      'debug.console',
+    );
+    expect(
+      desktopRegistry.mountedModules.single.manifest.moduleId,
+      'debug.console',
+    );
   });
 }

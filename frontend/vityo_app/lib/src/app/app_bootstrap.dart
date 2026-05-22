@@ -663,13 +663,24 @@ class AppBootstrap {
   }) {
     final manifestRegistry = ExtensionManifestRegistry(
       moduleRegistry.mountedModules.map((definition) {
+        final extensionActivationEvents =
+            definition.manifest.extensionActivationEvents.isEmpty
+            ? <String>[activationEvent]
+            : definition.manifest.extensionActivationEvents;
+        final extensionContributions = definition
+            .manifest
+            .extensionContributions
+            .map(ExtensionContributionPoint.fromJson)
+            .toList(growable: false);
         return ExtensionManifest.fromModuleManifest(
           module: definition.manifest,
           publisher: publisher,
-          activationEvents: <String>[activationEvent],
+          activationEvents: extensionActivationEvents,
+          contributions: extensionContributions,
           metadata: <String, Object?>{
             'source': 'module-registry',
             'moduleSlot': definition.manifest.slot.wireValue,
+            ...definition.manifest.extensionMetadata,
           },
         );
       }),

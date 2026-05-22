@@ -72,6 +72,21 @@ void main() {
           entrypoint: 'agent_surface.dart',
           distributionPolicyRef: 'core-policy',
           capabilityFlags: <String, bool>{'agentSurface': true},
+          extensionActivationEvents: <String>['onStartup'],
+          extensionContributions: <Map<String, Object?>>[
+            <String, Object?>{
+              'kind': 'agent',
+              'id': 'collect-agent-surface-context',
+              'target': 'agent.tools',
+              'metadata': <String, Object?>{
+                'toolId': 'collectAgentSurfaceContext',
+                'handlerId': 'collect-agent-surface-context',
+              },
+            },
+          ],
+          extensionMetadata: <String, Object?>{
+            'isolationMode': 'local-process',
+          },
         ),
         matrix: ModuleCapabilityMatrix(
           moduleId: 'agent.surface.basic',
@@ -112,7 +127,10 @@ void main() {
         plan.supervisorSnapshot.lookup('agent.surface.basic')?.action,
         ExtensionHostSupervisorAction.spawnLocalProcess,
       );
-      expect(plan.contributionRoutes.routes, isEmpty);
+      expect(
+        plan.contributionRoutes.routes.single.contribution.id,
+        'collect-agent-surface-context',
+      );
       expect(plan.toJson()['manifestCount'], 1);
     },
   );

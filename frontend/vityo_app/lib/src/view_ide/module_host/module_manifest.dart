@@ -1,9 +1,6 @@
 import 'dart:convert';
 
-enum ModuleKind {
-  core,
-  optional,
-}
+enum ModuleKind { core, optional }
 
 enum ModuleSlot {
   shell,
@@ -80,6 +77,9 @@ class ModuleManifest {
     required this.entrypoint,
     required this.distributionPolicyRef,
     required this.capabilityFlags,
+    this.extensionActivationEvents = const <String>[],
+    this.extensionContributions = const <Map<String, Object?>>[],
+    this.extensionMetadata = const <String, Object?>{},
   });
 
   final String moduleId;
@@ -92,14 +92,21 @@ class ModuleManifest {
   final String entrypoint;
   final String distributionPolicyRef;
   final Map<String, bool> capabilityFlags;
+  final List<String> extensionActivationEvents;
+  final List<Map<String, Object?>> extensionContributions;
+  final Map<String, Object?> extensionMetadata;
 
   factory ModuleManifest.fromJson(Map<String, dynamic> json) {
     final flags = <String, bool>{};
-    final rawFlags =
-        Map<String, dynamic>.from(json['capabilityFlags'] as Map? ?? {});
+    final rawFlags = Map<String, dynamic>.from(
+      json['capabilityFlags'] as Map? ?? {},
+    );
     for (final entry in rawFlags.entries) {
       flags[entry.key] = entry.value == true;
     }
+    final rawExtension = Map<String, dynamic>.from(
+      json['extension'] as Map? ?? const <String, dynamic>{},
+    );
 
     return ModuleManifest(
       moduleId: json['moduleId'] as String,
@@ -112,6 +119,11 @@ class ModuleManifest {
       entrypoint: json['entrypoint'] as String,
       distributionPolicyRef: json['distributionPolicyRef'] as String,
       capabilityFlags: flags,
+      extensionActivationEvents: _jsonStringList(
+        rawExtension['activationEvents'],
+      ),
+      extensionContributions: _jsonObjectList(rawExtension['contributions']),
+      extensionMetadata: _jsonObjectMap(rawExtension['metadata']),
     );
   }
 
@@ -120,4 +132,34 @@ class ModuleManifest {
       Map<String, dynamic>.from(jsonDecode(source) as Map),
     );
   }
+}
+
+List<String> _jsonStringList(Object? value) {
+  if (value is! List) {
+    return const <String>[];
+  }
+  return value.whereType<String>().toList(growable: false);
+}
+
+List<Map<String, Object?>> _jsonObjectList(Object? value) {
+  if (value is! List) {
+    return const <Map<String, Object?>>[];
+  }
+  return value
+      .whereType<Map>()
+      .map(
+        (item) => item.map<String, Object?>(
+          (key, value) => MapEntry(key.toString(), value),
+        ),
+      )
+      .toList(growable: false);
+}
+
+Map<String, Object?> _jsonObjectMap(Object? value) {
+  if (value is! Map) {
+    return const <String, Object?>{};
+  }
+  return value.map<String, Object?>(
+    (key, value) => MapEntry(key.toString(), value),
+  );
 }

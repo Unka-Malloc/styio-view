@@ -19,6 +19,7 @@ import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
 import 'agent_tool_call_stream_bridge.dart';
+import 'agent_tool_session_transcript.dart';
 import 'agent_tool_permission.dart';
 import 'agent_tool_permission_policy_store.dart';
 import 'agent_tool_registry.dart';
@@ -264,6 +265,12 @@ class AgentCodingSessionController extends ChangeNotifier {
       _toolCallExecutionJournal;
   AgentToolCallReplayPlan get toolCallReplayPlan =>
       AgentToolCallReplayPlan.fromJournal(_toolCallExecutionJournal);
+  AgentToolSessionTranscript get toolSessionTranscript =>
+      AgentToolSessionTranscript.fromToolState(
+        timeline: _toolCallTimeline,
+        executionPlan: toolCallExecutionPlan,
+        resultContexts: _recentToolCallResultContexts,
+      );
   List<AgentToolCallResultContext> get recentToolCallResultContexts =>
       List<AgentToolCallResultContext>.unmodifiable(
         _recentToolCallResultContexts,

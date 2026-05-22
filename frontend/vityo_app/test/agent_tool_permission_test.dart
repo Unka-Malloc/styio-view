@@ -40,6 +40,7 @@ void main() {
       plan.todoItems.join('\n'),
       contains('permission policy import/export and bulk-edit controls'),
     );
+    expect(plan.todoItems.join('\n'), isNot(contains('TODO:')));
   });
 
   test('agent tool permission rules can deny matching tools', () {

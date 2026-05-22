@@ -77,6 +77,7 @@ void main() {
       plan.todoItems.join('\n'),
       contains('restored workspace snapshot recovery'),
     );
+    expect(plan.todoItems.join('\n'), isNot(contains('TODO:')));
     expect(plan.todoItems.join('\n'), isNot(contains('result truncation')));
   });
 

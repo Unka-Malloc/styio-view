@@ -280,7 +280,7 @@ List<String> _todoItems(List<AgentToolPermissionDecision> decisions) {
   final todos = <String>[];
   if (decisions.any((decision) => decision.requiresReview)) {
     todos.add(
-      'TODO: add project-level permission policy import/export and bulk-edit controls to Agent settings.',
+      'Add project-level permission policy import/export and bulk-edit controls to Agent settings.',
     );
   }
   return List<String>.unmodifiable(todos);

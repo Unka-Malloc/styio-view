@@ -120,7 +120,7 @@ class AgentCodingLoopPlan {
         label: 'Capture workspace snapshot',
         commandIds: const <String>['collectAgentCodingCheckpoint'],
         todoItems: const <String>[
-          'TODO: keep restored workspace snapshot recovery visible until the user applies or discards the revert plan.',
+          'Keep restored workspace snapshot recovery visible until the user applies or discards the revert plan.',
         ],
       ),
       AgentCodingLoopStep(
@@ -132,7 +132,7 @@ class AgentCodingLoopPlan {
         label: 'Resolve agent tool contracts',
         commandIds: const <String>['collectAgentCodingCheckpoint'],
         todoItems: const <String>[
-          'TODO: register production local-process/web-worker/remote-service bindings in ExtensionAgentToolHostRpcTransportRegistry for extension-discovered agent tools.',
+          'Register production local-process/web-worker/remote-service bindings in ExtensionAgentToolHostRpcTransportRegistry for extension-discovered agent tools.',
         ],
       ),
       AgentCodingLoopStep(
@@ -148,7 +148,7 @@ class AgentCodingLoopPlan {
         blockingReasons: dispatchPlan.toolPermissionPlan.blockingIssueCodes,
         todoItems: dispatchPlan.toolPermissionPlan.todoItems.isEmpty
             ? const <String>[
-                'TODO: add project-level permission policy import/export and bulk-edit controls to Agent settings.',
+                'Add project-level permission policy import/export and bulk-edit controls to Agent settings.',
               ]
             : dispatchPlan.toolPermissionPlan.todoItems,
       ),
@@ -205,7 +205,7 @@ class AgentCodingLoopPlan {
         required: false,
         commandIds: const <String>['collectAgentCodingCheckpoint'],
         todoItems: const <String>[
-          'TODO: bind provider failover and persisted checkpoint recovery controls to Agent Surface.',
+          'Bind provider failover and persisted checkpoint recovery controls to Agent Surface.',
         ],
       ),
     ];

@@ -38,4 +38,5 @@ export 'agent_provider_streaming_runtime.dart';
 export 'agent_provider_registry.dart';
 export 'agent_prompt_profile_store.dart';
 export 'agent_provider_adapter.dart';
+export 'agent_registry.dart';
 export 'agent_session_context.dart';

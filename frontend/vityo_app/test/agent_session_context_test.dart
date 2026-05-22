@@ -837,7 +837,7 @@ void main() {
     final testingConfigurationSet =
         testingJson['configurationSet']! as Map<String, Object?>;
 
-    expect(json['schemaVersion'], 86);
+    expect(json['schemaVersion'], 87);
     final registeredCommandIds =
         commandsJson['registeredCommandIds']! as List<Object?>;
     expect(commandsJson['commandCount'], registeredCommandIds.length);
@@ -1825,7 +1825,15 @@ void main() {
         agentJson['savedProviderProfiles']! as List<Object?>;
     final savedProfileJson = savedProfilesJson.single! as Map<String, Object?>;
 
-    expect(context.schemaVersion, 86);
+    expect(context.schemaVersion, 87);
+    final agentRegistryJson =
+        agentJson['agentRegistry']! as Map<String, Object?>;
+    expect(agentRegistryJson['defaultAgentId'], 'vityo-coding-agent');
+    expect(
+      agentRegistryJson['primaryAgentIds'],
+      contains('vityo-coding-agent'),
+    );
+    expect(agentRegistryJson['subagentIds'], contains('vityo-review-agent'));
     expect(agentJson['savedProviderProfileCount'], 1);
     expect(savedProfileJson['key'], 'cloud-key');
     expect(savedProfileJson['profileId'], 'cloud');
@@ -2208,7 +2216,7 @@ void main() {
       'ideCapabilities',
     ]);
 
-    expect(json['schemaVersion'], 86);
+    expect(json['schemaVersion'], 87);
     expect(json.containsKey('document'), isTrue);
     expect(json.containsKey('debug'), isTrue);
     expect(json.containsKey('workspace'), isTrue);
@@ -2748,7 +2756,7 @@ void main() {
     final panel = panels.single! as Map<String, Object?>;
     final items = panel['items']! as List<Object?>;
 
-    expect(context.schemaVersion, 86);
+    expect(context.schemaVersion, 87);
     expect(languageJson['semanticPanelViewModelCount'], 1);
     expect(languageJson['semanticPanelViewModelsTruncated'], isFalse);
     expect(panel['target'], 'problems');

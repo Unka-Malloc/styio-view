@@ -23,6 +23,7 @@ import 'agent_prompt_profile_store.dart';
 import 'agent_provider_adapter.dart';
 import 'agent_provider_registry.dart';
 import 'agent_provider_route_executor.dart';
+import 'agent_registry.dart';
 import 'agent_tool_call_execution_journal.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_permission.dart';
@@ -1310,6 +1311,7 @@ class AgentSessionContext {
     AgentToolCallTimeline? toolCallTimeline,
     AgentToolCallExecutionJournal? toolCallExecutionJournal,
     AgentToolCallReplayPlan? toolReplayPlan,
+    AgentRegistrySnapshot agentRegistry = defaultAgentRegistrySnapshot,
     AgentToolSelection? toolCatalog,
     AgentToolPermissionPlan? toolPermissionPlan,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
@@ -1377,7 +1379,7 @@ class AgentSessionContext {
       _suggestedDebugCommandIds(commandContext.debugCommandReadiness),
     );
     return AgentSessionContext(
-      schemaVersion: 86,
+      schemaVersion: 87,
       document: AgentDocumentContext.fromDocument(
         document,
         selection: selection,
@@ -1424,6 +1426,7 @@ class AgentSessionContext {
         toolCallTimeline: toolCallTimeline,
         toolCallExecutionJournal: toolCallExecutionJournal,
         toolReplayPlan: toolReplayPlan,
+        agentRegistry: agentRegistry,
         toolCatalog: toolCatalog,
         toolPermissionPlan: toolPermissionPlan,
         savedProviderProfiles: savedProviderProfiles,
@@ -1584,6 +1587,7 @@ class AgentSessionContext {
     AgentToolCallTimeline? toolCallTimeline,
     AgentToolCallExecutionJournal? toolCallExecutionJournal,
     AgentToolCallReplayPlan? toolReplayPlan,
+    AgentRegistrySnapshot? agentRegistry,
     AgentToolSelection? toolCatalog,
     AgentToolPermissionPlan? toolPermissionPlan,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
@@ -1633,6 +1637,7 @@ class AgentSessionContext {
         toolCallTimeline == null &&
         toolCallExecutionJournal == null &&
         toolReplayPlan == null &&
+        agentRegistry == null &&
         toolCatalog == null &&
         toolPermissionPlan == null &&
         savedProviderProfileList.isEmpty &&
@@ -1690,6 +1695,7 @@ class AgentSessionContext {
         toolCallExecutionJournal:
             toolCallExecutionJournal ?? agent.toolCallExecutionJournal,
         toolReplayPlan: toolReplayPlan ?? agent.toolReplayPlan,
+        agentRegistry: agentRegistry ?? agent.agentRegistry,
         toolCatalog: toolCatalog ?? agent.toolCatalog,
         toolPermissionPlan: toolPermissionPlan ?? agent.toolPermissionPlan,
         savedProviderProfiles: savedProviderProfileList.isEmpty
@@ -1936,6 +1942,7 @@ class AgentCodingLoopContext {
     this.toolCallTimeline,
     this.toolCallExecutionJournal,
     this.toolReplayPlan,
+    this.agentRegistry = defaultAgentRegistrySnapshot,
     this.toolCatalog,
     this.toolPermissionPlan,
     this.savedProviderProfiles = const <AgentPromptProfileManifestEntry>[],
@@ -1974,6 +1981,7 @@ class AgentCodingLoopContext {
     AgentToolCallTimeline? toolCallTimeline,
     AgentToolCallExecutionJournal? toolCallExecutionJournal,
     AgentToolCallReplayPlan? toolReplayPlan,
+    AgentRegistrySnapshot agentRegistry = defaultAgentRegistrySnapshot,
     AgentToolSelection? toolCatalog,
     AgentToolPermissionPlan? toolPermissionPlan,
     Iterable<AgentPromptProfileManifestEntry> savedProviderProfiles =
@@ -2067,6 +2075,7 @@ class AgentCodingLoopContext {
       toolCallTimeline: toolCallTimeline,
       toolCallExecutionJournal: toolCallExecutionJournal,
       toolReplayPlan: toolReplayPlan,
+      agentRegistry: agentRegistry,
       toolCatalog: toolCatalog,
       toolPermissionPlan: toolPermissionPlan,
       savedProviderProfiles: savedProviderProfileList,
@@ -2108,6 +2117,7 @@ class AgentCodingLoopContext {
   final AgentToolCallTimeline? toolCallTimeline;
   final AgentToolCallExecutionJournal? toolCallExecutionJournal;
   final AgentToolCallReplayPlan? toolReplayPlan;
+  final AgentRegistrySnapshot agentRegistry;
   final AgentToolSelection? toolCatalog;
   final AgentToolPermissionPlan? toolPermissionPlan;
   final List<AgentPromptProfileManifestEntry> savedProviderProfiles;
@@ -2158,6 +2168,7 @@ class AgentCodingLoopContext {
       if (toolCallExecutionJournal != null)
         'toolCallExecutionJournal': toolCallExecutionJournal!.toJson(),
       if (toolReplayPlan != null) 'toolReplayPlan': toolReplayPlan!.toJson(),
+      'agentRegistry': agentRegistry.toJson(),
       if (toolCatalog != null) 'toolCatalog': toolCatalog!.toJson(),
       if (toolPermissionPlan != null)
         'toolPermissions': toolPermissionPlan!.toJson(),

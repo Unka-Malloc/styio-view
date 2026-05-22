@@ -42,6 +42,8 @@ void main() {
     );
     expect(decoded.systemPrompt, contains('schema-backed tool definitions'));
     expect(decoded.systemPrompt, contains('allow/deny/ask permission rules'));
+    expect(decoded.systemPrompt, contains('agent.agentRegistry'));
+    expect(decoded.systemPrompt, contains('subagentIds'));
     expect(
       decoded.systemPrompt,
       contains('ideCapabilityClosure.isRuntimeMature'),

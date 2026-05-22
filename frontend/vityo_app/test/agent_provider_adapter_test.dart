@@ -249,6 +249,7 @@ void main() {
     final editOperationSchemas = editItems['oneOf']! as List<Object?>;
     final plan = itemProperties['plan']! as Map<String, Object?>;
     final planProperties = plan['properties']! as Map<String, Object?>;
+    final planRisks = planProperties['risks']! as Map<String, Object?>;
     final diagnosticSummary =
         itemProperties['diagnosticSummary']! as Map<String, Object?>;
     final diagnosticProperties =
@@ -283,6 +284,7 @@ void main() {
     expect(plan['required'], contains('summary'));
     expect(plan['required'], contains('steps'));
     expect(planProperties['acceptanceCriteria'], isA<Map<String, Object?>>());
+    expect(planRisks['description'], isNot(contains('TODO')));
     expect(diagnosticSummary['required'], contains('severity'));
     expect(diagnosticSeverity['enum'], <String>['info', 'warning', 'error']);
     expect(diagnosticSuggestedCommandItem['enum'], commandId['enum']);

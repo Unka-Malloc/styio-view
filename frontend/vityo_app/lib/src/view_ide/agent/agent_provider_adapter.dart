@@ -1889,7 +1889,7 @@ Map<String, Object?> _vityoStructuredContentPartsSchema() {
                 },
                 'risks': <String, Object?>{
                   'type': 'array',
-                  'description': 'Known risks or TODO-level follow-up notes.',
+                  'description': 'Known risks or follow-up notes.',
                   'items': <String, Object?>{'type': 'string'},
                 },
               },

@@ -1884,6 +1884,23 @@ void main() {
       expect(metadata['lastPatchApplicationAppliedEditCount'], 1);
       expect(metadata['lastPatchApplicationChangedDocumentCount'], 1);
       expect(metadata['lastPatchApplicationSkippedNoOpDocumentCount'], 1);
+      final providerContractMessage = messages.first! as Map<String, Object?>;
+      expect(
+        providerContractMessage['content'],
+        contains('OpenCode-style explicit agent registries'),
+      );
+      expect(
+        providerContractMessage['content'],
+        contains('schema-backed tool definitions'),
+      );
+      expect(
+        providerContractMessage['content'],
+        contains('allow/deny/ask permission rules'),
+      );
+      expect(
+        providerContractMessage['content'],
+        contains('deferred capability entries'),
+      );
       final contextMessage = messages[1]! as Map<String, Object?>;
       expect(contextMessage['name'], 'vityo_ide_context');
       expect(

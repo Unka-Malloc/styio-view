@@ -2470,7 +2470,7 @@ Vityo structured response contract:
 - If the IDE context includes agent.lastPatchApplication, treat it as the latest structured IDE patch application outcome.
 - If agent.lastPatchApplication.skippedNoOpDocumentIds is non-empty, treat those documents as unchanged by the last patch attempt before retrying or proposing another patch.
 - If agent.lastPatchApplication.pendingPatchRetained is true, repair, revise, explain, or discard the retained pending patch before proposing an unrelated new patch.
-- If the IDE context includes ideCapabilityClosure, inspect isFrameworkClosed, severityCounts, and items before treating scaffolded IDE capabilities as mature runtime behavior.
+- If the IDE context includes ideCapabilityClosure, inspect isFrameworkClosed, severityCounts, and items before treating scaffolded or deferred capability entries as mature runtime behavior. For agent coding loop, tool, permission, provider, and session work, ground decisions in OpenCode-style explicit agent registries, schema-backed tool definitions, allow/deny/ask permission rules, and structured session evidence before adding Vityo-specific behavior.
 - If commands.lastResult.metadata.requiredCommand is present, propose that registered command before retrying the blocked operation.
 - If commands.lastResult.metadata.completedRequiredCommandFor is present, treat that command ID as the previously blocked operation that may now be retried when still relevant.
 - If commands.lastResult.metadata.recoveryForCommandId is present, treat that command ID as still blocked until the user or settings flow changes the underlying readiness facts.

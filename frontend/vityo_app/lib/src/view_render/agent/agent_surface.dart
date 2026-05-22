@@ -2508,6 +2508,8 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
         final recoveryAuditSummary = controller.sessionHistorySnapshot
             .toRecoveryContext()
             .auditSummary;
+        final recoveryActionBlockedByAudit =
+            recoveryAuditSummary?.requiresUserReview == true;
         final recoveryCommand =
             recoveryPlan.status == AgentCodingSessionRecoveryStatus.available
             ? recoveryPlan.commandFor(recoveryPlan.recommendedAction)
@@ -2924,6 +2926,18 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                               style: theme.textTheme.bodySmall,
                             ),
                           ),
+                        if (recoveryActionBlockedByAudit) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Resolve the audit review before running provider recovery.',
+                            key: const ValueKey(
+                              'agent-recovery-audit-provider-recovery-block',
+                            ),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                        ],
                       ],
                       if (recoveryValidationSummary != null) ...[
                         const SizedBox(height: 6),
@@ -3099,6 +3113,7 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                             onPressed:
                                 applyingAction ||
                                     controller.sending ||
+                                    recoveryActionBlockedByAudit ||
                                     (recoveryCommand
                                             .requiresProviderSelection &&
                                         _recoveryProviderProfileKeyFor(

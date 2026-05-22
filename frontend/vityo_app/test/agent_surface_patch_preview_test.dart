@@ -287,6 +287,16 @@ void main() {
       find.byKey(const ValueKey('agent-recovery-audit-blocking-issues')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(
+        const ValueKey('agent-recovery-audit-provider-recovery-block'),
+      ),
+      findsOneWidget,
+    );
+    final runRecoveryButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Run Recovery'),
+    );
+    expect(runRecoveryButton.onPressed, isNull);
     expect(find.text('Validation failed commands: runTests'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-recovery-validation-failure-evidence')),

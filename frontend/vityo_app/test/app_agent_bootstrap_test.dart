@@ -165,6 +165,120 @@ void main() {
   );
 
   test(
+    'agent bootstrap wires extension tools through rpc transport catalog',
+    () async {
+      final manifestRegistry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'agent.tools',
+            displayName: 'Agent Tools',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'agent_tools.dart',
+            activationEvents: <String>['onCommand:collectContext'],
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'local-process'},
+            contributions: <ExtensionContributionPoint>[
+              ExtensionContributionPoint(
+                kind: ExtensionContributionKind.agent,
+                id: 'collect-extension-context',
+                target: 'agent.tools',
+                metadata: <String, Object?>{
+                  'toolId': 'collectExtensionContext',
+                  'handlerId': 'collect-context',
+                  'permissionMode': 'never',
+                },
+              ),
+            ],
+          ),
+        );
+      final routes = const ExtensionContributionRouter().routeRegistry(
+        manifestRegistry,
+      );
+      final session = ExtensionActivator(
+        clock: () => DateTime.utc(2026, 5, 22),
+      ).activate(registry: manifestRegistry, event: 'onCommand:collectContext');
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 22, 1),
+      ).applyActivation(registry: manifestRegistry, session: session);
+      final buffer = RuntimeOutputLiveBuffer();
+      ExtensionAgentToolHostRpcRequest? rpcRequest;
+      final executionRegistry =
+          AppBootstrap.createAgentExtensionToolExecutionRegistry(
+            extensionContributionRoutes: routes,
+            extensionHostSupervisorSnapshot: snapshot,
+            runtimeOutputBuffer: buffer,
+            extensionManifestRegistry: manifestRegistry,
+            rpcTransports:
+                <
+                  ExtensionHostSupervisorAction,
+                  ExtensionAgentToolHostRpcTransport
+                >{
+                  ExtensionHostSupervisorAction.spawnLocalProcess:
+                      (request) async {
+                        rpcRequest = request;
+                        return AgentToolCallDispatchResult.success(
+                          callId: request.toolCall.callId,
+                          toolId: request.toolCall.toolId,
+                          output: '{"extension":"bootstrap-rpc"}',
+                          metadata: <String, Object?>{
+                            'requestAction': request.action.wireValue,
+                          },
+                        );
+                      },
+                },
+            rpcTransportEndpoints:
+                const <ExtensionHostSupervisorAction, String>{
+                  ExtensionHostSupervisorAction.spawnLocalProcess:
+                      'proc://agent.tools',
+                },
+            rpcTransportMetadataByAction:
+                const <ExtensionHostSupervisorAction, Map<String, Object?>>{
+                  ExtensionHostSupervisorAction.spawnLocalProcess:
+                      <String, Object?>{'sandbox': 'local-process'},
+                },
+          );
+      final transportCatalog =
+          AppBootstrap.createExtensionAgentToolRpcTransportCatalog(
+            extensionContributionRoutes: routes,
+            snapshot: snapshot,
+            rpcTransports:
+                <
+                  ExtensionHostSupervisorAction,
+                  ExtensionAgentToolHostRpcTransport
+                >{
+                  ExtensionHostSupervisorAction.spawnLocalProcess: (_) async {
+                    return const AgentToolCallDispatchResult.success(
+                      callId: 'catalog-only',
+                      toolId: 'collectExtensionContext',
+                      output: '{}',
+                    );
+                  },
+                },
+          );
+
+      final result = await executionRegistry!.dispatch(
+        const AgentToolCallDispatchRequest(
+          callId: 'call-extension-context',
+          toolId: 'collectExtensionContext',
+          inputText: '{}',
+        ),
+      );
+
+      expect(transportCatalog.ready, isTrue);
+      expect(transportCatalog.toJson()['registrationCount'], 1);
+      expect(result.success, isTrue);
+      expect(result.output, '{"extension":"bootstrap-rpc"}');
+      expect(result.metadata['transportId'], 'local-process-rpc');
+      expect(result.metadata['endpoint'], 'proc://agent.tools');
+      expect(result.metadata['sandbox'], 'local-process');
+      expect(result.metadata['requestAction'], 'spawn-local-process');
+      expect(rpcRequest?.handlerId, 'collect-context');
+      expect(buffer.snapshot.visibleEvents, isNotEmpty);
+    },
+  );
+
+  test(
     'agent bootstrap prefers explicit tool registry over extension routes',
     () async {
       final controller = await AppBootstrap.createAgentCodingSessionController(

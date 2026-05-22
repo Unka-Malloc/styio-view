@@ -615,6 +615,27 @@ class AppBootstrap {
   createAgentExtensionToolExecutionRegistry({
     ExtensionContributionRouteManifest? extensionContributionRoutes,
     ExtensionAgentToolHostBridge? hostBridge,
+    ExtensionHostSupervisorSnapshot? extensionHostSupervisorSnapshot,
+    RuntimeOutputLiveBuffer? runtimeOutputBuffer,
+    ExtensionManifestRegistry? extensionManifestRegistry,
+    ExtensionHostSupervisorExecutionBridge? extensionHostSupervisorBridge,
+    Map<ExtensionHostSupervisorAction, ExtensionAgentToolHostRpcTransport>
+        rpcTransports =
+        const <
+          ExtensionHostSupervisorAction,
+          ExtensionAgentToolHostRpcTransport
+        >{},
+    Map<ExtensionHostSupervisorAction, String> rpcTransportIds =
+        const <ExtensionHostSupervisorAction, String>{},
+    Map<ExtensionHostSupervisorAction, String> rpcTransportLabels =
+        const <ExtensionHostSupervisorAction, String>{},
+    Map<ExtensionHostSupervisorAction, String> rpcTransportEndpoints =
+        const <ExtensionHostSupervisorAction, String>{},
+    Map<ExtensionHostSupervisorAction, Map<String, Object?>>
+        rpcTransportMetadataByAction =
+        const <ExtensionHostSupervisorAction, Map<String, Object?>>{},
+    DateTime Function()? clock,
+    Map<String, Object?> hostBridgeMetadata = const <String, Object?>{},
     Map<String, ExtensionAgentToolHandler> handlers =
         const <String, ExtensionAgentToolHandler>{},
   }) {
@@ -624,16 +645,72 @@ class AppBootstrap {
     final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
       extensionContributionRoutes,
     );
-    if (hostBridge != null) {
+    var resolvedHostBridge = hostBridge;
+    if (resolvedHostBridge == null &&
+        extensionHostSupervisorSnapshot != null &&
+        runtimeOutputBuffer != null) {
+      final transportCatalog = createExtensionAgentToolRpcTransportCatalog(
+        extensionContributionRoutes: extensionContributionRoutes,
+        snapshot: extensionHostSupervisorSnapshot,
+        rpcTransports: rpcTransports,
+        rpcTransportIds: rpcTransportIds,
+        rpcTransportLabels: rpcTransportLabels,
+        rpcTransportEndpoints: rpcTransportEndpoints,
+        rpcTransportMetadataByAction: rpcTransportMetadataByAction,
+      );
+      resolvedHostBridge = createExtensionAgentToolHostBridge(
+        snapshot: extensionHostSupervisorSnapshot,
+        buffer: runtimeOutputBuffer,
+        manifestRegistry: extensionManifestRegistry,
+        supervisorBridge: extensionHostSupervisorBridge,
+        invoker: transportCatalog.toRegistry().invoke,
+        clock: clock,
+        metadata: hostBridgeMetadata,
+      );
+    }
+    if (resolvedHostBridge != null) {
       return ExtensionAgentToolExecutionRegistry.fromHostBridge(
         catalog: catalog,
-        hostBridge: hostBridge,
+        hostBridge: resolvedHostBridge,
         handlers: handlers,
       );
     }
     return ExtensionAgentToolExecutionRegistry(
       catalog: catalog,
       handlers: handlers,
+    );
+  }
+
+  @visibleForTesting
+  static ExtensionAgentToolHostRpcTransportCatalog
+  createExtensionAgentToolRpcTransportCatalog({
+    required ExtensionContributionRouteManifest extensionContributionRoutes,
+    required ExtensionHostSupervisorSnapshot snapshot,
+    required Map<
+      ExtensionHostSupervisorAction,
+      ExtensionAgentToolHostRpcTransport
+    >
+    rpcTransports,
+    Map<ExtensionHostSupervisorAction, String> rpcTransportIds =
+        const <ExtensionHostSupervisorAction, String>{},
+    Map<ExtensionHostSupervisorAction, String> rpcTransportLabels =
+        const <ExtensionHostSupervisorAction, String>{},
+    Map<ExtensionHostSupervisorAction, String> rpcTransportEndpoints =
+        const <ExtensionHostSupervisorAction, String>{},
+    Map<ExtensionHostSupervisorAction, Map<String, Object?>>
+        rpcTransportMetadataByAction =
+        const <ExtensionHostSupervisorAction, Map<String, Object?>>{},
+  }) {
+    return ExtensionAgentToolHostRpcTransportCatalog.fromContributions(
+      catalog: ExtensionAgentToolContributionCatalog.fromRoutes(
+        extensionContributionRoutes,
+      ),
+      snapshot: snapshot,
+      transports: rpcTransports,
+      transportIds: rpcTransportIds,
+      labels: rpcTransportLabels,
+      endpoints: rpcTransportEndpoints,
+      metadataByAction: rpcTransportMetadataByAction,
     );
   }
 

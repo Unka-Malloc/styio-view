@@ -92,9 +92,10 @@ void main() {
     expect(
       readyToSend.todoItems,
       contains(
-        'TODO: attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
+        'Attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
       ),
     );
+    expect(readyToSend.todoItems.join('\n'), isNot(contains('TODO:')));
     expect(readyToSend.toJson()['status'], 'needsAttention');
   });
 

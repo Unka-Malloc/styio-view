@@ -32,9 +32,10 @@ void main() {
     expect(
       plan.todoItems,
       contains(
-        'TODO: attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
+        'Attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
       ),
     );
+    expect(plan.readiness.todoItems.join('\n'), isNot(contains('TODO:')));
     expect(json['status'], 'ready');
     expect(json['promptReady'], isTrue);
     expect(json['promptPreview'], 'Refactor this Styio diagnostic flow.');
@@ -55,10 +56,7 @@ void main() {
       skillsJson['activeSkillIds'],
       contains('styio-language-service-truth'),
     );
-    expect(
-      json.keys,
-      isNot(contains('uiBindingTodo')),
-    );
+    expect(json.keys, isNot(contains('uiBindingTodo')));
     expect(
       plan.todoItems.join('\n'),
       isNot(contains('Agent Surface provider picker')),
@@ -93,7 +91,7 @@ void main() {
     expect(
       plan.todoItems,
       contains(
-        'TODO: resolve provider credentials, endpoint reachability, or route execution before dispatching agent coding requests.',
+        'Resolve provider credentials, endpoint reachability, or route execution before dispatching agent coding requests.',
       ),
     );
   });

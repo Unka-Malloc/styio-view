@@ -97,9 +97,7 @@ class AgentCodingExecutionReadiness {
   const AgentCodingExecutionReadiness.unknown()
     : status = AgentCodingExecutionReadinessStatus.unknown,
       issues = const <AgentCodingExecutionReadinessIssue>[],
-      todoItems = const <String>[
-        'TODO: bind the agent coding readiness gate to live IDE facts.',
-      ];
+      todoItems = const <String>[];
 
   factory AgentCodingExecutionReadiness.fromIdeFacts({
     required AgentProviderExecutionResolution? providerExecutionResolution,
@@ -119,7 +117,7 @@ class AgentCodingExecutionReadiness {
           severity: AgentCodingExecutionReadinessIssueSeverity.attention,
           ownerLayer: 'service',
           todo:
-              'TODO: attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
+              'Attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
         ),
       );
     } else {
@@ -132,7 +130,7 @@ class AgentCodingExecutionReadiness {
             severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
             ownerLayer: 'service',
             todo:
-                'TODO: resolve provider credentials, endpoint reachability, or route execution before dispatching agent coding requests.',
+                'Resolve provider credentials, endpoint reachability, or route execution before dispatching agent coding requests.',
           ),
         );
       } else if (!providerHealth.ready) {
@@ -154,7 +152,7 @@ class AgentCodingExecutionReadiness {
           severity: AgentCodingExecutionReadinessIssueSeverity.attention,
           ownerLayer: 'service',
           todo:
-              'TODO: attach StyioService capability detector output before autonomous edits.',
+              'Attach StyioService capability detector output before autonomous edits.',
         ),
       );
     } else {
@@ -167,7 +165,7 @@ class AgentCodingExecutionReadiness {
             severity: AgentCodingExecutionReadinessIssueSeverity.attention,
             ownerLayer: 'service',
             todo:
-                'TODO: wait for SemanticSnapshot refresh or fall back to syntax-only assistance.',
+                'Wait for SemanticSnapshot refresh or fall back to syntax-only assistance.',
           ),
         );
       }
@@ -182,7 +180,7 @@ class AgentCodingExecutionReadiness {
             severity: AgentCodingExecutionReadinessIssueSeverity.attention,
             ownerLayer: 'service',
             todo:
-                'TODO: route capability recovery through Capability Detector and Settings UI.',
+                'Route capability recovery through Capability Detector and Settings UI.',
           ),
         );
       }
@@ -196,8 +194,7 @@ class AgentCodingExecutionReadiness {
               'Workspace has ${dirtyDocuments.length} dirty document(s); edits require conflict review.',
           severity: AgentCodingExecutionReadinessIssueSeverity.attention,
           ownerLayer: 'interaction',
-          todo:
-              'TODO: bind dirty document conflict review to Editor File Binding.',
+          todo: 'Bind dirty document conflict review to Editor File Binding.',
         ),
       );
     }
@@ -209,7 +206,7 @@ class AgentCodingExecutionReadiness {
           severity: AgentCodingExecutionReadinessIssueSeverity.attention,
           ownerLayer: 'interaction',
           todo:
-              'TODO: require the patch review surface to resolve pending edits first.',
+              'Require the patch review surface to resolve pending edits first.',
         ),
       );
     }
@@ -222,7 +219,7 @@ class AgentCodingExecutionReadiness {
           severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
           ownerLayer: 'foundation',
           todo:
-              'TODO: close runtime-contract blockers before enabling autonomous apply.',
+              'Close runtime-contract blockers before enabling autonomous apply.',
         ),
       );
     }
@@ -266,7 +263,7 @@ class AgentCodingExecutionReadiness {
           severity: AgentCodingExecutionReadinessIssueSeverity.attention,
           ownerLayer: 'service',
           todo:
-              'TODO: attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
+              'Attach provider execution resolution so Agent Surface can report endpoint health before autonomous provider requests.',
         ),
       );
     } else {
@@ -279,7 +276,7 @@ class AgentCodingExecutionReadiness {
             severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
             ownerLayer: 'service',
             todo:
-                'TODO: resolve provider credentials, endpoint reachability, or route execution before dispatching agent coding requests.',
+                'Resolve provider credentials, endpoint reachability, or route execution before dispatching agent coding requests.',
           ),
         );
       } else if (!providerHealth.ready) {
@@ -346,7 +343,7 @@ class AgentCodingExecutionReadiness {
           severity: AgentCodingExecutionReadinessIssueSeverity.attention,
           ownerLayer: 'interaction',
           todo:
-              'TODO: connect prompt readiness to command palette and agent input UI.',
+              'Connect prompt readiness to command palette and agent input UI.',
         ),
       );
     }

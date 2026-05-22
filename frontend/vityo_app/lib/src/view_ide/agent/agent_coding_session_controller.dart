@@ -18,7 +18,6 @@ import 'agent_tool_call_execution_journal.dart';
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
-import 'agent_tool_call_stream_bridge.dart';
 import 'agent_tool_session_processor.dart';
 import 'agent_tool_session_transcript.dart';
 import 'agent_tool_permission.dart';
@@ -174,8 +173,6 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentWorkspaceRevertPlan? _lastWorkspaceRevertPlan;
   final AgentToolSessionProcessor _toolSessionProcessor =
       const AgentToolSessionProcessor();
-  final AgentProviderToolCallStreamBridge _toolCallStreamBridge =
-      const AgentProviderToolCallStreamBridge();
   AgentToolCallTimeline _toolCallTimeline = AgentToolCallTimeline.empty();
   AgentToolCallExecutionJournal _toolCallExecutionJournal =
       AgentToolCallExecutionJournal.fromTimeline(
@@ -1052,7 +1049,9 @@ class AgentCodingSessionController extends ChangeNotifier {
         _runtimeOutputBuffer?.addEvent(event);
       },
       onProviderEvent: (event) {
-        final toolCallEvent = _toolCallStreamBridge.eventFor(event);
+        final toolCallEvent = _toolSessionProcessor.eventForProviderStream(
+          event,
+        );
         if (toolCallEvent != null) {
           recordToolCallEvent(toolCallEvent);
         }

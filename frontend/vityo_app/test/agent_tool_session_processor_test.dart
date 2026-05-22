@@ -193,4 +193,25 @@ void main() {
     expect(result.metadata['reviewDecision'], 'denied');
     expect(result.metadata['recoveryAction'], 'reviseToolRequest');
   });
+
+  test('tool session processor maps provider stream events', () {
+    const processor = AgentToolSessionProcessor();
+
+    final event = processor.eventForProviderStream(
+      AgentProviderStreamEvent.completed(
+        requestId: 'request-1',
+        metadata: const <String, Object?>{
+          'toolCallEventKind': 'tool-result',
+          'toolCallId': 'call-read',
+          'toolId': 'readWorkspaceFile',
+          'toolResult': 'value = 1',
+        },
+      ),
+    );
+
+    expect(event?.kind, AgentToolCallEventKind.result);
+    expect(event?.callId, 'call-read');
+    expect(event?.toolId, 'readWorkspaceFile');
+    expect(event?.result, 'value = 1');
+  });
 }

@@ -1,8 +1,10 @@
+import 'agent_provider_adapter.dart';
 import 'agent_tool_call_dispatcher.dart';
 import 'agent_tool_call_execution_journal.dart';
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
+import 'agent_tool_call_stream_bridge.dart';
 import 'agent_tool_session_transcript.dart';
 
 enum AgentToolResultContinuationPlanStatus { unavailable, ready }
@@ -60,9 +62,11 @@ class AgentToolResultContinuationPlan {
 class AgentToolSessionProcessor {
   const AgentToolSessionProcessor({
     this.lifecycleTracker = const AgentToolCallLifecycleTracker(),
+    this.streamBridge = const AgentProviderToolCallStreamBridge(),
   });
 
   final AgentToolCallLifecycleTracker lifecycleTracker;
+  final AgentProviderToolCallStreamBridge streamBridge;
 
   AgentToolCallTimeline applyEvent(
     AgentToolCallTimeline timeline,
@@ -80,6 +84,16 @@ class AgentToolSessionProcessor {
       next = lifecycleTracker.apply(next, event);
     }
     return next;
+  }
+
+  AgentToolCallEvent? eventForProviderStream(AgentProviderStreamEvent event) {
+    return streamBridge.eventFor(event);
+  }
+
+  List<AgentToolCallEvent> eventsForProviderStream(
+    Iterable<AgentProviderStreamEvent> events,
+  ) {
+    return streamBridge.eventsFor(events);
   }
 
   AgentToolCallExecutionJournal buildJournal({

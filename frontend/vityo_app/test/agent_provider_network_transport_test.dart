@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
 import 'package:vityo_app/src/agent/agent_provider_network_transport.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_lifecycle.dart';
+import 'package:vityo_app/src/agent/agent_tool_call_stream_bridge.dart';
 import 'package:vityo_app/src/view_ide/environment/system_compatibility/network/network.dart';
 
 void main() {
@@ -232,6 +234,46 @@ void main() {
   );
 
   test(
+    'network agent provider transport streams Chat Completions tool calls',
+    () async {
+      final network = _StreamingAgentNetworkManager(
+        chunks: const <String>[
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-read","function":{"name":"readWorkspaceFile","arguments":"{\\"path\\""}}]}}]}\n\n',
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":":\\"main.styio\\"}"}}]},"finish_reason":"tool_calls"}]}\n\n',
+        ],
+      );
+      final transport = createNetworkAgentProviderTransport(
+        networkManager: network,
+      );
+
+      final events = await (transport as StreamingAgentProviderTransport)
+          .postJsonStream(
+            requestId: 'agent-stream-chat-tool',
+            endpoint: _endpoint,
+            headers: const <String, String>{'Content-Type': 'application/json'},
+            body: const <String, Object?>{'model': 'gpt-test', 'stream': true},
+          )
+          .toList();
+      final toolEvents = const AgentProviderToolCallStreamBridge().eventsFor(
+        events,
+      );
+
+      expect(toolEvents.map((event) => event.kind), <AgentToolCallEventKind>[
+        AgentToolCallEventKind.inputStart,
+        AgentToolCallEventKind.inputDelta,
+        AgentToolCallEventKind.inputDelta,
+        AgentToolCallEventKind.inputEnd,
+        AgentToolCallEventKind.callStarted,
+      ]);
+      expect(toolEvents.last.callId, 'call-read');
+      expect(toolEvents.last.toolId, 'readWorkspaceFile');
+      expect(toolEvents.last.input, '{"path":"main.styio"}');
+      expect(events.last.kind, AgentProviderStreamEventKind.completed);
+      expect(events.last.metadata['finishReason'], 'tool_calls');
+    },
+  );
+
+  test(
     'network agent provider transport streams OpenAI Responses deltas',
     () async {
       final network = _StreamingAgentNetworkManager(
@@ -261,6 +303,45 @@ void main() {
       });
     },
   );
+
+  test('network agent provider transport streams Responses function calls', () async {
+    final network = _StreamingAgentNetworkManager(
+      chunks: const <String>[
+        'data: {"type":"response.output_item.added","output_index":0,"item":{"id":"fc-1","type":"function_call","call_id":"call-write","name":"writeWorkspaceFile","arguments":""}}\n\n',
+        'data: {"type":"response.function_call_arguments.delta","item_id":"fc-1","output_index":0,"delta":"{\\"path\\":\\"main.styio\\""}\n\n',
+        'data: {"type":"response.function_call_arguments.delta","item_id":"fc-1","output_index":0,"delta":",\\"text\\":\\"value := 2\\"}"}\n\n',
+        'data: {"type":"response.function_call_arguments.done","item_id":"fc-1","output_index":0,"arguments":"{\\"path\\":\\"main.styio\\",\\"text\\":\\"value := 2\\"}"}\n\n',
+        'data: {"type":"response.completed","response":{"usage":{"outputTokens":2}}}\n\n',
+      ],
+    );
+    final transport = createNetworkAgentProviderTransport(
+      networkManager: network,
+    );
+
+    final events = await (transport as StreamingAgentProviderTransport)
+        .postJsonStream(
+          requestId: 'agent-stream-responses-tool',
+          endpoint: _endpoint,
+          headers: const <String, String>{'Content-Type': 'application/json'},
+          body: const <String, Object?>{'model': 'gpt-5.3-codex-spark'},
+        )
+        .toList();
+    final toolEvents = const AgentProviderToolCallStreamBridge().eventsFor(
+      events,
+    );
+
+    expect(toolEvents.map((event) => event.kind), <AgentToolCallEventKind>[
+      AgentToolCallEventKind.inputStart,
+      AgentToolCallEventKind.inputDelta,
+      AgentToolCallEventKind.inputDelta,
+      AgentToolCallEventKind.inputEnd,
+      AgentToolCallEventKind.callStarted,
+    ]);
+    expect(toolEvents.last.callId, 'call-write');
+    expect(toolEvents.last.toolId, 'writeWorkspaceFile');
+    expect(toolEvents.last.input, '{"path":"main.styio","text":"value := 2"}');
+    expect(events.last.kind, AgentProviderStreamEventKind.completed);
+  });
 }
 
 final _endpoint = Uri.parse('https://agent.example.test/chat/completions');

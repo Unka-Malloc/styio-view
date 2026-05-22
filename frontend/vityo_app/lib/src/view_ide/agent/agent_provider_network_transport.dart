@@ -245,6 +245,10 @@ class _OpenAICompatibleSseDecoder {
 
   final String requestId;
   final StringBuffer _buffer = StringBuffer();
+  final Map<int, _StreamingToolCallDraft> _chatToolDrafts =
+      <int, _StreamingToolCallDraft>{};
+  final Map<String, _StreamingToolCallDraft> _responsesToolDrafts =
+      <String, _StreamingToolCallDraft>{};
   var _completed = false;
 
   Iterable<AgentProviderStreamEvent> add(String chunk) sync* {
@@ -335,7 +339,24 @@ class _OpenAICompatibleSseDecoder {
       }
       return;
     }
+    if (responseType == 'response.output_item.added') {
+      yield* _eventsForResponsesOutputItem(payload, inputReady: false);
+      return;
+    }
+    if (responseType == 'response.function_call_arguments.delta') {
+      yield* _eventsForResponsesArgumentDelta(payload);
+      return;
+    }
+    if (responseType == 'response.function_call_arguments.done') {
+      yield* _eventsForResponsesArgumentDone(payload);
+      return;
+    }
+    if (responseType == 'response.output_item.done') {
+      yield* _eventsForResponsesOutputItem(payload, inputReady: true);
+      return;
+    }
     if (responseType == 'response.completed') {
+      yield* _completePendingToolCalls(_responsesToolDrafts.values);
       final response = _objectMap(payload['response']);
       final event = _complete(<String, Object?>{
         'finishReason': 'stop',
@@ -369,6 +390,7 @@ class _OpenAICompatibleSseDecoder {
     }
     for (final choiceValue in choices) {
       final choice = _objectMap(choiceValue);
+      yield* _eventsForChatToolCallDeltas(choice);
       final delta = _objectMap(choice['delta']);
       final content = delta['content'];
       if (content is String && content.isNotEmpty) {
@@ -379,6 +401,9 @@ class _OpenAICompatibleSseDecoder {
       }
       final finishReason = choice['finish_reason'] ?? choice['finishReason'];
       if (finishReason is String && finishReason.trim().isNotEmpty) {
+        if (finishReason.trim() == 'tool_calls') {
+          yield* _completePendingToolCalls(_chatToolDrafts.values);
+        }
         final event = _complete(<String, Object?>{
           'finishReason': finishReason.trim(),
           'streamTransport': 'network_sse',
@@ -389,6 +414,223 @@ class _OpenAICompatibleSseDecoder {
         }
       }
     }
+  }
+
+  Iterable<AgentProviderStreamEvent> _eventsForChatToolCallDeltas(
+    Map<String, Object?> choice,
+  ) sync* {
+    final delta = _objectMap(choice['delta']);
+    final toolCalls = delta['tool_calls'];
+    if (toolCalls is! List) {
+      return;
+    }
+    for (final value in toolCalls) {
+      final toolCall = _objectMap(value);
+      final index = _intFromObject(toolCall['index']) ?? _chatToolDrafts.length;
+      final function = _objectMap(toolCall['function']);
+      final toolId = _stringFromObject(function['name']);
+      final callId =
+          _stringFromObject(toolCall['id']) ??
+          _chatToolDrafts[index]?.callId ??
+          '${toolId ?? 'tool'}-$index';
+      final draft = _chatToolDrafts.putIfAbsent(
+        index,
+        () => _StreamingToolCallDraft(
+          callId: callId,
+          source: 'openai-compatible-stream-tool-call',
+          index: index,
+        ),
+      );
+      if (toolId != null && toolId.isNotEmpty) {
+        draft.toolId = toolId;
+      }
+      if (!draft.inputStarted) {
+        draft.inputStarted = true;
+        yield _toolStreamEvent(
+          kind: 'tool-input-start',
+          draft: draft,
+          providerEventType: 'chat.completion.chunk',
+        );
+      }
+      final arguments = _stringFromObject(function['arguments']);
+      if (arguments != null && arguments.isNotEmpty) {
+        draft.input.write(arguments);
+        yield _toolStreamEvent(
+          kind: 'tool-input-delta',
+          draft: draft,
+          inputDelta: arguments,
+          providerEventType: 'chat.completion.chunk',
+        );
+      }
+    }
+  }
+
+  Iterable<AgentProviderStreamEvent> _eventsForResponsesArgumentDelta(
+    Map<String, Object?> payload,
+  ) sync* {
+    final draft = _responsesDraftForPayload(payload);
+    final delta = _stringFromObject(payload['delta']);
+    if (delta == null || delta.isEmpty) {
+      return;
+    }
+    if (!draft.inputStarted) {
+      draft.inputStarted = true;
+      yield _toolStreamEvent(
+        kind: 'tool-input-start',
+        draft: draft,
+        providerEventType: payload['type'] as String?,
+      );
+    }
+    draft.input.write(delta);
+    yield _toolStreamEvent(
+      kind: 'tool-input-delta',
+      draft: draft,
+      inputDelta: delta,
+      providerEventType: payload['type'] as String?,
+    );
+  }
+
+  Iterable<AgentProviderStreamEvent> _eventsForResponsesOutputItem(
+    Map<String, Object?> payload, {
+    required bool inputReady,
+  }) sync* {
+    final item = _objectMap(payload['item']);
+    final itemType = _stringFromObject(item['type']);
+    if (itemType != 'function_call') {
+      return;
+    }
+    final draft = _responsesDraftForPayload(payload, item: item);
+    final toolId = _stringFromObject(item['name']);
+    if (toolId != null && toolId.isNotEmpty) {
+      draft.toolId = toolId;
+    }
+    final arguments =
+        _stringFromObject(item['arguments']) ??
+        _stringFromObject(payload['arguments']);
+    if (!draft.inputStarted) {
+      draft.inputStarted = true;
+      yield _toolStreamEvent(
+        kind: 'tool-input-start',
+        draft: draft,
+        providerEventType: payload['type'] as String?,
+      );
+    }
+    if (arguments != null && arguments.isNotEmpty && draft.input.isEmpty) {
+      draft.input.write(arguments);
+      yield _toolStreamEvent(
+        kind: 'tool-input-delta',
+        draft: draft,
+        inputDelta: arguments,
+        providerEventType: payload['type'] as String?,
+      );
+    }
+    if (inputReady) {
+      yield* _completePendingToolCalls(<_StreamingToolCallDraft>[draft]);
+    }
+  }
+
+  Iterable<AgentProviderStreamEvent> _eventsForResponsesArgumentDone(
+    Map<String, Object?> payload,
+  ) sync* {
+    final draft = _responsesDraftForPayload(payload);
+    final arguments = _stringFromObject(payload['arguments']);
+    if (!draft.inputStarted) {
+      draft.inputStarted = true;
+      yield _toolStreamEvent(
+        kind: 'tool-input-start',
+        draft: draft,
+        providerEventType: payload['type'] as String?,
+      );
+    }
+    if (arguments != null && arguments.isNotEmpty && draft.input.isEmpty) {
+      draft.input.write(arguments);
+      yield _toolStreamEvent(
+        kind: 'tool-input-delta',
+        draft: draft,
+        inputDelta: arguments,
+        providerEventType: payload['type'] as String?,
+      );
+    }
+    yield* _completePendingToolCalls(<_StreamingToolCallDraft>[draft]);
+  }
+
+  _StreamingToolCallDraft _responsesDraftForPayload(
+    Map<String, Object?> payload, {
+    Map<String, Object?> item = const <String, Object?>{},
+  }) {
+    final outputIndex = _intFromObject(payload['output_index']);
+    final itemId =
+        _stringFromObject(payload['item_id']) ??
+        _stringFromObject(item['id']) ??
+        (outputIndex == null ? null : 'output-$outputIndex');
+    final callId =
+        _stringFromObject(item['call_id']) ??
+        _stringFromObject(payload['call_id']) ??
+        itemId ??
+        'responses-tool-${_responsesToolDrafts.length}';
+    final key = itemId ?? callId;
+    final existing = _responsesToolDrafts[key];
+    if (existing != null) {
+      return existing;
+    }
+    final draft = _StreamingToolCallDraft(
+      callId: callId,
+      source: 'openai-responses-stream-function-call',
+      index: outputIndex ?? _responsesToolDrafts.length,
+      itemId: itemId,
+    );
+    _responsesToolDrafts[key] = draft;
+    _responsesToolDrafts[callId] = draft;
+    if (itemId != null) {
+      _responsesToolDrafts[itemId] = draft;
+    }
+    return draft;
+  }
+
+  Iterable<AgentProviderStreamEvent> _completePendingToolCalls(
+    Iterable<_StreamingToolCallDraft> drafts,
+  ) sync* {
+    final unique = <String, _StreamingToolCallDraft>{};
+    for (final draft in drafts) {
+      unique[draft.callId] = draft;
+    }
+    for (final draft in unique.values) {
+      if (draft.completed) {
+        continue;
+      }
+      draft.completed = true;
+      final input = draft.input.toString();
+      yield _toolStreamEvent(
+        kind: 'tool-input-end',
+        draft: draft,
+        input: input,
+      );
+      yield _toolStreamEvent(kind: 'tool-call', draft: draft, input: input);
+    }
+  }
+
+  AgentProviderStreamEvent _toolStreamEvent({
+    required String kind,
+    required _StreamingToolCallDraft draft,
+    String? inputDelta,
+    String? input,
+    String? providerEventType,
+  }) {
+    return AgentProviderStreamEvent.delta(
+      requestId: requestId,
+      text: '',
+      metadata: <String, Object?>{
+        'toolCallEventKind': kind,
+        'toolCallId': draft.callId,
+        if (draft.toolId.isNotEmpty) 'toolId': draft.toolId,
+        if (inputDelta != null) 'toolInputDelta': inputDelta,
+        if (input != null) 'toolInput': input,
+        'source': draft.source,
+        'providerToolCallIndex': draft.index,
+        if (draft.itemId != null) 'providerOutputItemId': draft.itemId,
+        if (providerEventType != null) 'providerEventType': providerEventType,
+      },
+    );
   }
 
   AgentProviderStreamEvent? _complete(Map<String, Object?> metadata) {
@@ -403,6 +645,24 @@ class _OpenAICompatibleSseDecoder {
   }
 }
 
+class _StreamingToolCallDraft {
+  _StreamingToolCallDraft({
+    required this.callId,
+    required this.source,
+    required this.index,
+    this.itemId,
+  });
+
+  final String callId;
+  final String source;
+  final int index;
+  final String? itemId;
+  final StringBuffer input = StringBuffer();
+  var toolId = '';
+  var inputStarted = false;
+  var completed = false;
+}
+
 Map<String, Object?> _objectMap(Object? value) {
   if (value is Map<String, Object?>) {
     return value;
@@ -413,6 +673,26 @@ Map<String, Object?> _objectMap(Object? value) {
     );
   }
   return const <String, Object?>{};
+}
+
+String? _stringFromObject(Object? value) {
+  if (value is String) {
+    return value;
+  }
+  return null;
+}
+
+int? _intFromObject(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
+  return null;
 }
 
 AgentProviderTransportFailureKind _providerFailureKindForNetwork(

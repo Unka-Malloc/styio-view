@@ -384,6 +384,31 @@ class AgentCodingExecutionReadiness {
     );
   }
 
+  AgentCodingExecutionReadiness withLoopGuard(AgentCodingLoopGuard guard) {
+    if (!guard.blocked) {
+      return this;
+    }
+    final reason = guard.blockingReasons.isEmpty
+        ? 'Agent coding loop guard is blocked.'
+        : 'Agent coding loop guard is blocked: ${guard.blockingReasons.join(' ')}';
+    return AgentCodingExecutionReadiness._fromIssues(
+      <AgentCodingExecutionReadinessIssue>[
+        ...issues,
+        AgentCodingExecutionReadinessIssue(
+          code: 'agent.loop.guard.blocked',
+          message: reason,
+          severity: AgentCodingExecutionReadinessIssueSeverity.blocking,
+          ownerLayer: 'service',
+          todo: 'Require user review before continuing this agent loop.',
+        ),
+      ],
+      todoItems: <String>[
+        ...todoItems,
+        'Require user review before continuing this agent loop.',
+      ],
+    );
+  }
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'status': status.wireValue,

@@ -191,6 +191,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       <AgentToolPermissionRule>[];
   final List<AgentToolPermissionRule> _sessionToolPermissionRules =
       <AgentToolPermissionRule>[];
+  final Map<String, int> _agentRuntimeStepCounts = <String, int>{};
   final List<AgentRequestAttachment> _attachments = <AgentRequestAttachment>[];
   final List<AgentConversationTurn> _conversationTurns =
       <AgentConversationTurn>[];
@@ -319,12 +320,14 @@ class AgentCodingSessionController extends ChangeNotifier {
 
   bool get canSend => codingExecutionReadiness.canDispatchProviderRequest;
   AgentCodingExecutionReadiness get codingExecutionReadiness =>
-      _contextForProviderRequest().codingReadiness.withControllerState(
-        hasDraftPrompt: _draftPrompt.trim().isNotEmpty,
-        sending: _sending,
-        applyingPatch: _applyingPatch,
-        applyingIdeCommand: _applyingIdeCommand,
-      );
+      _contextForProviderRequest().codingReadiness
+          .withControllerState(
+            hasDraftPrompt: _draftPrompt.trim().isNotEmpty,
+            sending: _sending,
+            applyingPatch: _applyingPatch,
+            applyingIdeCommand: _applyingIdeCommand,
+          )
+          .withLoopGuard(_currentCodingLoopGuard());
   AgentCodingChangeReviewGate get codingChangeReviewGate =>
       AgentCodingChangeReviewGate.fromControllerState(
         hasPendingPatch: _pendingPatch != null,
@@ -375,12 +378,14 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentCodingDispatchPlan previewDispatchPlan() {
     final prompt = _draftPrompt.trim();
     final requestContext = _contextForProviderRequest();
-    final readiness = requestContext.codingReadiness.withControllerState(
-      hasDraftPrompt: prompt.isNotEmpty,
-      sending: _sending,
-      applyingPatch: _applyingPatch,
-      applyingIdeCommand: _applyingIdeCommand,
-    );
+    final readiness = requestContext.codingReadiness
+        .withControllerState(
+          hasDraftPrompt: prompt.isNotEmpty,
+          sending: _sending,
+          applyingPatch: _applyingPatch,
+          applyingIdeCommand: _applyingIdeCommand,
+        )
+        .withLoopGuard(_currentCodingLoopGuard());
     return AgentCodingDispatchPlan.fromContext(
       profile: profile,
       adapter: adapter,
@@ -896,12 +901,14 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
 
     final requestContext = _contextForProviderRequest();
-    final readiness = requestContext.codingReadiness.withControllerState(
-      hasDraftPrompt: true,
-      sending: _sending,
-      applyingPatch: _applyingPatch,
-      applyingIdeCommand: _applyingIdeCommand,
-    );
+    final readiness = requestContext.codingReadiness
+        .withControllerState(
+          hasDraftPrompt: true,
+          sending: _sending,
+          applyingPatch: _applyingPatch,
+          applyingIdeCommand: _applyingIdeCommand,
+        )
+        .withLoopGuard(_currentCodingLoopGuard());
     if (!readiness.canDispatchProviderRequest) {
       _lastError = sanitizeAgentError(_agentReadinessBlockMessage(readiness));
       final blockedAt = DateTime.now().toUtc();
@@ -983,6 +990,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       }
       _appendConversationTurn(role: AgentConversationRole.user, text: prompt);
       _appendAssistantTurn(response);
+      _recordActiveAgentRuntimeStep();
       _recentToolCallResultContexts.clear();
       _draftPrompt = '';
       _attachments.clear();
@@ -1239,6 +1247,7 @@ class AgentCodingSessionController extends ChangeNotifier {
     _recentIdeCommandSuggestionContexts.clear();
     _toolCallTimeline = AgentToolCallTimeline.empty();
     _toolCallReviewDecisions.clear();
+    _agentRuntimeStepCounts.clear();
     _lastError = null;
     _lastProviderFailure = null;
     notifyListeners();
@@ -1950,13 +1959,30 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   AgentCodingLoopGuard _currentCodingLoopGuard() {
+    final activeAgent = agentRegistrySnapshot.activeAgent;
     return AgentCodingLoopGuard.fromSignals(
       toolReplayReportCount: _latestToolReplayReportCount(),
       failedToolResultCount: _recentToolCallResultContexts
           .where((result) => !result.success)
           .length,
+      agentStepCount: _activeAgentRuntimeStepCount(),
+      maxAgentSteps: activeAgent?.maxSteps,
+      activeAgentId: activeAgent?.agentId ?? activeAgentId,
       hasProviderFailure: _lastProviderFailure != null,
     );
+  }
+
+  int _activeAgentRuntimeStepCount() {
+    return _agentRuntimeStepCounts[activeAgentId] ?? 0;
+  }
+
+  void _recordActiveAgentRuntimeStep() {
+    final agentId = activeAgentId.trim();
+    if (agentId.isEmpty) {
+      return;
+    }
+    _agentRuntimeStepCounts[agentId] =
+        (_agentRuntimeStepCounts[agentId] ?? 0) + 1;
   }
 
   AgentWorkspaceCheckpointContext? _workspaceCheckpointContext() {

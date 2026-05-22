@@ -158,6 +158,57 @@ void main() {
     );
   });
 
+  test('agent coding session blocks active agent after max steps', () async {
+    final adapter = _FakeAgentProviderAdapter(
+      kind: AgentProviderKind.cloudOpenAICompatible,
+      response: const AgentProviderResponseEnvelope(
+        requestId: 'agent-request-step-limit',
+        role: 'assistant',
+        finishReason: 'stop',
+        contentParts: <AgentContentPart>[
+          AgentContentPart(kind: AgentContentPartKind.text, text: 'Step done.'),
+        ],
+      ),
+    );
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      ),
+      adapter: adapter,
+      contextProvider: _context,
+      agentRegistry: AgentRegistry(
+        defaultAgentId: 'single-step-agent',
+        agents: const <AgentRuntimeDefinition>[
+          AgentRuntimeDefinition(
+            agentId: 'single-step-agent',
+            displayName: 'Single Step Agent',
+            mode: AgentRuntimeMode.primary,
+            maxSteps: 1,
+          ),
+        ],
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    controller.updatePrompt('Run the first step.');
+    final first = await controller.sendPrompt();
+
+    expect(first, isNotNull);
+    expect(controller.codingLoopGuard.blocked, isTrue);
+    expect(
+      controller.codingLoopGuard.blockingReasons,
+      contains('agent.loop.maxSteps:single-step-agent:1/1'),
+    );
+
+    controller.updatePrompt('Run another step.');
+    expect(controller.canSend, isFalse);
+    final second = await controller.sendPrompt();
+
+    expect(second, isNull);
+    expect(adapter.requests, hasLength(1));
+    expect(controller.lastError, contains('agent.loop.guard.blocked'));
+  });
+
   test(
     'agent runtime permission rules take precedence over session approvals',
     () {

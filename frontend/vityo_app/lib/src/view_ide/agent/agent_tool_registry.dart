@@ -54,6 +54,7 @@ class AgentToolDefinition {
     this.supportedModelPatterns = const <String>[],
     this.capabilities = const <String>[],
     this.schema = const <AgentToolSchemaProperty>[],
+    this.resultSchema = const <AgentToolSchemaProperty>[],
     this.permissionMode = AgentToolPermissionMode.review,
     this.outputLimit,
     this.providerOutputLimits = const <AgentProviderKind, int>{},
@@ -70,6 +71,7 @@ class AgentToolDefinition {
   final List<String> supportedModelPatterns;
   final List<String> capabilities;
   final List<AgentToolSchemaProperty> schema;
+  final List<AgentToolSchemaProperty> resultSchema;
   final AgentToolPermissionMode permissionMode;
   final int? outputLimit;
   final Map<AgentProviderKind, int> providerOutputLimits;
@@ -111,17 +113,17 @@ class AgentToolDefinition {
   Map<String, Object?> parametersJsonSchema({
     bool additionalProperties = false,
   }) {
-    return <String, Object?>{
-      'type': 'object',
-      'additionalProperties': additionalProperties,
-      'properties': <String, Object?>{
-        for (final property in schema) property.name: property.toJsonSchema(),
-      },
-      'required': schema
-          .where((property) => property.required)
-          .map((property) => property.name)
-          .toList(growable: false),
-    };
+    return _agentToolObjectJsonSchema(
+      schema,
+      additionalProperties: additionalProperties,
+    );
+  }
+
+  Map<String, Object?> resultJsonSchema({bool additionalProperties = true}) {
+    return _agentToolObjectJsonSchema(
+      resultSchema,
+      additionalProperties: additionalProperties,
+    );
   }
 
   Map<String, Object?> toJson() {
@@ -139,6 +141,11 @@ class AgentToolDefinition {
       'supportedModelPatterns': supportedModelPatterns,
       'capabilities': capabilities,
       'schema': schema.map((property) => property.toJson()).toList(),
+      if (resultSchema.isNotEmpty)
+        'resultSchema': resultSchema
+            .map((property) => property.toJson())
+            .toList(growable: false),
+      if (resultSchema.isNotEmpty) 'resultJsonSchema': resultJsonSchema(),
       if (outputLimit != null) 'outputLimit': outputLimit,
       if (providerOutputLimits.isNotEmpty)
         'providerOutputLimits': providerOutputLimits.map(
@@ -237,6 +244,14 @@ class AgentToolRegistry {
           description: 'Workspace-relative file path.',
         ),
       ],
+      resultSchema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(name: 'source', type: 'string', required: true),
+        AgentToolSchemaProperty(
+          name: 'document',
+          type: 'object',
+          required: true,
+        ),
+      ],
       todo:
           'Route inactive document reads through File System Manager/DataStore once the backend workspace service is attached.',
     ),
@@ -259,6 +274,15 @@ class AgentToolRegistry {
           name: 'edits',
           type: 'array',
           description: 'Structured workspace edit operations.',
+        ),
+      ],
+      resultSchema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(name: 'source', type: 'string', required: true),
+        AgentToolSchemaProperty(name: 'patch', type: 'object', required: true),
+        AgentToolSchemaProperty(
+          name: 'conversion',
+          type: 'object',
+          required: true,
         ),
       ],
     ),
@@ -285,6 +309,11 @@ class AgentToolRegistry {
           description: 'Structured workspace edit operations.',
         ),
       ],
+      resultSchema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(name: 'source', type: 'string', required: true),
+        AgentToolSchemaProperty(name: 'patch', type: 'object', required: true),
+        AgentToolSchemaProperty(name: 'result', type: 'object', required: true),
+      ],
       todo:
           'Review patches that overlap dirty or externally modified documents before apply.',
     ),
@@ -309,6 +338,11 @@ class AgentToolRegistry {
           description: 'Command input matching the command contract.',
         ),
       ],
+      resultSchema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(name: 'source', type: 'string', required: true),
+        AgentToolSchemaProperty(name: 'command', type: 'object'),
+        AgentToolSchemaProperty(name: 'result', type: 'object'),
+      ],
     ),
     AgentToolDefinition(
       toolId: 'collectStyioLanguageContext',
@@ -321,6 +355,14 @@ class AgentToolRegistry {
         'language.context',
         'language.diagnostics',
         'language.semantic',
+      ],
+      resultSchema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(name: 'source', type: 'string', required: true),
+        AgentToolSchemaProperty(
+          name: 'language',
+          type: 'object',
+          required: true,
+        ),
       ],
       todo:
           'Prefer StyioService-authored facts when the external service exposes the full semantic contract.',
@@ -338,6 +380,14 @@ class AgentToolRegistry {
         'agent.validation.command.results',
         'testing.context',
       ],
+      resultSchema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(name: 'source', type: 'string', required: true),
+        AgentToolSchemaProperty(
+          name: 'validation',
+          type: 'object',
+          required: true,
+        ),
+      ],
     ),
     AgentToolDefinition(
       toolId: 'collectAgentRecoveryContext',
@@ -353,6 +403,14 @@ class AgentToolRegistry {
         'agent.tool.execution.journal',
         'agent.tool.session.transcript',
       ],
+      resultSchema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(name: 'source', type: 'string', required: true),
+        AgentToolSchemaProperty(
+          name: 'recovery',
+          type: 'object',
+          required: true,
+        ),
+      ],
     ),
     AgentToolDefinition(
       toolId: 'collectAgentCodingCheckpoint',
@@ -362,6 +420,14 @@ class AgentToolRegistry {
       priority: 60,
       permissionMode: AgentToolPermissionMode.never,
       capabilities: <String>['agent.checkpoint'],
+      resultSchema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(name: 'source', type: 'string', required: true),
+        AgentToolSchemaProperty(
+          name: 'checkpoint',
+          type: 'object',
+          required: true,
+        ),
+      ],
     ),
     AgentToolDefinition(
       toolId: 'openLocalShell',
@@ -381,6 +447,10 @@ class AgentToolRegistry {
           required: true,
           description: 'Command to run through the local execution route.',
         ),
+      ],
+      resultSchema: <AgentToolSchemaProperty>[
+        AgentToolSchemaProperty(name: 'source', type: 'string'),
+        AgentToolSchemaProperty(name: 'execution', type: 'object'),
       ],
       todo:
           'Bind to Execution Manager and PTY Manager with local bridge safety review.',
@@ -464,6 +534,23 @@ int _compareTools(AgentToolDefinition left, AgentToolDefinition right) {
     return priority;
   }
   return left.toolId.compareTo(right.toolId);
+}
+
+Map<String, Object?> _agentToolObjectJsonSchema(
+  List<AgentToolSchemaProperty> schema, {
+  required bool additionalProperties,
+}) {
+  return <String, Object?>{
+    'type': 'object',
+    'additionalProperties': additionalProperties,
+    'properties': <String, Object?>{
+      for (final property in schema) property.name: property.toJsonSchema(),
+    },
+    'required': schema
+        .where((property) => property.required)
+        .map((property) => property.name)
+        .toList(growable: false),
+  };
 }
 
 Map<String, Object?> _agentToolPropertyTypeJsonSchema(String type) {

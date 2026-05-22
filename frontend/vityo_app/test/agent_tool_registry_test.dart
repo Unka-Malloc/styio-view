@@ -85,6 +85,28 @@ void main() {
     expect(path['description'], contains('Workspace-relative'));
   });
 
+  test('agent tool definitions expose result schema contracts', () {
+    final readTool = AgentToolRegistry().tools.singleWhere(
+      (tool) => tool.toolId == 'readWorkspaceFile',
+    );
+    final resultSchema = readTool.resultJsonSchema();
+    final properties = resultSchema['properties']! as Map<String, Object?>;
+    final source = properties['source']! as Map<String, Object?>;
+    final document = properties['document']! as Map<String, Object?>;
+    final manifestTool =
+        (AgentToolRegistry().manifest()['tools']! as List<Object?>)
+            .whereType<Map<String, Object?>>()
+            .singleWhere((tool) => tool['toolId'] == 'readWorkspaceFile');
+
+    expect(resultSchema['type'], 'object');
+    expect(resultSchema['additionalProperties'], isTrue);
+    expect(resultSchema['required'], <String>['source', 'document']);
+    expect(source['type'], 'string');
+    expect(document['type'], 'object');
+    expect(manifestTool['resultSchema'], isA<List<Object?>>());
+    expect(manifestTool['resultJsonSchema'], resultSchema);
+  });
+
   test('agent tool registry resolves provider-specific output budgets', () {
     final profile = AgentPromptProfile.openAICodexSparkForPlatform(
       PlatformTarget.linux,

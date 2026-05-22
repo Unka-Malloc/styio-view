@@ -19,6 +19,7 @@ import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
 import 'agent_tool_call_stream_bridge.dart';
+import 'agent_tool_session_processor.dart';
 import 'agent_tool_session_transcript.dart';
 import 'agent_tool_permission.dart';
 import 'agent_tool_permission_policy_store.dart';
@@ -171,8 +172,8 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentWorkspaceSnapshotCaptureResult? _lastWorkspaceSnapshotCaptureResult;
   AgentWorkspaceChangeSnapshot? _lastWorkspaceSnapshot;
   AgentWorkspaceRevertPlan? _lastWorkspaceRevertPlan;
-  final AgentToolCallLifecycleTracker _toolCallLifecycleTracker =
-      const AgentToolCallLifecycleTracker();
+  final AgentToolSessionProcessor _toolSessionProcessor =
+      const AgentToolSessionProcessor();
   final AgentProviderToolCallStreamBridge _toolCallStreamBridge =
       const AgentProviderToolCallStreamBridge();
   AgentToolCallTimeline _toolCallTimeline = AgentToolCallTimeline.empty();
@@ -266,7 +267,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   AgentToolCallReplayPlan get toolCallReplayPlan =>
       AgentToolCallReplayPlan.fromJournal(_toolCallExecutionJournal);
   AgentToolSessionTranscript get toolSessionTranscript =>
-      AgentToolSessionTranscript.fromToolState(
+      _toolSessionProcessor.buildTranscript(
         timeline: _toolCallTimeline,
         executionPlan: toolCallExecutionPlan,
         resultContexts: _recentToolCallResultContexts,
@@ -612,7 +613,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   void recordToolCallEvent(AgentToolCallEvent event) {
-    final next = _toolCallLifecycleTracker.apply(_toolCallTimeline, event);
+    final next = _toolSessionProcessor.applyEvent(_toolCallTimeline, event);
     if (identical(next, _toolCallTimeline)) {
       return;
     }
@@ -622,10 +623,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   }
 
   void recordToolCallEvents(Iterable<AgentToolCallEvent> events) {
-    var next = _toolCallTimeline;
-    for (final event in events) {
-      next = _toolCallLifecycleTracker.apply(next, event);
-    }
+    final next = _toolSessionProcessor.applyEvents(_toolCallTimeline, events);
     if (identical(next, _toolCallTimeline)) {
       return;
     }
@@ -925,7 +923,7 @@ class AgentCodingSessionController extends ChangeNotifier {
   void _refreshToolCallExecutionJournal({
     AgentToolCallDispatchReport? dispatchReport,
   }) {
-    _toolCallExecutionJournal = AgentToolCallExecutionJournal.fromTimeline(
+    _toolCallExecutionJournal = _toolSessionProcessor.buildJournal(
       timeline: _toolCallTimeline,
       dispatchReport: dispatchReport,
     );

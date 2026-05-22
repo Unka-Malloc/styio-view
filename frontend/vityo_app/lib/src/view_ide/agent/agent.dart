@@ -15,6 +15,7 @@ export 'agent_tool_call_execution_plan.dart';
 export 'agent_tool_call_lifecycle.dart';
 export 'agent_tool_call_result_context.dart';
 export 'agent_tool_call_stream_bridge.dart';
+export 'agent_tool_session_processor.dart';
 export 'agent_tool_session_transcript.dart';
 export 'agent_tool_input_validator.dart';
 export 'agent_tool_permission.dart';

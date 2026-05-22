@@ -894,6 +894,12 @@ void main() {
       expect(transcript['partCount'], 1);
       expect(recoveryPayload['toolCallExecutionJournal'], journal);
       expect(recoveryPayload['toolSessionTranscript'], transcript);
+      final auditSummary =
+          recoveryPayload['auditSummary']! as Map<String, Object?>;
+      expect(auditSummary['toolJournalStatus'], 'complete');
+      expect(auditSummary['toolJournalEntryCount'], 1);
+      expect(auditSummary['hasToolExecutionEvidence'], isTrue);
+      expect(auditSummary['requiresUserReview'], isFalse);
     },
   );
 

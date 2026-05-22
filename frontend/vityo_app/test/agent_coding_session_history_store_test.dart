@@ -190,7 +190,20 @@ void main() {
       metadata: const <String, Object?>{
         'toolCallExecutionJournal': <String, Object?>{
           'status': 'failed',
+          'entryCount': 1,
           'replayCandidateCount': 1,
+          'entries': <Object?>[
+            <String, Object?>{
+              'callId': 'call-apply',
+              'toolId': 'applyWorkspacePatch',
+              'executionStatus': 'blocked',
+              'permissionStatus': 'denied',
+              'reviewDecisionStatus': 'denied',
+              'blockingIssueCodes': <String>[
+                'agent.tool.permission.denied.applyWorkspacePatch',
+              ],
+            },
+          ],
         },
       },
     );
@@ -218,8 +231,30 @@ void main() {
     expect(payload.containsKey('todoItems'), isFalse);
     expect(payload['toolCallExecutionJournal'], <String, Object?>{
       'status': 'failed',
+      'entryCount': 1,
       'replayCandidateCount': 1,
+      'entries': <Object?>[
+        <String, Object?>{
+          'callId': 'call-apply',
+          'toolId': 'applyWorkspacePatch',
+          'executionStatus': 'blocked',
+          'permissionStatus': 'denied',
+          'reviewDecisionStatus': 'denied',
+          'blockingIssueCodes': <String>[
+            'agent.tool.permission.denied.applyWorkspacePatch',
+          ],
+        },
+      ],
     });
+    final auditSummary = payload['auditSummary']! as Map<String, Object?>;
+    expect(auditSummary['hasToolExecutionEvidence'], isTrue);
+    expect(auditSummary['requiresUserReview'], isTrue);
+    expect(auditSummary['toolJournalStatus'], 'failed');
+    expect(auditSummary['toolJournalEntryCount'], 1);
+    expect(auditSummary['permissionDeniedToolIds'], <String>[
+      'applyWorkspacePatch',
+    ]);
+    expect(auditSummary['reviewDeniedCallIds'], <String>['call-apply']);
     expect(payload['latestRecord'], isA<Map<Object?, Object?>>());
     expect(
       (payload['latestRecord'] as Map<Object?, Object?>)['errorMessage'],

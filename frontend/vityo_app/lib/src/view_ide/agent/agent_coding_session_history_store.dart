@@ -560,12 +560,114 @@ class AgentCodingSessionRecoveryRequestDraft {
   }
 }
 
+class AgentCodingSessionAuditSummary {
+  const AgentCodingSessionAuditSummary({
+    required this.requestId,
+    required this.outcome,
+    this.toolJournalStatus = '',
+    this.toolJournalEntryCount = 0,
+    this.toolJournalReplayCandidateCount = 0,
+    this.blockedToolCallIds = const <String>[],
+    this.permissionDeniedToolIds = const <String>[],
+    this.reviewDeniedCallIds = const <String>[],
+    this.blockingIssueCodes = const <String>[],
+  });
+
+  factory AgentCodingSessionAuditSummary.fromRecord(
+    AgentCodingSessionHistoryRecord record,
+  ) {
+    final toolJournal = _jsonObjectMap(
+      record.metadata['toolCallExecutionJournal'],
+    );
+    final entries = _jsonObjectList(toolJournal['entries']);
+    final blockedCallIds = <String>{};
+    final permissionDeniedToolIds = <String>{};
+    final reviewDeniedCallIds = <String>{};
+    final blockingIssueCodes = <String>{};
+    for (final entry in entries) {
+      final callId = entry['callId'] as String? ?? '';
+      final toolId = entry['toolId'] as String? ?? '';
+      if (entry['executionStatus'] == 'blocked' ||
+          entry['status'] == 'permission_blocked') {
+        blockedCallIds.add(callId);
+      }
+      if (entry['permissionStatus'] == 'denied') {
+        permissionDeniedToolIds.add(toolId);
+      }
+      if (entry['reviewDecisionStatus'] == 'denied') {
+        reviewDeniedCallIds.add(callId);
+      }
+      blockingIssueCodes.addAll(_stringList(entry['blockingIssueCodes']));
+    }
+    return AgentCodingSessionAuditSummary(
+      requestId: record.requestId,
+      outcome: record.outcome.wireValue,
+      toolJournalStatus: toolJournal['status'] as String? ?? '',
+      toolJournalEntryCount:
+          toolJournal['entryCount'] as int? ?? entries.length,
+      toolJournalReplayCandidateCount:
+          toolJournal['replayCandidateCount'] as int? ?? 0,
+      blockedToolCallIds: blockedCallIds
+          .where((callId) => callId.isNotEmpty)
+          .toList(growable: false),
+      permissionDeniedToolIds: permissionDeniedToolIds
+          .where((toolId) => toolId.isNotEmpty)
+          .toList(growable: false),
+      reviewDeniedCallIds: reviewDeniedCallIds
+          .where((callId) => callId.isNotEmpty)
+          .toList(growable: false),
+      blockingIssueCodes: blockingIssueCodes
+          .where((code) => code.isNotEmpty)
+          .toList(growable: false),
+    );
+  }
+
+  final String requestId;
+  final String outcome;
+  final String toolJournalStatus;
+  final int toolJournalEntryCount;
+  final int toolJournalReplayCandidateCount;
+  final List<String> blockedToolCallIds;
+  final List<String> permissionDeniedToolIds;
+  final List<String> reviewDeniedCallIds;
+  final List<String> blockingIssueCodes;
+
+  bool get hasToolExecutionEvidence => toolJournalEntryCount > 0;
+
+  bool get requiresUserReview =>
+      blockedToolCallIds.isNotEmpty ||
+      permissionDeniedToolIds.isNotEmpty ||
+      reviewDeniedCallIds.isNotEmpty ||
+      blockingIssueCodes.isNotEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'requestId': requestId,
+      'outcome': outcome,
+      'hasToolExecutionEvidence': hasToolExecutionEvidence,
+      'requiresUserReview': requiresUserReview,
+      if (toolJournalStatus.isNotEmpty) 'toolJournalStatus': toolJournalStatus,
+      'toolJournalEntryCount': toolJournalEntryCount,
+      'toolJournalReplayCandidateCount': toolJournalReplayCandidateCount,
+      if (blockedToolCallIds.isNotEmpty)
+        'blockedToolCallIds': blockedToolCallIds,
+      if (permissionDeniedToolIds.isNotEmpty)
+        'permissionDeniedToolIds': permissionDeniedToolIds,
+      if (reviewDeniedCallIds.isNotEmpty)
+        'reviewDeniedCallIds': reviewDeniedCallIds,
+      if (blockingIssueCodes.isNotEmpty)
+        'blockingIssueCodes': blockingIssueCodes,
+    };
+  }
+}
+
 class AgentCodingSessionRecoveryContext {
   const AgentCodingSessionRecoveryContext({
     required this.workspaceId,
     required this.checkpoint,
     required this.recoveryPlan,
     this.latestRecord,
+    this.auditSummary,
     this.commandPlans = const <AgentCodingSessionRecoveryCommandPlan>[],
     this.requestDrafts = const <AgentCodingSessionRecoveryRequestDraft>[],
     this.todoItems = const <String>[],
@@ -597,11 +699,15 @@ class AgentCodingSessionRecoveryContext {
         requestDrafts.add(draft);
       }
     }
+    final latestRecord = history.records.isEmpty ? null : history.records.first;
     return AgentCodingSessionRecoveryContext(
       workspaceId: history.workspaceId,
       checkpoint: checkpoint,
       recoveryPlan: recoveryPlan,
-      latestRecord: history.records.isEmpty ? null : history.records.first,
+      latestRecord: latestRecord,
+      auditSummary: latestRecord == null
+          ? null
+          : AgentCodingSessionAuditSummary.fromRecord(latestRecord),
       commandPlans: List<AgentCodingSessionRecoveryCommandPlan>.unmodifiable(
         commandPlans,
       ),
@@ -615,6 +721,7 @@ class AgentCodingSessionRecoveryContext {
   final AgentCodingSessionCheckpoint checkpoint;
   final AgentCodingSessionRecoveryPlan recoveryPlan;
   final AgentCodingSessionHistoryRecord? latestRecord;
+  final AgentCodingSessionAuditSummary? auditSummary;
   final List<AgentCodingSessionRecoveryCommandPlan> commandPlans;
   final List<AgentCodingSessionRecoveryRequestDraft> requestDrafts;
   final List<String> todoItems;
@@ -640,6 +747,7 @@ class AgentCodingSessionRecoveryContext {
       'checkpoint': checkpoint.toJson(),
       'recoveryPlan': recoveryPlan.toJson(),
       if (latestRecord != null) 'latestRecord': _latestRecordPayload(),
+      if (auditSummary != null) 'auditSummary': auditSummary!.toJson(),
       if (toolCallExecutionJournal != null)
         'toolCallExecutionJournal': toolCallExecutionJournal,
       if (toolSessionTranscript != null)
@@ -978,4 +1086,21 @@ Map<String, Object?> _jsonObjectMap(Object? value) {
     return value.map((key, value) => MapEntry(key.toString(), value));
   }
   return const <String, Object?>{};
+}
+
+List<Map<String, Object?>> _jsonObjectList(Object? value) {
+  if (value is! List) {
+    return const <Map<String, Object?>>[];
+  }
+  return value
+      .whereType<Map>()
+      .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+      .toList(growable: false);
+}
+
+List<String> _stringList(Object? value) {
+  if (value is! List) {
+    return const <String>[];
+  }
+  return value.whereType<String>().toList(growable: false);
 }

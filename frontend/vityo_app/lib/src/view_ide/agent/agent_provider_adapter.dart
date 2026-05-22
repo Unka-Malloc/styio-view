@@ -1795,13 +1795,44 @@ Map<String, Object?> _vityoStructuredContentPartsSchema() {
                             'Optional document revision this edit was prepared against.',
                       },
                     },
-                    // TODO(agent-patch-schema): split required fields by
-                    // operation when provider schema support is consistent.
-                    'required': <String>[
-                      'documentId',
-                      'start',
-                      'end',
-                      'replacementText',
+                    'oneOf': <Map<String, Object?>>[
+                      <String, Object?>{
+                        'description':
+                            'Replace text in an existing document. The operation field may be omitted when replace is intended.',
+                        'properties': <String, Object?>{
+                          'operation': <String, Object?>{
+                            'enum': <String>['replace'],
+                          },
+                        },
+                        'required': <String>[
+                          'documentId',
+                          'start',
+                          'end',
+                          'replacementText',
+                        ],
+                      },
+                      <String, Object?>{
+                        'description': 'Create a new document.',
+                        'properties': <String, Object?>{
+                          'operation': <String, Object?>{
+                            'enum': <String>['create'],
+                          },
+                        },
+                        'required': <String>[
+                          'documentId',
+                          'operation',
+                          'replacementText',
+                        ],
+                      },
+                      <String, Object?>{
+                        'description': 'Delete an existing document.',
+                        'properties': <String, Object?>{
+                          'operation': <String, Object?>{
+                            'enum': <String>['delete'],
+                          },
+                        },
+                        'required': <String>['documentId', 'operation'],
+                      },
                     ],
                   },
                 },

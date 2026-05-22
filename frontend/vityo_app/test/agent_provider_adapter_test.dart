@@ -246,6 +246,7 @@ void main() {
     final editItems = edits['items']! as Map<String, Object?>;
     final editProperties = editItems['properties']! as Map<String, Object?>;
     final operation = editProperties['operation']! as Map<String, Object?>;
+    final editOperationSchemas = editItems['oneOf']! as List<Object?>;
     final plan = itemProperties['plan']! as Map<String, Object?>;
     final planProperties = plan['properties']! as Map<String, Object?>;
     final diagnosticSummary =
@@ -265,10 +266,20 @@ void main() {
     expect(prerequisiteForCommandId['enum'], commandId['enum']);
     expect(patch['required'], contains('edits'));
     expect(operation['enum'], <String>['replace', 'create', 'delete']);
-    expect(editItems['required'], contains('documentId'));
-    expect(editItems['required'], contains('start'));
-    expect(editItems['required'], contains('end'));
-    expect(editItems['required'], contains('replacementText'));
+    expect(editItems.containsKey('required'), isFalse);
+    expect(editOperationSchemas, hasLength(3));
+    expect(
+      (editOperationSchemas[0]! as Map<String, Object?>)['required'],
+      <String>['documentId', 'start', 'end', 'replacementText'],
+    );
+    expect(
+      (editOperationSchemas[1]! as Map<String, Object?>)['required'],
+      <String>['documentId', 'operation', 'replacementText'],
+    );
+    expect(
+      (editOperationSchemas[2]! as Map<String, Object?>)['required'],
+      <String>['documentId', 'operation'],
+    );
     expect(plan['required'], contains('summary'));
     expect(plan['required'], contains('steps'));
     expect(planProperties['acceptanceCriteria'], isA<Map<String, Object?>>());

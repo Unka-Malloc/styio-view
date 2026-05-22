@@ -32,7 +32,16 @@ void main() {
       ]),
     );
     expect(decoded.systemPrompt, contains('ideCapabilities.entries'));
-    expect(decoded.systemPrompt, contains('scaffolded or TODO entries'));
+    expect(
+      decoded.systemPrompt,
+      contains('scaffolded or deferred capability entries'),
+    );
+    expect(
+      decoded.systemPrompt,
+      contains('OpenCode-style explicit agent registries'),
+    );
+    expect(decoded.systemPrompt, contains('schema-backed tool definitions'));
+    expect(decoded.systemPrompt, contains('allow/deny/ask permission rules'));
     expect(
       decoded.systemPrompt,
       contains('ideCapabilityClosure.isRuntimeMature'),
@@ -162,7 +171,10 @@ void main() {
     expect(decoded.systemPrompt, contains('agent.validationPipeline'));
     expect(decoded.systemPrompt, contains('agent.validationPlan.commandPlans'));
     expect(decoded.systemPrompt, contains('agent.validationResult.status'));
-    expect(decoded.systemPrompt, contains('agent.validationPipeline.nextCommandId'));
+    expect(
+      decoded.systemPrompt,
+      contains('agent.validationPipeline.nextCommandId'),
+    );
     expect(
       decoded.systemPrompt,
       contains('agent.validationPlan.registeredCommandIds'),
@@ -171,10 +183,7 @@ void main() {
     expect(decoded.systemPrompt, contains('provider recovery commands'));
     expect(decoded.systemPrompt, contains('commands.settingsCommands'));
     expect(decoded.systemPrompt, contains('commands.toolchainCommands'));
-    expect(
-      decoded.systemPrompt,
-      contains('toolchains.suggestedCommandIds'),
-    );
+    expect(decoded.systemPrompt, contains('toolchains.suggestedCommandIds'));
     expect(
       decoded.systemPrompt,
       contains('toolchains.bootstrap.executionPlan'),

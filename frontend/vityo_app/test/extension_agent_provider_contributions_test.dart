@@ -291,10 +291,12 @@ void main() {
             ],
           ),
         );
-      final routes = const ExtensionContributionRouter().routeRegistry(
+      final activeRoutes = const ExtensionContributionRouter().routeRegistry(
         manifestRegistry,
       );
-      final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(routes);
+      final activeCatalog = ExtensionAgentToolContributionCatalog.fromRoutes(
+        activeRoutes,
+      );
       final session = ExtensionActivator(
         clock: () => DateTime.utc(2026, 5, 22),
       ).activate(registry: manifestRegistry, event: 'onCommand:collectContext');
@@ -330,7 +332,7 @@ void main() {
         invoker: invokerRegistry.invoke,
       );
       final registry = ExtensionAgentToolExecutionRegistry.fromHostBridge(
-        catalog: catalog,
+        catalog: activeCatalog,
         hostBridge: hostBridge.call,
       );
 
@@ -375,6 +377,17 @@ void main() {
             activationEvents: <String>['onCommand:collectContext'],
             trustedByDefault: true,
             metadata: <String, Object?>{'isolationMode': 'local-process'},
+            contributions: <ExtensionContributionPoint>[
+              ExtensionContributionPoint(
+                kind: ExtensionContributionKind.agent,
+                id: 'collect-extension-context',
+                target: 'agent.tools',
+                metadata: <String, Object?>{
+                  'toolId': 'collectExtensionContext',
+                  'handlerId': 'collect-context',
+                },
+              ),
+            ],
           ),
         );
       final session = ExtensionActivator(
@@ -425,8 +438,23 @@ void main() {
             activationEvents: <String>['onCommand:collectContext'],
             trustedByDefault: true,
             metadata: <String, Object?>{'isolationMode': 'local-process'},
+            contributions: <ExtensionContributionPoint>[
+              ExtensionContributionPoint(
+                kind: ExtensionContributionKind.agent,
+                id: 'collect-extension-context',
+                target: 'agent.tools',
+                metadata: <String, Object?>{
+                  'toolId': 'collectExtensionContext',
+                  'handlerId': 'collect-context',
+                },
+              ),
+            ],
           ),
         );
+      final routes = const ExtensionContributionRouter().routeRegistry(
+        manifestRegistry,
+      );
+      final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(routes);
       final session = ExtensionActivator(
         clock: () => DateTime.utc(2026, 5, 22),
       ).activate(registry: manifestRegistry, event: 'onCommand:collectContext');
@@ -434,30 +462,42 @@ void main() {
         clock: () => DateTime.utc(2026, 5, 22, 1),
       ).applyActivation(registry: manifestRegistry, session: session);
       ExtensionAgentToolHostRpcRequest? rpcRequest;
-      final transportRegistry = ExtensionAgentToolHostRpcTransportRegistry(
-        registrations: <ExtensionAgentToolHostRpcTransportRegistration>[
-          ExtensionAgentToolHostRpcTransportRegistration(
-            extensionId: 'agent.tools',
-            handlerId: 'collect-context',
-            action: ExtensionHostSupervisorAction.spawnLocalProcess,
-            transportId: 'local-process-rpc',
-            label: 'Local Process RPC',
-            endpoint: 'proc://agent.tools',
-            metadata: const <String, Object?>{'sandbox': 'local-process'},
-            transport: (request) async {
-              rpcRequest = request;
-              return AgentToolCallDispatchResult.success(
-                callId: request.toolCall.callId,
-                toolId: request.toolCall.toolId,
-                output: '{"extension":"rpc"}',
-                metadata: <String, Object?>{
-                  'requestAction': request.action.wireValue,
+      final transportCatalog =
+          ExtensionAgentToolHostRpcTransportCatalog.fromContributions(
+            catalog: catalog,
+            snapshot: snapshot,
+            transports:
+                <
+                  ExtensionHostSupervisorAction,
+                  ExtensionAgentToolHostRpcTransport
+                >{
+                  ExtensionHostSupervisorAction.spawnLocalProcess:
+                      (request) async {
+                        rpcRequest = request;
+                        return AgentToolCallDispatchResult.success(
+                          callId: request.toolCall.callId,
+                          toolId: request.toolCall.toolId,
+                          output: '{"extension":"rpc"}',
+                          metadata: <String, Object?>{
+                            'requestAction': request.action.wireValue,
+                          },
+                        );
+                      },
                 },
-              );
+            endpoints: const <ExtensionHostSupervisorAction, String>{
+              ExtensionHostSupervisorAction.spawnLocalProcess:
+                  'proc://agent.tools',
             },
-          ),
-        ],
-      );
+            metadataByAction:
+                const <ExtensionHostSupervisorAction, Map<String, Object?>>{
+                  ExtensionHostSupervisorAction.spawnLocalProcess:
+                      <String, Object?>{'sandbox': 'local-process'},
+                },
+          );
+      final transportRegistry = transportCatalog.toRegistry();
+      expect(transportCatalog.ready, isTrue);
+      expect(transportCatalog.issues, isEmpty);
+      expect(transportCatalog.toJson()['registrationCount'], 1);
       final bridge = ExtensionAgentToolActivatedHostBridge(
         snapshot: snapshot,
         buffer: RuntimeOutputLiveBuffer(),
@@ -485,6 +525,7 @@ void main() {
       expect(result.metadata['transportLabel'], 'Local Process RPC');
       expect(result.metadata['endpoint'], 'proc://agent.tools');
       expect(result.metadata['sandbox'], 'local-process');
+      expect(result.metadata['contributionId'], 'collect-extension-context');
       expect(result.metadata['extensionHostAction'], 'spawn-local-process');
       expect(result.metadata['requestAction'], 'spawn-local-process');
       expect(rpcRequest?.handlerId, 'collect-context');
@@ -507,14 +548,39 @@ void main() {
             activationEvents: <String>['onCommand:collectContext'],
             trustedByDefault: true,
             metadata: <String, Object?>{'isolationMode': 'local-process'},
+            contributions: <ExtensionContributionPoint>[
+              ExtensionContributionPoint(
+                kind: ExtensionContributionKind.agent,
+                id: 'collect-extension-context',
+                target: 'agent.tools',
+                metadata: <String, Object?>{
+                  'toolId': 'collectExtensionContext',
+                  'handlerId': 'collect-context',
+                },
+              ),
+            ],
           ),
         );
+      final routes = const ExtensionContributionRouter().routeRegistry(
+        manifestRegistry,
+      );
+      final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(routes);
       final session = ExtensionActivator(
         clock: () => DateTime.utc(2026, 5, 22),
       ).activate(registry: manifestRegistry, event: 'onCommand:collectContext');
       final snapshot = ExtensionHostSupervisor(
         clock: () => DateTime.utc(2026, 5, 22, 1),
       ).applyActivation(registry: manifestRegistry, session: session);
+      final transportCatalog =
+          ExtensionAgentToolHostRpcTransportCatalog.fromContributions(
+            catalog: catalog,
+            snapshot: snapshot,
+            transports:
+                const <
+                  ExtensionHostSupervisorAction,
+                  ExtensionAgentToolHostRpcTransport
+                >{},
+          );
       final bridge = ExtensionAgentToolActivatedHostBridge(
         snapshot: snapshot,
         buffer: RuntimeOutputLiveBuffer(),
@@ -536,6 +602,8 @@ void main() {
         ),
       );
 
+      expect(transportCatalog.ready, isFalse);
+      expect(transportCatalog.issues.single.issueCode, 'missing-rpc-transport');
       expect(result.success, isFalse);
       expect(result.metadata['missingRpcTransportBinding'], isTrue);
       expect(result.metadata['extensionHostAction'], 'spawn-local-process');

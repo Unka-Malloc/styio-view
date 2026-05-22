@@ -727,6 +727,148 @@ class ExtensionAgentToolHostRpcTransportRegistry {
   }
 }
 
+class ExtensionAgentToolHostRpcTransportCatalogIssue {
+  const ExtensionAgentToolHostRpcTransportCatalogIssue({
+    required this.extensionId,
+    required this.handlerId,
+    required this.issueCode,
+    required this.message,
+    this.action,
+  });
+
+  final String extensionId;
+  final String handlerId;
+  final String issueCode;
+  final String message;
+  final ExtensionHostSupervisorAction? action;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'handlerId': handlerId,
+      'issueCode': issueCode,
+      'message': message,
+      if (action != null) 'action': action!.wireValue,
+    };
+  }
+}
+
+class ExtensionAgentToolHostRpcTransportCatalog {
+  const ExtensionAgentToolHostRpcTransportCatalog({
+    required this.registrations,
+    required this.issues,
+  });
+
+  factory ExtensionAgentToolHostRpcTransportCatalog.fromContributions({
+    required ExtensionAgentToolContributionCatalog catalog,
+    required ExtensionHostSupervisorSnapshot snapshot,
+    required Map<
+      ExtensionHostSupervisorAction,
+      ExtensionAgentToolHostRpcTransport
+    >
+    transports,
+    Map<ExtensionHostSupervisorAction, String> transportIds =
+        const <ExtensionHostSupervisorAction, String>{},
+    Map<ExtensionHostSupervisorAction, String> labels =
+        const <ExtensionHostSupervisorAction, String>{},
+    Map<ExtensionHostSupervisorAction, String> endpoints =
+        const <ExtensionHostSupervisorAction, String>{},
+    Map<ExtensionHostSupervisorAction, Map<String, Object?>> metadataByAction =
+        const <ExtensionHostSupervisorAction, Map<String, Object?>>{},
+  }) {
+    final registrations = <ExtensionAgentToolHostRpcTransportRegistration>[];
+    final issues = <ExtensionAgentToolHostRpcTransportCatalogIssue>[];
+    for (final contribution in catalog.readyContributions) {
+      final tool = contribution.tool;
+      if (tool == null) {
+        continue;
+      }
+      final record = snapshot.lookup(contribution.extensionId);
+      if (record == null || !record.active) {
+        issues.add(
+          ExtensionAgentToolHostRpcTransportCatalogIssue(
+            extensionId: contribution.extensionId,
+            handlerId: contribution.handlerId,
+            issueCode: 'inactive-extension-host',
+            message:
+                'Extension host ${contribution.extensionId} is not active for '
+                'agent tool ${tool.toolId}.',
+            action: record?.action,
+          ),
+        );
+        continue;
+      }
+      final action = record.action;
+      final transport = transports[action];
+      if (transport == null) {
+        issues.add(
+          ExtensionAgentToolHostRpcTransportCatalogIssue(
+            extensionId: contribution.extensionId,
+            handlerId: contribution.handlerId,
+            issueCode: 'missing-rpc-transport',
+            message:
+                'No RPC transport backend is registered for '
+                '${contribution.extensionId}/${contribution.handlerId} on '
+                '${action.wireValue}.',
+            action: action,
+          ),
+        );
+        continue;
+      }
+      registrations.add(
+        ExtensionAgentToolHostRpcTransportRegistration(
+          extensionId: contribution.extensionId,
+          handlerId: contribution.handlerId,
+          action: action,
+          transportId: transportIds[action] ?? _defaultRpcTransportId(action),
+          label: labels[action] ?? _defaultRpcTransportLabel(action),
+          endpoint: endpoints[action] ?? '',
+          transport: transport,
+          metadata: <String, Object?>{
+            'source': 'extension-agent-tool-host-rpc-transport-catalog',
+            'contributionId': contribution.contributionId,
+            'toolId': tool.toolId,
+            ...?metadataByAction[action],
+          },
+        ),
+      );
+    }
+    return ExtensionAgentToolHostRpcTransportCatalog(
+      registrations:
+          List<ExtensionAgentToolHostRpcTransportRegistration>.unmodifiable(
+            registrations,
+          ),
+      issues: List<ExtensionAgentToolHostRpcTransportCatalogIssue>.unmodifiable(
+        issues,
+      ),
+    );
+  }
+
+  final List<ExtensionAgentToolHostRpcTransportRegistration> registrations;
+  final List<ExtensionAgentToolHostRpcTransportCatalogIssue> issues;
+
+  bool get ready => issues.isEmpty;
+
+  ExtensionAgentToolHostRpcTransportRegistry toRegistry() {
+    return ExtensionAgentToolHostRpcTransportRegistry(
+      registrations: registrations,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'schema': 'vityo.extension-agent-tool-host-rpc-transport-catalog.v1',
+      'ready': ready,
+      'registrationCount': registrations.length,
+      'issueCount': issues.length,
+      'registrations': registrations
+          .map((registration) => registration.toJson())
+          .toList(growable: false),
+      'issues': issues.map((issue) => issue.toJson()).toList(growable: false),
+    };
+  }
+}
+
 class ExtensionAgentToolExecutionRegistry {
   ExtensionAgentToolExecutionRegistry({
     required ExtensionAgentToolContributionCatalog catalog,
@@ -834,6 +976,26 @@ class ExtensionAgentToolExecutionRegistry {
           .toList(growable: false),
     };
   }
+}
+
+String _defaultRpcTransportId(ExtensionHostSupervisorAction action) {
+  return switch (action) {
+    ExtensionHostSupervisorAction.runInProcess => 'in-process-rpc',
+    ExtensionHostSupervisorAction.spawnLocalProcess => 'local-process-rpc',
+    ExtensionHostSupervisorAction.spawnWebWorker => 'web-worker-rpc',
+    ExtensionHostSupervisorAction.connectRemoteService => 'remote-service-rpc',
+    ExtensionHostSupervisorAction.none => 'inactive-extension-host-rpc',
+  };
+}
+
+String _defaultRpcTransportLabel(ExtensionHostSupervisorAction action) {
+  return switch (action) {
+    ExtensionHostSupervisorAction.runInProcess => 'In-Process RPC',
+    ExtensionHostSupervisorAction.spawnLocalProcess => 'Local Process RPC',
+    ExtensionHostSupervisorAction.spawnWebWorker => 'Web Worker RPC',
+    ExtensionHostSupervisorAction.connectRemoteService => 'Remote Service RPC',
+    ExtensionHostSupervisorAction.none => 'Inactive Extension Host RPC',
+  };
 }
 
 List<AgentToolSchemaProperty> _metadataToolSchema(

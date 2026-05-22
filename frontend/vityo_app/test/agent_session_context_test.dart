@@ -147,10 +147,12 @@ void main() {
     expect(loopGuard['toolReplayReportCount'], 3);
     expect(loopGuard['failedToolResultCount'], 1);
     expect(loopGuard['hasProviderFailure'], isTrue);
+    expect(loopGuard['requiresUserReview'], isTrue);
     expect(
       loopGuard['blockingReasons'],
       contains('agent.loop.replayReportLimit:3'),
     );
+    expect(loopGuard.containsKey('todoItems'), isFalse);
 
     final checkpointContext = context.withAgentCodingState(
       workspaceCheckpoint: AgentWorkspaceCheckpointContext(

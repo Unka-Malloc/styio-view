@@ -14,6 +14,7 @@ class AgentCodingLoopGuard {
     this.toolReplayReportCount = 0,
     this.failedToolResultCount = 0,
     this.hasProviderFailure = false,
+    this.requiresUserReview = false,
     this.attentionReasons = const <String>[],
     this.blockingReasons = const <String>[],
     this.todoItems = const <String>[],
@@ -24,6 +25,7 @@ class AgentCodingLoopGuard {
       toolReplayReportCount = 0,
       failedToolResultCount = 0,
       hasProviderFailure = false,
+      requiresUserReview = false,
       attentionReasons = const <String>[],
       blockingReasons = const <String>[],
       todoItems = const <String>[];
@@ -36,21 +38,14 @@ class AgentCodingLoopGuard {
     int maxFailedToolResults = 3,
   }) {
     final blockingReasons = <String>[];
-    final todoItems = <String>[];
     if (toolReplayReportCount >= maxToolReplayReports) {
       blockingReasons.add(
         'agent.loop.replayReportLimit:$toolReplayReportCount',
-      );
-      todoItems.add(
-        'TODO: require user review before continuing after repeated agent tool replay attempts.',
       );
     }
     if (failedToolResultCount >= maxFailedToolResults) {
       blockingReasons.add(
         'agent.loop.failedToolResultLimit:$failedToolResultCount',
-      );
-      todoItems.add(
-        'TODO: require user review before continuing after repeated failed agent tool results.',
       );
     }
     if (blockingReasons.isNotEmpty) {
@@ -59,8 +54,8 @@ class AgentCodingLoopGuard {
         toolReplayReportCount: toolReplayReportCount,
         failedToolResultCount: failedToolResultCount,
         hasProviderFailure: hasProviderFailure,
+        requiresUserReview: true,
         blockingReasons: List<String>.unmodifiable(blockingReasons),
-        todoItems: List<String>.unmodifiable(todoItems),
       );
     }
     if (toolReplayReportCount > 0 ||
@@ -95,6 +90,7 @@ class AgentCodingLoopGuard {
   final int toolReplayReportCount;
   final int failedToolResultCount;
   final bool hasProviderFailure;
+  final bool requiresUserReview;
   final List<String> attentionReasons;
   final List<String> blockingReasons;
   final List<String> todoItems;
@@ -108,6 +104,7 @@ class AgentCodingLoopGuard {
       'toolReplayReportCount': toolReplayReportCount,
       'failedToolResultCount': failedToolResultCount,
       'hasProviderFailure': hasProviderFailure,
+      'requiresUserReview': requiresUserReview,
       if (attentionReasons.isNotEmpty) 'attentionReasons': attentionReasons,
       if (blockingReasons.isNotEmpty) 'blockingReasons': blockingReasons,
       if (todoItems.isNotEmpty) 'todoItems': todoItems,

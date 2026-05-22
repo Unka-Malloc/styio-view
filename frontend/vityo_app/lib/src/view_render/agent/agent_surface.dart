@@ -557,6 +557,29 @@ String? _recoveryValidationFailureEvidence(AgentCodingSessionHistory history) {
   return 'Failure evidence: $commandId · $message';
 }
 
+String _recoveryAuditFixPrompt(AgentCodingSessionAuditSummary summary) {
+  final parts = <String>[
+    'Resolve the latest agent recovery audit before retrying provider recovery.',
+  ];
+  if (summary.permissionDeniedToolIds.isNotEmpty) {
+    parts.add(
+      'Permission denied tools: ${summary.permissionDeniedToolIds.join(', ')}.',
+    );
+  }
+  if (summary.reviewDeniedCallIds.isNotEmpty) {
+    parts.add(
+      'Review denied tool calls: ${summary.reviewDeniedCallIds.join(', ')}.',
+    );
+  }
+  if (summary.blockingIssueCodes.isNotEmpty) {
+    parts.add('Blocking issues: ${summary.blockingIssueCodes.join(', ')}.');
+  }
+  parts.add(
+    'Revise the requested tool chain or propose a safer manual recovery path.',
+  );
+  return parts.join(' ');
+}
+
 Map<String, Object?> _agentSurfaceMetadataObject(Object? value) {
   if (value is Map<String, Object?>) {
     return value;
@@ -2936,6 +2959,26 @@ class _AgentPromptSectionState extends State<_AgentPromptSection> {
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.error,
                             ),
+                          ),
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            key: const ValueKey(
+                              'agent-recovery-draft-audit-fix',
+                            ),
+                            onPressed: applyingAction || controller.sending
+                                ? null
+                                : () {
+                                    controller.updatePrompt(
+                                      _recoveryAuditFixPrompt(
+                                        recoveryAuditSummary,
+                                      ),
+                                    );
+                                    setState(() {
+                                      _recoveryDispatchMessage = null;
+                                    });
+                                  },
+                            icon: const Icon(Icons.rule_rounded),
+                            label: const Text('Draft Audit Fix'),
                           ),
                         ],
                       ],

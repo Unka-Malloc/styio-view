@@ -297,6 +297,24 @@ void main() {
       find.widgetWithText(FilledButton, 'Run Recovery'),
     );
     expect(runRecoveryButton.onPressed, isNull);
+    expect(
+      find.byKey(const ValueKey('agent-recovery-draft-audit-fix')),
+      findsOneWidget,
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('agent-recovery-draft-audit-fix')),
+    );
+    await tester.pump();
+
+    expect(
+      controller.draftPrompt,
+      'Resolve the latest agent recovery audit before retrying provider recovery. '
+      'Permission denied tools: applyWorkspacePatch. '
+      'Blocking issues: agent.tool.permission.denied.applyWorkspacePatch. '
+      'Revise the requested tool chain or propose a safer manual recovery path.',
+    );
     expect(find.text('Validation failed commands: runTests'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-recovery-validation-failure-evidence')),

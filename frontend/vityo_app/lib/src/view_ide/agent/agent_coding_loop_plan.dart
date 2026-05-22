@@ -132,7 +132,7 @@ class AgentCodingLoopPlan {
         label: 'Resolve agent tool contracts',
         commandIds: const <String>['collectAgentCodingCheckpoint'],
         todoItems: const <String>[
-          'TODO: connect the production Extension Host RPC transport to ExtensionAgentToolHostInvokerRegistry for extension-discovered agent tools.',
+          'TODO: register production local-process/web-worker/remote-service bindings in ExtensionAgentToolHostRpcTransportRegistry for extension-discovered agent tools.',
         ],
       ),
       AgentCodingLoopStep(

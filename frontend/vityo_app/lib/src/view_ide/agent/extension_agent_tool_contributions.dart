@@ -522,6 +522,211 @@ class ExtensionAgentToolHostInvokerRegistry {
   }
 }
 
+typedef ExtensionAgentToolHostRpcTransport =
+    Future<AgentToolCallDispatchResult> Function(
+      ExtensionAgentToolHostRpcRequest request,
+    );
+
+class ExtensionAgentToolHostRpcRequest {
+  const ExtensionAgentToolHostRpcRequest({
+    required this.invocation,
+    required this.transportId,
+    required this.label,
+    required this.action,
+    this.endpoint = '',
+    this.metadata = const <String, Object?>{},
+  });
+
+  final ExtensionAgentToolHostInvocation invocation;
+  final String transportId;
+  final String label;
+  final ExtensionHostSupervisorAction action;
+  final String endpoint;
+  final Map<String, Object?> metadata;
+
+  String get extensionId => invocation.extensionId;
+  String get contributionId => invocation.contributionId;
+  String get handlerId => invocation.handlerId;
+  AgentToolCallDispatchRequest get toolCall => invocation.toolCall;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'transportId': transportId,
+      'label': label,
+      'action': action.wireValue,
+      if (endpoint.isNotEmpty) 'endpoint': endpoint,
+      'extensionId': extensionId,
+      'contributionId': contributionId,
+      'handlerId': handlerId,
+      'toolCall': toolCall.toJson(),
+      'invocation': invocation.toJson(),
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionAgentToolHostRpcTransportRegistration {
+  const ExtensionAgentToolHostRpcTransportRegistration({
+    required this.extensionId,
+    required this.handlerId,
+    required this.action,
+    required this.transportId,
+    required this.label,
+    required this.transport,
+    this.endpoint = '',
+    this.available = true,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String extensionId;
+  final String handlerId;
+  final ExtensionHostSupervisorAction action;
+  final String transportId;
+  final String label;
+  final ExtensionAgentToolHostRpcTransport transport;
+  final String endpoint;
+  final bool available;
+  final Map<String, Object?> metadata;
+
+  bool accepts(ExtensionAgentToolHostInvocation invocation) {
+    return available &&
+        extensionId == invocation.extensionId &&
+        handlerId == invocation.handlerId &&
+        action == invocation.plan.record.action;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'extensionId': extensionId,
+      'handlerId': handlerId,
+      'action': action.wireValue,
+      'transportId': transportId,
+      'label': label,
+      if (endpoint.isNotEmpty) 'endpoint': endpoint,
+      'available': available,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class ExtensionAgentToolHostRpcTransportRegistry {
+  ExtensionAgentToolHostRpcTransportRegistry({
+    Iterable<ExtensionAgentToolHostRpcTransportRegistration> registrations =
+        const <ExtensionAgentToolHostRpcTransportRegistration>[],
+  }) {
+    for (final registration in registrations) {
+      register(registration);
+    }
+  }
+
+  final List<ExtensionAgentToolHostRpcTransportRegistration> _registrations =
+      <ExtensionAgentToolHostRpcTransportRegistration>[];
+
+  List<ExtensionAgentToolHostRpcTransportRegistration> get registrations {
+    return List<ExtensionAgentToolHostRpcTransportRegistration>.unmodifiable(
+      _registrations,
+    );
+  }
+
+  void register(ExtensionAgentToolHostRpcTransportRegistration registration) {
+    _registrations.removeWhere(
+      (candidate) =>
+          candidate.extensionId == registration.extensionId &&
+          candidate.handlerId == registration.handlerId &&
+          candidate.action == registration.action,
+    );
+    _registrations.add(registration);
+  }
+
+  ExtensionAgentToolHostRpcTransportRegistration? resolve(
+    ExtensionAgentToolHostInvocation invocation,
+  ) {
+    for (final registration in _registrations) {
+      if (registration.accepts(invocation)) {
+        return registration;
+      }
+    }
+    return null;
+  }
+
+  Future<AgentToolCallDispatchResult> invoke(
+    ExtensionAgentToolHostInvocation invocation,
+  ) async {
+    final registration = resolve(invocation);
+    if (registration == null) {
+      return AgentToolCallDispatchResult.failure(
+        callId: invocation.toolCall.callId,
+        toolId: invocation.toolCall.toolId,
+        message:
+            'No Extension Host RPC transport is registered for '
+            '${invocation.extensionId}/${invocation.handlerId} on '
+            '${invocation.plan.record.action.wireValue}.',
+        metadata: <String, Object?>{
+          'source': 'extension-agent-tool-host-rpc-transport-registry',
+          'missingRpcTransportBinding': true,
+          'extensionId': invocation.extensionId,
+          'handlerId': invocation.handlerId,
+          'extensionHostAction': invocation.plan.record.action.wireValue,
+        },
+      );
+    }
+    final request = ExtensionAgentToolHostRpcRequest(
+      invocation: invocation,
+      transportId: registration.transportId,
+      label: registration.label,
+      action: registration.action,
+      endpoint: registration.endpoint,
+      metadata: registration.metadata,
+    );
+    try {
+      final result = await registration.transport(request);
+      return AgentToolCallDispatchResult(
+        callId: result.callId,
+        toolId: result.toolId,
+        success: result.success,
+        message: result.message,
+        output: result.output,
+        metadata: <String, Object?>{
+          ...registration.metadata,
+          ...result.metadata,
+          'extensionId': invocation.extensionId,
+          'handlerId': invocation.handlerId,
+          'extensionHostAction': registration.action.wireValue,
+          'transportId': registration.transportId,
+          'transportLabel': registration.label,
+          if (registration.endpoint.isNotEmpty)
+            'endpoint': registration.endpoint,
+        },
+      );
+    } on Object catch (error) {
+      return AgentToolCallDispatchResult.failure(
+        callId: invocation.toolCall.callId,
+        toolId: invocation.toolCall.toolId,
+        message:
+            'Extension Host RPC transport ${registration.transportId} failed '
+            'for ${invocation.extensionId}/${invocation.handlerId}: $error',
+        metadata: <String, Object?>{
+          'source': 'extension-agent-tool-host-rpc-transport-registry',
+          'rpcTransportFailed': true,
+          'extensionId': invocation.extensionId,
+          'handlerId': invocation.handlerId,
+          'transportId': registration.transportId,
+        },
+      );
+    }
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'schema': 'vityo.extension-agent-tool-host-rpc-transport-registry.v1',
+      'registrationCount': _registrations.length,
+      'registrations': _registrations
+          .map((registration) => registration.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
 class ExtensionAgentToolExecutionRegistry {
   ExtensionAgentToolExecutionRegistry({
     required ExtensionAgentToolContributionCatalog catalog,

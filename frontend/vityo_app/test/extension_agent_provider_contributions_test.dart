@@ -412,6 +412,137 @@ void main() {
   );
 
   test(
+    'extension agent tool host rpc transport registry routes active hosts',
+    () async {
+      final manifestRegistry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'agent.tools',
+            displayName: 'Agent Tools',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'agent_tools.dart',
+            activationEvents: <String>['onCommand:collectContext'],
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'local-process'},
+          ),
+        );
+      final session = ExtensionActivator(
+        clock: () => DateTime.utc(2026, 5, 22),
+      ).activate(registry: manifestRegistry, event: 'onCommand:collectContext');
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 22, 1),
+      ).applyActivation(registry: manifestRegistry, session: session);
+      ExtensionAgentToolHostRpcRequest? rpcRequest;
+      final transportRegistry = ExtensionAgentToolHostRpcTransportRegistry(
+        registrations: <ExtensionAgentToolHostRpcTransportRegistration>[
+          ExtensionAgentToolHostRpcTransportRegistration(
+            extensionId: 'agent.tools',
+            handlerId: 'collect-context',
+            action: ExtensionHostSupervisorAction.spawnLocalProcess,
+            transportId: 'local-process-rpc',
+            label: 'Local Process RPC',
+            endpoint: 'proc://agent.tools',
+            metadata: const <String, Object?>{'sandbox': 'local-process'},
+            transport: (request) async {
+              rpcRequest = request;
+              return AgentToolCallDispatchResult.success(
+                callId: request.toolCall.callId,
+                toolId: request.toolCall.toolId,
+                output: '{"extension":"rpc"}',
+                metadata: <String, Object?>{
+                  'requestAction': request.action.wireValue,
+                },
+              );
+            },
+          ),
+        ],
+      );
+      final bridge = ExtensionAgentToolActivatedHostBridge(
+        snapshot: snapshot,
+        buffer: RuntimeOutputLiveBuffer(),
+        manifestRegistry: manifestRegistry,
+        clock: () => DateTime.utc(2026, 5, 22, 2),
+        invoker: transportRegistry.invoke,
+      );
+
+      final result = await bridge.call(
+        const ExtensionAgentToolHostRequest(
+          extensionId: 'agent.tools',
+          contributionId: 'collect-extension-context',
+          handlerId: 'collect-context',
+          toolCall: AgentToolCallDispatchRequest(
+            callId: 'call-extension',
+            toolId: 'collectExtensionContext',
+            inputText: '{}',
+          ),
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.output, '{"extension":"rpc"}');
+      expect(result.metadata['transportId'], 'local-process-rpc');
+      expect(result.metadata['transportLabel'], 'Local Process RPC');
+      expect(result.metadata['endpoint'], 'proc://agent.tools');
+      expect(result.metadata['sandbox'], 'local-process');
+      expect(result.metadata['extensionHostAction'], 'spawn-local-process');
+      expect(result.metadata['requestAction'], 'spawn-local-process');
+      expect(rpcRequest?.handlerId, 'collect-context');
+      expect(rpcRequest?.endpoint, 'proc://agent.tools');
+      expect(transportRegistry.toJson()['registrationCount'], 1);
+    },
+  );
+
+  test(
+    'extension agent tool host rpc transport registry reports missing bindings',
+    () async {
+      final manifestRegistry = ExtensionManifestRegistry()
+        ..register(
+          const ExtensionManifest(
+            extensionId: 'agent.tools',
+            displayName: 'Agent Tools',
+            version: '1.0.0',
+            publisher: 'vityo',
+            entrypoint: 'agent_tools.dart',
+            activationEvents: <String>['onCommand:collectContext'],
+            trustedByDefault: true,
+            metadata: <String, Object?>{'isolationMode': 'local-process'},
+          ),
+        );
+      final session = ExtensionActivator(
+        clock: () => DateTime.utc(2026, 5, 22),
+      ).activate(registry: manifestRegistry, event: 'onCommand:collectContext');
+      final snapshot = ExtensionHostSupervisor(
+        clock: () => DateTime.utc(2026, 5, 22, 1),
+      ).applyActivation(registry: manifestRegistry, session: session);
+      final bridge = ExtensionAgentToolActivatedHostBridge(
+        snapshot: snapshot,
+        buffer: RuntimeOutputLiveBuffer(),
+        manifestRegistry: manifestRegistry,
+        clock: () => DateTime.utc(2026, 5, 22, 2),
+        invoker: ExtensionAgentToolHostRpcTransportRegistry().invoke,
+      );
+
+      final result = await bridge.call(
+        const ExtensionAgentToolHostRequest(
+          extensionId: 'agent.tools',
+          contributionId: 'collect-extension-context',
+          handlerId: 'collect-context',
+          toolCall: AgentToolCallDispatchRequest(
+            callId: 'call-extension',
+            toolId: 'collectExtensionContext',
+            inputText: '{}',
+          ),
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.metadata['missingRpcTransportBinding'], isTrue);
+      expect(result.metadata['extensionHostAction'], 'spawn-local-process');
+    },
+  );
+
+  test(
     'extension agent tool activated host bridge blocks inactive hosts',
     () async {
       final manifestRegistry = ExtensionManifestRegistry()

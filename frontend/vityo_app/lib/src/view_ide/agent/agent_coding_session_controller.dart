@@ -817,6 +817,7 @@ class AgentCodingSessionController extends ChangeNotifier {
       executionPlan: executionPlan,
       timeline: _toolCallTimeline,
       executor: executor,
+      toolSelection: _currentToolSelection(),
       dispatcher: dispatcher,
     );
     if (report.events.isNotEmpty) {

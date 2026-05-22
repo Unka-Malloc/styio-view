@@ -168,6 +168,162 @@ class AgentToolInputValidator {
   }
 }
 
+class AgentToolResultValidationIssue {
+  const AgentToolResultValidationIssue({
+    required this.code,
+    required this.message,
+    this.propertyName,
+    this.expectedType,
+    this.actualType,
+  });
+
+  final String code;
+  final String message;
+  final String? propertyName;
+  final String? expectedType;
+  final String? actualType;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'code': code,
+      'message': message,
+      if (propertyName != null) 'propertyName': propertyName,
+      if (expectedType != null) 'expectedType': expectedType,
+      if (actualType != null) 'actualType': actualType,
+    };
+  }
+}
+
+class AgentToolResultValidationResult {
+  const AgentToolResultValidationResult({
+    required this.toolId,
+    required this.decodedObject,
+    this.issues = const <AgentToolResultValidationIssue>[],
+  });
+
+  final String toolId;
+  final Map<String, Object?>? decodedObject;
+  final List<AgentToolResultValidationIssue> issues;
+
+  bool get valid => issues.isEmpty;
+
+  String get modelFacingMessage {
+    if (valid) {
+      return 'Tool $toolId result is valid.';
+    }
+    return 'The $toolId tool returned output that does not satisfy its result schema: '
+        '${issues.map((issue) => issue.message).join(' ')}';
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'toolId': toolId,
+      'valid': valid,
+      'issueCount': issues.length,
+      'issues': issues.map((issue) => issue.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class AgentToolResultValidator {
+  const AgentToolResultValidator();
+
+  AgentToolResultValidationResult validate({
+    required AgentToolDefinition tool,
+    required String outputText,
+  }) {
+    final schema = tool.resultSchema;
+    if (schema.isEmpty) {
+      return AgentToolResultValidationResult(
+        toolId: tool.toolId,
+        decodedObject: null,
+      );
+    }
+
+    final trimmedOutput = outputText.trim();
+    if (trimmedOutput.isEmpty) {
+      return AgentToolResultValidationResult(
+        toolId: tool.toolId,
+        decodedObject: null,
+        issues: <AgentToolResultValidationIssue>[
+          AgentToolResultValidationIssue(
+            code: 'agent.tool.result.empty.${tool.toolId}',
+            message: 'Tool ${tool.toolId} returned empty output.',
+          ),
+        ],
+      );
+    }
+
+    late final Object? decoded;
+    try {
+      decoded = jsonDecode(trimmedOutput);
+    } on Object catch (error) {
+      return AgentToolResultValidationResult(
+        toolId: tool.toolId,
+        decodedObject: null,
+        issues: <AgentToolResultValidationIssue>[
+          AgentToolResultValidationIssue(
+            code: 'agent.tool.result.invalidJson.${tool.toolId}',
+            message: 'Tool ${tool.toolId} result is not valid JSON: $error',
+          ),
+        ],
+      );
+    }
+    if (decoded is! Map) {
+      return AgentToolResultValidationResult(
+        toolId: tool.toolId,
+        decodedObject: null,
+        issues: <AgentToolResultValidationIssue>[
+          AgentToolResultValidationIssue(
+            code: 'agent.tool.result.notObject.${tool.toolId}',
+            message: 'Tool ${tool.toolId} result must be a JSON object.',
+          ),
+        ],
+      );
+    }
+
+    final output = decoded.map<String, Object?>(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+    final issues = <AgentToolResultValidationIssue>[];
+    for (final property in schema) {
+      if (!output.containsKey(property.name)) {
+        if (property.required) {
+          issues.add(
+            AgentToolResultValidationIssue(
+              code: 'agent.tool.result.missing.${tool.toolId}.${property.name}',
+              message:
+                  'Tool ${tool.toolId} result is missing required property ${property.name}.',
+              propertyName: property.name,
+              expectedType: property.type,
+            ),
+          );
+        }
+        continue;
+      }
+      final value = output[property.name];
+      if (!_matchesType(value, property.type)) {
+        issues.add(
+          AgentToolResultValidationIssue(
+            code:
+                'agent.tool.result.type.${tool.toolId}.${property.name}.${property.type}',
+            message:
+                'Tool ${tool.toolId} result property ${property.name} must be ${property.type}, but got ${_typeName(value)}.',
+            propertyName: property.name,
+            expectedType: property.type,
+            actualType: _typeName(value),
+          ),
+        );
+      }
+    }
+    return AgentToolResultValidationResult(
+      toolId: tool.toolId,
+      decodedObject: output,
+      issues: List<AgentToolResultValidationIssue>.unmodifiable(issues),
+    );
+  }
+}
+
 bool _matchesType(Object? value, String expectedType) {
   final types = expectedType
       .split('|')

@@ -447,46 +447,41 @@ void main() {
     );
   });
 
-  test(
-    'agent coding session dispatches streamed provider tool calls',
-    () async {
-      final adapter = _StreamingToolCallOnlyAgentProviderAdapter();
-      final controller = AgentCodingSessionController(
-        profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
-        adapter: adapter,
-        contextProvider: _context,
-      );
+  test('agent coding session dispatches streamed provider tool calls', () async {
+    final adapter = _StreamingToolCallOnlyAgentProviderAdapter();
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(PlatformTarget.web),
+      adapter: adapter,
+      contextProvider: _context,
+    );
 
-      controller.updatePrompt('Read the current file through streaming tools.');
-      final response = await controller.sendPrompt();
+    controller.updatePrompt('Read the current file through streaming tools.');
+    final response = await controller.sendPrompt();
 
-      expect(response?.finishReason, 'tool_calls');
-      expect(controller.toolCallTimeline.callIds, <String>['call-read']);
-      expect(controller.toolCallExecutionJournal.sourceEventCount, 4);
-      expect(
-        controller.toolCallExecutionPlan.status,
-        AgentToolCallExecutionPlanStatus.ready,
-      );
+    expect(response?.finishReason, 'tool_calls');
+    expect(controller.toolCallTimeline.callIds, <String>['call-read']);
+    expect(controller.toolCallExecutionJournal.sourceEventCount, 4);
+    expect(
+      controller.toolCallExecutionPlan.status,
+      AgentToolCallExecutionPlanStatus.ready,
+    );
 
-      await controller.dispatchReadyToolCalls(
-        (request) => AgentToolCallDispatchResult.success(
-          callId: request.callId,
-          toolId: request.toolId,
-          output: '{"text":"value := 1"}',
-        ),
-      );
+    await controller.dispatchReadyToolCalls(
+      (request) => AgentToolCallDispatchResult.success(
+        callId: request.callId,
+        toolId: request.toolId,
+        output:
+            '{"source":"agent-session-context","document":{"text":"value := 1"}}',
+      ),
+    );
 
-      expect(
-        controller.recentToolCallResultContexts.single.callId,
-        'call-read',
-      );
-      expect(
-        controller.toolCallTimeline.status,
-        AgentToolCallTimelineStatus.complete,
-      );
-      expect(controller.toolCallExecutionJournal.sourceEventCount, 5);
-    },
-  );
+    expect(controller.recentToolCallResultContexts.single.callId, 'call-read');
+    expect(
+      controller.toolCallTimeline.status,
+      AgentToolCallTimelineStatus.complete,
+    );
+    expect(controller.toolCallExecutionJournal.sourceEventCount, 5);
+  });
 
   test(
     'agent coding session forwards dispatched tool results to next request',
@@ -524,7 +519,8 @@ void main() {
         (request) => AgentToolCallDispatchResult.success(
           callId: request.callId,
           toolId: request.toolId,
-          output: '{"text":"value = 1"}',
+          output:
+              '{"source":"agent-session-context","document":{"text":"value = 1"}}',
           metadata: const <String, Object?>{'source': 'test'},
         ),
       );
@@ -549,7 +545,10 @@ void main() {
       expect(request.toolCallResults.single.callId, 'call-read');
       expect(request.toolCallResults.single.toolId, 'readWorkspaceFile');
       expect(request.toolCallResults.single.success, isTrue);
-      expect(request.toolCallResults.single.output, '{"text":"value = 1"}');
+      expect(
+        request.toolCallResults.single.output,
+        '{"source":"agent-session-context","document":{"text":"value = 1"}}',
+      );
       expect(
         request.context.agent.toolCallTimeline?.status,
         AgentToolCallTimelineStatus.complete,
@@ -681,7 +680,8 @@ void main() {
         (request) => AgentToolCallDispatchResult.success(
           callId: request.callId,
           toolId: request.toolId,
-          output: '{"text":"value = 1"}',
+          output:
+              '{"source":"agent-session-context","document":{"text":"value = 1"}}',
         ),
       );
 
@@ -748,7 +748,8 @@ void main() {
         return AgentToolCallDispatchResult.success(
           callId: request.callId,
           toolId: request.toolId,
-          output: '{"text":"value = 1"}',
+          output:
+              '{"source":"agent-session-context","document":{"text":"value = 1"}}',
         );
       });
 
@@ -812,7 +813,8 @@ void main() {
         return AgentToolCallDispatchResult.success(
           callId: request.callId,
           toolId: request.toolId,
-          output: '{"text":"value = 1"}',
+          output:
+              '{"source":"agent-session-context","document":{"text":"value = 1"}}',
         );
       });
       controller.updatePrompt('Continue after replay.');

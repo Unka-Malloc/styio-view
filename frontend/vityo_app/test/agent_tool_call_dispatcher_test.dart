@@ -62,6 +62,58 @@ void main() {
     expect(report.toJson()['status'], 'dispatched');
   });
 
+  test(
+    'agent tool call dispatcher validates result schema when available',
+    () async {
+      final profile = AgentPromptProfile.openAICodexSparkForPlatform(
+        PlatformTarget.linux,
+      );
+      final selection = AgentToolRegistry().selectForProfile(
+        profile: profile,
+        providerKind: AgentProviderKind.cloudOpenAICompatible,
+      );
+      final permissions = AgentToolPermissionPlan.fromSelection(selection);
+      final timeline = const AgentToolCallLifecycleTracker()
+          .track(<AgentToolCallEvent>[
+            const AgentToolCallEvent.callStarted(
+              callId: 'call-read',
+              toolId: 'readWorkspaceFile',
+              input: '{"path":"main.styio"}',
+            ),
+          ]);
+      final executionPlan = AgentToolCallExecutionPlan.fromTimeline(
+        toolSelection: selection,
+        permissionPlan: permissions,
+        timeline: timeline,
+      );
+
+      final report = await const AgentToolCallDispatcher().dispatchReady(
+        executionPlan: executionPlan,
+        timeline: timeline,
+        toolSelection: selection,
+        executor: (request) {
+          return AgentToolCallDispatchResult.success(
+            callId: request.callId,
+            toolId: request.toolId,
+            output: '{"document":{"text":"value = 1"}}',
+          );
+        },
+      );
+
+      expect(report.status, AgentToolCallDispatchReportStatus.failed);
+      expect(report.results.single.success, isFalse);
+      expect(
+        report.results.single.message,
+        contains('does not satisfy its result schema'),
+      );
+      expect(
+        report.results.single.metadata['source'],
+        'agent-tool-result-validation',
+      );
+      expect(report.events.single.kind, AgentToolCallEventKind.error);
+    },
+  );
+
   test('agent tool call dispatcher waits for review-gated calls', () async {
     final profile = AgentPromptProfile.openAICodexSparkForPlatform(
       PlatformTarget.linux,
@@ -134,7 +186,7 @@ void main() {
         return AgentToolCallDispatchResult.success(
           callId: request.callId,
           toolId: request.toolId,
-          output: 'command executed',
+          output: '{"source":"ide-command-runner","result":{"applied":true}}',
         );
       });
 
@@ -145,7 +197,7 @@ void main() {
       );
       expect(
         controller.toolCallTimeline.callFor('call-command')?.resultSample,
-        'command executed',
+        '{"source":"ide-command-runner","result":{"applied":true}}',
       );
       expect(
         controller.toolCallExecutionPlan.status,
@@ -216,7 +268,8 @@ void main() {
       return AgentToolCallDispatchResult.success(
         callId: request.callId,
         toolId: request.toolId,
-        output: '{"text":"restored"}',
+        output:
+            '{"source":"agent-session-context","document":{"text":"restored"}}',
       );
     });
 

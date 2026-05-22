@@ -4,6 +4,7 @@ import 'agent_tool_call_execution_journal.dart';
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_call_result_context.dart';
+import 'agent_tool_registry.dart';
 import 'agent_tool_call_stream_bridge.dart';
 import 'agent_tool_session_transcript.dart';
 
@@ -123,6 +124,7 @@ class AgentToolSessionProcessor {
     required AgentToolCallExecutionPlan executionPlan,
     required AgentToolCallTimeline timeline,
     required AgentToolCallExecutor executor,
+    AgentToolSelection? toolSelection,
     AgentToolCallDispatcher dispatcher = const AgentToolCallDispatcher(),
   }) async {
     final blockedInputResults = blockedToolInputResults(executionPlan);
@@ -143,6 +145,7 @@ class AgentToolSessionProcessor {
       executionPlan: executionPlan,
       timeline: timeline,
       executor: executor,
+      toolSelection: toolSelection,
     );
   }
 

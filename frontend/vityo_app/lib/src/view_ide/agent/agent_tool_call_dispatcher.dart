@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'agent_tool_call_execution_plan.dart';
 import 'agent_tool_call_lifecycle.dart';
+import 'agent_tool_input_validator.dart';
+import 'agent_tool_registry.dart';
 
 typedef AgentToolCallExecutor =
     FutureOr<AgentToolCallDispatchResult> Function(
@@ -227,6 +229,7 @@ class AgentToolCallDispatcher {
     required AgentToolCallExecutionPlan executionPlan,
     required AgentToolCallTimeline timeline,
     required AgentToolCallExecutor executor,
+    AgentToolSelection? toolSelection,
   }) async {
     final dispatchPlan = AgentToolCallDispatchPlan.fromExecutionPlan(
       executionPlan,
@@ -269,8 +272,12 @@ class AgentToolCallDispatcher {
           );
         }
       }
-      results.add(result);
-      events.add(result.toLifecycleEvent());
+      final validatedResult = _validatedDispatchResult(
+        result: result,
+        toolSelection: toolSelection,
+      );
+      results.add(validatedResult);
+      events.add(validatedResult.toLifecycleEvent());
     }
 
     return AgentToolCallDispatchReport(
@@ -282,6 +289,58 @@ class AgentToolCallDispatcher {
       events: List<AgentToolCallEvent>.unmodifiable(events),
     );
   }
+}
+
+AgentToolCallDispatchResult _validatedDispatchResult({
+  required AgentToolCallDispatchResult result,
+  required AgentToolSelection? toolSelection,
+}) {
+  if (!result.success || toolSelection == null) {
+    return result;
+  }
+  final tool = _toolForResult(toolSelection, result.toolId);
+  if (tool == null || tool.resultSchema.isEmpty) {
+    return result;
+  }
+  final validation = const AgentToolResultValidator().validate(
+    tool: tool,
+    outputText: result.output,
+  );
+  final metadata = <String, Object?>{
+    ...result.metadata,
+    'resultValidation': validation.toJson(),
+  };
+  if (validation.valid) {
+    return AgentToolCallDispatchResult.success(
+      callId: result.callId,
+      toolId: result.toolId,
+      output: result.output,
+      message: result.message,
+      metadata: metadata,
+    );
+  }
+  return AgentToolCallDispatchResult.failure(
+    callId: result.callId,
+    toolId: result.toolId,
+    message: validation.modelFacingMessage,
+    output: result.output,
+    metadata: <String, Object?>{
+      ...metadata,
+      'source': 'agent-tool-result-validation',
+    },
+  );
+}
+
+AgentToolDefinition? _toolForResult(
+  AgentToolSelection selection,
+  String toolId,
+) {
+  for (final tool in selection.tools) {
+    if (tool.toolId == toolId) {
+      return tool;
+    }
+  }
+  return null;
 }
 
 AgentToolCallDispatchPlanStatus _dispatchPlanStatus(

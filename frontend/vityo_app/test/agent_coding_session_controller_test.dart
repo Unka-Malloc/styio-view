@@ -439,6 +439,7 @@ void main() {
       AgentToolCallTimelineStatus.complete,
     );
     expect(controller.toolCallTimeline.callIds, <String>['call-read']);
+    expect(controller.toolCallExecutionJournal.sourceEventCount, 2);
     expect(
       controller.toolCallExecutionPlan.status,
       AgentToolCallExecutionPlanStatus.complete,

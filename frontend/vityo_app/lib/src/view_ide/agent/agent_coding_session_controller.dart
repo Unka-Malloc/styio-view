@@ -933,8 +933,11 @@ class AgentCodingSessionController extends ChangeNotifier {
       if (requestSerial != _activeRequestSerial) {
         return null;
       }
-      if (response.toolCallEvents.isNotEmpty) {
-        recordToolCallEvents(response.toolCallEvents);
+      final responseToolCallEvents = response.toolCallEvents
+          .where((event) => !_isStreamedProviderToolCallEvent(event))
+          .toList(growable: false);
+      if (responseToolCallEvents.isNotEmpty) {
+        recordToolCallEvents(responseToolCallEvents);
       }
       _lastResponse = response;
       _completedIdeCommandSuggestionKeys.clear();
@@ -2344,6 +2347,17 @@ class AgentCodingSessionController extends ChangeNotifier {
     }
     return '${text.substring(0, maxConversationTurnTextLength)}\n[truncated ${text.length - maxConversationTurnTextLength} char(s)]';
   }
+}
+
+bool _isStreamedProviderToolCallEvent(AgentToolCallEvent event) {
+  final metadata = event.metadata;
+  if (metadata['providerEventType'] != null ||
+      metadata['toolCallEventKind'] != null ||
+      metadata['tool_call_event_kind'] != null) {
+    return true;
+  }
+  final source = metadata['source'];
+  return source is String && source.contains('stream');
 }
 
 String _agentReadinessBlockMessage(AgentCodingExecutionReadiness readiness) {

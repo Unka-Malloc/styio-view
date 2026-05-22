@@ -58,6 +58,29 @@ class AppLanguageServiceProjectContext {
   final String? configPath;
 }
 
+class AppExtensionStartupPlan {
+  const AppExtensionStartupPlan({
+    required this.manifestRegistry,
+    required this.activationSession,
+    required this.supervisorSnapshot,
+    required this.contributionRoutes,
+  });
+
+  final ExtensionManifestRegistry manifestRegistry;
+  final ExtensionActivationSession activationSession;
+  final ExtensionHostSupervisorSnapshot supervisorSnapshot;
+  final ExtensionContributionRouteManifest contributionRoutes;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'manifestCount': manifestRegistry.list().length,
+      'activationSession': activationSession.toJson(),
+      'supervisorSnapshot': supervisorSnapshot.toJson(),
+      'contributionRoutes': contributionRoutes.toJson(),
+    };
+  }
+}
+
 class AppBootstrap {
   AppBootstrap({
     required this.platformTarget,
@@ -77,6 +100,8 @@ class AppBootstrap {
     required this.agentCodingController,
     required this.agentProviderConfigurator,
     this.agentExtensionToolExecutionRegistry,
+    this.extensionStartupPlan,
+    RuntimeOutputLiveBuffer? runtimeOutputBuffer,
     this.commandPalettePreferencesStore,
     this.themeOverrideStore,
     this.refreshActiveLanguageService,
@@ -92,7 +117,8 @@ class AppBootstrap {
     this.testingSessionController,
     this.sourceControlStatusController,
     this.projectLanguageService,
-  }) : languageServiceStatus =
+  }) : runtimeOutputBuffer = runtimeOutputBuffer ?? RuntimeOutputLiveBuffer(),
+       languageServiceStatus =
            languageServiceStatus ??
            ValueNotifier<LanguageServiceStatusSurface>(
              LanguageServiceStatusSurface.unavailable(),
@@ -116,6 +142,8 @@ class AppBootstrap {
   final AgentProviderConfigurator agentProviderConfigurator;
   final ExtensionAgentToolExecutionRegistry?
   agentExtensionToolExecutionRegistry;
+  final AppExtensionStartupPlan? extensionStartupPlan;
+  final RuntimeOutputLiveBuffer runtimeOutputBuffer;
   final CommandPaletteDisplayPreferencesStore? commandPalettePreferencesStore;
   final VityoThemeOverrideStore? themeOverrideStore;
   final ToolchainManager? toolchainManager;
@@ -158,6 +186,10 @@ class AppBootstrap {
     final moduleRegistry = await ModuleRegistry.loadFromAssets(
       indexAssetPath: 'assets/module_manifests/index.json',
       platformTarget: platformTarget,
+    );
+    final runtimeOutputBuffer = RuntimeOutputLiveBuffer();
+    final extensionStartupPlan = createExtensionStartupPlan(
+      moduleRegistry: moduleRegistry,
     );
     final nativeModuleLoader = NoopNativeModuleLoader(
       platformTarget: platformTarget,
@@ -393,6 +425,7 @@ class AppBootstrap {
         editorController: editorController,
         workspaceDocumentStore: workspaceDocumentStore,
       ),
+      extensionContributionRoutes: extensionStartupPlan.contributionRoutes,
       contextProvider: () => AgentSessionContext.fromEditorState(
         document: editorController.document,
         selection: editorController.selection,
@@ -418,6 +451,14 @@ class AppBootstrap {
       providerRegistry: agentProviderRegistry,
       credentialDataStore: credentialDataStore,
     );
+    final agentExtensionToolExecutionRegistry =
+        createAgentExtensionToolExecutionRegistry(
+          extensionContributionRoutes: extensionStartupPlan.contributionRoutes,
+          extensionHostSupervisorSnapshot:
+              extensionStartupPlan.supervisorSnapshot,
+          runtimeOutputBuffer: runtimeOutputBuffer,
+          extensionManifestRegistry: extensionStartupPlan.manifestRegistry,
+        );
 
     return AppBootstrap(
       platformTarget: platformTarget,
@@ -436,6 +477,9 @@ class AppBootstrap {
       toolchainManagementAdapter: toolchainManagementAdapter,
       agentCodingController: agentCodingController,
       agentProviderConfigurator: agentProviderConfigurator,
+      agentExtensionToolExecutionRegistry: agentExtensionToolExecutionRegistry,
+      extensionStartupPlan: extensionStartupPlan,
+      runtimeOutputBuffer: runtimeOutputBuffer,
       commandPalettePreferencesStore: commandPalettePreferencesStore,
       themeOverrideStore: themeOverrideStore,
       refreshActiveLanguageService: refreshActiveLanguageService,
@@ -608,6 +652,49 @@ class AppBootstrap {
     return ExtensionAgentToolContributionCatalog.fromRoutes(
       extensionContributionRoutes,
     ).toRegistry();
+  }
+
+  @visibleForTesting
+  static AppExtensionStartupPlan createExtensionStartupPlan({
+    required ModuleRegistry moduleRegistry,
+    String publisher = 'vityo',
+    String activationEvent = 'onStartup',
+    DateTime Function()? clock,
+  }) {
+    final manifestRegistry = ExtensionManifestRegistry(
+      moduleRegistry.mountedModules.map((definition) {
+        return ExtensionManifest.fromModuleManifest(
+          module: definition.manifest,
+          publisher: publisher,
+          activationEvents: <String>[activationEvent],
+          metadata: <String, Object?>{
+            'source': 'module-registry',
+            'moduleSlot': definition.manifest.slot.wireValue,
+          },
+        );
+      }),
+    );
+    final activator = ExtensionActivator(clock: clock);
+    final activationSession = activator.activate(
+      registry: manifestRegistry,
+      event: activationEvent,
+    );
+    final activeRegistry = ExtensionManifestRegistry(
+      activationSession.activatedExtensionIds
+          .map(manifestRegistry.lookup)
+          .whereType<ExtensionManifest>(),
+    );
+    final contributionRoutes = const ExtensionContributionRouter()
+        .routeRegistry(activeRegistry);
+    final supervisorSnapshot = ExtensionHostSupervisor(
+      clock: clock,
+    ).applyActivation(registry: manifestRegistry, session: activationSession);
+    return AppExtensionStartupPlan(
+      manifestRegistry: manifestRegistry,
+      activationSession: activationSession,
+      supervisorSnapshot: supervisorSnapshot,
+      contributionRoutes: contributionRoutes,
+    );
   }
 
   @visibleForTesting

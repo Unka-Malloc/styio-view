@@ -58,6 +58,66 @@ void main() {
   );
 
   test(
+    'agent bootstrap projects mounted modules into extension startup plan',
+    () {
+      const module = ModuleDefinition(
+        manifest: ModuleManifest(
+          moduleId: 'agent.surface.basic',
+          displayName: 'Agent Surface',
+          version: '1.0.0',
+          kind: ModuleKind.core,
+          slot: ModuleSlot.agentSurface,
+          description: 'Agent UI',
+          enabledByDefault: true,
+          entrypoint: 'agent_surface.dart',
+          distributionPolicyRef: 'core-policy',
+          capabilityFlags: <String, bool>{'agentSurface': true},
+        ),
+        matrix: ModuleCapabilityMatrix(
+          moduleId: 'agent.surface.basic',
+          platforms: <PlatformTarget, ModuleCapabilityRule>{
+            PlatformTarget.linux: ModuleCapabilityRule(
+              supported: true,
+              visible: true,
+              installable: true,
+              mountedByDefault: true,
+              iosSafe: true,
+              distributionChannel: 'self-hosted',
+              note: 'Mounted in tests.',
+            ),
+          },
+        ),
+      );
+      final moduleRegistry = ModuleRegistry(
+        platformTarget: PlatformTarget.linux,
+        definitions: const <ModuleDefinition>[module],
+      );
+
+      final plan = AppBootstrap.createExtensionStartupPlan(
+        moduleRegistry: moduleRegistry,
+        clock: () => DateTime.utc(2026, 5, 22),
+      );
+
+      expect(
+        plan.manifestRegistry.list().single.extensionId,
+        'agent.surface.basic',
+      );
+      expect(plan.activationSession.activatedExtensionIds, <String>[
+        'agent.surface.basic',
+      ]);
+      expect(plan.supervisorSnapshot.startingExtensionIds, <String>[
+        'agent.surface.basic',
+      ]);
+      expect(
+        plan.supervisorSnapshot.lookup('agent.surface.basic')?.action,
+        ExtensionHostSupervisorAction.spawnLocalProcess,
+      );
+      expect(plan.contributionRoutes.routes, isEmpty);
+      expect(plan.toJson()['manifestCount'], 1);
+    },
+  );
+
+  test(
     'agent bootstrap installs extension agent tools from activated routes',
     () async {
       final routes = ExtensionContributionRouteManifest(

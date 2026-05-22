@@ -123,8 +123,9 @@ void main() {
     expect(checkpoint.status, AgentCodingSessionCheckpointStatus.needsRecovery);
     expect(checkpoint.needsRecovery, isTrue);
     expect(checkpoint.latestPromptSample, 'Apply patch');
-    expect(checkpoint.recoveryTodo, contains('TODO:'));
+    expect(checkpoint.recoveryRequirement, contains('provider retry'));
     expect(checkpoint.toJson()['latestOutcome'], 'failed');
+    expect(checkpoint.toJson().containsKey('recoveryTodo'), isFalse);
     expect(recoveryPlan.status, AgentCodingSessionRecoveryStatus.available);
     expect(
       recoveryPlan.recommendedAction,
@@ -152,9 +153,10 @@ void main() {
     expect(failoverCommand?.commandId, 'failoverAgentProvider');
     expect(failoverCommand?.requiresProviderSelection, isTrue);
     expect(
-      failoverCommand?.toJson()['todo'],
+      failoverCommand?.toJson()['providerSelectionInputHint'],
       contains('targetProviderProfileKey'),
     );
+    expect(failoverCommand?.toJson().containsKey('todo'), isFalse);
     final retryDraft = history.toRecoveryRequestDraft(
       AgentCodingSessionRecoveryAction.retrySameProvider,
     );

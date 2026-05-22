@@ -228,7 +228,7 @@ class AgentCodingSessionCheckpoint {
     this.latestOutcome,
     this.latestPromptSample,
     this.latestCompletedAt,
-    this.recoveryTodo,
+    this.recoveryRequirement,
   });
 
   factory AgentCodingSessionCheckpoint.fromHistory(
@@ -254,8 +254,8 @@ class AgentCodingSessionCheckpoint {
       latestOutcome: latestOutcome,
       latestPromptSample: _checkpointPromptSample(latest?.prompt),
       latestCompletedAt: latest?.completedAt,
-      recoveryTodo: needsRecovery
-          ? 'TODO: route this checkpoint into provider retry, failover, or replay controls before resuming unrelated agent work.'
+      recoveryRequirement: needsRecovery
+          ? 'Resolve this checkpoint through provider retry, provider failover, or prompt replay before resuming unrelated agent work.'
           : null,
     );
   }
@@ -282,7 +282,9 @@ class AgentCodingSessionCheckpoint {
       latestCompletedAt: DateTime.tryParse(
         json['latestCompletedAt'] as String? ?? '',
       )?.toUtc(),
-      recoveryTodo: json['recoveryTodo'] as String?,
+      recoveryRequirement:
+          json['recoveryRequirement'] as String? ??
+          _legacyRecoveryRequirement(json['recoveryTodo']),
     );
   }
 
@@ -296,7 +298,7 @@ class AgentCodingSessionCheckpoint {
   final AgentCodingSessionOutcome? latestOutcome;
   final String? latestPromptSample;
   final DateTime? latestCompletedAt;
-  final String? recoveryTodo;
+  final String? recoveryRequirement;
 
   bool get hasHistory => recordCount > 0;
   bool get needsRecovery =>
@@ -317,7 +319,8 @@ class AgentCodingSessionCheckpoint {
       if (latestPromptSample != null) 'latestPromptSample': latestPromptSample,
       if (latestCompletedAt != null)
         'latestCompletedAt': latestCompletedAt!.toIso8601String(),
-      if (recoveryTodo != null) 'recoveryTodo': recoveryTodo,
+      if (recoveryRequirement != null)
+        'recoveryRequirement': recoveryRequirement,
     };
   }
 }
@@ -329,7 +332,8 @@ class AgentCodingSessionRecoveryPlan {
     required this.recommendedAction,
     required this.availableActions,
     required this.checkpoint,
-    this.todo,
+    this.recoveryNote,
+    this.failoverSelectionPolicy,
   });
 
   factory AgentCodingSessionRecoveryPlan.fromCheckpoint(
@@ -342,8 +346,8 @@ class AgentCodingSessionRecoveryPlan {
         recommendedAction: AgentCodingSessionRecoveryAction.none,
         availableActions: const <AgentCodingSessionRecoveryAction>[],
         checkpoint: checkpoint,
-        todo:
-            'TODO: start a new agent session because no previous request exists to replay.',
+        recoveryNote:
+            'Start a new agent session because no previous request exists to replay.',
       );
     }
     if (!checkpoint.needsRecovery) {
@@ -372,8 +376,8 @@ class AgentCodingSessionRecoveryPlan {
       recommendedAction: actions.first,
       availableActions: actions,
       checkpoint: checkpoint,
-      todo:
-          'TODO: add saved-provider profile ranking before choosing the default failover recovery key.',
+      failoverSelectionPolicy:
+          'Use saved provider profiles when failover is selected; retry the same provider remains the default recovery action.',
     );
   }
 
@@ -392,7 +396,10 @@ class AgentCodingSessionRecoveryPlan {
       checkpoint: AgentCodingSessionCheckpoint.fromJson(
         _jsonObjectMap(json['checkpoint']),
       ),
-      todo: json['todo'] as String?,
+      recoveryNote:
+          json['recoveryNote'] as String? ??
+          _legacyRecoveryRequirement(json['todo']),
+      failoverSelectionPolicy: json['failoverSelectionPolicy'] as String?,
     );
   }
 
@@ -401,7 +408,8 @@ class AgentCodingSessionRecoveryPlan {
   final AgentCodingSessionRecoveryAction recommendedAction;
   final List<AgentCodingSessionRecoveryAction> availableActions;
   final AgentCodingSessionCheckpoint checkpoint;
-  final String? todo;
+  final String? recoveryNote;
+  final String? failoverSelectionPolicy;
 
   bool get canRetryProvider => availableActions.contains(
     AgentCodingSessionRecoveryAction.retrySameProvider,
@@ -433,7 +441,9 @@ class AgentCodingSessionRecoveryPlan {
       'canFailoverProvider': canFailoverProvider,
       'canReplayPrompt': canReplayPrompt,
       'checkpoint': checkpoint.toJson(),
-      if (todo != null) 'todo': todo,
+      if (recoveryNote != null) 'recoveryNote': recoveryNote,
+      if (failoverSelectionPolicy != null)
+        'failoverSelectionPolicy': failoverSelectionPolicy,
     };
   }
 }
@@ -447,7 +457,7 @@ class AgentCodingSessionRecoveryCommandPlan {
     required this.requestId,
     required this.requiresProviderSelection,
     this.promptSample,
-    this.todo,
+    this.providerSelectionInputHint,
   });
 
   static AgentCodingSessionRecoveryCommandPlan? tryFromRecoveryPlan({
@@ -482,8 +492,9 @@ class AgentCodingSessionRecoveryCommandPlan {
       requiresProviderSelection:
           action == AgentCodingSessionRecoveryAction.failoverProvider,
       promptSample: checkpoint.latestPromptSample,
-      todo: action == AgentCodingSessionRecoveryAction.failoverProvider
-          ? 'TODO: when Agent Surface is unavailable, command input must use targetProviderProfileKey from agent.savedProviderProfiles.'
+      providerSelectionInputHint:
+          action == AgentCodingSessionRecoveryAction.failoverProvider
+          ? 'When Agent Surface is unavailable, command input must use targetProviderProfileKey from agent.savedProviderProfiles.'
           : null,
     );
   }
@@ -495,7 +506,7 @@ class AgentCodingSessionRecoveryCommandPlan {
   final String requestId;
   final bool requiresProviderSelection;
   final String? promptSample;
-  final String? todo;
+  final String? providerSelectionInputHint;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -506,7 +517,8 @@ class AgentCodingSessionRecoveryCommandPlan {
       'requestId': requestId,
       'requiresProviderSelection': requiresProviderSelection,
       if (promptSample != null) 'promptSample': promptSample,
-      if (todo != null) 'todo': todo,
+      if (providerSelectionInputHint != null)
+        'providerSelectionInputHint': providerSelectionInputHint,
     };
   }
 }
@@ -932,6 +944,16 @@ String? _checkpointPromptSample(String? prompt) {
     return trimmed;
   }
   return trimmed.substring(0, 1000);
+}
+
+String? _legacyRecoveryRequirement(Object? value) {
+  if (value is! String || value.trim().isEmpty) {
+    return null;
+  }
+  if (!value.trimLeft().startsWith('TODO:')) {
+    return value;
+  }
+  return 'Resolve the previous agent session through the available recovery command flow.';
 }
 
 List<AgentCodingSessionHistoryRecord> _historyRecordsFromJson(Object? value) {

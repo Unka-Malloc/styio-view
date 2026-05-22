@@ -1149,7 +1149,8 @@ Stream<AgentProviderStreamEvent> _streamFromTransportOrFallback({
         response: response,
         metadata: const <String, Object?>{
           'streamFallback': true,
-          'TODO': 'Bind a platform SSE transport for token-level streaming.',
+          'streamFallbackReason': 'transportDoesNotSupportStreaming',
+          'streamTransportRequired': 'StreamingAgentProviderTransport',
         },
       );
       return;

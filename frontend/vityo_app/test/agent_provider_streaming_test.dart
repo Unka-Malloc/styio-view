@@ -222,6 +222,11 @@ void main() {
     expect(events.last.kind, AgentProviderStreamEventKind.completed);
     expect(events.last.metadata['streamFallback'], isTrue);
     expect(
+      events.last.metadata['streamFallbackReason'],
+      'transportDoesNotSupportStreaming',
+    );
+    expect(events.last.metadata.containsKey('TODO'), isFalse);
+    expect(
       events.last.response?.contentParts.single.text,
       'Fallback response.',
     );

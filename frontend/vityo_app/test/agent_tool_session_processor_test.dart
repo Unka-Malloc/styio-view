@@ -47,4 +47,50 @@ void main() {
       expect(transcript.parts.single.output, '{"text":"value = 1"}');
     },
   );
+
+  test(
+    'tool session processor feeds invalid tool input back as result',
+    () async {
+      const processor = AgentToolSessionProcessor();
+      var executed = false;
+
+      final report = await processor.dispatchReady(
+        timeline: AgentToolCallTimeline.empty(),
+        executionPlan: const AgentToolCallExecutionPlan(
+          status: AgentToolCallExecutionPlanStatus.blocked,
+          executions: <AgentToolCallExecution>[
+            AgentToolCallExecution(
+              callId: 'call-invalid',
+              toolId: 'readWorkspaceFile',
+              status: AgentToolCallExecutionStatus.blocked,
+              issues: <AgentToolCallExecutionIssue>[
+                AgentToolCallExecutionIssue(
+                  code: 'agent.tool.input.missing.path',
+                  message: 'Missing required path.',
+                ),
+              ],
+            ),
+          ],
+        ),
+        executor: (_) {
+          executed = true;
+          return const AgentToolCallDispatchResult.success(
+            callId: 'call-invalid',
+            toolId: 'readWorkspaceFile',
+            output: 'unexpected',
+          );
+        },
+      );
+
+      expect(executed, isFalse);
+      expect(report.status, AgentToolCallDispatchReportStatus.failed);
+      expect(report.results.single.callId, 'call-invalid');
+      expect(report.results.single.success, isFalse);
+      expect(
+        report.results.single.metadata['source'],
+        'agent-tool-input-validation',
+      );
+      expect(report.events.single.kind, AgentToolCallEventKind.error);
+    },
+  );
 }

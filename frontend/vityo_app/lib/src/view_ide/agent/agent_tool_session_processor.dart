@@ -52,4 +52,78 @@ class AgentToolSessionProcessor {
       resultContexts: resultContexts,
     );
   }
+
+  Future<AgentToolCallDispatchReport> dispatchReady({
+    required AgentToolCallExecutionPlan executionPlan,
+    required AgentToolCallTimeline timeline,
+    required AgentToolCallExecutor executor,
+    AgentToolCallDispatcher dispatcher = const AgentToolCallDispatcher(),
+  }) async {
+    final blockedInputResults = blockedToolInputResults(executionPlan);
+    if (blockedInputResults.isNotEmpty) {
+      final events = blockedInputResults
+          .map((result) => result.toLifecycleEvent())
+          .toList(growable: false);
+      return AgentToolCallDispatchReport(
+        status: AgentToolCallDispatchReportStatus.failed,
+        plan: AgentToolCallDispatchPlan.fromExecutionPlan(executionPlan),
+        results: List<AgentToolCallDispatchResult>.unmodifiable(
+          blockedInputResults,
+        ),
+        events: List<AgentToolCallEvent>.unmodifiable(events),
+      );
+    }
+    return dispatcher.dispatchReady(
+      executionPlan: executionPlan,
+      timeline: timeline,
+      executor: executor,
+    );
+  }
+
+  List<AgentToolCallDispatchResult> blockedToolInputResults(
+    AgentToolCallExecutionPlan executionPlan,
+  ) {
+    final results = <AgentToolCallDispatchResult>[];
+    for (final execution in executionPlan.executions) {
+      if (execution.status != AgentToolCallExecutionStatus.blocked) {
+        continue;
+      }
+      final inputIssues = execution.issues
+          .where(_isToolInputIssue)
+          .toList(growable: false);
+      if (inputIssues.isEmpty) {
+        continue;
+      }
+      final message = _blockedToolInputMessage(execution, inputIssues);
+      results.add(
+        AgentToolCallDispatchResult.failure(
+          callId: execution.callId,
+          toolId: execution.toolId,
+          message: message,
+          output: message,
+          metadata: <String, Object?>{
+            'source': 'agent-tool-input-validation',
+            'blocked': true,
+            'issueCodes': inputIssues
+                .map((issue) => issue.code)
+                .toList(growable: false),
+          },
+        ),
+      );
+    }
+    return List<AgentToolCallDispatchResult>.unmodifiable(results);
+  }
+}
+
+bool _isToolInputIssue(AgentToolCallExecutionIssue issue) {
+  return issue.code.startsWith('agent.tool.input.');
+}
+
+String _blockedToolInputMessage(
+  AgentToolCallExecution execution,
+  List<AgentToolCallExecutionIssue> inputIssues,
+) {
+  final detail = inputIssues.map((issue) => issue.message).join(' ');
+  return 'The ${execution.toolId} tool was called with invalid arguments: '
+      '$detail Please rewrite the input so it satisfies the expected schema.';
 }

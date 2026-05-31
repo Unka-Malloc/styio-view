@@ -7,6 +7,7 @@ enum AppCommandId {
   navigateForward,
   showRecentLocations,
   showWorkspaceDocumentLinks,
+  showWorkspaceDocumentHighlights,
   goToWorkspaceDeclaration,
   goToWorkspaceDefinition,
   goToWorkspaceTypeDefinition,
@@ -147,6 +148,13 @@ class StyioCommandRegistry {
       label: 'Document Links',
       shortcutHint: 'Route',
       description: 'Show navigable links in the active workspace document.',
+      primary: true,
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.showWorkspaceDocumentHighlights,
+      label: 'Document Highlights',
+      shortcutHint: 'Route',
+      description: 'Show current-file highlights for the active symbol.',
       primary: true,
     ),
     AppCommandDescriptor(
@@ -398,6 +406,7 @@ class StyioCommandRegistry {
       AppCommandId.showRecentLocations ||
       AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.showWorkspaceDocumentLinks ||
+      AppCommandId.showWorkspaceDocumentHighlights ||
       AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||
@@ -419,6 +428,7 @@ class StyioCommandRegistry {
           AppCommandId.navigateForward ||
           AppCommandId.showRecentLocations ||
           AppCommandId.showWorkspaceDocumentLinks ||
+          AppCommandId.showWorkspaceDocumentHighlights ||
           AppCommandId.goToWorkspaceDeclaration ||
           AppCommandId.goToWorkspaceDefinition ||
           AppCommandId.goToWorkspaceTypeDefinition ||
@@ -462,6 +472,7 @@ class StyioCommandRegistry {
       AppCommandId.navigateForward ||
       AppCommandId.showRecentLocations ||
       AppCommandId.showWorkspaceDocumentLinks ||
+      AppCommandId.showWorkspaceDocumentHighlights ||
       AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||

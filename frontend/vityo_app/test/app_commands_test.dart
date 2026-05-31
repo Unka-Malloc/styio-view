@@ -11,6 +11,7 @@ void main() {
         AppCommandId.quickOpen,
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
+        AppCommandId.showWorkspaceDocumentHighlights,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -48,6 +49,9 @@ void main() {
       );
       final documentLinks = StyioCommandRegistry.descriptorFor(
         AppCommandId.showWorkspaceDocumentLinks,
+      );
+      final documentHighlights = StyioCommandRegistry.descriptorFor(
+        AppCommandId.showWorkspaceDocumentHighlights,
       );
       final declaration = StyioCommandRegistry.descriptorFor(
         AppCommandId.goToWorkspaceDeclaration,
@@ -122,6 +126,11 @@ void main() {
       expect(documentLinks.shortcutHint, 'Route');
       expect(documentLinks.primary, isTrue);
       expect(documentLinks.shortcuts, isEmpty);
+
+      expect(documentHighlights.label, 'Document Highlights');
+      expect(documentHighlights.shortcutHint, 'Route');
+      expect(documentHighlights.primary, isTrue);
+      expect(documentHighlights.shortcuts, isEmpty);
 
       expect(declaration.label, 'Go to Declaration');
       expect(declaration.shortcutHint, 'Ctrl+B');
@@ -215,6 +224,7 @@ void main() {
       <AppCommandId>[
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
+        AppCommandId.showWorkspaceDocumentHighlights,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -236,6 +246,7 @@ void main() {
         AppCommandId.navigateForward,
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
+        AppCommandId.showWorkspaceDocumentHighlights,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -279,6 +290,7 @@ void main() {
         AppCommandId.navigateForward,
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
+        AppCommandId.showWorkspaceDocumentHighlights,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -324,7 +336,6 @@ void main() {
     expect(intents, contains(AppCommandId.navigateBack));
     expect(intents, contains(AppCommandId.navigateForward));
     expect(intents, contains(AppCommandId.showRecentLocations));
-    expect(intents, contains(AppCommandId.showWorkspaceDocumentLinks));
     expect(intents, contains(AppCommandId.goToWorkspaceDeclaration));
     expect(intents, contains(AppCommandId.goToWorkspaceDefinition));
     expect(intents, contains(AppCommandId.goToWorkspaceTypeDefinition));

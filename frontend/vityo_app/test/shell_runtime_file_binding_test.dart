@@ -27,6 +27,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_code_actions.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_declaration.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_definition.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_document_highlights.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_links.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_navigation_history.dart';
@@ -468,6 +469,83 @@ value = blend()
     expect(shell.editorController.selection.end, 0);
     expect(
       shell.debugLog.any((entry) => entry.contains('Document link opened')),
+      isTrue,
+    );
+  });
+
+  test('workspace document highlight opens an occurrence range', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['resources.styio'],
+    );
+    const resourceDocument = DocumentState(
+      documentId: 'resources.styio',
+      text: '''
+@prices: f64 := {}
+latest = @prices
+next -> @prices
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'resources.styio': resourceDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: resourceDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    shell.editorController.selectCollapsed(
+      resourceDocument.text.indexOf(
+            '@prices',
+            resourceDocument.text.indexOf('latest'),
+          ) +
+          1,
+    );
+
+    final result = await shell.collectWorkspaceDocumentHighlights(
+      WorkspaceDocumentHighlightsQuery(
+        targetFilePath: shell.workspaceDocumentHighlightsTargetFilePath,
+        offset: shell.workspaceDocumentHighlightsOffset,
+      ),
+    );
+
+    expect(result.status, WorkspaceDocumentHighlightsStatus.completed);
+    expect(result.writeCount, 1);
+
+    final write = result.highlights.singleWhere(
+      (item) => item.kind == WorkspaceDocumentHighlightKind.write,
+    );
+    await shell.openWorkspaceDocumentHighlight(write);
+
+    expect(shell.workspaceController.activeFilePath, 'resources.styio');
+    expect(shell.editorController.selection.start, write.range.start);
+    expect(shell.editorController.selection.end, write.range.end);
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Document highlight opened')),
       isTrue,
     );
   });

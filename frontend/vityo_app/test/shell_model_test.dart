@@ -531,9 +531,10 @@ void main() {
   );
 
   test(
-    'command palette, quick open, locations, links, declarations, definitions, '
-    'implementation, type hierarchy, outline, rename, symbols, usages, calls, '
-    'search, problems, actions, and settings commands select shell bottom surfaces',
+    'command palette, quick open, locations, links, highlights, declarations, '
+    'definitions, implementation, type hierarchy, outline, rename, symbols, '
+    'usages, calls, search, problems, actions, and settings commands select '
+    'shell bottom surfaces',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -611,6 +612,16 @@ void main() {
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Document Links route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.showWorkspaceDocumentHighlights);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.documentHighlights);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Document Highlights route requested'),
         ),
         isTrue,
       );

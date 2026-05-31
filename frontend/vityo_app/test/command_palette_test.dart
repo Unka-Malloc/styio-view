@@ -135,6 +135,16 @@ void main() {
     );
     expect(documentLinksResult.items.first.category, 'Navigation');
 
+    final documentHighlightsResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'document highlights'),
+    );
+    expect(
+      documentHighlightsResult.items.first.commandId,
+      AppCommandId.showWorkspaceDocumentHighlights,
+    );
+    expect(documentHighlightsResult.items.first.category, 'Navigation');
+
     final renameResult = service.findCommands(
       commands: StyioCommandRegistry.commands,
       query: const CommandPaletteQuery(pattern: 'rename symbol'),

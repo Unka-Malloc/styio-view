@@ -154,6 +154,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.documentHighlights:
+        return _WorkspaceDocumentHighlightsSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.declarations:
         return _WorkspaceDeclarationSurface(
           shell: shell,
@@ -2599,6 +2604,377 @@ class _WorkspaceDocumentLinkItemTile extends StatelessWidget {
                   const SizedBox(width: 8),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 220),
+                    child: badges,
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceDocumentHighlightsSurface extends StatefulWidget {
+  const _WorkspaceDocumentHighlightsSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceDocumentHighlightsSurface> createState() =>
+      _WorkspaceDocumentHighlightsSurfaceState();
+}
+
+class _WorkspaceDocumentHighlightsSurfaceState
+    extends State<_WorkspaceDocumentHighlightsSurface> {
+  WorkspaceDocumentHighlightsResult? _result;
+  bool _collecting = false;
+  bool _includeText = true;
+  bool _includeDeclarations = true;
+  bool _includeRead = true;
+  bool _includeWrite = true;
+  int _collectGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _collectHighlights();
+  }
+
+  Future<void> _collectHighlights() async {
+    final generation = _collectGeneration + 1;
+    _collectGeneration = generation;
+    setState(() {
+      _collecting = true;
+    });
+    final result = await widget.shell.collectWorkspaceDocumentHighlights(
+      WorkspaceDocumentHighlightsQuery(
+        targetFilePath: widget.shell.workspaceDocumentHighlightsTargetFilePath,
+        offset: widget.shell.workspaceDocumentHighlightsOffset,
+        includeText: _includeText,
+        includeDeclarations: _includeDeclarations,
+        includeRead: _includeRead,
+        includeWrite: _includeWrite,
+        maxResults: 120,
+      ),
+    );
+    if (!mounted || generation != _collectGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _collecting = false;
+    });
+  }
+
+  Future<void> _openItem(WorkspaceDocumentHighlightItem item) async {
+    await widget.shell.openWorkspaceDocumentHighlight(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceDocumentHighlights;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceDocumentHighlights;
+    final headerChips = <Widget>[
+      Chip(label: Text(widget.shell.workspaceDocumentHighlightsTargetFilePath)),
+      Chip(
+        label: Text('offset ${widget.shell.workspaceDocumentHighlightsOffset}'),
+      ),
+      if (_collecting) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-document-highlights-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Document Highlights',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Document Highlights',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilterChip(
+                    key: const ValueKey(
+                      'workspace-document-highlights-include-text',
+                    ),
+                    selected: _includeText,
+                    label: const Text('Text'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _includeText = selected;
+                      });
+                      _collectHighlights();
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey(
+                      'workspace-document-highlights-include-declarations',
+                    ),
+                    selected: _includeDeclarations,
+                    label: const Text('Declarations'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _includeDeclarations = selected;
+                      });
+                      _collectHighlights();
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey(
+                      'workspace-document-highlights-include-read',
+                    ),
+                    selected: _includeRead,
+                    label: const Text('Read'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _includeRead = selected;
+                      });
+                      _collectHighlights();
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey(
+                      'workspace-document-highlights-include-write',
+                    ),
+                    selected: _includeWrite,
+                    label: const Text('Write'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _includeWrite = selected;
+                      });
+                      _collectHighlights();
+                    },
+                  ),
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-document-highlights-refresh'),
+                    onPressed: _collecting
+                        ? null
+                        : () {
+                            _collectHighlights();
+                          },
+                    icon: Icon(
+                      _collecting
+                          ? Icons.hourglass_top_rounded
+                          : Icons.refresh_rounded,
+                    ),
+                    label: Text(_collecting ? 'Collecting' : 'Refresh'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceDocumentHighlightsResultView(
+                result: result,
+                onOpenItem: _openItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceDocumentHighlightsResultView extends StatelessWidget {
+  const _WorkspaceDocumentHighlightsResultView({
+    required this.result,
+    required this.onOpenItem,
+  });
+
+  final WorkspaceDocumentHighlightsResult? result;
+  final Future<void> Function(WorkspaceDocumentHighlightItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final highlightsResult = result;
+    if (highlightsResult == null) {
+      return Text(
+        'No document highlights collected yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (highlightsResult.status) {
+      WorkspaceDocumentHighlightsStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceDocumentHighlightsStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceDocumentHighlightsStatus.emptyWorkspace ||
+      WorkspaceDocumentHighlightsStatus.emptySelection ||
+      WorkspaceDocumentHighlightsStatus.noHighlights =>
+        const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (highlightsResult.status) {
+      WorkspaceDocumentHighlightsStatus.completed => 'completed',
+      WorkspaceDocumentHighlightsStatus.hitLimit => 'limited',
+      WorkspaceDocumentHighlightsStatus.emptyWorkspace => 'empty',
+      WorkspaceDocumentHighlightsStatus.emptySelection => 'no symbol',
+      WorkspaceDocumentHighlightsStatus.noHighlights => 'no highlights',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-document-highlights-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${highlightsResult.highlightCount} highlights')),
+            Chip(label: Text('${highlightsResult.declarationCount} decls')),
+            Chip(label: Text('${highlightsResult.readCount} read')),
+            Chip(label: Text('${highlightsResult.writeCount} write')),
+            Chip(label: Text('${highlightsResult.textCount} text')),
+            Chip(label: Text('${highlightsResult.highlightsIndexed} indexed')),
+          ],
+        ),
+        if (highlightsResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (highlightsResult.highlights.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in highlightsResult.highlights.take(80)) ...[
+            _WorkspaceDocumentHighlightItemTile(
+              item: item,
+              onTap: () {
+                onOpenItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceDocumentHighlightItemTile extends StatelessWidget {
+  const _WorkspaceDocumentHighlightItemTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final WorkspaceDocumentHighlightItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-document-highlight-item-${item.filePath}-${item.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: item.isActive
+              ? const Color(0xFFEFE6CF)
+              : const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 560;
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (item.previewText.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            );
+            final badges = Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Chip(label: Text(item.kindLabel)),
+                Chip(label: Text(item.symbolKindLabel)),
+                if (item.isActive) const Chip(label: Text('active')),
+              ],
+            );
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(_workspaceDocumentHighlightKindIcon(item.kind), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            details,
+                            const SizedBox(height: 8),
+                            badges,
+                          ],
+                        )
+                      : details,
+                ),
+                if (!compact) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 240),
                     child: badges,
                   ),
                 ],
@@ -7658,6 +8034,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.documentLinks),
       ),
       _SurfaceTabChip(
+        label: 'Highlights',
+        active: shell.activeBottomTab == BottomSurfaceTab.documentHighlights,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.documentHighlights),
+      ),
+      _SurfaceTabChip(
         label: 'Decls',
         active: shell.activeBottomTab == BottomSurfaceTab.declarations,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.declarations),
@@ -7748,9 +8129,9 @@ class _BottomSurfaceTabs extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Mobile shell keeps runtime, commands, navigate, locations, links, '
-            'declarations, definitions, outline, rename, symbols, usages, '
-            'calls, search, problems, actions, agent, debug, and settings on '
-            'one vertical route.',
+            'highlights, declarations, definitions, outline, rename, symbols, '
+            'usages, calls, search, problems, actions, agent, debug, and '
+            'settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -7828,6 +8209,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.history_rounded;
     case AppCommandId.showWorkspaceDocumentLinks:
       return Icons.link_rounded;
+    case AppCommandId.showWorkspaceDocumentHighlights:
+      return Icons.highlight_alt_rounded;
     case AppCommandId.goToWorkspaceDeclaration:
       return Icons.subdirectory_arrow_left_rounded;
     case AppCommandId.goToWorkspaceDefinition:
@@ -7940,6 +8323,17 @@ IconData _workspaceDocumentLinkKindIcon(WorkspaceDocumentLinkKind kind) {
     WorkspaceDocumentLinkKind.workspaceImport => Icons.open_in_new_rounded,
     WorkspaceDocumentLinkKind.externalImport => Icons.public_rounded,
     WorkspaceDocumentLinkKind.unresolvedImport => Icons.link_off_rounded,
+  };
+}
+
+IconData _workspaceDocumentHighlightKindIcon(
+  WorkspaceDocumentHighlightKind kind,
+) {
+  return switch (kind) {
+    WorkspaceDocumentHighlightKind.text => Icons.text_fields_rounded,
+    WorkspaceDocumentHighlightKind.declaration => Icons.flag_rounded,
+    WorkspaceDocumentHighlightKind.read => Icons.visibility_outlined,
+    WorkspaceDocumentHighlightKind.write => Icons.edit_rounded,
   };
 }
 

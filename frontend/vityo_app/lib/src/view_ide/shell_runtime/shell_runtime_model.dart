@@ -124,6 +124,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceDocumentLinksResult? _lastWorkspaceDocumentLinks;
+  WorkspaceDocumentHighlightsResult? _lastWorkspaceDocumentHighlights;
   WorkspaceDeclarationResult? _lastWorkspaceDeclaration;
   WorkspaceDefinitionResult? _lastWorkspaceDefinition;
   WorkspaceTypeDefinitionResult? _lastWorkspaceTypeDefinition;
@@ -159,6 +160,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceQuickOpen;
   WorkspaceDocumentLinksResult? get lastWorkspaceDocumentLinks =>
       _lastWorkspaceDocumentLinks;
+  WorkspaceDocumentHighlightsResult? get lastWorkspaceDocumentHighlights =>
+      _lastWorkspaceDocumentHighlights;
   WorkspaceDeclarationResult? get lastWorkspaceDeclaration =>
       _lastWorkspaceDeclaration;
   WorkspaceDefinitionResult? get lastWorkspaceDefinition =>
@@ -261,6 +264,10 @@ class ShellRuntimeModel extends ChangeNotifier {
   String get workspaceRenameQuerySeed => workspaceDefinitionQuerySeed;
 
   String get workspaceDocumentLinksTargetFilePath => _activeDocumentPath;
+
+  String get workspaceDocumentHighlightsTargetFilePath => _activeDocumentPath;
+
+  int get workspaceDocumentHighlightsOffset => editorController.inspectionOffset;
 
   String get workspaceDeclarationQuerySeed => workspaceDefinitionQuerySeed;
 
@@ -542,6 +549,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.showWorkspaceDocumentLinks:
         appendLog('Document Links route requested.');
         return;
+      case AppCommandId.showWorkspaceDocumentHighlights:
+        appendLog('Document Highlights route requested.');
+        return;
       case AppCommandId.goToWorkspaceDeclaration:
         appendLog('Go to Declaration route requested.');
         return;
@@ -678,6 +688,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.quickOpen:
       case AppCommandId.showRecentLocations:
       case AppCommandId.showWorkspaceDocumentLinks:
+      case AppCommandId.showWorkspaceDocumentHighlights:
       case AppCommandId.goToWorkspaceDeclaration:
       case AppCommandId.goToWorkspaceDefinition:
       case AppCommandId.goToWorkspaceTypeDefinition:
@@ -896,6 +907,31 @@ class ShellRuntimeModel extends ChangeNotifier {
       '${result.linkCount} link(s): ${result.workspaceLinkCount} workspace, '
       '${result.externalLinkCount} external, '
       '${result.unresolvedLinkCount} unresolved.',
+    );
+    return result;
+  }
+
+  Future<WorkspaceDocumentHighlightsResult> collectWorkspaceDocumentHighlights(
+    WorkspaceDocumentHighlightsQuery query,
+  ) async {
+    final service = WorkspaceDocumentHighlightsService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.collectHighlights(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceDocumentHighlights = result;
+    appendLog(
+      'Document Highlights for ${query.targetFilePath} at '
+      '${query.offset} found ${result.highlightCount} occurrence(s): '
+      '${result.declarationCount} declarations, ${result.readCount} read, '
+      '${result.writeCount} write, ${result.textCount} text.',
     );
     return result;
   }
@@ -1579,6 +1615,44 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     appendLog(
       'Document link opened: ${item.target} -> $resolvedFilePath.',
+    );
+  }
+
+  Future<void> openWorkspaceDocumentHighlight(
+    WorkspaceDocumentHighlightItem item,
+  ) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Document highlight unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    _recordCurrentNavigationLocation(label: 'Before Document Highlights');
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: item.range.start,
+      extentOffset: item.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: item.name,
+      kind: item.symbolKind == null
+          ? WorkspaceNavigationLocationKind.file
+          : WorkspaceNavigationLocationKind.symbol,
+    );
+    appendLog(
+      'Document highlight opened: ${item.name} in ${item.filePath} '
+      'line ${item.line + 1}.',
     );
   }
 

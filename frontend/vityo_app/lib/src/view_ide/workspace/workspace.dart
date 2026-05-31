@@ -6,6 +6,7 @@ export 'workspace_code_actions.dart';
 export 'workspace_document_store.dart';
 export 'workspace_navigation_history.dart';
 export 'workspace_outline.dart';
+export 'workspace_implementation.dart';
 export 'workspace_document_store_types.dart';
 export 'workspace_problems.dart';
 export 'workspace_quick_open.dart';

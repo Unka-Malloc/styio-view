@@ -8,6 +8,7 @@ enum AppCommandId {
   showRecentLocations,
   goToWorkspaceDefinition,
   goToWorkspaceTypeDefinition,
+  goToWorkspaceImplementation,
   showWorkspaceTypeHierarchy,
   showWorkspaceOutline,
   renameWorkspaceSymbol,
@@ -157,6 +158,16 @@ class StyioCommandRegistry {
       primary: true,
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('keyB', control: true, shift: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.goToWorkspaceImplementation,
+      label: 'Go to Implementation',
+      shortcutHint: 'Ctrl+F12',
+      description: 'Open workspace schema and state implementors.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('f12', control: true),
       ],
     ),
     AppCommandDescriptor(
@@ -369,6 +380,7 @@ class StyioCommandRegistry {
       AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||
+      AppCommandId.goToWorkspaceImplementation ||
       AppCommandId.showWorkspaceTypeHierarchy ||
       AppCommandId.showWorkspaceOutline ||
       AppCommandId.findWorkspaceReferences ||
@@ -387,6 +399,7 @@ class StyioCommandRegistry {
           AppCommandId.showRecentLocations ||
           AppCommandId.goToWorkspaceDefinition ||
           AppCommandId.goToWorkspaceTypeDefinition ||
+          AppCommandId.goToWorkspaceImplementation ||
           AppCommandId.showWorkspaceTypeHierarchy ||
           AppCommandId.showWorkspaceOutline ||
           AppCommandId.renameWorkspaceSymbol ||
@@ -427,6 +440,7 @@ class StyioCommandRegistry {
       AppCommandId.showRecentLocations ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||
+      AppCommandId.goToWorkspaceImplementation ||
       AppCommandId.showWorkspaceTypeHierarchy ||
       AppCommandId.showWorkspaceOutline ||
       AppCommandId.renameWorkspaceSymbol ||

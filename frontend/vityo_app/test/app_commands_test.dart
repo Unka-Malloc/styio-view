@@ -12,6 +12,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
+        AppCommandId.goToWorkspaceImplementation,
         AppCommandId.showWorkspaceTypeHierarchy,
         AppCommandId.showWorkspaceOutline,
         AppCommandId.renameWorkspaceSymbol,
@@ -54,6 +55,9 @@ void main() {
       );
       final typeDefinition = StyioCommandRegistry.descriptorFor(
         AppCommandId.goToWorkspaceTypeDefinition,
+      );
+      final implementation = StyioCommandRegistry.descriptorFor(
+        AppCommandId.goToWorkspaceImplementation,
       );
       final typeHierarchy = StyioCommandRegistry.descriptorFor(
         AppCommandId.showWorkspaceTypeHierarchy,
@@ -126,6 +130,11 @@ void main() {
       expect(typeDefinition.primary, isTrue);
       expect(typeDefinition.shortcuts, hasLength(1));
 
+      expect(implementation.label, 'Go to Implementation');
+      expect(implementation.shortcutHint, 'Ctrl+F12');
+      expect(implementation.primary, isTrue);
+      expect(implementation.shortcuts, hasLength(1));
+
       expect(typeHierarchy.label, 'Type Hierarchy');
       expect(typeHierarchy.shortcutHint, 'Ctrl+H');
       expect(typeHierarchy.primary, isTrue);
@@ -189,6 +198,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
+        AppCommandId.goToWorkspaceImplementation,
         AppCommandId.showWorkspaceTypeHierarchy,
         AppCommandId.showWorkspaceOutline,
         AppCommandId.searchWorkspaceSymbols,
@@ -207,6 +217,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
+        AppCommandId.goToWorkspaceImplementation,
         AppCommandId.showWorkspaceTypeHierarchy,
         AppCommandId.showWorkspaceOutline,
         AppCommandId.renameWorkspaceSymbol,
@@ -247,6 +258,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
+        AppCommandId.goToWorkspaceImplementation,
         AppCommandId.showWorkspaceTypeHierarchy,
         AppCommandId.showWorkspaceOutline,
         AppCommandId.renameWorkspaceSymbol,
@@ -290,6 +302,7 @@ void main() {
     expect(intents, contains(AppCommandId.showRecentLocations));
     expect(intents, contains(AppCommandId.goToWorkspaceDefinition));
     expect(intents, contains(AppCommandId.goToWorkspaceTypeDefinition));
+    expect(intents, contains(AppCommandId.goToWorkspaceImplementation));
     expect(intents, contains(AppCommandId.showWorkspaceTypeHierarchy));
     expect(intents, contains(AppCommandId.showWorkspaceOutline));
     expect(intents, contains(AppCommandId.renameWorkspaceSymbol));

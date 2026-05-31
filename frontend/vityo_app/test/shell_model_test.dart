@@ -531,9 +531,9 @@ void main() {
   );
 
   test(
-    'command palette, quick open, locations, definitions, type hierarchy, '
-    'outline, rename, symbols, usages, calls, search, problems, actions, '
-    'and settings commands select shell bottom surfaces',
+    'command palette, quick open, locations, definitions, implementation, '
+    'type hierarchy, outline, rename, symbols, usages, calls, search, '
+    'problems, actions, and settings commands select shell bottom surfaces',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -621,6 +621,16 @@ void main() {
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Go to Type Definition route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.goToWorkspaceImplementation);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.implementations);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Go to Implementation route requested'),
         ),
         isTrue,
       );

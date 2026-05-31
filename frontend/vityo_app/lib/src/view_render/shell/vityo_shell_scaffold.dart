@@ -155,6 +155,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.implementations:
+        return _WorkspaceImplementationSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.typeHierarchy:
         return _WorkspaceTypeHierarchySurface(
           shell: shell,
@@ -2848,6 +2853,369 @@ class _WorkspaceTypeDefinitionItemTile extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Chip(label: Text(item.kindLabel)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceImplementationSurface extends StatefulWidget {
+  const _WorkspaceImplementationSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceImplementationSurface> createState() =>
+      _WorkspaceImplementationSurfaceState();
+}
+
+class _WorkspaceImplementationSurfaceState
+    extends State<_WorkspaceImplementationSurface> {
+  late final TextEditingController _queryController;
+  WorkspaceImplementationResult? _result;
+  bool _loading = false;
+  int _searchGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController = TextEditingController(
+      text: widget.shell.workspaceImplementationQuerySeed,
+    );
+    if (_queryController.text.isNotEmpty) {
+      _runSearch();
+    }
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runSearch() async {
+    final generation = _searchGeneration + 1;
+    _searchGeneration = generation;
+    setState(() {
+      _loading = true;
+    });
+    final result = await widget.shell.findWorkspaceImplementations(
+      WorkspaceImplementationQuery(
+        pattern: _queryController.text,
+        maxResults: 120,
+      ),
+    );
+    if (!mounted || generation != _searchGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _loading = false;
+    });
+  }
+
+  Future<void> _openImplementation(WorkspaceImplementationItem item) async {
+    await widget.shell.openWorkspaceImplementation(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceImplementation;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceImplementation;
+    final headerChips = <Widget>[
+      Chip(
+        label: Text('${widget.shell.workspaceController.files.length} files'),
+      ),
+      if (_loading) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-implementation-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Go to Implementation',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Go to Implementation',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-implementation-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'Type name',
+                  prefixIcon: Icon(Icons.call_split_rounded),
+                ),
+                onSubmitted: (_) {
+                  _runSearch();
+                },
+              ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                key: const ValueKey('workspace-implementation-run'),
+                onPressed: _loading
+                    ? null
+                    : () {
+                        _runSearch();
+                      },
+                icon: Icon(
+                  _loading
+                      ? Icons.hourglass_top_rounded
+                      : Icons.call_split_rounded,
+                ),
+                label: Text(_loading ? 'Finding' : 'Find'),
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceImplementationResultView(
+                result: result,
+                onOpenImplementation: _openImplementation,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceImplementationResultView extends StatelessWidget {
+  const _WorkspaceImplementationResultView({
+    required this.result,
+    required this.onOpenImplementation,
+  });
+
+  final WorkspaceImplementationResult? result;
+  final Future<void> Function(WorkspaceImplementationItem item)
+      onOpenImplementation;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final implementationResult = result;
+    if (implementationResult == null) {
+      return Text(
+        'No implementations searched yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (implementationResult.status) {
+      WorkspaceImplementationStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceImplementationStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceImplementationStatus.emptyPattern => const Color(0xFFEEE9F2),
+      WorkspaceImplementationStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+      WorkspaceImplementationStatus.noTypes => const Color(0xFFF5E1DE),
+      WorkspaceImplementationStatus.noImplementations =>
+        const Color(0xFFEEE9F2),
+    };
+    final statusLabel = switch (implementationResult.status) {
+      WorkspaceImplementationStatus.completed => 'completed',
+      WorkspaceImplementationStatus.hitLimit => 'limited',
+      WorkspaceImplementationStatus.emptyPattern => 'empty',
+      WorkspaceImplementationStatus.emptyWorkspace => 'empty',
+      WorkspaceImplementationStatus.noTypes => 'no type',
+      WorkspaceImplementationStatus.noImplementations => 'none',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-implementation-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(
+              label: Text(
+                '${implementationResult.implementationCount} implementations',
+              ),
+            ),
+            Chip(
+              label: Text('${implementationResult.referenceCount} references'),
+            ),
+            Chip(label: Text('${implementationResult.typesIndexed} indexed')),
+          ],
+        ),
+        if (implementationResult.target case final target?) ...[
+          const SizedBox(height: 10),
+          _WorkspaceImplementationTargetTile(symbol: target),
+        ],
+        if (implementationResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (implementationResult.implementations.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in implementationResult.implementations.take(60)) ...[
+            _WorkspaceImplementationItemTile(
+              item: item,
+              onTap: () {
+                onOpenImplementation(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceImplementationTargetTile extends StatelessWidget {
+  const _WorkspaceImplementationTargetTile({required this.symbol});
+
+  final WorkspaceTypeHierarchySymbol symbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      key: const ValueKey('workspace-implementation-target'),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F0F4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(_workspaceTypeHierarchyKindIcon(symbol.kind), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    symbol.name,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${symbol.filePath}:${symbol.line + 1}:${symbol.column + 1}',
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Chip(label: Text(symbol.kindLabel)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceImplementationItemTile extends StatelessWidget {
+  const _WorkspaceImplementationItemTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final WorkspaceImplementationItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final firstReference = item.firstReference;
+    return InkWell(
+      key: ValueKey(
+        'workspace-implementation-item-${item.filePath}-'
+        '${item.range.start}-${firstReference.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(_workspaceTypeHierarchyKindIcon(item.kind), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.filePath}:${item.line + 1}:${item.column + 1}',
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (firstReference.previewText.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      firstReference.previewText,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Chip(label: Text(item.kindLabel)),
+                Chip(label: Text('${item.referenceCount} ref')),
+              ],
+            ),
           ],
         ),
       ),
@@ -6551,6 +6919,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.typeDefinitions),
       ),
       _SurfaceTabChip(
+        label: 'Impls',
+        active: shell.activeBottomTab == BottomSurfaceTab.implementations,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.implementations),
+      ),
+      _SurfaceTabChip(
         label: 'Type Tree',
         active: shell.activeBottomTab == BottomSurfaceTab.typeHierarchy,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.typeHierarchy),
@@ -6702,6 +7075,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.subdirectory_arrow_right_rounded;
     case AppCommandId.goToWorkspaceTypeDefinition:
       return Icons.category_rounded;
+    case AppCommandId.goToWorkspaceImplementation:
+      return Icons.call_split_rounded;
     case AppCommandId.showWorkspaceTypeHierarchy:
       return Icons.account_tree_rounded;
     case AppCommandId.showWorkspaceOutline:

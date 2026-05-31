@@ -35,6 +35,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_reference_search.dart
 import 'package:vityo_app/src/view_ide/workspace/workspace_rename.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_search.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_symbol_search.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_implementation.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_type_definition.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_type_hierarchy.dart';
 
@@ -571,6 +572,95 @@ book: OrderBook
     expect(
       shell.debugLog.any(
         (entry) => entry.contains('Workspace type definition opened'),
+      ),
+      isTrue,
+    );
+  });
+
+  test('workspace implementation opens a related implementor', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['lib/types.styio', 'main.styio'],
+    );
+    const typeDocument = DocumentState(
+      documentId: 'lib/types.styio',
+      text: '''
+schema Price {
+}
+
+schema OrderBook {
+  price: Price
+}
+''',
+      revision: 0,
+    );
+    const mainDocument = DocumentState(
+      documentId: 'main.styio',
+      text: '''
+@import { lib/types }
+target: Price
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/types.styio': typeDocument,
+        'main.styio': mainDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: mainDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final priceUsageOffset = mainDocument.text.indexOf('Price');
+    shell.editorController.selectRange(
+      baseOffset: priceUsageOffset,
+      extentOffset: priceUsageOffset + 'Price'.length,
+    );
+    expect(shell.workspaceImplementationQuerySeed, 'Price');
+
+    final result = await shell.findWorkspaceImplementations(
+      const WorkspaceImplementationQuery(pattern: 'Price'),
+    );
+
+    expect(result.status, WorkspaceImplementationStatus.completed);
+    expect(result.implementations.single.name, 'OrderBook');
+
+    await shell.openWorkspaceImplementation(result.implementations.single);
+
+    expect(shell.workspaceController.activeFilePath, 'lib/types.styio');
+    expect(shell.editorController.document.documentId, 'lib/types.styio');
+    final orderBookDefinitionOffset = typeDocument.text.indexOf('OrderBook');
+    expect(shell.editorController.selection.start, orderBookDefinitionOffset);
+    expect(
+      shell.editorController.selection.end,
+      orderBookDefinitionOffset + 'OrderBook'.length,
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Workspace implementation opened'),
       ),
       isTrue,
     );

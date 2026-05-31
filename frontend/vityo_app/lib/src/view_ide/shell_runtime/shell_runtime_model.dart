@@ -125,6 +125,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceDefinitionResult? _lastWorkspaceDefinition;
   WorkspaceTypeDefinitionResult? _lastWorkspaceTypeDefinition;
+  WorkspaceImplementationResult? _lastWorkspaceImplementation;
   WorkspaceTypeHierarchyResult? _lastWorkspaceTypeHierarchy;
   WorkspaceOutlineResult? _lastWorkspaceOutline;
   WorkspaceRenameResult? _lastWorkspaceRename;
@@ -158,6 +159,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceDefinition;
   WorkspaceTypeDefinitionResult? get lastWorkspaceTypeDefinition =>
       _lastWorkspaceTypeDefinition;
+  WorkspaceImplementationResult? get lastWorkspaceImplementation =>
+      _lastWorkspaceImplementation;
   WorkspaceTypeHierarchyResult? get lastWorkspaceTypeHierarchy =>
       _lastWorkspaceTypeHierarchy;
   WorkspaceOutlineResult? get lastWorkspaceOutline => _lastWorkspaceOutline;
@@ -252,6 +255,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   String get workspaceRenameQuerySeed => workspaceDefinitionQuerySeed;
 
   String get workspaceTypeDefinitionQuerySeed => workspaceDefinitionQuerySeed;
+
+  String get workspaceImplementationQuerySeed => workspaceDefinitionQuerySeed;
 
   String get workspaceTypeHierarchyQuerySeed => workspaceDefinitionQuerySeed;
 
@@ -530,6 +535,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.goToWorkspaceTypeDefinition:
         appendLog('Go to Type Definition route requested.');
         return;
+      case AppCommandId.goToWorkspaceImplementation:
+        appendLog('Go to Implementation route requested.');
+        return;
       case AppCommandId.showWorkspaceTypeHierarchy:
         appendLog('Type Hierarchy route requested.');
         return;
@@ -655,6 +663,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.showRecentLocations:
       case AppCommandId.goToWorkspaceDefinition:
       case AppCommandId.goToWorkspaceTypeDefinition:
+      case AppCommandId.goToWorkspaceImplementation:
       case AppCommandId.showWorkspaceTypeHierarchy:
       case AppCommandId.showWorkspaceOutline:
       case AppCommandId.renameWorkspaceSymbol:
@@ -918,6 +927,33 @@ class ShellRuntimeModel extends ChangeNotifier {
           ? 'Type Hierarchy "${query.pattern}" found no type target.'
           : 'Type Hierarchy ${query.direction.name} for ${target.name} '
                 'found ${result.relationCount} type node(s) across '
+                '${result.referenceCount} reference(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceImplementationResult> findWorkspaceImplementations(
+    WorkspaceImplementationQuery query,
+  ) async {
+    final service = WorkspaceImplementationService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.findImplementations(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceImplementation = result;
+    final target = result.target;
+    appendLog(
+      target == null
+          ? 'Go to Implementation "${query.pattern}" found no type target.'
+          : 'Go to Implementation for ${target.name} found '
+                '${result.implementationCount} implementation(s) across '
                 '${result.referenceCount} reference(s).',
     );
     return result;
@@ -1508,6 +1544,42 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Type hierarchy symbol opened: ${symbol.name} in ${symbol.filePath} '
       'line ${symbol.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceImplementation(
+    WorkspaceImplementationItem item,
+  ) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Workspace implementation unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    _recordCurrentNavigationLocation(label: 'Before Go to Implementation');
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: item.range.start,
+      extentOffset: item.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: item.name,
+      kind: WorkspaceNavigationLocationKind.symbol,
+    );
+    appendLog(
+      'Workspace implementation opened: ${item.name} in ${item.filePath} '
+      'line ${item.line + 1}.',
     );
   }
 

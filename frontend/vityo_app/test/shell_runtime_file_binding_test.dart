@@ -25,6 +25,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_quick_open.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_search.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_symbol_search.dart';
 
 void main() {
   test('shell save command persists through editor file binding', () async {
@@ -220,6 +221,78 @@ void main() {
       shell.debugLog.any(
         (entry) => entry.contains('Workspace search match opened'),
       ),
+      isTrue,
+    );
+  });
+
+  test('workspace symbol search opens a symbol declaration range', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['src/main.styio', 'src/worker.styio'],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'task main {}\n',
+      revision: 0,
+    );
+    const workerDocument = DocumentState(
+      documentId: 'src/worker.styio',
+      text: '#workerJob := () => {\n  <| 42\n}\n',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+        'src/worker.styio': workerDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final result = await shell.searchWorkspaceSymbols(
+      const WorkspaceSymbolSearchQuery(pattern: 'worker'),
+    );
+
+    expect(result.status, WorkspaceSymbolSearchStatus.completed);
+    expect(result.items.single.name, 'workerJob');
+
+    await shell.openWorkspaceSymbol(result.items.single);
+
+    expect(shell.workspaceController.activeFilePath, 'src/worker.styio');
+    expect(shell.editorController.document.documentId, 'src/worker.styio');
+    expect(
+      shell.editorController.selection.start,
+      workerDocument.text.indexOf('workerJob'),
+    );
+    expect(
+      shell.editorController.selection.end,
+      workerDocument.text.indexOf('workerJob') + 'workerJob'.length,
+    );
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Workspace symbol opened')),
       isTrue,
     );
   });

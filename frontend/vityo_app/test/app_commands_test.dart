@@ -9,6 +9,7 @@ void main() {
         AppCommandId.run,
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
+        AppCommandId.searchWorkspaceSymbols,
         AppCommandId.searchWorkspace,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
@@ -28,6 +29,9 @@ void main() {
       );
       final search = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspace,
+      );
+      final symbols = StyioCommandRegistry.descriptorFor(
+        AppCommandId.searchWorkspaceSymbols,
       );
       final fetch = StyioCommandRegistry.descriptorFor(
         AppCommandId.fetchDependencies,
@@ -51,6 +55,11 @@ void main() {
       expect(search.primary, isTrue);
       expect(search.shortcuts, hasLength(2));
 
+      expect(symbols.label, 'Symbols');
+      expect(symbols.shortcutHint, 'Cmd/Ctrl+T');
+      expect(symbols.primary, isTrue);
+      expect(symbols.shortcuts, hasLength(2));
+
       expect(fetch.label, 'Fetch');
       expect(fetch.shortcutHint, 'Route');
       expect(fetch.primary, isTrue);
@@ -70,11 +79,18 @@ void main() {
     );
     expect(
       StyioCommandRegistry.searchCommands.map((command) => command.id),
-      <AppCommandId>[AppCommandId.searchWorkspace],
+      <AppCommandId>[
+        AppCommandId.searchWorkspaceSymbols,
+        AppCommandId.searchWorkspace,
+      ],
     );
     expect(
       StyioCommandRegistry.navigationCommands.map((command) => command.id),
-      <AppCommandId>[AppCommandId.commandPalette, AppCommandId.quickOpen],
+      <AppCommandId>[
+        AppCommandId.commandPalette,
+        AppCommandId.quickOpen,
+        AppCommandId.searchWorkspaceSymbols,
+      ],
     );
     expect(
       StyioCommandRegistry.dependencyCommands.map((command) => command.id),
@@ -101,6 +117,7 @@ void main() {
         AppCommandId.run,
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
+        AppCommandId.searchWorkspaceSymbols,
         AppCommandId.searchWorkspace,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
@@ -131,6 +148,7 @@ void main() {
     expect(intents, contains(AppCommandId.run));
     expect(intents, contains(AppCommandId.commandPalette));
     expect(intents, contains(AppCommandId.quickOpen));
+    expect(intents, contains(AppCommandId.searchWorkspaceSymbols));
     expect(intents, contains(AppCommandId.searchWorkspace));
     expect(intents, contains(AppCommandId.save));
     expect(intents, contains(AppCommandId.refreshModules));

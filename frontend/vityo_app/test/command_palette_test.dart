@@ -46,6 +46,15 @@ void main() {
       query: const CommandPaletteQuery(pattern: 'shift+p'),
     );
     expect(shortcutResult.items.first.commandId, AppCommandId.commandPalette);
+
+    final symbolResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'symbols'),
+    );
+    expect(
+      symbolResult.items.first.commandId,
+      AppCommandId.searchWorkspaceSymbols,
+    );
   });
 
   test('command palette surfaces blocked commands and can exclude them', () {

@@ -112,6 +112,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       const <RuntimeEventEnvelope>[];
   CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
+  WorkspaceSymbolSearchResult? _lastWorkspaceSymbolSearch;
   WorkspaceTextSearchResult? _lastWorkspaceSearch;
   DependencySourceCommandResult? _lastDependencySourceCommand;
   DeploymentCommandResult? _lastDeploymentCommand;
@@ -132,6 +133,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   CommandPaletteResult? get lastCommandPalette => _lastCommandPalette;
   WorkspaceQuickOpenResult? get lastWorkspaceQuickOpen =>
       _lastWorkspaceQuickOpen;
+  WorkspaceSymbolSearchResult? get lastWorkspaceSymbolSearch =>
+      _lastWorkspaceSymbolSearch;
   WorkspaceTextSearchResult? get lastWorkspaceSearch => _lastWorkspaceSearch;
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
@@ -414,6 +417,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.quickOpen:
         appendLog('Quick Open route requested.');
         return;
+      case AppCommandId.searchWorkspaceSymbols:
+        appendLog('Workspace Symbols route requested.');
+        return;
       case AppCommandId.searchWorkspace:
         appendLog('Find in Files route requested.');
         return;
@@ -512,6 +518,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.run:
       case AppCommandId.commandPalette:
       case AppCommandId.quickOpen:
+      case AppCommandId.searchWorkspaceSymbols:
       case AppCommandId.searchWorkspace:
       case AppCommandId.showRuntime:
       case AppCommandId.showAgent:
@@ -544,6 +551,30 @@ class ShellRuntimeModel extends ChangeNotifier {
           : 'Workspace search "${query.pattern}" found '
                 '${result.matchCount} match(es) in '
                 '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceSymbolSearchResult> searchWorkspaceSymbols(
+    WorkspaceSymbolSearchQuery query,
+  ) async {
+    final service = WorkspaceSymbolSearchService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.searchSymbols(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceSymbolSearch = result;
+    appendLog(
+      'Workspace symbol search "${query.pattern}" found '
+      '${result.matchCount} match(es) across '
+      '${result.matchedFileCount} file(s).',
     );
     return result;
   }
@@ -649,6 +680,37 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Workspace search match opened: ${match.filePath} '
       'line ${match.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceSymbol(
+    WorkspaceSymbolSearchItem item,
+  ) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Workspace symbol unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: item.nameRange.start,
+      extentOffset: item.nameRange.end,
+    );
+    appendLog(
+      'Workspace symbol opened: ${item.name} in ${item.filePath} '
+      'line ${item.line + 1}.',
     );
   }
 

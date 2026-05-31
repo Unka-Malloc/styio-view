@@ -13,6 +13,7 @@ import '../../backend_toolchain/toolchain_management_adapter.dart';
 import '../../module_host/module_definition.dart';
 import '../../module_host/module_manifest.dart';
 import '../../platform/platform_target.dart';
+import '../../view_ide/language/language.dart' show SymbolKind;
 import '../../view_ide/workspace/workspace.dart';
 import '../platform/platform.dart';
 import '../runtime/runtime.dart';
@@ -134,6 +135,11 @@ class VityoShellScaffold extends StatelessWidget {
         );
       case BottomSurfaceTab.navigate:
         return _WorkspaceQuickOpenSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
+      case BottomSurfaceTab.symbols:
+        return _WorkspaceSymbolSearchSurface(
           shell: shell,
           viewportProfile: viewportProfile,
         );
@@ -1771,6 +1777,285 @@ class _WorkspaceQuickOpenItemTile extends StatelessWidget {
   }
 }
 
+class _WorkspaceSymbolSearchSurface extends StatefulWidget {
+  const _WorkspaceSymbolSearchSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceSymbolSearchSurface> createState() =>
+      _WorkspaceSymbolSearchSurfaceState();
+}
+
+class _WorkspaceSymbolSearchSurfaceState
+    extends State<_WorkspaceSymbolSearchSurface> {
+  final TextEditingController _queryController = TextEditingController();
+  WorkspaceSymbolSearchResult? _result;
+  bool _searching = false;
+  int _searchGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController.addListener(_handleQueryChanged);
+    _runSearch();
+  }
+
+  @override
+  void dispose() {
+    _queryController.removeListener(_handleQueryChanged);
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  void _handleQueryChanged() {
+    _runSearch();
+  }
+
+  Future<void> _runSearch() async {
+    final generation = _searchGeneration + 1;
+    _searchGeneration = generation;
+    setState(() {
+      _searching = true;
+    });
+    final result = await widget.shell.searchWorkspaceSymbols(
+      WorkspaceSymbolSearchQuery(
+        pattern: _queryController.text,
+        maxResults: 100,
+      ),
+    );
+    if (!mounted || generation != _searchGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _searching = false;
+    });
+  }
+
+  Future<void> _openItem(WorkspaceSymbolSearchItem item) async {
+    await widget.shell.openWorkspaceSymbol(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceSymbolSearch;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceSymbolSearch;
+    final headerChips = <Widget>[
+      Chip(
+        label: Text('${widget.shell.workspaceController.files.length} files'),
+      ),
+      if (_searching) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-symbol-search-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Workspace Symbols',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Workspace Symbols',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-symbol-search-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'Symbol name',
+                  prefixIcon: Icon(Icons.account_tree_outlined),
+                ),
+                onSubmitted: (_) {
+                  final firstItem =
+                      result != null && result.items.isNotEmpty
+                      ? result.items.first
+                      : null;
+                  if (firstItem != null) {
+                    _openItem(firstItem);
+                  }
+                },
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceSymbolSearchResultView(
+                result: result,
+                onOpenItem: _openItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceSymbolSearchResultView extends StatelessWidget {
+  const _WorkspaceSymbolSearchResultView({
+    required this.result,
+    required this.onOpenItem,
+  });
+
+  final WorkspaceSymbolSearchResult? result;
+  final Future<void> Function(WorkspaceSymbolSearchItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final symbolResult = result;
+    if (symbolResult == null) {
+      return Text(
+        'No symbols indexed yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (symbolResult.status) {
+      WorkspaceSymbolSearchStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceSymbolSearchStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceSymbolSearchStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (symbolResult.status) {
+      WorkspaceSymbolSearchStatus.completed => 'ready',
+      WorkspaceSymbolSearchStatus.hitLimit => 'limited',
+      WorkspaceSymbolSearchStatus.emptyWorkspace => 'empty',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-symbol-search-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${symbolResult.matchCount} matches')),
+            Chip(label: Text('${symbolResult.matchedFileCount} files')),
+            Chip(label: Text('${symbolResult.symbolsIndexed} symbols')),
+            Chip(label: Text('${symbolResult.filesSearched} indexed')),
+          ],
+        ),
+        if (symbolResult.items.isEmpty) ...[
+          const SizedBox(height: 10),
+          Text('No matching symbols.', style: theme.textTheme.bodySmall),
+        ],
+        if (symbolResult.items.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in symbolResult.items.take(50)) ...[
+            _WorkspaceSymbolSearchItemTile(
+              item: item,
+              onTap: () {
+                onOpenItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceSymbolSearchItemTile extends StatelessWidget {
+  const _WorkspaceSymbolSearchItemTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final WorkspaceSymbolSearchItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-symbol-search-item-${item.filePath}-${item.nameRange.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(_workspaceSymbolIcon(item.kind), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.filePath}:${item.line + 1}:${item.column + 1}',
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (item.previewText.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item.previewText,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Chip(label: Text(item.kindLabel)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _WorkspaceSearchSurface extends StatefulWidget {
   const _WorkspaceSearchSurface({
     required this.shell,
@@ -2488,6 +2773,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.navigate),
       ),
       _SurfaceTabChip(
+        label: 'Symbols',
+        active: shell.activeBottomTab == BottomSurfaceTab.symbols,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.symbols),
+      ),
+      _SurfaceTabChip(
         label: 'Search',
         active: shell.activeBottomTab == BottomSurfaceTab.search,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
@@ -2517,7 +2807,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, commands, navigate, search, agent, debug, and settings on one vertical route.',
+            'Mobile shell keeps runtime, commands, navigate, symbols, search, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -2587,6 +2877,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.keyboard_command_key_rounded;
     case AppCommandId.quickOpen:
       return Icons.drive_file_move_outline;
+    case AppCommandId.searchWorkspaceSymbols:
+      return Icons.account_tree_outlined;
     case AppCommandId.searchWorkspace:
       return Icons.manage_search_rounded;
     case AppCommandId.fetchDependencies:
@@ -2616,6 +2908,18 @@ IconData _commandIcon(AppCommandId commandId) {
     case AppCommandId.openSettings:
       return Icons.settings_outlined;
   }
+}
+
+IconData _workspaceSymbolIcon(SymbolKind kind) {
+  return switch (kind) {
+    SymbolKind.function => Icons.functions_rounded,
+    SymbolKind.pipeline => Icons.schema_outlined,
+    SymbolKind.state => Icons.memory_rounded,
+    SymbolKind.resource => Icons.storage_rounded,
+    SymbolKind.variable => Icons.data_object_rounded,
+    SymbolKind.parameter => Icons.input_rounded,
+    SymbolKind.task => Icons.task_alt_rounded,
+  };
 }
 
 class _SurfaceTabChip extends StatelessWidget {

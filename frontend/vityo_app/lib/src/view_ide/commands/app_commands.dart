@@ -3,6 +3,7 @@ enum AppCommandId {
   run,
   commandPalette,
   quickOpen,
+  searchWorkspaceSymbols,
   searchWorkspace,
   fetchDependencies,
   vendorDependencies,
@@ -93,6 +94,17 @@ class StyioCommandRegistry {
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('keyP', control: true),
         AppCommandShortcutSpec('keyP', meta: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.searchWorkspaceSymbols,
+      label: 'Symbols',
+      shortcutHint: 'Cmd/Ctrl+T',
+      description: 'Search symbols across workspace files.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('keyT', control: true),
+        AppCommandShortcutSpec('keyT', meta: true),
       ],
     ),
     AppCommandDescriptor(
@@ -219,7 +231,8 @@ class StyioCommandRegistry {
 
   static Iterable<AppCommandDescriptor> get searchCommands => commands.where(
     (command) => switch (command.id) {
-      AppCommandId.searchWorkspace => true,
+      AppCommandId.searchWorkspace ||
+      AppCommandId.searchWorkspaceSymbols => true,
       _ => false,
     },
   );
@@ -228,7 +241,8 @@ class StyioCommandRegistry {
       commands.where(
         (command) => switch (command.id) {
           AppCommandId.commandPalette ||
-          AppCommandId.quickOpen => true,
+          AppCommandId.quickOpen ||
+          AppCommandId.searchWorkspaceSymbols => true,
           _ => false,
         },
       );
@@ -256,6 +270,7 @@ class StyioCommandRegistry {
       AppCommandId.run ||
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
+      AppCommandId.searchWorkspaceSymbols ||
       AppCommandId.searchWorkspace ||
       AppCommandId.fetchDependencies ||
       AppCommandId.vendorDependencies ||

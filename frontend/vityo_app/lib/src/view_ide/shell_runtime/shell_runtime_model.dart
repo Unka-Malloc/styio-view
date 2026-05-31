@@ -123,6 +123,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       const <RuntimeEventEnvelope>[];
   CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
+  WorkspaceDeclarationResult? _lastWorkspaceDeclaration;
   WorkspaceDefinitionResult? _lastWorkspaceDefinition;
   WorkspaceTypeDefinitionResult? _lastWorkspaceTypeDefinition;
   WorkspaceImplementationResult? _lastWorkspaceImplementation;
@@ -155,6 +156,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   CommandPaletteResult? get lastCommandPalette => _lastCommandPalette;
   WorkspaceQuickOpenResult? get lastWorkspaceQuickOpen =>
       _lastWorkspaceQuickOpen;
+  WorkspaceDeclarationResult? get lastWorkspaceDeclaration =>
+      _lastWorkspaceDeclaration;
   WorkspaceDefinitionResult? get lastWorkspaceDefinition =>
       _lastWorkspaceDefinition;
   WorkspaceTypeDefinitionResult? get lastWorkspaceTypeDefinition =>
@@ -253,6 +256,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   }
 
   String get workspaceRenameQuerySeed => workspaceDefinitionQuerySeed;
+
+  String get workspaceDeclarationQuerySeed => workspaceDefinitionQuerySeed;
 
   String get workspaceTypeDefinitionQuerySeed => workspaceDefinitionQuerySeed;
 
@@ -529,6 +534,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.showRecentLocations:
         appendLog('Recent Locations route requested.');
         return;
+      case AppCommandId.goToWorkspaceDeclaration:
+        appendLog('Go to Declaration route requested.');
+        return;
       case AppCommandId.goToWorkspaceDefinition:
         appendLog('Go to Definition route requested.');
         return;
@@ -661,6 +669,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.commandPalette:
       case AppCommandId.quickOpen:
       case AppCommandId.showRecentLocations:
+      case AppCommandId.goToWorkspaceDeclaration:
       case AppCommandId.goToWorkspaceDefinition:
       case AppCommandId.goToWorkspaceTypeDefinition:
       case AppCommandId.goToWorkspaceImplementation:
@@ -852,6 +861,30 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Workspace symbol search "${query.pattern}" found '
       '${result.matchCount} match(es) across '
+      '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceDeclarationResult> findWorkspaceDeclarations(
+    WorkspaceDeclarationQuery query,
+  ) async {
+    final service = WorkspaceDeclarationService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.findDeclarations(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceDeclaration = result;
+    appendLog(
+      'Go to Declaration "${query.pattern}" found '
+      '${result.matchCount} declaration(s) across '
       '${result.matchedFileCount} file(s).',
     );
     return result;
@@ -1473,6 +1506,40 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     appendLog(
       'Workspace definition opened: ${item.name} in ${item.filePath} '
+      'line ${item.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceDeclaration(WorkspaceDeclarationItem item) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Workspace declaration unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    _recordCurrentNavigationLocation(label: 'Before Go to Declaration');
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: item.range.start,
+      extentOffset: item.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: item.name,
+      kind: WorkspaceNavigationLocationKind.symbol,
+    );
+    appendLog(
+      'Workspace declaration opened: ${item.name} in ${item.filePath} '
       'line ${item.line + 1}.',
     );
   }

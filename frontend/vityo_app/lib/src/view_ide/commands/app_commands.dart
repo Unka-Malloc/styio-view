@@ -6,6 +6,7 @@ enum AppCommandId {
   navigateBack,
   navigateForward,
   showRecentLocations,
+  goToWorkspaceDeclaration,
   goToWorkspaceDefinition,
   goToWorkspaceTypeDefinition,
   goToWorkspaceImplementation,
@@ -138,6 +139,16 @@ class StyioCommandRegistry {
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('keyE', control: true, shift: true),
         AppCommandShortcutSpec('keyE', meta: true, shift: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.goToWorkspaceDeclaration,
+      label: 'Go to Declaration',
+      shortcutHint: 'Ctrl+B',
+      description: 'Open matching workspace declarations for a symbol.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('keyB', control: true),
       ],
     ),
     AppCommandDescriptor(
@@ -378,6 +389,7 @@ class StyioCommandRegistry {
       AppCommandId.searchWorkspace ||
       AppCommandId.showRecentLocations ||
       AppCommandId.showWorkspaceCallHierarchy ||
+      AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||
       AppCommandId.goToWorkspaceImplementation ||
@@ -397,6 +409,7 @@ class StyioCommandRegistry {
           AppCommandId.navigateBack ||
           AppCommandId.navigateForward ||
           AppCommandId.showRecentLocations ||
+          AppCommandId.goToWorkspaceDeclaration ||
           AppCommandId.goToWorkspaceDefinition ||
           AppCommandId.goToWorkspaceTypeDefinition ||
           AppCommandId.goToWorkspaceImplementation ||
@@ -438,6 +451,7 @@ class StyioCommandRegistry {
       AppCommandId.navigateBack ||
       AppCommandId.navigateForward ||
       AppCommandId.showRecentLocations ||
+      AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||
       AppCommandId.goToWorkspaceImplementation ||

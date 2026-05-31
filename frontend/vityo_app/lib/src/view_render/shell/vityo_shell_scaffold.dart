@@ -149,6 +149,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.declarations:
+        return _WorkspaceDeclarationSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.definitions:
         return _WorkspaceDefinitionSurface(
           shell: shell,
@@ -2233,6 +2238,333 @@ class _WorkspaceRecentLocationTile extends StatelessWidget {
             const SizedBox(width: 8),
             Chip(label: Text(location.kind.name)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceDeclarationSurface extends StatefulWidget {
+  const _WorkspaceDeclarationSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceDeclarationSurface> createState() =>
+      _WorkspaceDeclarationSurfaceState();
+}
+
+class _WorkspaceDeclarationSurfaceState
+    extends State<_WorkspaceDeclarationSurface> {
+  late final TextEditingController _queryController;
+  WorkspaceDeclarationResult? _result;
+  bool _searching = false;
+  int _searchGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController = TextEditingController(
+      text: widget.shell.workspaceDeclarationQuerySeed,
+    );
+    if (_queryController.text.isNotEmpty) {
+      _runSearch();
+    }
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runSearch() async {
+    final generation = _searchGeneration + 1;
+    _searchGeneration = generation;
+    setState(() {
+      _searching = true;
+    });
+    final result = await widget.shell.findWorkspaceDeclarations(
+      WorkspaceDeclarationQuery(
+        pattern: _queryController.text,
+        maxResults: 80,
+      ),
+    );
+    if (!mounted || generation != _searchGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _searching = false;
+    });
+  }
+
+  Future<void> _openItem(WorkspaceDeclarationItem item) async {
+    await widget.shell.openWorkspaceDeclaration(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceDeclaration;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceDeclaration;
+    final headerChips = <Widget>[
+      Chip(
+        label: Text('${widget.shell.workspaceController.files.length} files'),
+      ),
+      if (_searching) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-declaration-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Go to Declaration',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Go to Declaration',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-declaration-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'Symbol name',
+                  prefixIcon: Icon(Icons.subdirectory_arrow_left_rounded),
+                ),
+                onSubmitted: (_) {
+                  _runSearch();
+                },
+              ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                key: const ValueKey('workspace-declaration-search-run'),
+                onPressed: _searching
+                    ? null
+                    : () {
+                        _runSearch();
+                      },
+                icon: Icon(
+                  _searching
+                      ? Icons.hourglass_top_rounded
+                      : Icons.subdirectory_arrow_left_rounded,
+                ),
+                label: Text(_searching ? 'Resolving' : 'Resolve'),
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceDeclarationResultView(
+                result: result,
+                onOpenItem: _openItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceDeclarationResultView extends StatelessWidget {
+  const _WorkspaceDeclarationResultView({
+    required this.result,
+    required this.onOpenItem,
+  });
+
+  final WorkspaceDeclarationResult? result;
+  final Future<void> Function(WorkspaceDeclarationItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final declarationResult = result;
+    if (declarationResult == null) {
+      return Text(
+        'No declarations queried yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (declarationResult.status) {
+      WorkspaceDeclarationStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceDeclarationStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceDeclarationStatus.emptyPattern => const Color(0xFFEEE9F2),
+      WorkspaceDeclarationStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+      WorkspaceDeclarationStatus.noDeclarations => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (declarationResult.status) {
+      WorkspaceDeclarationStatus.completed => 'completed',
+      WorkspaceDeclarationStatus.hitLimit => 'limited',
+      WorkspaceDeclarationStatus.emptyPattern => 'empty',
+      WorkspaceDeclarationStatus.emptyWorkspace => 'empty',
+      WorkspaceDeclarationStatus.noDeclarations => 'no symbol',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-declaration-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${declarationResult.matchCount} declarations')),
+            Chip(label: Text('${declarationResult.matchedFileCount} files')),
+            Chip(
+              label: Text('${declarationResult.declarationsIndexed} indexed'),
+            ),
+            Chip(label: Text('${declarationResult.filesSearched} files')),
+          ],
+        ),
+        if (declarationResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (declarationResult.declarations.isEmpty &&
+            declarationResult.message == null) ...[
+          const SizedBox(height: 10),
+          Text('No matching declarations.', style: theme.textTheme.bodySmall),
+        ],
+        if (declarationResult.declarations.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in declarationResult.declarations.take(60)) ...[
+            _WorkspaceDeclarationItemTile(
+              item: item,
+              onTap: () {
+                onOpenItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceDeclarationItemTile extends StatelessWidget {
+  const _WorkspaceDeclarationItemTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final WorkspaceDeclarationItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-declaration-item-${item.filePath}-${item.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 520;
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (item.previewText.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            );
+            final badges = Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Chip(label: Text(item.kindLabel)),
+                if (item.type case final type?) Chip(label: Text(type)),
+              ],
+            );
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(_workspaceDeclarationKindIcon(item.kind), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            details,
+                            const SizedBox(height: 8),
+                            badges,
+                          ],
+                        )
+                      : details,
+                ),
+                if (!compact) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: badges,
+                  ),
+                ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -6954,6 +7286,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.locations),
       ),
       _SurfaceTabChip(
+        label: 'Decls',
+        active: shell.activeBottomTab == BottomSurfaceTab.declarations,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.declarations),
+      ),
+      _SurfaceTabChip(
         label: 'Definitions',
         active: shell.activeBottomTab == BottomSurfaceTab.definitions,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.definitions),
@@ -7038,9 +7375,9 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, commands, navigate, definitions, '
-            'locations, outline, rename, symbols, usages, calls, search, '
-            'problems, actions, agent, debug, and settings on one vertical route.',
+            'Mobile shell keeps runtime, commands, navigate, declarations, '
+            'definitions, locations, outline, rename, symbols, usages, calls, '
+            'search, problems, actions, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -7116,6 +7453,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.arrow_forward_rounded;
     case AppCommandId.showRecentLocations:
       return Icons.history_rounded;
+    case AppCommandId.goToWorkspaceDeclaration:
+      return Icons.subdirectory_arrow_left_rounded;
     case AppCommandId.goToWorkspaceDefinition:
       return Icons.subdirectory_arrow_right_rounded;
     case AppCommandId.goToWorkspaceTypeDefinition:
@@ -7218,6 +7557,16 @@ IconData _workspaceReferenceKindIcon(StyioProjectSymbolKind kind) {
     StyioProjectSymbolKind.function => Icons.functions_rounded,
     StyioProjectSymbolKind.resource => Icons.storage_rounded,
     StyioProjectSymbolKind.task => Icons.task_alt_rounded,
+  };
+}
+
+IconData _workspaceDeclarationKindIcon(WorkspaceDeclarationKind kind) {
+  return switch (kind) {
+    WorkspaceDeclarationKind.function => Icons.functions_rounded,
+    WorkspaceDeclarationKind.resource => Icons.storage_rounded,
+    WorkspaceDeclarationKind.task => Icons.task_alt_rounded,
+    WorkspaceDeclarationKind.schema => Icons.category_rounded,
+    WorkspaceDeclarationKind.state => Icons.radio_button_checked_rounded,
   };
 }
 

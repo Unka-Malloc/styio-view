@@ -25,6 +25,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_breadcrumbs.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_code_actions.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_declaration.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_definition.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_navigation_history.dart';
@@ -395,6 +396,94 @@ void main() {
     );
     expect(
       shell.debugLog.any((entry) => entry.contains('Workspace symbol opened')),
+      isTrue,
+    );
+  });
+
+  test('workspace declaration opens a declaration range', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['lib/types.styio', 'main.styio'],
+    );
+    const typeDocument = DocumentState(
+      documentId: 'lib/types.styio',
+      text: '''
+schema OrderBook {
+  bids: f64
+  asks: f64
+}
+''',
+      revision: 0,
+    );
+    const mainDocument = DocumentState(
+      documentId: 'main.styio',
+      text: '''
+@import { lib/types }
+book: OrderBook
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/types.styio': typeDocument,
+        'main.styio': mainDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: mainDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final orderBookUsageOffset = mainDocument.text.indexOf('OrderBook');
+    shell.editorController.selectRange(
+      baseOffset: orderBookUsageOffset,
+      extentOffset: orderBookUsageOffset + 'OrderBook'.length,
+    );
+    expect(shell.workspaceDeclarationQuerySeed, 'OrderBook');
+
+    final result = await shell.findWorkspaceDeclarations(
+      const WorkspaceDeclarationQuery(pattern: 'OrderBook'),
+    );
+
+    expect(result.status, WorkspaceDeclarationStatus.completed);
+    expect(result.declarations.first.filePath, 'lib/types.styio');
+    expect(result.declarations.first.kind, WorkspaceDeclarationKind.schema);
+
+    await shell.openWorkspaceDeclaration(result.declarations.first);
+
+    expect(shell.workspaceController.activeFilePath, 'lib/types.styio');
+    expect(shell.editorController.document.documentId, 'lib/types.styio');
+    final orderBookDeclarationOffset = typeDocument.text.indexOf('OrderBook');
+    expect(shell.editorController.selection.start, orderBookDeclarationOffset);
+    expect(
+      shell.editorController.selection.end,
+      orderBookDeclarationOffset + 'OrderBook'.length,
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Workspace declaration opened'),
+      ),
       isTrue,
     );
   });

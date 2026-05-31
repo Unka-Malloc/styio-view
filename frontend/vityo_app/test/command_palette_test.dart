@@ -56,6 +56,16 @@ void main() {
       AppCommandId.searchWorkspaceSymbols,
     );
 
+    final declarationResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'declaration'),
+    );
+    expect(
+      declarationResult.items.first.commandId,
+      AppCommandId.goToWorkspaceDeclaration,
+    );
+    expect(declarationResult.items.first.category, 'Navigation');
+
     final definitionResult = service.findCommands(
       commands: StyioCommandRegistry.commands,
       query: const CommandPaletteQuery(pattern: 'definition'),

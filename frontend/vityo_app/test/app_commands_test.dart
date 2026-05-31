@@ -7,6 +7,7 @@ void main() {
       StyioCommandRegistry.primaryCommands.map((command) => command.id),
       <AppCommandId>[
         AppCommandId.run,
+        AppCommandId.quickOpen,
         AppCommandId.searchWorkspace,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
@@ -16,8 +17,11 @@ void main() {
   });
 
   test(
-    'command registry resolves descriptors and shortcuts for source ops',
+    'command registry resolves descriptors and shortcuts for navigation and source ops',
     () {
+      final quickOpen = StyioCommandRegistry.descriptorFor(
+        AppCommandId.quickOpen,
+      );
       final search = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspace,
       );
@@ -27,6 +31,11 @@ void main() {
       final vendor = StyioCommandRegistry.descriptorFor(
         AppCommandId.vendorDependencies,
       );
+
+      expect(quickOpen.label, 'Quick Open');
+      expect(quickOpen.shortcutHint, 'Cmd/Ctrl+P');
+      expect(quickOpen.primary, isTrue);
+      expect(quickOpen.shortcuts, hasLength(2));
 
       expect(search.label, 'Find in Files');
       expect(search.shortcutHint, 'Cmd/Ctrl+Shift+F');
@@ -55,6 +64,10 @@ void main() {
       <AppCommandId>[AppCommandId.searchWorkspace],
     );
     expect(
+      StyioCommandRegistry.navigationCommands.map((command) => command.id),
+      <AppCommandId>[AppCommandId.quickOpen],
+    );
+    expect(
       StyioCommandRegistry.dependencyCommands.map((command) => command.id),
       <AppCommandId>[
         AppCommandId.fetchDependencies,
@@ -77,6 +90,7 @@ void main() {
       StyioCommandRegistry.workflowCommands.map((command) => command.id),
       <AppCommandId>[
         AppCommandId.run,
+        AppCommandId.quickOpen,
         AppCommandId.searchWorkspace,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
@@ -105,6 +119,7 @@ void main() {
         .toSet();
 
     expect(intents, contains(AppCommandId.run));
+    expect(intents, contains(AppCommandId.quickOpen));
     expect(intents, contains(AppCommandId.searchWorkspace));
     expect(intents, contains(AppCommandId.save));
     expect(intents, contains(AppCommandId.refreshModules));

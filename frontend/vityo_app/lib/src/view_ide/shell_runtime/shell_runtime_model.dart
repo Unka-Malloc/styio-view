@@ -109,6 +109,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   ExecutionSession? _lastExecutionSession;
   List<RuntimeEventEnvelope> _lastRuntimeEvents =
       const <RuntimeEventEnvelope>[];
+  WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceTextSearchResult? _lastWorkspaceSearch;
   DependencySourceCommandResult? _lastDependencySourceCommand;
   DeploymentCommandResult? _lastDeploymentCommand;
@@ -124,6 +125,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   ExecutionSession? get lastExecutionSession => _lastExecutionSession;
   List<RuntimeEventEnvelope> get lastRuntimeEvents =>
       List<RuntimeEventEnvelope>.unmodifiable(_lastRuntimeEvents);
+  WorkspaceQuickOpenResult? get lastWorkspaceQuickOpen =>
+      _lastWorkspaceQuickOpen;
   WorkspaceTextSearchResult? get lastWorkspaceSearch => _lastWorkspaceSearch;
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
@@ -400,6 +403,9 @@ class ShellRuntimeModel extends ChangeNotifier {
         }
         notifyListeners();
         return;
+      case AppCommandId.quickOpen:
+        appendLog('Quick Open route requested.');
+        return;
       case AppCommandId.searchWorkspace:
         appendLog('Find in Files route requested.');
         return;
@@ -496,6 +502,7 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
       case AppCommandId.save:
       case AppCommandId.run:
+      case AppCommandId.quickOpen:
       case AppCommandId.searchWorkspace:
       case AppCommandId.showRuntime:
       case AppCommandId.showAgent:
@@ -530,6 +537,43 @@ class ShellRuntimeModel extends ChangeNotifier {
                 '${result.matchedFileCount} file(s).',
     );
     return result;
+  }
+
+  WorkspaceQuickOpenResult quickOpenWorkspace(
+    WorkspaceQuickOpenQuery query,
+  ) {
+    final result = const WorkspaceQuickOpenService().findFiles(
+      filePaths: workspaceController.files,
+      query: query,
+      recentFilePaths: workspaceController.recentFiles,
+    );
+    _lastWorkspaceQuickOpen = result;
+    return result;
+  }
+
+  Future<void> openWorkspaceQuickOpenItem(
+    WorkspaceQuickOpenItem item,
+  ) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Quick Open file unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectCollapsed(0);
+    appendLog('Quick Open file opened: ${item.filePath}.');
   }
 
   Future<void> openWorkspaceSearchMatch(

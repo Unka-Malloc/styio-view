@@ -23,6 +23,7 @@ import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_quick_open.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_search.dart';
 
 void main() {
@@ -221,6 +222,79 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  test('workspace quick open opens a file and promotes it to recent', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['src/main.styio', 'src/worker.styio'],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'task main {}\n',
+      revision: 0,
+    );
+    const workerDocument = DocumentState(
+      documentId: 'src/worker.styio',
+      text: 'task worker {}\n',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+        'src/worker.styio': workerDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final result = shell.quickOpenWorkspace(
+      const WorkspaceQuickOpenQuery(pattern: 'worker'),
+    );
+
+    expect(result.items.single.filePath, 'src/worker.styio');
+
+    await shell.openWorkspaceQuickOpenItem(result.items.single);
+
+    expect(shell.workspaceController.activeFilePath, 'src/worker.styio');
+    expect(shell.editorController.document.documentId, 'src/worker.styio');
+    expect(shell.editorController.selection.start, 0);
+    expect(shell.editorController.selection.end, 0);
+    expect(shell.workspaceController.recentFiles.first, 'src/worker.styio');
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Quick Open file opened'),
+      ),
+      isTrue,
+    );
+
+    final recentResult = shell.quickOpenWorkspace(
+      const WorkspaceQuickOpenQuery(),
+    );
+    expect(recentResult.items.first.filePath, 'src/worker.styio');
   });
 
   test(

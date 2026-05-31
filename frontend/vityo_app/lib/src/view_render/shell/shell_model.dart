@@ -2,7 +2,7 @@ import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
 
-enum BottomSurfaceTab { runtime, search, agent, debug, settings }
+enum BottomSurfaceTab { runtime, navigate, search, agent, debug, settings }
 
 class ShellModel extends ShellRuntimeModel {
   ShellModel({
@@ -64,6 +64,10 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.openSettings:
         selectBottomTab(BottomSurfaceTab.settings);
         appendLog('Settings surface opened.');
+        return;
+      case AppCommandId.quickOpen:
+        await super.executeCommand(commandId);
+        selectBottomTab(BottomSurfaceTab.navigate);
         return;
       case AppCommandId.save:
       case AppCommandId.run:

@@ -127,6 +127,11 @@ class VityoShellScaffold extends StatelessWidget {
           executionSession: shell.lastExecutionSession,
           runtimeEvents: shell.lastRuntimeEvents,
         );
+      case BottomSurfaceTab.navigate:
+        return _WorkspaceQuickOpenSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.search:
         return _WorkspaceSearchSurface(
           shell: shell,
@@ -1232,6 +1237,268 @@ class _WorkflowStatusChip extends StatelessWidget {
   }
 }
 
+class _WorkspaceQuickOpenSurface extends StatefulWidget {
+  const _WorkspaceQuickOpenSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceQuickOpenSurface> createState() =>
+      _WorkspaceQuickOpenSurfaceState();
+}
+
+class _WorkspaceQuickOpenSurfaceState
+    extends State<_WorkspaceQuickOpenSurface> {
+  final TextEditingController _queryController = TextEditingController();
+  WorkspaceQuickOpenResult? _result;
+
+  @override
+  void initState() {
+    super.initState();
+    _result = _runQuickOpen();
+    _queryController.addListener(_handleQueryChanged);
+  }
+
+  @override
+  void dispose() {
+    _queryController.removeListener(_handleQueryChanged);
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  WorkspaceQuickOpenResult _runQuickOpen() {
+    return widget.shell.quickOpenWorkspace(
+      WorkspaceQuickOpenQuery(pattern: _queryController.text, maxResults: 80),
+    );
+  }
+
+  void _handleQueryChanged() {
+    setState(() {
+      _result = _runQuickOpen();
+    });
+  }
+
+  Future<void> _openItem(WorkspaceQuickOpenItem item) async {
+    await widget.shell.openWorkspaceQuickOpenItem(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = _runQuickOpen();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceQuickOpen;
+    final headerChips = <Widget>[
+      Chip(
+        label: Text(
+          '${widget.shell.workspaceController.recentFiles.length} recent',
+        ),
+      ),
+      Chip(
+        label: Text('${widget.shell.workspaceController.files.length} files'),
+      ),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-quick-open-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quick Open',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Quick Open',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-quick-open-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'File name or path',
+                  prefixIcon: Icon(Icons.drive_file_move_outline),
+                ),
+                onSubmitted: (_) {
+                  final firstItem =
+                      result != null && result.items.isNotEmpty
+                      ? result.items.first
+                      : null;
+                  if (firstItem != null) {
+                    _openItem(firstItem);
+                  }
+                },
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceQuickOpenResultView(
+                result: result,
+                activeFilePath: widget.shell.workspaceController.activeFilePath,
+                onOpenItem: _openItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceQuickOpenResultView extends StatelessWidget {
+  const _WorkspaceQuickOpenResultView({
+    required this.result,
+    required this.activeFilePath,
+    required this.onOpenItem,
+  });
+
+  final WorkspaceQuickOpenResult? result;
+  final String activeFilePath;
+  final Future<void> Function(WorkspaceQuickOpenItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final quickOpenResult = result;
+    if (quickOpenResult == null) {
+      return Text('No files indexed yet.', style: theme.textTheme.bodySmall);
+    }
+
+    final statusColor = switch (quickOpenResult.status) {
+      WorkspaceQuickOpenStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceQuickOpenStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceQuickOpenStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (quickOpenResult.status) {
+      WorkspaceQuickOpenStatus.completed => 'ready',
+      WorkspaceQuickOpenStatus.hitLimit => 'limited',
+      WorkspaceQuickOpenStatus.emptyWorkspace => 'empty',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-quick-open-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${quickOpenResult.matchCount} matches')),
+            Chip(label: Text('${quickOpenResult.filesSearched} indexed')),
+          ],
+        ),
+        if (quickOpenResult.items.isEmpty) ...[
+          const SizedBox(height: 10),
+          Text('No matching files.', style: theme.textTheme.bodySmall),
+        ],
+        if (quickOpenResult.items.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in quickOpenResult.items.take(60)) ...[
+            _WorkspaceQuickOpenItemTile(
+              item: item,
+              active: item.filePath == activeFilePath,
+              onTap: () {
+                onOpenItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceQuickOpenItemTile extends StatelessWidget {
+  const _WorkspaceQuickOpenItemTile({
+    required this.item,
+    required this.active,
+    required this.onTap,
+  });
+
+  final WorkspaceQuickOpenItem item;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey('workspace-quick-open-item-${item.filePath}'),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFEAF2EA) : const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              active ? Icons.article_rounded : Icons.article_outlined,
+              size: 18,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.fileName,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.parentPath.isEmpty ? item.filePath : item.parentPath,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (item.isRecent) ...[
+              const SizedBox(width: 8),
+              Chip(label: Text('recent ${item.recentRank! + 1}')),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _WorkspaceSearchSurface extends StatefulWidget {
   const _WorkspaceSearchSurface({
     required this.shell,
@@ -1939,6 +2206,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.runtime),
       ),
       _SurfaceTabChip(
+        label: 'Navigate',
+        active: shell.activeBottomTab == BottomSurfaceTab.navigate,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.navigate),
+      ),
+      _SurfaceTabChip(
         label: 'Search',
         active: shell.activeBottomTab == BottomSurfaceTab.search,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
@@ -1968,7 +2240,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, search, agent, debug, and settings on one vertical route.',
+            'Mobile shell keeps runtime, navigate, search, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -2034,6 +2306,8 @@ IconData _commandIcon(AppCommandId commandId) {
   switch (commandId) {
     case AppCommandId.run:
       return Icons.play_arrow_rounded;
+    case AppCommandId.quickOpen:
+      return Icons.drive_file_move_outline;
     case AppCommandId.searchWorkspace:
       return Icons.manage_search_rounded;
     case AppCommandId.fetchDependencies:

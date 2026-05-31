@@ -1,6 +1,7 @@
 enum AppCommandId {
   save,
   run,
+  quickOpen,
   searchWorkspace,
   fetchDependencies,
   vendorDependencies,
@@ -69,6 +70,17 @@ class StyioCommandRegistry {
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('enter', control: true),
         AppCommandShortcutSpec('enter', meta: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.quickOpen,
+      label: 'Quick Open',
+      shortcutHint: 'Cmd/Ctrl+P',
+      description: 'Open a workspace file by fuzzy name or path.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('keyP', control: true),
+        AppCommandShortcutSpec('keyP', meta: true),
       ],
     ),
     AppCommandDescriptor(
@@ -200,6 +212,14 @@ class StyioCommandRegistry {
     },
   );
 
+  static Iterable<AppCommandDescriptor> get navigationCommands =>
+      commands.where(
+        (command) => switch (command.id) {
+          AppCommandId.quickOpen => true,
+          _ => false,
+        },
+      );
+
   static Iterable<AppCommandDescriptor> get dependencyCommands =>
       commands.where(
         (command) => switch (command.id) {
@@ -221,6 +241,7 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get workflowCommands => commands.where(
     (command) => switch (command.id) {
       AppCommandId.run ||
+      AppCommandId.quickOpen ||
       AppCommandId.searchWorkspace ||
       AppCommandId.fetchDependencies ||
       AppCommandId.vendorDependencies ||

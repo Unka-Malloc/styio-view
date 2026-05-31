@@ -530,64 +530,80 @@ void main() {
     },
   );
 
-  test('search and settings commands select shell bottom surfaces', () async {
-    final initialGraph = _projectGraph(
-      compilerVersion: '0.0.5',
-      compilePlanReady: true,
-    );
-    final shell = ShellModel(
-      platformTarget: PlatformTarget.macos,
-      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
-      projectGraphAdapter: _SequenceProjectGraphAdapter(
-        snapshots: <ProjectGraphSnapshot>[initialGraph],
-      ),
-      workspaceController: WorkspaceController(projectSnapshot: initialGraph),
-      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
-      moduleRegistry: ModuleRegistry(
+  test(
+    'quick open, search, and settings commands select shell bottom surfaces',
+    () async {
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final shell = ShellModel(
         platformTarget: PlatformTarget.macos,
-        definitions: const [],
-      ),
-      nativeModuleLoader: const NoopNativeModuleLoader(
-        platformTarget: PlatformTarget.macos,
-      ),
-      editorController: EditorSessionController(
-        initialDocument: EditorSessionController.seedDocumentForPath(
-          initialGraph.editorFiles.first,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[initialGraph],
         ),
-        languageService: const SimpleStyioLanguageService(),
-      ),
-      executionAdapter: _RefreshAwareExecutionAdapter(
-        projectGraph: initialGraph,
-      ),
-      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
-          _RefreshAwareExecutionAdapter(projectGraph: projectGraph),
-      runtimeEventAdapter: createRuntimeEventAdapter(
-        platformTarget: PlatformTarget.macos,
-      ),
-      dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
-      deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-      toolchainManagementAdapter: const _SuccessfulToolchainManagementAdapter(),
-    );
-    addTearDown(shell.dispose);
+        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: EditorSessionController.seedDocumentForPath(
+            initialGraph.editorFiles.first,
+          ),
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: _RefreshAwareExecutionAdapter(
+          projectGraph: initialGraph,
+        ),
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            _RefreshAwareExecutionAdapter(projectGraph: projectGraph),
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        toolchainManagementAdapter:
+            const _SuccessfulToolchainManagementAdapter(),
+      );
+      addTearDown(shell.dispose);
 
-    await shell.executeCommand(AppCommandId.searchWorkspace);
+      await shell.executeCommand(AppCommandId.quickOpen);
 
-    expect(shell.activeBottomTab, BottomSurfaceTab.search);
-    expect(
-      shell.debugLog.any(
-        (entry) => entry.contains('Find in Files route requested'),
-      ),
-      isTrue,
-    );
+      expect(shell.activeBottomTab, BottomSurfaceTab.navigate);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Quick Open route requested'),
+        ),
+        isTrue,
+      );
 
-    await shell.executeCommand(AppCommandId.openSettings);
+      await shell.executeCommand(AppCommandId.searchWorkspace);
 
-    expect(shell.activeBottomTab, BottomSurfaceTab.settings);
-    expect(
-      shell.debugLog.any((entry) => entry.contains('Settings surface opened')),
-      isTrue,
-    );
-  });
+      expect(shell.activeBottomTab, BottomSurfaceTab.search);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Find in Files route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.openSettings);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.settings);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Settings surface opened'),
+        ),
+        isTrue,
+      );
+    },
+  );
 
   test(
     'toolchain candidate selection reports unavailable without manager',

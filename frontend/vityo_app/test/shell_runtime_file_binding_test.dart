@@ -234,6 +234,96 @@ void main() {
     );
   });
 
+  test('workspace replace applies edits and refreshes active document', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['src/main.styio', 'src/worker.styio'],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'task main {\n  emit "needle"\n}\n',
+      revision: 0,
+    );
+    const workerDocument = DocumentState(
+      documentId: 'src/worker.styio',
+      text: 'task worker {\n  emit "needle"\n}\n',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+        'src/worker.styio': workerDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final preview = await shell.previewWorkspaceReplace(
+      const WorkspaceTextReplaceQuery(
+        pattern: 'needle',
+        replacement: 'thread',
+      ),
+    );
+
+    expect(preview.status, WorkspaceTextSearchStatus.completed);
+    expect(preview.replacementCount, 2);
+    expect(shell.lastWorkspaceReplace, preview);
+
+    final result = await shell.applyWorkspaceReplace(
+      const WorkspaceTextReplaceQuery(
+        pattern: 'needle',
+        replacement: 'thread',
+      ),
+    );
+
+    expect(result.applied, isTrue);
+    expect(result.replacementsApplied, 2);
+    expect(shell.editorController.document.text, contains('"thread"'));
+    expect(
+      shell.editorController.selection.start,
+      initialDocument.text.indexOf('needle'),
+    );
+    expect(
+      shell.editorController.selection.end,
+      initialDocument.text.indexOf('needle') + 'thread'.length,
+    );
+    final workerAfter = await documentStore.loadDocument('src/worker.styio');
+    expect(workerAfter.text, contains('"thread"'));
+    expect(
+      shell.editorFileBindingSnapshot.state,
+      DocumentResourceBindingState.boundClean,
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Workspace replace applied'),
+      ),
+      isTrue,
+    );
+  });
+
   test('workspace symbol search opens a symbol declaration range', () async {
     final projectGraph = _projectGraphWithFiles(
       const <String>['src/main.styio', 'src/worker.styio'],

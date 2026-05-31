@@ -4183,6 +4183,7 @@ class _WorkspaceSearchSurface extends StatefulWidget {
 
 class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
   final TextEditingController _queryController = TextEditingController();
+  final TextEditingController _replaceController = TextEditingController();
   final TextEditingController _includeController = TextEditingController(
     text: '**/*.styio',
   );
@@ -4194,6 +4195,7 @@ class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
   @override
   void dispose() {
     _queryController.dispose();
+    _replaceController.dispose();
     _includeController.dispose();
     _excludeController.dispose();
     super.dispose();
@@ -4224,6 +4226,50 @@ class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
     });
   }
 
+  Future<void> _previewReplace() async {
+    if (_searching) {
+      return;
+    }
+    setState(() {
+      _searching = true;
+    });
+    await widget.shell.previewWorkspaceReplace(_replaceQuery());
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _searching = false;
+    });
+  }
+
+  Future<void> _applyReplace() async {
+    if (_searching) {
+      return;
+    }
+    setState(() {
+      _searching = true;
+    });
+    await widget.shell.applyWorkspaceReplace(_replaceQuery());
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _searching = false;
+    });
+  }
+
+  WorkspaceTextReplaceQuery _replaceQuery() {
+    return WorkspaceTextReplaceQuery(
+      pattern: _queryController.text,
+      replacement: _replaceController.text,
+      literal: _literal,
+      caseSensitive: _caseSensitive,
+      includeGlobs: _splitGlobs(_includeController.text),
+      excludeGlobs: _splitGlobs(_excludeController.text),
+      maxResults: 100,
+    );
+  }
+
   List<String> _splitGlobs(String value) {
     return value
         .split(RegExp(r'[,\n]'))
@@ -4236,6 +4282,7 @@ class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final result = widget.shell.lastWorkspaceSearch;
+    final replacePreview = widget.shell.lastWorkspaceReplace;
     final compact = widget.viewportProfile.isMobile;
 
     return Card(
@@ -4320,13 +4367,39 @@ class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
                     ),
                     label: Text(_searching ? 'Searching' : 'Search'),
                   ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('workspace-replace-preview'),
+                    onPressed: _searching
+                        ? null
+                        : () {
+                            _previewReplace();
+                          },
+                    icon: const Icon(Icons.find_replace_rounded),
+                    label: const Text('Preview Replace'),
+                  ),
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-replace-apply'),
+                    onPressed: _searching
+                        ? null
+                        : () {
+                            _applyReplace();
+                          },
+                    icon: const Icon(Icons.done_all_rounded),
+                    label: const Text('Replace All'),
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
-              _WorkspaceSearchResultView(
-                result: result,
-                onOpenMatch: widget.shell.openWorkspaceSearchMatch,
-              ),
+              if (replacePreview != null)
+                _WorkspaceReplaceResultView(
+                  preview: replacePreview,
+                  onOpenMatch: widget.shell.openWorkspaceSearchMatch,
+                )
+              else
+                _WorkspaceSearchResultView(
+                  result: result,
+                  onOpenMatch: widget.shell.openWorkspaceSearchMatch,
+                ),
             ],
           ),
         ),
@@ -4344,6 +4417,17 @@ class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
       ),
       onSubmitted: (_) {
         _runSearch();
+      },
+    );
+    final replaceField = TextField(
+      key: const ValueKey('workspace-replace-field'),
+      controller: _replaceController,
+      decoration: const InputDecoration(
+        labelText: 'Replace',
+        prefixIcon: Icon(Icons.find_replace_rounded),
+      ),
+      onSubmitted: (_) {
+        _previewReplace();
       },
     );
     final includeField = TextField(
@@ -4367,6 +4451,8 @@ class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
       return [
         queryField,
         const SizedBox(height: 10),
+        replaceField,
+        const SizedBox(height: 10),
         includeField,
         const SizedBox(height: 10),
         excludeField,
@@ -4376,10 +4462,139 @@ class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
     return [
       Expanded(flex: 3, child: queryField),
       const SizedBox(width: 10),
+      Expanded(flex: 3, child: replaceField),
+      const SizedBox(width: 10),
       Expanded(flex: 2, child: includeField),
       const SizedBox(width: 10),
       Expanded(flex: 2, child: excludeField),
     ];
+  }
+}
+
+class _WorkspaceReplaceResultView extends StatelessWidget {
+  const _WorkspaceReplaceResultView({
+    required this.preview,
+    required this.onOpenMatch,
+  });
+
+  final WorkspaceTextReplacePreview preview;
+  final Future<void> Function(WorkspaceTextSearchMatch match) onOpenMatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final statusColor = switch (preview.status) {
+      WorkspaceTextSearchStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceTextSearchStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceTextSearchStatus.emptyPattern => const Color(0xFFEEE9F2),
+      WorkspaceTextSearchStatus.invalidPattern => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (preview.status) {
+      WorkspaceTextSearchStatus.completed => 'replace preview',
+      WorkspaceTextSearchStatus.hitLimit => 'limited',
+      WorkspaceTextSearchStatus.emptyPattern => 'empty',
+      WorkspaceTextSearchStatus.invalidPattern => 'invalid',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-replace-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${preview.replacementCount} replacements')),
+            Chip(label: Text('${preview.matchedFileCount} files')),
+            Chip(label: Text('${preview.filesSearched} scanned')),
+          ],
+        ),
+        if (preview.message != null) ...[
+          const SizedBox(height: 8),
+          Text(preview.message!, style: theme.textTheme.bodySmall),
+        ],
+        if (preview.matches.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final match in preview.matches.take(40)) ...[
+            _WorkspaceReplaceMatchTile(
+              match: match,
+              onTap: () {
+                onOpenMatch(match.searchMatch);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceReplaceMatchTile extends StatelessWidget {
+  const _WorkspaceReplaceMatchTile({
+    required this.match,
+    required this.onTap,
+  });
+
+  final WorkspaceTextReplaceMatch match;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final replacementText = match.replacementPreviewText.isEmpty
+        ? '(empty replacement)'
+        : match.replacementPreviewText;
+    return InkWell(
+      key: ValueKey(
+        'workspace-replace-match-${match.filePath}-${match.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.find_replace_rounded, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${match.filePath}:${match.line + 1}:${match.column + 1}',
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    match.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    replacementText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

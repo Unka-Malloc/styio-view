@@ -132,6 +132,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceProblemsResult? _lastWorkspaceProblems;
   WorkspaceCodeActionsResult? _lastWorkspaceCodeActions;
   WorkspaceTextSearchResult? _lastWorkspaceSearch;
+  WorkspaceTextReplacePreview? _lastWorkspaceReplace;
   DependencySourceCommandResult? _lastDependencySourceCommand;
   DeploymentCommandResult? _lastDeploymentCommand;
   ToolchainCommandResult? _lastToolchainCommand;
@@ -166,6 +167,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceCodeActionsResult? get lastWorkspaceCodeActions =>
       _lastWorkspaceCodeActions;
   WorkspaceTextSearchResult? get lastWorkspaceSearch => _lastWorkspaceSearch;
+  WorkspaceTextReplacePreview? get lastWorkspaceReplace =>
+      _lastWorkspaceReplace;
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
   DependencySourceCommandResult? get lastDependencySourceCommand =>
@@ -713,12 +716,92 @@ class ShellRuntimeModel extends ChangeNotifier {
       overlayDocuments: overlayDocuments,
     );
     _lastWorkspaceSearch = result;
+    _lastWorkspaceReplace = null;
     appendLog(
       result.status == WorkspaceTextSearchStatus.invalidPattern
           ? 'Workspace search rejected invalid pattern.'
           : 'Workspace search "${query.pattern}" found '
                 '${result.matchCount} match(es) in '
                 '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceTextReplacePreview> previewWorkspaceReplace(
+    WorkspaceTextReplaceQuery query,
+  ) async {
+    final service = WorkspaceTextSearchService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.previewReplaceFiles(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceReplace = result;
+    _lastWorkspaceSearch = result.searchResult;
+    appendLog(
+      result.status == WorkspaceTextSearchStatus.invalidPattern
+          ? 'Workspace replace rejected invalid pattern.'
+          : 'Workspace replace "${query.pattern}" preview found '
+                '${result.replacementCount} replacement(s) across '
+                '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceTextReplaceApplyResult> applyWorkspaceReplace(
+    WorkspaceTextReplaceQuery query,
+  ) async {
+    final service = WorkspaceTextSearchService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.applyReplaceFiles(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceReplace = result.preview;
+    _lastWorkspaceSearch = result.preview.searchResult;
+    for (final entry in result.changedDocuments.entries) {
+      _documentCache[entry.key] = entry.value;
+    }
+
+    final activeDocument = result.changedDocuments[_activeDocumentPath];
+    if (activeDocument != null) {
+      WorkspaceTextReplaceMatch? targetMatch;
+      for (final match in result.preview.matches) {
+        if (match.filePath == _activeDocumentPath) {
+          targetMatch = match;
+          break;
+        }
+      }
+      editorController.loadDocument(activeDocument);
+      if (targetMatch != null) {
+        editorController.selectRange(
+          baseOffset: targetMatch.range.start,
+          extentOffset: targetMatch.range.start +
+              targetMatch.replacementText.length,
+        );
+      }
+      _editorFileBinding.bindLoadedDocument(activeDocument);
+    }
+
+    final notAppliedMessage =
+        result.message ?? result.preview.message ?? result.preview.status.name;
+    appendLog(
+      result.applied
+          ? 'Workspace replace applied ${result.replacementsApplied} '
+                'replacement(s) across ${result.documentsChanged} file(s).'
+          : 'Workspace replace not applied: $notAppliedMessage.',
     );
     return result;
   }

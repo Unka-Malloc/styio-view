@@ -119,4 +119,110 @@ void main() {
     expect(result.matchCount, 1);
     expect(result.matches.single.previewText, '  emit "unsaved"');
   });
+
+  test('workspace replace previews literal edits with overlay documents', () async {
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': DocumentState(
+          documentId: 'src/main.styio',
+          text: 'task build {\n  emit "ready"\n}\n',
+          revision: 0,
+        ),
+        'README.md': DocumentState(
+          documentId: 'README.md',
+          text: 'ready\n',
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceTextSearchService(documentStore: store);
+
+    final result = await service.previewReplaceFiles(
+      filePaths: const <String>['src/main.styio', 'README.md'],
+      overlayDocuments: const <String, DocumentState>{
+        'src/main.styio': DocumentState(
+          documentId: 'src/main.styio',
+          text: 'task build {\n  emit "ready"\n  emit "READY"\n}\n',
+          revision: 1,
+        ),
+      },
+      query: const WorkspaceTextReplaceQuery(
+        pattern: 'ready',
+        replacement: 'done',
+        includeGlobs: <String>['**/*.styio'],
+      ),
+    );
+
+    expect(result.status, WorkspaceTextSearchStatus.completed);
+    expect(result.replacementCount, 2);
+    expect(result.matchedFileCount, 1);
+    expect(result.matches.first.filePath, 'src/main.styio');
+    expect(result.matches.first.replacementText, 'done');
+    expect(result.matches.first.replacementPreviewText, '  emit "done"');
+    expect(result.matches.last.replacementPreviewText, '  emit "done"');
+  });
+
+  test('workspace replace applies regex capture replacements', () async {
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': DocumentState(
+          documentId: 'src/main.styio',
+          text: 'emit("alpha")\nemit("beta")\n',
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceTextSearchService(documentStore: store);
+
+    final result = await service.applyReplaceFiles(
+      filePaths: const <String>['src/main.styio'],
+      query: const WorkspaceTextReplaceQuery(
+        pattern: r'emit\("(\w+)"\)',
+        replacement: r'log("$1")',
+        literal: false,
+      ),
+    );
+
+    expect(result.applied, isTrue);
+    expect(result.replacementsApplied, 2);
+    final document = await store.loadDocument('src/main.styio');
+    expect(document.text, 'log("alpha")\nlog("beta")\n');
+  });
+
+  test('workspace replace rejects invalid regex and hit-limit apply', () async {
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': DocumentState(
+          documentId: 'src/main.styio',
+          text: 'task one {}\ntask two {}\n',
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceTextSearchService(documentStore: store);
+
+    final invalid = await service.previewReplaceFiles(
+      filePaths: const <String>['src/main.styio'],
+      query: const WorkspaceTextReplaceQuery(
+        pattern: r'(',
+        replacement: 'x',
+        literal: false,
+      ),
+    );
+    expect(invalid.status, WorkspaceTextSearchStatus.invalidPattern);
+    expect(invalid.canApply, isFalse);
+
+    final limited = await service.applyReplaceFiles(
+      filePaths: const <String>['src/main.styio'],
+      query: const WorkspaceTextReplaceQuery(
+        pattern: 'task',
+        replacement: 'job',
+        maxResults: 1,
+      ),
+    );
+    expect(limited.applied, isFalse);
+    expect(limited.preview.status, WorkspaceTextSearchStatus.hitLimit);
+    final document = await store.loadDocument('src/main.styio');
+    expect(document.text, 'task one {}\ntask two {}\n');
+  });
 }

@@ -113,6 +113,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceDefinitionResult? _lastWorkspaceDefinition;
+  WorkspaceOutlineResult? _lastWorkspaceOutline;
   WorkspaceRenameResult? _lastWorkspaceRename;
   WorkspaceSymbolSearchResult? _lastWorkspaceSymbolSearch;
   WorkspaceReferenceSearchResult? _lastWorkspaceReferenceSearch;
@@ -141,6 +142,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceQuickOpen;
   WorkspaceDefinitionResult? get lastWorkspaceDefinition =>
       _lastWorkspaceDefinition;
+  WorkspaceOutlineResult? get lastWorkspaceOutline => _lastWorkspaceOutline;
   WorkspaceRenameResult? get lastWorkspaceRename => _lastWorkspaceRename;
   WorkspaceSymbolSearchResult? get lastWorkspaceSymbolSearch =>
       _lastWorkspaceSymbolSearch;
@@ -228,6 +230,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   }
 
   String get workspaceRenameQuerySeed => workspaceDefinitionQuerySeed;
+
+  String get workspaceOutlineTargetFilePath => _activeDocumentPath;
 
   String get workspaceRenameTargetFilePath => _activeDocumentPath;
 
@@ -466,6 +470,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.goToWorkspaceDefinition:
         appendLog('Go to Definition route requested.');
         return;
+      case AppCommandId.showWorkspaceOutline:
+        appendLog('Outline route requested.');
+        return;
       case AppCommandId.renameWorkspaceSymbol:
         appendLog('Rename Symbol route requested.');
         return;
@@ -583,6 +590,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.commandPalette:
       case AppCommandId.quickOpen:
       case AppCommandId.goToWorkspaceDefinition:
+      case AppCommandId.showWorkspaceOutline:
       case AppCommandId.renameWorkspaceSymbol:
       case AppCommandId.searchWorkspaceSymbols:
       case AppCommandId.findWorkspaceReferences:
@@ -669,6 +677,29 @@ class ShellRuntimeModel extends ChangeNotifier {
       'Go to Definition "${query.pattern}" found '
       '${result.matchCount} definition(s) across '
       '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceOutlineResult> collectWorkspaceOutline(
+    WorkspaceOutlineQuery query,
+  ) async {
+    final service = WorkspaceOutlineService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.collectOutline(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceOutline = result;
+    appendLog(
+      'Outline for ${query.targetFilePath} found ${result.matchCount} '
+      'symbol(s) from ${result.symbolsIndexed} indexed symbol(s).',
     );
     return result;
   }
@@ -1031,6 +1062,35 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     appendLog(
       'Workspace symbol opened: ${item.name} in ${item.filePath} '
+      'line ${item.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceOutlineItem(WorkspaceOutlineItem item) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Outline symbol unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: item.nameRange.start,
+      extentOffset: item.nameRange.end,
+    );
+    appendLog(
+      'Outline symbol opened: ${item.name} in ${item.filePath} '
       'line ${item.line + 1}.',
     );
   }

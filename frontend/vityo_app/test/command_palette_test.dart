@@ -65,6 +65,16 @@ void main() {
       AppCommandId.goToWorkspaceDefinition,
     );
 
+    final outlineResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'outline'),
+    );
+    expect(
+      outlineResult.items.first.commandId,
+      AppCommandId.showWorkspaceOutline,
+    );
+    expect(outlineResult.items.first.category, 'Navigation');
+
     final renameResult = service.findCommands(
       commands: StyioCommandRegistry.commands,
       query: const CommandPaletteQuery(pattern: 'rename symbol'),

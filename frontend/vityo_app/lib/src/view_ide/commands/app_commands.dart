@@ -4,6 +4,7 @@ enum AppCommandId {
   commandPalette,
   quickOpen,
   goToWorkspaceDefinition,
+  showWorkspaceOutline,
   renameWorkspaceSymbol,
   searchWorkspaceSymbols,
   findWorkspaceReferences,
@@ -112,6 +113,17 @@ class StyioCommandRegistry {
       primary: true,
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('f12'),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.showWorkspaceOutline,
+      label: 'Outline',
+      shortcutHint: 'Cmd/Ctrl+Shift+O',
+      description: 'Show symbols and structure for the active workspace file.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('keyO', control: true, shift: true),
+        AppCommandShortcutSpec('keyO', meta: true, shift: true),
       ],
     ),
     AppCommandDescriptor(
@@ -301,6 +313,7 @@ class StyioCommandRegistry {
       AppCommandId.searchWorkspace ||
       AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.goToWorkspaceDefinition ||
+      AppCommandId.showWorkspaceOutline ||
       AppCommandId.findWorkspaceReferences ||
       AppCommandId.searchWorkspaceSymbols => true,
       _ => false,
@@ -313,6 +326,7 @@ class StyioCommandRegistry {
           AppCommandId.commandPalette ||
           AppCommandId.quickOpen ||
           AppCommandId.goToWorkspaceDefinition ||
+          AppCommandId.showWorkspaceOutline ||
           AppCommandId.renameWorkspaceSymbol ||
           AppCommandId.findWorkspaceReferences ||
           AppCommandId.showWorkspaceCallHierarchy ||
@@ -347,6 +361,7 @@ class StyioCommandRegistry {
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
       AppCommandId.goToWorkspaceDefinition ||
+      AppCommandId.showWorkspaceOutline ||
       AppCommandId.renameWorkspaceSymbol ||
       AppCommandId.searchWorkspaceSymbols ||
       AppCommandId.findWorkspaceReferences ||

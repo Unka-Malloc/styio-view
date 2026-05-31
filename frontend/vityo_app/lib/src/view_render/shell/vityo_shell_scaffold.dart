@@ -144,6 +144,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.outline:
+        return _WorkspaceOutlineSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.rename:
         return _WorkspaceRenameSurface(
           shell: shell,
@@ -2106,6 +2111,325 @@ class _WorkspaceDefinitionItemTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(_workspaceReferenceKindIcon(item.kind), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            details,
+                            const SizedBox(height: 8),
+                            badges,
+                          ],
+                        )
+                      : details,
+                ),
+                if (!compact) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: badges,
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceOutlineSurface extends StatefulWidget {
+  const _WorkspaceOutlineSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceOutlineSurface> createState() =>
+      _WorkspaceOutlineSurfaceState();
+}
+
+class _WorkspaceOutlineSurfaceState extends State<_WorkspaceOutlineSurface> {
+  final TextEditingController _filterController = TextEditingController();
+  WorkspaceOutlineResult? _result;
+  bool _loading = false;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _filterController.addListener(_handleFilterChanged);
+    _runCollection();
+  }
+
+  @override
+  void dispose() {
+    _filterController.removeListener(_handleFilterChanged);
+    _filterController.dispose();
+    super.dispose();
+  }
+
+  void _handleFilterChanged() {
+    _runCollection();
+  }
+
+  WorkspaceOutlineQuery _query() {
+    return WorkspaceOutlineQuery(
+      targetFilePath: widget.shell.workspaceOutlineTargetFilePath,
+      pattern: _filterController.text,
+      maxResults: 100,
+    );
+  }
+
+  Future<void> _runCollection() async {
+    final generation = _generation + 1;
+    _generation = generation;
+    setState(() {
+      _loading = true;
+    });
+    final result = await widget.shell.collectWorkspaceOutline(_query());
+    if (!mounted || generation != _generation) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _loading = false;
+    });
+  }
+
+  Future<void> _openItem(WorkspaceOutlineItem item) async {
+    await widget.shell.openWorkspaceOutlineItem(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceOutline;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceOutline;
+    final headerChips = <Widget>[
+      Chip(label: Text(widget.shell.workspaceOutlineTargetFilePath)),
+      if (_loading) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-outline-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Outline', style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Outline',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-outline-filter-field'),
+                controller: _filterController,
+                decoration: const InputDecoration(
+                  labelText: 'Filter symbols',
+                  prefixIcon: Icon(Icons.view_list_rounded),
+                ),
+                onSubmitted: (_) {
+                  final firstItem =
+                      result != null && result.items.isNotEmpty
+                      ? result.items.first
+                      : null;
+                  if (firstItem != null) {
+                    _openItem(firstItem);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                key: const ValueKey('workspace-outline-refresh'),
+                onPressed: _loading
+                    ? null
+                    : () {
+                        _runCollection();
+                      },
+                icon: Icon(
+                  _loading
+                      ? Icons.hourglass_top_rounded
+                      : Icons.refresh_rounded,
+                ),
+                label: Text(_loading ? 'Indexing' : 'Refresh'),
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceOutlineResultView(
+                result: result,
+                onOpenItem: _openItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceOutlineResultView extends StatelessWidget {
+  const _WorkspaceOutlineResultView({
+    required this.result,
+    required this.onOpenItem,
+  });
+
+  final WorkspaceOutlineResult? result;
+  final Future<void> Function(WorkspaceOutlineItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final outlineResult = result;
+    if (outlineResult == null) {
+      return Text(
+        'No outline indexed yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (outlineResult.status) {
+      WorkspaceOutlineStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceOutlineStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceOutlineStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+      WorkspaceOutlineStatus.noSymbols => const Color(0xFFEEE9F2),
+    };
+    final statusLabel = switch (outlineResult.status) {
+      WorkspaceOutlineStatus.completed => 'ready',
+      WorkspaceOutlineStatus.hitLimit => 'limited',
+      WorkspaceOutlineStatus.emptyWorkspace => 'empty',
+      WorkspaceOutlineStatus.noSymbols => 'no symbols',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-outline-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${outlineResult.matchCount} matches')),
+            Chip(label: Text('${outlineResult.symbolsIndexed} symbols')),
+            Chip(label: Text('${outlineResult.filesSearched} file')),
+          ],
+        ),
+        if (outlineResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (outlineResult.items.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in outlineResult.items.take(80)) ...[
+            _WorkspaceOutlineItemTile(
+              item: item,
+              onTap: () {
+                onOpenItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceOutlineItemTile extends StatelessWidget {
+  const _WorkspaceOutlineItemTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final WorkspaceOutlineItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey('workspace-outline-item-${item.nameRange.start}'),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 520;
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (item.previewText.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            );
+            final badges = Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Chip(label: Text(item.kindLabel)),
+                if (item.detail.isNotEmpty) Chip(label: Text(item.detail)),
+              ],
+            );
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(_workspaceSymbolIcon(item.kind), size: 18),
                 const SizedBox(width: 10),
                 Expanded(
                   child: compact
@@ -4884,6 +5208,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.definitions),
       ),
       _SurfaceTabChip(
+        label: 'Outline',
+        active: shell.activeBottomTab == BottomSurfaceTab.outline,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.outline),
+      ),
+      _SurfaceTabChip(
         label: 'Rename',
         active: shell.activeBottomTab == BottomSurfaceTab.rename,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.rename),
@@ -4944,8 +5273,8 @@ class _BottomSurfaceTabs extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Mobile shell keeps runtime, commands, navigate, definitions, '
-            'rename, symbols, usages, calls, search, problems, actions, '
-            'agent, debug, and settings on one vertical route.',
+            'outline, rename, symbols, usages, calls, search, problems, '
+            'actions, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -5017,6 +5346,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.drive_file_move_outline;
     case AppCommandId.goToWorkspaceDefinition:
       return Icons.subdirectory_arrow_right_rounded;
+    case AppCommandId.showWorkspaceOutline:
+      return Icons.view_list_rounded;
     case AppCommandId.renameWorkspaceSymbol:
       return Icons.drive_file_rename_outline_rounded;
     case AppCommandId.searchWorkspaceSymbols:

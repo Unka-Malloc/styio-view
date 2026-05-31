@@ -10,6 +10,7 @@ void main() {
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
         AppCommandId.goToWorkspaceDefinition,
+        AppCommandId.showWorkspaceOutline,
         AppCommandId.renameWorkspaceSymbol,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
@@ -38,6 +39,9 @@ void main() {
       );
       final definition = StyioCommandRegistry.descriptorFor(
         AppCommandId.goToWorkspaceDefinition,
+      );
+      final outline = StyioCommandRegistry.descriptorFor(
+        AppCommandId.showWorkspaceOutline,
       );
       final rename = StyioCommandRegistry.descriptorFor(
         AppCommandId.renameWorkspaceSymbol,
@@ -83,6 +87,11 @@ void main() {
       expect(definition.shortcutHint, 'F12');
       expect(definition.primary, isTrue);
       expect(definition.shortcuts, hasLength(1));
+
+      expect(outline.label, 'Outline');
+      expect(outline.shortcutHint, 'Cmd/Ctrl+Shift+O');
+      expect(outline.primary, isTrue);
+      expect(outline.shortcuts, hasLength(2));
 
       expect(rename.label, 'Rename Symbol');
       expect(rename.shortcutHint, 'F2');
@@ -135,6 +144,7 @@ void main() {
       StyioCommandRegistry.searchCommands.map((command) => command.id),
       <AppCommandId>[
         AppCommandId.goToWorkspaceDefinition,
+        AppCommandId.showWorkspaceOutline,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
@@ -147,6 +157,7 @@ void main() {
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
         AppCommandId.goToWorkspaceDefinition,
+        AppCommandId.showWorkspaceOutline,
         AppCommandId.renameWorkspaceSymbol,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
@@ -181,6 +192,7 @@ void main() {
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
         AppCommandId.goToWorkspaceDefinition,
+        AppCommandId.showWorkspaceOutline,
         AppCommandId.renameWorkspaceSymbol,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
@@ -218,6 +230,7 @@ void main() {
     expect(intents, contains(AppCommandId.commandPalette));
     expect(intents, contains(AppCommandId.quickOpen));
     expect(intents, contains(AppCommandId.goToWorkspaceDefinition));
+    expect(intents, contains(AppCommandId.showWorkspaceOutline));
     expect(intents, contains(AppCommandId.renameWorkspaceSymbol));
     expect(intents, contains(AppCommandId.searchWorkspaceSymbols));
     expect(intents, contains(AppCommandId.findWorkspaceReferences));

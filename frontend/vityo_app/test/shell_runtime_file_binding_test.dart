@@ -26,6 +26,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_code_actions.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_definition.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_outline.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_problems.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_quick_open.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_reference_search.dart';
@@ -479,6 +480,74 @@ value = blend(1.0, 2.0)
     expect(shell.editorController.selection.end, targetOffset + 'mix'.length);
     expect(
       shell.debugLog.any((entry) => entry.contains('Rename Symbol applied')),
+      isTrue,
+    );
+  });
+
+  test('workspace outline opens an active file symbol range', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['src/main.styio'],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: '''
+entry = 1
+#calculate := (input) => {
+  <| input
+}
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final result = await shell.collectWorkspaceOutline(
+      const WorkspaceOutlineQuery(targetFilePath: 'src/main.styio'),
+    );
+    final item = result.items.singleWhere((item) => item.name == 'calculate');
+
+    await shell.openWorkspaceOutlineItem(item);
+
+    expect(shell.workspaceController.activeFilePath, 'src/main.styio');
+    expect(
+      shell.editorController.selection.start,
+      initialDocument.text.indexOf('calculate'),
+    );
+    expect(
+      shell.editorController.selection.end,
+      initialDocument.text.indexOf('calculate') + 'calculate'.length,
+    );
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Outline symbol opened')),
       isTrue,
     );
   });

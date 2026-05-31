@@ -389,6 +389,7 @@ class CommandPaletteService {
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
       AppCommandId.goToWorkspaceDefinition ||
+      AppCommandId.showWorkspaceOutline ||
       AppCommandId.searchWorkspaceSymbols ||
       AppCommandId.findWorkspaceReferences ||
       AppCommandId.showWorkspaceCallHierarchy ||

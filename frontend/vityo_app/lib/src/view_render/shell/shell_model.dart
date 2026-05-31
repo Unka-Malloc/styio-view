@@ -2,7 +2,7 @@ import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
 
-enum BottomSurfaceTab { runtime, agent, debug, settings }
+enum BottomSurfaceTab { runtime, search, agent, debug, settings }
 
 class ShellModel extends ShellRuntimeModel {
   ShellModel({
@@ -67,7 +67,15 @@ class ShellModel extends ShellRuntimeModel {
         return;
       case AppCommandId.save:
       case AppCommandId.run:
+        await super.executeCommand(commandId);
+        if (commandId == AppCommandId.run) {
+          selectBottomTab(BottomSurfaceTab.runtime);
+        }
+        return;
       case AppCommandId.searchWorkspace:
+        await super.executeCommand(commandId);
+        selectBottomTab(BottomSurfaceTab.search);
+        return;
       case AppCommandId.fetchDependencies:
       case AppCommandId.vendorDependencies:
       case AppCommandId.useActiveCompiler:
@@ -77,9 +85,6 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.preparePublish:
       case AppCommandId.refreshModules:
         await super.executeCommand(commandId);
-        if (commandId == AppCommandId.run) {
-          selectBottomTab(BottomSurfaceTab.runtime);
-        }
         return;
     }
   }

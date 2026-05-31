@@ -13,6 +13,7 @@ import '../../backend_toolchain/toolchain_management_adapter.dart';
 import '../../module_host/module_definition.dart';
 import '../../module_host/module_manifest.dart';
 import '../../platform/platform_target.dart';
+import '../../view_ide/workspace/workspace.dart';
 import '../platform/platform.dart';
 import '../runtime/runtime.dart';
 import '../settings/settings_surface.dart';
@@ -125,6 +126,11 @@ class VityoShellScaffold extends StatelessWidget {
           adapterCapabilities: shell.adapterCapabilities,
           executionSession: shell.lastExecutionSession,
           runtimeEvents: shell.lastRuntimeEvents,
+        );
+      case BottomSurfaceTab.search:
+        return _WorkspaceSearchSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
         );
       case BottomSurfaceTab.agent:
         return AgentSurface(
@@ -1226,6 +1232,347 @@ class _WorkflowStatusChip extends StatelessWidget {
   }
 }
 
+class _WorkspaceSearchSurface extends StatefulWidget {
+  const _WorkspaceSearchSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceSearchSurface> createState() =>
+      _WorkspaceSearchSurfaceState();
+}
+
+class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
+  final TextEditingController _queryController = TextEditingController();
+  final TextEditingController _includeController = TextEditingController(
+    text: '**/*.styio',
+  );
+  final TextEditingController _excludeController = TextEditingController();
+  bool _literal = true;
+  bool _caseSensitive = false;
+  bool _searching = false;
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    _includeController.dispose();
+    _excludeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runSearch() async {
+    if (_searching) {
+      return;
+    }
+    setState(() {
+      _searching = true;
+    });
+    await widget.shell.searchWorkspaceText(
+      WorkspaceTextSearchQuery(
+        pattern: _queryController.text,
+        literal: _literal,
+        caseSensitive: _caseSensitive,
+        includeGlobs: _splitGlobs(_includeController.text),
+        excludeGlobs: _splitGlobs(_excludeController.text),
+        maxResults: 100,
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _searching = false;
+    });
+  }
+
+  List<String> _splitGlobs(String value) {
+    return value
+        .split(RegExp(r'[,\n]'))
+        .map((entry) => entry.trim())
+        .where((entry) => entry.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final result = widget.shell.lastWorkspaceSearch;
+    final compact = widget.viewportProfile.isMobile;
+
+    return Card(
+      key: const ValueKey('workspace-search-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Find in Files',
+                      style: theme.textTheme.titleLarge,
+                    ),
+                  ),
+                  Chip(
+                    label: Text(
+                      '${widget.shell.workspaceController.files.length} files',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              compact
+                  ? Column(
+                      children: _searchInputs(compact: true),
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: _searchInputs(compact: false),
+                    ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilterChip(
+                    key: const ValueKey('workspace-search-literal-mode'),
+                    selected: _literal,
+                    label: const Text('Literal'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _literal = selected || !_literal;
+                      });
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey('workspace-search-regex-mode'),
+                    selected: !_literal,
+                    label: const Text('Regex'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _literal = !selected;
+                      });
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey('workspace-search-case-sensitive'),
+                    selected: _caseSensitive,
+                    label: const Text('Match case'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _caseSensitive = selected;
+                      });
+                    },
+                  ),
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-search-run'),
+                    onPressed: _searching
+                        ? null
+                        : () {
+                            _runSearch();
+                          },
+                    icon: Icon(
+                      _searching
+                          ? Icons.hourglass_top_rounded
+                          : Icons.manage_search_rounded,
+                    ),
+                    label: Text(_searching ? 'Searching' : 'Search'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceSearchResultView(
+                result: result,
+                onOpenMatch: widget.shell.openWorkspaceSearchMatch,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _searchInputs({required bool compact}) {
+    final queryField = TextField(
+      key: const ValueKey('workspace-search-query-field'),
+      controller: _queryController,
+      decoration: const InputDecoration(
+        labelText: 'Search',
+        prefixIcon: Icon(Icons.search_rounded),
+      ),
+      onSubmitted: (_) {
+        _runSearch();
+      },
+    );
+    final includeField = TextField(
+      key: const ValueKey('workspace-search-include-field'),
+      controller: _includeController,
+      decoration: const InputDecoration(labelText: 'Include'),
+      onSubmitted: (_) {
+        _runSearch();
+      },
+    );
+    final excludeField = TextField(
+      key: const ValueKey('workspace-search-exclude-field'),
+      controller: _excludeController,
+      decoration: const InputDecoration(labelText: 'Exclude'),
+      onSubmitted: (_) {
+        _runSearch();
+      },
+    );
+
+    if (compact) {
+      return [
+        queryField,
+        const SizedBox(height: 10),
+        includeField,
+        const SizedBox(height: 10),
+        excludeField,
+      ];
+    }
+
+    return [
+      Expanded(flex: 3, child: queryField),
+      const SizedBox(width: 10),
+      Expanded(flex: 2, child: includeField),
+      const SizedBox(width: 10),
+      Expanded(flex: 2, child: excludeField),
+    ];
+  }
+}
+
+class _WorkspaceSearchResultView extends StatelessWidget {
+  const _WorkspaceSearchResultView({
+    required this.result,
+    required this.onOpenMatch,
+  });
+
+  final WorkspaceTextSearchResult? result;
+  final Future<void> Function(WorkspaceTextSearchMatch match) onOpenMatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final searchResult = result;
+    if (searchResult == null) {
+      return Text(
+        'No search results yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (searchResult.status) {
+      WorkspaceTextSearchStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceTextSearchStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceTextSearchStatus.emptyPattern => const Color(0xFFEEE9F2),
+      WorkspaceTextSearchStatus.invalidPattern => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (searchResult.status) {
+      WorkspaceTextSearchStatus.completed => 'completed',
+      WorkspaceTextSearchStatus.hitLimit => 'limited',
+      WorkspaceTextSearchStatus.emptyPattern => 'empty',
+      WorkspaceTextSearchStatus.invalidPattern => 'invalid',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-search-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${searchResult.matchCount} matches')),
+            Chip(label: Text('${searchResult.matchedFileCount} files')),
+            Chip(label: Text('${searchResult.filesSearched} scanned')),
+          ],
+        ),
+        if (searchResult.message != null) ...[
+          const SizedBox(height: 8),
+          Text(searchResult.message!, style: theme.textTheme.bodySmall),
+        ],
+        if (searchResult.matches.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final match in searchResult.matches.take(40)) ...[
+            _WorkspaceSearchMatchTile(
+              match: match,
+              onTap: () {
+                onOpenMatch(match);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceSearchMatchTile extends StatelessWidget {
+  const _WorkspaceSearchMatchTile({
+    required this.match,
+    required this.onTap,
+  });
+
+  final WorkspaceTextSearchMatch match;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-search-match-${match.filePath}-${match.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.manage_search_rounded, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${match.filePath}:${match.line + 1}:${match.column + 1}',
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    match.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RequiredHandoffTile extends StatelessWidget {
   const _RequiredHandoffTile({required this.handoff});
 
@@ -1592,6 +1939,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.runtime),
       ),
       _SurfaceTabChip(
+        label: 'Search',
+        active: shell.activeBottomTab == BottomSurfaceTab.search,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
+      ),
+      _SurfaceTabChip(
         label: 'Agent',
         active: shell.activeBottomTab == BottomSurfaceTab.agent,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
@@ -1616,7 +1968,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, agent, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
+            'Mobile shell keeps runtime, search, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

@@ -532,6 +532,37 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result;
   }
 
+  Future<void> openWorkspaceSearchMatch(
+    WorkspaceTextSearchMatch match,
+  ) async {
+    if (!workspaceController.files.contains(match.filePath)) {
+      appendLog(
+        'Workspace search match unavailable: ${match.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    if (workspaceController.activeFilePath != match.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(match.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: match.range.start,
+      extentOffset: match.range.end,
+    );
+    appendLog(
+      'Workspace search match opened: ${match.filePath} '
+      'line ${match.line + 1}.',
+    );
+  }
+
   String? _blockedToolchainCommandReason({
     required ProjectGraphSnapshot projectGraph,
     bool requiresResolvedCompiler = false,

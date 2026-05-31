@@ -530,7 +530,7 @@ void main() {
     },
   );
 
-  test('open settings command selects the settings bottom surface', () async {
+  test('search and settings commands select shell bottom surfaces', () async {
     final initialGraph = _projectGraph(
       compilerVersion: '0.0.5',
       compilePlanReady: true,
@@ -569,6 +569,16 @@ void main() {
       toolchainManagementAdapter: const _SuccessfulToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
+
+    await shell.executeCommand(AppCommandId.searchWorkspace);
+
+    expect(shell.activeBottomTab, BottomSurfaceTab.search);
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Find in Files route requested'),
+      ),
+      isTrue,
+    );
 
     await shell.executeCommand(AppCommandId.openSettings);
 

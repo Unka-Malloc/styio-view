@@ -23,6 +23,7 @@ import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_search.dart';
 
 void main() {
   test('shell save command persists through editor file binding', () async {
@@ -145,6 +146,80 @@ void main() {
     expect(
       hostedClient.savedDocuments.single['documentText'],
       shell.editorController.document.text,
+    );
+  });
+
+  test('workspace search opens a matched file and selection range', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['src/main.styio', 'src/worker.styio'],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'task main {}\n',
+      revision: 0,
+    );
+    const workerDocument = DocumentState(
+      documentId: 'src/worker.styio',
+      text: 'task worker {\n  emit "needle"\n}\n',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+        'src/worker.styio': workerDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final result = await shell.searchWorkspaceText(
+      const WorkspaceTextSearchQuery(pattern: 'needle'),
+    );
+
+    expect(result.status, WorkspaceTextSearchStatus.completed);
+    expect(result.matches.single.filePath, 'src/worker.styio');
+
+    await shell.openWorkspaceSearchMatch(result.matches.single);
+
+    expect(shell.workspaceController.activeFilePath, 'src/worker.styio');
+    expect(shell.editorController.document.documentId, 'src/worker.styio');
+    expect(
+      shell.editorController.selection.start,
+      workerDocument.text.indexOf('needle'),
+    );
+    expect(
+      shell.editorController.selection.end,
+      workerDocument.text.indexOf('needle') + 'needle'.length,
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Workspace search match opened'),
+      ),
+      isTrue,
     );
   });
 
@@ -794,6 +869,27 @@ class _RecordingHostedControlPlaneClient implements HostedControlPlaneClient {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+ProjectGraphSnapshot _projectGraphWithFiles(List<String> editorFiles) {
+  return ProjectGraphSnapshot(
+    id: '/workspace/demo',
+    title: 'Demo',
+    kind: ProjectKind.scratch,
+    workspaceRoot: '/workspace/demo',
+    workspaceMembers: const <String>[],
+    packages: const <ProjectPackageSnapshot>[],
+    dependencies: const <ProjectDependencySnapshot>[],
+    targets: const <ProjectTargetDescriptor>[],
+    editorFiles: editorFiles,
+    toolchain: const ToolchainStatusSnapshot(
+      source: ToolchainResolutionSource.unavailable,
+      detail: 'No project toolchain pin is active in scratch mode.',
+    ),
+    lockState: ProjectLockState.missing,
+    vendorState: ProjectVendorState.missing,
+    notes: const <String>[],
+  );
 }
 
 ProjectGraphSnapshot _hostedProjectGraph() {

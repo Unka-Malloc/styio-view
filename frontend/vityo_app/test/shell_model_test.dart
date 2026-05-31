@@ -531,7 +531,7 @@ void main() {
   );
 
   test(
-    'command palette, quick open, definitions, symbols, usages, calls, search, problems, and settings commands select shell bottom surfaces',
+    'command palette, quick open, definitions, rename, symbols, usages, calls, search, problems, and settings commands select shell bottom surfaces',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -599,6 +599,16 @@ void main() {
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Go to Definition route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.renameWorkspaceSymbol);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.rename);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Rename Symbol route requested'),
         ),
         isTrue,
       );

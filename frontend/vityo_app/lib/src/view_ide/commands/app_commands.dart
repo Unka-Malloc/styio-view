@@ -4,6 +4,7 @@ enum AppCommandId {
   commandPalette,
   quickOpen,
   goToWorkspaceDefinition,
+  renameWorkspaceSymbol,
   searchWorkspaceSymbols,
   findWorkspaceReferences,
   showWorkspaceCallHierarchy,
@@ -110,6 +111,16 @@ class StyioCommandRegistry {
       primary: true,
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('f12'),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.renameWorkspaceSymbol,
+      label: 'Rename Symbol',
+      shortcutHint: 'F2',
+      description: 'Preview and apply a workspace symbol rename.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('f2'),
       ],
     ),
     AppCommandDescriptor(
@@ -289,6 +300,7 @@ class StyioCommandRegistry {
           AppCommandId.commandPalette ||
           AppCommandId.quickOpen ||
           AppCommandId.goToWorkspaceDefinition ||
+          AppCommandId.renameWorkspaceSymbol ||
           AppCommandId.findWorkspaceReferences ||
           AppCommandId.showWorkspaceCallHierarchy ||
           AppCommandId.showWorkspaceProblems ||
@@ -321,6 +333,7 @@ class StyioCommandRegistry {
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
       AppCommandId.goToWorkspaceDefinition ||
+      AppCommandId.renameWorkspaceSymbol ||
       AppCommandId.searchWorkspaceSymbols ||
       AppCommandId.findWorkspaceReferences ||
       AppCommandId.showWorkspaceCallHierarchy ||

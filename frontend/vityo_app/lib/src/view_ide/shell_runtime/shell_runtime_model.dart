@@ -113,6 +113,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceDefinitionResult? _lastWorkspaceDefinition;
+  WorkspaceRenameResult? _lastWorkspaceRename;
   WorkspaceSymbolSearchResult? _lastWorkspaceSymbolSearch;
   WorkspaceReferenceSearchResult? _lastWorkspaceReferenceSearch;
   WorkspaceCallHierarchyResult? _lastWorkspaceCallHierarchy;
@@ -139,6 +140,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceQuickOpen;
   WorkspaceDefinitionResult? get lastWorkspaceDefinition =>
       _lastWorkspaceDefinition;
+  WorkspaceRenameResult? get lastWorkspaceRename => _lastWorkspaceRename;
   WorkspaceSymbolSearchResult? get lastWorkspaceSymbolSearch =>
       _lastWorkspaceSymbolSearch;
   WorkspaceReferenceSearchResult? get lastWorkspaceReferenceSearch =>
@@ -221,6 +223,12 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
     return _normalizeDefinitionQuerySeed(token.lexeme);
   }
+
+  String get workspaceRenameQuerySeed => workspaceDefinitionQuerySeed;
+
+  String get workspaceRenameTargetFilePath => _activeDocumentPath;
+
+  int get workspaceRenameTargetOffset => editorController.inspectionOffset;
 
   Future<ToolchainSelectionResult?> selectToolchainCandidate(String id) async {
     final manager = toolchainManager;
@@ -455,6 +463,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.goToWorkspaceDefinition:
         appendLog('Go to Definition route requested.');
         return;
+      case AppCommandId.renameWorkspaceSymbol:
+        appendLog('Rename Symbol route requested.');
+        return;
       case AppCommandId.searchWorkspaceSymbols:
         appendLog('Workspace Symbols route requested.');
         return;
@@ -566,6 +577,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.commandPalette:
       case AppCommandId.quickOpen:
       case AppCommandId.goToWorkspaceDefinition:
+      case AppCommandId.renameWorkspaceSymbol:
       case AppCommandId.searchWorkspaceSymbols:
       case AppCommandId.findWorkspaceReferences:
       case AppCommandId.showWorkspaceCallHierarchy:
@@ -650,6 +662,82 @@ class ShellRuntimeModel extends ChangeNotifier {
       'Go to Definition "${query.pattern}" found '
       '${result.matchCount} definition(s) across '
       '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceRenameResult> previewWorkspaceRename(
+    WorkspaceRenameQuery query,
+  ) async {
+    final service = WorkspaceRenameService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.previewRename(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceRename = result;
+    appendLog(
+      'Rename Symbol "${query.newName}" preview found '
+      '${result.editCount} edit(s) across ${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceRenameApplyResult> applyWorkspaceRename(
+    WorkspaceRenameQuery query,
+  ) async {
+    final service = WorkspaceRenameService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.applyRename(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceRename = result.preview;
+    for (final entry in result.changedDocuments.entries) {
+      _documentCache[entry.key] = entry.value;
+    }
+    final activeDocument = result.changedDocuments[_activeDocumentPath];
+    if (activeDocument != null) {
+      WorkspaceRenameEdit? targetEdit;
+      for (final edit in result.preview.edits) {
+        if (edit.filePath != _activeDocumentPath) {
+          continue;
+        }
+        targetEdit ??= edit;
+        if (edit.range.start <= query.targetOffset &&
+            query.targetOffset <= edit.range.end) {
+          targetEdit = edit;
+          break;
+        }
+      }
+      editorController.loadDocument(activeDocument);
+      if (targetEdit != null) {
+        editorController.selectRange(
+          baseOffset: targetEdit.range.start,
+          extentOffset: targetEdit.range.start + result.preview.newName.length,
+        );
+      }
+      _editorFileBinding.bindLoadedDocument(activeDocument);
+    }
+    final notAppliedMessage =
+        result.message ?? result.preview.message ?? result.preview.status.name;
+    appendLog(
+      result.applied
+          ? 'Rename Symbol applied ${result.editsApplied} edit(s) across '
+                '${result.documentsChanged} document(s).'
+          : 'Rename Symbol not applied: $notAppliedMessage.',
     );
     return result;
   }

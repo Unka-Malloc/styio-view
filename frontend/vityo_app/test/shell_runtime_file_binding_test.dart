@@ -28,6 +28,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_problems.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_quick_open.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_reference_search.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_rename.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_search.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_symbol_search.dart';
 
@@ -384,6 +385,99 @@ value = blend(1.0, 2.0)
       shell.debugLog.any(
         (entry) => entry.contains('Workspace definition opened'),
       ),
+      isTrue,
+    );
+  });
+
+  test('workspace rename applies edits across project files', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['lib/runtime.styio', 'main.styio'],
+    );
+    const runtimeDocument = DocumentState(
+      documentId: 'lib/runtime.styio',
+      text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+''',
+      revision: 0,
+    );
+    const mainDocument = DocumentState(
+      documentId: 'main.styio',
+      text: '''
+@import { lib/runtime }
+value = blend(1.0, 2.0)
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/runtime.styio': runtimeDocument,
+        'main.styio': mainDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: mainDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final targetOffset = mainDocument.text.indexOf('blend');
+    shell.editorController.selectRange(
+      baseOffset: targetOffset,
+      extentOffset: targetOffset + 'blend'.length,
+    );
+    expect(shell.workspaceRenameQuerySeed, 'blend');
+
+    final preview = await shell.previewWorkspaceRename(
+      WorkspaceRenameQuery(
+        targetFilePath: 'main.styio',
+        targetOffset: targetOffset,
+        newName: 'mix',
+      ),
+    );
+
+    expect(preview.status, WorkspaceRenameStatus.ready);
+    expect(preview.editCount, 2);
+
+    final apply = await shell.applyWorkspaceRename(preview.query);
+
+    expect(apply.applied, isTrue);
+    expect(apply.documentsChanged, 2);
+    expect(
+      (await documentStore.loadDocument('main.styio')).text,
+      contains('mix('),
+    );
+    expect(
+      (await documentStore.loadDocument('lib/runtime.styio')).text,
+      contains('fn mix'),
+    );
+    expect(shell.editorController.document.text, contains('mix(1.0'));
+    expect(shell.editorController.selection.start, targetOffset);
+    expect(shell.editorController.selection.end, targetOffset + 'mix'.length);
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Rename Symbol applied')),
       isTrue,
     );
   });

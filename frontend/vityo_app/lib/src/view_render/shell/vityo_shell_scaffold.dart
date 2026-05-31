@@ -144,6 +144,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.rename:
+        return _WorkspaceRenameSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.symbols:
         return _WorkspaceSymbolSearchSurface(
           shell: shell,
@@ -2120,6 +2125,328 @@ class _WorkspaceDefinitionItemTile extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceRenameSurface extends StatefulWidget {
+  const _WorkspaceRenameSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceRenameSurface> createState() => _WorkspaceRenameSurfaceState();
+}
+
+class _WorkspaceRenameSurfaceState extends State<_WorkspaceRenameSurface> {
+  late final TextEditingController _nameController;
+  WorkspaceRenameResult? _result;
+  WorkspaceRenameApplyResult? _applyResult;
+  bool _previewing = false;
+  bool _applying = false;
+  int _previewGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final seed = widget.shell.workspaceRenameQuerySeed;
+    _nameController = TextEditingController(
+      text: seed.isEmpty ? '' : '${seed}_next',
+    );
+    if (seed.isNotEmpty) {
+      _runPreview();
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  WorkspaceRenameQuery _query() {
+    return WorkspaceRenameQuery(
+      targetFilePath: widget.shell.workspaceRenameTargetFilePath,
+      targetOffset: widget.shell.workspaceRenameTargetOffset,
+      newName: _nameController.text,
+    );
+  }
+
+  Future<void> _runPreview() async {
+    final generation = _previewGeneration + 1;
+    _previewGeneration = generation;
+    setState(() {
+      _previewing = true;
+      _applyResult = null;
+    });
+    final result = await widget.shell.previewWorkspaceRename(_query());
+    if (!mounted || generation != _previewGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _previewing = false;
+    });
+  }
+
+  Future<void> _applyRename() async {
+    final preview = _result;
+    if (preview == null || !preview.canApply || _applying) {
+      return;
+    }
+    setState(() {
+      _applying = true;
+    });
+    final result = await widget.shell.applyWorkspaceRename(
+      preview.query.copyWith(newName: _nameController.text),
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = result.preview;
+      _applyResult = result;
+      _applying = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result;
+    final seed = widget.shell.workspaceRenameQuerySeed;
+    final headerChips = <Widget>[
+      Chip(label: Text(widget.shell.workspaceRenameTargetFilePath)),
+      if (seed.isNotEmpty) Chip(label: Text(seed)),
+      if (_previewing) const Chip(label: Text('previewing')),
+      if (_applying) const Chip(label: Text('applying')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-rename-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Rename Symbol',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Rename Symbol',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-rename-name-field'),
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'New symbol name',
+                  prefixIcon: Icon(Icons.drive_file_rename_outline_rounded),
+                ),
+                onSubmitted: (_) {
+                  _runPreview();
+                },
+                onChanged: (_) {
+                  setState(() {
+                    _result = null;
+                    _applyResult = null;
+                  });
+                },
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-rename-preview-run'),
+                    onPressed: _previewing || _applying
+                        ? null
+                        : () {
+                            _runPreview();
+                          },
+                    icon: Icon(
+                      _previewing
+                          ? Icons.hourglass_top_rounded
+                          : Icons.manage_search_rounded,
+                    ),
+                    label: Text(_previewing ? 'Previewing' : 'Preview'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('workspace-rename-apply-run'),
+                    onPressed: result != null &&
+                            result.canApply &&
+                            !_previewing &&
+                            !_applying
+                        ? _applyRename
+                        : null,
+                    icon: Icon(
+                      _applying
+                          ? Icons.hourglass_top_rounded
+                          : Icons.done_rounded,
+                    ),
+                    label: Text(_applying ? 'Applying' : 'Apply'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceRenameResultView(
+                result: result,
+                applyResult: _applyResult,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceRenameResultView extends StatelessWidget {
+  const _WorkspaceRenameResultView({
+    required this.result,
+    required this.applyResult,
+  });
+
+  final WorkspaceRenameResult? result;
+  final WorkspaceRenameApplyResult? applyResult;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final renameResult = result;
+    if (renameResult == null) {
+      return Text(
+        'No rename preview yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (renameResult.status) {
+      WorkspaceRenameStatus.ready => const Color(0xFFE3F1E1),
+      WorkspaceRenameStatus.noChanges => const Color(0xFFEEE9F2),
+      WorkspaceRenameStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+      WorkspaceRenameStatus.noTarget => const Color(0xFFF5E1DE),
+      WorkspaceRenameStatus.conflict => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (renameResult.status) {
+      WorkspaceRenameStatus.ready => 'ready',
+      WorkspaceRenameStatus.noChanges => 'no changes',
+      WorkspaceRenameStatus.emptyWorkspace => 'empty',
+      WorkspaceRenameStatus.noTarget => 'no symbol',
+      WorkspaceRenameStatus.conflict => 'blocked',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-rename-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${renameResult.editCount} edits')),
+            Chip(label: Text('${renameResult.matchedFileCount} files')),
+            Chip(label: Text('${renameResult.filesSearched} indexed')),
+            if (renameResult.oldName.isNotEmpty)
+              Chip(
+                label: Text(
+                  '${renameResult.oldName} -> ${renameResult.newName}',
+                ),
+              ),
+          ],
+        ),
+        if (renameResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (applyResult?.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (renameResult.edits.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final edit in renameResult.edits.take(80)) ...[
+            _WorkspaceRenameEditTile(edit: edit),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceRenameEditTile extends StatelessWidget {
+  const _WorkspaceRenameEditTile({required this.edit});
+
+  final WorkspaceRenameEdit edit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Ink(
+      key: ValueKey(
+        'workspace-rename-edit-${edit.filePath}-${edit.range.start}',
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F4ED),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.drive_file_rename_outline_rounded, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${edit.filePath}:${edit.line + 1}:${edit.column + 1}',
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (edit.previewText.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    edit.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -4189,6 +4516,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.definitions),
       ),
       _SurfaceTabChip(
+        label: 'Rename',
+        active: shell.activeBottomTab == BottomSurfaceTab.rename,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.rename),
+      ),
+      _SurfaceTabChip(
         label: 'Symbols',
         active: shell.activeBottomTab == BottomSurfaceTab.symbols,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.symbols),
@@ -4238,7 +4570,9 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, commands, navigate, definitions, symbols, usages, calls, search, problems, agent, debug, and settings on one vertical route.',
+            'Mobile shell keeps runtime, commands, navigate, definitions, '
+            'rename, symbols, usages, calls, search, problems, agent, debug, '
+            'and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -4310,6 +4644,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.drive_file_move_outline;
     case AppCommandId.goToWorkspaceDefinition:
       return Icons.subdirectory_arrow_right_rounded;
+    case AppCommandId.renameWorkspaceSymbol:
+      return Icons.drive_file_rename_outline_rounded;
     case AppCommandId.searchWorkspaceSymbols:
       return Icons.account_tree_outlined;
     case AppCommandId.findWorkspaceReferences:

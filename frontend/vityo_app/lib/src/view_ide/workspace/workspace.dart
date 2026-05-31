@@ -6,5 +6,6 @@ export 'workspace_document_store_types.dart';
 export 'workspace_problems.dart';
 export 'workspace_quick_open.dart';
 export 'workspace_reference_search.dart';
+export 'workspace_rename.dart';
 export 'workspace_search.dart';
 export 'workspace_symbol_search.dart';

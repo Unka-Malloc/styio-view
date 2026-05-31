@@ -10,6 +10,7 @@ void main() {
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
         AppCommandId.goToWorkspaceDefinition,
+        AppCommandId.renameWorkspaceSymbol,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
@@ -36,6 +37,9 @@ void main() {
       );
       final definition = StyioCommandRegistry.descriptorFor(
         AppCommandId.goToWorkspaceDefinition,
+      );
+      final rename = StyioCommandRegistry.descriptorFor(
+        AppCommandId.renameWorkspaceSymbol,
       );
       final problems = StyioCommandRegistry.descriptorFor(
         AppCommandId.showWorkspaceProblems,
@@ -75,6 +79,11 @@ void main() {
       expect(definition.shortcutHint, 'F12');
       expect(definition.primary, isTrue);
       expect(definition.shortcuts, hasLength(1));
+
+      expect(rename.label, 'Rename Symbol');
+      expect(rename.shortcutHint, 'F2');
+      expect(rename.primary, isTrue);
+      expect(rename.shortcuts, hasLength(1));
 
       expect(problems.label, 'Problems');
       expect(problems.shortcutHint, 'Route');
@@ -129,6 +138,7 @@ void main() {
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
         AppCommandId.goToWorkspaceDefinition,
+        AppCommandId.renameWorkspaceSymbol,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
@@ -161,6 +171,7 @@ void main() {
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
         AppCommandId.goToWorkspaceDefinition,
+        AppCommandId.renameWorkspaceSymbol,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
@@ -196,6 +207,7 @@ void main() {
     expect(intents, contains(AppCommandId.commandPalette));
     expect(intents, contains(AppCommandId.quickOpen));
     expect(intents, contains(AppCommandId.goToWorkspaceDefinition));
+    expect(intents, contains(AppCommandId.renameWorkspaceSymbol));
     expect(intents, contains(AppCommandId.searchWorkspaceSymbols));
     expect(intents, contains(AppCommandId.findWorkspaceReferences));
     expect(intents, contains(AppCommandId.showWorkspaceCallHierarchy));

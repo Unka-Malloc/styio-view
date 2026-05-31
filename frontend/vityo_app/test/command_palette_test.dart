@@ -65,6 +65,15 @@ void main() {
       AppCommandId.goToWorkspaceDefinition,
     );
 
+    final renameResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'rename symbol'),
+    );
+    expect(
+      renameResult.items.first.commandId,
+      AppCommandId.renameWorkspaceSymbol,
+    );
+
     final usageResult = service.findCommands(
       commands: StyioCommandRegistry.commands,
       query: const CommandPaletteQuery(pattern: 'find usages'),

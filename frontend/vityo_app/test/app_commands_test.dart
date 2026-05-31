@@ -9,6 +9,7 @@ void main() {
         AppCommandId.run,
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
+        AppCommandId.goToWorkspaceDefinition,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
@@ -32,6 +33,9 @@ void main() {
       );
       final search = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspace,
+      );
+      final definition = StyioCommandRegistry.descriptorFor(
+        AppCommandId.goToWorkspaceDefinition,
       );
       final problems = StyioCommandRegistry.descriptorFor(
         AppCommandId.showWorkspaceProblems,
@@ -66,6 +70,11 @@ void main() {
       expect(search.shortcutHint, 'Cmd/Ctrl+Shift+F');
       expect(search.primary, isTrue);
       expect(search.shortcuts, hasLength(2));
+
+      expect(definition.label, 'Go to Definition');
+      expect(definition.shortcutHint, 'F12');
+      expect(definition.primary, isTrue);
+      expect(definition.shortcuts, hasLength(1));
 
       expect(problems.label, 'Problems');
       expect(problems.shortcutHint, 'Route');
@@ -107,6 +116,7 @@ void main() {
     expect(
       StyioCommandRegistry.searchCommands.map((command) => command.id),
       <AppCommandId>[
+        AppCommandId.goToWorkspaceDefinition,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
@@ -118,6 +128,7 @@ void main() {
       <AppCommandId>[
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
+        AppCommandId.goToWorkspaceDefinition,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
@@ -149,6 +160,7 @@ void main() {
         AppCommandId.run,
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
+        AppCommandId.goToWorkspaceDefinition,
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
@@ -183,6 +195,7 @@ void main() {
     expect(intents, contains(AppCommandId.run));
     expect(intents, contains(AppCommandId.commandPalette));
     expect(intents, contains(AppCommandId.quickOpen));
+    expect(intents, contains(AppCommandId.goToWorkspaceDefinition));
     expect(intents, contains(AppCommandId.searchWorkspaceSymbols));
     expect(intents, contains(AppCommandId.findWorkspaceReferences));
     expect(intents, contains(AppCommandId.showWorkspaceCallHierarchy));

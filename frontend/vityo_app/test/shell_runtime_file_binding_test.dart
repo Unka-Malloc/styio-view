@@ -23,6 +23,7 @@ import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_definition.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_problems.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_quick_open.dart';
@@ -296,6 +297,93 @@ void main() {
     );
     expect(
       shell.debugLog.any((entry) => entry.contains('Workspace symbol opened')),
+      isTrue,
+    );
+  });
+
+  test('workspace definition opens a definition range', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['lib/runtime.styio', 'main.styio'],
+    );
+    const runtimeDocument = DocumentState(
+      documentId: 'lib/runtime.styio',
+      text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+''',
+      revision: 0,
+    );
+    const mainDocument = DocumentState(
+      documentId: 'main.styio',
+      text: '''
+@import { lib/runtime }
+value = blend(1.0, 2.0)
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/runtime.styio': runtimeDocument,
+        'main.styio': mainDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: mainDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    shell.editorController.selectRange(
+      baseOffset: mainDocument.text.indexOf('blend'),
+      extentOffset: mainDocument.text.indexOf('blend') + 'blend'.length,
+    );
+    expect(shell.workspaceDefinitionQuerySeed, 'blend');
+
+    final result = await shell.findWorkspaceDefinitions(
+      const WorkspaceDefinitionQuery(pattern: 'blend'),
+    );
+
+    expect(result.status, WorkspaceDefinitionStatus.completed);
+    expect(result.definitions.first.filePath, 'lib/runtime.styio');
+
+    await shell.openWorkspaceDefinition(result.definitions.first);
+
+    expect(shell.workspaceController.activeFilePath, 'lib/runtime.styio');
+    expect(shell.editorController.document.documentId, 'lib/runtime.styio');
+    expect(
+      shell.editorController.selection.start,
+      runtimeDocument.text.indexOf('blend'),
+    );
+    expect(
+      shell.editorController.selection.end,
+      runtimeDocument.text.indexOf('blend') + 'blend'.length,
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Workspace definition opened'),
+      ),
       isTrue,
     );
   });

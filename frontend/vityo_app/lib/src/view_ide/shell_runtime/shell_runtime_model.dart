@@ -112,6 +112,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       const <RuntimeEventEnvelope>[];
   CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
+  WorkspaceDefinitionResult? _lastWorkspaceDefinition;
   WorkspaceSymbolSearchResult? _lastWorkspaceSymbolSearch;
   WorkspaceReferenceSearchResult? _lastWorkspaceReferenceSearch;
   WorkspaceCallHierarchyResult? _lastWorkspaceCallHierarchy;
@@ -136,6 +137,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   CommandPaletteResult? get lastCommandPalette => _lastCommandPalette;
   WorkspaceQuickOpenResult? get lastWorkspaceQuickOpen =>
       _lastWorkspaceQuickOpen;
+  WorkspaceDefinitionResult? get lastWorkspaceDefinition =>
+      _lastWorkspaceDefinition;
   WorkspaceSymbolSearchResult? get lastWorkspaceSymbolSearch =>
       _lastWorkspaceSymbolSearch;
   WorkspaceReferenceSearchResult? get lastWorkspaceReferenceSearch =>
@@ -194,6 +197,29 @@ class ShellRuntimeModel extends ChangeNotifier {
       );
     }
     return ToolchainSettingsSurface.fromStatus(toolchainStatusSurface);
+  }
+
+  String get workspaceDefinitionQuerySeed {
+    final selection = editorController.selection;
+    if (!selection.isCollapsed) {
+      final selectedText = editorController.document.text.substring(
+        selection.start,
+        selection.end,
+      );
+      final selectedSeed = _normalizeDefinitionQuerySeed(selectedText);
+      if (selectedSeed.isNotEmpty) {
+        return selectedSeed;
+      }
+    }
+    final definition = editorController.definitionAtSelection;
+    if (definition != null) {
+      return definition.symbol.name;
+    }
+    final token = editorController.tokenAtSelection;
+    if (token == null) {
+      return '';
+    }
+    return _normalizeDefinitionQuerySeed(token.lexeme);
   }
 
   Future<ToolchainSelectionResult?> selectToolchainCandidate(String id) async {
@@ -426,6 +452,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.quickOpen:
         appendLog('Quick Open route requested.');
         return;
+      case AppCommandId.goToWorkspaceDefinition:
+        appendLog('Go to Definition route requested.');
+        return;
       case AppCommandId.searchWorkspaceSymbols:
         appendLog('Workspace Symbols route requested.');
         return;
@@ -536,6 +565,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.run:
       case AppCommandId.commandPalette:
       case AppCommandId.quickOpen:
+      case AppCommandId.goToWorkspaceDefinition:
       case AppCommandId.searchWorkspaceSymbols:
       case AppCommandId.findWorkspaceReferences:
       case AppCommandId.showWorkspaceCallHierarchy:
@@ -595,6 +625,30 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Workspace symbol search "${query.pattern}" found '
       '${result.matchCount} match(es) across '
+      '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceDefinitionResult> findWorkspaceDefinitions(
+    WorkspaceDefinitionQuery query,
+  ) async {
+    final service = WorkspaceDefinitionService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.findDefinitions(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceDefinition = result;
+    appendLog(
+      'Go to Definition "${query.pattern}" found '
+      '${result.matchCount} definition(s) across '
       '${result.matchedFileCount} file(s).',
     );
     return result;
@@ -809,6 +863,35 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
   }
 
+  Future<void> openWorkspaceDefinition(WorkspaceDefinitionItem item) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Workspace definition unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: item.range.start,
+      extentOffset: item.range.end,
+    );
+    appendLog(
+      'Workspace definition opened: ${item.name} in ${item.filePath} '
+      'line ${item.line + 1}.',
+    );
+  }
+
   Future<void> openWorkspaceReference(
     WorkspaceReferenceSearchItem item,
   ) async {
@@ -898,6 +981,20 @@ class ShellRuntimeModel extends ChangeNotifier {
       'Workspace problem opened: ${problem.diagnostic.code} in '
       '${problem.filePath} line ${problem.line + 1}.',
     );
+  }
+
+  static String _normalizeDefinitionQuerySeed(String value) {
+    var normalized = value.trim();
+    if (normalized.contains('\n')) {
+      return '';
+    }
+    while (normalized.startsWith('@') || normalized.startsWith('#')) {
+      normalized = normalized.substring(1);
+    }
+    final match = RegExp(
+      r'[A-Za-z_][A-Za-z0-9_]*',
+    ).firstMatch(normalized);
+    return match?.group(0) ?? '';
   }
 
   String? _blockedToolchainCommandReason({

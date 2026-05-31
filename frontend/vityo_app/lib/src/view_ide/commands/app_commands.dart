@@ -3,6 +3,7 @@ enum AppCommandId {
   run,
   commandPalette,
   quickOpen,
+  goToWorkspaceDefinition,
   searchWorkspaceSymbols,
   findWorkspaceReferences,
   showWorkspaceCallHierarchy,
@@ -99,6 +100,16 @@ class StyioCommandRegistry {
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('keyP', control: true),
         AppCommandShortcutSpec('keyP', meta: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.goToWorkspaceDefinition,
+      label: 'Go to Definition',
+      shortcutHint: 'F12',
+      description: 'Open matching workspace definitions for a symbol.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('f12'),
       ],
     ),
     AppCommandDescriptor(
@@ -265,6 +276,7 @@ class StyioCommandRegistry {
     (command) => switch (command.id) {
       AppCommandId.searchWorkspace ||
       AppCommandId.showWorkspaceCallHierarchy ||
+      AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.findWorkspaceReferences ||
       AppCommandId.searchWorkspaceSymbols => true,
       _ => false,
@@ -276,6 +288,7 @@ class StyioCommandRegistry {
         (command) => switch (command.id) {
           AppCommandId.commandPalette ||
           AppCommandId.quickOpen ||
+          AppCommandId.goToWorkspaceDefinition ||
           AppCommandId.findWorkspaceReferences ||
           AppCommandId.showWorkspaceCallHierarchy ||
           AppCommandId.showWorkspaceProblems ||
@@ -307,6 +320,7 @@ class StyioCommandRegistry {
       AppCommandId.run ||
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
+      AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.searchWorkspaceSymbols ||
       AppCommandId.findWorkspaceReferences ||
       AppCommandId.showWorkspaceCallHierarchy ||

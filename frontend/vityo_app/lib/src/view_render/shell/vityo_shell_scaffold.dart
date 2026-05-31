@@ -139,6 +139,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.definitions:
+        return _WorkspaceDefinitionSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.symbols:
         return _WorkspaceSymbolSearchSurface(
           shell: shell,
@@ -1787,6 +1792,333 @@ class _WorkspaceQuickOpenItemTile extends StatelessWidget {
               Chip(label: Text('recent ${item.recentRank! + 1}')),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceDefinitionSurface extends StatefulWidget {
+  const _WorkspaceDefinitionSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceDefinitionSurface> createState() =>
+      _WorkspaceDefinitionSurfaceState();
+}
+
+class _WorkspaceDefinitionSurfaceState
+    extends State<_WorkspaceDefinitionSurface> {
+  late final TextEditingController _queryController;
+  WorkspaceDefinitionResult? _result;
+  bool _searching = false;
+  int _searchGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController = TextEditingController(
+      text: widget.shell.workspaceDefinitionQuerySeed,
+    );
+    if (_queryController.text.isNotEmpty) {
+      _runSearch();
+    }
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runSearch() async {
+    final generation = _searchGeneration + 1;
+    _searchGeneration = generation;
+    setState(() {
+      _searching = true;
+    });
+    final result = await widget.shell.findWorkspaceDefinitions(
+      WorkspaceDefinitionQuery(
+        pattern: _queryController.text,
+        maxResults: 80,
+      ),
+    );
+    if (!mounted || generation != _searchGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _searching = false;
+    });
+  }
+
+  Future<void> _openItem(WorkspaceDefinitionItem item) async {
+    await widget.shell.openWorkspaceDefinition(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceDefinition;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceDefinition;
+    final headerChips = <Widget>[
+      Chip(
+        label: Text('${widget.shell.workspaceController.files.length} files'),
+      ),
+      if (_searching) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-definition-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Go to Definition',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Go to Definition',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-definition-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'Symbol name',
+                  prefixIcon: Icon(Icons.subdirectory_arrow_right_rounded),
+                ),
+                onSubmitted: (_) {
+                  _runSearch();
+                },
+              ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                key: const ValueKey('workspace-definition-search-run'),
+                onPressed: _searching
+                    ? null
+                    : () {
+                        _runSearch();
+                      },
+                icon: Icon(
+                  _searching
+                      ? Icons.hourglass_top_rounded
+                      : Icons.subdirectory_arrow_right_rounded,
+                ),
+                label: Text(_searching ? 'Resolving' : 'Resolve'),
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceDefinitionResultView(
+                result: result,
+                onOpenItem: _openItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceDefinitionResultView extends StatelessWidget {
+  const _WorkspaceDefinitionResultView({
+    required this.result,
+    required this.onOpenItem,
+  });
+
+  final WorkspaceDefinitionResult? result;
+  final Future<void> Function(WorkspaceDefinitionItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final definitionResult = result;
+    if (definitionResult == null) {
+      return Text(
+        'No definitions queried yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (definitionResult.status) {
+      WorkspaceDefinitionStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceDefinitionStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceDefinitionStatus.emptyPattern => const Color(0xFFEEE9F2),
+      WorkspaceDefinitionStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+      WorkspaceDefinitionStatus.noDefinitions => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (definitionResult.status) {
+      WorkspaceDefinitionStatus.completed => 'completed',
+      WorkspaceDefinitionStatus.hitLimit => 'limited',
+      WorkspaceDefinitionStatus.emptyPattern => 'empty',
+      WorkspaceDefinitionStatus.emptyWorkspace => 'empty',
+      WorkspaceDefinitionStatus.noDefinitions => 'no symbol',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-definition-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${definitionResult.matchCount} definitions')),
+            Chip(label: Text('${definitionResult.matchedFileCount} files')),
+            Chip(
+              label: Text('${definitionResult.definitionsIndexed} indexed'),
+            ),
+            Chip(label: Text('${definitionResult.filesSearched} files')),
+          ],
+        ),
+        if (definitionResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (definitionResult.definitions.isEmpty &&
+            definitionResult.message == null) ...[
+          const SizedBox(height: 10),
+          Text('No matching definitions.', style: theme.textTheme.bodySmall),
+        ],
+        if (definitionResult.definitions.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in definitionResult.definitions.take(60)) ...[
+            _WorkspaceDefinitionItemTile(
+              item: item,
+              onTap: () {
+                onOpenItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceDefinitionItemTile extends StatelessWidget {
+  const _WorkspaceDefinitionItemTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final WorkspaceDefinitionItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-definition-item-${item.filePath}-${item.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 520;
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (item.previewText.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            );
+            final badges = Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Chip(label: Text(item.kindLabel)),
+                if (item.type case final type?) Chip(label: Text(type)),
+              ],
+            );
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(_workspaceReferenceKindIcon(item.kind), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            details,
+                            const SizedBox(height: 8),
+                            badges,
+                          ],
+                        )
+                      : details,
+                ),
+                if (!compact) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: badges,
+                  ),
+                ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -3852,6 +4184,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.navigate),
       ),
       _SurfaceTabChip(
+        label: 'Definitions',
+        active: shell.activeBottomTab == BottomSurfaceTab.definitions,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.definitions),
+      ),
+      _SurfaceTabChip(
         label: 'Symbols',
         active: shell.activeBottomTab == BottomSurfaceTab.symbols,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.symbols),
@@ -3901,7 +4238,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, commands, navigate, symbols, usages, calls, search, problems, agent, debug, and settings on one vertical route.',
+            'Mobile shell keeps runtime, commands, navigate, definitions, symbols, usages, calls, search, problems, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -3971,6 +4308,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.keyboard_command_key_rounded;
     case AppCommandId.quickOpen:
       return Icons.drive_file_move_outline;
+    case AppCommandId.goToWorkspaceDefinition:
+      return Icons.subdirectory_arrow_right_rounded;
     case AppCommandId.searchWorkspaceSymbols:
       return Icons.account_tree_outlined;
     case AppCommandId.findWorkspaceReferences:

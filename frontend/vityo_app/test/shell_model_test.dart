@@ -531,7 +531,7 @@ void main() {
   );
 
   test(
-    'command palette, quick open, symbols, usages, calls, search, problems, and settings commands select shell bottom surfaces',
+    'command palette, quick open, definitions, symbols, usages, calls, search, problems, and settings commands select shell bottom surfaces',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -589,6 +589,16 @@ void main() {
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Command Palette route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.goToWorkspaceDefinition);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.definitions);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Go to Definition route requested'),
         ),
         isTrue,
       );

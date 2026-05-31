@@ -6,6 +6,7 @@ enum BottomSurfaceTab {
   runtime,
   commands,
   navigate,
+  definitions,
   symbols,
   usages,
   calls,
@@ -84,6 +85,10 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.quickOpen:
         await super.executeCommand(commandId);
         selectBottomTab(BottomSurfaceTab.navigate);
+        return;
+      case AppCommandId.goToWorkspaceDefinition:
+        await super.executeCommand(commandId);
+        selectBottomTab(BottomSurfaceTab.definitions);
         return;
       case AppCommandId.searchWorkspaceSymbols:
         await super.executeCommand(commandId);

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
+import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -108,6 +109,71 @@ second = blend(3.0, 4.0)
     expect(result.references, hasLength(1));
     expect(result.references.single.isDefinition, isFalse);
     expect(result.references.single.filePath, 'main.styio');
+  });
+
+  test('workspace reference search filters usage access kinds', () async {
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'resources.styio': DocumentState(
+          documentId: 'resources.styio',
+          text: '''
+@prices: f64 := {}
+
+fn publish(price: f64) {
+  latest = @prices
+  price -> @prices
+}
+''',
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceReferenceSearchService(documentStore: store);
+
+    final readResult = await service.findReferences(
+      filePaths: const <String>['resources.styio'],
+      query: const WorkspaceReferenceSearchQuery(
+        pattern: 'prices',
+        includeDefinitions: false,
+        accessKinds: <ReferenceAccess>{ReferenceAccess.read},
+      ),
+    );
+    final writeResult = await service.findReferences(
+      filePaths: const <String>['resources.styio'],
+      query: const WorkspaceReferenceSearchQuery(
+        pattern: 'prices',
+        includeDefinitions: false,
+        accessKinds: <ReferenceAccess>{ReferenceAccess.write},
+      ),
+    );
+    final declarationResult = await service.findReferences(
+      filePaths: const <String>['resources.styio'],
+      query: const WorkspaceReferenceSearchQuery(
+        pattern: 'prices',
+        accessKinds: <ReferenceAccess>{ReferenceAccess.declaration},
+      ),
+    );
+
+    expect(readResult.status, WorkspaceReferenceSearchStatus.completed);
+    expect(readResult.matchCount, 1);
+    expect(readResult.readCount, 1);
+    expect(readResult.writeCount, 0);
+    expect(readResult.references.single.access, ReferenceAccess.read);
+    expect(readResult.references.single.previewText, '  latest = @prices');
+
+    expect(writeResult.matchCount, 1);
+    expect(writeResult.writeCount, 1);
+    expect(writeResult.readCount, 0);
+    expect(writeResult.references.single.access, ReferenceAccess.write);
+    expect(writeResult.references.single.previewText, '  price -> @prices');
+
+    expect(declarationResult.matchCount, 1);
+    expect(declarationResult.declarationCount, 1);
+    expect(
+      declarationResult.references.single.access,
+      ReferenceAccess.declaration,
+    );
+    expect(declarationResult.references.single.isDefinition, isTrue);
   });
 
   test('workspace reference search uses unsaved overlay documents', () async {

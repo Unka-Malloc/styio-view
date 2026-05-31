@@ -4953,6 +4953,13 @@ class StyioProjectSymbolSnapshot {
             name: definition.name,
             range: range,
             isDefinition: isDefinition,
+            access: isDefinition
+                ? ReferenceAccess.declaration
+                : _referenceAccessForRange(
+                    source: source,
+                    range: range,
+                    definition: definition,
+                  ),
           ),
         );
       }
@@ -4979,6 +4986,64 @@ class StyioProjectSymbolSnapshot {
         left.name == right.name &&
         left.range.start == right.range.start &&
         left.range.end == right.range.end;
+  }
+
+  ReferenceAccess _referenceAccessForRange({
+    required String source,
+    required SourceRange range,
+    required StyioProjectSymbolDefinition definition,
+  }) {
+    if (definition.kind == StyioProjectSymbolKind.resource) {
+      final previous = _previousSignificantLexeme(source, range.start);
+      if (previous == '@') {
+        final beforeAt = _previousSignificantLexeme(
+          source,
+          _previousSignificantStart(source, range.start) ?? range.start,
+        );
+        if (beforeAt == '->' || beforeAt == '>>') {
+          return ReferenceAccess.write;
+        }
+      }
+    }
+
+    return ReferenceAccess.read;
+  }
+
+  String? _previousSignificantLexeme(String source, int offset) {
+    final start = _previousSignificantStart(source, offset);
+    if (start == null) {
+      return null;
+    }
+    final codeUnit = source.codeUnitAt(start);
+    if (_isIdentifierCodeUnit(codeUnit)) {
+      var cursor = start;
+      while (cursor > 0 && _isIdentifierCodeUnit(source.codeUnitAt(cursor - 1))) {
+        cursor -= 1;
+      }
+      return source.substring(cursor, start + 1);
+    }
+    if (start > 0) {
+      final pair = source.substring(start - 1, start + 1);
+      if (pair == '->' || pair == '>>') {
+        return pair;
+      }
+    }
+    return source[start];
+  }
+
+  int? _previousSignificantStart(String source, int offset) {
+    var cursor = offset - 1;
+    while (cursor >= 0 && _isWhitespaceCodeUnit(source.codeUnitAt(cursor))) {
+      cursor -= 1;
+    }
+    return cursor < 0 ? null : cursor;
+  }
+
+  bool _isWhitespaceCodeUnit(int codeUnit) {
+    return codeUnit == 0x20 ||
+        codeUnit == 0x09 ||
+        codeUnit == 0x0a ||
+        codeUnit == 0x0d;
   }
 
   List<SourceRange> _identifierRangesInText(String source, String name) {
@@ -5368,12 +5433,14 @@ class StyioProjectSymbolReference {
     required this.name,
     required this.range,
     required this.isDefinition,
+    this.access = ReferenceAccess.read,
   });
 
   final String documentId;
   final String name;
   final SourceRange range;
   final bool isDefinition;
+  final ReferenceAccess access;
 }
 
 class StyioProjectRenamePreview {

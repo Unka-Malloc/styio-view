@@ -1077,7 +1077,9 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Find Usages "${query.pattern}" found '
       '${result.matchCount} reference(s) across '
-      '${result.matchedFileCount} file(s).',
+      '${result.matchedFileCount} file(s): '
+      '${result.declarationCount} declaration(s), '
+      '${result.readCount} read(s), ${result.writeCount} write(s).',
     );
     return result;
   }

@@ -14,6 +14,11 @@ class WorkspaceReferenceSearchQuery {
   const WorkspaceReferenceSearchQuery({
     required this.pattern,
     this.includeDefinitions = true,
+    this.accessKinds = const <ReferenceAccess>{
+      ReferenceAccess.declaration,
+      ReferenceAccess.read,
+      ReferenceAccess.write,
+    },
     this.includeGlobs = const <String>['**/*.styio'],
     this.excludeGlobs = const <String>[],
     this.maxResults = 100,
@@ -21,6 +26,7 @@ class WorkspaceReferenceSearchQuery {
 
   final String pattern;
   final bool includeDefinitions;
+  final Set<ReferenceAccess> accessKinds;
   final List<String> includeGlobs;
   final List<String> excludeGlobs;
   final int maxResults;
@@ -28,6 +34,7 @@ class WorkspaceReferenceSearchQuery {
   WorkspaceReferenceSearchQuery copyWith({
     String? pattern,
     bool? includeDefinitions,
+    Set<ReferenceAccess>? accessKinds,
     List<String>? includeGlobs,
     List<String>? excludeGlobs,
     int? maxResults,
@@ -35,6 +42,7 @@ class WorkspaceReferenceSearchQuery {
     return WorkspaceReferenceSearchQuery(
       pattern: pattern ?? this.pattern,
       includeDefinitions: includeDefinitions ?? this.includeDefinitions,
+      accessKinds: accessKinds ?? this.accessKinds,
       includeGlobs: includeGlobs ?? this.includeGlobs,
       excludeGlobs: excludeGlobs ?? this.excludeGlobs,
       maxResults: maxResults ?? this.maxResults,
@@ -76,6 +84,7 @@ class WorkspaceReferenceSearchItem {
     required this.column,
     required this.previewText,
     required this.isDefinition,
+    required this.access,
     required this.definition,
   });
 
@@ -87,7 +96,16 @@ class WorkspaceReferenceSearchItem {
   final int column;
   final String previewText;
   final bool isDefinition;
+  final ReferenceAccess access;
   final WorkspaceReferenceDefinition definition;
+
+  String get accessLabel {
+    return switch (access) {
+      ReferenceAccess.declaration => 'declaration',
+      ReferenceAccess.read => 'read',
+      ReferenceAccess.write => 'write',
+    };
+  }
 }
 
 class WorkspaceReferenceSearchResult {
@@ -115,6 +133,18 @@ class WorkspaceReferenceSearchResult {
 
   int get matchedFileCount =>
       references.map((reference) => reference.filePath).toSet().length;
+
+  int get declarationCount => _countAccess(ReferenceAccess.declaration);
+
+  int get readCount => _countAccess(ReferenceAccess.read);
+
+  int get writeCount => _countAccess(ReferenceAccess.write);
+
+  int _countAccess(ReferenceAccess access) {
+    return references
+        .where((reference) => reference.access == access)
+        .length;
+  }
 }
 
 class WorkspaceReferenceSearchService {
@@ -220,7 +250,7 @@ class WorkspaceReferenceSearchService {
       );
       final visibleReferences = [
         for (final reference in projectReferences)
-          if (query.includeDefinitions || !reference.isDefinition) reference,
+          if (_includesReference(reference, query)) reference,
       ];
       final definitionDocument = documentsById[definition.documentId];
       if (definitionDocument == null) {
@@ -264,6 +294,7 @@ class WorkspaceReferenceSearchService {
             column: position.column,
             previewText: _linePreview(document, position.line),
             isDefinition: reference.isDefinition,
+            access: reference.access,
             definition: resultDefinition,
           ),
         );
@@ -295,6 +326,16 @@ class WorkspaceReferenceSearchService {
       ),
       references: List<WorkspaceReferenceSearchItem>.unmodifiable(references),
     );
+  }
+
+  static bool _includesReference(
+    StyioProjectSymbolReference reference,
+    WorkspaceReferenceSearchQuery query,
+  ) {
+    if (reference.isDefinition && !query.includeDefinitions) {
+      return false;
+    }
+    return query.accessKinds.contains(reference.access);
   }
 
   static List<StyioProjectSymbolDefinition> _definitionsForDocuments(

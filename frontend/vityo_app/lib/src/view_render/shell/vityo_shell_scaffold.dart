@@ -14,7 +14,11 @@ import '../../module_host/module_definition.dart';
 import '../../module_host/module_manifest.dart';
 import '../../platform/platform_target.dart';
 import '../../view_ide/language/language.dart'
-    show DiagnosticSeverity, StyioProjectSymbolKind, SymbolKind;
+    show
+        DiagnosticSeverity,
+        ReferenceAccess,
+        StyioProjectSymbolKind,
+        SymbolKind;
 import '../../view_ide/workspace/workspace.dart';
 import '../platform/platform.dart';
 import '../runtime/runtime.dart';
@@ -4565,6 +4569,8 @@ class _WorkspaceReferenceSearchSurfaceState
   final TextEditingController _queryController = TextEditingController();
   WorkspaceReferenceSearchResult? _result;
   bool _includeDefinitions = true;
+  bool _includeReads = true;
+  bool _includeWrites = true;
   bool _searching = false;
   int _searchGeneration = 0;
 
@@ -4584,6 +4590,11 @@ class _WorkspaceReferenceSearchSurfaceState
       WorkspaceReferenceSearchQuery(
         pattern: _queryController.text,
         includeDefinitions: _includeDefinitions,
+        accessKinds: <ReferenceAccess>{
+          if (_includeDefinitions) ReferenceAccess.declaration,
+          if (_includeReads) ReferenceAccess.read,
+          if (_includeWrites) ReferenceAccess.write,
+        },
         maxResults: 120,
       ),
     );
@@ -4679,6 +4690,36 @@ class _WorkspaceReferenceSearchSurfaceState
                       }
                     },
                   ),
+                  FilterChip(
+                    key: const ValueKey(
+                      'workspace-reference-search-include-reads',
+                    ),
+                    selected: _includeReads,
+                    label: const Text('Reads'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _includeReads = selected;
+                      });
+                      if (result != null) {
+                        _runSearch();
+                      }
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey(
+                      'workspace-reference-search-include-writes',
+                    ),
+                    selected: _includeWrites,
+                    label: const Text('Writes'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _includeWrites = selected;
+                      });
+                      if (result != null) {
+                        _runSearch();
+                      }
+                    },
+                  ),
                   FilledButton.icon(
                     key: const ValueKey('workspace-reference-search-run'),
                     onPressed: _searching
@@ -4755,6 +4796,9 @@ class _WorkspaceReferenceSearchResultView extends StatelessWidget {
             Chip(label: Text('${referenceResult.matchCount} references')),
             Chip(label: Text('${referenceResult.matchedFileCount} files')),
             Chip(label: Text('${referenceResult.definitions.length} symbols')),
+            Chip(label: Text('${referenceResult.declarationCount} decls')),
+            Chip(label: Text('${referenceResult.readCount} reads')),
+            Chip(label: Text('${referenceResult.writeCount} writes')),
             Chip(label: Text('${referenceResult.filesSearched} indexed')),
           ],
         ),
@@ -4849,6 +4893,7 @@ class _WorkspaceReferenceSearchItemTile extends StatelessWidget {
               runSpacing: 6,
               children: [
                 Chip(label: Text(item.isDefinition ? 'definition' : 'usage')),
+                Chip(label: Text(item.accessLabel)),
                 Chip(label: Text(item.definition.kindLabel)),
               ],
             ),

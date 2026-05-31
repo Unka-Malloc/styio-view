@@ -35,6 +35,10 @@ class AppCommandShortcutRegistry {
 
   static LogicalKeyboardKey _logicalKeyFor(String key) {
     switch (key) {
+      case 'arrowLeft':
+        return LogicalKeyboardKey.arrowLeft;
+      case 'arrowRight':
+        return LogicalKeyboardKey.arrowRight;
       case 'comma':
         return LogicalKeyboardKey.comma;
       case 'digit1':
@@ -49,6 +53,8 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.f2;
       case 'f12':
         return LogicalKeyboardKey.f12;
+      case 'keyE':
+        return LogicalKeyboardKey.keyE;
       case 'keyF':
         return LogicalKeyboardKey.keyF;
       case 'keyH':

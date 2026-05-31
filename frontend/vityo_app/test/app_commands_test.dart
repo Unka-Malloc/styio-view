@@ -9,6 +9,7 @@ void main() {
         AppCommandId.run,
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
+        AppCommandId.showRecentLocations,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.showWorkspaceOutline,
         AppCommandId.renameWorkspaceSymbol,
@@ -36,6 +37,15 @@ void main() {
       );
       final search = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspace,
+      );
+      final recentLocations = StyioCommandRegistry.descriptorFor(
+        AppCommandId.showRecentLocations,
+      );
+      final navigateBack = StyioCommandRegistry.descriptorFor(
+        AppCommandId.navigateBack,
+      );
+      final navigateForward = StyioCommandRegistry.descriptorFor(
+        AppCommandId.navigateForward,
       );
       final definition = StyioCommandRegistry.descriptorFor(
         AppCommandId.goToWorkspaceDefinition,
@@ -82,6 +92,21 @@ void main() {
       expect(search.shortcutHint, 'Cmd/Ctrl+Shift+F');
       expect(search.primary, isTrue);
       expect(search.shortcuts, hasLength(2));
+
+      expect(recentLocations.label, 'Recent Locations');
+      expect(recentLocations.shortcutHint, 'Cmd/Ctrl+Shift+E');
+      expect(recentLocations.primary, isTrue);
+      expect(recentLocations.shortcuts, hasLength(2));
+
+      expect(navigateBack.label, 'Go Back');
+      expect(navigateBack.shortcutHint, 'Alt+Left');
+      expect(navigateBack.primary, isFalse);
+      expect(navigateBack.shortcuts, hasLength(1));
+
+      expect(navigateForward.label, 'Go Forward');
+      expect(navigateForward.shortcutHint, 'Alt+Right');
+      expect(navigateForward.primary, isFalse);
+      expect(navigateForward.shortcuts, hasLength(1));
 
       expect(definition.label, 'Go to Definition');
       expect(definition.shortcutHint, 'F12');
@@ -143,6 +168,7 @@ void main() {
     expect(
       StyioCommandRegistry.searchCommands.map((command) => command.id),
       <AppCommandId>[
+        AppCommandId.showRecentLocations,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.showWorkspaceOutline,
         AppCommandId.searchWorkspaceSymbols,
@@ -156,6 +182,9 @@ void main() {
       <AppCommandId>[
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
+        AppCommandId.navigateBack,
+        AppCommandId.navigateForward,
+        AppCommandId.showRecentLocations,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.showWorkspaceOutline,
         AppCommandId.renameWorkspaceSymbol,
@@ -191,6 +220,9 @@ void main() {
         AppCommandId.run,
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
+        AppCommandId.navigateBack,
+        AppCommandId.navigateForward,
+        AppCommandId.showRecentLocations,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.showWorkspaceOutline,
         AppCommandId.renameWorkspaceSymbol,
@@ -229,6 +261,9 @@ void main() {
     expect(intents, contains(AppCommandId.run));
     expect(intents, contains(AppCommandId.commandPalette));
     expect(intents, contains(AppCommandId.quickOpen));
+    expect(intents, contains(AppCommandId.navigateBack));
+    expect(intents, contains(AppCommandId.navigateForward));
+    expect(intents, contains(AppCommandId.showRecentLocations));
     expect(intents, contains(AppCommandId.goToWorkspaceDefinition));
     expect(intents, contains(AppCommandId.showWorkspaceOutline));
     expect(intents, contains(AppCommandId.renameWorkspaceSymbol));

@@ -6,6 +6,7 @@ import '../backend_toolchain/backend_toolchain.dart';
 import '../commands/commands.dart';
 import '../editor/editor.dart';
 import '../interaction/interaction.dart';
+import '../language/language.dart';
 import '../module_host/module_host.dart';
 import '../platform/platform.dart';
 import '../toolchain/toolchain_catalog.dart';
@@ -72,6 +73,12 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     _documentCache[_activeDocumentPath] = editorController.document;
     _editorFileBinding.bindLoadedDocument(editorController.document);
+    _recordNavigationLocation(
+      _currentNavigationLocation(
+        label: 'Initial location',
+        kind: WorkspaceNavigationLocationKind.file,
+      ),
+    );
     appendLog(
       'Shell booted for ${platformTarget.label} with '
       '${moduleRegistry.visibleModules.length} visible modules and '
@@ -104,8 +111,12 @@ class ShellRuntimeModel extends ChangeNotifier {
 
   final List<String> _debugLog = <String>[];
   final Map<String, DocumentState> _documentCache = <String, DocumentState>{};
+  final List<WorkspaceNavigationLocation> _navigationHistory =
+      <WorkspaceNavigationLocation>[];
   String _activeDocumentPath;
   bool _suppressWorkspaceChangedLoad = false;
+  bool _suppressNavigationHistoryRecording = false;
+  int _navigationHistoryIndex = -1;
   final List<AppCommandId> _recentCommandIds = <AppCommandId>[];
   ExecutionSession? _lastExecutionSession;
   List<RuntimeEventEnvelope> _lastRuntimeEvents =
@@ -232,6 +243,19 @@ class ShellRuntimeModel extends ChangeNotifier {
   String get workspaceRenameQuerySeed => workspaceDefinitionQuerySeed;
 
   String get workspaceOutlineTargetFilePath => _activeDocumentPath;
+
+  WorkspaceNavigationHistorySnapshot get workspaceNavigationHistory {
+    return WorkspaceNavigationHistorySnapshot(
+      entries: List<WorkspaceNavigationLocation>.unmodifiable(
+        _navigationHistory,
+      ),
+      currentIndex: _navigationHistoryIndex,
+    );
+  }
+
+  bool get canNavigateBack => workspaceNavigationHistory.canGoBack;
+
+  bool get canNavigateForward => workspaceNavigationHistory.canGoForward;
 
   WorkspaceBreadcrumbsResult get currentWorkspaceBreadcrumbs {
     return const WorkspaceBreadcrumbsService().buildForDocument(
@@ -478,6 +502,15 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.quickOpen:
         appendLog('Quick Open route requested.');
         return;
+      case AppCommandId.navigateBack:
+        await navigateWorkspaceHistory(forward: false);
+        return;
+      case AppCommandId.navigateForward:
+        await navigateWorkspaceHistory(forward: true);
+        return;
+      case AppCommandId.showRecentLocations:
+        appendLog('Recent Locations route requested.');
+        return;
       case AppCommandId.goToWorkspaceDefinition:
         appendLog('Go to Definition route requested.');
         return;
@@ -600,6 +633,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.run:
       case AppCommandId.commandPalette:
       case AppCommandId.quickOpen:
+      case AppCommandId.showRecentLocations:
       case AppCommandId.goToWorkspaceDefinition:
       case AppCommandId.showWorkspaceOutline:
       case AppCommandId.renameWorkspaceSymbol:
@@ -615,7 +649,52 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshModules:
       case AppCommandId.openSettings:
         return null;
+      case AppCommandId.navigateBack:
+        return canNavigateBack ? null : 'No previous navigation location.';
+      case AppCommandId.navigateForward:
+        return canNavigateForward ? null : 'No next navigation location.';
     }
+  }
+
+  Future<void> navigateWorkspaceHistory({required bool forward}) async {
+    final snapshot = workspaceNavigationHistory;
+    if (forward ? !snapshot.canGoForward : !snapshot.canGoBack) {
+      appendLog(
+        forward
+            ? 'Go Forward unavailable: no next navigation location.'
+            : 'Go Back unavailable: no previous navigation location.',
+      );
+      return;
+    }
+
+    _replaceCurrentNavigationLocation(
+      _currentNavigationLocation(label: 'Current location'),
+    );
+    final nextIndex = _navigationHistoryIndex + (forward ? 1 : -1);
+    final target = _navigationHistory[nextIndex];
+    _navigationHistoryIndex = nextIndex;
+    await _restoreNavigationLocation(target);
+    appendLog(
+      '${forward ? 'Go Forward' : 'Go Back'} opened '
+      '${target.displayLocation}.',
+    );
+  }
+
+  Future<void> openWorkspaceNavigationLocation(
+    WorkspaceNavigationLocation location,
+  ) async {
+    if (!workspaceController.files.contains(location.filePath)) {
+      appendLog(
+        'Recent location unavailable: ${location.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    _recordCurrentNavigationLocation(label: 'Before Recent Locations');
+    await _restoreNavigationLocation(location);
+    _recordNavigationLocation(location);
+    appendLog('Recent location opened: ${location.displayLocation}.');
   }
 
   Future<WorkspaceTextSearchResult> searchWorkspaceText(
@@ -987,6 +1066,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
 
+    _recordCurrentNavigationLocation(label: 'Before Quick Open');
     if (workspaceController.activeFilePath != item.filePath) {
       _suppressWorkspaceChangedLoad = true;
       try {
@@ -998,6 +1078,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
 
     editorController.selectCollapsed(0);
+    _recordCurrentNavigationLocation(
+      label: item.filePath,
+      kind: WorkspaceNavigationLocationKind.file,
+    );
     appendLog('Quick Open file opened: ${item.filePath}.');
   }
 
@@ -1026,6 +1110,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
 
+    _recordCurrentNavigationLocation(label: 'Before Find in Files');
     if (workspaceController.activeFilePath != match.filePath) {
       _suppressWorkspaceChangedLoad = true;
       try {
@@ -1039,6 +1124,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     editorController.selectRange(
       baseOffset: match.range.start,
       extentOffset: match.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: match.previewText.isEmpty ? match.filePath : match.previewText,
+      kind: WorkspaceNavigationLocationKind.search,
     );
     appendLog(
       'Workspace search match opened: ${match.filePath} '
@@ -1057,6 +1146,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
 
+    _recordCurrentNavigationLocation(label: 'Before Workspace Symbols');
     if (workspaceController.activeFilePath != item.filePath) {
       _suppressWorkspaceChangedLoad = true;
       try {
@@ -1070,6 +1160,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     editorController.selectRange(
       baseOffset: item.nameRange.start,
       extentOffset: item.nameRange.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: item.name,
+      kind: WorkspaceNavigationLocationKind.symbol,
     );
     appendLog(
       'Workspace symbol opened: ${item.name} in ${item.filePath} '
@@ -1086,6 +1180,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
 
+    _recordCurrentNavigationLocation(label: 'Before Outline');
     if (workspaceController.activeFilePath != item.filePath) {
       _suppressWorkspaceChangedLoad = true;
       try {
@@ -1099,6 +1194,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     editorController.selectRange(
       baseOffset: item.nameRange.start,
       extentOffset: item.nameRange.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: item.name,
+      kind: WorkspaceNavigationLocationKind.symbol,
     );
     appendLog(
       'Outline symbol opened: ${item.name} in ${item.filePath} '
@@ -1121,6 +1220,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
 
+    _recordCurrentNavigationLocation(label: 'Before Breadcrumb');
     if (workspaceController.activeFilePath != item.filePath) {
       _suppressWorkspaceChangedLoad = true;
       try {
@@ -1140,6 +1240,12 @@ class ShellRuntimeModel extends ChangeNotifier {
         extentOffset: range.end,
       );
     }
+    _recordCurrentNavigationLocation(
+      label: item.label,
+      kind: item.kind == WorkspaceBreadcrumbItemKind.symbol
+          ? WorkspaceNavigationLocationKind.symbol
+          : WorkspaceNavigationLocationKind.file,
+    );
 
     final location = item.line == null
         ? item.filePath
@@ -1156,6 +1262,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
 
+    _recordCurrentNavigationLocation(label: 'Before Go to Definition');
     if (workspaceController.activeFilePath != item.filePath) {
       _suppressWorkspaceChangedLoad = true;
       try {
@@ -1169,6 +1276,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     editorController.selectRange(
       baseOffset: item.range.start,
       extentOffset: item.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: item.name,
+      kind: WorkspaceNavigationLocationKind.symbol,
     );
     appendLog(
       'Workspace definition opened: ${item.name} in ${item.filePath} '
@@ -1187,6 +1298,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
 
+    _recordCurrentNavigationLocation(label: 'Before Find Usages');
     if (workspaceController.activeFilePath != item.filePath) {
       _suppressWorkspaceChangedLoad = true;
       try {
@@ -1200,6 +1312,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     editorController.selectRange(
       baseOffset: item.range.start,
       extentOffset: item.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: item.name,
+      kind: WorkspaceNavigationLocationKind.symbol,
     );
     appendLog(
       'Workspace reference opened: ${item.name} in ${item.filePath} '
@@ -1218,6 +1334,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
 
+    _recordCurrentNavigationLocation(label: 'Before Call Hierarchy');
     if (workspaceController.activeFilePath != location.filePath) {
       _suppressWorkspaceChangedLoad = true;
       try {
@@ -1231,6 +1348,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     editorController.selectRange(
       baseOffset: location.range.start,
       extentOffset: location.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: location.filePath,
+      kind: WorkspaceNavigationLocationKind.symbol,
     );
     appendLog(
       'Call hierarchy location opened: ${location.filePath} '
@@ -1247,6 +1368,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
 
+    _recordCurrentNavigationLocation(label: 'Before Problems');
     if (workspaceController.activeFilePath != problem.filePath) {
       _suppressWorkspaceChangedLoad = true;
       try {
@@ -1260,6 +1382,10 @@ class ShellRuntimeModel extends ChangeNotifier {
     editorController.selectRange(
       baseOffset: problem.range.start,
       extentOffset: problem.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: problem.diagnostic.code,
+      kind: WorkspaceNavigationLocationKind.problem,
     );
     appendLog(
       'Workspace problem opened: ${problem.diagnostic.code} in '
@@ -1365,11 +1491,106 @@ class ShellRuntimeModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  WorkspaceNavigationLocation _currentNavigationLocation({
+    required String label,
+    WorkspaceNavigationLocationKind kind = WorkspaceNavigationLocationKind.caret,
+  }) {
+    final document = editorController.document;
+    final selection = editorController.selection;
+    final range = SourceRange(start: selection.start, end: selection.end);
+    final position = document.positionForOffset(selection.start);
+    return WorkspaceNavigationLocation(
+      filePath: _activeDocumentPath,
+      range: range,
+      line: position.line,
+      column: position.column,
+      previewText: _linePreview(document, position.line),
+      label: label,
+      kind: kind,
+    );
+  }
+
+  void _recordCurrentNavigationLocation({
+    required String label,
+    WorkspaceNavigationLocationKind kind = WorkspaceNavigationLocationKind.caret,
+  }) {
+    _recordNavigationLocation(
+      _currentNavigationLocation(label: label, kind: kind),
+    );
+  }
+
+  void _recordNavigationLocation(WorkspaceNavigationLocation location) {
+    if (_suppressNavigationHistoryRecording) {
+      return;
+    }
+    if (_navigationHistoryIndex >= 0 &&
+        _navigationHistoryIndex < _navigationHistory.length &&
+        _navigationHistory[_navigationHistoryIndex].sameTarget(location)) {
+      _navigationHistory[_navigationHistoryIndex] = location;
+      return;
+    }
+    if (_navigationHistoryIndex < _navigationHistory.length - 1) {
+      _navigationHistory.removeRange(
+        _navigationHistoryIndex + 1,
+        _navigationHistory.length,
+      );
+    }
+    _navigationHistory.add(location);
+    if (_navigationHistory.length > 80) {
+      _navigationHistory.removeAt(0);
+    }
+    _navigationHistoryIndex = _navigationHistory.length - 1;
+  }
+
+  void _replaceCurrentNavigationLocation(WorkspaceNavigationLocation location) {
+    if (_navigationHistoryIndex < 0 ||
+        _navigationHistoryIndex >= _navigationHistory.length) {
+      _recordNavigationLocation(location);
+      return;
+    }
+    _navigationHistory[_navigationHistoryIndex] = location;
+  }
+
+  Future<void> _restoreNavigationLocation(
+    WorkspaceNavigationLocation location,
+  ) async {
+    _suppressNavigationHistoryRecording = true;
+    try {
+      if (workspaceController.activeFilePath != location.filePath) {
+        _suppressWorkspaceChangedLoad = true;
+        try {
+          workspaceController.openFile(location.filePath);
+        } finally {
+          _suppressWorkspaceChangedLoad = false;
+        }
+        await _loadActiveWorkspaceDocument();
+      }
+      if (location.range.isCollapsed) {
+        editorController.selectCollapsed(location.range.start);
+      } else {
+        editorController.selectRange(
+          baseOffset: location.range.start,
+          extentOffset: location.range.end,
+        );
+      }
+    } finally {
+      _suppressNavigationHistoryRecording = false;
+    }
+  }
+
+  static String _linePreview(DocumentState document, int line) {
+    final lines = document.lines;
+    if (lines.isEmpty) {
+      return '';
+    }
+    return lines[line.clamp(0, lines.length - 1).toInt()].trimRight();
+  }
+
   void _handleWorkspaceChanged() {
     if (_suppressWorkspaceChangedLoad) {
       return;
     }
-    unawaited(_loadActiveWorkspaceDocument());
+    unawaited(_loadActiveWorkspaceDocument(recordNavigation: true));
   }
 
   void _handleDocumentChanged() {
@@ -1689,7 +1910,15 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result;
   }
 
-  Future<void> _loadActiveWorkspaceDocument() async {
+  Future<void> _loadActiveWorkspaceDocument({
+    bool recordNavigation = false,
+  }) async {
+    if (recordNavigation) {
+      _recordCurrentNavigationLocation(
+        label: 'Before workspace route',
+        kind: WorkspaceNavigationLocationKind.file,
+      );
+    }
     _documentCache[_activeDocumentPath] = editorController.document;
     _editorFileBinding.markDocumentChanged(editorController.document);
     final nextPath = workspaceController.activeFilePath;
@@ -1709,6 +1938,12 @@ class ShellRuntimeModel extends ChangeNotifier {
       _editorFileBinding.bindLoadedDocument(cachedDocument);
     }
     editorController.loadDocument(nextDocument);
+    if (recordNavigation) {
+      _recordCurrentNavigationLocation(
+        label: 'Workspace route',
+        kind: WorkspaceNavigationLocationKind.file,
+      );
+    }
     appendLog(
       'Project route -> ${workspaceController.activeProject.title} / '
       '${workspaceController.activeFilePath}',

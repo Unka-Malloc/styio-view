@@ -27,6 +27,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_code_actions.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_definition.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_navigation_history.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_outline.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_problems.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_quick_open.dart';
@@ -939,7 +940,9 @@ value = 1
     );
   });
 
-  test('workspace quick open opens a file and promotes it to recent', () async {
+  test(
+    'workspace quick open records navigation history and recent locations',
+    () async {
     final projectGraph = _projectGraphWithFiles(
       const <String>['src/main.styio', 'src/worker.styio'],
     );
@@ -1010,6 +1013,46 @@ value = 1
       const WorkspaceQuickOpenQuery(),
     );
     expect(recentResult.items.first.filePath, 'src/worker.styio');
+
+    final history = shell.workspaceNavigationHistory;
+    expect(history.canGoBack, isTrue);
+    expect(history.canGoForward, isFalse);
+    expect(history.recentLocations.first.filePath, 'src/worker.styio');
+    expect(
+      history.recentLocations.first.kind,
+      WorkspaceNavigationLocationKind.file,
+    );
+
+    await shell.navigateWorkspaceHistory(forward: false);
+
+    expect(shell.workspaceController.activeFilePath, 'src/main.styio');
+    expect(shell.editorController.document.documentId, 'src/main.styio');
+    expect(shell.workspaceNavigationHistory.canGoForward, isTrue);
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Go Back opened')),
+      isTrue,
+    );
+
+    await shell.navigateWorkspaceHistory(forward: true);
+
+    expect(shell.workspaceController.activeFilePath, 'src/worker.styio');
+    expect(shell.editorController.selection.start, 0);
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Go Forward opened')),
+      isTrue,
+    );
+
+    final mainLocation = shell.workspaceNavigationHistory.recentLocations
+        .singleWhere((location) => location.filePath == 'src/main.styio');
+
+    await shell.openWorkspaceNavigationLocation(mainLocation);
+
+    expect(shell.workspaceController.activeFilePath, 'src/main.styio');
+    expect(shell.editorController.document.documentId, 'src/main.styio');
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Recent location opened')),
+      isTrue,
+    );
   });
 
   test(

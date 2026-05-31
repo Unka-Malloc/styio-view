@@ -388,6 +388,9 @@ class CommandPaletteService {
       AppCommandId.run => 'Execution',
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
+      AppCommandId.navigateBack ||
+      AppCommandId.navigateForward ||
+      AppCommandId.showRecentLocations ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.showWorkspaceOutline ||
       AppCommandId.searchWorkspaceSymbols ||

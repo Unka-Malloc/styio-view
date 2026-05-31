@@ -75,6 +75,16 @@ void main() {
     );
     expect(outlineResult.items.first.category, 'Navigation');
 
+    final recentLocationsResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'recent locations'),
+    );
+    expect(
+      recentLocationsResult.items.first.commandId,
+      AppCommandId.showRecentLocations,
+    );
+    expect(recentLocationsResult.items.first.category, 'Navigation');
+
     final renameResult = service.findCommands(
       commands: StyioCommandRegistry.commands,
       query: const CommandPaletteQuery(pattern: 'rename symbol'),

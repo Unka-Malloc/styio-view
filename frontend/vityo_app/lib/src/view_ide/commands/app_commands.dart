@@ -3,6 +3,9 @@ enum AppCommandId {
   run,
   commandPalette,
   quickOpen,
+  navigateBack,
+  navigateForward,
+  showRecentLocations,
   goToWorkspaceDefinition,
   showWorkspaceOutline,
   renameWorkspaceSymbol,
@@ -103,6 +106,35 @@ class StyioCommandRegistry {
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('keyP', control: true),
         AppCommandShortcutSpec('keyP', meta: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.navigateBack,
+      label: 'Go Back',
+      shortcutHint: 'Alt+Left',
+      description: 'Return to the previous workspace navigation location.',
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('arrowLeft', alt: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.navigateForward,
+      label: 'Go Forward',
+      shortcutHint: 'Alt+Right',
+      description: 'Advance to the next workspace navigation location.',
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('arrowRight', alt: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.showRecentLocations,
+      label: 'Recent Locations',
+      shortcutHint: 'Cmd/Ctrl+Shift+E',
+      description: 'Show recent workspace files, symbols, and cursor ranges.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('keyE', control: true, shift: true),
+        AppCommandShortcutSpec('keyE', meta: true, shift: true),
       ],
     ),
     AppCommandDescriptor(
@@ -311,6 +343,7 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get searchCommands => commands.where(
     (command) => switch (command.id) {
       AppCommandId.searchWorkspace ||
+      AppCommandId.showRecentLocations ||
       AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.showWorkspaceOutline ||
@@ -325,6 +358,9 @@ class StyioCommandRegistry {
         (command) => switch (command.id) {
           AppCommandId.commandPalette ||
           AppCommandId.quickOpen ||
+          AppCommandId.navigateBack ||
+          AppCommandId.navigateForward ||
+          AppCommandId.showRecentLocations ||
           AppCommandId.goToWorkspaceDefinition ||
           AppCommandId.showWorkspaceOutline ||
           AppCommandId.renameWorkspaceSymbol ||
@@ -360,6 +396,9 @@ class StyioCommandRegistry {
       AppCommandId.run ||
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
+      AppCommandId.navigateBack ||
+      AppCommandId.navigateForward ||
+      AppCommandId.showRecentLocations ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.showWorkspaceOutline ||
       AppCommandId.renameWorkspaceSymbol ||

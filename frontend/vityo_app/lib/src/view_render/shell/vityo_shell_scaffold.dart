@@ -140,6 +140,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.locations:
+        return _WorkspaceRecentLocationsSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.definitions:
         return _WorkspaceDefinitionSurface(
           shell: shell,
@@ -1932,6 +1937,282 @@ class _WorkspaceQuickOpenItemTile extends StatelessWidget {
               const SizedBox(width: 8),
               Chip(label: Text('recent ${item.recentRank! + 1}')),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceRecentLocationsSurface extends StatefulWidget {
+  const _WorkspaceRecentLocationsSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceRecentLocationsSurface> createState() =>
+      _WorkspaceRecentLocationsSurfaceState();
+}
+
+class _WorkspaceRecentLocationsSurfaceState
+    extends State<_WorkspaceRecentLocationsSurface> {
+  final TextEditingController _queryController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController.addListener(_handleQueryChanged);
+  }
+
+  @override
+  void dispose() {
+    _queryController.removeListener(_handleQueryChanged);
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  void _handleQueryChanged() {
+    setState(() {});
+  }
+
+  Future<void> _navigate({required bool forward}) async {
+    await widget.shell.navigateWorkspaceHistory(forward: forward);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _openLocation(WorkspaceNavigationLocation location) async {
+    await widget.shell.openWorkspaceNavigationLocation(location);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  List<WorkspaceNavigationLocation> _filteredLocations(
+    List<WorkspaceNavigationLocation> locations,
+  ) {
+    final query = _queryController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      return locations;
+    }
+    return locations
+        .where(
+          (location) =>
+              location.filePath.toLowerCase().contains(query) ||
+              location.label.toLowerCase().contains(query) ||
+              location.previewText.toLowerCase().contains(query) ||
+              location.kind.name.contains(query),
+        )
+        .toList(growable: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final snapshot = widget.shell.workspaceNavigationHistory;
+    final locations = _filteredLocations(snapshot.recentLocations);
+    final headerChips = <Widget>[
+      Chip(label: Text('${snapshot.entries.length} entries')),
+      Chip(label: Text('${snapshot.recentLocations.length} recent')),
+      Chip(label: Text(snapshot.canGoBack ? 'back ready' : 'back empty')),
+      Chip(
+        label: Text(snapshot.canGoForward ? 'forward ready' : 'forward empty'),
+      ),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-recent-locations-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Recent Locations',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Recent Locations',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-recent-locations-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'File, symbol, or preview',
+                  prefixIcon: Icon(Icons.history_rounded),
+                ),
+                onSubmitted: (_) {
+                  if (locations.isNotEmpty) {
+                    _openLocation(locations.first);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-navigation-back'),
+                    onPressed: snapshot.canGoBack
+                        ? () {
+                            _navigate(forward: false);
+                          }
+                        : null,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('Back'),
+                  ),
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-navigation-forward'),
+                    onPressed: snapshot.canGoForward
+                        ? () {
+                            _navigate(forward: true);
+                          }
+                        : null,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: const Text('Forward'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceRecentLocationsResultView(
+                locations: locations,
+                currentLocation: snapshot.currentLocation,
+                onOpenLocation: _openLocation,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceRecentLocationsResultView extends StatelessWidget {
+  const _WorkspaceRecentLocationsResultView({
+    required this.locations,
+    required this.currentLocation,
+    required this.onOpenLocation,
+  });
+
+  final List<WorkspaceNavigationLocation> locations;
+  final WorkspaceNavigationLocation? currentLocation;
+  final Future<void> Function(WorkspaceNavigationLocation location)
+      onOpenLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (locations.isEmpty) {
+      return Text('No recent locations.', style: theme.textTheme.bodySmall);
+    }
+
+    return Column(
+      key: const ValueKey('workspace-recent-locations-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final location in locations.take(80)) ...[
+          _WorkspaceRecentLocationTile(
+            location: location,
+            active: currentLocation?.sameTarget(location) ?? false,
+            onTap: () {
+              onOpenLocation(location);
+            },
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceRecentLocationTile extends StatelessWidget {
+  const _WorkspaceRecentLocationTile({
+    required this.location,
+    required this.active,
+    required this.onTap,
+  });
+
+  final WorkspaceNavigationLocation location;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-recent-location-${location.filePath}-${location.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFEAF2EA) : const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(_workspaceNavigationLocationIcon(location.kind), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    location.label,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    location.displayLocation,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (location.previewText.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      location.previewText,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Chip(label: Text(location.kind.name)),
           ],
         ),
       ),
@@ -5329,6 +5610,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.navigate),
       ),
       _SurfaceTabChip(
+        label: 'Locations',
+        active: shell.activeBottomTab == BottomSurfaceTab.locations,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.locations),
+      ),
+      _SurfaceTabChip(
         label: 'Definitions',
         active: shell.activeBottomTab == BottomSurfaceTab.definitions,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.definitions),
@@ -5399,8 +5685,8 @@ class _BottomSurfaceTabs extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Mobile shell keeps runtime, commands, navigate, definitions, '
-            'outline, rename, symbols, usages, calls, search, problems, '
-            'actions, agent, debug, and settings on one vertical route.',
+            'locations, outline, rename, symbols, usages, calls, search, '
+            'problems, actions, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -5470,6 +5756,12 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.keyboard_command_key_rounded;
     case AppCommandId.quickOpen:
       return Icons.drive_file_move_outline;
+    case AppCommandId.navigateBack:
+      return Icons.arrow_back_rounded;
+    case AppCommandId.navigateForward:
+      return Icons.arrow_forward_rounded;
+    case AppCommandId.showRecentLocations:
+      return Icons.history_rounded;
     case AppCommandId.goToWorkspaceDefinition:
       return Icons.subdirectory_arrow_right_rounded;
     case AppCommandId.showWorkspaceOutline:
@@ -5515,6 +5807,18 @@ IconData _commandIcon(AppCommandId commandId) {
     case AppCommandId.openSettings:
       return Icons.settings_outlined;
   }
+}
+
+IconData _workspaceNavigationLocationIcon(
+  WorkspaceNavigationLocationKind kind,
+) {
+  return switch (kind) {
+    WorkspaceNavigationLocationKind.caret => Icons.notes_rounded,
+    WorkspaceNavigationLocationKind.file => Icons.description_outlined,
+    WorkspaceNavigationLocationKind.symbol => Icons.account_tree_outlined,
+    WorkspaceNavigationLocationKind.search => Icons.manage_search_rounded,
+    WorkspaceNavigationLocationKind.problem => Icons.error_outline_rounded,
+  };
 }
 
 IconData _workspaceSymbolIcon(SymbolKind kind) {

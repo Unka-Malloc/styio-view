@@ -531,7 +531,7 @@ void main() {
   );
 
   test(
-    'command palette, quick open, definitions, outline, rename, symbols, usages, calls, search, problems, actions, and settings commands select shell bottom surfaces',
+    'command palette, quick open, locations, definitions, outline, rename, symbols, usages, calls, search, problems, actions, and settings commands select shell bottom surfaces',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -589,6 +589,16 @@ void main() {
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Command Palette route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.showRecentLocations);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.locations);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Recent Locations route requested'),
         ),
         isTrue,
       );

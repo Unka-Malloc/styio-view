@@ -531,7 +531,7 @@ void main() {
   );
 
   test(
-    'command palette, quick open, locations, declarations, definitions, '
+    'command palette, quick open, locations, links, declarations, definitions, '
     'implementation, type hierarchy, outline, rename, symbols, usages, calls, '
     'search, problems, actions, and settings commands select shell bottom surfaces',
     () async {
@@ -601,6 +601,16 @@ void main() {
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Recent Locations route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.showWorkspaceDocumentLinks);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.documentLinks);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Document Links route requested'),
         ),
         isTrue,
       );

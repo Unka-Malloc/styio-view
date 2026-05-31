@@ -27,6 +27,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_code_actions.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_declaration.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_definition.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_document_links.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_navigation_history.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_outline.dart';
@@ -396,6 +397,77 @@ void main() {
     );
     expect(
       shell.debugLog.any((entry) => entry.contains('Workspace symbol opened')),
+      isTrue,
+    );
+  });
+
+  test('workspace document link opens a resolved import target', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['lib/runtime.styio', 'main.styio'],
+    );
+    const runtimeDocument = DocumentState(
+      documentId: 'lib/runtime.styio',
+      text: '#blend := () => {}\n',
+      revision: 0,
+    );
+    const mainDocument = DocumentState(
+      documentId: 'main.styio',
+      text: '''
+@import { lib/runtime }
+value = blend()
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/runtime.styio': runtimeDocument,
+        'main.styio': mainDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: mainDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    expect(shell.workspaceDocumentLinksTargetFilePath, 'main.styio');
+
+    final result = await shell.collectWorkspaceDocumentLinks(
+      const WorkspaceDocumentLinksQuery(targetFilePath: 'main.styio'),
+    );
+
+    expect(result.status, WorkspaceDocumentLinksStatus.completed);
+    expect(result.links.single.resolvedFilePath, 'lib/runtime.styio');
+
+    await shell.openWorkspaceDocumentLink(result.links.single);
+
+    expect(shell.workspaceController.activeFilePath, 'lib/runtime.styio');
+    expect(shell.editorController.document.documentId, 'lib/runtime.styio');
+    expect(shell.editorController.selection.start, 0);
+    expect(shell.editorController.selection.end, 0);
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Document link opened')),
       isTrue,
     );
   });

@@ -6,6 +6,7 @@ enum AppCommandId {
   navigateBack,
   navigateForward,
   showRecentLocations,
+  showWorkspaceDocumentLinks,
   goToWorkspaceDeclaration,
   goToWorkspaceDefinition,
   goToWorkspaceTypeDefinition,
@@ -140,6 +141,13 @@ class StyioCommandRegistry {
         AppCommandShortcutSpec('keyE', control: true, shift: true),
         AppCommandShortcutSpec('keyE', meta: true, shift: true),
       ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.showWorkspaceDocumentLinks,
+      label: 'Document Links',
+      shortcutHint: 'Route',
+      description: 'Show navigable links in the active workspace document.',
+      primary: true,
     ),
     AppCommandDescriptor(
       id: AppCommandId.goToWorkspaceDeclaration,
@@ -389,6 +397,7 @@ class StyioCommandRegistry {
       AppCommandId.searchWorkspace ||
       AppCommandId.showRecentLocations ||
       AppCommandId.showWorkspaceCallHierarchy ||
+      AppCommandId.showWorkspaceDocumentLinks ||
       AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||
@@ -409,6 +418,7 @@ class StyioCommandRegistry {
           AppCommandId.navigateBack ||
           AppCommandId.navigateForward ||
           AppCommandId.showRecentLocations ||
+          AppCommandId.showWorkspaceDocumentLinks ||
           AppCommandId.goToWorkspaceDeclaration ||
           AppCommandId.goToWorkspaceDefinition ||
           AppCommandId.goToWorkspaceTypeDefinition ||
@@ -451,6 +461,7 @@ class StyioCommandRegistry {
       AppCommandId.navigateBack ||
       AppCommandId.navigateForward ||
       AppCommandId.showRecentLocations ||
+      AppCommandId.showWorkspaceDocumentLinks ||
       AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||

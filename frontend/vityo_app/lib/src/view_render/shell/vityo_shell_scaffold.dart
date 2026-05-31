@@ -149,6 +149,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.documentLinks:
+        return _WorkspaceDocumentLinksSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.declarations:
         return _WorkspaceDeclarationSurface(
           shell: shell,
@@ -2238,6 +2243,368 @@ class _WorkspaceRecentLocationTile extends StatelessWidget {
             const SizedBox(width: 8),
             Chip(label: Text(location.kind.name)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceDocumentLinksSurface extends StatefulWidget {
+  const _WorkspaceDocumentLinksSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceDocumentLinksSurface> createState() =>
+      _WorkspaceDocumentLinksSurfaceState();
+}
+
+class _WorkspaceDocumentLinksSurfaceState
+    extends State<_WorkspaceDocumentLinksSurface> {
+  late final TextEditingController _queryController;
+  WorkspaceDocumentLinksResult? _result;
+  bool _collecting = false;
+  bool _includeExternal = true;
+  bool _includeUnresolved = true;
+  int _collectGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController = TextEditingController();
+    _collectLinks();
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _collectLinks() async {
+    final generation = _collectGeneration + 1;
+    _collectGeneration = generation;
+    setState(() {
+      _collecting = true;
+    });
+    final result = await widget.shell.collectWorkspaceDocumentLinks(
+      WorkspaceDocumentLinksQuery(
+        targetFilePath: widget.shell.workspaceDocumentLinksTargetFilePath,
+        pattern: _queryController.text,
+        includeExternal: _includeExternal,
+        includeUnresolved: _includeUnresolved,
+        maxResults: 120,
+      ),
+    );
+    if (!mounted || generation != _collectGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _collecting = false;
+    });
+  }
+
+  Future<void> _openItem(WorkspaceDocumentLinkItem item) async {
+    await widget.shell.openWorkspaceDocumentLink(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceDocumentLinks;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceDocumentLinks;
+    final headerChips = <Widget>[
+      Chip(label: Text(widget.shell.workspaceDocumentLinksTargetFilePath)),
+      if (_collecting) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-document-links-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Document Links',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Document Links',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-document-links-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'Filter links',
+                  prefixIcon: Icon(Icons.link_rounded),
+                ),
+                onSubmitted: (_) {
+                  _collectLinks();
+                },
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilterChip(
+                    key: const ValueKey(
+                      'workspace-document-links-include-external',
+                    ),
+                    selected: _includeExternal,
+                    label: const Text('External'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _includeExternal = selected;
+                      });
+                      _collectLinks();
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey(
+                      'workspace-document-links-include-unresolved',
+                    ),
+                    selected: _includeUnresolved,
+                    label: const Text('Unresolved'),
+                    onSelected: (selected) {
+                      setState(() {
+                        _includeUnresolved = selected;
+                      });
+                      _collectLinks();
+                    },
+                  ),
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-document-links-refresh'),
+                    onPressed: _collecting
+                        ? null
+                        : () {
+                            _collectLinks();
+                          },
+                    icon: Icon(
+                      _collecting
+                          ? Icons.hourglass_top_rounded
+                          : Icons.refresh_rounded,
+                    ),
+                    label: Text(_collecting ? 'Collecting' : 'Refresh'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceDocumentLinksResultView(
+                result: result,
+                onOpenItem: _openItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceDocumentLinksResultView extends StatelessWidget {
+  const _WorkspaceDocumentLinksResultView({
+    required this.result,
+    required this.onOpenItem,
+  });
+
+  final WorkspaceDocumentLinksResult? result;
+  final Future<void> Function(WorkspaceDocumentLinkItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final linksResult = result;
+    if (linksResult == null) {
+      return Text(
+        'No document links collected yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (linksResult.status) {
+      WorkspaceDocumentLinksStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceDocumentLinksStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceDocumentLinksStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+      WorkspaceDocumentLinksStatus.noLinks => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (linksResult.status) {
+      WorkspaceDocumentLinksStatus.completed => 'completed',
+      WorkspaceDocumentLinksStatus.hitLimit => 'limited',
+      WorkspaceDocumentLinksStatus.emptyWorkspace => 'empty',
+      WorkspaceDocumentLinksStatus.noLinks => 'no links',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-document-links-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${linksResult.linkCount} links')),
+            Chip(label: Text('${linksResult.workspaceLinkCount} workspace')),
+            Chip(label: Text('${linksResult.externalLinkCount} external')),
+            Chip(label: Text('${linksResult.unresolvedLinkCount} unresolved')),
+            Chip(label: Text('${linksResult.linksIndexed} indexed')),
+          ],
+        ),
+        if (linksResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (linksResult.links.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in linksResult.links.take(80)) ...[
+            _WorkspaceDocumentLinkItemTile(
+              item: item,
+              onTap: () {
+                onOpenItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceDocumentLinkItemTile extends StatelessWidget {
+  const _WorkspaceDocumentLinkItemTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final WorkspaceDocumentLinkItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-document-link-item-${item.sourceFilePath}-${item.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: item.canOpen ? onTap : null,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: item.canOpen
+              ? const Color(0xFFF8F4ED)
+              : const Color(0xFFF3F0EA),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 560;
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.target,
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.sourceFilePath}:${item.line + 1}:${item.column + 1}',
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (item.resolvedFilePath case final resolved?) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    resolved,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (item.previewText.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            );
+            final badges = Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Chip(label: Text(item.kindLabel)),
+                if (item.canOpen) const Chip(label: Text('open')),
+              ],
+            );
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(_workspaceDocumentLinkKindIcon(item.kind), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            details,
+                            const SizedBox(height: 8),
+                            badges,
+                          ],
+                        )
+                      : details,
+                ),
+                if (!compact) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: badges,
+                  ),
+                ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -7286,6 +7653,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.locations),
       ),
       _SurfaceTabChip(
+        label: 'Links',
+        active: shell.activeBottomTab == BottomSurfaceTab.documentLinks,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.documentLinks),
+      ),
+      _SurfaceTabChip(
         label: 'Decls',
         active: shell.activeBottomTab == BottomSurfaceTab.declarations,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.declarations),
@@ -7375,9 +7747,10 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, commands, navigate, declarations, '
-            'definitions, locations, outline, rename, symbols, usages, calls, '
-            'search, problems, actions, agent, debug, and settings on one vertical route.',
+            'Mobile shell keeps runtime, commands, navigate, locations, links, '
+            'declarations, definitions, outline, rename, symbols, usages, '
+            'calls, search, problems, actions, agent, debug, and settings on '
+            'one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -7453,6 +7826,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.arrow_forward_rounded;
     case AppCommandId.showRecentLocations:
       return Icons.history_rounded;
+    case AppCommandId.showWorkspaceDocumentLinks:
+      return Icons.link_rounded;
     case AppCommandId.goToWorkspaceDeclaration:
       return Icons.subdirectory_arrow_left_rounded;
     case AppCommandId.goToWorkspaceDefinition:
@@ -7557,6 +7932,14 @@ IconData _workspaceReferenceKindIcon(StyioProjectSymbolKind kind) {
     StyioProjectSymbolKind.function => Icons.functions_rounded,
     StyioProjectSymbolKind.resource => Icons.storage_rounded,
     StyioProjectSymbolKind.task => Icons.task_alt_rounded,
+  };
+}
+
+IconData _workspaceDocumentLinkKindIcon(WorkspaceDocumentLinkKind kind) {
+  return switch (kind) {
+    WorkspaceDocumentLinkKind.workspaceImport => Icons.open_in_new_rounded,
+    WorkspaceDocumentLinkKind.externalImport => Icons.public_rounded,
+    WorkspaceDocumentLinkKind.unresolvedImport => Icons.link_off_rounded,
   };
 }
 

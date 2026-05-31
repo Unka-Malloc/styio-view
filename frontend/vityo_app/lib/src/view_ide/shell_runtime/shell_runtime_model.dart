@@ -123,6 +123,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       const <RuntimeEventEnvelope>[];
   CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
+  WorkspaceDocumentLinksResult? _lastWorkspaceDocumentLinks;
   WorkspaceDeclarationResult? _lastWorkspaceDeclaration;
   WorkspaceDefinitionResult? _lastWorkspaceDefinition;
   WorkspaceTypeDefinitionResult? _lastWorkspaceTypeDefinition;
@@ -156,6 +157,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   CommandPaletteResult? get lastCommandPalette => _lastCommandPalette;
   WorkspaceQuickOpenResult? get lastWorkspaceQuickOpen =>
       _lastWorkspaceQuickOpen;
+  WorkspaceDocumentLinksResult? get lastWorkspaceDocumentLinks =>
+      _lastWorkspaceDocumentLinks;
   WorkspaceDeclarationResult? get lastWorkspaceDeclaration =>
       _lastWorkspaceDeclaration;
   WorkspaceDefinitionResult? get lastWorkspaceDefinition =>
@@ -256,6 +259,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   }
 
   String get workspaceRenameQuerySeed => workspaceDefinitionQuerySeed;
+
+  String get workspaceDocumentLinksTargetFilePath => _activeDocumentPath;
 
   String get workspaceDeclarationQuerySeed => workspaceDefinitionQuerySeed;
 
@@ -534,6 +539,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.showRecentLocations:
         appendLog('Recent Locations route requested.');
         return;
+      case AppCommandId.showWorkspaceDocumentLinks:
+        appendLog('Document Links route requested.');
+        return;
       case AppCommandId.goToWorkspaceDeclaration:
         appendLog('Go to Declaration route requested.');
         return;
@@ -669,6 +677,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.commandPalette:
       case AppCommandId.quickOpen:
       case AppCommandId.showRecentLocations:
+      case AppCommandId.showWorkspaceDocumentLinks:
       case AppCommandId.goToWorkspaceDeclaration:
       case AppCommandId.goToWorkspaceDefinition:
       case AppCommandId.goToWorkspaceTypeDefinition:
@@ -862,6 +871,31 @@ class ShellRuntimeModel extends ChangeNotifier {
       'Workspace symbol search "${query.pattern}" found '
       '${result.matchCount} match(es) across '
       '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceDocumentLinksResult> collectWorkspaceDocumentLinks(
+    WorkspaceDocumentLinksQuery query,
+  ) async {
+    final service = WorkspaceDocumentLinksService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.collectLinks(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceDocumentLinks = result;
+    appendLog(
+      'Document Links for ${query.targetFilePath} found '
+      '${result.linkCount} link(s): ${result.workspaceLinkCount} workspace, '
+      '${result.externalLinkCount} external, '
+      '${result.unresolvedLinkCount} unresolved.',
     );
     return result;
   }
@@ -1507,6 +1541,44 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Workspace definition opened: ${item.name} in ${item.filePath} '
       'line ${item.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceDocumentLink(WorkspaceDocumentLinkItem item) async {
+    final resolvedFilePath = item.resolvedFilePath;
+    if (resolvedFilePath == null) {
+      appendLog(
+        'Document link unavailable: ${item.target} is '
+        '${item.kindLabel}.',
+      );
+      return;
+    }
+    if (!workspaceController.files.contains(resolvedFilePath)) {
+      appendLog(
+        'Document link unavailable: $resolvedFilePath '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    _recordCurrentNavigationLocation(label: 'Before Document Links');
+    if (workspaceController.activeFilePath != resolvedFilePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(resolvedFilePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectCollapsed(0);
+    _recordCurrentNavigationLocation(
+      label: item.target,
+      kind: WorkspaceNavigationLocationKind.file,
+    );
+    appendLog(
+      'Document link opened: ${item.target} -> $resolvedFilePath.',
     );
   }
 

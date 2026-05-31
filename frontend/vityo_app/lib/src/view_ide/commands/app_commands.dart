@@ -1,6 +1,7 @@
 enum AppCommandId {
   save,
   run,
+  searchWorkspace,
   fetchDependencies,
   vendorDependencies,
   useActiveCompiler,
@@ -71,15 +72,22 @@ class StyioCommandRegistry {
       ],
     ),
     AppCommandDescriptor(
-      id: AppCommandId.fetchDependencies,
-      label: 'Fetch',
+      id: AppCommandId.searchWorkspace,
+      label: 'Find in Files',
       shortcutHint: 'Cmd/Ctrl+Shift+F',
-      description: 'Materialize dependency sources into the local spio cache.',
+      description: 'Search text across the current workspace files.',
       primary: true,
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('keyF', control: true, shift: true),
         AppCommandShortcutSpec('keyF', meta: true, shift: true),
       ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.fetchDependencies,
+      label: 'Fetch',
+      shortcutHint: 'Route',
+      description: 'Materialize dependency sources into the local spio cache.',
+      primary: true,
     ),
     AppCommandDescriptor(
       id: AppCommandId.vendorDependencies,
@@ -185,6 +193,13 @@ class StyioCommandRegistry {
     },
   );
 
+  static Iterable<AppCommandDescriptor> get searchCommands => commands.where(
+    (command) => switch (command.id) {
+      AppCommandId.searchWorkspace => true,
+      _ => false,
+    },
+  );
+
   static Iterable<AppCommandDescriptor> get dependencyCommands =>
       commands.where(
         (command) => switch (command.id) {
@@ -206,6 +221,7 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get workflowCommands => commands.where(
     (command) => switch (command.id) {
       AppCommandId.run ||
+      AppCommandId.searchWorkspace ||
       AppCommandId.fetchDependencies ||
       AppCommandId.vendorDependencies ||
       AppCommandId.useActiveCompiler ||

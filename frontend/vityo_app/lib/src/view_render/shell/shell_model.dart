@@ -67,6 +67,7 @@ class ShellModel extends ShellRuntimeModel {
         return;
       case AppCommandId.save:
       case AppCommandId.run:
+      case AppCommandId.searchWorkspace:
       case AppCommandId.fetchDependencies:
       case AppCommandId.vendorDependencies:
       case AppCommandId.useActiveCompiler:

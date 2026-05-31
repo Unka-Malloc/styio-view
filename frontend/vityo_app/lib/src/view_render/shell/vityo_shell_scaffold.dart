@@ -1682,6 +1682,8 @@ IconData _commandIcon(AppCommandId commandId) {
   switch (commandId) {
     case AppCommandId.run:
       return Icons.play_arrow_rounded;
+    case AppCommandId.searchWorkspace:
+      return Icons.manage_search_rounded;
     case AppCommandId.fetchDependencies:
       return Icons.cloud_download_rounded;
     case AppCommandId.vendorDependencies:

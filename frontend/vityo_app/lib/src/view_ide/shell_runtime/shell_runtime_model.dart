@@ -109,6 +109,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   ExecutionSession? _lastExecutionSession;
   List<RuntimeEventEnvelope> _lastRuntimeEvents =
       const <RuntimeEventEnvelope>[];
+  WorkspaceTextSearchResult? _lastWorkspaceSearch;
   DependencySourceCommandResult? _lastDependencySourceCommand;
   DeploymentCommandResult? _lastDeploymentCommand;
   ToolchainCommandResult? _lastToolchainCommand;
@@ -123,6 +124,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   ExecutionSession? get lastExecutionSession => _lastExecutionSession;
   List<RuntimeEventEnvelope> get lastRuntimeEvents =>
       List<RuntimeEventEnvelope>.unmodifiable(_lastRuntimeEvents);
+  WorkspaceTextSearchResult? get lastWorkspaceSearch => _lastWorkspaceSearch;
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
   DependencySourceCommandResult? get lastDependencySourceCommand =>
@@ -398,6 +400,9 @@ class ShellRuntimeModel extends ChangeNotifier {
         }
         notifyListeners();
         return;
+      case AppCommandId.searchWorkspace:
+        appendLog('Find in Files route requested.');
+        return;
       case AppCommandId.fetchDependencies:
         await fetchDependencies();
         return;
@@ -491,6 +496,7 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
       case AppCommandId.save:
       case AppCommandId.run:
+      case AppCommandId.searchWorkspace:
       case AppCommandId.showRuntime:
       case AppCommandId.showAgent:
       case AppCommandId.showDebug:
@@ -498,6 +504,32 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.openSettings:
         return null;
     }
+  }
+
+  Future<WorkspaceTextSearchResult> searchWorkspaceText(
+    WorkspaceTextSearchQuery query,
+  ) async {
+    final service = WorkspaceTextSearchService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.searchFiles(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceSearch = result;
+    appendLog(
+      result.status == WorkspaceTextSearchStatus.invalidPattern
+          ? 'Workspace search rejected invalid pattern.'
+          : 'Workspace search "${query.pattern}" found '
+                '${result.matchCount} match(es) in '
+                '${result.matchedFileCount} file(s).',
+    );
+    return result;
   }
 
   String? _blockedToolchainCommandReason({

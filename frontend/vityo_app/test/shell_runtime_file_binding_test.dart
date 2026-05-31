@@ -36,6 +36,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_rename.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_search.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_symbol_search.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_type_definition.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_type_hierarchy.dart';
 
 void main() {
   test('shell save command persists through editor file binding', () async {
@@ -570,6 +571,97 @@ book: OrderBook
     expect(
       shell.debugLog.any(
         (entry) => entry.contains('Workspace type definition opened'),
+      ),
+      isTrue,
+    );
+  });
+
+  test('workspace type hierarchy opens a related type declaration', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['lib/types.styio', 'main.styio'],
+    );
+    const typeDocument = DocumentState(
+      documentId: 'lib/types.styio',
+      text: '''
+schema Price {
+}
+
+schema OrderBook {
+  price: Price
+}
+''',
+      revision: 0,
+    );
+    const mainDocument = DocumentState(
+      documentId: 'main.styio',
+      text: '''
+@import { lib/types }
+book: OrderBook
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/types.styio': typeDocument,
+        'main.styio': mainDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: mainDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final orderBookUsageOffset = mainDocument.text.indexOf('OrderBook');
+    shell.editorController.selectRange(
+      baseOffset: orderBookUsageOffset,
+      extentOffset: orderBookUsageOffset + 'OrderBook'.length,
+    );
+    expect(shell.workspaceTypeHierarchyQuerySeed, 'OrderBook');
+
+    final result = await shell.buildWorkspaceTypeHierarchy(
+      const WorkspaceTypeHierarchyQuery(pattern: 'OrderBook'),
+    );
+
+    expect(result.status, WorkspaceTypeHierarchyStatus.completed);
+    expect(result.relations.single.symbol.name, 'Price');
+
+    await shell.openWorkspaceTypeHierarchySymbol(
+      result.relations.single.symbol,
+    );
+
+    expect(shell.workspaceController.activeFilePath, 'lib/types.styio');
+    expect(shell.editorController.document.documentId, 'lib/types.styio');
+    final priceDefinitionOffset = typeDocument.text.indexOf('Price');
+    expect(shell.editorController.selection.start, priceDefinitionOffset);
+    expect(
+      shell.editorController.selection.end,
+      priceDefinitionOffset + 'Price'.length,
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Type hierarchy symbol opened'),
       ),
       isTrue,
     );

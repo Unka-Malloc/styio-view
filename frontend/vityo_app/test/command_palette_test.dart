@@ -75,6 +75,16 @@ void main() {
     );
     expect(typeDefinitionResult.items.first.category, 'Navigation');
 
+    final typeHierarchyResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'type hierarchy'),
+    );
+    expect(
+      typeHierarchyResult.items.first.commandId,
+      AppCommandId.showWorkspaceTypeHierarchy,
+    );
+    expect(typeHierarchyResult.items.first.category, 'Navigation');
+
     final outlineResult = service.findCommands(
       commands: StyioCommandRegistry.commands,
       query: const CommandPaletteQuery(pattern: 'outline'),

@@ -125,6 +125,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceDefinitionResult? _lastWorkspaceDefinition;
   WorkspaceTypeDefinitionResult? _lastWorkspaceTypeDefinition;
+  WorkspaceTypeHierarchyResult? _lastWorkspaceTypeHierarchy;
   WorkspaceOutlineResult? _lastWorkspaceOutline;
   WorkspaceRenameResult? _lastWorkspaceRename;
   WorkspaceSymbolSearchResult? _lastWorkspaceSymbolSearch;
@@ -157,6 +158,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceDefinition;
   WorkspaceTypeDefinitionResult? get lastWorkspaceTypeDefinition =>
       _lastWorkspaceTypeDefinition;
+  WorkspaceTypeHierarchyResult? get lastWorkspaceTypeHierarchy =>
+      _lastWorkspaceTypeHierarchy;
   WorkspaceOutlineResult? get lastWorkspaceOutline => _lastWorkspaceOutline;
   WorkspaceRenameResult? get lastWorkspaceRename => _lastWorkspaceRename;
   WorkspaceSymbolSearchResult? get lastWorkspaceSymbolSearch =>
@@ -249,6 +252,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   String get workspaceRenameQuerySeed => workspaceDefinitionQuerySeed;
 
   String get workspaceTypeDefinitionQuerySeed => workspaceDefinitionQuerySeed;
+
+  String get workspaceTypeHierarchyQuerySeed => workspaceDefinitionQuerySeed;
 
   String get workspaceOutlineTargetFilePath => _activeDocumentPath;
 
@@ -525,6 +530,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.goToWorkspaceTypeDefinition:
         appendLog('Go to Type Definition route requested.');
         return;
+      case AppCommandId.showWorkspaceTypeHierarchy:
+        appendLog('Type Hierarchy route requested.');
+        return;
       case AppCommandId.showWorkspaceOutline:
         appendLog('Outline route requested.');
         return;
@@ -647,6 +655,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.showRecentLocations:
       case AppCommandId.goToWorkspaceDefinition:
       case AppCommandId.goToWorkspaceTypeDefinition:
+      case AppCommandId.showWorkspaceTypeHierarchy:
       case AppCommandId.showWorkspaceOutline:
       case AppCommandId.renameWorkspaceSymbol:
       case AppCommandId.searchWorkspaceSymbols:
@@ -883,6 +892,33 @@ class ShellRuntimeModel extends ChangeNotifier {
       'Go to Type Definition "${query.pattern}" found '
       '${result.matchCount} type(s) across '
       '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceTypeHierarchyResult> buildWorkspaceTypeHierarchy(
+    WorkspaceTypeHierarchyQuery query,
+  ) async {
+    final service = WorkspaceTypeHierarchyService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.buildHierarchy(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceTypeHierarchy = result;
+    final target = result.target;
+    appendLog(
+      target == null
+          ? 'Type Hierarchy "${query.pattern}" found no type target.'
+          : 'Type Hierarchy ${query.direction.name} for ${target.name} '
+                'found ${result.relationCount} type node(s) across '
+                '${result.referenceCount} reference(s).',
     );
     return result;
   }
@@ -1436,6 +1472,42 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Workspace type definition opened: ${item.name} in ${item.filePath} '
       'line ${item.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceTypeHierarchySymbol(
+    WorkspaceTypeHierarchySymbol symbol,
+  ) async {
+    if (!workspaceController.files.contains(symbol.filePath)) {
+      appendLog(
+        'Type hierarchy symbol unavailable: ${symbol.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    _recordCurrentNavigationLocation(label: 'Before Type Hierarchy');
+    if (workspaceController.activeFilePath != symbol.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(symbol.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: symbol.range.start,
+      extentOffset: symbol.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: symbol.name,
+      kind: WorkspaceNavigationLocationKind.symbol,
+    );
+    appendLog(
+      'Type hierarchy symbol opened: ${symbol.name} in ${symbol.filePath} '
+      'line ${symbol.line + 1}.',
     );
   }
 

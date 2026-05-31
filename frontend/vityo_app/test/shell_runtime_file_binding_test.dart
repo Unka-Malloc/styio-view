@@ -24,6 +24,7 @@ import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_problems.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_quick_open.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_reference_search.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_search.dart';
@@ -464,6 +465,75 @@ fn run(): f64 {
       shell.debugLog.any(
         (entry) => entry.contains('Call hierarchy location opened'),
       ),
+      isTrue,
+    );
+  });
+
+  test('workspace problems opens a diagnostic range', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['src/main.styio'],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: '''
+price = 1.0
+price -> @prices
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final result = await shell.collectWorkspaceProblems(
+      const WorkspaceProblemsQuery(pattern: 'prices'),
+    );
+    final problem = result.problems.singleWhere(
+      (problem) => problem.diagnostic.code == 'unresolved-resource',
+    );
+
+    await shell.openWorkspaceProblem(problem);
+
+    expect(shell.workspaceController.activeFilePath, 'src/main.styio');
+    expect(shell.editorController.document.documentId, 'src/main.styio');
+    expect(
+      shell.editorController.selection.start,
+      initialDocument.text.indexOf('@prices'),
+    );
+    expect(
+      shell.editorController.selection.end,
+      initialDocument.text.indexOf('@prices') + '@prices'.length,
+    );
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Workspace problem opened')),
       isTrue,
     );
   });

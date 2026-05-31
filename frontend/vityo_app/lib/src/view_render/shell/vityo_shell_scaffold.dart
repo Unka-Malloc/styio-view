@@ -14,7 +14,7 @@ import '../../module_host/module_definition.dart';
 import '../../module_host/module_manifest.dart';
 import '../../platform/platform_target.dart';
 import '../../view_ide/language/language.dart'
-    show StyioProjectSymbolKind, SymbolKind;
+    show DiagnosticSeverity, StyioProjectSymbolKind, SymbolKind;
 import '../../view_ide/workspace/workspace.dart';
 import '../platform/platform.dart';
 import '../runtime/runtime.dart';
@@ -156,6 +156,11 @@ class VityoShellScaffold extends StatelessWidget {
         );
       case BottomSurfaceTab.search:
         return _WorkspaceSearchSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
+      case BottomSurfaceTab.problems:
+        return _WorkspaceProblemsSurface(
           shell: shell,
           viewportProfile: viewportProfile,
         );
@@ -3108,6 +3113,369 @@ class _WorkspaceSearchMatchTile extends StatelessWidget {
   }
 }
 
+class _WorkspaceProblemsSurface extends StatefulWidget {
+  const _WorkspaceProblemsSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceProblemsSurface> createState() =>
+      _WorkspaceProblemsSurfaceState();
+}
+
+class _WorkspaceProblemsSurfaceState extends State<_WorkspaceProblemsSurface> {
+  final TextEditingController _filterController = TextEditingController();
+  Set<DiagnosticSeverity> _severities = const <DiagnosticSeverity>{
+    DiagnosticSeverity.error,
+    DiagnosticSeverity.warning,
+    DiagnosticSeverity.hint,
+  };
+  WorkspaceProblemsResult? _result;
+  bool _loading = false;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _runCollection();
+  }
+
+  @override
+  void dispose() {
+    _filterController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runCollection() async {
+    final generation = _generation + 1;
+    _generation = generation;
+    setState(() {
+      _loading = true;
+    });
+    final result = await widget.shell.collectWorkspaceProblems(
+      WorkspaceProblemsQuery(
+        pattern: _filterController.text,
+        severities: _severities,
+        maxResults: 200,
+      ),
+    );
+    if (!mounted || generation != _generation) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _loading = false;
+    });
+  }
+
+  Future<void> _openProblem(WorkspaceProblemItem problem) async {
+    await widget.shell.openWorkspaceProblem(problem);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceProblems;
+    });
+  }
+
+  void _toggleSeverity(DiagnosticSeverity severity, bool selected) {
+    final next = <DiagnosticSeverity>{..._severities};
+    if (selected) {
+      next.add(severity);
+    } else {
+      next.remove(severity);
+    }
+    setState(() {
+      _severities = next;
+    });
+    _runCollection();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceProblems;
+    final headerChips = <Widget>[
+      Chip(
+        label: Text('${widget.shell.workspaceController.files.length} files'),
+      ),
+      if (_loading) const Chip(label: Text('analyzing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-problems-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Problems', style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Problems',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-problems-filter-field'),
+                controller: _filterController,
+                decoration: const InputDecoration(
+                  labelText: 'Filter',
+                  prefixIcon: Icon(Icons.filter_list_rounded),
+                ),
+                onSubmitted: (_) {
+                  _runCollection();
+                },
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilterChip(
+                    key: const ValueKey('workspace-problems-errors'),
+                    selected: _severities.contains(DiagnosticSeverity.error),
+                    label: const Text('Errors'),
+                    onSelected: (selected) {
+                      _toggleSeverity(DiagnosticSeverity.error, selected);
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey('workspace-problems-warnings'),
+                    selected: _severities.contains(DiagnosticSeverity.warning),
+                    label: const Text('Warnings'),
+                    onSelected: (selected) {
+                      _toggleSeverity(DiagnosticSeverity.warning, selected);
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey('workspace-problems-hints'),
+                    selected: _severities.contains(DiagnosticSeverity.hint),
+                    label: const Text('Hints'),
+                    onSelected: (selected) {
+                      _toggleSeverity(DiagnosticSeverity.hint, selected);
+                    },
+                  ),
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-problems-refresh'),
+                    onPressed: _loading
+                        ? null
+                        : () {
+                            _runCollection();
+                          },
+                    icon: Icon(
+                      _loading
+                          ? Icons.hourglass_top_rounded
+                          : Icons.refresh_rounded,
+                    ),
+                    label: Text(_loading ? 'Analyzing' : 'Refresh'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceProblemsResultView(
+                result: result,
+                onOpenProblem: _openProblem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceProblemsResultView extends StatelessWidget {
+  const _WorkspaceProblemsResultView({
+    required this.result,
+    required this.onOpenProblem,
+  });
+
+  final WorkspaceProblemsResult? result;
+  final Future<void> Function(WorkspaceProblemItem problem) onOpenProblem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final problemsResult = result;
+    if (problemsResult == null) {
+      return Text(
+        'No workspace diagnostics collected yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (problemsResult.status) {
+      WorkspaceProblemsStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceProblemsStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceProblemsStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (problemsResult.status) {
+      WorkspaceProblemsStatus.completed => 'completed',
+      WorkspaceProblemsStatus.hitLimit => 'limited',
+      WorkspaceProblemsStatus.emptyWorkspace => 'empty',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-problems-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${problemsResult.problemCount} problems')),
+            Chip(label: Text('${problemsResult.errorCount} errors')),
+            Chip(label: Text('${problemsResult.warningCount} warnings')),
+            Chip(label: Text('${problemsResult.hintCount} hints')),
+            Chip(label: Text('${problemsResult.matchedFileCount} files')),
+            Chip(label: Text('${problemsResult.filesSearched} indexed')),
+          ],
+        ),
+        if (problemsResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (problemsResult.problems.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final problem in problemsResult.problems.take(80)) ...[
+            _WorkspaceProblemTile(
+              problem: problem,
+              onTap: () {
+                onOpenProblem(problem);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceProblemTile extends StatelessWidget {
+  const _WorkspaceProblemTile({
+    required this.problem,
+    required this.onTap,
+  });
+
+  final WorkspaceProblemItem problem;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-problem-${problem.filePath}-${problem.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 520;
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  problem.diagnostic.message,
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${problem.filePath}:${problem.line + 1}:${problem.column + 1}',
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (problem.previewText.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    problem.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            );
+            final badges = Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Chip(label: Text(problem.severity.name)),
+                Chip(label: Text(problem.diagnostic.code)),
+              ],
+            );
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  _workspaceProblemIcon(problem.severity),
+                  color: _workspaceProblemColor(problem.severity),
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            details,
+                            const SizedBox(height: 8),
+                            badges,
+                          ],
+                        )
+                      : details,
+                ),
+                if (!compact) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: badges,
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class _RequiredHandoffTile extends StatelessWidget {
   const _RequiredHandoffTile({required this.handoff});
 
@@ -3504,6 +3872,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
       ),
       _SurfaceTabChip(
+        label: 'Problems',
+        active: shell.activeBottomTab == BottomSurfaceTab.problems,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.problems),
+      ),
+      _SurfaceTabChip(
         label: 'Agent',
         active: shell.activeBottomTab == BottomSurfaceTab.agent,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
@@ -3528,7 +3901,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, commands, navigate, symbols, usages, calls, search, agent, debug, and settings on one vertical route.',
+            'Mobile shell keeps runtime, commands, navigate, symbols, usages, calls, search, problems, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -3606,6 +3979,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.account_tree_rounded;
     case AppCommandId.searchWorkspace:
       return Icons.manage_search_rounded;
+    case AppCommandId.showWorkspaceProblems:
+      return Icons.error_outline_rounded;
     case AppCommandId.fetchDependencies:
       return Icons.cloud_download_rounded;
     case AppCommandId.vendorDependencies:
@@ -3662,6 +4037,22 @@ IconData _workspaceCallHierarchyKindIcon(
     WorkspaceCallHierarchySymbolKind.function => Icons.functions_rounded,
     WorkspaceCallHierarchySymbolKind.task => Icons.task_alt_rounded,
     WorkspaceCallHierarchySymbolKind.topLevel => Icons.notes_rounded,
+  };
+}
+
+IconData _workspaceProblemIcon(DiagnosticSeverity severity) {
+  return switch (severity) {
+    DiagnosticSeverity.error => Icons.error_outline_rounded,
+    DiagnosticSeverity.warning => Icons.warning_amber_rounded,
+    DiagnosticSeverity.hint => Icons.lightbulb_outline_rounded,
+  };
+}
+
+Color _workspaceProblemColor(DiagnosticSeverity severity) {
+  return switch (severity) {
+    DiagnosticSeverity.error => const Color(0xFF9F3A35),
+    DiagnosticSeverity.warning => const Color(0xFFA36B00),
+    DiagnosticSeverity.hint => const Color(0xFF3F6A9A),
   };
 }
 

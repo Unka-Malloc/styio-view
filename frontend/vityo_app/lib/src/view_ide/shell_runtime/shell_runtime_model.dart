@@ -115,6 +115,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceSymbolSearchResult? _lastWorkspaceSymbolSearch;
   WorkspaceReferenceSearchResult? _lastWorkspaceReferenceSearch;
   WorkspaceCallHierarchyResult? _lastWorkspaceCallHierarchy;
+  WorkspaceProblemsResult? _lastWorkspaceProblems;
   WorkspaceTextSearchResult? _lastWorkspaceSearch;
   DependencySourceCommandResult? _lastDependencySourceCommand;
   DeploymentCommandResult? _lastDeploymentCommand;
@@ -141,6 +142,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceReferenceSearch;
   WorkspaceCallHierarchyResult? get lastWorkspaceCallHierarchy =>
       _lastWorkspaceCallHierarchy;
+  WorkspaceProblemsResult? get lastWorkspaceProblems =>
+      _lastWorkspaceProblems;
   WorkspaceTextSearchResult? get lastWorkspaceSearch => _lastWorkspaceSearch;
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
@@ -435,6 +438,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.searchWorkspace:
         appendLog('Find in Files route requested.');
         return;
+      case AppCommandId.showWorkspaceProblems:
+        appendLog('Problems route requested.');
+        return;
       case AppCommandId.fetchDependencies:
         await fetchDependencies();
         return;
@@ -534,6 +540,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.findWorkspaceReferences:
       case AppCommandId.showWorkspaceCallHierarchy:
       case AppCommandId.searchWorkspace:
+      case AppCommandId.showWorkspaceProblems:
       case AppCommandId.showRuntime:
       case AppCommandId.showAgent:
       case AppCommandId.showDebug:
@@ -640,6 +647,29 @@ class ShellRuntimeModel extends ChangeNotifier {
           : 'Call Hierarchy ${query.direction.name} for ${target.name} found '
                 '${result.callCount} caller/callee node(s) across '
                 '${result.referenceCount} reference(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceProblemsResult> collectWorkspaceProblems(
+    WorkspaceProblemsQuery query,
+  ) async {
+    final service = WorkspaceProblemsService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.collectProblems(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceProblems = result;
+    appendLog(
+      'Workspace Problems found ${result.problemCount} diagnostic(s) '
+      'across ${result.matchedFileCount} file(s).',
     );
     return result;
   }
@@ -838,6 +868,35 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Call hierarchy location opened: ${location.filePath} '
       'line ${location.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceProblem(WorkspaceProblemItem problem) async {
+    if (!workspaceController.files.contains(problem.filePath)) {
+      appendLog(
+        'Workspace problem unavailable: ${problem.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    if (workspaceController.activeFilePath != problem.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(problem.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: problem.range.start,
+      extentOffset: problem.range.end,
+    );
+    appendLog(
+      'Workspace problem opened: ${problem.diagnostic.code} in '
+      '${problem.filePath} line ${problem.line + 1}.',
     );
   }
 

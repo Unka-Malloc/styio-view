@@ -13,6 +13,7 @@ void main() {
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
         AppCommandId.searchWorkspace,
+        AppCommandId.showWorkspaceProblems,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
         AppCommandId.refreshModules,
@@ -31,6 +32,9 @@ void main() {
       );
       final search = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspace,
+      );
+      final problems = StyioCommandRegistry.descriptorFor(
+        AppCommandId.showWorkspaceProblems,
       );
       final symbols = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspaceSymbols,
@@ -62,6 +66,11 @@ void main() {
       expect(search.shortcutHint, 'Cmd/Ctrl+Shift+F');
       expect(search.primary, isTrue);
       expect(search.shortcuts, hasLength(2));
+
+      expect(problems.label, 'Problems');
+      expect(problems.shortcutHint, 'Route');
+      expect(problems.primary, isTrue);
+      expect(problems.shortcuts, isEmpty);
 
       expect(symbols.label, 'Symbols');
       expect(symbols.shortcutHint, 'Cmd/Ctrl+T');
@@ -112,6 +121,7 @@ void main() {
         AppCommandId.searchWorkspaceSymbols,
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
+        AppCommandId.showWorkspaceProblems,
       ],
     );
     expect(
@@ -143,6 +153,7 @@ void main() {
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
         AppCommandId.searchWorkspace,
+        AppCommandId.showWorkspaceProblems,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
         AppCommandId.useActiveCompiler,

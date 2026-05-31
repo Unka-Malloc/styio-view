@@ -7,6 +7,7 @@ enum AppCommandId {
   findWorkspaceReferences,
   showWorkspaceCallHierarchy,
   searchWorkspace,
+  showWorkspaceProblems,
   fetchDependencies,
   vendorDependencies,
   useActiveCompiler,
@@ -143,6 +144,13 @@ class StyioCommandRegistry {
       ],
     ),
     AppCommandDescriptor(
+      id: AppCommandId.showWorkspaceProblems,
+      label: 'Problems',
+      shortcutHint: 'Route',
+      description: 'Show workspace diagnostics across project files.',
+      primary: true,
+    ),
+    AppCommandDescriptor(
       id: AppCommandId.fetchDependencies,
       label: 'Fetch',
       shortcutHint: 'Route',
@@ -270,6 +278,7 @@ class StyioCommandRegistry {
           AppCommandId.quickOpen ||
           AppCommandId.findWorkspaceReferences ||
           AppCommandId.showWorkspaceCallHierarchy ||
+          AppCommandId.showWorkspaceProblems ||
           AppCommandId.searchWorkspaceSymbols => true,
           _ => false,
         },
@@ -302,6 +311,7 @@ class StyioCommandRegistry {
       AppCommandId.findWorkspaceReferences ||
       AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.searchWorkspace ||
+      AppCommandId.showWorkspaceProblems ||
       AppCommandId.fetchDependencies ||
       AppCommandId.vendorDependencies ||
       AppCommandId.useActiveCompiler ||

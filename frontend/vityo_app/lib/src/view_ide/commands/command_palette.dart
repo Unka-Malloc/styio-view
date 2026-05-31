@@ -392,6 +392,7 @@ class CommandPaletteService {
       AppCommandId.findWorkspaceReferences ||
       AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.searchWorkspace ||
+      AppCommandId.showWorkspaceProblems ||
       AppCommandId.showRuntime ||
       AppCommandId.showAgent ||
       AppCommandId.showDebug ||

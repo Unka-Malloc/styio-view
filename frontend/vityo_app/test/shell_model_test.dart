@@ -531,7 +531,7 @@ void main() {
   );
 
   test(
-    'command palette, quick open, symbols, usages, calls, search, and settings commands select shell bottom surfaces',
+    'command palette, quick open, symbols, usages, calls, search, problems, and settings commands select shell bottom surfaces',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -636,6 +636,16 @@ void main() {
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Find in Files route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.showWorkspaceProblems);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.problems);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Problems route requested'),
         ),
         isTrue,
       );

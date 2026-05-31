@@ -150,6 +150,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.typeDefinitions:
+        return _WorkspaceTypeDefinitionSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.outline:
         return _WorkspaceOutlineSurface(
           shell: shell,
@@ -2541,6 +2546,304 @@ class _WorkspaceDefinitionItemTile extends StatelessWidget {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceTypeDefinitionSurface extends StatefulWidget {
+  const _WorkspaceTypeDefinitionSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceTypeDefinitionSurface> createState() =>
+      _WorkspaceTypeDefinitionSurfaceState();
+}
+
+class _WorkspaceTypeDefinitionSurfaceState
+    extends State<_WorkspaceTypeDefinitionSurface> {
+  late final TextEditingController _queryController;
+  WorkspaceTypeDefinitionResult? _result;
+  bool _searching = false;
+  int _searchGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController = TextEditingController(
+      text: widget.shell.workspaceTypeDefinitionQuerySeed,
+    );
+    if (_queryController.text.isNotEmpty) {
+      _runSearch();
+    }
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runSearch() async {
+    final generation = _searchGeneration + 1;
+    _searchGeneration = generation;
+    setState(() {
+      _searching = true;
+    });
+    final result = await widget.shell.findWorkspaceTypeDefinitions(
+      WorkspaceTypeDefinitionQuery(
+        pattern: _queryController.text,
+        maxResults: 80,
+      ),
+    );
+    if (!mounted || generation != _searchGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _searching = false;
+    });
+  }
+
+  Future<void> _openItem(WorkspaceTypeDefinitionItem item) async {
+    await widget.shell.openWorkspaceTypeDefinition(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceTypeDefinition;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceTypeDefinition;
+    final headerChips = <Widget>[
+      Chip(
+        label: Text('${widget.shell.workspaceController.files.length} files'),
+      ),
+      if (_searching) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-type-definition-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Go to Type Definition',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Go to Type Definition',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-type-definition-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'Type name',
+                  prefixIcon: Icon(Icons.category_rounded),
+                ),
+                onSubmitted: (_) {
+                  _runSearch();
+                },
+              ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                key: const ValueKey('workspace-type-definition-search-run'),
+                onPressed: _searching
+                    ? null
+                    : () {
+                        _runSearch();
+                      },
+                icon: Icon(
+                  _searching
+                      ? Icons.hourglass_top_rounded
+                      : Icons.category_rounded,
+                ),
+                label: Text(_searching ? 'Resolving' : 'Resolve'),
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceTypeDefinitionResultView(
+                result: result,
+                onOpenItem: _openItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceTypeDefinitionResultView extends StatelessWidget {
+  const _WorkspaceTypeDefinitionResultView({
+    required this.result,
+    required this.onOpenItem,
+  });
+
+  final WorkspaceTypeDefinitionResult? result;
+  final Future<void> Function(WorkspaceTypeDefinitionItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final typeResult = result;
+    if (typeResult == null) {
+      return Text(
+        'No type definitions queried yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (typeResult.status) {
+      WorkspaceTypeDefinitionStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceTypeDefinitionStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceTypeDefinitionStatus.emptyPattern => const Color(0xFFEEE9F2),
+      WorkspaceTypeDefinitionStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+      WorkspaceTypeDefinitionStatus.noTypes => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (typeResult.status) {
+      WorkspaceTypeDefinitionStatus.completed => 'completed',
+      WorkspaceTypeDefinitionStatus.hitLimit => 'limited',
+      WorkspaceTypeDefinitionStatus.emptyPattern => 'empty',
+      WorkspaceTypeDefinitionStatus.emptyWorkspace => 'empty',
+      WorkspaceTypeDefinitionStatus.noTypes => 'no type',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-type-definition-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${typeResult.matchCount} types')),
+            Chip(label: Text('${typeResult.matchedFileCount} files')),
+            Chip(label: Text('${typeResult.typesIndexed} indexed')),
+            Chip(label: Text('${typeResult.filesSearched} files')),
+          ],
+        ),
+        if (typeResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (typeResult.types.isEmpty && typeResult.message == null) ...[
+          const SizedBox(height: 10),
+          Text(
+            'No matching type definitions.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+        if (typeResult.types.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in typeResult.types.take(60)) ...[
+            _WorkspaceTypeDefinitionItemTile(
+              item: item,
+              onTap: () {
+                onOpenItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceTypeDefinitionItemTile extends StatelessWidget {
+  const _WorkspaceTypeDefinitionItemTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final WorkspaceTypeDefinitionItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-type-definition-item-${item.filePath}-${item.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.category_rounded, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.filePath}:${item.line + 1}:${item.column + 1}',
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (item.previewText.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item.previewText,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Chip(label: Text(item.kindLabel)),
+          ],
         ),
       ),
     );
@@ -5835,6 +6138,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.definitions),
       ),
       _SurfaceTabChip(
+        label: 'Types',
+        active: shell.activeBottomTab == BottomSurfaceTab.typeDefinitions,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.typeDefinitions),
+      ),
+      _SurfaceTabChip(
         label: 'Outline',
         active: shell.activeBottomTab == BottomSurfaceTab.outline,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.outline),
@@ -5979,6 +6287,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.history_rounded;
     case AppCommandId.goToWorkspaceDefinition:
       return Icons.subdirectory_arrow_right_rounded;
+    case AppCommandId.goToWorkspaceTypeDefinition:
+      return Icons.category_rounded;
     case AppCommandId.showWorkspaceOutline:
       return Icons.view_list_rounded;
     case AppCommandId.renameWorkspaceSymbol:

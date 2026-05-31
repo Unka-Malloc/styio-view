@@ -392,6 +392,7 @@ class CommandPaletteService {
       AppCommandId.navigateForward ||
       AppCommandId.showRecentLocations ||
       AppCommandId.goToWorkspaceDefinition ||
+      AppCommandId.goToWorkspaceTypeDefinition ||
       AppCommandId.showWorkspaceOutline ||
       AppCommandId.searchWorkspaceSymbols ||
       AppCommandId.findWorkspaceReferences ||

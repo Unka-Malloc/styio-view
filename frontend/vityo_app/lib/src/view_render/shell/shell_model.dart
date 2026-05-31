@@ -8,6 +8,7 @@ enum BottomSurfaceTab {
   navigate,
   locations,
   definitions,
+  typeDefinitions,
   outline,
   rename,
   symbols,
@@ -97,6 +98,10 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.goToWorkspaceDefinition:
         await super.executeCommand(commandId);
         selectBottomTab(BottomSurfaceTab.definitions);
+        return;
+      case AppCommandId.goToWorkspaceTypeDefinition:
+        await super.executeCommand(commandId);
+        selectBottomTab(BottomSurfaceTab.typeDefinitions);
         return;
       case AppCommandId.navigateBack:
       case AppCommandId.navigateForward:

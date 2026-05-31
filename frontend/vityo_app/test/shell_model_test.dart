@@ -613,6 +613,16 @@ void main() {
         isTrue,
       );
 
+      await shell.executeCommand(AppCommandId.goToWorkspaceTypeDefinition);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.typeDefinitions);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Go to Type Definition route requested'),
+        ),
+        isTrue,
+      );
+
       await shell.executeCommand(AppCommandId.showWorkspaceOutline);
 
       expect(shell.activeBottomTab, BottomSurfaceTab.outline);

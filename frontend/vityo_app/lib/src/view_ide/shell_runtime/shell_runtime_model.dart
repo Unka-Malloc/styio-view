@@ -124,6 +124,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceDefinitionResult? _lastWorkspaceDefinition;
+  WorkspaceTypeDefinitionResult? _lastWorkspaceTypeDefinition;
   WorkspaceOutlineResult? _lastWorkspaceOutline;
   WorkspaceRenameResult? _lastWorkspaceRename;
   WorkspaceSymbolSearchResult? _lastWorkspaceSymbolSearch;
@@ -154,6 +155,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceQuickOpen;
   WorkspaceDefinitionResult? get lastWorkspaceDefinition =>
       _lastWorkspaceDefinition;
+  WorkspaceTypeDefinitionResult? get lastWorkspaceTypeDefinition =>
+      _lastWorkspaceTypeDefinition;
   WorkspaceOutlineResult? get lastWorkspaceOutline => _lastWorkspaceOutline;
   WorkspaceRenameResult? get lastWorkspaceRename => _lastWorkspaceRename;
   WorkspaceSymbolSearchResult? get lastWorkspaceSymbolSearch =>
@@ -244,6 +247,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   }
 
   String get workspaceRenameQuerySeed => workspaceDefinitionQuerySeed;
+
+  String get workspaceTypeDefinitionQuerySeed => workspaceDefinitionQuerySeed;
 
   String get workspaceOutlineTargetFilePath => _activeDocumentPath;
 
@@ -517,6 +522,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.goToWorkspaceDefinition:
         appendLog('Go to Definition route requested.');
         return;
+      case AppCommandId.goToWorkspaceTypeDefinition:
+        appendLog('Go to Type Definition route requested.');
+        return;
       case AppCommandId.showWorkspaceOutline:
         appendLog('Outline route requested.');
         return;
@@ -638,6 +646,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.quickOpen:
       case AppCommandId.showRecentLocations:
       case AppCommandId.goToWorkspaceDefinition:
+      case AppCommandId.goToWorkspaceTypeDefinition:
       case AppCommandId.showWorkspaceOutline:
       case AppCommandId.renameWorkspaceSymbol:
       case AppCommandId.searchWorkspaceSymbols:
@@ -849,6 +858,30 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Go to Definition "${query.pattern}" found '
       '${result.matchCount} definition(s) across '
+      '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceTypeDefinitionResult> findWorkspaceTypeDefinitions(
+    WorkspaceTypeDefinitionQuery query,
+  ) async {
+    final service = WorkspaceTypeDefinitionService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.findTypeDefinitions(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceTypeDefinition = result;
+    appendLog(
+      'Go to Type Definition "${query.pattern}" found '
+      '${result.matchCount} type(s) across '
       '${result.matchedFileCount} file(s).',
     );
     return result;
@@ -1366,6 +1399,42 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     appendLog(
       'Workspace definition opened: ${item.name} in ${item.filePath} '
+      'line ${item.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceTypeDefinition(
+    WorkspaceTypeDefinitionItem item,
+  ) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Workspace type definition unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    _recordCurrentNavigationLocation(label: 'Before Go to Type Definition');
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: item.range.start,
+      extentOffset: item.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: item.name,
+      kind: WorkspaceNavigationLocationKind.symbol,
+    );
+    appendLog(
+      'Workspace type definition opened: ${item.name} in ${item.filePath} '
       'line ${item.line + 1}.',
     );
   }

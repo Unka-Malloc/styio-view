@@ -65,6 +65,16 @@ void main() {
       AppCommandId.goToWorkspaceDefinition,
     );
 
+    final typeDefinitionResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'type definition'),
+    );
+    expect(
+      typeDefinitionResult.items.first.commandId,
+      AppCommandId.goToWorkspaceTypeDefinition,
+    );
+    expect(typeDefinitionResult.items.first.category, 'Navigation');
+
     final outlineResult = service.findCommands(
       commands: StyioCommandRegistry.commands,
       query: const CommandPaletteQuery(pattern: 'outline'),

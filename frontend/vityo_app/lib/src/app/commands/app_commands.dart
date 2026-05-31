@@ -53,6 +53,8 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.f2;
       case 'f12':
         return LogicalKeyboardKey.f12;
+      case 'keyB':
+        return LogicalKeyboardKey.keyB;
       case 'keyE':
         return LogicalKeyboardKey.keyE;
       case 'keyF':

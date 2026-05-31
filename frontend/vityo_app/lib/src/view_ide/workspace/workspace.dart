@@ -13,3 +13,4 @@ export 'workspace_reference_search.dart';
 export 'workspace_rename.dart';
 export 'workspace_search.dart';
 export 'workspace_symbol_search.dart';
+export 'workspace_type_definition.dart';

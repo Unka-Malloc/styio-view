@@ -233,6 +233,17 @@ class ShellRuntimeModel extends ChangeNotifier {
 
   String get workspaceOutlineTargetFilePath => _activeDocumentPath;
 
+  WorkspaceBreadcrumbsResult get currentWorkspaceBreadcrumbs {
+    return const WorkspaceBreadcrumbsService().buildForDocument(
+      filePaths: workspaceController.files,
+      document: editorController.document,
+      query: WorkspaceBreadcrumbsQuery(
+        targetFilePath: _activeDocumentPath,
+        caretOffset: editorController.inspectionOffset,
+      ),
+    );
+  }
+
   String get workspaceRenameTargetFilePath => _activeDocumentPath;
 
   int get workspaceRenameTargetOffset => editorController.inspectionOffset;
@@ -1093,6 +1104,47 @@ class ShellRuntimeModel extends ChangeNotifier {
       'Outline symbol opened: ${item.name} in ${item.filePath} '
       'line ${item.line + 1}.',
     );
+  }
+
+  Future<void> openWorkspaceBreadcrumbItem(
+    WorkspaceBreadcrumbItem item,
+  ) async {
+    if (!item.selectable) {
+      appendLog('Breadcrumb segment is not openable: ${item.label}.');
+      return;
+    }
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Breadcrumb target unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    final range = item.range;
+    if (range == null || range.isCollapsed) {
+      editorController.selectCollapsed(0);
+    } else {
+      editorController.selectRange(
+        baseOffset: range.start,
+        extentOffset: range.end,
+      );
+    }
+
+    final location = item.line == null
+        ? item.filePath
+        : '${item.filePath} line ${item.line! + 1}';
+    appendLog('Breadcrumb opened: ${item.label} in $location.');
   }
 
   Future<void> openWorkspaceDefinition(WorkspaceDefinitionItem item) async {

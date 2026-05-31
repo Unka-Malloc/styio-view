@@ -57,6 +57,7 @@ class VityoShellScaffold extends StatelessWidget {
                 child: Column(
                   children: [
                     _TopBar(
+                      shell: shell,
                       platformTarget: shell.platformTarget,
                       activeProjectTitle: project.title,
                       viewportProfile: viewportProfile,
@@ -215,11 +216,13 @@ class VityoShellScaffold extends StatelessWidget {
 
 class _TopBar extends StatelessWidget {
   const _TopBar({
+    required this.shell,
     required this.platformTarget,
     required this.activeProjectTitle,
     required this.viewportProfile,
   });
 
+  final ShellModel shell;
   final PlatformTarget platformTarget;
   final String activeProjectTitle;
   final ViewportProfile viewportProfile;
@@ -233,77 +236,200 @@ class _TopBar extends StatelessWidget {
         builder: (context, constraints) {
           final compact =
               viewportProfile.isMobile || constraints.maxWidth < 900;
+          final titleBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Vityo Integration Shell',
+                style: theme.textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Product-owned adapters, project graph, and execution routes across Web, desktop, and mobile shells.',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
+          );
+          final metadata = Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Chip(label: Text(platformTarget.label)),
+              Chip(label: Text(viewportProfile.label)),
+            ],
+          );
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-            child: compact
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Vityo Integration Shell',
-                        style: theme.textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Product-owned adapters, project graph, and execution routes across Web, desktop, and mobile shells.',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 10,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                compact
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Chip(label: Text(platformTarget.label)),
-                          Chip(label: Text(viewportProfile.label)),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        activeProjectTitle,
-                        style: theme.textTheme.bodySmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Vityo Integration Shell',
-                              style: theme.textTheme.headlineMedium,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Product-owned adapters, project graph, and execution routes across Web, desktop, and mobile shells.',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Chip(label: Text(platformTarget.label)),
-                          const SizedBox(height: 8),
-                          Chip(label: Text(viewportProfile.label)),
-                          const SizedBox(height: 8),
+                          titleBlock,
+                          const SizedBox(height: 12),
+                          metadata,
+                          const SizedBox(height: 10),
                           Text(
                             activeProjectTitle,
                             style: theme.textTheme.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(child: titleBlock),
+                          const SizedBox(width: 18),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              metadata,
+                              const SizedBox(height: 8),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 260,
+                                ),
+                                child: Text(
+                                  activeProjectTitle,
+                                  style: theme.textTheme.bodySmall,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                const SizedBox(height: 12),
+                AnimatedBuilder(
+                  animation: shell.editorController,
+                  builder: (context, _) {
+                    return _WorkspaceBreadcrumbTrail(
+                      compact: compact,
+                      result: shell.currentWorkspaceBreadcrumbs,
+                      onOpenItem: shell.openWorkspaceBreadcrumbItem,
+                    );
+                  },
+                ),
+              ],
+            ),
           );
         },
       ),
     );
+  }
+}
+
+class _WorkspaceBreadcrumbTrail extends StatelessWidget {
+  const _WorkspaceBreadcrumbTrail({
+    required this.compact,
+    required this.result,
+    required this.onOpenItem,
+  });
+
+  final bool compact;
+  final WorkspaceBreadcrumbsResult result;
+  final Future<void> Function(WorkspaceBreadcrumbItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    if (result.items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final children = _trailChildren();
+    if (compact) {
+      return Wrap(
+        key: const ValueKey('workspace-breadcrumb-trail'),
+        spacing: 4,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: children,
+      );
+    }
+
+    return SizedBox(
+      key: const ValueKey('workspace-breadcrumb-trail'),
+      height: 36,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(mainAxisSize: MainAxisSize.min, children: children),
+      ),
+    );
+  }
+
+  List<Widget> _trailChildren() {
+    final children = <Widget>[];
+    for (var index = 0; index < result.items.length; index += 1) {
+      final item = result.items[index];
+      children.add(
+        _BreadcrumbChip(
+          compact: compact,
+          item: item,
+          onOpenItem: onOpenItem,
+        ),
+      );
+      if (index < result.items.length - 1) {
+        children.add(
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 2),
+            child: Icon(Icons.chevron_right_rounded, size: 16),
+          ),
+        );
+      }
+    }
+    return children;
+  }
+}
+
+class _BreadcrumbChip extends StatelessWidget {
+  const _BreadcrumbChip({
+    required this.compact,
+    required this.item,
+    required this.onOpenItem,
+  });
+
+  final bool compact;
+  final WorkspaceBreadcrumbItem item;
+  final Future<void> Function(WorkspaceBreadcrumbItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: compact ? 160 : 220),
+      child: Text(
+        item.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+    final avatar = Icon(_workspaceBreadcrumbIcon(item), size: 16);
+    final key = ValueKey(
+      'workspace-breadcrumb-${item.kind.name}-${item.label}',
+    );
+    final chip = item.selectable
+        ? ActionChip(
+            key: key,
+            avatar: avatar,
+            visualDensity: VisualDensity.compact,
+            label: label,
+            onPressed: () {
+              onOpenItem(item);
+            },
+          )
+        : Chip(
+            key: key,
+            avatar: avatar,
+            visualDensity: VisualDensity.compact,
+            label: label,
+          );
+
+    return Tooltip(message: _workspaceBreadcrumbTooltip(item), child: chip);
   }
 }
 
@@ -5400,6 +5526,26 @@ IconData _workspaceSymbolIcon(SymbolKind kind) {
     SymbolKind.variable => Icons.data_object_rounded,
     SymbolKind.parameter => Icons.input_rounded,
     SymbolKind.task => Icons.task_alt_rounded,
+  };
+}
+
+IconData _workspaceBreadcrumbIcon(WorkspaceBreadcrumbItem item) {
+  return switch (item.kind) {
+    WorkspaceBreadcrumbItemKind.folder => Icons.folder_outlined,
+    WorkspaceBreadcrumbItemKind.file => Icons.description_outlined,
+    WorkspaceBreadcrumbItemKind.symbol => _workspaceSymbolIcon(
+      item.symbolKind ?? SymbolKind.variable,
+    ),
+  };
+}
+
+String _workspaceBreadcrumbTooltip(WorkspaceBreadcrumbItem item) {
+  return switch (item.kind) {
+    WorkspaceBreadcrumbItemKind.folder => 'Folder ${item.filePath}',
+    WorkspaceBreadcrumbItemKind.file => item.filePath,
+    WorkspaceBreadcrumbItemKind.symbol =>
+      '${item.kindLabel} ${item.label} · ${item.filePath}'
+          '${item.line == null ? '' : ':${item.line! + 1}:${(item.column ?? 0) + 1}'}',
   };
 }
 

@@ -22,6 +22,7 @@ import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_breadcrumbs.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_code_actions.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_definition.dart';
@@ -548,6 +549,83 @@ entry = 1
     );
     expect(
       shell.debugLog.any((entry) => entry.contains('Outline symbol opened')),
+      isTrue,
+    );
+  });
+
+  test('workspace breadcrumbs open active editor symbol context', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['src/main.styio'],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: '''
+entry = 1
+#calculate := (input) => {
+  <| input
+}
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    shell.editorController.selectCollapsed(
+      initialDocument.text.indexOf('<| input'),
+    );
+
+    final breadcrumbs = shell.currentWorkspaceBreadcrumbs;
+    final symbol = breadcrumbs.activeSymbol;
+
+    expect(breadcrumbs.status, WorkspaceBreadcrumbsStatus.ready);
+    expect(breadcrumbs.items.map((item) => item.label), <String>[
+      'src',
+      'main.styio',
+      'calculate',
+    ]);
+    expect(symbol, isNotNull);
+
+    await shell.openWorkspaceBreadcrumbItem(symbol!);
+
+    expect(
+      shell.editorController.selection.start,
+      initialDocument.text.indexOf('calculate'),
+    );
+    expect(
+      shell.editorController.selection.end,
+      initialDocument.text.indexOf('calculate') + 'calculate'.length,
+    );
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Breadcrumb opened')),
       isTrue,
     );
   });

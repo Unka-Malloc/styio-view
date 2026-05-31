@@ -1,4 +1,5 @@
 export 'workspace_controller.dart';
+export 'workspace_breadcrumbs.dart';
 export 'workspace_definition.dart';
 export 'workspace_call_hierarchy.dart';
 export 'workspace_code_actions.dart';

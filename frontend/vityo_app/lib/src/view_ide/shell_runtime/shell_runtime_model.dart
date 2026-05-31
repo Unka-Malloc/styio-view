@@ -114,6 +114,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceSymbolSearchResult? _lastWorkspaceSymbolSearch;
   WorkspaceReferenceSearchResult? _lastWorkspaceReferenceSearch;
+  WorkspaceCallHierarchyResult? _lastWorkspaceCallHierarchy;
   WorkspaceTextSearchResult? _lastWorkspaceSearch;
   DependencySourceCommandResult? _lastDependencySourceCommand;
   DeploymentCommandResult? _lastDeploymentCommand;
@@ -138,6 +139,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceSymbolSearch;
   WorkspaceReferenceSearchResult? get lastWorkspaceReferenceSearch =>
       _lastWorkspaceReferenceSearch;
+  WorkspaceCallHierarchyResult? get lastWorkspaceCallHierarchy =>
+      _lastWorkspaceCallHierarchy;
   WorkspaceTextSearchResult? get lastWorkspaceSearch => _lastWorkspaceSearch;
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
@@ -426,6 +429,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.findWorkspaceReferences:
         appendLog('Find Usages route requested.');
         return;
+      case AppCommandId.showWorkspaceCallHierarchy:
+        appendLog('Call Hierarchy route requested.');
+        return;
       case AppCommandId.searchWorkspace:
         appendLog('Find in Files route requested.');
         return;
@@ -526,6 +532,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.quickOpen:
       case AppCommandId.searchWorkspaceSymbols:
       case AppCommandId.findWorkspaceReferences:
+      case AppCommandId.showWorkspaceCallHierarchy:
       case AppCommandId.searchWorkspace:
       case AppCommandId.showRuntime:
       case AppCommandId.showAgent:
@@ -606,6 +613,33 @@ class ShellRuntimeModel extends ChangeNotifier {
       'Find Usages "${query.pattern}" found '
       '${result.matchCount} reference(s) across '
       '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceCallHierarchyResult> buildWorkspaceCallHierarchy(
+    WorkspaceCallHierarchyQuery query,
+  ) async {
+    final service = WorkspaceCallHierarchyService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.buildHierarchy(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceCallHierarchy = result;
+    final target = result.target;
+    appendLog(
+      target == null
+          ? 'Call Hierarchy "${query.pattern}" found no callable target.'
+          : 'Call Hierarchy ${query.direction.name} for ${target.name} found '
+                '${result.callCount} caller/callee node(s) across '
+                '${result.referenceCount} reference(s).',
     );
     return result;
   }
@@ -773,6 +807,37 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Workspace reference opened: ${item.name} in ${item.filePath} '
       'line ${item.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceCallHierarchyLocation(
+    WorkspaceCallHierarchyLocation location,
+  ) async {
+    if (!workspaceController.files.contains(location.filePath)) {
+      appendLog(
+        'Call hierarchy location unavailable: ${location.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    if (workspaceController.activeFilePath != location.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(location.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: location.range.start,
+      extentOffset: location.range.end,
+    );
+    appendLog(
+      'Call hierarchy location opened: ${location.filePath} '
+      'line ${location.line + 1}.',
     );
   }
 

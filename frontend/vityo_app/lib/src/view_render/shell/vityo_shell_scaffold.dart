@@ -149,6 +149,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.calls:
+        return _WorkspaceCallHierarchySurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.search:
         return _WorkspaceSearchSurface(
           shell: shell,
@@ -2375,6 +2380,393 @@ class _WorkspaceReferenceSearchItemTile extends StatelessWidget {
   }
 }
 
+class _WorkspaceCallHierarchySurface extends StatefulWidget {
+  const _WorkspaceCallHierarchySurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceCallHierarchySurface> createState() =>
+      _WorkspaceCallHierarchySurfaceState();
+}
+
+class _WorkspaceCallHierarchySurfaceState
+    extends State<_WorkspaceCallHierarchySurface> {
+  final TextEditingController _queryController = TextEditingController();
+  WorkspaceCallHierarchyDirection _direction =
+      WorkspaceCallHierarchyDirection.incoming;
+  WorkspaceCallHierarchyResult? _result;
+  bool _loading = false;
+  int _searchGeneration = 0;
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runSearch() async {
+    final generation = _searchGeneration + 1;
+    _searchGeneration = generation;
+    setState(() {
+      _loading = true;
+    });
+    final result = await widget.shell.buildWorkspaceCallHierarchy(
+      WorkspaceCallHierarchyQuery(
+        pattern: _queryController.text,
+        direction: _direction,
+        maxResults: 120,
+      ),
+    );
+    if (!mounted || generation != _searchGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _loading = false;
+    });
+  }
+
+  Future<void> _openCall(WorkspaceCallHierarchyCall call) async {
+    if (call.locations.isEmpty) {
+      return;
+    }
+    await widget.shell.openWorkspaceCallHierarchyLocation(call.firstLocation);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceCallHierarchy;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceCallHierarchy;
+    final headerChips = <Widget>[
+      Chip(
+        label: Text('${widget.shell.workspaceController.files.length} files'),
+      ),
+      if (_loading) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-call-hierarchy-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Call Hierarchy',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Call Hierarchy',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-call-hierarchy-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'Callable symbol',
+                  prefixIcon: Icon(Icons.account_tree_rounded),
+                ),
+                onSubmitted: (_) {
+                  _runSearch();
+                },
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SegmentedButton<WorkspaceCallHierarchyDirection>(
+                    key: const ValueKey('workspace-call-hierarchy-direction'),
+                    segments:
+                        const <ButtonSegment<WorkspaceCallHierarchyDirection>>[
+                      ButtonSegment<WorkspaceCallHierarchyDirection>(
+                        value: WorkspaceCallHierarchyDirection.incoming,
+                        icon: Icon(Icons.call_received_rounded),
+                        label: Text('Incoming'),
+                      ),
+                      ButtonSegment<WorkspaceCallHierarchyDirection>(
+                        value: WorkspaceCallHierarchyDirection.outgoing,
+                        icon: Icon(Icons.call_made_rounded),
+                        label: Text('Outgoing'),
+                      ),
+                    ],
+                    selected: <WorkspaceCallHierarchyDirection>{_direction},
+                    onSelectionChanged: (selection) {
+                      final nextDirection = selection.first;
+                      setState(() {
+                        _direction = nextDirection;
+                      });
+                      if (result != null) {
+                        _runSearch();
+                      }
+                    },
+                  ),
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-call-hierarchy-run'),
+                    onPressed: _loading
+                        ? null
+                        : () {
+                            _runSearch();
+                          },
+                    icon: Icon(
+                      _loading
+                          ? Icons.hourglass_top_rounded
+                          : Icons.account_tree_rounded,
+                    ),
+                    label: Text(_loading ? 'Building' : 'Build'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceCallHierarchyResultView(
+                result: result,
+                onOpenCall: _openCall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceCallHierarchyResultView extends StatelessWidget {
+  const _WorkspaceCallHierarchyResultView({
+    required this.result,
+    required this.onOpenCall,
+  });
+
+  final WorkspaceCallHierarchyResult? result;
+  final Future<void> Function(WorkspaceCallHierarchyCall call) onOpenCall;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hierarchyResult = result;
+    if (hierarchyResult == null) {
+      return Text(
+        'No call hierarchy built yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (hierarchyResult.status) {
+      WorkspaceCallHierarchyStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceCallHierarchyStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceCallHierarchyStatus.emptyPattern => const Color(0xFFEEE9F2),
+      WorkspaceCallHierarchyStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+      WorkspaceCallHierarchyStatus.noDefinitions => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (hierarchyResult.status) {
+      WorkspaceCallHierarchyStatus.completed => 'completed',
+      WorkspaceCallHierarchyStatus.hitLimit => 'limited',
+      WorkspaceCallHierarchyStatus.emptyPattern => 'empty',
+      WorkspaceCallHierarchyStatus.emptyWorkspace => 'empty',
+      WorkspaceCallHierarchyStatus.noDefinitions => 'no symbol',
+    };
+    final directionLabel =
+        hierarchyResult.query.direction ==
+            WorkspaceCallHierarchyDirection.incoming
+        ? 'incoming'
+        : 'outgoing';
+
+    return Column(
+      key: const ValueKey('workspace-call-hierarchy-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${hierarchyResult.callCount} nodes')),
+            Chip(label: Text('${hierarchyResult.referenceCount} references')),
+            Chip(label: Text('${hierarchyResult.filesSearched} indexed')),
+            Chip(label: Text(directionLabel)),
+          ],
+        ),
+        if (hierarchyResult.target case final target?) ...[
+          const SizedBox(height: 10),
+          _WorkspaceCallHierarchyTargetTile(symbol: target),
+        ],
+        if (hierarchyResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (hierarchyResult.calls.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final call in hierarchyResult.calls.take(60)) ...[
+            _WorkspaceCallHierarchyCallTile(
+              call: call,
+              onTap: () {
+                onOpenCall(call);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceCallHierarchyTargetTile extends StatelessWidget {
+  const _WorkspaceCallHierarchyTargetTile({required this.symbol});
+
+  final WorkspaceCallHierarchySymbol symbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      key: const ValueKey('workspace-call-hierarchy-target'),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F0F4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(_workspaceCallHierarchyKindIcon(symbol.kind), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    symbol.name,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${symbol.filePath}:${symbol.line + 1}:${symbol.column + 1}',
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Chip(label: Text(symbol.kindLabel)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceCallHierarchyCallTile extends StatelessWidget {
+  const _WorkspaceCallHierarchyCallTile({
+    required this.call,
+    required this.onTap,
+  });
+
+  final WorkspaceCallHierarchyCall call;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final location = call.firstLocation;
+    return InkWell(
+      key: ValueKey(
+        'workspace-call-hierarchy-item-${call.symbol.filePath}-'
+        '${call.symbol.range.start}-${location.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(_workspaceCallHierarchyKindIcon(call.symbol.kind), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    call.symbol.name,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${location.filePath}:${location.line + 1}:${location.column + 1}',
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (location.previewText.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      location.previewText,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Chip(label: Text(call.symbol.kindLabel)),
+                Chip(label: Text('${call.referenceCount} ref')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _WorkspaceSearchSurface extends StatefulWidget {
   const _WorkspaceSearchSurface({
     required this.shell,
@@ -3102,6 +3494,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.usages),
       ),
       _SurfaceTabChip(
+        label: 'Calls',
+        active: shell.activeBottomTab == BottomSurfaceTab.calls,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.calls),
+      ),
+      _SurfaceTabChip(
         label: 'Search',
         active: shell.activeBottomTab == BottomSurfaceTab.search,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
@@ -3131,7 +3528,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, commands, navigate, symbols, usages, search, agent, debug, and settings on one vertical route.',
+            'Mobile shell keeps runtime, commands, navigate, symbols, usages, calls, search, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -3205,6 +3602,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.account_tree_outlined;
     case AppCommandId.findWorkspaceReferences:
       return Icons.link_rounded;
+    case AppCommandId.showWorkspaceCallHierarchy:
+      return Icons.account_tree_rounded;
     case AppCommandId.searchWorkspace:
       return Icons.manage_search_rounded;
     case AppCommandId.fetchDependencies:
@@ -3253,6 +3652,16 @@ IconData _workspaceReferenceKindIcon(StyioProjectSymbolKind kind) {
     StyioProjectSymbolKind.function => Icons.functions_rounded,
     StyioProjectSymbolKind.resource => Icons.storage_rounded,
     StyioProjectSymbolKind.task => Icons.task_alt_rounded,
+  };
+}
+
+IconData _workspaceCallHierarchyKindIcon(
+  WorkspaceCallHierarchySymbolKind kind,
+) {
+  return switch (kind) {
+    WorkspaceCallHierarchySymbolKind.function => Icons.functions_rounded,
+    WorkspaceCallHierarchySymbolKind.task => Icons.task_alt_rounded,
+    WorkspaceCallHierarchySymbolKind.topLevel => Icons.notes_rounded,
   };
 }
 

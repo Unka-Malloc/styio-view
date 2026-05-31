@@ -390,6 +390,7 @@ class CommandPaletteService {
       AppCommandId.quickOpen ||
       AppCommandId.searchWorkspaceSymbols ||
       AppCommandId.findWorkspaceReferences ||
+      AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.searchWorkspace ||
       AppCommandId.showRuntime ||
       AppCommandId.showAgent ||

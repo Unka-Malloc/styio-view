@@ -22,6 +22,7 @@ import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_quick_open.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_reference_search.dart';
@@ -377,6 +378,91 @@ value = blend(1.0, 2.0)
     expect(
       shell.debugLog.any(
         (entry) => entry.contains('Workspace reference opened'),
+      ),
+      isTrue,
+    );
+  });
+
+  test('workspace call hierarchy opens a call location', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['lib/runtime.styio', 'main.styio'],
+    );
+    const runtimeDocument = DocumentState(
+      documentId: 'lib/runtime.styio',
+      text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+''',
+      revision: 0,
+    );
+    const mainDocument = DocumentState(
+      documentId: 'main.styio',
+      text: '''
+@import { lib/runtime }
+fn run(): f64 {
+  emit blend(1.0, 2.0)
+}
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/runtime.styio': runtimeDocument,
+        'main.styio': mainDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: runtimeDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final result = await shell.buildWorkspaceCallHierarchy(
+      const WorkspaceCallHierarchyQuery(pattern: 'blend'),
+    );
+
+    expect(result.status, WorkspaceCallHierarchyStatus.completed);
+    expect(result.calls.single.symbol.name, 'run');
+
+    await shell.openWorkspaceCallHierarchyLocation(
+      result.calls.single.firstLocation,
+    );
+
+    expect(shell.workspaceController.activeFilePath, 'main.styio');
+    expect(shell.editorController.document.documentId, 'main.styio');
+    expect(
+      shell.editorController.selection.start,
+      mainDocument.text.indexOf('blend'),
+    );
+    expect(
+      shell.editorController.selection.end,
+      mainDocument.text.indexOf('blend') + 'blend'.length,
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Call hierarchy location opened'),
       ),
       isTrue,
     );

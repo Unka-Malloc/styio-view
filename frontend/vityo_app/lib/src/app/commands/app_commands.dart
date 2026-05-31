@@ -28,6 +28,7 @@ class AppCommandShortcutRegistry {
       _logicalKeyFor(shortcut.key),
       control: shortcut.control,
       meta: shortcut.meta,
+      alt: shortcut.alt,
       shift: shortcut.shift,
     );
   }
@@ -48,6 +49,8 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.f12;
       case 'keyF':
         return LogicalKeyboardKey.keyF;
+      case 'keyH':
+        return LogicalKeyboardKey.keyH;
       case 'keyP':
         return LogicalKeyboardKey.keyP;
       case 'keyR':

@@ -5,6 +5,7 @@ enum AppCommandId {
   quickOpen,
   searchWorkspaceSymbols,
   findWorkspaceReferences,
+  showWorkspaceCallHierarchy,
   searchWorkspace,
   fetchDependencies,
   vendorDependencies,
@@ -25,12 +26,14 @@ class AppCommandShortcutSpec {
     this.key, {
     this.control = false,
     this.meta = false,
+    this.alt = false,
     this.shift = false,
   });
 
   final String key;
   final bool control;
   final bool meta;
+  final bool alt;
   final bool shift;
 }
 
@@ -116,6 +119,16 @@ class StyioCommandRegistry {
       primary: true,
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('f12', shift: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.showWorkspaceCallHierarchy,
+      label: 'Call Hierarchy',
+      shortcutHint: 'Ctrl+Alt+H',
+      description: 'Browse incoming and outgoing calls for a workspace symbol.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('keyH', control: true, alt: true),
       ],
     ),
     AppCommandDescriptor(
@@ -243,6 +256,7 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get searchCommands => commands.where(
     (command) => switch (command.id) {
       AppCommandId.searchWorkspace ||
+      AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.findWorkspaceReferences ||
       AppCommandId.searchWorkspaceSymbols => true,
       _ => false,
@@ -255,6 +269,7 @@ class StyioCommandRegistry {
           AppCommandId.commandPalette ||
           AppCommandId.quickOpen ||
           AppCommandId.findWorkspaceReferences ||
+          AppCommandId.showWorkspaceCallHierarchy ||
           AppCommandId.searchWorkspaceSymbols => true,
           _ => false,
         },
@@ -285,6 +300,7 @@ class StyioCommandRegistry {
       AppCommandId.quickOpen ||
       AppCommandId.searchWorkspaceSymbols ||
       AppCommandId.findWorkspaceReferences ||
+      AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.searchWorkspace ||
       AppCommandId.fetchDependencies ||
       AppCommandId.vendorDependencies ||

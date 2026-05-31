@@ -64,6 +64,15 @@ void main() {
       usageResult.items.first.commandId,
       AppCommandId.findWorkspaceReferences,
     );
+
+    final callHierarchyResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'call hierarchy'),
+    );
+    expect(
+      callHierarchyResult.items.first.commandId,
+      AppCommandId.showWorkspaceCallHierarchy,
+    );
   });
 
   test('command palette surfaces blocked commands and can exclude them', () {

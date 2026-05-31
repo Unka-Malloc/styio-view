@@ -127,6 +127,11 @@ class VityoShellScaffold extends StatelessWidget {
           executionSession: shell.lastExecutionSession,
           runtimeEvents: shell.lastRuntimeEvents,
         );
+      case BottomSurfaceTab.commands:
+        return _CommandPaletteSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.navigate:
         return _WorkspaceQuickOpenSurface(
           shell: shell,
@@ -1237,6 +1242,273 @@ class _WorkflowStatusChip extends StatelessWidget {
   }
 }
 
+class _CommandPaletteSurface extends StatefulWidget {
+  const _CommandPaletteSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_CommandPaletteSurface> createState() => _CommandPaletteSurfaceState();
+}
+
+class _CommandPaletteSurfaceState extends State<_CommandPaletteSurface> {
+  final TextEditingController _queryController = TextEditingController();
+  CommandPaletteResult? _result;
+
+  @override
+  void initState() {
+    super.initState();
+    _result = _runCommandPalette();
+    _queryController.addListener(_handleQueryChanged);
+  }
+
+  @override
+  void dispose() {
+    _queryController.removeListener(_handleQueryChanged);
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  CommandPaletteResult _runCommandPalette() {
+    return widget.shell.searchCommandPalette(
+      CommandPaletteQuery(pattern: _queryController.text, maxResults: 80),
+    );
+  }
+
+  void _handleQueryChanged() {
+    setState(() {
+      _result = _runCommandPalette();
+    });
+  }
+
+  Future<void> _executeItem(CommandPaletteItem item) async {
+    await widget.shell.executeCommandPaletteItem(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = _runCommandPalette();
+    });
+  }
+
+  CommandPaletteItem? _firstEnabledItem(CommandPaletteResult? result) {
+    if (result == null) {
+      return null;
+    }
+    for (final item in result.items) {
+      if (item.enabled) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastCommandPalette;
+    final headerChips = <Widget>[
+      Chip(label: Text('${widget.shell.recentCommandIds.length} recent')),
+      Chip(label: Text('${StyioCommandRegistry.commands.length} commands')),
+    ];
+
+    return Card(
+      key: const ValueKey('command-palette-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Command Palette',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Command Palette',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('command-palette-query-field'),
+                controller: _queryController,
+                decoration: const InputDecoration(
+                  labelText: 'Command name',
+                  prefixIcon: Icon(Icons.keyboard_command_key_rounded),
+                ),
+                onSubmitted: (_) {
+                  final firstItem = _firstEnabledItem(result);
+                  if (firstItem != null) {
+                    _executeItem(firstItem);
+                  }
+                },
+              ),
+              const SizedBox(height: 14),
+              _CommandPaletteResultView(
+                result: result,
+                onExecuteItem: _executeItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommandPaletteResultView extends StatelessWidget {
+  const _CommandPaletteResultView({
+    required this.result,
+    required this.onExecuteItem,
+  });
+
+  final CommandPaletteResult? result;
+  final Future<void> Function(CommandPaletteItem item) onExecuteItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final commandResult = result;
+    if (commandResult == null) {
+      return Text('No commands indexed yet.', style: theme.textTheme.bodySmall);
+    }
+
+    final statusColor = switch (commandResult.status) {
+      CommandPaletteStatus.completed => const Color(0xFFE3F1E1),
+      CommandPaletteStatus.hitLimit => const Color(0xFFF6E9D7),
+      CommandPaletteStatus.noCommands => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (commandResult.status) {
+      CommandPaletteStatus.completed => 'ready',
+      CommandPaletteStatus.hitLimit => 'limited',
+      CommandPaletteStatus.noCommands => 'empty',
+    };
+
+    return Column(
+      key: const ValueKey('command-palette-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${commandResult.matchCount} matches')),
+            Chip(label: Text('${commandResult.commandsSearched} indexed')),
+            if (commandResult.blockedCount > 0)
+              Chip(label: Text('${commandResult.blockedCount} blocked')),
+          ],
+        ),
+        if (commandResult.items.isEmpty) ...[
+          const SizedBox(height: 10),
+          Text('No matching commands.', style: theme.textTheme.bodySmall),
+        ],
+        if (commandResult.items.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in commandResult.items.take(60)) ...[
+            _CommandPaletteItemTile(
+              item: item,
+              onTap: () {
+                onExecuteItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _CommandPaletteItemTile extends StatelessWidget {
+  const _CommandPaletteItemTile({required this.item, required this.onTap});
+
+  final CommandPaletteItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final iconColor = item.enabled
+        ? theme.colorScheme.primary
+        : theme.disabledColor;
+    return InkWell(
+      key: ValueKey('command-palette-item-${item.commandId.name}'),
+      borderRadius: BorderRadius.circular(12),
+      onTap: item.enabled ? onTap : null,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: item.enabled
+              ? const Color(0xFFF8F4ED)
+              : const Color(0xFFF2EEE8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(_commandIcon(item.commandId), size: 18, color: iconColor),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.label,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.description,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      Chip(label: Text(item.category)),
+                      Chip(label: Text(item.shortcutHint)),
+                      if (item.isRecent)
+                        Chip(label: Text('recent ${item.recentRank! + 1}')),
+                      if (!item.enabled) const Chip(label: Text('blocked')),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _WorkspaceQuickOpenSurface extends StatefulWidget {
   const _WorkspaceQuickOpenSurface({
     required this.shell,
@@ -2206,6 +2478,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.runtime),
       ),
       _SurfaceTabChip(
+        label: 'Commands',
+        active: shell.activeBottomTab == BottomSurfaceTab.commands,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.commands),
+      ),
+      _SurfaceTabChip(
         label: 'Navigate',
         active: shell.activeBottomTab == BottomSurfaceTab.navigate,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.navigate),
@@ -2240,7 +2517,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, navigate, search, agent, debug, and settings on one vertical route.',
+            'Mobile shell keeps runtime, commands, navigate, search, agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -2306,6 +2583,8 @@ IconData _commandIcon(AppCommandId commandId) {
   switch (commandId) {
     case AppCommandId.run:
       return Icons.play_arrow_rounded;
+    case AppCommandId.commandPalette:
+      return Icons.keyboard_command_key_rounded;
     case AppCommandId.quickOpen:
       return Icons.drive_file_move_outline;
     case AppCommandId.searchWorkspace:

@@ -531,7 +531,7 @@ void main() {
   );
 
   test(
-    'quick open, search, and settings commands select shell bottom surfaces',
+    'command palette, quick open, search, and settings commands select shell bottom surfaces',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -583,9 +583,26 @@ void main() {
         isTrue,
       );
 
-      await shell.executeCommand(AppCommandId.searchWorkspace);
+      await shell.executeCommand(AppCommandId.commandPalette);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.commands);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Command Palette route requested'),
+        ),
+        isTrue,
+      );
+
+      final commandResult = shell.searchCommandPalette(
+        const CommandPaletteQuery(pattern: 'find in files'),
+      );
+
+      expect(commandResult.items.first.commandId, AppCommandId.searchWorkspace);
+
+      await shell.executeCommandPaletteItem(commandResult.items.first);
 
       expect(shell.activeBottomTab, BottomSurfaceTab.search);
+      expect(shell.recentCommandIds.first, AppCommandId.searchWorkspace);
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Find in Files route requested'),

@@ -1,6 +1,7 @@
 enum AppCommandId {
   save,
   run,
+  commandPalette,
   quickOpen,
   searchWorkspace,
   fetchDependencies,
@@ -70,6 +71,17 @@ class StyioCommandRegistry {
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('enter', control: true),
         AppCommandShortcutSpec('enter', meta: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.commandPalette,
+      label: 'Command Palette',
+      shortcutHint: 'Cmd/Ctrl+Shift+P',
+      description: 'Search and run registered shell commands.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('keyP', control: true, shift: true),
+        AppCommandShortcutSpec('keyP', meta: true, shift: true),
       ],
     ),
     AppCommandDescriptor(
@@ -215,6 +227,7 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get navigationCommands =>
       commands.where(
         (command) => switch (command.id) {
+          AppCommandId.commandPalette ||
           AppCommandId.quickOpen => true,
           _ => false,
         },
@@ -241,6 +254,7 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get workflowCommands => commands.where(
     (command) => switch (command.id) {
       AppCommandId.run ||
+      AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
       AppCommandId.searchWorkspace ||
       AppCommandId.fetchDependencies ||

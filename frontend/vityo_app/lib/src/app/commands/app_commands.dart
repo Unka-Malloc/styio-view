@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 export '../../view_ide/commands/app_commands.dart';
+export '../../view_ide/commands/command_palette.dart';
 
 import '../../view_ide/commands/app_commands.dart';
 

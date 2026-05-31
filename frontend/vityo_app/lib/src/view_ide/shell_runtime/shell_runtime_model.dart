@@ -106,9 +106,11 @@ class ShellRuntimeModel extends ChangeNotifier {
   final Map<String, DocumentState> _documentCache = <String, DocumentState>{};
   String _activeDocumentPath;
   bool _suppressWorkspaceChangedLoad = false;
+  final List<AppCommandId> _recentCommandIds = <AppCommandId>[];
   ExecutionSession? _lastExecutionSession;
   List<RuntimeEventEnvelope> _lastRuntimeEvents =
       const <RuntimeEventEnvelope>[];
+  CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceTextSearchResult? _lastWorkspaceSearch;
   DependencySourceCommandResult? _lastDependencySourceCommand;
@@ -122,9 +124,12 @@ class ShellRuntimeModel extends ChangeNotifier {
   List<AdapterCapabilitySnapshot> get adapterCapabilities =>
       _adapterCapabilities;
   List<String> get debugLog => List<String>.unmodifiable(_debugLog);
+  List<AppCommandId> get recentCommandIds =>
+      List<AppCommandId>.unmodifiable(_recentCommandIds);
   ExecutionSession? get lastExecutionSession => _lastExecutionSession;
   List<RuntimeEventEnvelope> get lastRuntimeEvents =>
       List<RuntimeEventEnvelope>.unmodifiable(_lastRuntimeEvents);
+  CommandPaletteResult? get lastCommandPalette => _lastCommandPalette;
   WorkspaceQuickOpenResult? get lastWorkspaceQuickOpen =>
       _lastWorkspaceQuickOpen;
   WorkspaceTextSearchResult? get lastWorkspaceSearch => _lastWorkspaceSearch;
@@ -403,6 +408,9 @@ class ShellRuntimeModel extends ChangeNotifier {
         }
         notifyListeners();
         return;
+      case AppCommandId.commandPalette:
+        appendLog('Command Palette route requested.');
+        return;
       case AppCommandId.quickOpen:
         appendLog('Quick Open route requested.');
         return;
@@ -502,6 +510,7 @@ class ShellRuntimeModel extends ChangeNotifier {
         );
       case AppCommandId.save:
       case AppCommandId.run:
+      case AppCommandId.commandPalette:
       case AppCommandId.quickOpen:
       case AppCommandId.searchWorkspace:
       case AppCommandId.showRuntime:
@@ -539,6 +548,28 @@ class ShellRuntimeModel extends ChangeNotifier {
     return result;
   }
 
+  CommandPaletteResult searchCommandPalette(CommandPaletteQuery query) {
+    final result = const CommandPaletteService().findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: query,
+      recentCommandIds: _recentCommandIds,
+      blockedReasonForCommand: blockedReasonForCommand,
+    );
+    _lastCommandPalette = result;
+    return result;
+  }
+
+  Future<void> executeCommandPaletteItem(CommandPaletteItem item) async {
+    final blockedReason = blockedReasonForCommand(item.commandId);
+    if (blockedReason != null) {
+      appendLog('${item.label} blocked: $blockedReason');
+      return;
+    }
+
+    _rememberCommand(item.commandId);
+    await executeCommand(item.commandId);
+  }
+
   WorkspaceQuickOpenResult quickOpenWorkspace(
     WorkspaceQuickOpenQuery query,
   ) {
@@ -574,6 +605,20 @@ class ShellRuntimeModel extends ChangeNotifier {
 
     editorController.selectCollapsed(0);
     appendLog('Quick Open file opened: ${item.filePath}.');
+  }
+
+  void _rememberCommand(AppCommandId commandId) {
+    final existingIndex = _recentCommandIds.indexOf(commandId);
+    if (existingIndex == 0) {
+      return;
+    }
+    if (existingIndex > 0) {
+      _recentCommandIds.removeAt(existingIndex);
+    }
+    _recentCommandIds.insert(0, commandId);
+    if (_recentCommandIds.length > 20) {
+      _recentCommandIds.removeRange(20, _recentCommandIds.length);
+    }
   }
 
   Future<void> openWorkspaceSearchMatch(

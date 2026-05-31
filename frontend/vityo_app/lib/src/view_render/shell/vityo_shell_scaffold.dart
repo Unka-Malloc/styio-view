@@ -174,6 +174,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.actions:
+        return _WorkspaceCodeActionsSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.agent:
         return AgentSurface(
           platformTarget: shell.platformTarget,
@@ -4135,6 +4140,369 @@ class _WorkspaceProblemTile extends StatelessWidget {
   }
 }
 
+class _WorkspaceCodeActionsSurface extends StatefulWidget {
+  const _WorkspaceCodeActionsSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceCodeActionsSurface> createState() =>
+      _WorkspaceCodeActionsSurfaceState();
+}
+
+class _WorkspaceCodeActionsSurfaceState
+    extends State<_WorkspaceCodeActionsSurface> {
+  final TextEditingController _filterController = TextEditingController();
+  WorkspaceCodeActionsResult? _result;
+  WorkspaceCodeActionApplyResult? _applyResult;
+  bool _loading = false;
+  bool _applying = false;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _runCollection();
+  }
+
+  @override
+  void dispose() {
+    _filterController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runCollection() async {
+    final generation = _generation + 1;
+    _generation = generation;
+    setState(() {
+      _loading = true;
+    });
+    final result = await widget.shell.collectWorkspaceCodeActions(
+      WorkspaceCodeActionsQuery(
+        pattern: _filterController.text,
+        maxResults: 50,
+      ),
+    );
+    if (!mounted || generation != _generation) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _loading = false;
+      _applyResult = null;
+    });
+  }
+
+  Future<void> _applyAction(WorkspaceCodeActionItem action) async {
+    if (_applying) {
+      return;
+    }
+    final source = _result ?? widget.shell.lastWorkspaceCodeActions;
+    if (source == null) {
+      return;
+    }
+    setState(() {
+      _applying = true;
+    });
+    final result = await widget.shell.applyWorkspaceCodeAction(
+      query: source.query,
+      actionId: action.id,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = result.preview;
+      _applyResult = result;
+      _applying = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceCodeActions;
+    final headerChips = <Widget>[
+      Chip(
+        label: Text('${widget.shell.workspaceController.files.length} files'),
+      ),
+      if (_loading) const Chip(label: Text('analyzing')),
+      if (_applying) const Chip(label: Text('applying')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-code-actions-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Code Actions', style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Code Actions',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('workspace-code-actions-filter-field'),
+                controller: _filterController,
+                decoration: const InputDecoration(
+                  labelText: 'Filter',
+                  prefixIcon: Icon(Icons.filter_list_rounded),
+                ),
+                onSubmitted: (_) {
+                  _runCollection();
+                },
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilledButton.icon(
+                    key: const ValueKey('workspace-code-actions-refresh'),
+                    onPressed: _loading || _applying
+                        ? null
+                        : () {
+                            _runCollection();
+                          },
+                    icon: Icon(
+                      _loading
+                          ? Icons.hourglass_top_rounded
+                          : Icons.refresh_rounded,
+                    ),
+                    label: Text(_loading ? 'Analyzing' : 'Refresh'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceCodeActionsResultView(
+                result: result,
+                applyResult: _applyResult,
+                applying: _applying,
+                onApplyAction: _applyAction,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceCodeActionsResultView extends StatelessWidget {
+  const _WorkspaceCodeActionsResultView({
+    required this.result,
+    required this.applyResult,
+    required this.applying,
+    required this.onApplyAction,
+  });
+
+  final WorkspaceCodeActionsResult? result;
+  final WorkspaceCodeActionApplyResult? applyResult;
+  final bool applying;
+  final Future<void> Function(WorkspaceCodeActionItem action) onApplyAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final actionsResult = result;
+    if (actionsResult == null) {
+      return Text(
+        'No workspace code actions collected yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (actionsResult.status) {
+      WorkspaceCodeActionsStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceCodeActionsStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceCodeActionsStatus.emptyWorkspace => const Color(0xFFF5E1DE),
+      WorkspaceCodeActionsStatus.noActions => const Color(0xFFEEE9F2),
+    };
+    final statusLabel = switch (actionsResult.status) {
+      WorkspaceCodeActionsStatus.completed => 'completed',
+      WorkspaceCodeActionsStatus.hitLimit => 'limited',
+      WorkspaceCodeActionsStatus.emptyWorkspace => 'empty',
+      WorkspaceCodeActionsStatus.noActions => 'no actions',
+    };
+    final message = applyResult?.message ?? actionsResult.message;
+
+    return Column(
+      key: const ValueKey('workspace-code-actions-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${actionsResult.actionCount} actions')),
+            Chip(label: Text('${actionsResult.editCount} edits')),
+            Chip(label: Text('${actionsResult.matchedFileCount} files')),
+            Chip(label: Text('${actionsResult.filesSearched} indexed')),
+            Chip(
+              label: Text('${actionsResult.diagnosticsScanned} diagnostics'),
+            ),
+          ],
+        ),
+        if (message != null) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (actionsResult.actions.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final action in actionsResult.actions.take(50)) ...[
+            _WorkspaceCodeActionTile(
+              action: action,
+              applying: applying,
+              onApply: () {
+                onApplyAction(action);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceCodeActionTile extends StatelessWidget {
+  const _WorkspaceCodeActionTile({
+    required this.action,
+    required this.applying,
+    required this.onApply,
+  });
+
+  final WorkspaceCodeActionItem action;
+  final bool applying;
+  final VoidCallback onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Ink(
+      key: ValueKey('workspace-code-action-${action.id}'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F4ED),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 620;
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                action.label,
+                style: theme.textTheme.titleSmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (action.detail.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  action.detail,
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  Chip(label: Text('${action.editCount} edits')),
+                  Chip(label: Text('${action.changedFileCount} files')),
+                  for (final document in action.documents.take(3))
+                    Chip(
+                      label: Text(
+                        '${document.filePath}:${document.line + 1}',
+                      ),
+                    ),
+                ],
+              ),
+              for (final document in action.documents.take(2)) ...[
+                if (document.previewText.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    document.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ],
+          );
+          final button = FilledButton.icon(
+            key: ValueKey('workspace-code-action-apply-${action.id}'),
+            onPressed: applying ? null : onApply,
+            icon: Icon(
+              applying
+                  ? Icons.hourglass_top_rounded
+                  : Icons.check_circle_outline_rounded,
+            ),
+            label: Text(applying ? 'Applying' : 'Apply'),
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                details,
+                const SizedBox(height: 10),
+                Align(alignment: Alignment.centerRight, child: button),
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.lightbulb_outline_rounded,
+                color: theme.colorScheme.primary,
+                size: 18,
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: details),
+              const SizedBox(width: 12),
+              button,
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _RequiredHandoffTile extends StatelessWidget {
   const _RequiredHandoffTile({required this.handoff});
 
@@ -4546,6 +4914,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.problems),
       ),
       _SurfaceTabChip(
+        label: 'Actions',
+        active: shell.activeBottomTab == BottomSurfaceTab.actions,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.actions),
+      ),
+      _SurfaceTabChip(
         label: 'Agent',
         active: shell.activeBottomTab == BottomSurfaceTab.agent,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
@@ -4571,8 +4944,8 @@ class _BottomSurfaceTabs extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Mobile shell keeps runtime, commands, navigate, definitions, '
-            'rename, symbols, usages, calls, search, problems, agent, debug, '
-            'and settings on one vertical route.',
+            'rename, symbols, usages, calls, search, problems, actions, '
+            'agent, debug, and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -4656,6 +5029,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.manage_search_rounded;
     case AppCommandId.showWorkspaceProblems:
       return Icons.error_outline_rounded;
+    case AppCommandId.showWorkspaceCodeActions:
+      return Icons.lightbulb_outline_rounded;
     case AppCommandId.fetchDependencies:
       return Icons.cloud_download_rounded;
     case AppCommandId.vendorDependencies:

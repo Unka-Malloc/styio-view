@@ -63,6 +63,8 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.keyT;
       case 'keyV':
         return LogicalKeyboardKey.keyV;
+      case 'period':
+        return LogicalKeyboardKey.period;
     }
     throw ArgumentError.value(key, 'key', 'Unsupported command shortcut key');
   }

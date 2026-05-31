@@ -118,6 +118,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceReferenceSearchResult? _lastWorkspaceReferenceSearch;
   WorkspaceCallHierarchyResult? _lastWorkspaceCallHierarchy;
   WorkspaceProblemsResult? _lastWorkspaceProblems;
+  WorkspaceCodeActionsResult? _lastWorkspaceCodeActions;
   WorkspaceTextSearchResult? _lastWorkspaceSearch;
   DependencySourceCommandResult? _lastDependencySourceCommand;
   DeploymentCommandResult? _lastDeploymentCommand;
@@ -149,6 +150,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceCallHierarchy;
   WorkspaceProblemsResult? get lastWorkspaceProblems =>
       _lastWorkspaceProblems;
+  WorkspaceCodeActionsResult? get lastWorkspaceCodeActions =>
+      _lastWorkspaceCodeActions;
   WorkspaceTextSearchResult? get lastWorkspaceSearch => _lastWorkspaceSearch;
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
@@ -481,6 +484,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.showWorkspaceProblems:
         appendLog('Problems route requested.');
         return;
+      case AppCommandId.showWorkspaceCodeActions:
+        appendLog('Code Actions route requested.');
+        return;
       case AppCommandId.fetchDependencies:
         await fetchDependencies();
         return;
@@ -583,6 +589,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.showWorkspaceCallHierarchy:
       case AppCommandId.searchWorkspace:
       case AppCommandId.showWorkspaceProblems:
+      case AppCommandId.showWorkspaceCodeActions:
       case AppCommandId.showRuntime:
       case AppCommandId.showAgent:
       case AppCommandId.showDebug:
@@ -812,6 +819,83 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Workspace Problems found ${result.problemCount} diagnostic(s) '
       'across ${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceCodeActionsResult> collectWorkspaceCodeActions(
+    WorkspaceCodeActionsQuery query,
+  ) async {
+    final service = WorkspaceCodeActionsService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.collectCodeActions(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceCodeActions = result;
+    appendLog(
+      'Workspace Code Actions found ${result.actionCount} action(s) '
+      'with ${result.editCount} edit(s) across '
+      '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceCodeActionApplyResult> applyWorkspaceCodeAction({
+    required WorkspaceCodeActionsQuery query,
+    required String actionId,
+  }) async {
+    final service = WorkspaceCodeActionsService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.applyCodeAction(
+      filePaths: workspaceController.files,
+      query: query,
+      actionId: actionId,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceCodeActions = result.preview;
+    for (final entry in result.changedDocuments.entries) {
+      _documentCache[entry.key] = entry.value;
+    }
+    final activeDocument = result.changedDocuments[_activeDocumentPath];
+    if (activeDocument != null) {
+      editorController.loadDocument(activeDocument);
+      WorkspaceCodeActionDocumentPreview? activePreview;
+      final documentPreviews =
+          result.action?.documents ??
+          const <WorkspaceCodeActionDocumentPreview>[];
+      for (final documentPreview in documentPreviews) {
+        if (documentPreview.filePath == _activeDocumentPath) {
+          activePreview = documentPreview;
+          break;
+        }
+      }
+      if (activePreview != null) {
+        final targetOffset = activePreview.firstEditRange.start.clamp(
+          0,
+          activeDocument.length,
+        ).toInt();
+        editorController.selectCollapsed(targetOffset);
+      }
+      _editorFileBinding.bindLoadedDocument(activeDocument);
+    }
+    final notAppliedMessage = result.message ?? result.preview.status.name;
+    appendLog(
+      result.applied
+          ? 'Workspace Code Action applied ${result.editsApplied} edit(s) '
+                'across ${result.documentsChanged} document(s).'
+          : 'Workspace Code Action not applied: $notAppliedMessage.',
     );
     return result;
   }

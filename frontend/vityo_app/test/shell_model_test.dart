@@ -531,7 +531,7 @@ void main() {
   );
 
   test(
-    'command palette, quick open, definitions, rename, symbols, usages, calls, search, problems, and settings commands select shell bottom surfaces',
+    'command palette, quick open, definitions, rename, symbols, usages, calls, search, problems, actions, and settings commands select shell bottom surfaces',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -666,6 +666,16 @@ void main() {
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Problems route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.showWorkspaceCodeActions);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.actions);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Code Actions route requested'),
         ),
         isTrue,
       );

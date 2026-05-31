@@ -13,6 +13,7 @@ enum BottomSurfaceTab {
   calls,
   search,
   problems,
+  actions,
   agent,
   debug,
   settings,
@@ -121,6 +122,10 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.showWorkspaceProblems:
         await super.executeCommand(commandId);
         selectBottomTab(BottomSurfaceTab.problems);
+        return;
+      case AppCommandId.showWorkspaceCodeActions:
+        await super.executeCommand(commandId);
+        selectBottomTab(BottomSurfaceTab.actions);
         return;
       case AppCommandId.fetchDependencies:
       case AppCommandId.vendorDependencies:

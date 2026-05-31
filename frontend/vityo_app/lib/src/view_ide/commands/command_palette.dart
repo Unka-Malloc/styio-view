@@ -398,7 +398,8 @@ class CommandPaletteService {
       AppCommandId.showAgent ||
       AppCommandId.showDebug ||
       AppCommandId.openSettings => 'Navigation',
-      AppCommandId.renameWorkspaceSymbol => 'Refactor',
+      AppCommandId.renameWorkspaceSymbol ||
+      AppCommandId.showWorkspaceCodeActions => 'Refactor',
       AppCommandId.fetchDependencies ||
       AppCommandId.vendorDependencies => 'Dependencies',
       AppCommandId.useActiveCompiler ||

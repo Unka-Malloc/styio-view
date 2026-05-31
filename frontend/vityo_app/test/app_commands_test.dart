@@ -16,6 +16,7 @@ void main() {
         AppCommandId.showWorkspaceCallHierarchy,
         AppCommandId.searchWorkspace,
         AppCommandId.showWorkspaceProblems,
+        AppCommandId.showWorkspaceCodeActions,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
         AppCommandId.refreshModules,
@@ -43,6 +44,9 @@ void main() {
       );
       final problems = StyioCommandRegistry.descriptorFor(
         AppCommandId.showWorkspaceProblems,
+      );
+      final codeActions = StyioCommandRegistry.descriptorFor(
+        AppCommandId.showWorkspaceCodeActions,
       );
       final symbols = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspaceSymbols,
@@ -89,6 +93,11 @@ void main() {
       expect(problems.shortcutHint, 'Route');
       expect(problems.primary, isTrue);
       expect(problems.shortcuts, isEmpty);
+
+      expect(codeActions.label, 'Code Actions');
+      expect(codeActions.shortcutHint, 'Cmd/Ctrl+.');
+      expect(codeActions.primary, isTrue);
+      expect(codeActions.shortcuts, hasLength(2));
 
       expect(symbols.label, 'Symbols');
       expect(symbols.shortcutHint, 'Cmd/Ctrl+T');
@@ -143,6 +152,7 @@ void main() {
         AppCommandId.findWorkspaceReferences,
         AppCommandId.showWorkspaceCallHierarchy,
         AppCommandId.showWorkspaceProblems,
+        AppCommandId.showWorkspaceCodeActions,
       ],
     );
     expect(
@@ -177,6 +187,7 @@ void main() {
         AppCommandId.showWorkspaceCallHierarchy,
         AppCommandId.searchWorkspace,
         AppCommandId.showWorkspaceProblems,
+        AppCommandId.showWorkspaceCodeActions,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
         AppCommandId.useActiveCompiler,
@@ -212,6 +223,7 @@ void main() {
     expect(intents, contains(AppCommandId.findWorkspaceReferences));
     expect(intents, contains(AppCommandId.showWorkspaceCallHierarchy));
     expect(intents, contains(AppCommandId.searchWorkspace));
+    expect(intents, contains(AppCommandId.showWorkspaceCodeActions));
     expect(intents, contains(AppCommandId.save));
     expect(intents, contains(AppCommandId.refreshModules));
   });

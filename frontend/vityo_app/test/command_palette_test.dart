@@ -100,6 +100,16 @@ void main() {
       problemsResult.items.first.commandId,
       AppCommandId.showWorkspaceProblems,
     );
+
+    final codeActionsResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'code actions'),
+    );
+    expect(
+      codeActionsResult.items.first.commandId,
+      AppCommandId.showWorkspaceCodeActions,
+    );
+    expect(codeActionsResult.items.first.category, 'Refactor');
   });
 
   test('command palette surfaces blocked commands and can exclude them', () {

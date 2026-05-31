@@ -23,6 +23,7 @@ import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_code_actions.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_definition.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_problems.dart';
@@ -716,6 +717,77 @@ price -> @prices
     );
     expect(
       shell.debugLog.any((entry) => entry.contains('Workspace problem opened')),
+      isTrue,
+    );
+  });
+
+  test('workspace code action applies a project fix to the editor file', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['src/main.styio'],
+    );
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: '''
+@import { lib/missing }
+value = 1
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': initialDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: initialDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final preview = await shell.collectWorkspaceCodeActions(
+      const WorkspaceCodeActionsQuery(),
+    );
+    final action = preview.actions.singleWhere(
+      (action) => action.id == 'clean-up-project-imports',
+    );
+    final apply = await shell.applyWorkspaceCodeAction(
+      query: preview.query,
+      actionId: action.id,
+    );
+
+    expect(apply.applied, isTrue);
+    expect(apply.documentsChanged, 1);
+    expect(shell.editorController.document.text, 'value = 1\n');
+    expect(
+      (await documentStore.loadDocument('src/main.styio')).text,
+      'value = 1\n',
+    );
+    expect(shell.editorController.selection.start, 0);
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Workspace Code Action applied'),
+      ),
       isTrue,
     );
   });

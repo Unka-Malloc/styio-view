@@ -113,6 +113,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   CommandPaletteResult? _lastCommandPalette;
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceSymbolSearchResult? _lastWorkspaceSymbolSearch;
+  WorkspaceReferenceSearchResult? _lastWorkspaceReferenceSearch;
   WorkspaceTextSearchResult? _lastWorkspaceSearch;
   DependencySourceCommandResult? _lastDependencySourceCommand;
   DeploymentCommandResult? _lastDeploymentCommand;
@@ -135,6 +136,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceQuickOpen;
   WorkspaceSymbolSearchResult? get lastWorkspaceSymbolSearch =>
       _lastWorkspaceSymbolSearch;
+  WorkspaceReferenceSearchResult? get lastWorkspaceReferenceSearch =>
+      _lastWorkspaceReferenceSearch;
   WorkspaceTextSearchResult? get lastWorkspaceSearch => _lastWorkspaceSearch;
   DocumentResourceBindingSnapshot get editorFileBindingSnapshot =>
       _editorFileBinding.snapshot;
@@ -420,6 +423,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.searchWorkspaceSymbols:
         appendLog('Workspace Symbols route requested.');
         return;
+      case AppCommandId.findWorkspaceReferences:
+        appendLog('Find Usages route requested.');
+        return;
       case AppCommandId.searchWorkspace:
         appendLog('Find in Files route requested.');
         return;
@@ -519,6 +525,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.commandPalette:
       case AppCommandId.quickOpen:
       case AppCommandId.searchWorkspaceSymbols:
+      case AppCommandId.findWorkspaceReferences:
       case AppCommandId.searchWorkspace:
       case AppCommandId.showRuntime:
       case AppCommandId.showAgent:
@@ -574,6 +581,30 @@ class ShellRuntimeModel extends ChangeNotifier {
     appendLog(
       'Workspace symbol search "${query.pattern}" found '
       '${result.matchCount} match(es) across '
+      '${result.matchedFileCount} file(s).',
+    );
+    return result;
+  }
+
+  Future<WorkspaceReferenceSearchResult> findWorkspaceReferences(
+    WorkspaceReferenceSearchQuery query,
+  ) async {
+    final service = WorkspaceReferenceSearchService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.findReferences(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceReferenceSearch = result;
+    appendLog(
+      'Find Usages "${query.pattern}" found '
+      '${result.matchCount} reference(s) across '
       '${result.matchedFileCount} file(s).',
     );
     return result;
@@ -710,6 +741,37 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     appendLog(
       'Workspace symbol opened: ${item.name} in ${item.filePath} '
+      'line ${item.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceReference(
+    WorkspaceReferenceSearchItem item,
+  ) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Workspace usage unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: item.range.start,
+      extentOffset: item.range.end,
+    );
+    appendLog(
+      'Workspace reference opened: ${item.name} in ${item.filePath} '
       'line ${item.line + 1}.',
     );
   }

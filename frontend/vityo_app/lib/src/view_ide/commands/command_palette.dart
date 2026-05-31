@@ -389,6 +389,7 @@ class CommandPaletteService {
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
       AppCommandId.searchWorkspaceSymbols ||
+      AppCommandId.findWorkspaceReferences ||
       AppCommandId.searchWorkspace ||
       AppCommandId.showRuntime ||
       AppCommandId.showAgent ||

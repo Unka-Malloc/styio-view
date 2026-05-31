@@ -44,6 +44,8 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.digit3;
       case 'enter':
         return LogicalKeyboardKey.enter;
+      case 'f12':
+        return LogicalKeyboardKey.f12;
       case 'keyF':
         return LogicalKeyboardKey.keyF;
       case 'keyP':

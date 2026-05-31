@@ -55,6 +55,15 @@ void main() {
       symbolResult.items.first.commandId,
       AppCommandId.searchWorkspaceSymbols,
     );
+
+    final usageResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'find usages'),
+    );
+    expect(
+      usageResult.items.first.commandId,
+      AppCommandId.findWorkspaceReferences,
+    );
   });
 
   test('command palette surfaces blocked commands and can exclude them', () {

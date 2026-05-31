@@ -531,7 +531,7 @@ void main() {
   );
 
   test(
-    'command palette, quick open, symbols, search, and settings commands select shell bottom surfaces',
+    'command palette, quick open, symbols, usages, search, and settings commands select shell bottom surfaces',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -599,6 +599,16 @@ void main() {
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Workspace Symbols route requested'),
+        ),
+        isTrue,
+      );
+
+      await shell.executeCommand(AppCommandId.findWorkspaceReferences);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.usages);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Find Usages route requested'),
         ),
         isTrue,
       );

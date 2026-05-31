@@ -10,6 +10,7 @@ void main() {
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
         AppCommandId.searchWorkspaceSymbols,
+        AppCommandId.findWorkspaceReferences,
         AppCommandId.searchWorkspace,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
@@ -32,6 +33,9 @@ void main() {
       );
       final symbols = StyioCommandRegistry.descriptorFor(
         AppCommandId.searchWorkspaceSymbols,
+      );
+      final references = StyioCommandRegistry.descriptorFor(
+        AppCommandId.findWorkspaceReferences,
       );
       final fetch = StyioCommandRegistry.descriptorFor(
         AppCommandId.fetchDependencies,
@@ -60,6 +64,11 @@ void main() {
       expect(symbols.primary, isTrue);
       expect(symbols.shortcuts, hasLength(2));
 
+      expect(references.label, 'Find Usages');
+      expect(references.shortcutHint, 'Shift+F12');
+      expect(references.primary, isTrue);
+      expect(references.shortcuts, hasLength(1));
+
       expect(fetch.label, 'Fetch');
       expect(fetch.shortcutHint, 'Route');
       expect(fetch.primary, isTrue);
@@ -81,6 +90,7 @@ void main() {
       StyioCommandRegistry.searchCommands.map((command) => command.id),
       <AppCommandId>[
         AppCommandId.searchWorkspaceSymbols,
+        AppCommandId.findWorkspaceReferences,
         AppCommandId.searchWorkspace,
       ],
     );
@@ -90,6 +100,7 @@ void main() {
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
         AppCommandId.searchWorkspaceSymbols,
+        AppCommandId.findWorkspaceReferences,
       ],
     );
     expect(
@@ -118,6 +129,7 @@ void main() {
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
         AppCommandId.searchWorkspaceSymbols,
+        AppCommandId.findWorkspaceReferences,
         AppCommandId.searchWorkspace,
         AppCommandId.fetchDependencies,
         AppCommandId.vendorDependencies,
@@ -149,6 +161,7 @@ void main() {
     expect(intents, contains(AppCommandId.commandPalette));
     expect(intents, contains(AppCommandId.quickOpen));
     expect(intents, contains(AppCommandId.searchWorkspaceSymbols));
+    expect(intents, contains(AppCommandId.findWorkspaceReferences));
     expect(intents, contains(AppCommandId.searchWorkspace));
     expect(intents, contains(AppCommandId.save));
     expect(intents, contains(AppCommandId.refreshModules));

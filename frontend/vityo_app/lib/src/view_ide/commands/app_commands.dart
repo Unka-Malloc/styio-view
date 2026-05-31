@@ -4,6 +4,7 @@ enum AppCommandId {
   commandPalette,
   quickOpen,
   searchWorkspaceSymbols,
+  findWorkspaceReferences,
   searchWorkspace,
   fetchDependencies,
   vendorDependencies,
@@ -105,6 +106,16 @@ class StyioCommandRegistry {
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('keyT', control: true),
         AppCommandShortcutSpec('keyT', meta: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.findWorkspaceReferences,
+      label: 'Find Usages',
+      shortcutHint: 'Shift+F12',
+      description: 'Find project-wide usages of a workspace symbol.',
+      primary: true,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('f12', shift: true),
       ],
     ),
     AppCommandDescriptor(
@@ -232,6 +243,7 @@ class StyioCommandRegistry {
   static Iterable<AppCommandDescriptor> get searchCommands => commands.where(
     (command) => switch (command.id) {
       AppCommandId.searchWorkspace ||
+      AppCommandId.findWorkspaceReferences ||
       AppCommandId.searchWorkspaceSymbols => true,
       _ => false,
     },
@@ -242,6 +254,7 @@ class StyioCommandRegistry {
         (command) => switch (command.id) {
           AppCommandId.commandPalette ||
           AppCommandId.quickOpen ||
+          AppCommandId.findWorkspaceReferences ||
           AppCommandId.searchWorkspaceSymbols => true,
           _ => false,
         },
@@ -271,6 +284,7 @@ class StyioCommandRegistry {
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
       AppCommandId.searchWorkspaceSymbols ||
+      AppCommandId.findWorkspaceReferences ||
       AppCommandId.searchWorkspace ||
       AppCommandId.fetchDependencies ||
       AppCommandId.vendorDependencies ||

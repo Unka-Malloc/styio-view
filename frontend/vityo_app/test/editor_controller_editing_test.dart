@@ -2793,7 +2793,7 @@ value -> @stdout
       );
 
       controller.applyCompletionItem(completion);
-      final expectedText = entry.key == '~' ? 'gamma' : '${entry.key}gamma';
+      final expectedText = '${entry.key}gamma';
       expect(controller.document.text, expectedText);
       expect(controller.selection.end, expectedText.length);
     }

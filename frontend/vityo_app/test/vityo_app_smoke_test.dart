@@ -1228,11 +1228,17 @@ fn blend(left: f64, right: f64): f64 {
     expect(find.byKey(const ValueKey('shell-viewport-mobile')), findsOneWidget);
 
     Future<void> revealBottomSurface() async {
-      final mobileShell = find.byKey(const ValueKey('shell-viewport-mobile'));
-      for (var attempt = 0; attempt < 3; attempt += 1) {
-        await tester.drag(mobileShell, const Offset(0, -520));
-        await tester.pumpAndSettle();
-      }
+      final mobileScroll = find.byKey(const ValueKey('shell-mobile-scroll'));
+      expect(mobileScroll, findsOneWidget);
+      final scrollable = find.descendant(
+        of: mobileScroll,
+        matching: find.byType(Scrollable),
+      );
+      final scrollableState = tester.state<ScrollableState>(scrollable.first);
+      scrollableState.position.jumpTo(
+        scrollableState.position.maxScrollExtent,
+      );
+      await tester.pumpAndSettle();
     }
 
     shell.selectBottomTab(BottomSurfaceTab.commands);

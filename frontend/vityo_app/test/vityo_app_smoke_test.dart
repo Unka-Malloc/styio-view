@@ -788,7 +788,6 @@ fn blend(left: f64, right: f64): f64 {
     for (final tab in BottomSurfaceTab.values) {
       shell.selectBottomTab(tab);
       await tester.pump();
-      await revealMobileBottomSurface(tester);
       expect(shell.activeBottomTab, tab);
     }
   });
@@ -811,6 +810,7 @@ fn blend(left: f64, right: f64): f64 {
     for (final tab in BottomSurfaceTab.values) {
       shell.selectBottomTab(tab);
       await tester.pump();
+      await revealMobileBottomSurface(tester);
       expect(shell.activeBottomTab, tab);
     }
   });

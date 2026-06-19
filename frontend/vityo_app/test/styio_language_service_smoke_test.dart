@@ -1784,6 +1784,35 @@ when ready -> state dynamic
 ''');
   });
 
+  test('reports constant boolean equality and numeric comparison conditions', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'constant-comparison-condition.styio',
+      text: '''
+when true == false -> state impossible
+when 3 >= 2 -> state numeric
+when (5 != 5) -> state equal
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service
+        .analyzeDocument(document)
+        .diagnostics
+        .where((diagnostic) => diagnostic.code == 'constant-condition')
+        .toList(growable: false);
+
+    expect(diagnostics.map((diagnostic) => diagnostic.message), [
+      'Styio `when` condition is always false.',
+      'Styio `when` condition is always true.',
+      'Styio `when` condition is always false.',
+    ]);
+    expect(
+      service.quickFixesForDiagnostic(document, diagnostics[1]).first.label,
+      'Replace condition with true',
+    );
+  });
+
   test('reports constant division by zero in numeric expressions', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(
@@ -4456,6 +4485,33 @@ ready.no
       ),
       '(price > 0).wh',
     );
+  });
+
+  test('postfix completions scan quoted and nested operands', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'postfix-nested-completion.styio',
+      text: '''
+"ready.value".no
+items[index + 1].em
+call("a.b", nested(value)).no
+''',
+      revision: 0,
+    );
+
+    final stringNot = service
+        .completeAt(document, document.text.indexOf('no') + 2)
+        .singleWhere((item) => item.label == '.not');
+    final indexedEmit = service
+        .completeAt(document, document.text.indexOf('em') + 2)
+        .singleWhere((item) => item.label == '.emit');
+    final callNot = service
+        .completeAt(document, document.text.lastIndexOf('no') + 2)
+        .singleWhere((item) => item.label == '.not');
+
+    expect(stringNot.insertText, '!("ready.value")');
+    expect(indexedEmit.insertText, 'emit items[index + 1]');
+    expect(callNot.insertText, '!(call("a.b", nested(value)))');
   });
 
   test('matches completion items by contained text and symbol initials', () {

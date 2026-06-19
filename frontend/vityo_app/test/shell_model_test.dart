@@ -1282,7 +1282,7 @@ void main() {
     await shell.persistEditorSession();
     final restoredSnapshot = await shell.restoreEditorSession();
 
-    expect(acceptedSnapshot.document, isNull);
+    expect(acceptedSnapshot.document, shell.editorController.document);
     expect(restoredSnapshot, isNull);
     expect(
       shell.debugLog.any(

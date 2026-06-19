@@ -1102,4 +1102,115 @@ raise SystemExit(64)
       expect(graph.notes.any((note) => note.contains('override')), isTrue);
     },
   );
+
+  test(
+    'project graph adapter merges toolchain-state without project graph contract',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_project_graph_toolchain_only_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+
+      final previousCurrentDirectory = Directory.current;
+      addTearDown(() => Directory.current = previousCurrentDirectory);
+
+      File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
+[package]
+name = "demo/toolchain-only"
+version = "0.1.0"
+
+[toolchain]
+channel = "stable"
+
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+      Directory(
+        '${tempRoot.path}${Platform.pathSeparator}src',
+      ).createSync(recursive: true);
+
+      final spioBinary = File(
+        '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
+      );
+      spioBinary.createSync(recursive: true);
+      spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+import json, sys
+
+if sys.argv[1:] == ['machine-info', '--json']:
+    print(json.dumps({
+        'tool': 'spio',
+        'supported_contract_versions': {
+            'project_graph': [],
+            'toolchain_state': [1],
+        },
+    }))
+    raise SystemExit(0)
+
+args = sys.argv[1:]
+if len(args) >= 3 and args[0] == 'tool' and args[1] == 'status':
+    print(json.dumps({
+        'command': 'tool status',
+        'schema_version': 1,
+        'toolchain': {
+            'source': 'managed-current',
+            'detail': 'Current managed styio selected through spio.',
+            'channel': 'nightly',
+            'version': '2026.6.19',
+            'candidate_binary_path': '/workspace/.spio/tools/styio/current/bin/styio',
+        },
+        'active_compiler': {
+            'binary_path': '/workspace/.spio/tools/styio/current/bin/styio',
+            'tool': 'styio',
+            'compiler_version': '2026.6.19',
+            'channel': 'nightly',
+            'variant': 'full',
+            'capabilities': ['machine_info_json'],
+            'supported_contract_versions': {'machine_info': [1]},
+            'active_integration_phase': 'bootstrap-single-file',
+            'supported_adapter_modes': ['cli'],
+            'feature_flags': {'compile_plan_consumer': False},
+        },
+        'current_compiler_error': 'current compiler probe stayed cached',
+        'managed_toolchains': {
+            'spio_home': '/workspace/.spio',
+            'current_binary': '/workspace/.spio/tools/styio/current/bin/styio',
+            'installed': [],
+        },
+        'notes': ['Toolchain-only payload merged with inferred project graph.'],
+    }))
+    raise SystemExit(0)
+
+raise SystemExit(64)
+''');
+      Process.runSync('chmod', <String>['+x', spioBinary.path]);
+
+      Directory.current = tempRoot;
+
+      final adapter = await createProjectGraphAdapter(
+        platformTarget: PlatformTarget.linux,
+      );
+      final graph = await adapter.loadProjectGraph();
+
+      expect(
+        adapter.capabilitySnapshot.projectGraph.level,
+        AdapterCapabilityLevel.partial,
+      );
+      expect(
+        adapter.capabilitySnapshot.projectGraph.detail,
+        contains('does not advertise the project_graph contract'),
+      );
+      expect(graph.kind, ProjectKind.package);
+      expect(graph.toolchain.source, ToolchainResolutionSource.managedCurrent);
+      expect(graph.toolchain.channel, 'nightly');
+      expect(graph.activeCompiler?.compilerVersion, '2026.6.19');
+      expect(graph.toolchainEnvironment?.currentCompilerError, contains('cached'));
+      expect(
+        graph.notes.any((note) => note.contains('Toolchain-only payload')),
+        isTrue,
+      );
+    },
+  );
 }

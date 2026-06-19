@@ -5060,6 +5060,17 @@ blend(left: price, right: tax) -> @stdout
       ),
       findsOneWidget,
     );
+    final mobilePane = find.byKey(
+      const ValueKey('language-pane-mobile'),
+      skipOffstage: false,
+    );
+    final tabScrollable = find
+        .descendant(
+          of: mobilePane,
+          matching: find.byType(Scrollable, skipOffstage: false),
+          skipOffstage: false,
+        )
+        .first;
     final sections = <String, String>{
       'Blocks': 'blocks',
       'Inlays': 'inlays',
@@ -5072,8 +5083,18 @@ blend(left: price, right: tax) -> @stdout
     };
 
     for (final section in sections.entries) {
-      final tab = find.text(section.key, skipOffstage: false);
-      await tester.tap(tab.first);
+      final tabLabel = find.descendant(
+        of: tabScrollable,
+        matching: find.text(section.key, skipOffstage: false),
+        skipOffstage: false,
+      );
+      final tab = find.ancestor(
+        of: tabLabel.first,
+        matching: find.byType(InkWell, skipOffstage: false),
+        skipOffstage: false,
+      );
+      expect(tab, findsOneWidget);
+      tester.widget<InkWell>(tab).onTap!();
       await tester.pump();
 
       expect(

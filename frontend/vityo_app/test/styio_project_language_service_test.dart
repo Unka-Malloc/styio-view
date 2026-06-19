@@ -3347,6 +3347,37 @@ value = 1
       'Change import to `lib/cat`',
     ]);
   });
+
+  test('project analysis cache clears document and project index entries', () {
+    final cache = StyioProjectAnalysisCache();
+    final service = ProjectStyioLanguageService(analysisCache: cache);
+    const documents = [
+      DocumentState(
+        documentId: 'main.styio',
+        text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+value = blend(1.0, 2.0)
+''',
+        revision: 0,
+      ),
+    ];
+
+    service.analyzeProject(documents);
+    service.analyzeProject(documents);
+
+    expect(cache.documentCount, 1);
+    expect(cache.projectIndexCount, 1);
+    expect(cache.projectIndexCacheHits, greaterThan(0));
+
+    cache.clear();
+
+    expect(cache.documentCount, 0);
+    expect(cache.projectIndexCount, 0);
+    expect(cache.projectIndexCacheHits, 0);
+    expect(cache.projectIndexCacheMisses, 0);
+  });
 }
 
 class _CountingStyioLanguageService extends SimpleStyioLanguageService {

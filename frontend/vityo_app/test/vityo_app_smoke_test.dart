@@ -14,6 +14,9 @@ import 'package:vityo_app/src/backend_toolchain/runtime_event_adapter.dart';
 import 'package:vityo_app/src/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
+import 'package:vityo_app/src/module_host/module_capability_matrix.dart';
+import 'package:vityo_app/src/module_host/module_definition.dart';
+import 'package:vityo_app/src/module_host/module_manifest.dart';
 import 'package:vityo_app/src/module_host/module_registry.dart';
 import 'package:vityo_app/src/platform/native_module_loader.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
@@ -268,6 +271,7 @@ void main() {
     PlatformTarget target, {
     ProjectGraphSnapshot? projectSnapshot,
     List<AdapterCapabilitySnapshot>? supplementalCapabilities,
+    List<ModuleDefinition> moduleDefinitions = const <ModuleDefinition>[],
   }) async {
     final project = projectSnapshot ?? createProjectSnapshot(target);
     final workspaceController = WorkspaceController(
@@ -314,7 +318,7 @@ void main() {
       platformTarget: target,
       moduleRegistry: ModuleRegistry(
         platformTarget: target,
-        definitions: const [],
+        definitions: moduleDefinitions,
       ),
       nativeModuleLoader: NoopNativeModuleLoader(platformTarget: target),
       projectGraphAdapter: projectGraphAdapter,
@@ -355,6 +359,81 @@ void main() {
       toolchainManagementAdapter: const _FakeToolchainManagementAdapter(),
       toolchainStatusReport: toolchainStatusReport,
     );
+  }
+
+  List<ModuleDefinition> createSmokeModuleDefinitions() {
+    const desktopMountedRule = ModuleCapabilityRule(
+      supported: true,
+      visible: true,
+      installable: true,
+      mountedByDefault: true,
+      iosSafe: false,
+      distributionChannel: 'nightly',
+      note: 'Desktop runtime bridge is mounted for smoke coverage.',
+    );
+    const desktopVisibleRule = ModuleCapabilityRule(
+      supported: true,
+      visible: true,
+      installable: true,
+      mountedByDefault: false,
+      iosSafe: false,
+      distributionChannel: 'preview',
+      note: 'Agent prompt kit is visible but left unmounted by default.',
+    );
+    const hiddenMobileRule = ModuleCapabilityRule(
+      supported: false,
+      visible: false,
+      installable: false,
+      mountedByDefault: false,
+      iosSafe: true,
+      distributionChannel: 'blocked',
+      note: 'Desktop-only smoke module stays hidden on mobile targets.',
+    );
+
+    return const <ModuleDefinition>[
+      ModuleDefinition(
+        manifest: ModuleManifest(
+          moduleId: 'smoke.runtime.bridge',
+          displayName: 'Smoke Runtime Bridge',
+          version: '0.0.1',
+          kind: ModuleKind.core,
+          slot: ModuleSlot.localRuntime,
+          description: 'Provides a local runtime bridge for smoke coverage.',
+          enabledByDefault: true,
+          entrypoint: 'package:smoke/runtime_bridge.dart',
+          distributionPolicyRef: 'desktop-nightly',
+          capabilityFlags: <String, bool>{'runtime': true},
+        ),
+        matrix: ModuleCapabilityMatrix(
+          moduleId: 'smoke.runtime.bridge',
+          platforms: <PlatformTarget, ModuleCapabilityRule>{
+            PlatformTarget.macos: desktopMountedRule,
+            PlatformTarget.android: hiddenMobileRule,
+          },
+        ),
+      ),
+      ModuleDefinition(
+        manifest: ModuleManifest(
+          moduleId: 'smoke.agent.prompts',
+          displayName: 'Smoke Agent Prompts',
+          version: '0.0.1',
+          kind: ModuleKind.optional,
+          slot: ModuleSlot.agentSurface,
+          description: 'Provides prompt routing slots for smoke coverage.',
+          enabledByDefault: false,
+          entrypoint: 'package:smoke/agent_prompts.dart',
+          distributionPolicyRef: 'desktop-preview',
+          capabilityFlags: <String, bool>{'agent': true},
+        ),
+        matrix: ModuleCapabilityMatrix(
+          moduleId: 'smoke.agent.prompts',
+          platforms: <PlatformTarget, ModuleCapabilityRule>{
+            PlatformTarget.macos: desktopVisibleRule,
+            PlatformTarget.android: hiddenMobileRule,
+          },
+        ),
+      ),
+    ];
   }
 
   Future<AppBootstrap> createLiveWorkflowBootstrap(
@@ -958,6 +1037,133 @@ fn blend(left: f64, right: f64): f64 {
       await revealMobileBottomSurface(tester);
       expect(shell.activeBottomTab, tab);
     }
+  });
+
+  testWidgets('activates desktop bottom surface tabs from tab chips', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+
+    Future<void> tapTab(String label, BottomSurfaceTab expectedTab) async {
+      final chipText = find.text(label);
+      expect(chipText, findsWidgets);
+      final tab = find.ancestor(
+        of: chipText.first,
+        matching: find.byType(InkWell),
+      );
+      expect(tab, findsWidgets);
+      await tester.ensureVisible(tab.first);
+      await tester.pumpAndSettle();
+      await tester.tap(tab.first);
+      await tester.pumpAndSettle();
+      expect(shell.activeBottomTab, expectedTab);
+    }
+
+    await tapTab('Runtime', BottomSurfaceTab.runtime);
+    await tapTab('Commands', BottomSurfaceTab.commands);
+    await tapTab('Navigate', BottomSurfaceTab.navigate);
+    await tapTab('Locations', BottomSurfaceTab.locations);
+    await tapTab('Links', BottomSurfaceTab.documentLinks);
+    await tapTab('Highlights', BottomSurfaceTab.documentHighlights);
+    await tapTab('Lenses', BottomSurfaceTab.codeLenses);
+    await tapTab('Decls', BottomSurfaceTab.declarations);
+    await tapTab('Definitions', BottomSurfaceTab.definitions);
+    await tapTab('Types', BottomSurfaceTab.typeDefinitions);
+    await tapTab('Impls', BottomSurfaceTab.implementations);
+    await tapTab('Type Tree', BottomSurfaceTab.typeHierarchy);
+    await tapTab('Outline', BottomSurfaceTab.outline);
+    await tapTab('Rename', BottomSurfaceTab.rename);
+    await tapTab('Symbols', BottomSurfaceTab.symbols);
+    await tapTab('Usages', BottomSurfaceTab.usages);
+    await tapTab('Calls', BottomSurfaceTab.calls);
+    await tapTab('Search', BottomSurfaceTab.search);
+    await tapTab('Problems', BottomSurfaceTab.problems);
+    await tapTab('Actions', BottomSurfaceTab.actions);
+    await tapTab('Agent', BottomSurfaceTab.agent);
+    await tapTab('Debug', BottomSurfaceTab.debug);
+  });
+
+  testWidgets('activates mobile settings tab from tab chip', (tester) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.android);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+    await revealMobileBottomSurface(tester);
+    final tab = find.ancestor(
+      of: find.text('Settings', skipOffstage: false).first,
+      matching: find.byType(InkWell, skipOffstage: false),
+    );
+    expect(tab, findsWidgets);
+    await tester.ensureVisible(tab.first);
+    await tester.pumpAndSettle();
+    await tester.tap(tab.first);
+    await tester.pumpAndSettle();
+
+    expect(shell.activeBottomTab, BottomSurfaceTab.settings);
+    expect(
+      find.byKey(
+        const ValueKey('settings-surface'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('renders module sidebar and module-aware surfaces', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(
+      PlatformTarget.macos,
+      moduleDefinitions: createSmokeModuleDefinitions(),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    expect(find.text('Mounted 1/2 modules'), findsWidgets);
+    expect(find.text('Smoke Runtime Bridge'), findsWidgets);
+    expect(find.text('Smoke Agent Prompts'), findsWidgets);
+    expect(find.text('Mounted'), findsWidgets);
+    expect(find.text('Visible'), findsWidgets);
+    expect(find.text('nightly'), findsOneWidget);
+    expect(find.text('preview'), findsOneWidget);
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+
+    shell.selectBottomTab(BottomSurfaceTab.runtime);
+    await tester.pumpAndSettle();
+    expect(find.text('Mounted Runtime Modules'), findsOneWidget);
+    expect(find.text('Smoke Runtime Bridge'), findsWidgets);
+
+    shell.selectBottomTab(BottomSurfaceTab.agent);
+    await tester.pumpAndSettle();
+    expect(find.text('Mounted Adapters And Slots'), findsOneWidget);
+    expect(find.text('Smoke Agent Prompts'), findsWidgets);
   });
 
   testWidgets('renders populated workspace bottom surfaces', (tester) async {

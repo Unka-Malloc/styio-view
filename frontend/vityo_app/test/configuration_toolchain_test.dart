@@ -371,6 +371,70 @@ void main() {
     },
   );
 
+  test('shell configuration parses facts and permissive JSON payloads', () {
+    final unsupported = ShellConfiguration.fromFacts(
+      ShellFacts.linuxDebianArm(availableShells: const <ShellExecutableFact>[]),
+    );
+    final fromFacts = ShellConfiguration.fromFacts(
+      ShellFacts.linuxDebianArm(
+        defaultShellPath: '/bin/zsh',
+        availableShells: const <ShellExecutableFact>[
+          ShellExecutableFact(path: '/bin/sh', family: ShellFamily.sh),
+          ShellExecutableFact(
+            path: '/bin/zsh',
+            family: ShellFamily.zsh,
+            isDefault: true,
+          ),
+        ],
+      ),
+    );
+    final parsed = ShellConfiguration.fromJson(
+      <String, Object?>{
+        'defaultProfileId': 'missing',
+        'profiles': <Object?>[
+          <Object?, Object?>{
+            'id': 'pwsh',
+            'executablePath': r'C:\PowerShell\pwsh.exe',
+            'family': 'powershell',
+            'arguments': <Object?>['-NoProfile', 42],
+            'environment': <Object?, Object?>{'PSModulePath': r'C:\Modules'},
+          },
+          'ignored',
+        ],
+        'environmentOverlay': <Object?, Object?>{'LANG': 'C.UTF-8', 1: 2},
+        'loginShell': true,
+        'interactive': true,
+        'timeoutMs': 1250,
+      },
+    );
+    final copied = parsed.copyWith(
+      defaultProfileId: 'pwsh',
+      loginShell: false,
+      interactive: false,
+      timeout: const Duration(seconds: 2),
+    );
+
+    expect(unsupported.defaultProfileId, 'unsupported');
+    expect(unsupported.defaultProfile, isNull);
+    expect(fromFacts.defaultProfileId, 'default');
+    expect(parsed.defaultProfile!.id, 'pwsh');
+    expect(parsed.defaultProfile!.arguments, <String>['-NoProfile', '42']);
+    expect(parsed.defaultProfile!.environment['PSModulePath'], r'C:\Modules');
+    expect(parsed.environmentOverlay, <String, String>{
+      'LANG': 'C.UTF-8',
+      '1': '2',
+    });
+    expect(parsed.loginShell, isTrue);
+    expect(parsed.interactive, isTrue);
+    expect(parsed.timeout, const Duration(milliseconds: 1250));
+    expect(copied.defaultProfileId, 'pwsh');
+    expect(copied.loginShell, isFalse);
+    expect(copied.interactive, isFalse);
+    expect(copied.timeout, const Duration(seconds: 2));
+    expect(shellFamilyFromWireValue('cmd'), ShellFamily.cmd);
+    expect(shellFamilyFromWireValue('unknown-shell'), ShellFamily.unknown);
+  });
+
   test('language service configuration persists fallback mode', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_language_service_configuration_test_',
@@ -454,6 +518,85 @@ void main() {
       expect(resolved.containsKey('REMOVE_ME'), isFalse);
     },
   );
+
+  test('environment variable configuration parses scopes and loose JSON', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_env_configuration_edges_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final firstEnv = fileSystemManager.joinPath(<String>[tempRoot.path, '.env']);
+    final secondEnv = fileSystemManager.joinPath(<String>[
+      tempRoot.path,
+      '.env.local',
+    ]);
+    await fileSystemManager.writeText(firstEnv, "A='one'\n");
+    await fileSystemManager.writeText(secondEnv, 'B=two\n');
+
+    final overlay = EnvironmentVariableOverlay.fromJson(
+      <String, Object?>{
+        'id': 'loose',
+        'scope': 'debug',
+        'target': 'launch',
+        'workspaceId': 'demo',
+        'variables': <Object?, Object?>{'A': 1, 'REMOVE_ME': null},
+        'pathPrepend': <Object?>['/opt/styio/bin', 7],
+        'pathAppend': <Object?>['/workspace/bin'],
+        'envFiles': <Object?>['.env', 3],
+      },
+    );
+    final loaded = await EnvironmentVariableFileLoader(
+      fileSystemManager: fileSystemManager,
+    ).loadAll(<String>[firstEnv, secondEnv]);
+    final resolved = const EnvironmentVariableResolver(
+      pathVariableName: 'Path',
+    ).resolve(
+      inherited: const <String, String>{'Path': r'C:\Windows', 'REMOVE_ME': 'x'},
+      envFileVariables: loaded.map((file) => file.variables),
+      overlays: <EnvironmentVariableOverlay>[overlay],
+      pathSeparator: ';',
+    );
+
+    expect(
+      EnvironmentVariableOverlayScope.values.map((scope) => scope.wireValue),
+      <String>[
+        'user',
+        'workspace',
+        'profile',
+        'task',
+        'debug',
+        'toolchain',
+        'extension',
+      ],
+    );
+    expect(
+      environmentVariableOverlayScopeFromWireValue('profile'),
+      EnvironmentVariableOverlayScope.profile,
+    );
+    expect(
+      environmentVariableOverlayScopeFromWireValue('extension'),
+      EnvironmentVariableOverlayScope.extension,
+    );
+    expect(
+      environmentVariableOverlayScopeFromWireValue('unknown'),
+      EnvironmentVariableOverlayScope.user,
+    );
+    expect(overlay.scope, EnvironmentVariableOverlayScope.debug);
+    expect(overlay.variables, <String, String?>{'A': '1', 'REMOVE_ME': null});
+    expect(overlay.pathPrepend, <String>['/opt/styio/bin', '7']);
+    expect(overlay.envFiles, <String>['.env', '3']);
+    expect(resolved['Path'], r'/opt/styio/bin;7;C:\Windows;/workspace/bin');
+    expect(resolved['A'], '1');
+    expect(resolved['B'], 'two');
+    expect(resolved.containsKey('REMOVE_ME'), isFalse);
+    expect(
+      () => const EnvironmentVariableFileParser().parse(
+        sourcePath: '.env',
+        text: 'MISSING_SEPARATOR',
+      ),
+      throwsFormatException,
+    );
+  });
 
   test('environment variable file parser feeds launch resolver', () {
     final parsed = const EnvironmentVariableFileParser().parse(

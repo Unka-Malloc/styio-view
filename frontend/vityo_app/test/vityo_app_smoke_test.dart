@@ -701,6 +701,50 @@ void main() {
     expect(shell.activeBottomTab, BottomSurfaceTab.agent);
   });
 
+  testWidgets('builds every bottom surface tab in desktop viewport family', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+    for (final tab in BottomSurfaceTab.values) {
+      shell.selectBottomTab(tab);
+      await tester.pump();
+      expect(shell.activeBottomTab, tab);
+    }
+  });
+
+  testWidgets('builds every bottom surface tab in mobile viewport family', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.android);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+    for (final tab in BottomSurfaceTab.values) {
+      shell.selectBottomTab(tab);
+      await tester.pump();
+      expect(shell.activeBottomTab, tab);
+    }
+  });
+
   testWidgets(
     'executes sample project workflow through sidebar mainline lanes',
     (tester) async {

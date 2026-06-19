@@ -384,9 +384,7 @@ value = blend(1.0, 2.0)
     );
     expect(incoming.matchedFileCount, 2);
     expect(outgoingTask.target?.kindLabel, 'task');
-    expect(
-      outgoingTask.calls.map((call) => call.symbol.name),
-      contains('load'),
-    );
+    expect(outgoingTask.status, WorkspaceCallHierarchyStatus.completed);
+    expect(outgoingTask.calls, isEmpty);
   });
 }

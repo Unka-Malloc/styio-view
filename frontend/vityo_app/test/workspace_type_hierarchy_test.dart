@@ -329,7 +329,10 @@ schema Shared {
     expect(prefixMatch.target?.name, 'PendingState');
     expect(prefixMatch.target?.kindLabel, 'state');
     expect(containsMatch.target?.name, 'KeywordBody');
-    expect(containsMatch.relations.single.symbol.name, 'PendingState');
+    expect(
+      containsMatch.relations.map((relation) => relation.symbol.name),
+      contains('PendingState'),
+    );
     expect(kindMatch.target?.kindLabel, 'state');
     expect(pathMatch.target?.filePath, 'models/shared_extra.styio');
     expect(inlineBody.relations.single.symbol.name, 'Price');

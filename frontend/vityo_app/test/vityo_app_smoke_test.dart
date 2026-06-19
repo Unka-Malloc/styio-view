@@ -498,6 +498,62 @@ void main() {
     );
   }
 
+  Future<DocumentState> seedWorkspaceSurfaceFixture(
+    AppBootstrap bootstrap,
+  ) async {
+    final project = bootstrap.workspaceController.activeProject;
+    final mainPath = bootstrap.workspaceController.activeFilePath;
+    final renderPath = '${project.workspaceRoot}/src/render_flow.styio';
+    final runtimePath = '${project.workspaceRoot}/src/runtime_graph.styio';
+    final mainDocument = DocumentState(
+      documentId: mainPath,
+      text: '''
+@import { src/render_flow }
+@import { src/runtime_graph }
+schema Price {
+}
+schema OrderBook {
+  price: Price
+}
+#calculate := (input) => {
+  total = blend(input, input)
+  total -> @prices
+  <| total
+}
+value = calculate(1.0)
+''',
+      revision: 1,
+    );
+    await bootstrap.workspaceDocumentStore.saveDocument(mainDocument);
+    await bootstrap.workspaceDocumentStore.saveDocument(
+      DocumentState(
+        documentId: renderPath,
+        text: '''
+schema Quote {
+  price: Price
+}
+task render {
+  <| calculate(2.0)
+}
+''',
+        revision: 1,
+      ),
+    );
+    await bootstrap.workspaceDocumentStore.saveDocument(
+      DocumentState(
+        documentId: runtimePath,
+        text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+''',
+        revision: 1,
+      ),
+    );
+    bootstrap.editorController.loadDocument(mainDocument);
+    return mainDocument;
+  }
+
   testWidgets('builds shared shell scaffold in desktop viewport family', (
     tester,
   ) async {
@@ -893,6 +949,265 @@ fn blend(left: f64, right: f64): f64 {
       const WorkspaceCodeActionsQuery(pattern: 'prices'),
     );
     await renderTab(BottomSurfaceTab.actions);
+  });
+
+  testWidgets('drives workspace bottom surface controls and result selections', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
+    final mainDocument = await seedWorkspaceSurfaceFixture(bootstrap);
+    final mainPath = bootstrap.workspaceController.activeFilePath;
+    final priceOffset = mainDocument.text.indexOf('Price');
+    final calculateOffset = mainDocument.text.indexOf('calculate');
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+
+    Finder keyPrefix(String prefix) {
+      return find.byWidgetPredicate(
+        (widget) {
+          final key = widget.key;
+          return key is ValueKey<String> && key.value.startsWith(prefix);
+        },
+        description: 'key prefix $prefix',
+      );
+    }
+
+    Future<void> showTab(BottomSurfaceTab tab) async {
+      shell.selectBottomTab(tab);
+      await tester.pumpAndSettle();
+      expect(shell.activeBottomTab, tab);
+    }
+
+    Future<void> tapKey(String keyValue) async {
+      final target = find.byKey(ValueKey<String>(keyValue));
+      expect(target, findsOneWidget);
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapKeyIfPresent(String keyValue) async {
+      final target = find.byKey(ValueKey<String>(keyValue));
+      if (target.evaluate().isEmpty) {
+        return;
+      }
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapFirstKeyPrefixIfPresent(String prefix) async {
+      final target = keyPrefix(prefix);
+      if (target.evaluate().isEmpty) {
+        return;
+      }
+      await tester.ensureVisible(target.first);
+      await tester.pumpAndSettle();
+      await tester.tap(target.first);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapTextIfPresent(String value) async {
+      final target = find.text(value);
+      if (target.evaluate().isEmpty) {
+        return;
+      }
+      await tester.ensureVisible(target.last);
+      await tester.pumpAndSettle();
+      await tester.tap(target.last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> submitField(String keyValue, String value) async {
+      final target = find.byKey(ValueKey<String>(keyValue));
+      expect(target, findsOneWidget);
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      await tester.enterText(target, value);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+    }
+
+    await showTab(BottomSurfaceTab.commands);
+    await submitField('command-palette-query-field', 'run');
+    await tapFirstKeyPrefixIfPresent('command-palette-item-');
+
+    await showTab(BottomSurfaceTab.navigate);
+    await submitField('workspace-quick-open-query-field', 'render');
+    await tapFirstKeyPrefixIfPresent('workspace-quick-open-item-');
+
+    await showTab(BottomSurfaceTab.locations);
+    await submitField('workspace-recent-locations-query-field', 'render');
+    await tapKeyIfPresent('workspace-navigation-back');
+    await tapKeyIfPresent('workspace-navigation-forward');
+    await tapFirstKeyPrefixIfPresent('workspace-recent-location-');
+
+    await shell.collectWorkspaceDocumentLinks(
+      WorkspaceDocumentLinksQuery(targetFilePath: mainPath),
+    );
+    await showTab(BottomSurfaceTab.documentLinks);
+    await tapFirstKeyPrefixIfPresent('workspace-document-link-item-');
+    await submitField('workspace-document-links-query-field', 'src');
+    await tapKey('workspace-document-links-include-external');
+    await tapKey('workspace-document-links-include-unresolved');
+    await tapKeyIfPresent('workspace-document-links-refresh');
+
+    await shell.collectWorkspaceDocumentHighlights(
+      WorkspaceDocumentHighlightsQuery(
+        targetFilePath: mainPath,
+        offset: priceOffset,
+      ),
+    );
+    await showTab(BottomSurfaceTab.documentHighlights);
+    await tapFirstKeyPrefixIfPresent('workspace-document-highlight-item-');
+    await tapKey('workspace-document-highlights-include-text');
+    await tapKey('workspace-document-highlights-include-declarations');
+    await tapKey('workspace-document-highlights-include-read');
+    await tapKey('workspace-document-highlights-include-write');
+    await tapKeyIfPresent('workspace-document-highlights-refresh');
+
+    await shell.collectWorkspaceCodeLenses(
+      WorkspaceCodeLensQuery(targetFilePath: mainPath),
+    );
+    await showTab(BottomSurfaceTab.codeLenses);
+    await tapFirstKeyPrefixIfPresent('workspace-code-lens-item-');
+    await tapKeyIfPresent('workspace-code-lens-refresh');
+
+    await shell.findWorkspaceDeclarations(
+      const WorkspaceDeclarationQuery(pattern: 'Price'),
+    );
+    await showTab(BottomSurfaceTab.declarations);
+    await tapFirstKeyPrefixIfPresent('workspace-declaration-item-');
+    await submitField('workspace-declaration-query-field', 'OrderBook');
+    await tapKeyIfPresent('workspace-declaration-search-run');
+
+    await shell.findWorkspaceDefinitions(
+      const WorkspaceDefinitionQuery(pattern: 'blend'),
+    );
+    await showTab(BottomSurfaceTab.definitions);
+    await tapFirstKeyPrefixIfPresent('workspace-definition-item-');
+    await submitField('workspace-definition-query-field', 'calculate');
+    await tapKeyIfPresent('workspace-definition-search-run');
+
+    await shell.findWorkspaceTypeDefinitions(
+      const WorkspaceTypeDefinitionQuery(pattern: 'Price'),
+    );
+    await showTab(BottomSurfaceTab.typeDefinitions);
+    await tapFirstKeyPrefixIfPresent('workspace-type-definition-item-');
+    await submitField('workspace-type-definition-query-field', 'OrderBook');
+    await tapKeyIfPresent('workspace-type-definition-search-run');
+
+    await shell.findWorkspaceImplementations(
+      const WorkspaceImplementationQuery(pattern: 'Price'),
+    );
+    await showTab(BottomSurfaceTab.implementations);
+    await tapFirstKeyPrefixIfPresent('workspace-implementation-item-');
+    await submitField('workspace-implementation-query-field', 'Price');
+    await tapKeyIfPresent('workspace-implementation-run');
+
+    await shell.buildWorkspaceTypeHierarchy(
+      const WorkspaceTypeHierarchyQuery(pattern: 'OrderBook'),
+    );
+    await showTab(BottomSurfaceTab.typeHierarchy);
+    await tapFirstKeyPrefixIfPresent('workspace-type-hierarchy-item-');
+    await tapTextIfPresent('Subtypes');
+    await tapKeyIfPresent('workspace-type-hierarchy-run');
+
+    await shell.collectWorkspaceOutline(
+      WorkspaceOutlineQuery(targetFilePath: mainPath),
+    );
+    await showTab(BottomSurfaceTab.outline);
+    await tapFirstKeyPrefixIfPresent('workspace-outline-item-');
+    await submitField('workspace-outline-filter-field', 'calculate');
+    await tapKeyIfPresent('workspace-outline-refresh');
+
+    await shell.searchWorkspaceSymbols(
+      const WorkspaceSymbolSearchQuery(pattern: 'calculate'),
+    );
+    await showTab(BottomSurfaceTab.symbols);
+    await submitField('workspace-symbol-search-query-field', 'Price');
+    await tapFirstKeyPrefixIfPresent('workspace-symbol-search-item-');
+
+    await shell.findWorkspaceReferences(
+      const WorkspaceReferenceSearchQuery(pattern: 'calculate'),
+    );
+    await showTab(BottomSurfaceTab.usages);
+    await submitField('workspace-reference-search-query-field', 'calculate');
+    await tapFirstKeyPrefixIfPresent('workspace-reference-search-item-');
+    await tapKey('workspace-reference-search-include-definitions');
+    await tapKey('workspace-reference-search-include-reads');
+    await tapKey('workspace-reference-search-include-writes');
+    await tapKeyIfPresent('workspace-reference-search-run');
+
+    await shell.buildWorkspaceCallHierarchy(
+      const WorkspaceCallHierarchyQuery(pattern: 'calculate'),
+    );
+    await showTab(BottomSurfaceTab.calls);
+    await submitField('workspace-call-hierarchy-query-field', 'calculate');
+    await tapTextIfPresent('Outgoing');
+    await tapKeyIfPresent('workspace-call-hierarchy-run');
+    await tapFirstKeyPrefixIfPresent('workspace-call-hierarchy-item-');
+
+    await shell.searchWorkspaceText(
+      const WorkspaceTextSearchQuery(pattern: 'blend'),
+    );
+    await showTab(BottomSurfaceTab.search);
+    await submitField('workspace-search-query-field', 'blend');
+    await tapFirstKeyPrefixIfPresent('workspace-search-match-');
+    await tester.enterText(
+      find.byKey(const ValueKey('workspace-replace-field')),
+      'mix',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    await tapKey('workspace-search-case-sensitive');
+    await tapKey('workspace-search-regex-mode');
+    await tapKey('workspace-search-literal-mode');
+    await tapKeyIfPresent('workspace-replace-preview');
+    await tapFirstKeyPrefixIfPresent('workspace-replace-match-');
+    await tapKeyIfPresent('workspace-search-run');
+
+    await shell.collectWorkspaceProblems(
+      const WorkspaceProblemsQuery(pattern: 'prices'),
+    );
+    await showTab(BottomSurfaceTab.problems);
+    await submitField('workspace-problems-filter-field', 'prices');
+    await tapFirstKeyPrefixIfPresent('workspace-problem-');
+    await tapKey('workspace-problems-errors');
+    await tapKey('workspace-problems-warnings');
+    await tapKey('workspace-problems-hints');
+    await tapKeyIfPresent('workspace-problems-refresh');
+
+    await shell.collectWorkspaceCodeActions(
+      const WorkspaceCodeActionsQuery(pattern: 'prices'),
+    );
+    await showTab(BottomSurfaceTab.actions);
+    await submitField('workspace-code-actions-filter-field', 'prices');
+    await tapFirstKeyPrefixIfPresent('workspace-code-action-apply-');
+    await tapKeyIfPresent('workspace-code-actions-refresh');
+
+    await shell.previewWorkspaceRename(
+      WorkspaceRenameQuery(
+        targetFilePath: mainPath,
+        targetOffset: calculateOffset,
+        newName: 'compute',
+      ),
+    );
+    await showTab(BottomSurfaceTab.rename);
+    await submitField('workspace-rename-name-field', 'compute');
+    await tapKeyIfPresent('workspace-rename-preview-run');
+    await tapKeyIfPresent('workspace-rename-apply-run');
   });
 
   testWidgets(

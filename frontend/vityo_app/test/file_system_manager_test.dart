@@ -69,6 +69,68 @@ void main() {
     );
   });
 
+  test('file system compatibility handles windows paths and uri support', () {
+    const windows = FileSystemCompatibility(
+      targetId: 'win-test',
+      compatibilityTarget: 'windows-x64',
+      pathStyle: FileSystemPathStyle.windows,
+      pathSeparator: r'\',
+      caseSensitive: false,
+      providerKind: FileSystemProviderKind.local,
+      watchSupport: FileSystemWatchSupport.recursive,
+      supportsFileUri: true,
+      supportsSymbolicLinks: true,
+      supportsAtomicWrite: false,
+    );
+    const noFileUri = FileSystemCompatibility(
+      targetId: 'virtual-test',
+      compatibilityTarget: 'unsupported',
+      pathStyle: FileSystemPathStyle.posix,
+      pathSeparator: '/',
+      caseSensitive: true,
+      providerKind: FileSystemProviderKind.virtual,
+      watchSupport: FileSystemWatchSupport.none,
+      supportsFileUri: false,
+      supportsSymbolicLinks: false,
+      supportsAtomicWrite: false,
+    );
+
+    expect(windows.supportsDirectoryWatch, isTrue);
+    expect(windows.supportsRecursiveWatch, isTrue);
+    expect(windows.isAbsolutePath(r'C:\Project\main.styio'), isTrue);
+    expect(windows.isAbsolutePath(r'\\server\share\main.styio'), isTrue);
+    expect(windows.isAbsolutePath(r'Project\main.styio'), isFalse);
+    expect(
+      windows.normalizePath(r'C:/workspace/../Project/./main.styio'),
+      r'C:\Project\main.styio',
+    );
+    expect(windows.normalizePath(r'.\src\..\main.styio'), 'main.styio');
+    expect(
+      windows.joinPath(<String>[r'C:\Project', 'src', 'main.styio']),
+      r'C:\Project\src\main.styio',
+    );
+    expect(
+      windows.isWithin(r'C:\PROJECT\src\main.styio', r'c:\project'),
+      isTrue,
+    );
+
+    final uri = windows.toFileUri(r'C:\Project\src\main.styio');
+    expect(uri.scheme, 'file');
+    expect(windows.pathFromFileUri(uri), r'C:\Project\src\main.styio');
+    expect(
+      () => windows.pathFromFileUri(Uri.parse('vityo://workspace/main.styio')),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      () => noFileUri.toFileUri('/workspace/main.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    expect(
+      () => noFileUri.pathFromFileUri(Uri.file('/workspace/main.styio')),
+      throwsA(isA<UnsupportedError>()),
+    );
+  });
+
   test('local file system manager reads writes stats and lists files', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_fs_manager_test_',
@@ -125,6 +187,74 @@ void main() {
     expect(
       unsupportedFailure.toJson()['sourceManager'],
       'UnsupportedFileSystemManager',
+    );
+  });
+
+  test('unsupported file system manager exposes compatibility only', () async {
+    final manager = UnsupportedFileSystemManager(
+      facts: FileSystemFacts.linuxDebianArm(),
+    );
+
+    expect(
+      manager.normalizePath('/tmp/../workspace/main.styio'),
+      '/workspace/main.styio',
+    );
+    expect(
+      manager.joinPath(<String>['/workspace', 'src', 'main.styio']),
+      '/workspace/src/main.styio',
+    );
+    expect(
+      manager.pathFromFileUri(manager.toFileUri('/workspace/src/main.styio')),
+      '/workspace/src/main.styio',
+    );
+    expect(manager.isWithin('/workspace/src/main.styio', '/workspace'), isTrue);
+    expect(await manager.exists('/workspace/src/main.styio'), isFalse);
+    expect(await manager.isExecutable('/workspace/src/main.styio'), isFalse);
+    expect(await manager.list('/workspace'), isEmpty);
+    final missing = await manager.stat('/workspace/src/main.styio');
+    expect(missing.exists, isFalse);
+    expect(missing.normalizedPath, '/workspace/src/main.styio');
+    expect(await manager.watch('/workspace').toList(), isEmpty);
+
+    await expectLater(
+      manager.createDirectory('/workspace/src'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.delete('/workspace/src/main.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.copy('/workspace/a.styio', '/workspace/b.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.move('/workspace/a.styio', '/workspace/b.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.rename('/workspace/a.styio', '/workspace/b.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.setExecutable('/workspace/tool'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.readText('/workspace/src/main.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.readBytes('/workspace/src/main.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.writeText('/workspace/src/main.styio', 'text'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.writeBytes('/workspace/src/main.styio', <int>[1, 2, 3]),
+      throwsA(isA<UnsupportedError>()),
     );
   });
 

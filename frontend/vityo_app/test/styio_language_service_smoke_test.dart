@@ -4497,4 +4497,66 @@ rs
 
     expect(initialsLabels, contains('resource_sink'));
   });
+
+  test('describes type names and standard resources in hover payloads', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'hover-type-resource.styio',
+      text: 'price: f64 = 1\nstdout\n',
+      revision: 0,
+    );
+
+    final typeHover = service.hoverAt(document, document.text.indexOf('f64'));
+    final resourceHover = service.hoverAt(
+      document,
+      document.text.indexOf('stdout'),
+    );
+
+    expect(typeHover?.markdown, contains('Type `f64`'));
+    expect(resourceHover?.markdown, contains('Resource identifier `stdout`'));
+  });
+
+  test('removes unreachable last-line and single-line ranges', () {
+    const service = SimpleStyioLanguageService();
+    const lastLineDocument = DocumentState(
+      documentId: 'unreachable-last-line.styio',
+      text: 'value = 1\nstale = 2',
+      revision: 0,
+    );
+    const singleLineDocument = DocumentState(
+      documentId: 'unreachable-single-line.styio',
+      text: 'stale = 2',
+      revision: 0,
+    );
+    final lastLineStart = lastLineDocument.text.indexOf('stale');
+
+    final lastLineFix = service
+        .quickFixesForDiagnostic(
+          lastLineDocument,
+          Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'unreachable-code',
+            message: 'Unreachable last line.',
+            range: SourceRange(
+              start: lastLineStart,
+              end: lastLineDocument.length,
+            ),
+          ),
+        )
+        .single;
+    final singleLineFix = service
+        .quickFixesForDiagnostic(
+          singleLineDocument,
+          const Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'unreachable-code',
+            message: 'Unreachable only line.',
+            range: SourceRange(start: 0, end: 9),
+          ),
+        )
+        .single;
+
+    expect(applyEdits(lastLineDocument.text, lastLineFix.edits), 'value = 1');
+    expect(applyEdits(singleLineDocument.text, singleLineFix.edits), '');
+  });
 }

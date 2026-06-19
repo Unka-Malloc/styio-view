@@ -24,6 +24,7 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_executor.dart
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_policy.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/module_host/module_registry.dart';
@@ -1476,6 +1477,109 @@ void main() {
     expect(shell.editorController.selection.start, 3);
     expect(shell.editorController.selection.end, 3);
   });
+
+  test('workspace navigation history trims, forks, and restores ranges', () async {
+    const firstDocumentPath = '/workspace/demo/src/main.styio';
+    const secondDocumentPath = '/workspace/demo/src/feature.styio';
+    const firstDocumentText =
+        '01234567890123456789012345678901234567890123456789'
+        '01234567890123456789012345678901234567890123456789\n';
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+      editorFiles: const <String>[firstDocumentPath, secondDocumentPath],
+    );
+    final shell = _createShell(
+      initialGraph: initialGraph,
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          firstDocumentPath: DocumentState(
+            documentId: firstDocumentPath,
+            text: firstDocumentText,
+            revision: 0,
+          ),
+          secondDocumentPath: DocumentState(
+            documentId: secondDocumentPath,
+            text: 'feature document\n',
+            revision: 0,
+          ),
+        },
+      ),
+    );
+    addTearDown(shell.dispose);
+
+    await shell.openWorkspaceNavigationLocation(
+      const WorkspaceNavigationLocation(
+        filePath: secondDocumentPath,
+        range: SourceRange(start: 1, end: 8),
+        line: 0,
+        column: 1,
+        previewText: 'feature document',
+        label: 'Feature range',
+        kind: WorkspaceNavigationLocationKind.symbol,
+      ),
+    );
+    await shell.executeCommand(AppCommandId.navigateBack);
+    await shell.executeCommand(AppCommandId.navigateForward);
+
+    expect(shell.workspaceController.activeFilePath, secondDocumentPath);
+    expect(shell.editorController.selection.start, 1);
+    expect(shell.editorController.selection.end, 8);
+
+    await shell.executeCommand(AppCommandId.navigateBack);
+    expect(shell.workspaceNavigationHistory.canGoForward, isTrue);
+
+    await shell.openWorkspaceNavigationLocation(
+      const WorkspaceNavigationLocation(
+        filePath: firstDocumentPath,
+        range: SourceRange(start: 3, end: 3),
+        line: 0,
+        column: 3,
+        previewText: '0123456789',
+        label: 'Forked range',
+      ),
+    );
+    expect(shell.workspaceNavigationHistory.canGoForward, isFalse);
+
+    for (var index = 0; index < 85; index += 1) {
+      await shell.openWorkspaceNavigationLocation(
+        WorkspaceNavigationLocation(
+          filePath: firstDocumentPath,
+          range: SourceRange(start: index, end: index),
+          line: 0,
+          column: index,
+          previewText: '0123456789',
+          label: 'Trim $index',
+        ),
+      );
+    }
+
+    expect(shell.workspaceNavigationHistory.entries.length, 80);
+  });
+
+  test('shell relays language service status changes', () {
+    final status = ValueNotifier<LanguageServiceStatusSurface>(
+      LanguageServiceStatusSurface.refreshing(),
+    );
+    addTearDown(status.dispose);
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+    );
+    final shell = _createShell(
+      initialGraph: initialGraph,
+      languageServiceStatus: status,
+    );
+    addTearDown(shell.dispose);
+    var notifications = 0;
+    shell.addListener(() {
+      notifications += 1;
+    });
+
+    status.value = LanguageServiceStatusSurface.unavailable();
+
+    expect(notifications, greaterThan(0));
+  });
 }
 
 ShellModel _createShell({
@@ -1492,6 +1596,7 @@ ShellModel _createShell({
   ExecutionAdapter? executionAdapter,
   ExecutionAdapterFactory? executionAdapterFactory,
   ToolchainManager? toolchainManager,
+  ValueNotifier<LanguageServiceStatusSurface>? languageServiceStatus,
   ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport,
   EditorSessionDataStore? editorSessionDataStore,
   String editorSessionWorkspaceId = 'demo',
@@ -1533,6 +1638,7 @@ ShellModel _createShell({
     deploymentAdapter: deploymentAdapter,
     toolchainManagementAdapter: toolchainManagementAdapter,
     toolchainManager: toolchainManager,
+    languageServiceStatus: languageServiceStatus,
     toolchainStatusReport: toolchainStatusReport,
     editorSessionDataStore: editorSessionDataStore,
     editorSessionWorkspaceId: editorSessionWorkspaceId,

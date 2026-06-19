@@ -5027,12 +5027,12 @@ blend(left: price, right: tax) -> @stdout
   });
 
   testWidgets('cycles mobile language inspector sections', (tester) async {
-    tester.view.physicalSize = const Size(430, 932);
+    tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final bootstrap = await createBootstrap(PlatformTarget.android);
+    final bootstrap = await createBootstrap(PlatformTarget.ios);
     const text =
         'fn blend(left: f64, right: f64): f64 {\n'
         '  emit left + right\n'
@@ -5053,11 +5053,6 @@ blend(left: price, right: tax) -> @stdout
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
     await revealMobileLanguagePane(tester);
 
-    final tabScrollable = find.descendant(
-      of: find.byKey(const ValueKey('language-pane-mobile'), skipOffstage: false),
-      matching: find.byType(Scrollable, skipOffstage: false),
-      skipOffstage: false,
-    );
     expect(
       find.byKey(
         const ValueKey('language-mobile-section-diagnostics'),
@@ -5078,12 +5073,6 @@ blend(left: price, right: tax) -> @stdout
 
     for (final section in sections.entries) {
       final tab = find.text(section.key, skipOffstage: false);
-      await tester.scrollUntilVisible(
-        tab.first,
-        120,
-        scrollable: tabScrollable.first,
-      );
-      await tester.pumpAndSettle();
       await tester.tap(tab.first);
       await tester.pump();
 

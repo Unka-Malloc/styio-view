@@ -4119,18 +4119,17 @@ blend(left: price, right: tax) -> @stdout
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final bootstrap = await createBootstrap(PlatformTarget.macos);
-
-    Future<void> loadAndFocus(DocumentState document) async {
+    Future<AppBootstrap> pumpDocument(DocumentState document) async {
+      final bootstrap = await createBootstrap(PlatformTarget.macos);
       bootstrap.editorController.loadDocument(document);
+      await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
       await pumpKeyboardSurface(tester);
       await focusSourceBuffer(tester);
+      return bootstrap;
     }
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-
     const renameText = 'value = value\n';
-    await loadAndFocus(
+    var bootstrap = await pumpDocument(
       const DocumentState(
         documentId: 'panel-inline-rename.styio',
         text: renameText,
@@ -4150,7 +4149,7 @@ blend(left: price, right: tax) -> @stdout
     );
 
     const safeDeleteText = 'used = 1\nunused = 2\nused -> @stdout\n';
-    await loadAndFocus(
+    bootstrap = await pumpDocument(
       const DocumentState(
         documentId: 'panel-safe-delete.styio',
         text: safeDeleteText,
@@ -4172,7 +4171,7 @@ blend(left: price, right: tax) -> @stdout
     );
 
     const inlineText = 'seed = 40 + 2\nvalue = seed\n';
-    await loadAndFocus(
+    bootstrap = await pumpDocument(
       const DocumentState(
         documentId: 'panel-inline-variable.styio',
         text: inlineText,
@@ -4201,7 +4200,7 @@ blend(left: price, right: tax) -> @stdout
 
     const introduceText = 'value = 40 + 2\n';
     final introduceStart = introduceText.indexOf('40 + 2');
-    await loadAndFocus(
+    bootstrap = await pumpDocument(
       const DocumentState(
         documentId: 'panel-introduce-variable.styio',
         text: introduceText,
@@ -4233,7 +4232,7 @@ blend(left: price, right: tax) -> @stdout
 
     const extractText = 'fn main(user) {\n  first = user + 1\n}\n';
     final extractStart = extractText.indexOf('user + 1');
-    await loadAndFocus(
+    bootstrap = await pumpDocument(
       const DocumentState(
         documentId: 'panel-extract-function.styio',
         text: extractText,
@@ -4268,7 +4267,7 @@ blend(left: price, right: tax) -> @stdout
         '  result = left + right\n'
         '}\n'
         'value = blend(price, tax)\n';
-    await loadAndFocus(
+    bootstrap = await pumpDocument(
       const DocumentState(
         documentId: 'panel-change-signature.styio',
         text: signatureText,

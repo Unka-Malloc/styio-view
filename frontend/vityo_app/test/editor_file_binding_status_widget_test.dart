@@ -148,6 +148,11 @@ void main() {
   testWidgets('editor surface renders fixed mobile language layout', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     const document = DocumentState(
       documentId: 'fixture://mobile-layout',
       text: 'value := 1\n',
@@ -158,8 +163,8 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: SizedBox(
-            width: 390,
-            height: 700,
+            width: 430,
+            height: 932,
             child: EditorSurface(
               controller: EditorSessionController(
                 initialDocument: document,
@@ -167,8 +172,8 @@ void main() {
               ),
               viewportProfile: const ViewportProfile(
                 family: ViewportFamily.mobile,
-                width: 390,
-                height: 700,
+                width: 430,
+                height: 932,
               ),
             ),
           ),

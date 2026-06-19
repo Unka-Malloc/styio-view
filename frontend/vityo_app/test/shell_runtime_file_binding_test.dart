@@ -2004,6 +2004,427 @@ value = 1
       DocumentResourceBindingState.boundClean,
     );
   });
+
+  test('shell runtime logs unavailable workspace open targets', () async {
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value = 1\n',
+      revision: 0,
+    );
+    final shell = _createNoopShellRuntime(
+      projectGraph: _projectGraphWithFiles(const <String>['src/main.styio']),
+      documentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': initialDocument,
+        },
+      ),
+      initialDocument: initialDocument,
+    );
+    addTearDown(shell.dispose);
+
+    await shell.navigateWorkspaceHistory(forward: false);
+    await shell.navigateWorkspaceHistory(forward: true);
+    await shell.openWorkspaceNavigationLocation(
+      const WorkspaceNavigationLocation(
+        filePath: 'missing.styio',
+        range: SourceRange(start: 0, end: 0),
+        line: 0,
+        column: 0,
+        previewText: '',
+        label: 'Missing',
+      ),
+    );
+    await shell.openWorkspaceQuickOpenItem(
+      const WorkspaceQuickOpenItem(
+        filePath: 'missing.styio',
+        fileName: 'missing.styio',
+        parentPath: '',
+        score: 1,
+        matches: <WorkspaceQuickOpenMatch>[],
+      ),
+    );
+    await shell.openWorkspaceSearchMatch(
+      const WorkspaceTextSearchMatch(
+        filePath: 'missing.styio',
+        range: WorkspaceTextRange(start: 0, end: 5),
+        line: 0,
+        column: 0,
+        previewText: 'missing',
+      ),
+    );
+    await shell.openWorkspaceSymbol(
+      const WorkspaceSymbolSearchItem(
+        filePath: 'missing.styio',
+        name: 'missingSymbol',
+        kind: SymbolKind.function,
+        detail: 'missing',
+        nameRange: SourceRange(start: 0, end: 7),
+        declarationRange: SourceRange(start: 0, end: 7),
+        line: 0,
+        column: 0,
+        previewText: 'missingSymbol',
+        score: 1,
+        matches: <WorkspaceSymbolSearchMatch>[],
+      ),
+    );
+    await shell.openWorkspaceOutlineItem(
+      const WorkspaceOutlineItem(
+        filePath: 'missing.styio',
+        name: 'missingOutline',
+        kind: SymbolKind.function,
+        detail: 'missing',
+        nameRange: SourceRange(start: 0, end: 7),
+        declarationRange: SourceRange(start: 0, end: 7),
+        line: 0,
+        column: 0,
+        previewText: 'missingOutline',
+      ),
+    );
+    await shell.openWorkspaceBreadcrumbItem(
+      const WorkspaceBreadcrumbItem(
+        label: 'src',
+        kind: WorkspaceBreadcrumbItemKind.folder,
+        filePath: 'src',
+      ),
+    );
+    await shell.openWorkspaceBreadcrumbItem(
+      const WorkspaceBreadcrumbItem(
+        label: 'missing.styio',
+        kind: WorkspaceBreadcrumbItemKind.file,
+        filePath: 'missing.styio',
+      ),
+    );
+    await shell.openWorkspaceDefinition(
+      const WorkspaceDefinitionItem(
+        filePath: 'missing.styio',
+        name: 'missingDefinition',
+        kind: StyioProjectSymbolKind.function,
+        range: SourceRange(start: 0, end: 7),
+        line: 0,
+        column: 0,
+        previewText: 'missingDefinition',
+      ),
+    );
+    await shell.openWorkspaceDocumentLink(
+      const WorkspaceDocumentLinkItem(
+        sourceFilePath: 'src/main.styio',
+        target: 'pkg/external',
+        kind: WorkspaceDocumentLinkKind.externalImport,
+        range: SourceRange(start: 0, end: 12),
+        line: 0,
+        column: 0,
+        previewText: '@import { pkg/external }',
+      ),
+    );
+    await shell.openWorkspaceDocumentLink(
+      const WorkspaceDocumentLinkItem(
+        sourceFilePath: 'src/main.styio',
+        target: 'missing',
+        kind: WorkspaceDocumentLinkKind.workspaceImport,
+        range: SourceRange(start: 0, end: 7),
+        line: 0,
+        column: 0,
+        previewText: '@import { missing }',
+        resolvedFilePath: 'missing.styio',
+      ),
+    );
+    await shell.openWorkspaceDocumentHighlight(
+      const WorkspaceDocumentHighlightItem(
+        filePath: 'missing.styio',
+        name: 'value',
+        kind: WorkspaceDocumentHighlightKind.text,
+        range: SourceRange(start: 0, end: 5),
+        line: 0,
+        column: 0,
+        previewText: 'value',
+        isActive: false,
+      ),
+    );
+    await shell.openWorkspaceCodeLens(
+      const WorkspaceCodeLensItem(
+        filePath: 'missing.styio',
+        symbolName: 'value',
+        symbolKind: StyioProjectSymbolKind.function,
+        kind: WorkspaceCodeLensKind.references,
+        commandTitle: '1 reference',
+        range: SourceRange(start: 0, end: 5),
+        line: 0,
+        column: 0,
+        previewText: 'value',
+        referenceCount: 1,
+        usageCount: 1,
+      ),
+    );
+    await shell.openWorkspaceDeclaration(
+      const WorkspaceDeclarationItem(
+        filePath: 'missing.styio',
+        name: 'missingDeclaration',
+        kind: WorkspaceDeclarationKind.function,
+        range: SourceRange(start: 0, end: 7),
+        line: 0,
+        column: 0,
+        previewText: 'missingDeclaration',
+      ),
+    );
+    await shell.openWorkspaceTypeDefinition(
+      const WorkspaceTypeDefinitionItem(
+        filePath: 'missing.styio',
+        name: 'MissingType',
+        kind: WorkspaceTypeDefinitionKind.schema,
+        range: SourceRange(start: 0, end: 11),
+        line: 0,
+        column: 0,
+        previewText: 'schema MissingType {}',
+      ),
+    );
+    await shell.openWorkspaceTypeHierarchySymbol(
+      const WorkspaceTypeHierarchySymbol(
+        filePath: 'missing.styio',
+        name: 'MissingType',
+        kind: WorkspaceTypeDefinitionKind.schema,
+        range: SourceRange(start: 0, end: 11),
+        line: 0,
+        column: 0,
+        previewText: 'schema MissingType {}',
+      ),
+    );
+    await shell.openWorkspaceImplementation(
+      const WorkspaceImplementationItem(
+        filePath: 'missing.styio',
+        name: 'MissingType',
+        kind: WorkspaceTypeDefinitionKind.schema,
+        range: SourceRange(start: 0, end: 11),
+        line: 0,
+        column: 0,
+        previewText: 'schema MissingType {}',
+        references: <WorkspaceTypeHierarchyLocation>[],
+      ),
+    );
+    await shell.openWorkspaceReference(
+      const WorkspaceReferenceSearchItem(
+        filePath: 'missing.styio',
+        name: 'value',
+        kind: StyioProjectSymbolKind.function,
+        range: SourceRange(start: 0, end: 5),
+        line: 0,
+        column: 0,
+        previewText: 'value',
+        isDefinition: false,
+        access: ReferenceAccess.read,
+        definition: WorkspaceReferenceDefinition(
+          filePath: 'src/main.styio',
+          name: 'value',
+          kind: StyioProjectSymbolKind.function,
+          range: SourceRange(start: 0, end: 5),
+          line: 0,
+          column: 0,
+          referenceCount: 1,
+        ),
+      ),
+    );
+    await shell.openWorkspaceCallHierarchyLocation(
+      const WorkspaceCallHierarchyLocation(
+        filePath: 'missing.styio',
+        range: SourceRange(start: 0, end: 5),
+        line: 0,
+        column: 0,
+        previewText: 'value',
+      ),
+    );
+    await shell.openWorkspaceProblem(
+      const WorkspaceProblemItem(
+        filePath: 'missing.styio',
+        diagnostic: Diagnostic(
+          severity: DiagnosticSeverity.error,
+          code: 'missing-file',
+          message: 'missing',
+          range: SourceRange(start: 0, end: 5),
+        ),
+        line: 0,
+        column: 0,
+        previewText: 'missing',
+      ),
+    );
+
+    for (final fragment in const <String>[
+      'Go Back unavailable',
+      'Go Forward unavailable',
+      'Recent location unavailable',
+      'Quick Open file unavailable',
+      'Workspace search match unavailable',
+      'Workspace symbol unavailable',
+      'Outline symbol unavailable',
+      'Breadcrumb segment is not openable',
+      'Breadcrumb target unavailable',
+      'Workspace definition unavailable',
+      'Document link unavailable: pkg/external',
+      'Document link unavailable: missing.styio',
+      'Document highlight unavailable',
+      'Code lens unavailable',
+      'Workspace declaration unavailable',
+      'Workspace type definition unavailable',
+      'Type hierarchy symbol unavailable',
+      'Workspace implementation unavailable',
+      'Workspace usage unavailable',
+      'Call hierarchy location unavailable',
+      'Workspace problem unavailable',
+    ]) {
+      expect(shell.debugLog.any((entry) => entry.contains(fragment)), isTrue);
+    }
+  });
+
+  test('shell runtime logs command routes and non-applied workspace edits', () async {
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value = 1\n',
+      revision: 0,
+    );
+    final shell = _createNoopShellRuntime(
+      projectGraph: _projectGraphWithFiles(const <String>['src/main.styio']),
+      documentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': initialDocument,
+        },
+      ),
+      initialDocument: initialDocument,
+    );
+    addTearDown(shell.dispose);
+
+    await shell.executeCommand(AppCommandId.fetchDependencies);
+    await shell.executeCommand(AppCommandId.refreshModules);
+    await shell.executeCommand(AppCommandId.openSettings);
+
+    final hierarchy = await shell.buildWorkspaceTypeHierarchy(
+      const WorkspaceTypeHierarchyQuery(pattern: 'MissingType'),
+    );
+    final implementations = await shell.findWorkspaceImplementations(
+      const WorkspaceImplementationQuery(pattern: 'MissingType'),
+    );
+    final calls = await shell.buildWorkspaceCallHierarchy(
+      const WorkspaceCallHierarchyQuery(pattern: 'missingCall'),
+    );
+    final replace = await shell.applyWorkspaceReplace(
+      const WorkspaceTextReplaceQuery(pattern: 'absent', replacement: 'next'),
+    );
+    final rename = await shell.applyWorkspaceRename(
+      const WorkspaceRenameQuery(
+        targetFilePath: 'src/main.styio',
+        targetOffset: 0,
+        newName: 'renamed',
+      ),
+    );
+    final action = await shell.applyWorkspaceCodeAction(
+      query: const WorkspaceCodeActionsQuery(pattern: 'none'),
+      actionId: 'missing-action',
+    );
+
+    expect(hierarchy.target, isNull);
+    expect(implementations.target, isNull);
+    expect(calls.target, isNull);
+    expect(replace.applied, isFalse);
+    expect(rename.applied, isFalse);
+    expect(action.applied, isFalse);
+    for (final fragment in const <String>[
+      'Fetch Dependencies blocked',
+      'Module host refresh requested',
+      'Native bridge local.runtime.desktop',
+      'Settings route is reserved',
+      'Type Hierarchy "MissingType" found no type target',
+      'Go to Implementation "MissingType" found no type target',
+      'Call Hierarchy "missingCall" found no callable target',
+      'Workspace replace not applied',
+      'Rename Symbol not applied',
+      'Workspace Code Action not applied',
+    ]) {
+      expect(shell.debugLog.any((entry) => entry.contains(fragment)), isTrue);
+    }
+  });
+
+  test('shell runtime records verbose run output and command navigation', () async {
+    const mainDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value = 1\n',
+      revision: 0,
+    );
+    const workerDocument = DocumentState(
+      documentId: 'src/worker.styio',
+      text: 'worker = 2\n',
+      revision: 0,
+    );
+    final shell = _createNoopShellRuntime(
+      projectGraph: _projectGraphWithFiles(
+        const <String>['src/main.styio', 'src/worker.styio'],
+      ),
+      documentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': mainDocument,
+          'src/worker.styio': workerDocument,
+        },
+      ),
+      initialDocument: mainDocument,
+      executionAdapter: const _VerboseExecutionAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    await shell.openWorkspaceQuickOpenItem(
+      const WorkspaceQuickOpenItem(
+        filePath: 'src/worker.styio',
+        fileName: 'worker.styio',
+        parentPath: 'src',
+        score: 10,
+        matches: <WorkspaceQuickOpenMatch>[],
+      ),
+    );
+    await shell.executeCommand(AppCommandId.navigateBack);
+    await shell.executeCommand(AppCommandId.navigateForward);
+    await shell.executeCommand(AppCommandId.run);
+
+    expect(shell.workspaceController.activeFilePath, 'src/worker.styio');
+    expect(shell.lastExecutionSession?.sessionId, 'verbose-run');
+    for (final fragment in const <String>[
+      'Go Back opened',
+      'Go Forward opened',
+      'stdout: first stdout',
+      'stderr: first stderr',
+      'diagnostics: 1 issue',
+    ]) {
+      expect(shell.debugLog.any((entry) => entry.contains(fragment)), isTrue);
+    }
+  });
+}
+
+ShellRuntimeModel _createNoopShellRuntime({
+  required ProjectGraphSnapshot projectGraph,
+  required WorkspaceDocumentStore documentStore,
+  required DocumentState initialDocument,
+  ExecutionAdapter executionAdapter = const _NoopExecutionAdapter(),
+  RuntimeEventAdapter runtimeEventAdapter = const _NoopRuntimeEventAdapter(),
+}) {
+  return ShellRuntimeModel(
+    platformTarget: PlatformTarget.macos,
+    supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+    projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+    workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+    workspaceDocumentStore: documentStore,
+    moduleRegistry: ModuleRegistry(
+      platformTarget: PlatformTarget.macos,
+      definitions: const [],
+    ),
+    nativeModuleLoader: const NoopNativeModuleLoader(
+      platformTarget: PlatformTarget.macos,
+    ),
+    editorController: EditorSessionController(
+      initialDocument: initialDocument,
+      languageService: const _NoopStyioLanguageService(),
+    ),
+    executionAdapter: executionAdapter,
+    executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+        executionAdapter,
+    runtimeEventAdapter: runtimeEventAdapter,
+    dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+    deploymentAdapter: const _NoopDeploymentAdapter(),
+    toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+  );
 }
 
 class _WatchingDocumentResourceStore implements DocumentResourceStore {
@@ -2067,6 +2488,43 @@ class _StaticProjectGraphAdapter implements ProjectGraphAdapter {
 
   @override
   Future<ProjectGraphSnapshot> loadProjectGraph() async => _projectGraph;
+}
+
+class _VerboseExecutionAdapter implements ExecutionAdapter {
+  const _VerboseExecutionAdapter();
+
+  @override
+  AdapterCapabilitySnapshot get capabilitySnapshot => _capabilitySnapshot;
+
+  @override
+  Future<ExecutionSession> runActiveDocument({
+    required PlatformTarget platformTarget,
+    required ProjectGraphSnapshot projectGraph,
+    required DocumentState document,
+    required String activeFilePath,
+  }) async {
+    return const ExecutionSession(
+      sessionId: 'verbose-run',
+      kind: 'run',
+      status: ExecutionSessionStatus.failed,
+      statusMessage: 'verbose run failed with structured output',
+      diagnostics: <Diagnostic>[
+        Diagnostic(
+          severity: DiagnosticSeverity.error,
+          code: 'verbose-diagnostic',
+          message: 'verbose diagnostic',
+          range: SourceRange(start: 0, end: 5),
+        ),
+      ],
+      stdoutEvents: <ExecutionLogEvent>[
+        ExecutionLogEvent(message: 'first stdout'),
+        ExecutionLogEvent(message: 'second stdout'),
+      ],
+      stderrEvents: <ExecutionLogEvent>[
+        ExecutionLogEvent(message: 'first stderr'),
+      ],
+    );
+  }
 }
 
 class _NoopExecutionAdapter implements ExecutionAdapter {

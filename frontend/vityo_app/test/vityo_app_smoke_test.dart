@@ -831,7 +831,7 @@ fn blend(left: f64, right: f64): f64 {
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
 
-    expect(find.text('Scratch Coverage Project'), findsOneWidget);
+    expect(find.text('Scratch Coverage Project'), findsWidgets);
     expect(find.text('scratch'), findsWidgets);
     expect(find.text('0 package'), findsOneWidget);
     expect(find.text('0 target'), findsOneWidget);

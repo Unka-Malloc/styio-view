@@ -1375,6 +1375,109 @@ raise SystemExit(64)
       expect(libSession.statusMessage, 'library build completed');
     },
   );
+
+  test('single-file execution parses diagnostic edge payloads as logs', () async {
+    final tempRoot = await _createTempRoot(
+      'vityo_execution_diagnostic_edges_test_',
+    );
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}scratch${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('price = 1\nresult = price\n');
+    final helperFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}scratch${Platform.pathSeparator}helper.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('helper = 1\n');
+
+    final fakeStyio = await _writeExecutable(
+      File('${tempRoot.path}${Platform.pathSeparator}fake-styio'),
+      '''#!/usr/bin/env python3
+import json, sys
+
+if len(sys.argv) >= 4 and sys.argv[1] == '--file' and sys.argv[3] == '--error-format=jsonl':
+    print('{broken')
+    print(json.dumps({'message': 'structured log without diagnostic marker'}))
+    print(json.dumps({
+        'type': 'diagnostic',
+        'text': {'text': 'typed diagnostic'},
+        'severity': 'warning',
+        'code': True,
+        'location': {'start': {'index': 0}, 'end': {'value': 5}},
+    }))
+    sys.stderr.write(json.dumps({
+        'category': 'RuntimeType',
+        'detail': 'runtime category failed',
+        'offset': 8.0,
+        'length': 3.0,
+    }) + '\\n')
+    sys.stderr.write(json.dumps({
+        'category': 'Warning',
+        'message': ${jsonEncode('${helperFile.path}: already decorated')},
+        'file': ${jsonEncode(helperFile.path)},
+        'span': {'start': {'position': 1}, 'end': {'offset': 4}},
+    }) + '\\n')
+    raise SystemExit(65)
+
+raise SystemExit(64)
+''',
+    );
+
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: tempRoot.path,
+      activeFilePath: sourceFile.path,
+      title: 'Scratch Project',
+      notes: const <String>[],
+      activeCompiler: _compilerSnapshot(
+        fakeStyio.path,
+        contracts: const <String, List<int>>{
+          'machine_info': <int>[1],
+        },
+      ),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+
+    final session = await adapter.runActiveDocument(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+      document: const DocumentState(
+        documentId: 'scratch',
+        text: 'price = 1\nresult = price\n',
+        revision: 1,
+      ),
+      activeFilePath: sourceFile.path,
+    );
+
+    expect(session.status, ExecutionSessionStatus.failed);
+    expect(session.diagnostics.map((diagnostic) => diagnostic.message), [
+      'typed diagnostic',
+      'runtime category failed',
+    ]);
+    expect(session.diagnostics.first.severity, DiagnosticSeverity.warning);
+    expect(session.diagnostics.first.code, 'true');
+    expect(session.diagnostics.first.range.start, 0);
+    expect(session.diagnostics.first.range.end, 5);
+    expect(session.diagnostics.last.severity, DiagnosticSeverity.error);
+    expect(session.diagnostics.last.range.start, 8);
+    expect(session.diagnostics.last.range.end, 11);
+    expect(
+      session.stdoutEvents.map((event) => event.message),
+      containsAll(<String>[
+        '{broken',
+        '{"message": "structured log without diagnostic marker"}',
+      ]),
+    );
+    expect(
+      session.stderrEvents.map((event) => event.message),
+      contains('${helperFile.path}: already decorated'),
+    );
+  });
 }
 
 Future<Directory> _createTempRoot(String prefix) async {

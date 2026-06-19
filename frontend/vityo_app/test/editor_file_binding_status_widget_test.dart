@@ -341,7 +341,7 @@ loose
     );
     await closePanel();
 
-    controller.selectCollapsed(text.indexOf('blend(') + 'blend('.length);
+    controller.selectCollapsed(text.lastIndexOf('blend(') + 'blend('.length);
     await tester.pump();
     await sendShortcut(LogicalKeyboardKey.keyP);
     expect(

@@ -162,4 +162,67 @@ void main() {
     expect(noLinksResult.status, WorkspaceDocumentLinksStatus.noLinks);
     expect(noLinksResult.message, 'No document links found in main.styio.');
   });
+
+  test('workspace document links covers query helpers and glob edges', () async {
+    const query = WorkspaceDocumentLinksQuery(targetFilePath: 'main.styio');
+    final copied = query.copyWith(
+      targetFilePath: 'src/main.styio',
+      pattern: 'workspaceImport',
+      includeExternal: false,
+      includeUnresolved: false,
+      includeGlobs: const <String>['src/**'],
+      excludeGlobs: const <String>['src/generated/**'],
+      maxResults: 0,
+    );
+
+    expect(copied.targetFilePath, 'src/main.styio');
+    expect(copied.pattern, 'workspaceImport');
+    expect(copied.includeExternal, isFalse);
+    expect(copied.includeUnresolved, isFalse);
+    expect(copied.maxResults, 0);
+
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': DocumentState(
+          documentId: 'src/main.styio',
+          text: '''
+  @import src/lib/runtime
+  @import { styio/core }
+  @import { src/missing }
+''',
+          revision: 0,
+        ),
+        'src/lib/runtime.styio': DocumentState(
+          documentId: 'src/lib/runtime.styio',
+          text: '#runtime := () => {}\n',
+          revision: 0,
+        ),
+        'src/generated/skip.styio': DocumentState(
+          documentId: 'src/generated/skip.styio',
+          text: '#skip := () => {}\n',
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceDocumentLinksService(documentStore: store);
+
+    final result = await service.collectLinks(
+      filePaths: const <String>[
+        'src/main.styio',
+        'src/main.styio',
+        'src/lib/runtime.styio',
+        'src/generated/skip.styio',
+      ],
+      query: copied,
+    );
+
+    expect(result.status, WorkspaceDocumentLinksStatus.completed);
+    expect(result.linksIndexed, 3);
+    expect(result.linkCount, 1);
+    expect(result.links.single.kindLabel, 'workspace import');
+    expect(result.links.single.targetLabel, 'src/lib/runtime.styio');
+    expect(result.links.single.canOpen, isTrue);
+    expect(result.links.single.column, 2);
+    expect(result.message, isNull);
+  });
 }

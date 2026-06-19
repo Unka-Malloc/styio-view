@@ -280,8 +280,11 @@ void main() {
       <int>[1, 2],
     );
     expect(graph.activeCompiler!.hasFeatureFlag('runtime'), isTrue);
-    expect(graph.toolchainEnvironment.projectPin!.channel, 'stable');
-    expect(graph.toolchainEnvironment.managedToolchains.installed, hasLength(1));
+    expect(graph.toolchainEnvironment!.projectPin!.channel, 'stable');
+    expect(
+      graph.toolchainEnvironment!.managedToolchains.installed,
+      hasLength(1),
+    );
     expect(graph.packageDistribution!.publishablePackages, 0);
     expect(graph.packageDistribution!.blockedPackages, 1);
     expect(

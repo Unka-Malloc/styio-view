@@ -2326,7 +2326,7 @@ value = 1
     expect(rename.applied, isFalse);
     expect(action.applied, isFalse);
     for (final fragment in const <String>[
-      'Fetch Dependencies blocked',
+      'Fetch Dependencies blocked: fetch requires a resolved spio manifest path',
       'Module host refresh requested',
       'Native bridge local.runtime.desktop',
       'Settings route is reserved',
@@ -2337,7 +2337,11 @@ value = 1
       'Rename Symbol not applied',
       'Workspace Code Action not applied',
     ]) {
-      expect(shell.debugLog.any((entry) => entry.contains(fragment)), isTrue);
+      expect(
+        shell.debugLog.any((entry) => entry.contains(fragment)),
+        isTrue,
+        reason: 'Expected debug log to contain "$fragment".',
+      );
     }
   });
 

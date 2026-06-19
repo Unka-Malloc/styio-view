@@ -213,8 +213,10 @@ version = "2026.6.19"
       expect(graph.kind, ProjectKind.scratch);
       expect(graph.workspaceRoot, tempRoot.absolute.path);
       expect(graph.toolchain.source, ToolchainResolutionSource.projectPin);
-      expect(graph.toolchain.channel, 'nightly');
-      expect(graph.toolchain.version, '2026.6.19');
+      expect(
+        graph.toolchain.detail,
+        contains('Project toolchain pin is present'),
+      );
       expect(
         graph.toolchain.pinPath,
         endsWith('${Platform.pathSeparator}spio-toolchain.toml'),

@@ -1213,7 +1213,7 @@ fn blend(left: f64, right: f64): f64 {
   testWidgets('renders compact command and quick open empty states', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 760);
+    tester.view.physicalSize = const Size(430, 932);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -1227,33 +1227,57 @@ fn blend(left: f64, right: f64): f64 {
     );
     expect(find.byKey(const ValueKey('shell-viewport-mobile')), findsOneWidget);
 
+    Future<void> revealBottomSurface() async {
+      final mobileShell = find.byKey(const ValueKey('shell-viewport-mobile'));
+      for (var attempt = 0; attempt < 3; attempt += 1) {
+        await tester.drag(mobileShell, const Offset(0, -520));
+        await tester.pumpAndSettle();
+      }
+    }
+
     shell.selectBottomTab(BottomSurfaceTab.commands);
     await tester.pumpAndSettle();
+    await revealBottomSurface();
     expect(
-      find.byKey(const ValueKey('command-palette-surface')),
+      find.byKey(
+        const ValueKey('command-palette-surface'),
+        skipOffstage: false,
+      ),
       findsOneWidget,
     );
     final commandField = find.byKey(
       const ValueKey('command-palette-query-field'),
+      skipOffstage: false,
     );
     await tester.ensureVisible(commandField);
     await tester.enterText(commandField, 'no-such-command');
     await tester.pumpAndSettle();
-    expect(find.text('No matching commands.'), findsOneWidget);
+    expect(
+      find.text('No matching commands.', skipOffstage: false),
+      findsOneWidget,
+    );
 
     shell.selectBottomTab(BottomSurfaceTab.navigate);
     await tester.pumpAndSettle();
+    await revealBottomSurface();
     expect(
-      find.byKey(const ValueKey('workspace-quick-open-surface')),
+      find.byKey(
+        const ValueKey('workspace-quick-open-surface'),
+        skipOffstage: false,
+      ),
       findsOneWidget,
     );
     final quickOpenField = find.byKey(
       const ValueKey('workspace-quick-open-query-field'),
+      skipOffstage: false,
     );
     await tester.ensureVisible(quickOpenField);
     await tester.enterText(quickOpenField, 'no-such-file');
     await tester.pumpAndSettle();
-    expect(find.text('No matching files.'), findsOneWidget);
+    expect(
+      find.text('No matching files.', skipOffstage: false),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

@@ -219,6 +219,88 @@ void main() {
     expect(updated.overrides['shell.defaultProfileId'], 'bash');
   });
 
+  test('platform context applies every mutable fact section', () async {
+    final controller = createController();
+
+    await controller.refresh();
+    await controller.applyFileSystemFacts(
+      FileSystemFacts.linuxDebianArm(
+        targetId: 'foreign-fs',
+        architecture: 'armv7l',
+      ),
+    );
+    await controller.applyProcessFacts(
+      ProcessFacts.linuxDebianArm(
+        targetId: 'foreign-process',
+        architecture: 'armv7l',
+      ),
+    );
+    await controller.applyResourceFacts(
+      ResourceFacts.linuxDebianArm(
+        targetId: 'foreign-resource',
+        processorCount: 8,
+      ),
+    );
+    await controller.applyClipboardFacts(
+      ClipboardFacts.linuxDebianArm(
+        targetId: 'foreign-clipboard',
+        supportsSystemClipboard: false,
+      ),
+    );
+    await controller.applyNotificationFacts(
+      NotificationFacts.linuxDebianArm(
+        targetId: 'foreign-notification',
+        supportsDesktopNotifications: false,
+      ),
+    );
+    await controller.applyLocalServiceFacts(
+      LocalServiceFacts.linuxDebianArm(
+        targetId: 'foreign-local-service',
+        architecture: 'armv7l',
+      ),
+    );
+    final updated = await controller.applyPtyFacts(
+      PtyFacts.linuxDebianArm(
+        targetId: 'foreign-pty',
+        scriptUtilityPath: null,
+      ),
+    );
+
+    expect(updated.fileSystem.targetId, 'ctx');
+    expect(updated.fileSystem.architecture, 'armv7l');
+    expect(updated.process.targetId, 'ctx');
+    expect(updated.process.architecture, 'armv7l');
+    expect(updated.resource.processorCount, 8);
+    expect(updated.clipboard.supportsSystemClipboard, isFalse);
+    expect(updated.notification.supportsDesktopNotifications, isFalse);
+    expect(updated.localService.architecture, 'armv7l');
+    expect(updated.pty.supportsRawMode, isFalse);
+    expect(controller.currentSnapshot, same(updated));
+  });
+
+  test('platform context controller reports missing context and probers', () async {
+    final controller = PlatformContextController(
+      store: InMemoryPlatformContextStore(),
+      detector: StaticPlatformDetector(
+        PlatformContextSnapshot.compose(
+          targetId: 'missing-load',
+          fileSystem: FileSystemFacts.linuxDebianArm(targetId: 'missing-load'),
+          shell: ShellFacts.linuxDebianArm(targetId: 'missing-load'),
+        ),
+      ),
+      targetId: 'missing-load',
+    );
+
+    await expectLater(
+      controller.load(refreshIfMissing: false),
+      throwsStateError,
+    );
+    expect(
+      () => PlatformContextController(store: InMemoryPlatformContextStore()),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
   test('platform context file store persists and reloads all facts', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_platform_context_test_',

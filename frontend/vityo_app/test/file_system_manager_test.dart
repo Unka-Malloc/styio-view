@@ -154,6 +154,30 @@ void main() {
       manager.joinPath(<String>[tempRoot.path, 'workspace']),
     );
     expect(entries.map((entry) => entry.normalizedPath), contains(filePath));
+
+    final bytesPath = manager.joinPath(<String>[
+      tempRoot.path,
+      'workspace',
+      'bytes.bin',
+    ]);
+    await manager.writeBytes(bytesPath, <int>[1, 2, 3], atomic: false);
+    expect(await manager.readBytes(bytesPath), <int>[1, 2, 3]);
+    await manager.writeText(filePath, 'non-atomic', atomic: false);
+    expect(await manager.readText(filePath), 'non-atomic');
+    await manager.delete(bytesPath);
+    expect((await manager.stat(bytesPath)).exists, isFalse);
+    await manager.delete(bytesPath);
+  });
+
+  test('platform file system manager can be created from a prober', () async {
+    final manager = await createPlatformFileSystemManager(
+      prober: StaticFileSystemProber(
+        FileSystemFacts.linuxDebianArm(targetId: 'probe-fs'),
+      ),
+    );
+
+    expect(manager.facts.targetId, 'probe-fs');
+    expect(manager.compatibility.isLinuxDebianArm, isTrue);
   });
 
   test('file system manager classifies operation failures structurally', () {
@@ -355,6 +379,51 @@ void main() {
     );
     await manager.copy(source, renamed, overwrite: true);
     expect(await manager.readText(renamed), 'copy-move-ok');
+
+    final sourceDirectory = manager.joinPath(<String>[
+      tempRoot.path,
+      'source-directory',
+    ]);
+    final nestedFile = manager.joinPath(<String>[
+      sourceDirectory,
+      'nested',
+      'child.txt',
+    ]);
+    final copiedDirectory = manager.joinPath(<String>[
+      tempRoot.path,
+      'copied-directory',
+    ]);
+    final movedDirectory = manager.joinPath(<String>[
+      tempRoot.path,
+      'moved-directory',
+    ]);
+    await manager.writeText(nestedFile, 'directory-copy');
+    await manager.copy(sourceDirectory, copiedDirectory);
+    expect(
+      await manager.readText(
+        manager.joinPath(<String>[
+          copiedDirectory,
+          'nested',
+          'child.txt',
+        ]),
+      ),
+      'directory-copy',
+    );
+    await manager.move(copiedDirectory, movedDirectory);
+    expect(await manager.exists(copiedDirectory), isFalse);
+    expect(await manager.exists(movedDirectory), isTrue);
+    await manager.copy(sourceDirectory, movedDirectory, overwrite: true);
+    expect(await manager.exists(movedDirectory), isTrue);
+    await manager.delete(movedDirectory, recursive: true);
+    expect(await manager.exists(movedDirectory), isFalse);
+
+    await expectLater(
+      manager.copy(
+        manager.joinPath(<String>[tempRoot.path, 'missing.txt']),
+        manager.joinPath(<String>[tempRoot.path, 'missing-copy.txt']),
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
   });
 
   test('workspace document store uses file system manager route', () async {

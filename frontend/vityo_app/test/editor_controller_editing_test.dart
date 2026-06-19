@@ -2665,4 +2665,182 @@ value -> @stdout
     expect(controller.canUndo, isFalse);
     expect(controller.document.text, text);
   });
+
+  test('redoes edits and caps the undo stack', () {
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: '',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+
+    for (var index = 0; index < 130; index += 1) {
+      controller.insertText('x');
+    }
+
+    expect(controller.document.text.length, 130);
+    controller.undo();
+    expect(controller.document.text.length, 129);
+    expect(controller.canRedo, isTrue);
+
+    controller.redo();
+
+    expect(controller.document.text.length, 130);
+    expect(controller.canRedo, isFalse);
+  });
+
+  test('deletes selected ranges with backspace and delete forward', () {
+    const text = 'alpha beta';
+    final start = text.indexOf('beta');
+    final backspaceController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(baseOffset: start, extentOffset: 10),
+    );
+
+    backspaceController.backspace();
+    expect(backspaceController.document.text, 'alpha ');
+    expect(backspaceController.selection.end, start);
+
+    final deleteController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(baseOffset: start, extentOffset: 10),
+    );
+
+    deleteController.deleteForward();
+    expect(deleteController.document.text, 'alpha ');
+    expect(deleteController.selection.end, start);
+  });
+
+  test('extends selections through caret movement variants', () {
+    const text = 'ab\ncdef\nxy';
+    final controller = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(1),
+    );
+
+    controller.moveCaretHorizontally(1, expandSelection: true);
+    expect(controller.selection.start, 1);
+    expect(controller.selection.end, 2);
+
+    controller.moveCaretVertically(1, expandSelection: true);
+    expect(controller.selection.baseOffset, 1);
+    expect(controller.selection.extentOffset, 5);
+
+    controller.selectCollapsed(text.indexOf('de'));
+    controller.moveCaretToLineBoundary(end: true, expandSelection: true);
+    expect(controller.selection.baseOffset, text.indexOf('de'));
+    expect(controller.selection.extentOffset, text.indexOf('\nxy'));
+  });
+
+  test('applies completion over selections and non-identifier tokens', () {
+    const selectedText = 'alpha beta';
+    final selectedController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: selectedText,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState(
+        baseOffset: selectedText.indexOf('beta'),
+        extentOffset: selectedText.length,
+      ),
+    );
+    const completion = CompletionItem(
+      label: 'gamma',
+      kind: CompletionItemKind.variable,
+      insertText: 'gamma',
+    );
+
+    selectedController.applyCompletionItem(completion);
+    expect(selectedController.document.text, 'alpha gamma');
+
+    const fixtures = <String, int>{
+      '42': 2,
+      '"hi"': 4,
+      '// note': 7,
+      '|>': 2,
+      '(': 1,
+      ' ': 1,
+      '~': 1,
+    };
+    for (final entry in fixtures.entries) {
+      final controller = EditorSessionController(
+        initialDocument: DocumentState(
+          documentId: 'sample.styio',
+          text: entry.key,
+          revision: 0,
+        ),
+        languageService: const SimpleStyioLanguageService(),
+        initialSelection: SelectionState.collapsed(entry.value),
+      );
+
+      controller.applyCompletionItem(completion);
+      final expectedText = entry.key == '~' ? 'gamma' : '${entry.key}gamma';
+      expect(controller.document.text, expectedText);
+      expect(controller.selection.end, expectedText.length);
+    }
+  });
+
+  test('reports token diagnostics and empty token selections', () {
+    final emptyController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'empty.styio',
+        text: '',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+    expect(emptyController.diagnosticsAtSelectionToken, isEmpty);
+
+    const text = 'let stream\n';
+    final diagnosticController = EditorSessionController(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: text,
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: SelectionState.collapsed(text.indexOf('stream') + 2),
+    );
+
+    expect(
+      diagnosticController.diagnosticsAtSelectionToken.map((item) => item.code),
+      contains('missing-assignment'),
+    );
+  });
+
+  test('seeds known cloud documents and fallback documents', () {
+    final cloudDocument = EditorSessionController.seedDocumentForPath(
+      '/workspace/demo/cloud/runtime_surface.styio',
+    );
+    expect(cloudDocument.text, contains('inspectCloudSession'));
+    expect(
+      cloudDocument.documentId,
+      '/workspace/demo/cloud/runtime_surface.styio',
+    );
+
+    final fallbackDocument = EditorSessionController.seedDocumentForPath(
+      '/workspace/demo/src/new_file.styio',
+    );
+    expect(fallbackDocument.text, '// empty document\n');
+    expect(fallbackDocument.documentId, '/workspace/demo/src/new_file.styio');
+  });
 }

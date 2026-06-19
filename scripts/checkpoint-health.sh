@@ -29,6 +29,7 @@ FLUTTER_DIR="frontend/vityo_app"
 PROTOTYPE_DIR="prototype"
 EDITOR_URL="http://127.0.0.1:4180/editor.html"
 STYIO_BIN="${STYIO:-}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 RUN_LANGUAGE_FIXTURES=1
 
 while [[ $# -gt 0 ]]; do
@@ -69,13 +70,13 @@ log "flutter analyze"
 (cd "$FLUTTER_DIR" && flutter analyze)
 
 log "repo hygiene policy tests"
-python3 -m unittest tests.test_repo_hygiene_gate
+"$PYTHON_BIN" -m unittest tests.test_repo_hygiene_gate
 
-log "flutter test"
-(cd "$FLUTTER_DIR" && flutter test)
+log "project coverage gate"
+"$PYTHON_BIN" scripts/project-coverage-gate.py --fail-under 95 --flutter-dir "$FLUTTER_DIR"
 
 log "release readiness static gate"
-python3 scripts/release-readiness-gate.py --flutter-dir "$FLUTTER_DIR" --skip-build
+"$PYTHON_BIN" scripts/release-readiness-gate.py --flutter-dir "$FLUTTER_DIR" --skip-build
 
 if [[ "$RUN_LANGUAGE_FIXTURES" -eq 1 ]]; then
   log "language fixture confidence gate"

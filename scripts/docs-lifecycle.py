@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -18,7 +17,6 @@ ARCHIVE_HISTORY = ARCHIVE / "history"
 MANIFEST_PATH = ARCHIVE / "ARCHIVE-MANIFEST.json"
 LEDGER_PATH = ARCHIVE / "ARCHIVE-LEDGER.md"
 TODAY = date.today().isoformat()
-DATE_FILE_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$")
 
 
 def default_manifest() -> dict[str, object]:
@@ -65,7 +63,7 @@ def render_ledger(manifest: dict[str, object]) -> str:
         "",
         f"- Archive root: `{manifest.get('archive_root', 'docs/archive')}`",
         f"- Rollup root: `{manifest.get('rollup_root', 'docs/rollups')}`",
-        f"- History keep window: `{manifest.get('keep_window', {}).get('history', 1)}` active daily file(s)",
+        f"- History keep window: `{manifest.get('keep_window', {}).get('history', 1)}` active history file(s)",
         "",
         "## Entries",
         "",
@@ -106,13 +104,6 @@ def validate() -> int:
     for path in (ROLLUPS / "CURRENT-STATE.md", ROLLUPS / "NEXT-STAGE-GAP-LEDGER.md", MANIFEST_PATH, LEDGER_PATH):
         if not path.exists():
             errors.append(f"missing lifecycle file: {path.relative_to(ROOT).as_posix()}")
-
-    for base in (HISTORY, ARCHIVE_HISTORY):
-        for path in base.glob("*.md"):
-            if path.name in {"README.md", "INDEX.md"}:
-                continue
-            if not DATE_FILE_RE.match(path.name):
-                errors.append(f"dated history file must use YYYY-MM-DD.md: {path.relative_to(ROOT).as_posix()}")
 
     if MANIFEST_PATH.exists():
         try:

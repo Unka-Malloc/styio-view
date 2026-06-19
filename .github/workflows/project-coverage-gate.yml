@@ -1,0 +1,53 @@
+name: project-coverage-gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - nightly
+      - "coverage/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  project-coverage-gate:
+    name: project-coverage-gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      STYIO_PYTHON_VERSION: "3.13.5"
+      STYIO_FLUTTER_VERSION: "3.41.7"
+
+    steps:
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@v5
+
+      - name: Set up standardized Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+
+      - name: Set up standardized Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
+
+      - name: Restore coverage dependencies
+        run: |
+          python3 -m pip install coverage
+          cd frontend/vityo_app && flutter pub get
+
+      - name: Run project coverage gate
+        run: python3 scripts/project-coverage-gate.py --fail-under 95
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vityo-project-coverage
+          path: |
+            .coverage
+            frontend/vityo_app/coverage/lcov.info
+          if-no-files-found: ignore

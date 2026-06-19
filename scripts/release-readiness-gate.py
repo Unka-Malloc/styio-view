@@ -7,18 +7,23 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_FLUTTER_DIR = Path("frontend/vityo_app")
+TOOLING_MANIFEST_PATH = Path("toolchain/maintenance-tools.json")
+TOOLING_POLICY_MIN_UPDATED = date(2026, 6, 19)
 
 REQUIRED_RELEASE_FILES = (
     Path("scripts/delivery-gate.sh"),
     Path("scripts/checkpoint-health.sh"),
     Path(".github/workflows/local-ci-gate.yml"),
+    Path(".github/workflows/project-coverage-gate.yml"),
     Path("frontend/vityo_app/README.md"),
     Path("frontend/vityo_app/pubspec.yaml"),
+    TOOLING_MANIFEST_PATH,
 )
 
 REQUIRED_README_MARKERS = (
@@ -65,6 +70,23 @@ REQUIRED_IDE_CAPABILITY_TESTS = {
         Path("frontend/vityo_app/test/editor_session_data_store_test.dart"),
     ),
 }
+
+REQUIRED_MAINTENANCE_MODULES = {
+    "adapter-contracts",
+    "coordination",
+    "docs-delivery",
+    "foundation-environment",
+    "module-platform",
+    "runtime-agent",
+    "shell-editor",
+    "theme-ux",
+}
+
+STALE_TOOLING_TEXT = re.compile(
+    r"\blegacy\b|\bold\b|\bdeprecated\b|\bv[0-9]+\b|"
+    r"backward[-_ ]?compat|compatibility[-_ ]?mode",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -160,12 +182,311 @@ def check_capability_tests(repo_root: Path) -> list[CheckResult]:
     return results
 
 
+def parse_policy_date(raw: object) -> date | None:
+    if not isinstance(raw, str):
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def is_safe_relative_path(raw: object) -> bool:
+    if not isinstance(raw, str) or not raw:
+        return False
+    path = Path(raw)
+    return not path.is_absolute() and ".." not in path.parts
+
+
+def string_list(raw: object) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    return [item for item in raw if isinstance(item, str) and item]
+
+
+def entry_text_fields(entry: dict[str, object]) -> list[str]:
+    values: list[str] = []
+    for key in ("id", "kind", "status", "path", "command"):
+        value = entry.get(key)
+        if isinstance(value, str):
+            values.append(value)
+    for key in ("scope", "owned_paths"):
+        values.extend(string_list(entry.get(key)))
+    return values
+
+
+def has_stale_tooling_marker(entry: dict[str, object]) -> bool:
+    return any(STALE_TOOLING_TEXT.search(value) for value in entry_text_fields(entry))
+
+
+def load_tooling_manifest(path: Path) -> tuple[dict[str, object] | None, str | None]:
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return None, str(exc)
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return None, f"invalid JSON: {exc}"
+    if not isinstance(payload, dict):
+        return None, "manifest root must be an object"
+    return payload, None
+
+
+def check_tooling_manifest(repo_root: Path) -> list[CheckResult]:
+    manifest_path = repo_root / TOOLING_MANIFEST_PATH
+    if not manifest_path.is_file():
+        return [
+            CheckResult(
+                "maintenance tooling manifest",
+                False,
+                f"missing: {TOOLING_MANIFEST_PATH}",
+            )
+        ]
+
+    manifest, error = load_tooling_manifest(manifest_path)
+    if manifest is None:
+        return [CheckResult("maintenance tooling manifest", False, error or "invalid")]
+
+    results: list[CheckResult] = []
+    policy = manifest.get("policy")
+    policy = policy if isinstance(policy, dict) else {}
+    tools = manifest.get("tools")
+    tools = tools if isinstance(tools, list) else []
+    skills = manifest.get("skills")
+    skills = skills if isinstance(skills, list) else []
+    modules = manifest.get("modules")
+    modules = modules if isinstance(modules, list) else []
+
+    updated = parse_policy_date(manifest.get("last_updated"))
+    results.extend(
+        [
+            CheckResult(
+                "maintenance tooling schema",
+                manifest.get("schema") == 1,
+                str(manifest.get("schema", "missing")),
+            ),
+            CheckResult(
+                "maintenance tooling project",
+                manifest.get("project") == "Vityo",
+                str(manifest.get("project", "missing")),
+            ),
+            CheckResult(
+                "maintenance tooling updated",
+                updated is not None and updated >= TOOLING_POLICY_MIN_UPDATED,
+                str(manifest.get("last_updated", "missing")),
+            ),
+            CheckResult(
+                "maintenance tooling policy: current state",
+                policy.get("current_state") == "current-only",
+                str(policy.get("current_state", "missing")),
+            ),
+            CheckResult(
+                "maintenance tooling policy: stale support",
+                policy.get("stale_support") == "forbidden",
+                str(policy.get("stale_support", "missing")),
+            ),
+            CheckResult(
+                "maintenance tooling release gate",
+                manifest.get("release_gate") == "scripts/release-readiness-gate.py",
+                str(manifest.get("release_gate", "missing")),
+            ),
+            CheckResult(
+                "maintenance tooling tools section",
+                bool(tools),
+                "present" if tools else "missing",
+            ),
+            CheckResult(
+                "maintenance tooling skills section",
+                bool(skills),
+                "present" if skills else "missing",
+            ),
+            CheckResult(
+                "maintenance tooling modules section",
+                bool(modules),
+                "present" if modules else "missing",
+            ),
+        ]
+    )
+
+    tool_ids: set[str] = set()
+    duplicate_tool_ids: set[str] = set()
+    for tool in tools:
+        if not isinstance(tool, dict):
+            results.append(CheckResult("maintenance tool entry", False, "tool must be an object"))
+            continue
+        tool_id = tool.get("id")
+        if not isinstance(tool_id, str) or not tool_id:
+            results.append(CheckResult("maintenance tool id", False, "missing"))
+            continue
+        if tool_id in tool_ids:
+            duplicate_tool_ids.add(tool_id)
+        tool_ids.add(tool_id)
+
+        path = tool.get("path")
+        safe_path = is_safe_relative_path(path)
+        path_exists = safe_path and (repo_root / Path(str(path))).is_file()
+        command = tool.get("command")
+        results.extend(
+            [
+                CheckResult(
+                    f"maintenance tool status: {tool_id}",
+                    tool.get("status") == "current",
+                    str(tool.get("status", "missing")),
+                ),
+                CheckResult(
+                    f"maintenance tool path: {tool_id}",
+                    path_exists,
+                    str(path) if safe_path else "invalid path",
+                ),
+                CheckResult(
+                    f"maintenance tool command: {tool_id}",
+                    isinstance(command, str) and bool(command.strip()),
+                    "present" if isinstance(command, str) and command.strip() else "missing",
+                ),
+                CheckResult(
+                    f"maintenance tool current-only text: {tool_id}",
+                    not has_stale_tooling_marker(tool),
+                    "current" if not has_stale_tooling_marker(tool) else "stale marker",
+                ),
+            ]
+        )
+
+    results.append(
+        CheckResult(
+            "maintenance tool ids unique",
+            not duplicate_tool_ids,
+            "unique" if not duplicate_tool_ids else ", ".join(sorted(duplicate_tool_ids)),
+        )
+    )
+    results.append(
+        CheckResult(
+            "maintenance tool release-readiness-gate registered",
+            "release-readiness-gate" in tool_ids,
+            "present" if "release-readiness-gate" in tool_ids else "missing",
+        )
+    )
+
+    skill_ids: set[str] = set()
+    duplicate_skill_ids: set[str] = set()
+    for skill in skills:
+        if not isinstance(skill, dict):
+            results.append(CheckResult("maintenance skill entry", False, "skill must be an object"))
+            continue
+        skill_id = skill.get("id")
+        if not isinstance(skill_id, str) or not skill_id:
+            results.append(CheckResult("maintenance skill id", False, "missing"))
+            continue
+        if skill_id in skill_ids:
+            duplicate_skill_ids.add(skill_id)
+        skill_ids.add(skill_id)
+
+        backing_tools = string_list(skill.get("backing_tools"))
+        missing_tools = [tool_id for tool_id in backing_tools if tool_id not in tool_ids]
+        results.extend(
+            [
+                CheckResult(
+                    f"maintenance skill status: {skill_id}",
+                    skill.get("status") == "current",
+                    str(skill.get("status", "missing")),
+                ),
+                CheckResult(
+                    f"maintenance skill tools: {skill_id}",
+                    bool(backing_tools) and not missing_tools,
+                    "present" if backing_tools and not missing_tools else "missing: " + ", ".join(missing_tools or ["backing_tools"]),
+                ),
+                CheckResult(
+                    f"maintenance skill current-only text: {skill_id}",
+                    not has_stale_tooling_marker(skill),
+                    "current" if not has_stale_tooling_marker(skill) else "stale marker",
+                ),
+            ]
+        )
+
+    results.append(
+        CheckResult(
+            "maintenance skill ids unique",
+            not duplicate_skill_ids,
+            "unique" if not duplicate_skill_ids else ", ".join(sorted(duplicate_skill_ids)),
+        )
+    )
+
+    module_ids: set[str] = set()
+    duplicate_module_ids: set[str] = set()
+    for module in modules:
+        if not isinstance(module, dict):
+            results.append(CheckResult("maintenance module entry", False, "module must be an object"))
+            continue
+        module_id = module.get("id")
+        if not isinstance(module_id, str) or not module_id:
+            results.append(CheckResult("maintenance module id", False, "missing"))
+            continue
+        if module_id in module_ids:
+            duplicate_module_ids.add(module_id)
+        module_ids.add(module_id)
+
+        maintenance_tools = string_list(module.get("maintenance_tools"))
+        missing_tools = [tool_id for tool_id in maintenance_tools if tool_id not in tool_ids]
+        module_skills = string_list(module.get("skills"))
+        missing_skills = [skill_id for skill_id in module_skills if skill_id not in skill_ids]
+        runbook = module.get("runbook")
+        runbook_exists = is_safe_relative_path(runbook) and (repo_root / Path(str(runbook))).is_file()
+        results.extend(
+            [
+                CheckResult(
+                    f"maintenance module status: {module_id}",
+                    module.get("status") == "current",
+                    str(module.get("status", "missing")),
+                ),
+                CheckResult(
+                    f"maintenance module runbook: {module_id}",
+                    runbook_exists,
+                    str(runbook) if is_safe_relative_path(runbook) else "invalid runbook",
+                ),
+                CheckResult(
+                    f"maintenance module tools: {module_id}",
+                    bool(maintenance_tools) and not missing_tools,
+                    "present" if maintenance_tools and not missing_tools else "missing: " + ", ".join(missing_tools or ["maintenance_tools"]),
+                ),
+                CheckResult(
+                    f"maintenance module skills: {module_id}",
+                    bool(module_skills) and not missing_skills,
+                    "present" if module_skills and not missing_skills else "missing: " + ", ".join(missing_skills or ["skills"]),
+                ),
+                CheckResult(
+                    f"maintenance module current-only text: {module_id}",
+                    not has_stale_tooling_marker(module),
+                    "current" if not has_stale_tooling_marker(module) else "stale marker",
+                ),
+            ]
+        )
+
+    missing_modules = sorted(REQUIRED_MAINTENANCE_MODULES - module_ids)
+    results.extend(
+        [
+            CheckResult(
+                "maintenance module ids unique",
+                not duplicate_module_ids,
+                "unique" if not duplicate_module_ids else ", ".join(sorted(duplicate_module_ids)),
+            ),
+            CheckResult(
+                "maintenance module coverage",
+                not missing_modules,
+                "present" if not missing_modules else "missing: " + ", ".join(missing_modules),
+            ),
+        ]
+    )
+
+    return results
+
+
 def collect_static_checks(repo_root: Path, flutter_dir: Path) -> list[CheckResult]:
     return [
         *check_required_files(repo_root),
         *check_pubspec(repo_root, flutter_dir),
         *check_readme(repo_root, flutter_dir),
         *check_capability_tests(repo_root),
+        *check_tooling_manifest(repo_root),
     ]
 
 

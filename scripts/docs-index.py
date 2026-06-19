@@ -39,7 +39,7 @@ INDEX_META = {
     "docs": ("Docs Index", "Provide the generated inventory for `docs/`; directory boundaries and maintenance rules live in [README.md](./README.md)."),
     "docs/adr": ("ADR Index", "Provide the generated inventory for `docs/adr/`; decision-record conventions live in [README.md](./README.md)."),
     "docs/archive": ("Archive Index", "Provide the generated inventory for `docs/archive/`; archive boundaries and lifecycle rules live in [README.md](./README.md)."),
-    "docs/archive/history": ("Archive History Index", "Provide the generated inventory for `docs/archive/history/`; archived daily provenance snapshots live in [README.md](./README.md)."),
+    "docs/archive/history": ("Archive History Index", "Provide the generated inventory for `docs/archive/history/`; archived topic provenance snapshots live in [README.md](./README.md)."),
     "docs/audit": ("Audit Index", "Provide the generated inventory for `docs/audit/`; transient defect records live in ignored `docs/audit/defects/` and are enforced by external `styio-audit` runs."),
     "docs/assets": ("Assets Index", "Provide the generated inventory for `docs/assets/`; reusable workflow assets and templates live in [README.md](./README.md)."),
     "docs/assets/workflow": ("Workflow Assets Index", "Provide the generated inventory for `docs/assets/workflow/`; test and workflow assets live in [README.md](./README.md)."),
@@ -49,7 +49,7 @@ INDEX_META = {
     "docs/external/for-spio": ("For Spio Index", "Provide the generated inventory for `docs/external/for-spio/`; upstream `spio` handoff boundaries live in [README.md](./README.md)."),
     "docs/external/for-styio": ("For Styio Index", "Provide the generated inventory for `docs/external/for-styio/`; upstream `styio` handoff boundaries live in [README.md](./README.md)."),
     "docs/history": ("History Index", "Provide the generated inventory for `docs/history/`; recovery-note rules live in [README.md](./README.md)."),
-    "docs/milestones": ("Milestones Index", "Provide the generated inventory for `docs/milestones/`; freeze-batch rules live in [README.md](./README.md)."),
+    "docs/milestones": ("Milestones Index", "Provide the generated inventory for `docs/milestones/`; feature milestone rules live in [README.md](./README.md)."),
     "docs/plans": ("Plans Index", "Provide the generated inventory for `docs/plans/`; implementation plans and future work ledgers live in [README.md](./README.md)."),
     "docs/review": ("Review Index", "Provide the generated inventory for `docs/review/`; open-conflict and unresolved-risk boundaries live in [README.md](./README.md)."),
     "docs/rollups": ("Rollups Index", "Provide the generated inventory for `docs/rollups/`; compressed active summaries live in [README.md](./README.md)."),
@@ -106,7 +106,7 @@ def rel_link(from_dir: Path, target: Path) -> str:
 
 
 def choose_dir_entry(path: Path) -> Path | None:
-    for name in ("INDEX.md", "README.md", "00-Milestone-Index.md"):
+    for name in ("INDEX.md", "README.md"):
         candidate = path / name
         if candidate.exists():
             return candidate
@@ -114,14 +114,6 @@ def choose_dir_entry(path: Path) -> Path | None:
 
 
 def child_sort_key(base: Path, path: Path) -> tuple[int, str]:
-    if base.as_posix() in {"docs/history", "docs/archive/history"} and path.is_file():
-        stem = path.stem
-        if re.match(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$", stem):
-            return (1, f"{99999999 - int(stem.replace('-', '')):08d}")
-    if base.as_posix() == "docs/milestones" and path.is_dir():
-        name = path.name
-        if re.match(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$", name):
-            return (0, f"{99999999 - int(name.replace('-', '')):08d}")
     return (0 if path.is_dir() else 1, path.name.lower())
 
 

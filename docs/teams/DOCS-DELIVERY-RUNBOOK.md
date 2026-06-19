@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-05-10
+**Last updated:** 2026-06-19
 
 ## Mission
 
@@ -22,24 +22,27 @@ Primary paths:
 8. `scripts/team-docs-gate.py`
 9. `scripts/docs-gate.sh`
 10. `scripts/delivery-gate.sh`
-11. `scripts/bootstrap-dev-env.sh`
-12. `scripts/bootstrap-dev-container.sh`
-13. `scripts/bootstrap-dev-env-macos.sh`
-14. `scripts/bootstrap-dev-env-windows.ps1`
-15. `scripts/bootstrap-workspace.sh`
-16. `scripts/bootstrap-workspace.ps1`
-17. `scripts/android-sdk-profile.sh`
-18. `scripts/android-sdk-profile.ps1`
-19. `scripts/apple-platform-profile.sh`
-20. `scripts/verify-android-device.sh`
-21. `scripts/verify-android-device.ps1`
-22. `scripts/verify-apple-device.sh`
-23. `docker/`
-24. `.devcontainer/`
-25. `toolchain/android-sdk-profiles.csv`
-26. `toolchain/apple-platform-profiles.csv`
-27. `prototype/README.md`
-28. `frontend/vityo_app/README.md`
+11. `.github/workflows/project-coverage-gate.yml`
+12. `scripts/project-coverage-gate.py`
+13. `scripts/python-coverage-gate.py`
+14. `scripts/bootstrap-dev-env.sh`
+15. `scripts/bootstrap-dev-container.sh`
+16. `scripts/bootstrap-dev-env-macos.sh`
+17. `scripts/bootstrap-dev-env-windows.ps1`
+18. `scripts/bootstrap-workspace.sh`
+19. `scripts/bootstrap-workspace.ps1`
+20. `scripts/android-sdk-profile.sh`
+21. `scripts/android-sdk-profile.ps1`
+22. `scripts/apple-platform-profile.sh`
+23. `scripts/verify-android-device.sh`
+24. `scripts/verify-android-device.ps1`
+25. `scripts/verify-apple-device.sh`
+26. `docker/`
+27. `.devcontainer/`
+28. `toolchain/android-sdk-profiles.csv`
+29. `toolchain/apple-platform-profiles.csv`
+30. `prototype/README.md`
+31. `frontend/vityo_app/README.md`
 
 Key SSOTs:
 
@@ -56,7 +59,7 @@ Key SSOTs:
 1. 先判断当前变化属于 owner 文档变化，还是目录/索引/交付接线变化。
 2. 任何结构性文档变更，都要同步更新对应目录的 `README.md` 和 `INDEX.md`。
 3. 若一次变更改变了团队边界、review 路由或 handoff 路径，同批更新 `docs/teams/`。
-4. 中断时把恢复信息写入 `docs/history/YYYY-MM-DD.md`，不要只留在聊天或注释里。
+4. 中断时把恢复信息写入 `docs/history/<topic>.md`，并在正文记录日期；不要只留在聊天或注释里。
 5. docs tree 变化时，同批运行 `docs-lifecycle.py`、`docs-index.py`、`docs-audit.py`，而不是只靠 `README/INDEX` 手工刷新；生成式 `INDEX.md` 必须保持跨本地和 GitHub Actions 可复现，空 collection 继承本目录 `README.md` 的 `Last updated`，不得回退到执行当天日期。
 6. 根 `.gitignore` 若新增 temp/build/log/cache 类忽略规则，同批补 `docs/**` 与 `frontend/vityo_app/test/**` 的显式 negate 规则，并让 `scripts/repo-hygiene-gate.py` 通过。
 7. 仓库级 build/dev-env 文档必须保持固定版本基线显式一致：Debian 13、Python 3.13.5、Node.js v24.15.0 LTS、Flutter 3.41.7 / Dart 3.11.5、Chromium 147.0.7727.116；不得把这类版本描述回退成浮动 `stable`。
@@ -72,13 +75,14 @@ Key SSOTs:
 17. Keep [../specs/TECHNOLOGY-COMPONENT-INVENTORY.md](../specs/TECHNOLOGY-COMPONENT-INVENTORY.md) aligned with `styio-audit` whenever the technology stack, internal components, open-source components, dependency manifests, Apache-2.0 evidence, commercial-risk boundaries, or UI asset-source evidence changes.
 18. Maintain GitHub merge gates through Rulesets rather than legacy classic branch protection; audit effective branch rules when required status-check governance changes.
 19. External audit shard updates must name the remediated finding, the changed security boundary, and the exact validation command; if code and audit evidence move together, update the owning team runbook in the same change.
-20. Checkpoint health documentation must list every command run by `scripts/checkpoint-health.sh`; when prototype governance or selftest routing changes, update `docs/assets/workflow/CHECKPOINT-HEALTH.md` and the affected owner runbook in the same change.
+20. Checkpoint health documentation must list every command run by `scripts/checkpoint-health.sh`; when project coverage, prototype governance, or selftest routing changes, update `docs/assets/workflow/CHECKPOINT-HEALTH.md` and the affected owner runbook in the same change.
 21. Language-service ADR or contract updates must refresh both the owning contract runbook and generated docs indexes in the same worktree pass; do not rely on passing Flutter tests as evidence that docs ownership is closed.
+22. Docs tree structure, milestone files, prototype manifest entries, and fixture paths must be organized by content or functional effect. Version strings, dates, and stage numbers may appear as state metadata or external wire values, but must not define repository directories, entry files, task identities, or implementation routing.
 
 ## Change Classes
 
 1. Small: 链接修复、索引补全、history 补记或局部文案整理。运行 repo hygiene 和 docs gate。
-2. Medium: docs 树结构、`docs/external/` handoff 路径、里程碑映射、测试目录映射、audit/agent findings、archive/rollup lifecycle、contract package、post-push CI checking rules、technology/component inventory 或 handoff 路径变化。同步相关入口文档和 docs 自动化脚本。
+2. Medium: docs 树结构、`docs/external/` handoff 路径、里程碑映射、测试目录映射、audit/agent findings、archive/rollup lifecycle、contract package、post-push CI checking rules、technology/component inventory、version/date/stage-number organization cleanup 或 handoff 路径变化。同步相关入口文档和 docs 自动化脚本。
 3. High: owner 文档迁移、文档策略重构、团队边界调整或交付纪律变化。走协调 review。
 
 ## Required Gates

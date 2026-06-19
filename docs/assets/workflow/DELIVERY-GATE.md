@@ -2,7 +2,7 @@
 
 **Purpose:** Define the common delivery-floor entrypoint for `Vityo` so contributors can run repository hygiene, the unified docs gate, external `styio-audit`, and checkpoint health through one command before checkpoint merge or branch delivery.
 
-**Last updated:** 2026-04-19
+**Last updated:** 2026-06-19
 
 ## Command
 
@@ -31,4 +31,6 @@ Use `--audit-bin ../styio-audit/bin/styio-audit` to force a specific audit check
 1. `python3 scripts/repo-hygiene-gate.py`
 2. `./scripts/docs-gate.sh`
 3. external `styio-audit gate --project Vityo`
-4. `./scripts/checkpoint-health.sh`
+4. `./scripts/checkpoint-health.sh`, including the `95%` project coverage gate and release-readiness static checks for `toolchain/maintenance-tools.json`
+
+The standalone `project-coverage-gate` GitHub Actions workflow is the direct coverage evidence lane. It runs `python3 scripts/project-coverage-gate.py --fail-under 95` and uploads the Flutter LCOV report without waiting on sibling repository build steps.

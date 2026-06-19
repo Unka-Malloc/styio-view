@@ -1,0 +1,458 @@
+{
+  "schema": 1,
+  "project": "Vityo",
+  "last_updated": "2026-06-19",
+  "release_gate": "scripts/release-readiness-gate.py",
+  "policy": {
+    "current_state": "current-only",
+    "stale_support": "forbidden",
+    "minimum_tool_status": "current",
+    "module_coverage": "required"
+  },
+  "tools": [
+    {
+      "id": "release-readiness-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/release-readiness-gate.py",
+      "command": "python3 scripts/release-readiness-gate.py --skip-build",
+      "scope": ["release", "tooling"]
+    },
+    {
+      "id": "delivery-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/delivery-gate.sh",
+      "command": "./scripts/delivery-gate.sh --mode checkpoint",
+      "scope": ["delivery", "coordination"]
+    },
+    {
+      "id": "checkpoint-health",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/checkpoint-health.sh",
+      "command": "./scripts/checkpoint-health.sh",
+      "scope": ["health", "release"]
+    },
+    {
+      "id": "project-coverage-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/project-coverage-gate.py",
+      "command": "python3 scripts/project-coverage-gate.py --fail-under 95 --flutter-dir frontend/vityo_app",
+      "scope": ["coverage", "frontend", "tooling"]
+    },
+    {
+      "id": "project-coverage-workflow",
+      "kind": "gate",
+      "status": "current",
+      "path": ".github/workflows/project-coverage-gate.yml",
+      "command": "gh workflow run project-coverage-gate.yml",
+      "scope": ["coverage", "ci", "frontend"]
+    },
+    {
+      "id": "python-coverage-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/python-coverage-gate.py",
+      "command": "python3 scripts/python-coverage-gate.py --fail-under 95",
+      "scope": ["coverage", "python", "tooling"]
+    },
+    {
+      "id": "repo-hygiene-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/repo-hygiene-gate.py",
+      "command": "python3 scripts/repo-hygiene-gate.py --mode tracked",
+      "scope": ["repository", "source-layout"]
+    },
+    {
+      "id": "docs-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/docs-gate.sh",
+      "command": "./scripts/docs-gate.sh --mode worktree",
+      "scope": ["docs", "delivery"]
+    },
+    {
+      "id": "team-docs-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/team-docs-gate.py",
+      "command": "python3 scripts/team-docs-gate.py",
+      "scope": ["docs", "ownership"]
+    },
+    {
+      "id": "docs-index",
+      "kind": "maintenance",
+      "status": "current",
+      "path": "scripts/docs-index.py",
+      "command": "python3 scripts/docs-index.py --write",
+      "scope": ["docs", "index"]
+    },
+    {
+      "id": "docs-lifecycle",
+      "kind": "maintenance",
+      "status": "current",
+      "path": "scripts/docs-lifecycle.py",
+      "command": "python3 scripts/docs-lifecycle.py",
+      "scope": ["docs", "lifecycle"]
+    },
+    {
+      "id": "docs-audit",
+      "kind": "audit",
+      "status": "current",
+      "path": "scripts/docs-audit.py",
+      "command": "python3 scripts/docs-audit.py",
+      "scope": ["docs", "audit"]
+    },
+    {
+      "id": "ecosystem-cli-doc-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/ecosystem-cli-doc-gate.py",
+      "command": "python3 scripts/ecosystem-cli-doc-gate.py",
+      "scope": ["ecosystem", "contract-docs"]
+    },
+    {
+      "id": "language-fixture-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/language-fixture-gate.sh",
+      "command": "./scripts/language-fixture-gate.sh --flutter-dir frontend/vityo_app",
+      "scope": ["language", "fixture"]
+    },
+    {
+      "id": "flutter-analyze",
+      "kind": "verification",
+      "status": "current",
+      "path": "frontend/vityo_app/analysis_options.yaml",
+      "command": "cd frontend/vityo_app && flutter analyze",
+      "scope": ["frontend", "static-analysis"]
+    },
+    {
+      "id": "flutter-test",
+      "kind": "verification",
+      "status": "current",
+      "path": "frontend/vityo_app/pubspec.yaml",
+      "command": "cd frontend/vityo_app && flutter test",
+      "scope": ["frontend", "test"]
+    },
+    {
+      "id": "prototype-governance",
+      "kind": "gate",
+      "status": "current",
+      "path": "prototype/scripts/check-prototype-governance.mjs",
+      "command": "cd prototype && npm run governance",
+      "scope": ["prototype", "manifest"]
+    },
+    {
+      "id": "prototype-editor-selftest",
+      "kind": "gate",
+      "status": "current",
+      "path": "prototype/scripts/check-editor-load.mjs",
+      "command": "cd prototype && npm run selftest:editor",
+      "scope": ["prototype", "editor"]
+    },
+    {
+      "id": "flutter-web-preview",
+      "kind": "server",
+      "status": "current",
+      "path": "scripts/serve-flutter-web-preview.sh",
+      "command": "./scripts/serve-flutter-web-preview.sh",
+      "scope": ["frontend", "preview"]
+    },
+    {
+      "id": "bootstrap-workspace",
+      "kind": "bootstrap",
+      "status": "current",
+      "path": "scripts/bootstrap-workspace.sh",
+      "command": "./scripts/bootstrap-workspace.sh",
+      "scope": ["workspace", "setup"]
+    },
+    {
+      "id": "bootstrap-dev-env-linux",
+      "kind": "bootstrap",
+      "status": "current",
+      "path": "scripts/bootstrap-dev-env.sh",
+      "command": "./scripts/bootstrap-dev-env.sh",
+      "scope": ["linux", "setup"]
+    },
+    {
+      "id": "bootstrap-dev-env-macos",
+      "kind": "bootstrap",
+      "status": "current",
+      "path": "scripts/bootstrap-dev-env-macos.sh",
+      "command": "./scripts/bootstrap-dev-env-macos.sh",
+      "scope": ["macos", "setup"]
+    },
+    {
+      "id": "bootstrap-dev-env-windows",
+      "kind": "bootstrap",
+      "status": "current",
+      "path": "scripts/bootstrap-dev-env-windows.ps1",
+      "command": "pwsh scripts/bootstrap-dev-env-windows.ps1",
+      "scope": ["windows", "setup"]
+    },
+    {
+      "id": "android-sdk-profile",
+      "kind": "profile",
+      "status": "current",
+      "path": "scripts/android-sdk-profile.sh",
+      "command": "./scripts/android-sdk-profile.sh list",
+      "scope": ["android", "toolchain"]
+    },
+    {
+      "id": "apple-platform-profile",
+      "kind": "profile",
+      "status": "current",
+      "path": "scripts/apple-platform-profile.sh",
+      "command": "./scripts/apple-platform-profile.sh list",
+      "scope": ["macos", "ios", "toolchain"]
+    },
+    {
+      "id": "verify-android-device",
+      "kind": "verification",
+      "status": "current",
+      "path": "scripts/verify-android-device.sh",
+      "command": "./scripts/verify-android-device.sh",
+      "scope": ["android", "device"]
+    },
+    {
+      "id": "verify-apple-device",
+      "kind": "verification",
+      "status": "current",
+      "path": "scripts/verify-apple-device.sh",
+      "command": "./scripts/verify-apple-device.sh",
+      "scope": ["ios", "macos", "device"]
+    }
+  ],
+  "skills": [
+    {
+      "id": "release-operations",
+      "status": "current",
+      "backing_tools": [
+        "delivery-gate",
+        "checkpoint-health",
+        "project-coverage-gate",
+        "project-coverage-workflow",
+        "release-readiness-gate"
+      ]
+    },
+    {
+      "id": "docs-delivery-maintenance",
+      "status": "current",
+      "backing_tools": [
+        "docs-gate",
+        "team-docs-gate",
+        "docs-index",
+        "docs-lifecycle",
+        "docs-audit",
+        "ecosystem-cli-doc-gate",
+        "python-coverage-gate"
+      ]
+    },
+    {
+      "id": "frontend-shell-maintenance",
+      "status": "current",
+      "backing_tools": [
+        "flutter-analyze",
+        "flutter-test",
+        "project-coverage-gate",
+        "project-coverage-workflow",
+        "flutter-web-preview"
+      ]
+    },
+    {
+      "id": "prototype-experience-maintenance",
+      "status": "current",
+      "backing_tools": [
+        "prototype-governance",
+        "prototype-editor-selftest"
+      ]
+    },
+    {
+      "id": "language-service-maintenance",
+      "status": "current",
+      "backing_tools": [
+        "language-fixture-gate",
+        "flutter-test"
+      ]
+    },
+    {
+      "id": "platform-toolchain-maintenance",
+      "status": "current",
+      "backing_tools": [
+        "android-sdk-profile",
+        "apple-platform-profile",
+        "verify-android-device",
+        "verify-apple-device"
+      ]
+    },
+    {
+      "id": "environment-bootstrap-maintenance",
+      "status": "current",
+      "backing_tools": [
+        "bootstrap-workspace",
+        "bootstrap-dev-env-linux",
+        "bootstrap-dev-env-macos",
+        "bootstrap-dev-env-windows"
+      ]
+    },
+    {
+      "id": "repository-policy-maintenance",
+      "status": "current",
+      "backing_tools": [
+        "repo-hygiene-gate",
+        "python-coverage-gate",
+        "release-readiness-gate"
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "id": "coordination",
+      "status": "current",
+      "runbook": "docs/teams/COORDINATION-RUNBOOK.md",
+      "owned_paths": ["docs/teams/"],
+      "maintenance_tools": ["delivery-gate", "checkpoint-health"],
+      "skills": ["release-operations", "repository-policy-maintenance"]
+    },
+    {
+      "id": "docs-delivery",
+      "status": "current",
+      "runbook": "docs/teams/DOCS-DELIVERY-RUNBOOK.md",
+      "owned_paths": ["docs/", "scripts/", "toolchain/"],
+      "maintenance_tools": [
+        "docs-gate",
+        "team-docs-gate",
+        "docs-index",
+        "docs-lifecycle",
+        "docs-audit",
+        "repo-hygiene-gate",
+        "project-coverage-gate",
+        "project-coverage-workflow",
+        "python-coverage-gate"
+      ],
+      "skills": ["docs-delivery-maintenance", "repository-policy-maintenance"]
+    },
+    {
+      "id": "shell-editor",
+      "status": "current",
+      "runbook": "docs/teams/SHELL-EDITOR-RUNBOOK.md",
+      "owned_paths": [
+        "frontend/vityo_app/lib/src/app/",
+        "frontend/vityo_app/lib/src/view_ide/editor/",
+        "frontend/vityo_app/lib/src/view_render/shell/",
+        "prototype/"
+      ],
+      "maintenance_tools": [
+        "flutter-analyze",
+        "flutter-test",
+        "prototype-governance",
+        "prototype-editor-selftest",
+        "flutter-web-preview"
+      ],
+      "skills": [
+        "frontend-shell-maintenance",
+        "prototype-experience-maintenance",
+        "language-service-maintenance"
+      ]
+    },
+    {
+      "id": "runtime-agent",
+      "status": "current",
+      "runbook": "docs/teams/RUNTIME-AGENT-RUNBOOK.md",
+      "owned_paths": [
+        "frontend/vityo_app/lib/src/view_ide/runtime/",
+        "frontend/vityo_app/lib/src/view_ide/agent/",
+        "frontend/vityo_app/lib/src/view_render/runtime/",
+        "frontend/vityo_app/lib/src/view_render/agent/"
+      ],
+      "maintenance_tools": ["flutter-analyze", "flutter-test", "checkpoint-health"],
+      "skills": ["frontend-shell-maintenance", "release-operations"]
+    },
+    {
+      "id": "module-platform",
+      "status": "current",
+      "runbook": "docs/teams/MODULE-PLATFORM-RUNBOOK.md",
+      "owned_paths": [
+        "frontend/vityo_app/lib/src/view_ide/module_host/",
+        "frontend/vityo_app/lib/src/view_ide/platform/",
+        "frontend/vityo_app/assets/module_manifests/",
+        "frontend/vityo_app/assets/capability_matrices/",
+        "frontend/vityo_app/android/",
+        "frontend/vityo_app/ios/",
+        "frontend/vityo_app/linux/",
+        "frontend/vityo_app/macos/",
+        "frontend/vityo_app/windows/",
+        "frontend/vityo_app/web/"
+      ],
+      "maintenance_tools": [
+        "android-sdk-profile",
+        "apple-platform-profile",
+        "verify-android-device",
+        "verify-apple-device",
+        "flutter-test"
+      ],
+      "skills": ["platform-toolchain-maintenance", "frontend-shell-maintenance"]
+    },
+    {
+      "id": "adapter-contracts",
+      "status": "current",
+      "runbook": "docs/teams/ADAPTER-CONTRACTS-RUNBOOK.md",
+      "owned_paths": [
+        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/",
+        "frontend/vityo_app/lib/src/integration/",
+        "docs/contracts/",
+        "docs/external/"
+      ],
+      "maintenance_tools": [
+        "ecosystem-cli-doc-gate",
+        "repo-hygiene-gate",
+        "flutter-test"
+      ],
+      "skills": ["docs-delivery-maintenance", "repository-policy-maintenance"]
+    },
+    {
+      "id": "theme-ux",
+      "status": "current",
+      "runbook": "docs/teams/THEME-UX-RUNBOOK.md",
+      "owned_paths": [
+        "frontend/vityo_app/lib/src/view_render/theme/",
+        "frontend/vityo_app/lib/src/view_render/platform/",
+        "prototype/editor-styles/",
+        "prototype/styles.css"
+      ],
+      "maintenance_tools": [
+        "flutter-analyze",
+        "flutter-test",
+        "prototype-governance",
+        "prototype-editor-selftest"
+      ],
+      "skills": ["frontend-shell-maintenance", "prototype-experience-maintenance"]
+    },
+    {
+      "id": "foundation-environment",
+      "status": "current",
+      "runbook": "docs/teams/DOCS-DELIVERY-RUNBOOK.md",
+      "owned_paths": [
+        "frontend/vityo_app/lib/src/view_ide/foundation/",
+        "frontend/vityo_app/lib/src/view_ide/environment/",
+        "docker/",
+        ".devcontainer/"
+      ],
+      "maintenance_tools": [
+        "bootstrap-workspace",
+        "bootstrap-dev-env-linux",
+        "bootstrap-dev-env-macos",
+        "bootstrap-dev-env-windows",
+        "checkpoint-health"
+      ],
+      "skills": [
+        "environment-bootstrap-maintenance",
+        "repository-policy-maintenance"
+      ]
+    }
+  ]
+}

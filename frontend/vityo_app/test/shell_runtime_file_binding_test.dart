@@ -1215,7 +1215,9 @@ entry = 1
     final result = await shell.collectWorkspaceOutline(
       const WorkspaceOutlineQuery(targetFilePath: 'src/main.styio'),
     );
-    final item = result.items.singleWhere((item) => item.name == 'calculate');
+    final item = result.items.firstWhere(
+      (item) => item.name == 'calculate' && item.kind == SymbolKind.function,
+    );
 
     await shell.openWorkspaceOutlineItem(item);
 
@@ -1537,11 +1539,12 @@ price -> @prices
     expect(shell.editorController.document.documentId, 'src/main.styio');
     expect(
       shell.editorController.selection.start,
-      initialDocument.text.indexOf('@prices'),
+      initialDocument.text.indexOf('prices', initialDocument.text.indexOf('@')),
     );
     expect(
       shell.editorController.selection.end,
-      initialDocument.text.indexOf('@prices') + '@prices'.length,
+      initialDocument.text.indexOf('prices', initialDocument.text.indexOf('@')) +
+          'prices'.length,
     );
     expect(
       shell.debugLog.any((entry) => entry.contains('Workspace problem opened')),

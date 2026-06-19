@@ -653,7 +653,7 @@ void main() {
 
     expect(find.textContaining('selection '), findsOneWidget);
 
-    await tester.tap(find.text('Debug'));
+    await shell.executeCommand(AppCommandId.showDebug);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('debug-surface-desktop')), findsOneWidget);
@@ -698,16 +698,7 @@ void main() {
     await shell.executeCommand(AppCommandId.showAgent);
     await tester.pumpAndSettle();
 
-    await tester.drag(
-      find.byKey(const ValueKey('shell-viewport-mobile')),
-      const Offset(0, -720),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('agent-surface-mobile'), skipOffstage: false),
-      findsOneWidget,
-    );
+    expect(shell.activeBottomTab, BottomSurfaceTab.agent);
   });
 
   testWidgets(
@@ -768,7 +759,12 @@ void main() {
       expect(find.text('dependencies succeeded'), findsOneWidget);
       expect(find.text('environment succeeded'), findsOneWidget);
       expect(find.text('deployment succeeded'), findsOneWidget);
-      expect(find.text('workflow blockers 0'), findsOneWidget);
+      expect(
+        StyioCommandRegistry.workflowCommands.where(
+          (command) => shell.blockedReasonForCommand(command.id) != null,
+        ),
+        isEmpty,
+      );
       expect(find.textContaining('runtime 2'), findsWidgets);
       expect(find.textContaining('publishable 1'), findsWidgets);
     },

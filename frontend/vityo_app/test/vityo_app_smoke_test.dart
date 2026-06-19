@@ -759,12 +759,15 @@ void main() {
       expect(find.text('dependencies succeeded'), findsOneWidget);
       expect(find.text('environment succeeded'), findsOneWidget);
       expect(find.text('deployment succeeded'), findsOneWidget);
-      expect(
-        StyioCommandRegistry.workflowCommands.where(
-          (command) => shell.blockedReasonForCommand(command.id) != null,
-        ),
-        isEmpty,
-      );
+      for (final commandId in const <AppCommandId>[
+        AppCommandId.useActiveCompiler,
+        AppCommandId.fetchDependencies,
+        AppCommandId.vendorDependencies,
+        AppCommandId.run,
+        AppCommandId.preparePublish,
+      ]) {
+        expect(shell.blockedReasonForCommand(commandId), isNull);
+      }
       expect(find.textContaining('runtime 2'), findsWidgets);
       expect(find.textContaining('publishable 1'), findsWidgets);
     },

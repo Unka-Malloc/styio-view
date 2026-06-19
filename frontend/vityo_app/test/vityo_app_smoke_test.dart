@@ -267,6 +267,29 @@ void main() {
     );
   }
 
+  ProjectGraphSnapshot createReadmeOnlyProjectSnapshot() {
+    const root = '/workspace/readme-only';
+    const activeFile = '$root/README.md';
+    return const ProjectGraphSnapshot(
+      id: '$root/spio.toml',
+      title: 'Readme Only Project',
+      kind: ProjectKind.scratch,
+      workspaceRoot: root,
+      workspaceMembers: <String>[],
+      packages: <ProjectPackageSnapshot>[],
+      dependencies: <ProjectDependencySnapshot>[],
+      targets: <ProjectTargetDescriptor>[],
+      editorFiles: <String>[activeFile],
+      toolchain: ToolchainStatusSnapshot(
+        source: ToolchainResolutionSource.unavailable,
+        detail: 'No Styio files are present in this smoke fixture.',
+      ),
+      lockState: ProjectLockState.missing,
+      vendorState: ProjectVendorState.missing,
+      notes: <String>['Fixture intentionally contains no Styio files.'],
+    );
+  }
+
   Future<AppBootstrap> createBootstrap(
     PlatformTarget target, {
     ProjectGraphSnapshot? projectSnapshot,
@@ -1177,6 +1200,168 @@ fn blend(left: f64, right: f64): f64 {
     );
     await tester.pumpAndSettle();
     expect(find.text('Smoke Agent Prompts'), findsWidgets);
+  });
+
+  testWidgets('renders empty workspace bottom surface states', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const readmePath = '/workspace/readme-only/README.md';
+    const readmeDocument = DocumentState(
+      documentId: readmePath,
+      text: '# Readme only\nNo Styio symbols live here.\n',
+      revision: 1,
+    );
+    final bootstrap = await createBootstrap(
+      PlatformTarget.macos,
+      projectSnapshot: createReadmeOnlyProjectSnapshot(),
+    );
+    await bootstrap.workspaceDocumentStore.saveDocument(readmeDocument);
+    bootstrap.editorController.loadDocument(readmeDocument);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+
+    Future<void> showTab(BottomSurfaceTab tab, String resultKey) async {
+      shell.selectBottomTab(tab);
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey<String>(resultKey)), findsOneWidget);
+    }
+
+    shell.quickOpenWorkspace(
+      const WorkspaceQuickOpenQuery(pattern: 'missing.styio'),
+    );
+    await showTab(
+      BottomSurfaceTab.navigate,
+      'workspace-quick-open-results',
+    );
+
+    await shell.collectWorkspaceDocumentLinks(
+      const WorkspaceDocumentLinksQuery(targetFilePath: readmePath),
+    );
+    await showTab(
+      BottomSurfaceTab.documentLinks,
+      'workspace-document-links-results',
+    );
+
+    await shell.collectWorkspaceDocumentHighlights(
+      const WorkspaceDocumentHighlightsQuery(
+        targetFilePath: readmePath,
+        offset: 0,
+      ),
+    );
+    await showTab(
+      BottomSurfaceTab.documentHighlights,
+      'workspace-document-highlights-results',
+    );
+
+    await shell.collectWorkspaceCodeLenses(
+      const WorkspaceCodeLensQuery(targetFilePath: readmePath),
+    );
+    await showTab(BottomSurfaceTab.codeLenses, 'workspace-code-lens-results');
+
+    await shell.findWorkspaceDeclarations(
+      const WorkspaceDeclarationQuery(pattern: 'MissingSymbol'),
+    );
+    await showTab(
+      BottomSurfaceTab.declarations,
+      'workspace-declaration-results',
+    );
+
+    await shell.findWorkspaceDefinitions(
+      const WorkspaceDefinitionQuery(pattern: 'MissingSymbol'),
+    );
+    await showTab(BottomSurfaceTab.definitions, 'workspace-definition-results');
+
+    await shell.findWorkspaceTypeDefinitions(
+      const WorkspaceTypeDefinitionQuery(pattern: 'MissingType'),
+    );
+    await showTab(
+      BottomSurfaceTab.typeDefinitions,
+      'workspace-type-definition-results',
+    );
+
+    await shell.findWorkspaceImplementations(
+      const WorkspaceImplementationQuery(pattern: 'MissingType'),
+    );
+    await showTab(
+      BottomSurfaceTab.implementations,
+      'workspace-implementation-results',
+    );
+
+    await shell.buildWorkspaceTypeHierarchy(
+      const WorkspaceTypeHierarchyQuery(pattern: 'MissingType'),
+    );
+    await showTab(
+      BottomSurfaceTab.typeHierarchy,
+      'workspace-type-hierarchy-results',
+    );
+
+    await shell.collectWorkspaceOutline(
+      const WorkspaceOutlineQuery(targetFilePath: readmePath),
+    );
+    await showTab(BottomSurfaceTab.outline, 'workspace-outline-results');
+
+    await shell.previewWorkspaceRename(
+      const WorkspaceRenameQuery(
+        targetFilePath: readmePath,
+        targetOffset: 0,
+        newName: 'renamed',
+      ),
+    );
+    await showTab(BottomSurfaceTab.rename, 'workspace-rename-results');
+
+    await shell.searchWorkspaceSymbols(
+      const WorkspaceSymbolSearchQuery(pattern: 'MissingSymbol'),
+    );
+    await showTab(
+      BottomSurfaceTab.symbols,
+      'workspace-symbol-search-results',
+    );
+
+    await shell.findWorkspaceReferences(
+      const WorkspaceReferenceSearchQuery(pattern: 'MissingSymbol'),
+    );
+    await showTab(
+      BottomSurfaceTab.usages,
+      'workspace-reference-search-results',
+    );
+
+    await shell.buildWorkspaceCallHierarchy(
+      const WorkspaceCallHierarchyQuery(pattern: 'MissingCall'),
+    );
+    await showTab(
+      BottomSurfaceTab.calls,
+      'workspace-call-hierarchy-results',
+    );
+
+    await shell.searchWorkspaceText(
+      const WorkspaceTextSearchQuery(pattern: 'MissingText'),
+    );
+    await showTab(BottomSurfaceTab.search, 'workspace-search-results');
+
+    await shell.previewWorkspaceReplace(
+      const WorkspaceTextReplaceQuery(
+        pattern: 'MissingText',
+        replacement: 'Replacement',
+      ),
+    );
+    await showTab(BottomSurfaceTab.search, 'workspace-replace-results');
+
+    await shell.collectWorkspaceProblems(
+      const WorkspaceProblemsQuery(pattern: 'Missing'),
+    );
+    await showTab(BottomSurfaceTab.problems, 'workspace-problems-results');
+
+    await shell.collectWorkspaceCodeActions(
+      const WorkspaceCodeActionsQuery(pattern: 'Missing'),
+    );
+    await showTab(BottomSurfaceTab.actions, 'workspace-code-actions-results');
   });
 
   testWidgets('renders populated workspace bottom surfaces', (tester) async {

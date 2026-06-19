@@ -180,6 +180,7 @@ void main() {
     expect(copied.includeExternal, isFalse);
     expect(copied.includeUnresolved, isFalse);
     expect(copied.maxResults, 0);
+    expect(copied.copyWith().excludeGlobs, <String>['src/generated/**']);
 
     final store = InMemoryWorkspaceDocumentStore(
       seededDocuments: const <String, DocumentState>{
@@ -222,7 +223,34 @@ void main() {
     expect(result.links.single.kindLabel, 'workspace import');
     expect(result.links.single.targetLabel, 'src/lib/runtime.styio');
     expect(result.links.single.canOpen, isTrue);
-    expect(result.links.single.column, 2);
+    expect(result.links.single.column, 10);
     expect(result.message, isNull);
+
+    final suffixGlobResult = await service.collectLinks(
+      filePaths: const <String>['src/main.styio', 'src/lib/runtime.styio'],
+      query: const WorkspaceDocumentLinksQuery(
+        targetFilePath: 'src/main.styio',
+        includeGlobs: <String>['**/main.styio'],
+      ),
+    );
+    final wildcardGlobResult = await service.collectLinks(
+      filePaths: const <String>['src/main.styio', 'src/lib/runtime.styio'],
+      query: const WorkspaceDocumentLinksQuery(
+        targetFilePath: 'src/main.styio',
+        includeGlobs: <String>['src/*.styio'],
+        excludeGlobs: <String>['**/generated/*.styio'],
+      ),
+    );
+    final exactGlobResult = await service.collectLinks(
+      filePaths: const <String>['src/main.styio', 'src/lib/runtime.styio'],
+      query: const WorkspaceDocumentLinksQuery(
+        targetFilePath: 'src/main.styio',
+        includeGlobs: <String>['src/main.styio'],
+      ),
+    );
+
+    expect(suffixGlobResult.status, WorkspaceDocumentLinksStatus.completed);
+    expect(wildcardGlobResult.status, WorkspaceDocumentLinksStatus.completed);
+    expect(exactGlobResult.status, WorkspaceDocumentLinksStatus.completed);
   });
 }

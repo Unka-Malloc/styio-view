@@ -199,6 +199,47 @@ void main() {
       operation: 'watch',
       target: '/workspace',
     );
+    final notFoundFailure = manager.classifyFailure(
+      const FileSystemException(
+        'No such file or directory',
+        '/workspace/missing.styio',
+        OSError('No such file or directory', 2),
+      ),
+      operation: 'readText',
+      target: '/workspace/missing.styio',
+    );
+    final conflictFailure = manager.classifyFailure(
+      const FileSystemException(
+        'File exists',
+        '/workspace/existing.styio',
+        OSError('File exists', 17),
+      ),
+      operation: 'copy',
+      target: '/workspace/existing.styio',
+    );
+    final resourceLimitFailure = manager.classifyFailure(
+      const FileSystemException(
+        'No space left on device',
+        '/workspace/full.styio',
+        OSError('No space left on device', 28),
+      ),
+      operation: 'writeText',
+      target: '/workspace/full.styio',
+    );
+    final readOnlyFailure = manager.classifyFailure(
+      const FileSystemException(
+        'Read-only file system',
+        '/workspace/readonly.styio',
+        OSError('Read-only file system', 30),
+      ),
+      operation: 'writeText',
+      target: '/workspace/readonly.styio',
+    );
+    final unknownFailure = manager.classifyFailure(
+      StateError('not a file system error'),
+      operation: 'readText',
+      target: '/workspace/state.styio',
+    );
 
     expect(permissionFailure.kind, FileSystemFailureKind.permissionDenied);
     expect(permissionFailure.sourceManager, 'LocalFileSystemManager');
@@ -212,6 +253,14 @@ void main() {
       unsupportedFailure.toJson()['sourceManager'],
       'UnsupportedFileSystemManager',
     );
+    expect(notFoundFailure.kind, FileSystemFailureKind.notFound);
+    expect(conflictFailure.kind, FileSystemFailureKind.conflict);
+    expect(
+      resourceLimitFailure.kind,
+      FileSystemFailureKind.resourceLimitReached,
+    );
+    expect(readOnlyFailure.kind, FileSystemFailureKind.readOnlyTarget);
+    expect(unknownFailure.kind, FileSystemFailureKind.unknownFailure);
   });
 
   test('unsupported file system manager exposes compatibility only', () async {
@@ -380,6 +429,61 @@ void main() {
     await manager.copy(source, renamed, overwrite: true);
     expect(await manager.readText(renamed), 'copy-move-ok');
 
+    if (!Platform.isWindows) {
+      await expectLater(
+        manager.setExecutable(
+          manager.joinPath(<String>[tempRoot.path, 'missing-executable']),
+        ),
+        throwsA(isA<FileSystemException>()),
+      );
+
+      final sourceLink = manager.joinPath(<String>[
+        tempRoot.path,
+        'source-link',
+      ]);
+      final copiedLink = manager.joinPath(<String>[
+        tempRoot.path,
+        'copied-link',
+      ]);
+      final movedLink = manager.joinPath(<String>[
+        tempRoot.path,
+        'moved-link',
+      ]);
+      await Link(sourceLink).create(source);
+      expect(
+        (await manager.stat(sourceLink)).type,
+        VityoFileSystemEntityType.link,
+      );
+      await manager.copy(sourceLink, copiedLink);
+      await manager.move(sourceLink, movedLink);
+      expect(await manager.readText(copiedLink), 'copy-move-ok');
+      expect((await manager.stat(movedLink)).exists, isTrue);
+      expect(await manager.exists(sourceLink), isFalse);
+
+      final pipePath = manager.joinPath(<String>[tempRoot.path, 'source-pipe']);
+      final pipeResult = await Process.run('mkfifo', <String>[pipePath]);
+      if (pipeResult.exitCode == 0) {
+        expect(
+          (await manager.stat(pipePath)).type,
+          VityoFileSystemEntityType.other,
+        );
+        await expectLater(
+          manager.copy(
+            pipePath,
+            manager.joinPath(<String>[tempRoot.path, 'copied-pipe']),
+          ),
+          throwsA(isA<FileSystemException>()),
+        );
+        await expectLater(
+          manager.move(
+            pipePath,
+            manager.joinPath(<String>[tempRoot.path, 'moved-pipe']),
+          ),
+          throwsA(isA<FileSystemException>()),
+        );
+      }
+    }
+
     final sourceDirectory = manager.joinPath(<String>[
       tempRoot.path,
       'source-directory',
@@ -421,6 +525,13 @@ void main() {
       manager.copy(
         manager.joinPath(<String>[tempRoot.path, 'missing.txt']),
         manager.joinPath(<String>[tempRoot.path, 'missing-copy.txt']),
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    await expectLater(
+      manager.move(
+        manager.joinPath(<String>[tempRoot.path, 'missing.txt']),
+        manager.joinPath(<String>[tempRoot.path, 'missing-move.txt']),
       ),
       throwsA(isA<FileSystemException>()),
     );

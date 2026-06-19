@@ -86,6 +86,102 @@ void main() {
     expect(plan.arguments.last, "printf 'hello shell'");
   });
 
+  test('shell adapter plans unsupported and non-posix shell families', () {
+    final unsupportedPlan = ShellAdapter(
+      ShellFacts.linuxDebianArm(availableShells: const <ShellExecutableFact>[]),
+    ).plan(
+      const ShellCommandRequest(
+        command: 'whoami',
+        workingDirectory: '/workspace',
+        timeout: Duration(seconds: 1),
+      ),
+    );
+    const powershellProfile = ShellProfileConfiguration(
+      id: 'pwsh',
+      executablePath: 'pwsh',
+      family: ShellFamily.powershell,
+      arguments: <String>['-ExecutionPolicy', 'Bypass'],
+      environment: <String, String>{'PROFILE_ENV': 'pwsh'},
+    );
+    const cmdProfile = ShellProfileConfiguration(
+      id: 'cmd',
+      executablePath: r'C:\Windows\System32\cmd.exe',
+      family: ShellFamily.cmd,
+    );
+    const fishProfile = ShellProfileConfiguration(
+      id: 'fish',
+      executablePath: '/usr/bin/fish',
+      family: ShellFamily.fish,
+    );
+    const unknownProfile = ShellProfileConfiguration(
+      id: 'unknown',
+      executablePath: '/custom/shell',
+      family: ShellFamily.unknown,
+    );
+    final adapter = ShellAdapter(ShellFacts.linuxDebianArm());
+    final powershellPlan = adapter.plan(
+      const ShellCommandRequest(
+        command: 'Write-Output',
+        arguments: <String>["can't"],
+        environment: <String, String>{'REQUEST_ENV': 'request'},
+        profile: powershellProfile,
+        loginShell: true,
+      ),
+      configuration: const ShellConfiguration(
+        defaultProfileId: 'pwsh',
+        profiles: <ShellProfileConfiguration>[powershellProfile],
+        environmentOverlay: <String, String>{'BASE_ENV': 'base'},
+        timeout: Duration(milliseconds: 500),
+      ),
+    );
+    final cmdPlan = adapter.plan(
+      const ShellCommandRequest(
+        command: 'echo',
+        arguments: <String>['a"b'],
+        profile: cmdProfile,
+      ),
+    );
+    final fishPlan = adapter.plan(
+      const ShellCommandRequest(
+        command: 'echo ready',
+        profile: fishProfile,
+      ),
+    );
+    final unknownPlan = adapter.plan(
+      const ShellCommandRequest(
+        command: 'run',
+        arguments: <String>[''],
+        profile: unknownProfile,
+      ),
+    );
+
+    expect(unsupportedPlan.supported, isFalse);
+    expect(unsupportedPlan.executablePath, isEmpty);
+    expect(unsupportedPlan.timeout, const Duration(seconds: 1));
+    expect(unsupportedPlan.unsupportedMessage, contains('No executable shell'));
+    expect(powershellPlan.executablePath, 'pwsh');
+    expect(
+      powershellPlan.arguments,
+      <String>[
+        '-ExecutionPolicy',
+        'Bypass',
+        '-NoLogo',
+        '-NoProfile',
+        '-Command',
+        "Write-Output 'can''t'",
+      ],
+    );
+    expect(powershellPlan.environment, <String, String>{
+      'BASE_ENV': 'base',
+      'PROFILE_ENV': 'pwsh',
+      'REQUEST_ENV': 'request',
+    });
+    expect(powershellPlan.timeout, const Duration(milliseconds: 500));
+    expect(cmdPlan.arguments, <String>['/C', r'echo "a\"b"']);
+    expect(fishPlan.arguments, <String>['-c', 'echo ready']);
+    expect(unknownPlan.arguments, <String>['-c', "run ''"]);
+  });
+
   test('local shell manager executes command through shell adapter', () async {
     final manager = LocalShellManager.linuxDebianArmForTest(shellPath: '/bin/sh');
 

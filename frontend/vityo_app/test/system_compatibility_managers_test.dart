@@ -283,6 +283,50 @@ void main() {
 
   test('network manager classifies request failures structurally', () async {
     final manager = LocalNetworkManager.linuxDebianArmForTest();
+    const classifier = NetworkFailureClassifier(sourceManager: 'TestNetwork');
+    final timedOut = classifier.classify(
+      status: NetworkRequestStatus.timedOut,
+      uri: Uri.parse('https://downloads.vityo.dev/slow'),
+      statusCode: null,
+      message: 'Request timed out.',
+      operation: 'network.timeout',
+    );
+    final tlsFailure = classifier.classify(
+      status: NetworkRequestStatus.failed,
+      uri: Uri.parse('https://downloads.vityo.dev/tls'),
+      statusCode: null,
+      message: 'TLS handshake certificate rejected.',
+      operation: 'network.tls',
+      recoveryHint: 'Check the configured certificate authority.',
+    );
+    final hostFailure = classifier.classify(
+      status: NetworkRequestStatus.failed,
+      uri: Uri.parse('https://missing-host.invalid/styio'),
+      statusCode: null,
+      message: 'Socket host lookup failed.',
+      operation: 'network.host',
+    );
+    final invalidUri = classifier.classify(
+      status: NetworkRequestStatus.failed,
+      uri: Uri.parse('https://downloads.vityo.dev/bad-uri'),
+      statusCode: null,
+      message: 'Format exception while parsing URI.',
+      operation: 'network.uri',
+    );
+    final unknownFailure = classifier.classify(
+      status: NetworkRequestStatus.failed,
+      uri: Uri.parse('https://downloads.vityo.dev/unknown'),
+      statusCode: null,
+      message: null,
+      operation: 'network.unknown',
+    );
+    final success = classifier.classify(
+      status: NetworkRequestStatus.succeeded,
+      uri: Uri.parse('https://downloads.vityo.dev/styio'),
+      statusCode: 200,
+      message: null,
+      operation: 'network.success',
+    );
     final httpFailure = manager.failureForBytes(
       NetworkBinaryResponse(
         status: NetworkRequestStatus.failed,
@@ -296,15 +340,38 @@ void main() {
     final blockedResponse = await UnsupportedNetworkManager(
       facts: NetworkFacts.linuxDebianArm(),
     ).getText(Uri.parse('https://downloads.vityo.dev/styio'));
+    final blockedBytes = await UnsupportedNetworkManager(
+      facts: NetworkFacts.linuxDebianArm(),
+    ).getBytes(Uri.parse('https://downloads.vityo.dev/styio.bin'));
     final blockedFailure = UnsupportedNetworkManager(
       facts: NetworkFacts.linuxDebianArm(),
     ).failureForText(blockedResponse);
+    final blockedBytesFailure = UnsupportedNetworkManager(
+      facts: NetworkFacts.linuxDebianArm(),
+    ).failureForBytes(blockedBytes);
+    final textResponse = NetworkTextResponse(
+      status: NetworkRequestStatus.failed,
+      uri: Uri(scheme: 'https', host: 'downloads.vityo.dev', path: '/styio'),
+      statusCode: 500,
+      body: 'server error',
+      message: 'failed text response',
+    );
 
+    expect(timedOut!.kind, NetworkFailureKind.timeout);
+    expect(tlsFailure!.kind, NetworkFailureKind.tlsFailure);
+    expect(tlsFailure.toJson()['recoveryHint'], contains('certificate'));
+    expect(hostFailure!.kind, NetworkFailureKind.hostUnreachable);
+    expect(invalidUri!.kind, NetworkFailureKind.invalidUri);
+    expect(unknownFailure!.kind, NetworkFailureKind.unknownFailure);
+    expect(success, isNull);
     expect(httpFailure, isNotNull);
     expect(httpFailure!.kind, NetworkFailureKind.httpStatus);
     expect(httpFailure.statusCode, 503);
     expect(httpFailure.sourceManager, 'LocalNetworkManager');
+    expect(textResponse.toJson()['bodyLength'], 12);
+    expect(textResponse.toJson()['message'], 'failed text response');
     expect(blockedFailure!.kind, NetworkFailureKind.unsupported);
+    expect(blockedBytesFailure!.kind, NetworkFailureKind.unsupported);
     expect(
       blockedFailure.toJson()['sourceManager'],
       'UnsupportedNetworkManager',

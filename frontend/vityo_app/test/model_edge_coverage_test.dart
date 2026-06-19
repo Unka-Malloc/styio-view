@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/adapter_contracts.dart';
+import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/environment/system_compatibility/file_system/file_system_facts.dart';
+import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 
 void main() {
@@ -205,4 +208,114 @@ void main() {
       expect(base.toJson()['entries'], isA<Map<String, Object?>>());
     },
   );
+
+  test('project graph contract labels and optional flags stay stable', () {
+    expect(
+      ProjectKind.values.map((kind) => kind.label),
+      <String>['scratch', 'package', 'workspace', 'combined-root', 'hosted'],
+    );
+    expect(
+      ProjectDependencySourceKind.values.map((kind) => kind.label),
+      <String>['path', 'git', 'registry', 'unknown'],
+    );
+    expect(
+      ToolchainResolutionSource.values.map((source) => source.label),
+      <String>[
+        'project-pin',
+        'managed-current',
+        'environment',
+        'unavailable',
+        'unknown',
+      ],
+    );
+    expect(
+      HostedWorkspaceStatus.values.map((status) => status.label),
+      <String>[
+        'provisioning',
+        'active',
+        'closing',
+        'pending-deletion',
+        'deleted',
+      ],
+    );
+    expect(
+      HostedWorkspaceExportState.values.map((state) => state.label),
+      <String>['not-requested', 'preparing', 'ready', 'expired'],
+    );
+
+    final scratch = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/scratch',
+      activeFilePath: '/workspace/scratch/main.styio',
+      title: 'Scratch',
+      notes: const <String>['scratch mode'],
+    );
+    final enriched = scratch.copyWith(
+      packageDistribution: const PackageDistributionSnapshot(schemaVersion: 1),
+      sourceState: const ProjectSourceStateSnapshot(schemaVersion: 1),
+      projectGraphPayloadFailure: const PublishedPayloadFailure(
+        command: 'spio project-graph',
+        detail: 'schema mismatch',
+      ),
+      toolchainStatePayloadFailure: const PublishedPayloadFailure(
+        command: 'spio toolchain-state',
+        detail: 'missing contract',
+      ),
+      hostedWorkspace: HostedWorkspaceRecordSnapshot(
+        workspaceId: 'hosted-workspace',
+        schemaVersion: '1',
+        ownerRef: 'Vityo',
+        status: HostedWorkspaceStatus.pendingDeletion,
+        entryUrl: 'https://hosted.example.test/workspaces/hosted-workspace',
+        createdAt: DateTime.utc(2026, 6, 1),
+        lastActiveAt: DateTime.utc(2026, 6, 2),
+        retentionDays: 7,
+        exportState: HostedWorkspaceExportState.ready,
+      ),
+      notes: const <String>['enriched'],
+    );
+
+    expect(scratch.isScratch, isTrue);
+    expect(scratch.hasManifest, isFalse);
+    expect(scratch.editorFileCount, 1);
+    expect(enriched.hasPackageDistribution, isTrue);
+    expect(enriched.hasSourceState, isTrue);
+    expect(enriched.hasProjectGraphPayloadFailure, isTrue);
+    expect(enriched.hasToolchainStatePayloadFailure, isTrue);
+    expect(enriched.hasHostedWorkspace, isTrue);
+    expect(enriched.notes, <String>['enriched']);
+  });
+
+  test('platform targets expose stable labels and host detection', () {
+    expect(
+      PlatformTarget.values.map((target) => target.wireValue),
+      <String>['web', 'windows', 'linux', 'android', 'macos', 'ios', 'unknown'],
+    );
+    expect(
+      PlatformTarget.values.map((target) => target.label),
+      <String>['Web', 'Windows', 'Linux', 'Android', 'macOS', 'iOS', 'Unknown'],
+    );
+    expect(
+      PlatformTarget.values.map(
+        (target) => platformTargetFromWireValue(target.wireValue),
+      ),
+      PlatformTarget.values,
+    );
+    expect(platformTargetFromWireValue('beos'), PlatformTarget.unknown);
+
+    final previousOverride = debugDefaultTargetPlatformOverride;
+    addTearDown(() => debugDefaultTargetPlatformOverride = previousOverride);
+
+    final hostTargets = <TargetPlatform, PlatformTarget>{
+      TargetPlatform.windows: PlatformTarget.windows,
+      TargetPlatform.linux: PlatformTarget.linux,
+      TargetPlatform.android: PlatformTarget.android,
+      TargetPlatform.macOS: PlatformTarget.macos,
+      TargetPlatform.iOS: PlatformTarget.ios,
+      TargetPlatform.fuchsia: PlatformTarget.unknown,
+    };
+    for (final entry in hostTargets.entries) {
+      debugDefaultTargetPlatformOverride = entry.key;
+      expect(detectPlatformTarget(), entry.value);
+    }
+  });
 }

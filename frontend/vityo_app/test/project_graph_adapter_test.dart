@@ -1464,7 +1464,7 @@ raise SystemExit(64)
         containsAll(<String>[
           'dependency in [dependencies] uses a local path or workspace source: local-kit',
           'dependency in [dev-dependencies] uses a git source: dev-tool',
-          'dependency has incomplete source metadata: mystery',
+          'dependency in [dependencies] is not registry-addressable: mystery',
         ]),
       );
     },

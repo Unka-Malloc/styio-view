@@ -48,6 +48,45 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> focusSourceBuffer(WidgetTester tester) async {
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+  }
+
+  Future<void> sendShortcut(
+    WidgetTester tester,
+    LogicalKeyboardKey key, {
+    bool control = false,
+    bool alt = false,
+    bool shift = false,
+  }) async {
+    if (control) {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    }
+    if (alt) {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    }
+    if (shift) {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    }
+    await tester.sendKeyEvent(key);
+    if (shift) {
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    }
+    if (alt) {
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    }
+    if (control) {
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    }
+    await tester.pump();
+  }
+
   List<Color?> backgroundsForTextOnLine(
     WidgetTester tester, {
     required int lineIndex,
@@ -3121,6 +3160,210 @@ value -> @stdout
     );
   });
 
+  testWidgets('dismisses completion lookup from keyboard paths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'completion-dismiss-keymap.styio',
+        text: '',
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await focusSourceBuffer(tester);
+
+    await sendShortcut(tester, LogicalKeyboardKey.space, control: true);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsNothing,
+    );
+
+    await sendShortcut(tester, LogicalKeyboardKey.space, control: true);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyX, character: 'x');
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('updates and dismisses symbol and surround lookups', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text =
+        'fn buildPipe(user) {\n'
+        '  value = user\n'
+        '}\n'
+        'fn renderPipe() {\n'
+        '}\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'lookup-dismiss-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await focusSourceBuffer(tester);
+
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyN,
+      control: true,
+      alt: true,
+      shift: true,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyR, character: 'r');
+    await tester.pump();
+    expect(find.text('renderPipe · function · 4:4'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+    expect(find.text('buildPipe · function · 1:4'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsNothing);
+
+    bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
+    await tester.pump();
+    await focusSourceBuffer(tester);
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyT,
+      control: true,
+      alt: true,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-surround-lookup')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-surround-lookup')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-surround-lookup')),
+      findsNothing,
+    );
+
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyT,
+      control: true,
+      alt: true,
+    );
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyX, character: 'x');
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-surround-lookup')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('dismisses quick fix lookup from keyboard paths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'let stream\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'quickfix-dismiss-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('stream') + 2);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await focusSourceBuffer(tester);
+
+    await sendShortcut(tester, LogicalKeyboardKey.enter, alt: true);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsNothing,
+    );
+
+    await sendShortcut(tester, LogicalKeyboardKey.enter, alt: true);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyX, character: 'x');
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsNothing,
+    );
+  });
+
   testWidgets('opens quick fix lookup from editor keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
@@ -3860,6 +4103,186 @@ blend(left: price, right: tax) -> @stdout
       '}\n'
       'value = blend(price)\n'
       'again = blend(total)\n',
+    );
+  });
+
+  testWidgets('dismisses editor refactor panels from keyboard', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+
+    Future<void> loadAndFocus(DocumentState document) async {
+      bootstrap.editorController.loadDocument(document);
+      await tester.pumpAndSettle();
+      await focusSourceBuffer(tester);
+    }
+
+    const renameText = 'value = value\n';
+    await loadAndFocus(
+      const DocumentState(
+        documentId: 'panel-inline-rename.styio',
+        text: renameText,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(renameText.indexOf('value') + 2);
+    await tester.pump();
+    await sendShortcut(tester, LogicalKeyboardKey.f6, shift: true);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-inline-rename-panel')),
+      findsNothing,
+    );
+
+    const safeDeleteText = 'used = 1\nunused = 2\nused -> @stdout\n';
+    await loadAndFocus(
+      const DocumentState(
+        documentId: 'panel-safe-delete.styio',
+        text: safeDeleteText,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(
+      safeDeleteText.indexOf('unused') + 2,
+    );
+    await tester.pump();
+    await sendShortcut(tester, LogicalKeyboardKey.delete, alt: true);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-safe-delete-panel')),
+      findsNothing,
+    );
+
+    const inlineText = 'seed = 40 + 2\nvalue = seed\n';
+    await loadAndFocus(
+      const DocumentState(
+        documentId: 'panel-inline-variable.styio',
+        text: inlineText,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(inlineText.indexOf('seed') + 2);
+    await tester.pump();
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyN,
+      control: true,
+      alt: true,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-panel')),
+      findsNothing,
+    );
+
+    const introduceText = 'value = 40 + 2\n';
+    final introduceStart = introduceText.indexOf('40 + 2');
+    await loadAndFocus(
+      const DocumentState(
+        documentId: 'panel-introduce-variable.styio',
+        text: introduceText,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectRange(
+      baseOffset: introduceStart,
+      extentOffset: introduceStart + '40 + 2'.length,
+    );
+    await tester.pump();
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyV,
+      control: true,
+      alt: true,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-panel')),
+      findsNothing,
+    );
+
+    const extractText = 'fn main(user) {\n  first = user + 1\n}\n';
+    final extractStart = extractText.indexOf('user + 1');
+    await loadAndFocus(
+      const DocumentState(
+        documentId: 'panel-extract-function.styio',
+        text: extractText,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectRange(
+      baseOffset: extractStart,
+      extentOffset: extractStart + 'user + 1'.length,
+    );
+    await tester.pump();
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyM,
+      control: true,
+      alt: true,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-extract-function-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-extract-function-panel')),
+      findsNothing,
+    );
+
+    const signatureText =
+        'fn blend(left: f64, right: f64) {\n'
+        '  result = left + right\n'
+        '}\n'
+        'value = blend(price, tax)\n';
+    await loadAndFocus(
+      const DocumentState(
+        documentId: 'panel-change-signature.styio',
+        text: signatureText,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(
+      signatureText.indexOf('blend') + 1,
+    );
+    await tester.pump();
+    await sendShortcut(tester, LogicalKeyboardKey.f6, control: true);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('source-change-signature-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-change-signature-panel')),
+      findsNothing,
     );
   });
 

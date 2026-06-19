@@ -1329,6 +1329,274 @@ void main() {
     );
   });
 
+  test('capability detector maps explicit failure and stale state aliases', () {
+    const detector = StyioServiceCapabilityDetector();
+    const response = StyioServiceResponse(
+      status: StyioServiceStatus.succeeded,
+      documentId: 'fixture://explicit-capability-aliases',
+      revision: 1,
+      capabilityStates: <String, String>{
+        'completion': 'supported',
+        'hover': 'unavailable',
+        'semantic_tokens': 'derived',
+        'code_actions': 'error',
+        'rename': 'protocol-error',
+        'safe_delete': 'protocolerror',
+        'inline-variable': 'stale',
+        'formatting': '  ',
+      },
+    );
+
+    final snapshot = detector.detect(
+      response,
+      expectedCapabilities: const <StyioServiceCapability>[
+        StyioServiceCapability.completion,
+        StyioServiceCapability.hover,
+        StyioServiceCapability.semanticTokens,
+        StyioServiceCapability.codeActions,
+        StyioServiceCapability.rename,
+        StyioServiceCapability.safeDelete,
+        StyioServiceCapability.inlineVariable,
+        StyioServiceCapability.formatting,
+      ],
+    );
+
+    expect(
+      snapshot.stateOf(StyioServiceCapability.completion),
+      StyioServiceCapabilityState.available,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.hover),
+      StyioServiceCapabilityState.unavailable,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.semanticTokens),
+      StyioServiceCapabilityState.derived,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.codeActions),
+      StyioServiceCapabilityState.failed,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.rename),
+      StyioServiceCapabilityState.protocolError,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.safeDelete),
+      StyioServiceCapabilityState.protocolError,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.inlineVariable),
+      StyioServiceCapabilityState.stale,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.formatting),
+      StyioServiceCapabilityState.empty,
+    );
+
+    for (final status in const <StyioServiceStatus>[
+      StyioServiceStatus.unavailable,
+      StyioServiceStatus.failed,
+      StyioServiceStatus.protocolError,
+    ]) {
+      final fallback = detector.detect(
+        StyioServiceResponse(
+          status: status,
+          documentId: 'fixture://fallback-capability-status',
+          revision: 1,
+        ),
+        expectedCapabilities: const <StyioServiceCapability>[
+          StyioServiceCapability.hover,
+        ],
+      );
+      expect(
+        fallback.stateOf(StyioServiceCapability.hover),
+        switch (status) {
+          StyioServiceStatus.unavailable =>
+            StyioServiceCapabilityState.unavailable,
+          StyioServiceStatus.failed => StyioServiceCapabilityState.failed,
+          StyioServiceStatus.protocolError =>
+            StyioServiceCapabilityState.protocolError,
+          StyioServiceStatus.succeeded => StyioServiceCapabilityState.empty,
+          StyioServiceStatus.stale => StyioServiceCapabilityState.stale,
+        },
+      );
+    }
+  });
+
+  test('capability detector marks safe refactor payloads available', () {
+    const detector = StyioServiceCapabilityDetector();
+    const document = DocumentState(
+      documentId: 'fixture://safe-refactor-capabilities',
+      text: 'value := 1\nvalue()\n',
+      revision: 1,
+    );
+    const symbol = DocumentSymbol(
+      name: 'value',
+      kind: SymbolKind.function,
+      nameRange: SourceRange(start: 0, end: 5),
+      declarationRange: SourceRange(start: 0, end: 10),
+    );
+    const reference = ReferenceSpan(
+      name: 'value',
+      kind: SymbolKind.function,
+      range: SourceRange(start: 11, end: 16),
+      targetRange: SourceRange(start: 0, end: 5),
+    );
+    const edit = FormattingEdit(
+      range: SourceRange(start: 11, end: 16),
+      newText: 'nextValue',
+    );
+    const response = StyioServiceResponse(
+      status: StyioServiceStatus.succeeded,
+      documentId: 'fixture://safe-refactor-capabilities',
+      revision: 1,
+      formattingEdits: <FormattingEdit>[
+        FormattingEdit(range: SourceRange(start: 5, end: 5), newText: ' '),
+      ],
+      semanticBlocks: <SemanticBlockRange>[
+        SemanticBlockRange(
+          range: SourceRange(start: 0, end: 18),
+          label: 'function-call',
+        ),
+      ],
+      inlayHints: <InlayHint>[
+        InlayHint(
+          label: ': i64',
+          kind: InlayHintKind.type,
+          position: 5,
+          range: SourceRange(start: 0, end: 5),
+        ),
+      ],
+      definitionTargets: <DefinitionTarget>[
+        DefinitionTarget(
+          symbol: symbol,
+          originRange: SourceRange(start: 11, end: 16),
+        ),
+      ],
+      renamePlans: <RenamePlan>[
+        RenamePlan(
+          target: symbol,
+          newName: 'nextValue',
+          references: <ReferenceSpan>[reference],
+          edits: <FormattingEdit>[edit],
+        ),
+      ],
+      safeDeletePlans: <SafeDeletePlan>[
+        SafeDeletePlan(
+          target: symbol,
+          references: <ReferenceSpan>[reference],
+          edits: <FormattingEdit>[
+            FormattingEdit(range: SourceRange(start: 0, end: 10), newText: ''),
+          ],
+        ),
+      ],
+      inlineVariablePlans: <InlineVariablePlan>[
+        InlineVariablePlan(
+          target: symbol,
+          initializerRange: SourceRange(start: 9, end: 10),
+          initializerText: '1',
+          references: <ReferenceSpan>[reference],
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 11, end: 16),
+              newText: '1',
+            ),
+          ],
+        ),
+      ],
+      introduceVariablePlans: <IntroduceVariablePlan>[
+        IntroduceVariablePlan(
+          variableName: 'nextValue',
+          expressionRange: SourceRange(start: 11, end: 16),
+          expressionText: 'value',
+          edits: <FormattingEdit>[edit],
+        ),
+      ],
+      extractFunctionPlans: <ExtractFunctionPlan>[
+        ExtractFunctionPlan(
+          functionName: 'extractValue',
+          selectionRange: SourceRange(start: 11, end: 18),
+          selectedText: 'value()',
+          parameters: <String>[],
+          callText: 'extractValue()',
+          functionText: '#extractValue := () => value()\n',
+          edits: <FormattingEdit>[edit],
+        ),
+      ],
+      changeSignaturePlans: <ChangeSignaturePlan>[
+        ChangeSignaturePlan(
+          target: symbol,
+          originalName: 'value',
+          newName: 'nextValue',
+          originalParameters: <ParameterInfoParameter>[
+            ParameterInfoParameter(
+              name: 'x',
+              range: SourceRange(start: 16, end: 16),
+            ),
+          ],
+          newParameters: <ChangeSignatureParameterUpdate>[
+            ChangeSignatureParameterUpdate(originalName: 'x', name: 'nextX'),
+          ],
+          references: <ReferenceSpan>[reference],
+          edits: <FormattingEdit>[edit],
+        ),
+      ],
+      parameterInfos: <ParameterInfoPayload>[
+        ParameterInfoPayload(
+          callableName: 'value',
+          signature: 'value(x: i64)',
+          parameters: <ParameterInfoParameter>[
+            ParameterInfoParameter(
+              name: 'x',
+              type: 'i64',
+              range: SourceRange(start: 16, end: 16),
+            ),
+          ],
+          activeParameterIndex: 0,
+          invocationRange: SourceRange(start: 11, end: 18),
+          callableRange: SourceRange(start: 11, end: 16),
+        ),
+      ],
+    );
+    const expected = <StyioServiceCapability>[
+      StyioServiceCapability.formatting,
+      StyioServiceCapability.semanticBlocks,
+      StyioServiceCapability.inlayHints,
+      StyioServiceCapability.definition,
+      StyioServiceCapability.rename,
+      StyioServiceCapability.safeDelete,
+      StyioServiceCapability.inlineVariable,
+      StyioServiceCapability.introduceVariable,
+      StyioServiceCapability.extractFunction,
+      StyioServiceCapability.changeSignature,
+      StyioServiceCapability.parameterInfo,
+    ];
+
+    final snapshot = detector.detect(
+      response,
+      document: document,
+      expectedCapabilities: expected,
+    );
+    final rawSnapshot = detector.detect(
+      response,
+      expectedCapabilities: expected,
+    );
+
+    for (final capability in expected) {
+      expect(
+        snapshot.stateOf(capability),
+        StyioServiceCapabilityState.available,
+        reason: capability.wireValue,
+      );
+      expect(
+        rawSnapshot.stateOf(capability),
+        StyioServiceCapabilityState.available,
+        reason: 'raw ${capability.wireValue}',
+      );
+    }
+  });
+
   test(
     'analysis driver keeps local analysis for stale Styio responses',
     () async {

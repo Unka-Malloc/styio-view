@@ -5026,6 +5026,200 @@ blend(left: price, right: tax) -> @stdout
     );
   });
 
+  testWidgets('cycles mobile language inspector sections', (tester) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.android);
+    const text =
+        'fn blend(left: f64, right: f64): f64 {\n'
+        '  emit left + right\n'
+        '}\n'
+        'price: f64 = 12.5  \n'
+        'tax = 0.5\n'
+        'value = blend(price, tax)\n'
+        'missingPrice -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'mobile-language-tabs.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('price, tax') + 2);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await revealMobileLanguagePane(tester);
+
+    final tabScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-mobile'), skipOffstage: false),
+      matching: find.byType(Scrollable, skipOffstage: false),
+      skipOffstage: false,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('language-mobile-section-diagnostics'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    final sections = <String, String>{
+      'Blocks': 'blocks',
+      'Inlays': 'inlays',
+      'Symbols': 'symbols',
+      'Resolve': 'resolve',
+      'Token': 'token',
+      'Hover': 'hover',
+      'Complete': 'completions',
+      'Format': 'formatting',
+    };
+
+    for (final section in sections.entries) {
+      final tab = find.text(section.key, skipOffstage: false);
+      await tester.scrollUntilVisible(
+        tab.first,
+        120,
+        scrollable: tabScrollable.first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(tab.first);
+      await tester.pump();
+
+      expect(
+        find.byKey(
+          ValueKey('language-mobile-section-${section.value}'),
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+    }
+  });
+
+  testWidgets('applies language pane diagnostic and formatting actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'fn broken() {\n  emit stream  \n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'language-pane-actions.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-diagnostic-fix-0-0')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-diagnostic-fix-0-0')));
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text.endsWith('}'), isTrue);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-apply-formatting')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-apply-formatting')));
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text.contains('  \n'), isFalse);
+  });
+
+  testWidgets('applies completion from language pane preview', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'language-pane-completion.styio',
+        text: '',
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-apply-completion-@import')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('language-apply-completion-@import')),
+    );
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      startsWith('@import { styio/core }'),
+    );
+  });
+
+  testWidgets('shows language pane rename conflicts', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'price = 1\ntotal = price\ntotal -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'language-pane-rename-conflict.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('price'));
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-rename-input')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('language-rename-input')),
+      'total',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('language-rename-conflict')), findsOne);
+  });
+
 }
 
 class _FakeProjectGraphAdapter implements ProjectGraphAdapter {

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
+import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
@@ -125,6 +126,183 @@ third = @prices
       result.highlights.map((item) => item.previewText).toSet(),
       <String>{'alpha = beta + beta'},
     );
+  });
+
+  test('workspace document highlights exposes query and label helpers', () async {
+    const query = WorkspaceDocumentHighlightsQuery(
+      targetFilePath: 'main.styio',
+      offset: 2,
+    );
+    final copied = query.copyWith(
+      targetFilePath: 'lib/main.styio',
+      offset: 4,
+      includeText: false,
+      includeDeclarations: false,
+      includeRead: false,
+      includeWrite: false,
+      includeGlobs: const <String>['lib/*.styio'],
+      excludeGlobs: const <String>['lib/generated/**'],
+      maxResults: 3,
+    );
+
+    expect(copied.targetFilePath, 'lib/main.styio');
+    expect(copied.offset, 4);
+    expect(copied.includeText, isFalse);
+    expect(copied.includeDeclarations, isFalse);
+    expect(copied.includeRead, isFalse);
+    expect(copied.includeWrite, isFalse);
+    expect(copied.includeGlobs, const <String>['lib/*.styio']);
+    expect(copied.excludeGlobs, const <String>['lib/generated/**']);
+    expect(copied.maxResults, 3);
+
+    const range = SourceRange(start: 0, end: 5);
+    const text = WorkspaceDocumentHighlightItem(
+      filePath: 'main.styio',
+      name: 'value',
+      kind: WorkspaceDocumentHighlightKind.text,
+      range: range,
+      line: 0,
+      column: 0,
+      previewText: 'value = 1',
+      isActive: true,
+    );
+    const declaration = WorkspaceDocumentHighlightItem(
+      filePath: 'main.styio',
+      name: 'run',
+      kind: WorkspaceDocumentHighlightKind.declaration,
+      range: range,
+      line: 0,
+      column: 0,
+      previewText: 'fn run() {}',
+      isActive: false,
+      symbolKind: SymbolKind.function,
+    );
+    const read = WorkspaceDocumentHighlightItem(
+      filePath: 'main.styio',
+      name: 'state',
+      kind: WorkspaceDocumentHighlightKind.read,
+      range: range,
+      line: 0,
+      column: 0,
+      previewText: 'state = next',
+      isActive: false,
+      symbolKind: SymbolKind.state,
+    );
+    const write = WorkspaceDocumentHighlightItem(
+      filePath: 'main.styio',
+      name: 'task',
+      kind: WorkspaceDocumentHighlightKind.write,
+      range: range,
+      line: 0,
+      column: 0,
+      previewText: 'task -> value',
+      isActive: false,
+      symbolKind: SymbolKind.task,
+    );
+    const pipeline = WorkspaceDocumentHighlightItem(
+      filePath: 'main.styio',
+      name: 'pipe',
+      kind: WorkspaceDocumentHighlightKind.read,
+      range: range,
+      line: 0,
+      column: 0,
+      previewText: 'pipe',
+      isActive: false,
+      symbolKind: SymbolKind.pipeline,
+    );
+    const variable = WorkspaceDocumentHighlightItem(
+      filePath: 'main.styio',
+      name: 'local',
+      kind: WorkspaceDocumentHighlightKind.read,
+      range: range,
+      line: 0,
+      column: 0,
+      previewText: 'local',
+      isActive: false,
+      symbolKind: SymbolKind.variable,
+    );
+    const parameter = WorkspaceDocumentHighlightItem(
+      filePath: 'main.styio',
+      name: 'input',
+      kind: WorkspaceDocumentHighlightKind.read,
+      range: range,
+      line: 0,
+      column: 0,
+      previewText: 'input',
+      isActive: false,
+      symbolKind: SymbolKind.parameter,
+    );
+
+    expect(text.kindLabel, 'text');
+    expect(text.symbolKindLabel, 'text');
+    expect(declaration.kindLabel, 'declaration');
+    expect(read.kindLabel, 'read');
+    expect(write.kindLabel, 'write');
+    expect(
+      <String>[
+        declaration.symbolKindLabel,
+        read.symbolKindLabel,
+        write.symbolKindLabel,
+        pipeline.symbolKindLabel,
+        variable.symbolKindLabel,
+        parameter.symbolKindLabel,
+      ],
+      <String>['function', 'state', 'task', 'pipeline', 'variable', 'parameter'],
+    );
+  });
+
+  test('workspace document highlights reports filtered highlights and globs', () async {
+    const source = 'alpha = beta + beta\n';
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/main.styio': DocumentState(
+          documentId: 'lib/main.styio',
+          text: source,
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceDocumentHighlightsService(documentStore: store);
+
+    final noHighlights = await service.collectHighlights(
+      filePaths: const <String>['lib/main.styio'],
+      query: WorkspaceDocumentHighlightsQuery(
+        targetFilePath: 'lib/main.styio',
+        offset: source.indexOf('beta'),
+        includeText: false,
+      ),
+    );
+    final suffixGlob = await service.collectHighlights(
+      filePaths: const <String>['lib/main.styio'],
+      query: const WorkspaceDocumentHighlightsQuery(
+        targetFilePath: 'lib/main.styio',
+        offset: 0,
+        includeGlobs: <String>['**/main.styio'],
+      ),
+    );
+    final wildcardGlob = await service.collectHighlights(
+      filePaths: const <String>['lib/main.styio'],
+      query: const WorkspaceDocumentHighlightsQuery(
+        targetFilePath: 'lib/main.styio',
+        offset: 0,
+        includeGlobs: <String>['lib/*.styio'],
+      ),
+    );
+    final excluded = await service.collectHighlights(
+      filePaths: const <String>['lib/main.styio'],
+      query: const WorkspaceDocumentHighlightsQuery(
+        targetFilePath: 'lib/main.styio',
+        offset: 0,
+        excludeGlobs: <String>['lib/**'],
+      ),
+    );
+
+    expect(noHighlights.status, WorkspaceDocumentHighlightsStatus.noHighlights);
+    expect(noHighlights.highlightsIndexed, 2);
+    expect(noHighlights.message, 'No document highlights match `beta`.');
+    expect(suffixGlob.status, WorkspaceDocumentHighlightsStatus.completed);
+    expect(wildcardGlob.status, WorkspaceDocumentHighlightsStatus.completed);
+    expect(excluded.status, WorkspaceDocumentHighlightsStatus.emptyWorkspace);
   });
 
   test('workspace document highlights reports empty workspace and selection', () async {

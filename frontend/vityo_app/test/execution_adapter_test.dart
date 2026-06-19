@@ -3,9 +3,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
+import 'package:vityo_app/src/backend_toolchain/adapter_contracts.dart';
 import 'package:vityo_app/src/backend_toolchain/execution_adapter.dart';
+import 'package:vityo_app/src/backend_toolchain/hosted_control_plane.dart';
 import 'package:vityo_app/src/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/backend_toolchain/runtime_event_adapter.dart';
+import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
 void main() {
@@ -912,6 +915,466 @@ raise SystemExit(64)
       contains('${helperFile.path}: helper failed'),
     );
   });
+
+  test('execution adapter exposes blocked platform and compiler branches', () async {
+    final tempRoot = await _createTempRoot('vityo_execution_blocked_test_');
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}scratch${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('>_("demo")\n');
+
+    debugOverrideHostedEnvironment(const <String, String>{
+      'VITYO_HOSTED_URL': 'http://127.0.0.1:1/api/styio-hosted/v1',
+      'VITYO_HOSTED_TOKEN': 'test-hosted-token',
+      'VITYO_HOSTED_WORKSPACE_ROOT': '/workspace/hosted',
+    });
+    final hostedAdapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.ios,
+      projectGraph: ProjectGraphSnapshot.scratch(
+        workspaceRoot: tempRoot.path,
+        activeFilePath: sourceFile.path,
+        title: 'Scratch Project',
+        notes: const <String>[],
+      ),
+    );
+    addTearDown(() => debugOverrideHostedEnvironment(null));
+    expect(
+      hostedAdapter.capabilitySnapshot.execution.level,
+      AdapterCapabilityLevel.available,
+    );
+    final missingHostedWorkspace = await hostedAdapter.runActiveDocument(
+      platformTarget: PlatformTarget.ios,
+      projectGraph: ProjectGraphSnapshot.scratch(
+        workspaceRoot: tempRoot.path,
+        activeFilePath: sourceFile.path,
+        title: 'Scratch Project',
+        notes: const <String>[],
+      ),
+      document: const DocumentState(
+        documentId: 'scratch',
+        text: '>_("demo")\n',
+        revision: 1,
+      ),
+      activeFilePath: sourceFile.path,
+    );
+    expect(missingHostedWorkspace.status, ExecutionSessionStatus.blocked);
+    expect(missingHostedWorkspace.sessionId, 'missing-hosted-workspace');
+
+    debugOverrideHostedEnvironment(null);
+    final missingCompilerGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: tempRoot.path,
+      activeFilePath: sourceFile.path,
+      title: 'Scratch Project',
+      notes: const <String>[],
+    );
+    final missingCompilerAdapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: missingCompilerGraph,
+    );
+    expect(
+      missingCompilerAdapter.capabilitySnapshot.execution.level,
+      AdapterCapabilityLevel.unavailable,
+    );
+    final missingCompiler = await missingCompilerAdapter.runActiveDocument(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: missingCompilerGraph,
+      document: const DocumentState(
+        documentId: 'scratch',
+        text: '>_("demo")\n',
+        revision: 1,
+      ),
+      activeFilePath: sourceFile.path,
+    );
+    expect(missingCompiler.status, ExecutionSessionStatus.blocked);
+    expect(missingCompiler.sessionId, 'missing-styio-binary');
+
+    final fakeStyio = await _writeExecutable(
+      File('${tempRoot.path}${Platform.pathSeparator}fake-styio'),
+      '''#!/usr/bin/env python3
+raise SystemExit(64)
+''',
+    );
+    final iosGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: tempRoot.path,
+      activeFilePath: sourceFile.path,
+      title: 'Scratch Project',
+      notes: const <String>[],
+      activeCompiler: _compilerSnapshot(fakeStyio.path),
+    );
+    final iosAdapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.ios,
+      projectGraph: iosGraph,
+    );
+    expect(
+      iosAdapter.capabilitySnapshot.execution.level,
+      AdapterCapabilityLevel.unavailable,
+    );
+    final iosSession = await iosAdapter.runActiveDocument(
+      platformTarget: PlatformTarget.ios,
+      projectGraph: iosGraph,
+      document: const DocumentState(
+        documentId: 'scratch',
+        text: '>_("demo")\n',
+        revision: 1,
+      ),
+      activeFilePath: sourceFile.path,
+    );
+    expect(iosSession.sessionId, 'ios-cloud-only');
+
+    final manifestPath = '${tempRoot.path}${Platform.pathSeparator}spio.toml';
+    File(manifestPath).writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+
+[[bin]]
+name = "demo"
+path = "scratch/main.styio"
+''');
+    final target = ProjectTargetDescriptor(
+      id: 'demo/app:bin:demo',
+      packageName: 'demo/app',
+      kind: ProjectTargetKind.bin,
+      name: 'demo',
+      filePath: sourceFile.path,
+    );
+    final blockedCompilePlanGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: manifestPath,
+      targets: <ProjectTargetDescriptor>[target],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: manifestPath,
+          targets: <ProjectTargetDescriptor>[target],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot(
+        fakeStyio.path,
+        contracts: const <String, List<int>>{
+          'machine_info': <int>[1],
+        },
+      ),
+    );
+    final blockedCompilePlanAdapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: blockedCompilePlanGraph,
+    );
+    expect(
+      blockedCompilePlanAdapter.capabilitySnapshot.execution.level,
+      AdapterCapabilityLevel.partial,
+    );
+    final blockedCompilePlan = await blockedCompilePlanAdapter.runActiveDocument(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: blockedCompilePlanGraph,
+      document: const DocumentState(
+        documentId: 'scratch',
+        text: '>_("demo")\n',
+        revision: 1,
+      ),
+      activeFilePath: sourceFile.path,
+    );
+    expect(blockedCompilePlan.sessionId, 'compile-plan-preview-only');
+
+    final missingSpioGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: manifestPath,
+      targets: <ProjectTargetDescriptor>[target],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: manifestPath,
+          targets: <ProjectTargetDescriptor>[target],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot(fakeStyio.path),
+    );
+    final missingSpioAdapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: missingSpioGraph,
+    );
+    final missingSpio = await missingSpioAdapter.runActiveDocument(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: missingSpioGraph,
+      document: const DocumentState(
+        documentId: 'scratch',
+        text: '>_("demo")\n',
+        revision: 1,
+      ),
+      activeFilePath: sourceFile.path,
+    );
+    expect(missingSpio.status, ExecutionSessionStatus.blocked);
+    expect(missingSpio.sessionId, 'missing-spio-binary');
+  });
+
+  test('single-file execution writes relative documents to temporary inputs', () async {
+    final tempRoot = await _createTempRoot('vityo_execution_relative_test_');
+    final fakeStyio = await _writeExecutable(
+      File('${tempRoot.path}${Platform.pathSeparator}fake-styio'),
+      '''#!/usr/bin/env python3
+import json, os, sys
+
+if len(sys.argv) >= 4 and sys.argv[1] == '--file' and sys.argv[3] == '--error-format=jsonl':
+    run_path = sys.argv[2]
+    with open(run_path, 'r', encoding='utf-8') as handle:
+        text = handle.read()
+    print(json.dumps({
+        'path': run_path,
+        'basename': os.path.basename(run_path),
+        'text': text,
+    }))
+    raise SystemExit(0)
+
+raise SystemExit(64)
+''',
+    );
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: tempRoot.path,
+      activeFilePath: 'scratch/relative.styio',
+      title: 'Scratch Project',
+      notes: const <String>[],
+      activeCompiler: _compilerSnapshot(
+        fakeStyio.path,
+        contracts: const <String, List<int>>{
+          'machine_info': <int>[1],
+        },
+      ),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+
+    final session = await adapter.runActiveDocument(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+      document: const DocumentState(
+        documentId: 'scratch/relative.styio',
+        text: '>_("relative")\n',
+        revision: 1,
+      ),
+      activeFilePath: 'scratch/relative.styio',
+    );
+
+    expect(session.status, ExecutionSessionStatus.succeeded);
+    final payload =
+        jsonDecode(session.stdoutEvents.single.message) as Map<String, dynamic>;
+    expect(payload['basename'], 'main.styio');
+    expect(payload['text'], '>_("relative")\n');
+    expect(File(payload['path'] as String).existsSync(), isFalse);
+  });
+
+  test(
+    'project workflow reads artifact diagnostics and runtime events for test and lib targets',
+    () async {
+      final tempRoot = await _createTempRoot(
+        'vityo_execution_artifact_payload_test_',
+      );
+      final testFile =
+          File(
+              '${tempRoot.path}${Platform.pathSeparator}tests${Platform.pathSeparator}render_test.styio',
+            )
+            ..createSync(recursive: true)
+            ..writeAsStringSync('test "render" {}\n');
+      final libFile =
+          File(
+              '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}lib.styio',
+            )
+            ..createSync(recursive: true)
+            ..writeAsStringSync('pub fn render() {}\n');
+      final manifestPath = '${tempRoot.path}${Platform.pathSeparator}spio.toml';
+      File(manifestPath).writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+
+[lib]
+path = "src/lib.styio"
+
+[[test]]
+name = "render"
+path = "tests/render_test.styio"
+''');
+      await _writeExecutable(
+        File(
+          '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
+        ),
+        '''#!/usr/bin/env python3
+import json, os, sys
+
+if sys.argv[1:] == ['machine-info', '--json']:
+    print(json.dumps({
+        'tool': 'spio',
+        'supported_contract_versions': {'workflow_success_payloads': [1]},
+    }))
+    raise SystemExit(0)
+
+if '--json' in sys.argv and 'test' in sys.argv:
+    manifest = sys.argv[sys.argv.index('--manifest-path') + 1]
+    root = os.path.dirname(manifest)
+    active = os.path.join(root, 'tests', 'render_test.styio')
+    artifact_dir = os.path.join(root, 'artifacts')
+    os.makedirs(artifact_dir, exist_ok=True)
+    diagnostics_path = os.path.join(artifact_dir, 'diagnostics.jsonl')
+    events_path = os.path.join(artifact_dir, 'events.jsonl')
+    with open(diagnostics_path, 'w', encoding='utf-8') as diagnostics:
+        diagnostics.write(json.dumps({
+            'eventKind': 'diagnostic.emitted',
+            'payload': {
+                'severity': 'warning',
+                'code': 99,
+                'message': {'summary': 'range summary', 'detail': 'range detail'},
+                'file': active,
+                'range': {'start': {'offset': 8}, 'end': {'offset': 4}},
+            },
+        }) + '\\n')
+        diagnostics.write(json.dumps({
+            'category': 'RuntimeType',
+            'detail': 'negative length',
+            'file': active,
+            'offset': 7,
+            'length': -2,
+        }) + '\\n')
+        diagnostics.write('not-json\\n')
+    with open(events_path, 'w', encoding='utf-8') as events:
+        events.write('\\n')
+        events.write('not-json\\n')
+        events.write(json.dumps({
+            'schemaVersion': 2,
+            'sessionId': 'artifact-session',
+            'sequence': '4',
+            'timestamp': 'not-a-date',
+            'event_kind': 'compile.finished',
+            'payload': {'file': active},
+        }) + '\\n')
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'artifact test completed',
+        'stdout': 'plain stdout\\n',
+        'stderr': json.dumps({
+            'category': 'Warning',
+            'message': 'stderr diagnostic',
+            'file': active,
+            'span': {'startOffset': '1', 'endOffset': '3'},
+        }) + '\\n',
+        'diagnostics_path': 'artifacts/diagnostics.jsonl',
+        'runtime_events_path': 'artifacts/events.jsonl',
+        'receipt': {'sessionId': 'artifact-session'},
+    }))
+    raise SystemExit(0)
+
+if '--json' in sys.argv and 'build' in sys.argv and '--lib' in sys.argv:
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'library build completed',
+        'stdout': 'lib stdout\\n',
+        'stderr': '',
+        'diagnostics': [],
+        'runtime_events': [],
+    }))
+    raise SystemExit(0)
+
+raise SystemExit(64)
+''',
+      );
+
+      final testTarget = ProjectTargetDescriptor(
+        id: 'demo/app:test:render',
+        packageName: 'demo/app',
+        kind: ProjectTargetKind.test,
+        name: 'render',
+        filePath: testFile.path,
+      );
+      final libTarget = ProjectTargetDescriptor(
+        id: 'demo/app:lib:demo',
+        packageName: 'demo/app',
+        kind: ProjectTargetKind.lib,
+        name: 'demo',
+        filePath: libFile.path,
+      );
+      final projectGraph = _projectGraph(
+        workspaceRoot: tempRoot.path,
+        manifestPath: manifestPath,
+        targets: <ProjectTargetDescriptor>[testTarget, libTarget],
+        packages: <ProjectPackageSnapshot>[
+          _packageSnapshot(
+            packageName: 'demo/app',
+            rootPath: tempRoot.path,
+            manifestPath: manifestPath,
+            targets: <ProjectTargetDescriptor>[testTarget, libTarget],
+          ),
+        ],
+        activeCompiler: _compilerSnapshot('/toolchains/styio/bin/styio'),
+      );
+      final adapter = await createExecutionAdapter(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: projectGraph,
+      );
+
+      final testSession = await adapter.runActiveDocument(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: projectGraph,
+        document: const DocumentState(
+          documentId: 'tests/render_test.styio',
+          text: 'test "render" { assert false }\n',
+          revision: 2,
+        ),
+        activeFilePath: testFile.path,
+      );
+
+      addTearDown(() => clearRuntimeEventsForSession('artifact-session'));
+      expect(testSession.status, ExecutionSessionStatus.succeeded);
+      expect(testSession.kind, 'test');
+      expect(testSession.sessionId, 'artifact-session');
+      expect(testSession.stdoutEvents.single.message, 'plain stdout');
+      expect(
+        testSession.diagnostics.map((diagnostic) => diagnostic.message),
+        containsAll(<String>[
+          'range summary range detail',
+          'negative length',
+          'stderr diagnostic',
+        ]),
+      );
+      expect(testSession.diagnostics.first.severity, DiagnosticSeverity.warning);
+      expect(testSession.diagnostics.first.code, '99');
+      expect(testSession.diagnostics.first.range.start, 4);
+      expect(testSession.diagnostics.first.range.end, 8);
+      expect(testSession.diagnostics[1].range.start, 7);
+      expect(testSession.diagnostics[1].range.end, 7);
+
+      final runtimeEvents = await createRuntimeEventAdapter(
+        platformTarget: PlatformTarget.macos,
+      ).sessionEvents('artifact-session').toList();
+      expect(runtimeEvents, hasLength(1));
+      expect(runtimeEvents.single.schemaVersion, 2);
+      expect(runtimeEvents.single.sessionId, 'artifact-session');
+      expect(runtimeEvents.single.sequence, 4);
+      expect(runtimeEvents.single.eventKind, 'compile.finished');
+      expect(runtimeEvents.single.payload['file'], testFile.path);
+      expect(
+        runtimeEvents.single.timestamp,
+        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      );
+
+      final libSession = await adapter.runActiveDocument(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: projectGraph,
+        document: const DocumentState(
+          documentId: 'src/lib.styio',
+          text: 'pub fn render() {}\n',
+          revision: 1,
+        ),
+        activeFilePath: libFile.path,
+      );
+      expect(libSession.status, ExecutionSessionStatus.succeeded);
+      expect(libSession.kind, 'build');
+      expect(libSession.statusMessage, 'library build completed');
+    },
+  );
 }
 
 Future<Directory> _createTempRoot(String prefix) async {

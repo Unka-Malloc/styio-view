@@ -264,12 +264,16 @@ void main() {
     );
   }
 
-  Future<AppBootstrap> createBootstrap(PlatformTarget target) async {
-    final projectSnapshot = createProjectSnapshot(target);
+  Future<AppBootstrap> createBootstrap(
+    PlatformTarget target, {
+    ProjectGraphSnapshot? projectSnapshot,
+    List<AdapterCapabilitySnapshot>? supplementalCapabilities,
+  }) async {
+    final project = projectSnapshot ?? createProjectSnapshot(target);
     final workspaceController = WorkspaceController(
-      projectSnapshot: projectSnapshot,
+      projectSnapshot: project,
     );
-    final projectGraphAdapter = _FakeProjectGraphAdapter(projectSnapshot);
+    final projectGraphAdapter = _FakeProjectGraphAdapter(project);
     final toolchainStatusReport = ValueNotifier<ToolchainManagerStatusReport>(
       const ToolchainManagerStatusReport(
         status: ToolchainManagerStatus.ready,
@@ -314,21 +318,26 @@ void main() {
       ),
       nativeModuleLoader: NoopNativeModuleLoader(platformTarget: target),
       projectGraphAdapter: projectGraphAdapter,
-      supplementalAdapterCapabilities: normalizeCapabilitySnapshots([
-        buildFfiAdapterCapability(
-          visible: target != PlatformTarget.ios && target != PlatformTarget.web,
-          executionSlotVisible:
-              target != PlatformTarget.ios && target != PlatformTarget.web,
-          detail: 'Smoke test FFI slot stays deferred.',
-        ),
-        buildCloudAdapterCapability(
-          supportsCloudExecution:
-              target == PlatformTarget.ios || target == PlatformTarget.android,
-          supportsHostedProjectGraph:
-              target == PlatformTarget.ios || target == PlatformTarget.web,
-          detail: 'Smoke test cloud route remains illustrative.',
-        ),
-      ]),
+      supplementalAdapterCapabilities:
+          supplementalCapabilities ??
+          normalizeCapabilitySnapshots([
+            buildFfiAdapterCapability(
+              visible:
+                  target != PlatformTarget.ios && target != PlatformTarget.web,
+              executionSlotVisible:
+                  target != PlatformTarget.ios &&
+                  target != PlatformTarget.web,
+              detail: 'Smoke test FFI slot stays deferred.',
+            ),
+            buildCloudAdapterCapability(
+              supportsCloudExecution:
+                  target == PlatformTarget.ios ||
+                  target == PlatformTarget.android,
+              supportsHostedProjectGraph:
+                  target == PlatformTarget.ios || target == PlatformTarget.web,
+              detail: 'Smoke test cloud route remains illustrative.',
+            ),
+          ]),
       workspaceController: workspaceController,
       workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
       editorController: EditorSessionController(
@@ -770,6 +779,94 @@ fn blend(left: f64, right: f64): f64 {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('debug-surface-desktop')), findsOneWidget);
+  });
+
+  testWidgets('renders scratch shell fallback project cards', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const toolchain = ToolchainStatusSnapshot(
+      source: ToolchainResolutionSource.managedCurrent,
+      detail: 'Scratch project uses published managed toolchain state.',
+    );
+    final scratchProject = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/scratch',
+      activeFilePath: '/workspace/scratch/main.styio',
+      title: 'Scratch Coverage Project',
+      toolchain: toolchain,
+      toolchainEnvironment: const ToolchainEnvironmentSnapshot(
+        schemaVersion: 1,
+        toolchain: toolchain,
+        managedToolchains: ManagedToolchainStateSnapshot(),
+      ),
+      notes: const <String>['Scratch fallback card coverage.'],
+    );
+    final bootstrap = await createBootstrap(
+      PlatformTarget.macos,
+      projectSnapshot: scratchProject,
+      supplementalCapabilities: const <AdapterCapabilitySnapshot>[
+        AdapterCapabilitySnapshot(
+          adapterKind: AdapterKind.cloud,
+          languageService: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'language service available for fallback smoke',
+          ),
+          projectGraph: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'project graph available for fallback smoke',
+          ),
+          execution: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'execution available for fallback smoke',
+          ),
+          runtimeEvents: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'runtime events available for fallback smoke',
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    expect(find.text('Scratch Coverage Project'), findsOneWidget);
+    expect(find.text('scratch'), findsWidgets);
+    expect(find.text('0 package'), findsOneWidget);
+    expect(find.text('0 target'), findsOneWidget);
+    expect(find.text('1 file'), findsOneWidget);
+
+    final workspaceSidebarScrollable = find.descendant(
+      of: find.byKey(const ValueKey('workspace-sidebar-scroll')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('compiler-handshake-card')),
+      120,
+      scrollable: workspaceSidebarScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No local styio machine-info handshake has been resolved yet.'),
+      findsOneWidget,
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('required-handoffs-card')),
+      120,
+      scrollable: workspaceSidebarScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('0 blocking'), findsOneWidget);
+    expect(find.text('0 styio'), findsOneWidget);
+    expect(find.text('0 spio'), findsOneWidget);
+    expect(
+      find.text(
+        'No product-side handoffs are currently outstanding for this route.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('builds shared shell scaffold in mobile viewport family', (

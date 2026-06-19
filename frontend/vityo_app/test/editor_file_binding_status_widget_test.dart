@@ -144,4 +144,49 @@ void main() {
       isNull,
     );
   });
+
+  testWidgets('editor surface renders fixed mobile language layout', (
+    tester,
+  ) async {
+    const document = DocumentState(
+      documentId: 'fixture://mobile-layout',
+      text: 'value := 1\n',
+      revision: 1,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 390,
+            height: 700,
+            child: EditorSurface(
+              controller: EditorSessionController(
+                initialDocument: document,
+                languageService: const LocalStyioLanguageService(),
+              ),
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.mobile,
+                width: 390,
+                height: 700,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('editor-language-family-mobile')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('editor-language-layout-mobile')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('editor-language-layout-scroll-mobile')),
+      findsNothing,
+    );
+  });
 }

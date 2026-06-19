@@ -4001,6 +4001,378 @@ blend(left: price, right: tax) -> @stdout
       isEmpty,
     );
   });
+
+  testWidgets('closes editor overlays from keyboard navigation', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    Future<void> focusSource() async {
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('source-buffer-surface')),
+          matching: find.text('Source Buffer'),
+        ),
+      );
+      await tester.pump();
+    }
+
+    Future<void> loadAndFocus(
+      String documentId,
+      String text, {
+      int? caret,
+      int? baseOffset,
+      int? extentOffset,
+    }) async {
+      bootstrap.editorController.loadDocument(
+        DocumentState(documentId: documentId, text: text, revision: 0),
+      );
+      if (baseOffset != null && extentOffset != null) {
+        bootstrap.editorController.selectRange(
+          baseOffset: baseOffset,
+          extentOffset: extentOffset,
+        );
+      } else {
+        bootstrap.editorController.selectCollapsed(caret ?? text.length);
+      }
+      await tester.pump();
+      await focusSource();
+    }
+
+    Future<void> pressShortcut(
+      List<LogicalKeyboardKey> modifiers,
+      LogicalKeyboardKey key, {
+      String? character,
+    }) async {
+      for (final modifier in modifiers) {
+        await tester.sendKeyDownEvent(modifier);
+      }
+      await tester.sendKeyEvent(key, character: character);
+      for (final modifier in modifiers.reversed) {
+        await tester.sendKeyUpEvent(modifier);
+      }
+      await tester.pumpAndSettle();
+    }
+
+    const quickFixText = 'let stream\n';
+    await loadAndFocus(
+      'overlay-quickfix.styio',
+      quickFixText,
+      caret: quickFixText.indexOf('stream') + 2,
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.altLeft],
+      LogicalKeyboardKey.enter,
+    );
+    expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsNothing,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.altLeft],
+      LogicalKeyboardKey.enter,
+    );
+    expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyX, character: 'x');
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsNothing,
+    );
+
+    const symbolText =
+        'fn buildPipe(user) {\n'
+        '  value = user\n'
+        '}\n'
+        'fn renderPipe() {\n'
+        '}\n';
+    await loadAndFocus('overlay-symbols.styio', symbolText);
+    await pressShortcut(
+      const <LogicalKeyboardKey>[
+        LogicalKeyboardKey.controlLeft,
+        LogicalKeyboardKey.altLeft,
+        LogicalKeyboardKey.shiftLeft,
+      ],
+      LogicalKeyboardKey.keyN,
+    );
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyR, character: 'r');
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE, character: 'e');
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsNothing);
+
+    const surroundText = 'fn main() {\n  value = 1\n  next = 2\n}\n';
+    await loadAndFocus(
+      'overlay-surround.styio',
+      surroundText,
+      caret: surroundText.indexOf('value') + 2,
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[
+        LogicalKeyboardKey.controlLeft,
+        LogicalKeyboardKey.altLeft,
+      ],
+      LogicalKeyboardKey.keyT,
+    );
+    expect(find.byKey(const ValueKey('source-surround-lookup')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyX, character: 'x');
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-surround-lookup')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+
+    await pressShortcut(
+      const <LogicalKeyboardKey>[
+        LogicalKeyboardKey.controlLeft,
+        LogicalKeyboardKey.altLeft,
+      ],
+      LogicalKeyboardKey.keyT,
+    );
+    expect(find.byKey(const ValueKey('source-surround-lookup')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-surround-lookup')), findsNothing);
+
+    const completionText = '/// Runs async price work.\njob = ||> { <| 42 }\njo';
+    await loadAndFocus('overlay-completion.styio', completionText);
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.controlLeft],
+      LogicalKeyboardKey.space,
+    );
+    expect(find.byKey(const ValueKey('source-completion-lookup')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.controlLeft],
+      LogicalKeyboardKey.keyQ,
+    );
+    expect(find.byKey(const ValueKey('source-quick-doc-panel')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-quick-doc-panel')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsNothing,
+    );
+
+    const docsText = '''
+/**
+ * Primary value binding
+ */
+value = value
+value -> @stdout
+''';
+    await loadAndFocus(
+      'overlay-docs.styio',
+      docsText,
+      caret: docsText.indexOf('= value') + 3,
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.controlLeft],
+      LogicalKeyboardKey.keyQ,
+    );
+    expect(find.byKey(const ValueKey('source-quick-doc-panel')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-quick-doc-panel')), findsNothing);
+
+    const parameterText = '''
+/// Blends price and tax inputs.
+/// @param left Base price before tax.
+/// @param right Tax component to add.
+fn blend(left: f64, right: f64 = 0.0) {
+  emit left
+}
+value = blend(right: tax, left: price)
+''';
+    await loadAndFocus(
+      'overlay-parameters.styio',
+      parameterText,
+      caret: parameterText.lastIndexOf('tax') + 1,
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.controlLeft],
+      LogicalKeyboardKey.keyP,
+    );
+    expect(
+      find.byKey(const ValueKey('source-parameter-info-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-parameter-info-panel')),
+      findsNothing,
+    );
+
+    const usageText = 'value = value\nvalue -> @stdout\n';
+    await loadAndFocus(
+      'overlay-usages.styio',
+      usageText,
+      caret: usageText.indexOf('value'),
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.altLeft],
+      LogicalKeyboardKey.f7,
+    );
+    expect(find.byKey(const ValueKey('source-usages-panel')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-usages-panel')), findsNothing);
+
+    const safeDeleteText = 'used = 1\nused -> @stdout\n';
+    await loadAndFocus(
+      'overlay-safe-delete.styio',
+      safeDeleteText,
+      caret: safeDeleteText.indexOf('used'),
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.altLeft],
+      LogicalKeyboardKey.delete,
+    );
+    expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsNothing);
+
+    const inlineVariableText = 'let pending\npending -> @stdout\n';
+    await loadAndFocus(
+      'overlay-inline-variable.styio',
+      inlineVariableText,
+      caret: inlineVariableText.indexOf('pending'),
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[
+        LogicalKeyboardKey.controlLeft,
+        LogicalKeyboardKey.altLeft,
+      ],
+      LogicalKeyboardKey.keyN,
+    );
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-panel')),
+      findsNothing,
+    );
+
+    const introduceText = 'value = 40 + 2\n';
+    await loadAndFocus(
+      'overlay-introduce-variable.styio',
+      introduceText,
+      baseOffset: introduceText.indexOf('40 + 2'),
+      extentOffset: introduceText.indexOf('40 + 2') + '40 + 2'.length,
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[
+        LogicalKeyboardKey.controlLeft,
+        LogicalKeyboardKey.altLeft,
+      ],
+      LogicalKeyboardKey.keyV,
+    );
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-panel')),
+      findsNothing,
+    );
+
+    await loadAndFocus(
+      'overlay-extract-function.styio',
+      introduceText,
+      baseOffset: introduceText.indexOf('40 + 2'),
+      extentOffset: introduceText.indexOf('40 + 2') + '40 + 2'.length,
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[
+        LogicalKeyboardKey.controlLeft,
+        LogicalKeyboardKey.altLeft,
+      ],
+      LogicalKeyboardKey.keyM,
+    );
+    expect(
+      find.byKey(const ValueKey('source-extract-function-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-extract-function-panel')),
+      findsNothing,
+    );
+
+    const changeSignatureText =
+        'fn blend(left: f64, right: f64) {\n'
+        '  result = left + right\n'
+        '}\n'
+        'value = blend(price, tax)\n';
+    await loadAndFocus(
+      'overlay-change-signature.styio',
+      changeSignatureText,
+      caret: changeSignatureText.indexOf('blend') + 1,
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.controlLeft],
+      LogicalKeyboardKey.f6,
+    );
+    expect(
+      find.byKey(const ValueKey('source-change-signature-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-change-signature-panel')),
+      findsNothing,
+    );
+
+    await loadAndFocus(
+      'overlay-inline-rename.styio',
+      changeSignatureText,
+      caret: changeSignatureText.indexOf('blend') + 1,
+    );
+    await pressShortcut(
+      const <LogicalKeyboardKey>[LogicalKeyboardKey.shiftLeft],
+      LogicalKeyboardKey.f6,
+    );
+    expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-inline-rename-panel')),
+      findsNothing,
+    );
+  });
 }
 
 class _FakeProjectGraphAdapter implements ProjectGraphAdapter {

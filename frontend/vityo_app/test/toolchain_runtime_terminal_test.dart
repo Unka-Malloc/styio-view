@@ -284,7 +284,7 @@ class _RecordingPtyManager implements PtyManager {
 }
 
 class _RecordedPtySession implements PtySession {
-  final StreamController<String> _output = StreamController<String>();
+  final StreamController<String> _output = StreamController<String>.broadcast();
 
   @override
   String get id => 'recorded-pty';

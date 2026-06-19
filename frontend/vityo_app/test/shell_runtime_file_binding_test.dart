@@ -405,7 +405,7 @@ void main() {
 
   test('workspace document link opens a resolved import target', () async {
     final projectGraph = _projectGraphWithFiles(
-      const <String>['lib/runtime.styio', 'main.styio'],
+      const <String>['main.styio', 'lib/runtime.styio'],
     );
     const runtimeDocument = DocumentState(
       documentId: 'lib/runtime.styio',
@@ -629,7 +629,7 @@ value = blend(1.0, 2.0)
 
   test('workspace declaration opens a declaration range', () async {
     final projectGraph = _projectGraphWithFiles(
-      const <String>['lib/types.styio', 'main.styio'],
+      const <String>['main.styio', 'lib/types.styio'],
     );
     const typeDocument = DocumentState(
       documentId: 'lib/types.styio',
@@ -717,7 +717,7 @@ book: OrderBook
 
   test('workspace definition opens a definition range', () async {
     final projectGraph = _projectGraphWithFiles(
-      const <String>['lib/runtime.styio', 'main.styio'],
+      const <String>['main.styio', 'lib/runtime.styio'],
     );
     const runtimeDocument = DocumentState(
       documentId: 'lib/runtime.styio',
@@ -804,7 +804,7 @@ value = blend(1.0, 2.0)
 
   test('workspace type definition opens a schema range', () async {
     final projectGraph = _projectGraphWithFiles(
-      const <String>['lib/types.styio', 'main.styio'],
+      const <String>['main.styio', 'lib/types.styio'],
     );
     const typeDocument = DocumentState(
       documentId: 'lib/types.styio',
@@ -895,7 +895,7 @@ book: OrderBook
 
   test('workspace implementation opens a related implementor', () async {
     final projectGraph = _projectGraphWithFiles(
-      const <String>['lib/types.styio', 'main.styio'],
+      const <String>['main.styio', 'lib/types.styio'],
     );
     const typeDocument = DocumentState(
       documentId: 'lib/types.styio',
@@ -984,7 +984,7 @@ target: Price
 
   test('workspace type hierarchy opens a related type declaration', () async {
     final projectGraph = _projectGraphWithFiles(
-      const <String>['lib/types.styio', 'main.styio'],
+      const <String>['main.styio', 'lib/types.styio'],
     );
     const typeDocument = DocumentState(
       documentId: 'lib/types.styio',
@@ -1075,7 +1075,7 @@ book: OrderBook
 
   test('workspace rename applies edits across project files', () async {
     final projectGraph = _projectGraphWithFiles(
-      const <String>['lib/runtime.styio', 'main.styio'],
+      const <String>['main.styio', 'lib/runtime.styio'],
     );
     const runtimeDocument = DocumentState(
       documentId: 'lib/runtime.styio',

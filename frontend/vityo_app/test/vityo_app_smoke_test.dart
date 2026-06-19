@@ -622,9 +622,12 @@ void main() {
     expect(find.byIcon(Icons.play_arrow_rounded), findsWidgets);
     expect(find.byIcon(Icons.arrow_right_alt_rounded), findsWidgets);
 
-    await tester.tap(
-      find.byKey(const ValueKey('command-strip-vendorDependencies')),
+    final vendorCommand = find.byKey(
+      const ValueKey('command-strip-vendorDependencies'),
     );
+    await tester.ensureVisible(vendorCommand);
+    await tester.pumpAndSettle();
+    await tester.tap(vendorCommand);
     await tester.pumpAndSettle();
 
     expect(shell.lastDependencySourceCommand?.command, 'vendor');
@@ -692,10 +695,13 @@ void main() {
     final shell = ShellScope.of(
       tester.element(find.byType(VityoShellScaffold)),
     );
-    shell.selectBottomTab(BottomSurfaceTab.agent);
+    await shell.executeCommand(AppCommandId.showAgent);
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -720));
+    await tester.drag(
+      find.byKey(const ValueKey('shell-viewport-mobile')),
+      const Offset(0, -720),
+    );
     await tester.pumpAndSettle();
 
     expect(

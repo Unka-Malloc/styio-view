@@ -709,7 +709,7 @@ raise SystemExit(64)
       );
       expect(
         adapter.capabilitySnapshot.projectGraph.detail,
-        contains('toolchain_state'),
+        contains('toolchain-state'),
       );
       expect(graph.kind, ProjectKind.package);
       expect(graph.title, 'demo/app');

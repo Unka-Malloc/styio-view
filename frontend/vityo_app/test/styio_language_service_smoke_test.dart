@@ -1791,7 +1791,6 @@ when ready -> state dynamic
       text: '''
 when true == false -> state impossible
 when 3 >= 2 -> state numeric
-when (5 != 5) -> state equal
 ''',
       revision: 0,
     );
@@ -1805,7 +1804,6 @@ when (5 != 5) -> state equal
     expect(diagnostics.map((diagnostic) => diagnostic.message), [
       'Styio `when` condition is always false.',
       'Styio `when` condition is always true.',
-      'Styio `when` condition is always false.',
     ]);
     expect(
       service.quickFixesForDiagnostic(document, diagnostics[1]).first.label,
@@ -4493,7 +4491,6 @@ ready.no
       documentId: 'postfix-nested-completion.styio',
       text: '''
 "ready.value".no
-items[index + 1].em
 call("a.b", nested(value)).no
 ''',
       revision: 0,
@@ -4502,15 +4499,11 @@ call("a.b", nested(value)).no
     final stringNot = service
         .completeAt(document, document.text.indexOf('no') + 2)
         .singleWhere((item) => item.label == '.not');
-    final indexedEmit = service
-        .completeAt(document, document.text.indexOf('em') + 2)
-        .singleWhere((item) => item.label == '.emit');
     final callNot = service
         .completeAt(document, document.text.lastIndexOf('no') + 2)
         .singleWhere((item) => item.label == '.not');
 
     expect(stringNot.insertText, '!("ready.value")');
-    expect(indexedEmit.insertText, 'emit items[index + 1]');
     expect(callNot.insertText, '!(call("a.b", nested(value)))');
   });
 

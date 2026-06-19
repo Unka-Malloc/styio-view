@@ -458,7 +458,6 @@ value = blend(price, tax)
       final tab = find.ancestor(
         of: tabLabel.first,
         matching: find.byType(InkWell, skipOffstage: false),
-        skipOffstage: false,
       );
       expect(tab, findsOneWidget);
       tester.widget<InkWell>(tab).onTap!();

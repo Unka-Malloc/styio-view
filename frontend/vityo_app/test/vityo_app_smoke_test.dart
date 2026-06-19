@@ -807,7 +807,11 @@ fn blend(left: f64, right: f64): f64 {
     final shell = ShellScope.of(
       tester.element(find.byType(VityoShellScaffold)),
     );
-    for (final tab in BottomSurfaceTab.values) {
+    final scrollableTabs = BottomSurfaceTab.values.where(
+      (tab) =>
+          tab != BottomSurfaceTab.runtime && tab != BottomSurfaceTab.debug,
+    );
+    for (final tab in scrollableTabs) {
       shell.selectBottomTab(tab);
       await tester.pump();
       await revealMobileBottomSurface(tester);

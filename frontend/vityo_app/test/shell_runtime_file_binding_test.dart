@@ -2325,8 +2325,12 @@ value = 1
     expect(replace.applied, isFalse);
     expect(rename.applied, isFalse);
     expect(action.applied, isFalse);
+    expect(
+      shell.blockedReasonForCommand(AppCommandId.fetchDependencies),
+      'fetch requires a resolved spio manifest path.',
+    );
     for (final fragment in const <String>[
-      'Fetch Dependencies blocked: fetch requires a resolved spio manifest path',
+      'Fetch blocked: fetch requires a resolved spio manifest path',
       'Module host refresh requested',
       'Native bridge local.runtime.desktop',
       'Settings route is reserved',

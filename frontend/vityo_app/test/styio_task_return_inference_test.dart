@@ -91,4 +91,68 @@ void main() {
     expect(scan.unresolvedValues, isEmpty);
     expect(scan.invalidExpressions.single.expression, 'count && true');
   });
+
+  test('tracks missing and unresolved guarded task return expressions', () {
+    const analyzer = StyioTaskReturnInference();
+    const body = '''
+  when ready -> <|
+  when ready -> <| pending
+  when ready -> <| pending + true
+''';
+
+    final scan = analyzer.scan(body: body);
+
+    expect(scan.values, isEmpty);
+    expect(scan.conditionalValueRanges, hasLength(3));
+    expect(scan.missingValueRanges, hasLength(1));
+    expect(scan.unresolvedValues.single.expression, 'pending');
+    expect(scan.invalidExpressions.single.expression, 'pending + true');
+  });
+
+  test('folds constant boolean guards across operators', () {
+    const analyzer = StyioTaskReturnInference();
+    const body = '''
+  when false || true -> <| 1
+  when false || false -> <| "conditional-or"
+  when false && unknown -> <| "conditional-and"
+  when true == true -> <| 2
+  when 1 == 1 -> <| 3
+  when true != false -> <| 4
+  when 1 != 2 -> <| 5
+  when 2 >= 1 -> <| 6
+  when 1 <= 1 -> <| 7
+  when 2 > 1 -> <| 8
+  when 1 < 2 -> <| 9
+  when !(false) -> <| 10
+  when 1 == nope -> <| "conditional-unknown"
+''';
+
+    final scan = analyzer.scan(body: body);
+
+    expect(scan.values, hasLength(10));
+    expect(scan.values.map((value) => value.type).toSet(), {'i64'});
+    expect(scan.conditionalValues, hasLength(3));
+    expect(
+      scan.conditionalValues.map((value) => value.type).toList(),
+      ['string', 'string', 'string'],
+    );
+    expect(scan.missingValueRanges, isEmpty);
+  });
+
+  test('ignores arrows in quoted and commented text while trimming comments', () {
+    const analyzer = StyioTaskReturnInference();
+    const body = r'''
+  label = "escaped \" <| ignored"
+  /* <| ignored block */
+  <| "http://styio.local//not-comment" /* trailing block */
+  <| 1 // trailing line comment
+''';
+
+    final scan = analyzer.scan(body: body);
+
+    expect(scan.values.map((value) => value.type), ['string', 'i64']);
+    expect(scan.missingValueRanges, isEmpty);
+    expect(scan.unresolvedValues, isEmpty);
+    expect(scan.invalidExpressions, isEmpty);
+  });
 }

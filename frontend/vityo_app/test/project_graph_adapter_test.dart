@@ -181,6 +181,173 @@ path = "src/lib.styio"
   );
 
   test(
+    'project graph adapter applies project pin metadata in scratch mode',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_project_graph_scratch_pin_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+
+      final previousCurrentDirectory = Directory.current;
+      addTearDown(() => Directory.current = previousCurrentDirectory);
+
+      Directory('${tempRoot.path}${Platform.pathSeparator}.git').createSync();
+      File('${tempRoot.path}${Platform.pathSeparator}spio-toolchain.toml')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
+[toolchain]
+channel = "nightly"
+version = "2026.6.19"
+''');
+      final nested = Directory(
+        '${tempRoot.path}${Platform.pathSeparator}tools${Platform.pathSeparator}scratch',
+      )..createSync(recursive: true);
+
+      Directory.current = nested;
+
+      final adapter = await createProjectGraphAdapter(
+        platformTarget: PlatformTarget.linux,
+      );
+      final graph = await adapter.loadProjectGraph();
+
+      expect(graph.kind, ProjectKind.scratch);
+      expect(graph.workspaceRoot, tempRoot.absolute.path);
+      expect(graph.toolchain.source, ToolchainResolutionSource.projectPin);
+      expect(graph.toolchain.channel, 'nightly');
+      expect(graph.toolchain.version, '2026.6.19');
+      expect(
+        graph.toolchain.pinPath,
+        endsWith('${Platform.pathSeparator}spio-toolchain.toml'),
+      );
+      expect(
+        graph.notes.any((note) => note.contains('Project toolchain pin')),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'project graph adapter infers workspace packages and dependency sources',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_project_graph_workspace_sources_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+
+      final previousCurrentDirectory = Directory.current;
+      addTearDown(() => Directory.current = previousCurrentDirectory);
+
+      File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
+[workspace]
+members = ["packages/core", "packages/missing"]
+
+[toolchain]
+channel = "preview"
+version = "0.9.0"
+''');
+      File(
+          '${tempRoot.path}${Platform.pathSeparator}packages${Platform.pathSeparator}core${Platform.pathSeparator}spio.toml',
+        )
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
+[package]
+name = "demo/core"
+version = "1.2.3"
+publish = true
+
+[dependencies]
+workspace-kit = { workspace = true, package = "demo/workspace-kit" }
+remote = { registry: "file:///registry", package = "demo/remote", version = "1.0.0" }
+incomplete = { registry = "mirror" }
+fallback = "^1.0.0"
+
+[dev-dependencies]
+tooling = { git: "https://git.example/demo/tooling.git", rev = "abc123", package = "demo/tooling" }
+pinned = { version = "2.0.0" }
+''');
+
+      Directory.current = tempRoot;
+
+      final adapter = await createProjectGraphAdapter(
+        platformTarget: PlatformTarget.macos,
+      );
+      final graph = await adapter.loadProjectGraph();
+
+      expect(graph.kind, ProjectKind.workspace);
+      expect(graph.title, 'Workspace Project');
+      expect(graph.workspaceMembers, ['packages/core', 'packages/missing']);
+      expect(graph.packages.single.packageName, 'demo/core');
+      expect(graph.packages.single.publishEnabled, isTrue);
+      expect(graph.targets, isEmpty);
+      expect(
+        graph.editorFiles.single,
+        endsWith('src${Platform.pathSeparator}main.styio'),
+      );
+      expect(graph.toolchain.source, ToolchainResolutionSource.unknown);
+      expect(graph.toolchain.channel, 'preview');
+      expect(graph.toolchain.version, '0.9.0');
+      expect(graph.lockState, ProjectLockState.missing);
+      expect(graph.vendorState, ProjectVendorState.missing);
+      expect(graph.dependencyCount, 5);
+
+      final dependenciesByName = {
+        for (final dependency in graph.dependencies)
+          dependency.dependencyName: dependency,
+      };
+      expect(
+        dependenciesByName['workspace-kit']?.sourceKind,
+        ProjectDependencySourceKind.path,
+      );
+      expect(dependenciesByName['workspace-kit']?.isWorkspaceReference, isTrue);
+      expect(dependenciesByName['workspace-kit']?.requirement, 'workspace');
+      expect(
+        dependenciesByName['remote']?.sourceKind,
+        ProjectDependencySourceKind.registry,
+      );
+      expect(dependenciesByName['remote']?.registryRoot, 'file:///registry');
+      expect(dependenciesByName['remote']?.publishBlocking, isFalse);
+      expect(dependenciesByName['incomplete']?.publishBlocking, isTrue);
+      expect(
+        dependenciesByName['tooling']?.sourceKind,
+        ProjectDependencySourceKind.git,
+      );
+      expect(
+        dependenciesByName['tooling']?.gitSource,
+        'https://git.example/demo/tooling.git',
+      );
+      expect(dependenciesByName['tooling']?.gitRevision, 'abc123');
+      expect(
+        dependenciesByName['pinned']?.sourceKind,
+        ProjectDependencySourceKind.unknown,
+      );
+      expect(dependenciesByName['pinned']?.requestedVersion, '2.0.0');
+
+      final distribution = graph.packageDistribution;
+      expect(distribution, isNotNull);
+      expect(distribution?.publishablePackages, 0);
+      expect(distribution?.blockedPackages, 1);
+      final packageDistribution = distribution!.packages.single;
+      expect(packageDistribution.runtimeRegistryDependencies, 2);
+      expect(packageDistribution.runtimePathDependencies, 1);
+      expect(packageDistribution.devGitDependencies, 1);
+      expect(
+        packageDistribution.blockingReasons.where(
+          (reason) => reason.contains('workspace-kit'),
+        ),
+        isNotEmpty,
+      );
+      expect(
+        distribution.registrySources
+            .firstWhere((source) => source.registryRoot == 'file:///registry')
+            .transport,
+        'file',
+      );
+    },
+  );
+
+  test(
     'project graph adapter prefers published spio payload when available',
     () async {
       final tempRoot = await Directory.systemTemp.createTemp(

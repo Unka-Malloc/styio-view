@@ -87,6 +87,11 @@ void main() {
     await tester.pump();
   }
 
+  Future<void> pumpKeyboardSurface(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+
   List<Color?> backgroundsForTextOnLine(
     WidgetTester tester, {
     required int lineIndex,
@@ -3181,7 +3186,7 @@ value -> @stdout
     await focusSourceBuffer(tester);
 
     await sendShortcut(tester, LogicalKeyboardKey.space, control: true);
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(
       find.byKey(const ValueKey('source-completion-lookup')),
       findsOneWidget,
@@ -3203,12 +3208,12 @@ value -> @stdout
     );
 
     await sendShortcut(tester, LogicalKeyboardKey.space, control: true);
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(
       find.byKey(const ValueKey('source-completion-lookup')),
       findsOneWidget,
     );
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyX, character: 'x');
+    await tester.sendKeyEvent(LogicalKeyboardKey.semicolon, character: ';');
     await tester.pump();
     expect(
       find.byKey(const ValueKey('source-completion-lookup')),
@@ -3249,7 +3254,7 @@ value -> @stdout
       alt: true,
       shift: true,
     );
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(find.byKey(const ValueKey('source-symbol-lookup')), findsOneWidget);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
@@ -3277,7 +3282,7 @@ value -> @stdout
       control: true,
       alt: true,
     );
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(
       find.byKey(const ValueKey('source-surround-lookup')),
       findsOneWidget,
@@ -3302,8 +3307,8 @@ value -> @stdout
       control: true,
       alt: true,
     );
-    await tester.pumpAndSettle();
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyX, character: 'x');
+    await pumpKeyboardSurface(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.semicolon, character: ';');
     await tester.pump();
     expect(
       find.byKey(const ValueKey('source-surround-lookup')),
@@ -3334,7 +3339,7 @@ value -> @stdout
     await focusSourceBuffer(tester);
 
     await sendShortcut(tester, LogicalKeyboardKey.enter, alt: true);
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(
       find.byKey(const ValueKey('source-quick-fix-lookup')),
       findsOneWidget,
@@ -3355,8 +3360,8 @@ value -> @stdout
     );
 
     await sendShortcut(tester, LogicalKeyboardKey.enter, alt: true);
-    await tester.pumpAndSettle();
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyX, character: 'x');
+    await pumpKeyboardSurface(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.semicolon, character: ';');
     await tester.pump();
     expect(
       find.byKey(const ValueKey('source-quick-fix-lookup')),
@@ -4118,9 +4123,11 @@ blend(left: price, right: tax) -> @stdout
 
     Future<void> loadAndFocus(DocumentState document) async {
       bootstrap.editorController.loadDocument(document);
-      await tester.pumpAndSettle();
+      await pumpKeyboardSurface(tester);
       await focusSourceBuffer(tester);
     }
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
 
     const renameText = 'value = value\n';
     await loadAndFocus(
@@ -4133,7 +4140,7 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(renameText.indexOf('value') + 2);
     await tester.pump();
     await sendShortcut(tester, LogicalKeyboardKey.f6, shift: true);
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
@@ -4155,7 +4162,7 @@ blend(left: price, right: tax) -> @stdout
     );
     await tester.pump();
     await sendShortcut(tester, LogicalKeyboardKey.delete, alt: true);
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsOne);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
@@ -4180,7 +4187,7 @@ blend(left: price, right: tax) -> @stdout
       control: true,
       alt: true,
     );
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(
       find.byKey(const ValueKey('source-inline-variable-panel')),
       findsOne,
@@ -4212,7 +4219,7 @@ blend(left: price, right: tax) -> @stdout
       control: true,
       alt: true,
     );
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(
       find.byKey(const ValueKey('source-introduce-variable-panel')),
       findsOne,
@@ -4244,7 +4251,7 @@ blend(left: price, right: tax) -> @stdout
       control: true,
       alt: true,
     );
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(
       find.byKey(const ValueKey('source-extract-function-panel')),
       findsOne,
@@ -4273,7 +4280,7 @@ blend(left: price, right: tax) -> @stdout
     );
     await tester.pump();
     await sendShortcut(tester, LogicalKeyboardKey.f6, control: true);
-    await tester.pumpAndSettle();
+    await pumpKeyboardSurface(tester);
     expect(
       find.byKey(const ValueKey('source-change-signature-panel')),
       findsOne,

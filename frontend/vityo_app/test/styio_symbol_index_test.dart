@@ -1558,4 +1558,375 @@ value = blend(price, tax)
       containsAll(['left', 'right']),
     );
   });
+
+  test('reports refactor conflicts for unsupported symbols and usages', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn blend(left: f64) {
+  emit left
+}
+unused = 1
+self = self + 1
+value = self
+''';
+
+    final safeDeleteFunction = index.safeDeleteAt(
+      source,
+      source.indexOf('blend'),
+    );
+    final inlineFunction = index.inlineVariableAt(
+      source,
+      source.indexOf('blend'),
+    );
+    final inlineUnused = index.inlineVariableAt(
+      source,
+      source.indexOf('unused'),
+    );
+    final inlineSelf = index.inlineVariableAt(source, source.indexOf('self'));
+
+    expect(safeDeleteFunction?.hasConflicts, isTrue);
+    expect(safeDeleteFunction?.conflicts.single.message, contains('variable'));
+    expect(inlineFunction?.hasConflicts, isTrue);
+    expect(inlineFunction?.conflicts.single.message, contains('variable'));
+    expect(inlineUnused?.hasConflicts, isTrue);
+    expect(inlineUnused?.conflicts.single.message, contains('never used'));
+    expect(inlineSelf?.hasConflicts, isTrue);
+    expect(
+      inlineSelf?.conflicts.map((conflict) => conflict.message).join('\n'),
+      contains('initializer'),
+    );
+  });
+
+  test('reports introduce variable validation conflicts', () {
+    const index = StyioSymbolIndex();
+    const expressionSource = 'value = 40 + 2\n';
+    final expressionStart = expressionSource.indexOf('40 + 2');
+    final invalidName = index.introduceVariable(
+      expressionSource,
+      SourceRange(start: expressionStart, end: expressionStart + 6),
+      'not-valid',
+    );
+
+    const multilineSource = 'value = 1 +\n  2\n';
+    final multiline = index.introduceVariable(
+      multilineSource,
+      SourceRange(
+        start: multilineSource.indexOf('1 +'),
+        end: multilineSource.indexOf('2') + 1,
+      ),
+      'result',
+    );
+
+    const commentSource = 'value = 1 // note\n';
+    final comment = index.introduceVariable(
+      commentSource,
+      SourceRange(
+        start: commentSource.indexOf('//'),
+        end: commentSource.indexOf('note') + 4,
+      ),
+      'note',
+    );
+
+    const targetSource = 'value = 1\n';
+    final assignmentTarget = index.introduceVariable(
+      targetSource,
+      SourceRange(start: 0, end: 'value'.length),
+      'renamed',
+    );
+
+    const pipelineSource = 'value -> @stdout\n';
+    final pipeline = index.introduceVariable(
+      pipelineSource,
+      SourceRange(start: 0, end: pipelineSource.trimRight().length),
+      'output',
+    );
+
+    expect(
+      invalidName?.conflicts.map((conflict) => conflict.message),
+      contains('Enter a valid Styio identifier.'),
+    );
+    expect(
+      multiline?.conflicts.map((conflict) => conflict.message),
+      contains('Introduce Variable currently requires one expression line.'),
+    );
+    expect(
+      comment?.conflicts.map((conflict) => conflict.message),
+      contains('Cannot introduce a variable from a comment range.'),
+    );
+    expect(
+      assignmentTarget?.conflicts.map((conflict) => conflict.message),
+      contains('Cannot introduce a variable from an assignment target.'),
+    );
+    expect(
+      pipeline?.conflicts.map((conflict) => conflict.message),
+      contains('Select an expression, not a binding or pipeline statement.'),
+    );
+  });
+
+  test('reports extract function validation conflicts', () {
+    const index = StyioSymbolIndex();
+    const expressionSource = 'value = user + 1\n';
+    final expressionStart = expressionSource.indexOf('user + 1');
+    final invalidName = index.extractFunction(
+      expressionSource,
+      SourceRange(start: expressionStart, end: expressionStart + 8),
+      'not-valid',
+    );
+    final partialToken = index.extractFunction(
+      expressionSource,
+      SourceRange(start: expressionStart + 1, end: expressionStart + 3),
+      'compute',
+    );
+    final assignmentTarget = index.extractFunction(
+      expressionSource,
+      SourceRange(start: 0, end: 'value'.length),
+      'compute',
+    );
+
+    const multilineSource = 'value = price +\n  tax\n';
+    final multiline = index.extractFunction(
+      multilineSource,
+      SourceRange(
+        start: multilineSource.indexOf('price'),
+        end: multilineSource.indexOf('tax') + 3,
+      ),
+      'compute',
+    );
+
+    const declarationSource = 'fn main() {\n  emit 1\n}\n';
+    final declaration = index.extractFunction(
+      declarationSource,
+      SourceRange(start: 0, end: declarationSource.indexOf('{')),
+      'compute',
+    );
+
+    const braceSource = 'value = { price\n';
+    final brace = index.extractFunction(
+      braceSource,
+      SourceRange(start: braceSource.indexOf('{'), end: braceSource.length),
+      'compute',
+    );
+
+    Iterable<String> messages(ExtractFunctionPlan? plan) {
+      return plan?.conflicts.map((conflict) => conflict.message) ??
+          const <String>[];
+    }
+
+    expect(
+      messages(invalidName),
+      contains('Enter a valid Styio function identifier.'),
+    );
+    expect(
+      messages(partialToken),
+      contains('Extract Function requires complete selected tokens.'),
+    );
+    expect(
+      messages(assignmentTarget),
+      contains('Cannot extract a function from an assignment target.'),
+    );
+    expect(
+      messages(multiline),
+      contains(
+        'Extract Function currently requires full-line selections for multi-line code.',
+      ),
+    );
+    expect(
+      messages(declaration).join('\n'),
+      contains('not declarations'),
+    );
+    expect(messages(brace).join('\n'), contains('unmatched opening brace'));
+  });
+
+  test('reports change signature validation conflicts', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+fn taken() {
+}
+
+fn blend(left: f64, right: f64) {
+  result = left + right
+}
+
+alias = blend
+value = blend(1.0, 2.0)
+''';
+    final offset = source.indexOf('blend');
+
+    Iterable<String> messages(ChangeSignaturePlan? plan) {
+      return plan?.conflicts.map((conflict) => conflict.message) ??
+          const <String>[];
+    }
+
+    final invalidName = index.changeSignature(
+      source,
+      offset,
+      newName: 'not-valid',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+      ],
+    );
+    final duplicateName = index.changeSignature(
+      source,
+      offset,
+      newName: 'taken',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+      ],
+    );
+    final missingOriginal = index.changeSignature(
+      source,
+      offset,
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'missing', name: 'missing'),
+      ],
+    );
+    final duplicateOriginal = index.changeSignature(
+      source,
+      offset,
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'leftAgain'),
+      ],
+    );
+    final invalidParameter = index.changeSignature(
+      source,
+      offset,
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'not-valid'),
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+      ],
+    );
+    final duplicateParameter = index.changeSignature(
+      source,
+      offset,
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'value'),
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'value'),
+      ],
+    );
+    final removeUsed = index.changeSignature(
+      source,
+      offset,
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+      ],
+    );
+    final renameAndReorder = index.changeSignature(
+      source,
+      offset,
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'lhs'),
+      ],
+    );
+    final reorderWithNonCallUsage = index.changeSignature(
+      source,
+      offset,
+      newName: 'blend',
+      parameters: const [
+        ChangeSignatureParameterUpdate(originalName: 'right', name: 'right'),
+        ChangeSignatureParameterUpdate(originalName: 'left', name: 'left'),
+      ],
+    );
+
+    expect(
+      messages(invalidName),
+      contains('Enter a valid Styio function identifier.'),
+    );
+    expect(messages(duplicateName).join('\n'), contains('already declares'));
+    expect(
+      messages(missingOriginal).join('\n'),
+      contains('not in the current function signature'),
+    );
+    expect(
+      messages(duplicateOriginal).join('\n'),
+      contains('appears more than once'),
+    );
+    expect(
+      messages(invalidParameter),
+      contains('Enter valid Styio parameter identifiers.'),
+    );
+    expect(
+      messages(duplicateParameter).join('\n'),
+      contains('Parameter `value` appears more than once'),
+    );
+    expect(
+      messages(removeUsed).join('\n'),
+      contains('Cannot remove parameter `right`'),
+    );
+    expect(
+      messages(renameAndReorder).join('\n'),
+      contains('separate safe steps'),
+    );
+    expect(
+      messages(reorderWithNonCallUsage).join('\n'),
+      contains('non-call usage'),
+    );
+  });
+
+  test('resolves nested calls, zero-argument info, and typed local scopes', () {
+    const index = StyioSymbolIndex();
+    const source = '''
+value = ping()
+
+fn ping(): i64 {
+  emit 1
+}
+
+fn takes(value: f64): f64 {
+  emit value
+}
+
+fn caller(input: i64): i64 {
+  local: i64 = input
+  bad = local && true
+  takes(local)
+  emit local
+}
+
+#hash := (): f64 => {
+  local: i64 = 1
+  <| local
+}
+
+result = takes((ping() + 1))
+''';
+
+    final emptyInfo = index.parameterInfoAt(
+      source,
+      source.indexOf('ping()') + 'ping('.length,
+    );
+    final nestedInfo = index.parameterInfoAt(
+      source,
+      source.lastIndexOf('ping()') + 'ping('.length,
+    );
+    final binaryIssues = index.binaryOperatorTypeIssues(source);
+    final argumentIssues = index.callArgumentIssues(source);
+    final returnIssues = index.functionReturnTypeIssues(source);
+
+    expect(emptyInfo?.callableName, 'ping');
+    expect(emptyInfo?.activeParameterIndex, -1);
+    expect(emptyInfo?.parameters, isEmpty);
+    expect(nestedInfo?.callableName, 'ping');
+    expect(
+      binaryIssues.map((issue) => issue.operatorLexeme),
+      contains('&&'),
+    );
+    expect(
+      argumentIssues.map((issue) => issue.diagnostic.code),
+      contains('argument-type-mismatch'),
+    );
+    expect(
+      returnIssues.map((issue) => issue.functionName),
+      contains('hash'),
+    );
+  });
 }

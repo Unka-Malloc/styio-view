@@ -1145,10 +1145,27 @@ fn blend(left: f64, right: f64): f64 {
 
     expect(find.text('Mounted 1/2 modules'), findsWidgets);
     expect(find.text('Smoke Runtime Bridge'), findsWidgets);
-    expect(find.text('Smoke Agent Prompts'), findsWidgets);
     expect(find.text('Mounted'), findsWidgets);
-    expect(find.text('Visible'), findsWidgets);
     expect(find.text('nightly'), findsOneWidget);
+
+    final moduleSidebarList = find.byWidgetPredicate(
+      (widget) =>
+          widget is ListView &&
+          widget.key != const ValueKey('workspace-sidebar-scroll'),
+      description: 'module sidebar list',
+    );
+    final moduleSidebarScrollable = find.descendant(
+      of: moduleSidebarList,
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Smoke Agent Prompts'),
+      120,
+      scrollable: moduleSidebarScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Smoke Agent Prompts'), findsWidgets);
+    expect(find.text('Visible'), findsWidgets);
     expect(find.text('preview'), findsOneWidget);
 
     final shell = ShellScope.of(

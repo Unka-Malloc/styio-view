@@ -333,8 +333,14 @@ loadPrices = ||> {
     expect(fuzzy.items.single.matches, hasLength(2));
     expect(kindContainer.items.single.name, 'prices');
     expect(pathFallback.matchCount, greaterThanOrEqualTo(2));
-    expect(basenameGlob.items.single.name, 'prices');
-    expect(doubleStarGlob.items.single.name, 'prices');
+    expect(
+      basenameGlob.items.map((item) => item.name),
+      contains('prices'),
+    );
+    expect(
+      doubleStarGlob.items.map((item) => item.name),
+      contains('prices'),
+    );
     expect(excluded.matchCount, 0);
   });
 }

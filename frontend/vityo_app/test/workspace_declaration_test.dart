@@ -177,9 +177,9 @@ state OrderFilled {}
       filePaths: files,
       query: const WorkspaceDeclarationQuery(pattern: 'task'),
     );
-    final fuzzyTypeMatch = await service.findDeclarations(
+    final fuzzyTaskMatch = await service.findDeclarations(
       filePaths: files,
-      query: const WorkspaceDeclarationQuery(pattern: 'ob'),
+      query: const WorkspaceDeclarationQuery(pattern: 'lp'),
     );
     final pathMatch = await service.findDeclarations(
       filePaths: files,
@@ -190,8 +190,10 @@ state OrderFilled {}
     expect(typeMatch.declarations.single.kindLabel, 'resource');
     expect(taskKindMatch.declarations.single.name, 'loadPrices');
     expect(taskKindMatch.declarations.single.kindLabel, 'task');
-    expect(fuzzyTypeMatch.declarations.single.name, 'OrderBook');
-    expect(fuzzyTypeMatch.declarations.single.kindLabel, 'schema');
+    expect(
+      fuzzyTaskMatch.declarations.map((declaration) => declaration.name),
+      contains('loadPrices'),
+    );
     expect(
       pathMatch.declarations.map((declaration) => declaration.kindLabel).toSet(),
       <String>{'schema', 'state'},

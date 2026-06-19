@@ -1314,7 +1314,7 @@ fn blend(left: f64, right: f64): f64 {
         newName: 'renamed',
       ),
     );
-    await showTab(BottomSurfaceTab.rename, 'workspace-rename-results');
+    await showTab(BottomSurfaceTab.rename, 'workspace-rename-surface');
 
     await shell.searchWorkspaceSymbols(
       const WorkspaceSymbolSearchQuery(pattern: 'MissingSymbol'),

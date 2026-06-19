@@ -4119,25 +4119,33 @@ blend(left: price, right: tax) -> @stdout
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    Future<AppBootstrap> pumpDocument(DocumentState document) async {
+    Future<void> pumpDocument(
+      DocumentState document,
+      void Function(AppBootstrap bootstrap) configureSelection,
+    ) async {
       final bootstrap = await createBootstrap(PlatformTarget.macos);
       bootstrap.editorController.loadDocument(document);
+      configureSelection(bootstrap);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
       await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
       await pumpKeyboardSurface(tester);
       await focusSourceBuffer(tester);
-      return bootstrap;
     }
 
     const renameText = 'value = value\n';
-    var bootstrap = await pumpDocument(
+    await pumpDocument(
       const DocumentState(
         documentId: 'panel-inline-rename.styio',
         text: renameText,
         revision: 0,
       ),
+      (bootstrap) {
+        bootstrap.editorController.selectCollapsed(
+          renameText.indexOf('value') + 2,
+        );
+      },
     );
-    bootstrap.editorController.selectCollapsed(renameText.indexOf('value') + 2);
-    await tester.pump();
     await sendShortcut(tester, LogicalKeyboardKey.f6, shift: true);
     await pumpKeyboardSurface(tester);
     expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
@@ -4149,17 +4157,18 @@ blend(left: price, right: tax) -> @stdout
     );
 
     const safeDeleteText = 'used = 1\nunused = 2\nused -> @stdout\n';
-    bootstrap = await pumpDocument(
+    await pumpDocument(
       const DocumentState(
         documentId: 'panel-safe-delete.styio',
         text: safeDeleteText,
         revision: 0,
       ),
+      (bootstrap) {
+        bootstrap.editorController.selectCollapsed(
+          safeDeleteText.indexOf('unused') + 2,
+        );
+      },
     );
-    bootstrap.editorController.selectCollapsed(
-      safeDeleteText.indexOf('unused') + 2,
-    );
-    await tester.pump();
     await sendShortcut(tester, LogicalKeyboardKey.delete, alt: true);
     await pumpKeyboardSurface(tester);
     expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsOne);
@@ -4171,15 +4180,18 @@ blend(left: price, right: tax) -> @stdout
     );
 
     const inlineText = 'seed = 40 + 2\nvalue = seed\n';
-    bootstrap = await pumpDocument(
+    await pumpDocument(
       const DocumentState(
         documentId: 'panel-inline-variable.styio',
         text: inlineText,
         revision: 0,
       ),
+      (bootstrap) {
+        bootstrap.editorController.selectCollapsed(
+          inlineText.indexOf('seed') + 2,
+        );
+      },
     );
-    bootstrap.editorController.selectCollapsed(inlineText.indexOf('seed') + 2);
-    await tester.pump();
     await sendShortcut(
       tester,
       LogicalKeyboardKey.keyN,
@@ -4200,18 +4212,19 @@ blend(left: price, right: tax) -> @stdout
 
     const introduceText = 'value = 40 + 2\n';
     final introduceStart = introduceText.indexOf('40 + 2');
-    bootstrap = await pumpDocument(
+    await pumpDocument(
       const DocumentState(
         documentId: 'panel-introduce-variable.styio',
         text: introduceText,
         revision: 0,
       ),
+      (bootstrap) {
+        bootstrap.editorController.selectRange(
+          baseOffset: introduceStart,
+          extentOffset: introduceStart + '40 + 2'.length,
+        );
+      },
     );
-    bootstrap.editorController.selectRange(
-      baseOffset: introduceStart,
-      extentOffset: introduceStart + '40 + 2'.length,
-    );
-    await tester.pump();
     await sendShortcut(
       tester,
       LogicalKeyboardKey.keyV,
@@ -4232,18 +4245,19 @@ blend(left: price, right: tax) -> @stdout
 
     const extractText = 'fn main(user) {\n  first = user + 1\n}\n';
     final extractStart = extractText.indexOf('user + 1');
-    bootstrap = await pumpDocument(
+    await pumpDocument(
       const DocumentState(
         documentId: 'panel-extract-function.styio',
         text: extractText,
         revision: 0,
       ),
+      (bootstrap) {
+        bootstrap.editorController.selectRange(
+          baseOffset: extractStart,
+          extentOffset: extractStart + 'user + 1'.length,
+        );
+      },
     );
-    bootstrap.editorController.selectRange(
-      baseOffset: extractStart,
-      extentOffset: extractStart + 'user + 1'.length,
-    );
-    await tester.pump();
     await sendShortcut(
       tester,
       LogicalKeyboardKey.keyM,
@@ -4267,17 +4281,18 @@ blend(left: price, right: tax) -> @stdout
         '  result = left + right\n'
         '}\n'
         'value = blend(price, tax)\n';
-    bootstrap = await pumpDocument(
+    await pumpDocument(
       const DocumentState(
         documentId: 'panel-change-signature.styio',
         text: signatureText,
         revision: 0,
       ),
+      (bootstrap) {
+        bootstrap.editorController.selectCollapsed(
+          signatureText.indexOf('blend') + 1,
+        );
+      },
     );
-    bootstrap.editorController.selectCollapsed(
-      signatureText.indexOf('blend') + 1,
-    );
-    await tester.pump();
     await sendShortcut(tester, LogicalKeyboardKey.f6, control: true);
     await pumpKeyboardSurface(tester);
     expect(

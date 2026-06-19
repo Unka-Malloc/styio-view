@@ -22,6 +22,7 @@ import 'package:vityo_app/src/view_ide/module_host/module_registry.dart';
 import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
+import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_breadcrumbs.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
@@ -2348,6 +2349,68 @@ value = 1
       );
     }
   });
+
+  test(
+    'shell runtime exposes cached palette, quick open, '
+    'and unavailable toolchain paths',
+    () async {
+      const initialDocument = DocumentState(
+        documentId: 'src/main.styio',
+        text: 'value = 1\n',
+        revision: 0,
+      );
+      final shell = _createNoopShellRuntime(
+        projectGraph: _projectGraphWithFiles(
+          const <String>['src/main.styio', 'src/worker.styio'],
+        ),
+        documentStore: InMemoryWorkspaceDocumentStore(
+          seededDocuments: const <String, DocumentState>{
+            'src/main.styio': initialDocument,
+          },
+        ),
+        initialDocument: initialDocument,
+      );
+      addTearDown(shell.dispose);
+
+      final palette = shell.searchCommandPalette(
+        const CommandPaletteQuery(pattern: 'save'),
+      );
+      final quickOpen = shell.quickOpenWorkspace(
+        const WorkspaceQuickOpenQuery(pattern: 'worker'),
+      );
+
+      expect(shell.lastCommandPalette, same(palette));
+      expect(shell.lastWorkspaceQuickOpen, same(quickOpen));
+      expect(quickOpen.items.single.filePath, 'src/worker.styio');
+      expect(shell.lastWorkspaceRename, isNull);
+      expect(shell.lastToolchainInstallExecutionResult, isNull);
+
+      expect(await shell.selectToolchainCandidate('styio-service'), isNull);
+      expect(await shell.clearToolchainCandidate(ToolchainKind.runner), isNull);
+      expect(shell.planManagedToolchainInstallation(), isNull);
+      expect(await shell.executeLastToolchainInstallPlan(), isNull);
+
+      shell.editorController.insertText('local ');
+      final conflict = shell.markEditorResourceExternalChanged(
+        const DocumentState(
+          documentId: 'src/main.styio',
+          text: 'external = 2\n',
+          revision: 4,
+        ),
+      );
+
+      expect(conflict.state, DocumentResourceBindingState.conflicted);
+      for (final fragment in const <String>[
+        'Toolchain selection unavailable',
+        'Toolchain clear unavailable',
+        'Toolchain install planning unavailable',
+        'Toolchain install execution unavailable',
+        'External change conflicted',
+      ]) {
+        expect(shell.debugLog.any((entry) => entry.contains(fragment)), isTrue);
+      }
+    },
+  );
 
   test('shell runtime records verbose run output and command navigation', () async {
     const mainDocument = DocumentState(

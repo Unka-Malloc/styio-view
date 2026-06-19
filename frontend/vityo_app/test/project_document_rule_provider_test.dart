@@ -265,6 +265,48 @@ void main() {
     expect(fixes.single.edits.single.range.end, 13);
   });
 
+  test('project rule provider removes stray tokens and closes strings', () {
+    const provider = CurrentProjectDocumentRuleProvider();
+    const text =
+        'value = 1 )\n'
+        '"unterminated\n';
+    const document = DocumentState(
+      documentId: 'syntax-quick-fixes.styio',
+      text: text,
+      revision: 1,
+    );
+    final strayStart = text.indexOf(')');
+    final quoteStart = text.indexOf('"unterminated');
+
+    final removeFix = provider
+        .quickFixesForDiagnostic(
+          document,
+          Diagnostic(
+            severity: DiagnosticSeverity.error,
+            code: 'unexpected-closing-parenthesis',
+            message: 'Unexpected closing parenthesis.',
+            range: SourceRange(start: strayStart, end: strayStart + 1),
+          ),
+        )
+        .single;
+    final stringFix = provider
+        .quickFixesForDiagnostic(
+          document,
+          Diagnostic(
+            severity: DiagnosticSeverity.error,
+            code: 'unterminated-string',
+            message: 'String literal is not closed.',
+            range: SourceRange(start: quoteStart, end: text.length),
+          ),
+        )
+        .single;
+
+    expect(removeFix.label, 'Remove stray delimiter');
+    expect(removeFix.edits.single.newText, '');
+    expect(stringFix.label, 'Insert closing quote');
+    expect(stringFix.edits.single.newText, '"');
+  });
+
   test('project rule provider gets current unused local fix without legacy', () {
     const provider = CurrentProjectDocumentRuleProvider();
     const document = DocumentState(
@@ -409,6 +451,40 @@ void main() {
 value = 1
 value2 = 2
 value2 -> @stdout
+''');
+  });
+
+  test('project rule provider increments duplicate rename suffixes', () {
+    const provider = CurrentProjectDocumentRuleProvider();
+    const text =
+        'value = 1\n'
+        'value2 = 2\n'
+        'value = 3\n'
+        'value -> @stdout\n';
+    const document = DocumentState(
+      documentId: 'duplicate-declaration-suffix.styio',
+      text: text,
+      revision: 1,
+    );
+    final duplicateStart = text.indexOf('value = 3');
+    final diagnostic = Diagnostic(
+      severity: DiagnosticSeverity.error,
+      code: 'duplicate-declaration',
+      message: 'Declaration `value` is already defined in this scope.',
+      range: SourceRange(
+        start: duplicateStart,
+        end: duplicateStart + 'value'.length,
+      ),
+    );
+
+    final fix = provider.quickFixesForDiagnostic(document, diagnostic).single;
+
+    expect(fix.label, 'Rename duplicate declaration to `value3`');
+    expect(_applyFormattingEdits(text, fix.edits), '''
+value = 1
+value2 = 2
+value3 = 3
+value3 -> @stdout
 ''');
   });
 
@@ -764,6 +840,83 @@ when ready || (ready && blocked) -> state absorbed
 when !(price > limit) -> state affordable
 when !ready || !blocked -> state active
 ''');
+  });
+
+  test('project rule provider fixes boolean simplification edge forms', () {
+    const provider = CurrentProjectDocumentRuleProvider();
+
+    DiagnosticQuickFix fixFor(String code, String expression) {
+      final document = DocumentState(
+        documentId: 'boolean-edge.styio',
+        text: expression,
+        revision: 1,
+      );
+      return provider
+          .quickFixesForDiagnostic(
+            document,
+            Diagnostic(
+              severity: DiagnosticSeverity.hint,
+              code: code,
+              message: 'Boolean expression can be simplified.',
+              range: SourceRange(start: 0, end: expression.length),
+            ),
+          )
+          .single;
+    }
+
+    expect(
+      fixFor('simplifiable-boolean-negation', '!false').edits.single.newText,
+      'true',
+    );
+    expect(
+      fixFor('simplifiable-boolean-comparison', 'ready == ready')
+          .edits
+          .single
+          .newText,
+      'true',
+    );
+    expect(
+      fixFor('simplifiable-boolean-comparison', 'true == ready')
+          .edits
+          .single
+          .newText,
+      'ready',
+    );
+    expect(
+      fixFor('simplifiable-boolean-comparison', 'true != ready')
+          .edits
+          .single
+          .newText,
+      '!ready',
+    );
+    expect(
+      fixFor('simplifiable-boolean-comparison', 'ready != true')
+          .edits
+          .single
+          .newText,
+      '!ready',
+    );
+    expect(
+      fixFor('simplifiable-boolean-expression', 'ready && blocked || ready')
+          .edits
+          .single
+          .newText,
+      'ready',
+    );
+    expect(
+      fixFor('simplifiable-boolean-expression', '(ready || blocked) && ready')
+          .edits
+          .single
+          .newText,
+      'ready',
+    );
+    expect(
+      fixFor(
+        'simplifiable-demorgan-expression',
+        '!(price > limit || !ready)',
+      ).edits.single.newText,
+      'price <= limit && ready',
+    );
   });
 
   test('project rule provider creates unresolved resource without legacy', () {
@@ -1490,4 +1643,3 @@ String _applyFormattingEdits(String source, List<FormattingEdit> edits) {
   }
   return result;
 }
-

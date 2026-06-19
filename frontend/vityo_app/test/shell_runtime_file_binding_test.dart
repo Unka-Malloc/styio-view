@@ -15,6 +15,7 @@ import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/view_ide/commands/command_palette.dart';
 import 'package:vityo_app/src/view_ide/editor/controller/editor_controller.dart';
 import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
+import 'package:vityo_app/src/view_ide/interaction/toolchain_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_language_service.dart';
@@ -2464,6 +2465,330 @@ value = 1
       expect(shell.debugLog.any((entry) => entry.contains(fragment)), isTrue);
     }
   });
+
+  test('shell runtime opens workspace surfaces across files', () async {
+    const mainDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'task main {}\n',
+      revision: 0,
+    );
+    const workerDocument = DocumentState(
+      documentId: 'src/worker.styio',
+      text: 'task worker {\n  value = 1\n}\n',
+      revision: 0,
+    );
+    final shell = _createNoopShellRuntime(
+      projectGraph: _projectGraphWithFiles(
+        const <String>['src/main.styio', 'src/worker.styio'],
+      ),
+      documentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': mainDocument,
+          'src/worker.styio': workerDocument,
+        },
+      ),
+      initialDocument: mainDocument,
+    );
+    addTearDown(shell.dispose);
+
+    const mainQuickOpenItem = WorkspaceQuickOpenItem(
+      filePath: 'src/main.styio',
+      fileName: 'main.styio',
+      parentPath: 'src',
+      score: 10,
+      matches: <WorkspaceQuickOpenMatch>[],
+    );
+
+    Future<void> resetToMain() async {
+      if (shell.workspaceController.activeFilePath == 'src/main.styio') {
+        return;
+      }
+      await shell.openWorkspaceQuickOpenItem(mainQuickOpenItem);
+    }
+
+    await shell.openWorkspaceOutlineItem(
+      const WorkspaceOutlineItem(
+        filePath: 'src/worker.styio',
+        name: 'worker',
+        kind: SymbolKind.task,
+        detail: 'task',
+        nameRange: SourceRange(start: 5, end: 11),
+        declarationRange: SourceRange(start: 0, end: 13),
+        line: 0,
+        column: 5,
+        previewText: 'task worker {',
+      ),
+    );
+    expect(shell.workspaceController.activeFilePath, 'src/worker.styio');
+    expect(shell.editorController.selection.start, 5);
+    await resetToMain();
+
+    await shell.openWorkspaceBreadcrumbItem(
+      const WorkspaceBreadcrumbItem(
+        label: 'worker.styio',
+        kind: WorkspaceBreadcrumbItemKind.file,
+        filePath: 'src/worker.styio',
+      ),
+    );
+    expect(shell.editorController.selection.start, 0);
+    await resetToMain();
+
+    await shell.openWorkspaceDocumentHighlight(
+      const WorkspaceDocumentHighlightItem(
+        filePath: 'src/worker.styio',
+        name: 'value',
+        kind: WorkspaceDocumentHighlightKind.text,
+        range: SourceRange(start: 16, end: 21),
+        line: 1,
+        column: 2,
+        previewText: '  value = 1',
+        isActive: false,
+      ),
+    );
+    expect(shell.editorController.selection.start, 16);
+    await resetToMain();
+
+    await shell.openWorkspaceCodeLens(
+      const WorkspaceCodeLensItem(
+        filePath: 'src/worker.styio',
+        symbolName: 'worker',
+        symbolKind: StyioProjectSymbolKind.task,
+        kind: WorkspaceCodeLensKind.references,
+        commandTitle: '1 reference',
+        range: SourceRange(start: 5, end: 11),
+        line: 0,
+        column: 5,
+        previewText: 'task worker {',
+        referenceCount: 1,
+        usageCount: 1,
+      ),
+    );
+    expect(shell.editorController.selection.start, 5);
+    await resetToMain();
+
+    await shell.openWorkspaceProblem(
+      const WorkspaceProblemItem(
+        filePath: 'src/worker.styio',
+        diagnostic: Diagnostic(
+          severity: DiagnosticSeverity.warning,
+          code: 'worker-warning',
+          message: 'worker warning',
+          range: SourceRange(start: 16, end: 21),
+        ),
+        line: 1,
+        column: 2,
+        previewText: '  value = 1',
+      ),
+    );
+    expect(shell.editorController.selection.start, 16);
+
+    for (final fragment in const <String>[
+      'Outline symbol opened',
+      'Breadcrumb opened',
+      'Document highlight opened',
+      'Code lens opened',
+      'Workspace problem opened',
+    ]) {
+      expect(shell.debugLog.any((entry) => entry.contains(fragment)), isTrue);
+    }
+  });
+
+  test('shell runtime records command palette edge paths', () async {
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value = 1\n',
+      revision: 0,
+    );
+    final shell = _createNoopShellRuntime(
+      projectGraph: _projectGraphWithFiles(const <String>['src/main.styio']),
+      documentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': initialDocument,
+        },
+      ),
+      initialDocument: initialDocument,
+    );
+    addTearDown(shell.dispose);
+
+    final blockedFetch = shell
+        .searchCommandPalette(const CommandPaletteQuery(pattern: 'fetch'))
+        .items
+        .singleWhere((item) => item.commandId == AppCommandId.fetchDependencies);
+    expect(blockedFetch.enabled, isFalse);
+    await shell.executeCommandPaletteItem(blockedFetch);
+
+    await shell.executeCommandPaletteItem(_paletteItem(AppCommandId.quickOpen));
+    await shell.executeCommandPaletteItem(
+      _paletteItem(AppCommandId.commandPalette),
+    );
+    await shell.executeCommandPaletteItem(_paletteItem(AppCommandId.quickOpen));
+
+    for (final commandId in const <AppCommandId>[
+      AppCommandId.commandPalette,
+      AppCommandId.quickOpen,
+      AppCommandId.showRecentLocations,
+      AppCommandId.showWorkspaceDocumentLinks,
+      AppCommandId.showWorkspaceDocumentHighlights,
+      AppCommandId.showWorkspaceCodeLenses,
+      AppCommandId.goToWorkspaceDeclaration,
+      AppCommandId.goToWorkspaceDefinition,
+      AppCommandId.goToWorkspaceTypeDefinition,
+      AppCommandId.goToWorkspaceImplementation,
+      AppCommandId.showWorkspaceTypeHierarchy,
+      AppCommandId.showWorkspaceOutline,
+      AppCommandId.renameWorkspaceSymbol,
+      AppCommandId.searchWorkspaceSymbols,
+      AppCommandId.findWorkspaceReferences,
+      AppCommandId.showWorkspaceCallHierarchy,
+      AppCommandId.searchWorkspace,
+      AppCommandId.showWorkspaceProblems,
+      AppCommandId.showWorkspaceCodeActions,
+      AppCommandId.showRuntime,
+      AppCommandId.showAgent,
+      AppCommandId.showDebug,
+      AppCommandId.refreshModules,
+      AppCommandId.openSettings,
+    ]) {
+      await shell.executeCommandPaletteItem(_paletteItem(commandId));
+    }
+
+    expect(shell.recentCommandIds.length, 20);
+    expect(shell.recentCommandIds.first, AppCommandId.openSettings);
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Fetch blocked')),
+      isTrue,
+    );
+    for (var index = 0; index < 60; index += 1) {
+      shell.appendLog('palette trim probe $index');
+    }
+    expect(shell.debugLog.length, 48);
+  });
+
+  test('shell runtime logs runtime events and command payload summaries', () async {
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value = 1\n',
+      revision: 0,
+    );
+    final shell = _createNoopShellRuntime(
+      projectGraph: _projectGraphWithFiles(const <String>['src/main.styio']),
+      documentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': initialDocument,
+        },
+      ),
+      initialDocument: initialDocument,
+      executionAdapter: const _VerboseExecutionAdapter(),
+      runtimeEventAdapter: const _StaticRuntimeEventAdapter(),
+      dependencySourceAdapter: const _PayloadDependencySourceAdapter(),
+      deploymentAdapter: const _PayloadDeploymentAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    await shell.executeCommand(AppCommandId.run);
+    await shell.fetchDependencies();
+    await shell.vendorDependencies(outputPath: '/workspace/demo/vendor');
+    await shell.packProject(
+      packageName: 'demo/app',
+      outputPath: '/workspace/demo/dist/app.tar',
+    );
+    await shell.publishToRegistry(
+      registryRoot: '/registry',
+      packageName: 'demo/app',
+      outputPath: '/workspace/demo/dist/app.tar',
+    );
+
+    for (final fragment in const <String>[
+      'runtime events: 2 event',
+      'runtime: compile.started',
+      'fetch packages: 2',
+      'vendor root: /workspace/demo/vendor',
+      'vendor metadata: /workspace/demo/vendor/spio-vendor.json',
+      'deploy package: demo/app',
+      'deploy archive: /workspace/demo/dist/app.tar',
+    ]) {
+      expect(
+        shell.debugLog.any((entry) => entry.contains(fragment)),
+        isTrue,
+        reason: 'Expected debug log to contain "$fragment".',
+      );
+    }
+  });
+
+  test('shell runtime handles toolchain recovery actions without manager', () async {
+    const initialDocument = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value = 1\n',
+      revision: 0,
+    );
+    final shell = _createNoopShellRuntime(
+      projectGraph: _projectGraphWithFiles(const <String>['src/main.styio']),
+      documentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': initialDocument,
+        },
+      ),
+      initialDocument: initialDocument,
+    );
+    addTearDown(shell.dispose);
+
+    for (final action in const <ToolchainRecoveryAction>[
+      ToolchainRecoveryAction(
+        id: 'show-toolchain-logs',
+        label: 'Show logs',
+        description: 'Open logs',
+      ),
+      ToolchainRecoveryAction(
+        id: 'select-existing-toolchain',
+        label: 'Select existing',
+        description: 'Select a local compiler',
+      ),
+      ToolchainRecoveryAction(
+        id: 'install-managed-toolchain',
+        label: 'Install',
+        description: 'Install a managed compiler',
+      ),
+      ToolchainRecoveryAction(
+        id: 'use-degraded-mode',
+        label: 'Use degraded mode',
+        description: 'Continue without the compiler',
+      ),
+      ToolchainRecoveryAction(
+        id: 'fix-toolchain-precondition',
+        label: 'Fix precondition',
+        description: 'Create the expected directory',
+      ),
+      ToolchainRecoveryAction(
+        id: 'retry-tool-use',
+        label: 'Retry use',
+        description: 'Retry tool use',
+      ),
+      ToolchainRecoveryAction(
+        id: 'retry-tool-pin',
+        label: 'Retry pin',
+        description: 'Retry tool pin',
+      ),
+      ToolchainRecoveryAction(
+        id: 'unknown-recovery',
+        label: 'Unknown',
+        description: 'Unknown action',
+      ),
+    ]) {
+      await shell.handleToolchainRecoveryAction(action);
+    }
+
+    for (final fragment in const <String>[
+      'Toolchain log view requested',
+      'Toolchain selection route requested',
+      'Toolchain install planning unavailable',
+      'Toolchain degraded mode requested',
+      'Toolchain precondition recovery',
+      'Toolchain retry blocked',
+      'Toolchain recovery action is not wired',
+    ]) {
+      expect(shell.debugLog.any((entry) => entry.contains(fragment)), isTrue);
+    }
+  });
 }
 
 ShellRuntimeModel _createNoopShellRuntime({
@@ -2472,6 +2797,9 @@ ShellRuntimeModel _createNoopShellRuntime({
   required DocumentState initialDocument,
   ExecutionAdapter executionAdapter = const _NoopExecutionAdapter(),
   RuntimeEventAdapter runtimeEventAdapter = const _NoopRuntimeEventAdapter(),
+  DependencySourceAdapter dependencySourceAdapter =
+      const _NoopDependencySourceAdapter(),
+  DeploymentAdapter deploymentAdapter = const _NoopDeploymentAdapter(),
 }) {
   return ShellRuntimeModel(
     platformTarget: PlatformTarget.macos,
@@ -2494,9 +2822,22 @@ ShellRuntimeModel _createNoopShellRuntime({
     executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
         executionAdapter,
     runtimeEventAdapter: runtimeEventAdapter,
-    dependencySourceAdapter: const _NoopDependencySourceAdapter(),
-    deploymentAdapter: const _NoopDeploymentAdapter(),
+    dependencySourceAdapter: dependencySourceAdapter,
+    deploymentAdapter: deploymentAdapter,
     toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+  );
+}
+
+CommandPaletteItem _paletteItem(AppCommandId commandId) {
+  final descriptor = StyioCommandRegistry.descriptorFor(commandId);
+  return CommandPaletteItem(
+    commandId: commandId,
+    label: descriptor.label,
+    shortcutHint: descriptor.shortcutHint,
+    description: descriptor.description,
+    category: 'test',
+    score: 1,
+    matches: const <CommandPaletteMatch>[],
   );
 }
 
@@ -2600,6 +2941,37 @@ class _VerboseExecutionAdapter implements ExecutionAdapter {
   }
 }
 
+class _StaticRuntimeEventAdapter implements RuntimeEventAdapter {
+  const _StaticRuntimeEventAdapter();
+
+  @override
+  AdapterCapabilitySnapshot get capabilitySnapshot => _capabilitySnapshot;
+
+  @override
+  Stream<RuntimeEventEnvelope> sessionEvents(String sessionId) {
+    return Stream<RuntimeEventEnvelope>.fromIterable(<RuntimeEventEnvelope>[
+      RuntimeEventEnvelope(
+        schemaVersion: 1,
+        sessionId: sessionId,
+        sequence: 1,
+        timestamp: DateTime.utc(2026, 6, 19),
+        eventKind: 'compile.started',
+        origin: 'styio.compile-plan',
+        payload: const <String, Object?>{'intent': 'run'},
+      ),
+      RuntimeEventEnvelope(
+        schemaVersion: 1,
+        sessionId: sessionId,
+        sequence: 2,
+        timestamp: DateTime.utc(2026, 6, 19, 0, 0, 1),
+        eventKind: 'run.finished',
+        origin: 'styio.runtime',
+        payload: const <String, Object?>{'success': true},
+      ),
+    ]);
+  }
+}
+
 class _NoopExecutionAdapter implements ExecutionAdapter {
   const _NoopExecutionAdapter();
 
@@ -2637,6 +3009,47 @@ class _NoopRuntimeEventAdapter implements RuntimeEventAdapter {
   }
 }
 
+class _PayloadDependencySourceAdapter implements DependencySourceAdapter {
+  const _PayloadDependencySourceAdapter();
+
+  @override
+  Future<DependencySourceCommandResult> fetchDependencies({
+    required ProjectGraphSnapshot projectGraph,
+    bool locked = false,
+    bool offline = false,
+  }) async {
+    return const DependencySourceCommandResult(
+      command: 'fetch',
+      status: DependencySourceCommandStatus.succeeded,
+      statusMessage: 'fetched dependencies',
+      stdout: '',
+      stderr: '',
+      payload: <String, dynamic>{'packages': 2},
+    );
+  }
+
+  @override
+  Future<DependencySourceCommandResult> vendorDependencies({
+    required ProjectGraphSnapshot projectGraph,
+    String? outputPath,
+    bool locked = false,
+    bool offline = false,
+  }) async {
+    return const DependencySourceCommandResult(
+      command: 'vendor',
+      status: DependencySourceCommandStatus.succeeded,
+      statusMessage: 'vendored dependencies',
+      stdout: '',
+      stderr: '',
+      payload: <String, dynamic>{
+        'packages': 2,
+        'vendor_root': '/workspace/demo/vendor',
+        'metadata_path': '/workspace/demo/vendor/spio-vendor.json',
+      },
+    );
+  }
+}
+
 class _NoopDependencySourceAdapter implements DependencySourceAdapter {
   const _NoopDependencySourceAdapter();
 
@@ -2668,6 +3081,68 @@ class _NoopDependencySourceAdapter implements DependencySourceAdapter {
       statusMessage: 'not needed for shell file binding test',
       stdout: '',
       stderr: '',
+    );
+  }
+}
+
+class _PayloadDeploymentAdapter implements DeploymentAdapter {
+  const _PayloadDeploymentAdapter();
+
+  @override
+  Future<DeploymentCommandResult> packProject({
+    required ProjectGraphSnapshot projectGraph,
+    String? packageName,
+    String? outputPath,
+  }) async {
+    return DeploymentCommandResult(
+      command: 'pack',
+      status: DeploymentCommandStatus.succeeded,
+      statusMessage: 'packed project',
+      stdout: '',
+      stderr: '',
+      payload: <String, dynamic>{
+        'package': packageName ?? 'demo/app',
+        'archive_path': outputPath ?? '/workspace/demo/dist/app.tar',
+      },
+    );
+  }
+
+  @override
+  Future<DeploymentCommandResult> preparePublish({
+    required ProjectGraphSnapshot projectGraph,
+    String? packageName,
+    String? outputPath,
+  }) async {
+    return DeploymentCommandResult(
+      command: 'publish',
+      status: DeploymentCommandStatus.succeeded,
+      statusMessage: 'prepared publish',
+      stdout: '',
+      stderr: '',
+      payload: <String, dynamic>{
+        'package': packageName ?? 'demo/app',
+        'archive_path': outputPath ?? '/workspace/demo/dist/app.tar',
+      },
+    );
+  }
+
+  @override
+  Future<DeploymentCommandResult> publishToRegistry({
+    required ProjectGraphSnapshot projectGraph,
+    required String registryRoot,
+    String? packageName,
+    String? outputPath,
+  }) async {
+    return DeploymentCommandResult(
+      command: 'publish-registry',
+      status: DeploymentCommandStatus.succeeded,
+      statusMessage: 'published to registry',
+      stdout: '',
+      stderr: '',
+      payload: <String, dynamic>{
+        'package': packageName ?? 'demo/app',
+        'archive_path': outputPath ?? '/workspace/demo/dist/app.tar',
+      },
     );
   }
 }

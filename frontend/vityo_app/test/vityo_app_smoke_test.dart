@@ -1210,6 +1210,52 @@ fn blend(left: f64, right: f64): f64 {
     await tapKeyIfPresent('workspace-rename-apply-run');
   });
 
+  testWidgets('renders compact command and quick open empty states', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 760);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.android);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+    expect(find.byKey(const ValueKey('shell-viewport-mobile')), findsOneWidget);
+
+    shell.selectBottomTab(BottomSurfaceTab.commands);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('command-palette-surface')),
+      findsOneWidget,
+    );
+    final commandField = find.byKey(
+      const ValueKey('command-palette-query-field'),
+    );
+    await tester.ensureVisible(commandField);
+    await tester.enterText(commandField, 'no-such-command');
+    await tester.pumpAndSettle();
+    expect(find.text('No matching commands.'), findsOneWidget);
+
+    shell.selectBottomTab(BottomSurfaceTab.navigate);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('workspace-quick-open-surface')),
+      findsOneWidget,
+    );
+    final quickOpenField = find.byKey(
+      const ValueKey('workspace-quick-open-query-field'),
+    );
+    await tester.ensureVisible(quickOpenField);
+    await tester.enterText(quickOpenField, 'no-such-file');
+    await tester.pumpAndSettle();
+    expect(find.text('No matching files.'), findsOneWidget);
+  });
+
   testWidgets(
     'executes sample project workflow through sidebar mainline lanes',
     (tester) async {

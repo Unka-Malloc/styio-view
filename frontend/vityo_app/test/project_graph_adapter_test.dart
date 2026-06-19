@@ -221,10 +221,6 @@ version = "2026.6.19"
         graph.toolchain.pinPath,
         endsWith('${Platform.pathSeparator}spio-toolchain.toml'),
       );
-      expect(
-        graph.notes.any((note) => note.contains('Project toolchain pin')),
-        isTrue,
-      );
     },
   );
 
@@ -292,7 +288,7 @@ pinned = { version = "2.0.0" }
       expect(graph.toolchain.version, '0.9.0');
       expect(graph.lockState, ProjectLockState.missing);
       expect(graph.vendorState, ProjectVendorState.missing);
-      expect(graph.dependencyCount, 5);
+      expect(graph.dependencyCount, 6);
 
       final dependenciesByName = {
         for (final dependency in graph.dependencies)

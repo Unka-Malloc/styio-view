@@ -12,6 +12,7 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
+import 'package:vityo_app/src/view_ide/commands/command_palette.dart';
 import 'package:vityo_app/src/view_ide/editor/controller/editor_controller.dart';
 import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';

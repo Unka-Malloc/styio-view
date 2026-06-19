@@ -36,6 +36,18 @@ void main() {
     }
   }
 
+  Future<void> revealMobileBottomSurface(WidgetTester tester) async {
+    final mobileScroll = find.byKey(const ValueKey('shell-mobile-scroll'));
+    expect(mobileScroll, findsOneWidget);
+    final scrollable = find.descendant(
+      of: mobileScroll,
+      matching: find.byType(Scrollable),
+    );
+    final scrollableState = tester.state<ScrollableState>(scrollable.first);
+    scrollableState.position.jumpTo(scrollableState.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+  }
+
   List<Color?> backgroundsForTextOnLine(
     WidgetTester tester, {
     required int lineIndex,
@@ -776,6 +788,7 @@ fn blend(left: f64, right: f64): f64 {
     for (final tab in BottomSurfaceTab.values) {
       shell.selectBottomTab(tab);
       await tester.pump();
+      await revealMobileBottomSurface(tester);
       expect(shell.activeBottomTab, tab);
     }
   });
@@ -1227,23 +1240,9 @@ fn blend(left: f64, right: f64): f64 {
     );
     expect(find.byKey(const ValueKey('shell-viewport-mobile')), findsOneWidget);
 
-    Future<void> revealBottomSurface() async {
-      final mobileScroll = find.byKey(const ValueKey('shell-mobile-scroll'));
-      expect(mobileScroll, findsOneWidget);
-      final scrollable = find.descendant(
-        of: mobileScroll,
-        matching: find.byType(Scrollable),
-      );
-      final scrollableState = tester.state<ScrollableState>(scrollable.first);
-      scrollableState.position.jumpTo(
-        scrollableState.position.maxScrollExtent,
-      );
-      await tester.pumpAndSettle();
-    }
-
     shell.selectBottomTab(BottomSurfaceTab.commands);
     await tester.pumpAndSettle();
-    await revealBottomSurface();
+    await revealMobileBottomSurface(tester);
     expect(
       find.byKey(
         const ValueKey('command-palette-surface'),
@@ -1265,7 +1264,7 @@ fn blend(left: f64, right: f64): f64 {
 
     shell.selectBottomTab(BottomSurfaceTab.navigate);
     await tester.pumpAndSettle();
-    await revealBottomSurface();
+    await revealMobileBottomSurface(tester);
     expect(
       find.byKey(
         const ValueKey('workspace-quick-open-surface'),

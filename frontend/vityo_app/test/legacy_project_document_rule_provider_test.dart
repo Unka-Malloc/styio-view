@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/service.dart';

@@ -9,7 +9,7 @@ void main() {
     return StyioSyntaxContract.fromJson(
       jsonDecode(
             File(
-              'test/fixtures/styio_syntax_contracts/vityo_ide_2026_05.json',
+              'test/fixtures/styio_syntax_contracts/ide_syntax_contract.json',
             ).readAsStringSync(),
           )
           as Map<String, dynamic>,
@@ -26,7 +26,7 @@ void main() {
     );
   }
 
-  test('loads versioned IDE syntax contract from fixture config', () {
+  test('loads IDE syntax contract from fixture config', () {
     final contract = contractFixture();
 
     expect(contract.id, 'vityo-ide-syntax');

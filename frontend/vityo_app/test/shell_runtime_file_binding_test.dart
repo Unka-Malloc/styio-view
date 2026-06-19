@@ -25,6 +25,7 @@ import 'package:vityo_app/src/view_ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_breadcrumbs.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_call_hierarchy.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_code_actions.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_code_lens.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_declaration.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_definition.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_highlights.dart';
@@ -546,6 +547,82 @@ next -> @prices
     expect(shell.editorController.selection.end, write.range.end);
     expect(
       shell.debugLog.any((entry) => entry.contains('Document highlight opened')),
+      isTrue,
+    );
+  });
+
+  test('workspace code lens opens a symbol range', () async {
+    final projectGraph = _projectGraphWithFiles(
+      const <String>['lib/runtime.styio', 'main.styio'],
+    );
+    const runtimeDocument = DocumentState(
+      documentId: 'lib/runtime.styio',
+      text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+''',
+      revision: 0,
+    );
+    const mainDocument = DocumentState(
+      documentId: 'main.styio',
+      text: '''
+@import { lib/runtime }
+value = blend(1.0, 2.0)
+''',
+      revision: 0,
+    );
+    final documentStore = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/runtime.styio': runtimeDocument,
+        'main.styio': mainDocument,
+      },
+    );
+    final shell = ShellRuntimeModel(
+      platformTarget: PlatformTarget.macos,
+      supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+      projectGraphAdapter: _StaticProjectGraphAdapter(projectGraph),
+      workspaceController: WorkspaceController(projectSnapshot: projectGraph),
+      workspaceDocumentStore: documentStore,
+      moduleRegistry: ModuleRegistry(
+        platformTarget: PlatformTarget.macos,
+        definitions: const [],
+      ),
+      nativeModuleLoader: const NoopNativeModuleLoader(
+        platformTarget: PlatformTarget.macos,
+      ),
+      editorController: EditorSessionController(
+        initialDocument: runtimeDocument,
+        languageService: const _NoopStyioLanguageService(),
+      ),
+      executionAdapter: const _NoopExecutionAdapter(),
+      executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+          const _NoopExecutionAdapter(),
+      runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
+      dependencySourceAdapter: const _NoopDependencySourceAdapter(),
+      deploymentAdapter: const _NoopDeploymentAdapter(),
+      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
+    );
+    addTearDown(shell.dispose);
+
+    final result = await shell.collectWorkspaceCodeLenses(
+      WorkspaceCodeLensQuery(
+        targetFilePath: shell.workspaceCodeLensTargetFilePath,
+      ),
+    );
+
+    expect(result.status, WorkspaceCodeLensStatus.completed);
+    expect(result.lensCount, 1);
+    expect(result.lenses.single.usageCount, 1);
+
+    final lens = result.lenses.single;
+    await shell.openWorkspaceCodeLens(lens);
+
+    expect(shell.workspaceController.activeFilePath, 'lib/runtime.styio');
+    expect(shell.editorController.selection.start, lens.range.start);
+    expect(shell.editorController.selection.end, lens.range.end);
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Code lens opened')),
       isTrue,
     );
   });

@@ -125,6 +125,7 @@ class ShellRuntimeModel extends ChangeNotifier {
   WorkspaceQuickOpenResult? _lastWorkspaceQuickOpen;
   WorkspaceDocumentLinksResult? _lastWorkspaceDocumentLinks;
   WorkspaceDocumentHighlightsResult? _lastWorkspaceDocumentHighlights;
+  WorkspaceCodeLensResult? _lastWorkspaceCodeLens;
   WorkspaceDeclarationResult? _lastWorkspaceDeclaration;
   WorkspaceDefinitionResult? _lastWorkspaceDefinition;
   WorkspaceTypeDefinitionResult? _lastWorkspaceTypeDefinition;
@@ -162,6 +163,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       _lastWorkspaceDocumentLinks;
   WorkspaceDocumentHighlightsResult? get lastWorkspaceDocumentHighlights =>
       _lastWorkspaceDocumentHighlights;
+  WorkspaceCodeLensResult? get lastWorkspaceCodeLens =>
+      _lastWorkspaceCodeLens;
   WorkspaceDeclarationResult? get lastWorkspaceDeclaration =>
       _lastWorkspaceDeclaration;
   WorkspaceDefinitionResult? get lastWorkspaceDefinition =>
@@ -268,6 +271,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   String get workspaceDocumentHighlightsTargetFilePath => _activeDocumentPath;
 
   int get workspaceDocumentHighlightsOffset => editorController.inspectionOffset;
+
+  String get workspaceCodeLensTargetFilePath => _activeDocumentPath;
 
   String get workspaceDeclarationQuerySeed => workspaceDefinitionQuerySeed;
 
@@ -552,6 +557,9 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.showWorkspaceDocumentHighlights:
         appendLog('Document Highlights route requested.');
         return;
+      case AppCommandId.showWorkspaceCodeLenses:
+        appendLog('Code Lens route requested.');
+        return;
       case AppCommandId.goToWorkspaceDeclaration:
         appendLog('Go to Declaration route requested.');
         return;
@@ -689,6 +697,7 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.showRecentLocations:
       case AppCommandId.showWorkspaceDocumentLinks:
       case AppCommandId.showWorkspaceDocumentHighlights:
+      case AppCommandId.showWorkspaceCodeLenses:
       case AppCommandId.goToWorkspaceDeclaration:
       case AppCommandId.goToWorkspaceDefinition:
       case AppCommandId.goToWorkspaceTypeDefinition:
@@ -932,6 +941,30 @@ class ShellRuntimeModel extends ChangeNotifier {
       '${query.offset} found ${result.highlightCount} occurrence(s): '
       '${result.declarationCount} declarations, ${result.readCount} read, '
       '${result.writeCount} write, ${result.textCount} text.',
+    );
+    return result;
+  }
+
+  Future<WorkspaceCodeLensResult> collectWorkspaceCodeLenses(
+    WorkspaceCodeLensQuery query,
+  ) async {
+    final service = WorkspaceCodeLensService(
+      documentStore: workspaceDocumentStore,
+    );
+    final overlayDocuments = <String, DocumentState>{
+      ..._documentCache,
+      _activeDocumentPath: editorController.document,
+    };
+    final result = await service.collectCodeLenses(
+      filePaths: workspaceController.files,
+      query: query,
+      overlayDocuments: overlayDocuments,
+    );
+    _lastWorkspaceCodeLens = result;
+    appendLog(
+      'Code Lens for ${query.targetFilePath} found '
+      '${result.lensCount} lens(es) across '
+      '${result.symbolsIndexed} symbol(s).',
     );
     return result;
   }
@@ -1652,6 +1685,40 @@ class ShellRuntimeModel extends ChangeNotifier {
     );
     appendLog(
       'Document highlight opened: ${item.name} in ${item.filePath} '
+      'line ${item.line + 1}.',
+    );
+  }
+
+  Future<void> openWorkspaceCodeLens(WorkspaceCodeLensItem item) async {
+    if (!workspaceController.files.contains(item.filePath)) {
+      appendLog(
+        'Code lens unavailable: ${item.filePath} '
+        'is not in the current project graph.',
+      );
+      return;
+    }
+
+    _recordCurrentNavigationLocation(label: 'Before Code Lens');
+    if (workspaceController.activeFilePath != item.filePath) {
+      _suppressWorkspaceChangedLoad = true;
+      try {
+        workspaceController.openFile(item.filePath);
+      } finally {
+        _suppressWorkspaceChangedLoad = false;
+      }
+      await _loadActiveWorkspaceDocument();
+    }
+
+    editorController.selectRange(
+      baseOffset: item.range.start,
+      extentOffset: item.range.end,
+    );
+    _recordCurrentNavigationLocation(
+      label: item.symbolName,
+      kind: WorkspaceNavigationLocationKind.symbol,
+    );
+    appendLog(
+      'Code lens opened: ${item.symbolName} in ${item.filePath} '
       'line ${item.line + 1}.',
     );
   }

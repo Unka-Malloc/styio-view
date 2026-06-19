@@ -8,6 +8,7 @@ enum AppCommandId {
   showRecentLocations,
   showWorkspaceDocumentLinks,
   showWorkspaceDocumentHighlights,
+  showWorkspaceCodeLenses,
   goToWorkspaceDeclaration,
   goToWorkspaceDefinition,
   goToWorkspaceTypeDefinition,
@@ -155,6 +156,13 @@ class StyioCommandRegistry {
       label: 'Document Highlights',
       shortcutHint: 'Route',
       description: 'Show current-file highlights for the active symbol.',
+      primary: true,
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.showWorkspaceCodeLenses,
+      label: 'Code Lens',
+      shortcutHint: 'Route',
+      description: 'Show symbol lenses for the active workspace document.',
       primary: true,
     ),
     AppCommandDescriptor(
@@ -407,6 +415,7 @@ class StyioCommandRegistry {
       AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.showWorkspaceDocumentLinks ||
       AppCommandId.showWorkspaceDocumentHighlights ||
+      AppCommandId.showWorkspaceCodeLenses ||
       AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||
@@ -429,6 +438,7 @@ class StyioCommandRegistry {
           AppCommandId.showRecentLocations ||
           AppCommandId.showWorkspaceDocumentLinks ||
           AppCommandId.showWorkspaceDocumentHighlights ||
+          AppCommandId.showWorkspaceCodeLenses ||
           AppCommandId.goToWorkspaceDeclaration ||
           AppCommandId.goToWorkspaceDefinition ||
           AppCommandId.goToWorkspaceTypeDefinition ||
@@ -473,6 +483,7 @@ class StyioCommandRegistry {
       AppCommandId.showRecentLocations ||
       AppCommandId.showWorkspaceDocumentLinks ||
       AppCommandId.showWorkspaceDocumentHighlights ||
+      AppCommandId.showWorkspaceCodeLenses ||
       AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||

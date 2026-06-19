@@ -12,6 +12,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
         AppCommandId.showWorkspaceDocumentHighlights,
+        AppCommandId.showWorkspaceCodeLenses,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -52,6 +53,9 @@ void main() {
       );
       final documentHighlights = StyioCommandRegistry.descriptorFor(
         AppCommandId.showWorkspaceDocumentHighlights,
+      );
+      final codeLens = StyioCommandRegistry.descriptorFor(
+        AppCommandId.showWorkspaceCodeLenses,
       );
       final declaration = StyioCommandRegistry.descriptorFor(
         AppCommandId.goToWorkspaceDeclaration,
@@ -131,6 +135,11 @@ void main() {
       expect(documentHighlights.shortcutHint, 'Route');
       expect(documentHighlights.primary, isTrue);
       expect(documentHighlights.shortcuts, isEmpty);
+
+      expect(codeLens.label, 'Code Lens');
+      expect(codeLens.shortcutHint, 'Route');
+      expect(codeLens.primary, isTrue);
+      expect(codeLens.shortcuts, isEmpty);
 
       expect(declaration.label, 'Go to Declaration');
       expect(declaration.shortcutHint, 'Ctrl+B');
@@ -225,6 +234,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
         AppCommandId.showWorkspaceDocumentHighlights,
+        AppCommandId.showWorkspaceCodeLenses,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -247,6 +257,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
         AppCommandId.showWorkspaceDocumentHighlights,
+        AppCommandId.showWorkspaceCodeLenses,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -291,6 +302,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
         AppCommandId.showWorkspaceDocumentHighlights,
+        AppCommandId.showWorkspaceCodeLenses,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,

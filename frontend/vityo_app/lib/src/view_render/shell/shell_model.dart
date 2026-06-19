@@ -9,6 +9,7 @@ enum BottomSurfaceTab {
   locations,
   documentLinks,
   documentHighlights,
+  codeLenses,
   declarations,
   definitions,
   typeDefinitions,
@@ -107,6 +108,10 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.showWorkspaceDocumentHighlights:
         await super.executeCommand(commandId);
         selectBottomTab(BottomSurfaceTab.documentHighlights);
+        return;
+      case AppCommandId.showWorkspaceCodeLenses:
+        await super.executeCommand(commandId);
+        selectBottomTab(BottomSurfaceTab.codeLenses);
         return;
       case AppCommandId.goToWorkspaceDeclaration:
         await super.executeCommand(commandId);

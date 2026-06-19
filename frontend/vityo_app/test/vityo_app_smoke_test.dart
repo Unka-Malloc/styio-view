@@ -3729,7 +3729,7 @@ class _LiveExecutionAdapter implements ExecutionAdapter {
     execution: AdapterEndpointCapability(
       level: AdapterCapabilityLevel.available,
       detail:
-          'Live workflow fixture exposes project execution through compile-plan v1.',
+          'Live workflow fixture exposes project execution through published compile-plan support.',
     ),
     runtimeEvents: AdapterEndpointCapability(
       level: AdapterCapabilityLevel.partial,

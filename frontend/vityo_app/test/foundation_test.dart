@@ -90,7 +90,7 @@ void main() {
     );
   });
 
-  test('foundation datastore applies schema migrations on read', () async {
+  test('foundation datastore applies named schema migrations on read', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_foundation_datastore_migration_test_',
     );
@@ -108,12 +108,18 @@ void main() {
         fileSystemManager: fileSystemManager,
       ),
       fileSystemManager: fileSystemManager,
-      migrations: <String, FoundationDataMigration>{
-        'settings:1->2': (value) => <String, Object?>{
-          ...value,
-          'schema': 2,
-        },
-      },
+      migrations: <FoundationDataMigrationStep>[
+        FoundationDataMigrationStep(
+          name: 'settings-window-layout-add-schema-marker',
+          namespace: 'settings',
+          sourceSchemaState: 1,
+          targetSchemaState: 2,
+          migrate: (value) => <String, Object?>{
+            ...value,
+            'schema': 2,
+          },
+        ),
+      ],
     );
 
     await datastore.writeJson(

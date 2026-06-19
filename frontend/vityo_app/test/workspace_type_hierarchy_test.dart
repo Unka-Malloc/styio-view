@@ -260,7 +260,7 @@ state PendingState {
 }
 
 schema PrefixOrder {
-  shared: Shared
+  related: Shared
 }
 
 schema KeywordBody state PendingState {

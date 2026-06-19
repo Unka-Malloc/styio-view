@@ -338,7 +338,7 @@ value = blend(1.0, 2.0)
     );
     final fuzzyTask = await service.buildHierarchy(
       filePaths: const <String>['tasks/runtime.styio'],
-      query: const WorkspaceCallHierarchyQuery(pattern: 'bd'),
+      query: const WorkspaceCallHierarchyQuery(pattern: 'bda'),
     );
     final pathMatch = await service.buildHierarchy(
       filePaths: const <String>['tasks/runtime.styio'],

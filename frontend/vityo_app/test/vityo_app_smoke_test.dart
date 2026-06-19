@@ -1159,7 +1159,23 @@ fn blend(left: f64, right: f64): f64 {
 
     shell.selectBottomTab(BottomSurfaceTab.agent);
     await tester.pumpAndSettle();
+    final agentSurfaceScrollable = find.descendant(
+      of: find.byKey(const ValueKey('agent-surface-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Mounted Adapters And Slots'),
+      120,
+      scrollable: agentSurfaceScrollable,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Mounted Adapters And Slots'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Smoke Agent Prompts'),
+      120,
+      scrollable: agentSurfaceScrollable,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Smoke Agent Prompts'), findsWidgets);
   });
 

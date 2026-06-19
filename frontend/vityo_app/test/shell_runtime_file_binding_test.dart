@@ -17,6 +17,7 @@ import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_language_service.dart';
+import 'package:vityo_app/src/view_ide/language/service/project_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_registry.dart';
 import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';

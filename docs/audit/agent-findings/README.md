@@ -6,7 +6,6 @@
 
 ## Shards
 
-- [View Prototype Server Finding Shard 2026-04-22](./view-prototype-server-2026-04-22.md)
-- [View Hosted Control Plane Client Hardening](./view-hosted-control-plane-2026-04-22.md)
-- [View Execution Overlay Audit Shard 2026-04-22](./view-execution-overlay-2026-04-22.md)
-
+- [Prototype Server Hardening Finding Shard](./prototype-server-hardening.md)
+- [View Hosted Control Plane Client Hardening](./hosted-control-plane-client-hardening.md)
+- [Execution Overlay Hardening Audit Shard](./execution-overlay-hardening.md)

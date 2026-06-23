@@ -1,8 +1,10 @@
-# 开发记录 — 2026-04-19
+# Repository Hygiene UTF-8 Sampling Fix
 
 **Purpose:** 记录 `guard-repository-hygiene` 门禁修复，确保 `Vityo` 在推送到受保护分支和上游主仓时不会因为 UTF-8 采样误判而错误拦截。
 
 **Last updated:** 2026-04-19
+
+**Date:** 2026-04-19
 
 ## 摘要
 

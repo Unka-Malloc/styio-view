@@ -43,11 +43,11 @@ Layer Feature
 
 | Responsibility | Meaning |
 |---|---|
-| Schema ownership | Defines the state shape and schema version. |
+| Schema ownership | Defines the state shape and schema state. |
 | Mutation authority | Defines which commands, controllers, adapters, or managers may update the state. |
 | Scope ownership | Defines whether the state is user, workspace, session, document, process, extension, or feature scoped. |
 | Persistence policy | Defines whether the state is volatile, cached, persisted, or synced. |
-| Migration policy | Defines how stored state moves across schema versions. |
+| Migration policy | Defines how stored state moves across schema states. |
 | Privacy policy | Classifies public, local-only, sensitive, secret, and telemetry-safe fields. |
 | Subscription policy | Defines who may observe state changes. |
 | Transaction policy | Defines whether updates must be atomic with related state keys. |

@@ -70,7 +70,7 @@ flowchart TB
 1. 高风险工作保持在一到三天可合并的 batch 内。
 2. 一次结构性变更应同时带上设计或规格更新、必要 ADR、里程碑状态调整和测试目录映射。
 3. 若改变了 owned surface、review 路由或 handoff 路径，同批更新对应 team runbook。
-4. 中断时必须把状态、下一步、阻塞项和回滚点写入 `docs/history/YYYY-MM-DD.md`。
+4. 中断时必须把状态、下一步、阻塞项和回滚点写入按主题命名的 `docs/history/<topic>.md`，日期只写入正文元数据。
 5. 若改动了三仓共同里程碑、repo exit、checkpoint ID 或跨仓 cutover 语义，同批更新本镜像总纲、`Vityo-Implementation-Gaps.md` 和对应 handoff 文档。
 6. 若改动了 docs tree、索引规则、archive/rollup lifecycle、ignore-policy 或 fixture 反忽略策略，同批更新文件治理对齐镜像、本仓文档策略和受影响 team runbook。
 7. `TEST-CATALOG` 中标为 `planned` 的项不得当作“已验证”。
@@ -87,7 +87,7 @@ flowchart TB
 
 ## Handoff / Recovery
 
-1. 每次中断都在 `docs/history/YYYY-MM-DD.md` 记录当前状态、下一步命令、风险和回滚点。
+1. 每次中断都在按主题命名的 `docs/history/<topic>.md` 记录当前状态、下一步命令、风险、日期和回滚点。
 2. 记录受影响的 team runbook、设计文档和合同文档。
 3. 若跨团队依赖无法在同一 checkpoint 内完成，显式写成下一批交付，不要埋在代码注释里。
 4. 若 runbook 有改动，确保根入口文档和索引已经接上。

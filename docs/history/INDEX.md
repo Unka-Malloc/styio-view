@@ -10,6 +10,6 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `2026-04-12.md` | [开发记录 — 2026-04-12](./2026-04-12.md) | 记录 Vityo 初始化文档树、首批产品边界、实现计划和 ADR 冻结过程。 |
-| `2026-04-17.md` | [开发记录 — 2026-04-17](./2026-04-17.md) | 记录 2026-04-17 在 Vityo 侧确认的主线缺陷、维护风险与 FG2 文件治理补齐 checkpoint，作为执行层和文档治理的共同恢复入口。 |
-| `2026-04-19.md` | [开发记录 — 2026-04-19](./2026-04-19.md) | 记录 guard-repository-hygiene 门禁修复，确保 Vityo 在推送到受保护分支和上游主仓时不会因为 UTF-8 采样误判而错误拦截。 |
+| `initial-documentation-and-architecture-freeze.md` | [Initial Documentation And Architecture Freeze](./initial-documentation-and-architecture-freeze.md) | 记录 Vityo 初始化文档树、首批产品边界、实现计划和 ADR 冻结过程。 |
+| `repository-hygiene-utf8-sampling-fix.md` | [Repository Hygiene UTF-8 Sampling Fix](./repository-hygiene-utf8-sampling-fix.md) | 记录 guard-repository-hygiene 门禁修复，确保 Vityo 在推送到受保护分支和上游主仓时不会因为 UTF-8 采样误判而错误拦截。 |
+| `runtime-events-and-governance-checkpoint.md` | [Runtime Events And Governance Checkpoint](./runtime-events-and-governance-checkpoint.md) | 记录 2026-04-17 在 Vityo 侧确认的主线缺陷、维护风险与 FG2 文件治理补齐 checkpoint，作为执行层和文档治理的共同恢复入口。 |

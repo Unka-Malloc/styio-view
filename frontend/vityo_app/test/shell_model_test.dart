@@ -626,6 +626,16 @@ void main() {
         isTrue,
       );
 
+      await shell.executeCommand(AppCommandId.showWorkspaceCodeLenses);
+
+      expect(shell.activeBottomTab, BottomSurfaceTab.codeLenses);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Code Lens route requested'),
+        ),
+        isTrue,
+      );
+
       await shell.executeCommand(AppCommandId.goToWorkspaceDeclaration);
 
       expect(shell.activeBottomTab, BottomSurfaceTab.declarations);
@@ -1285,7 +1295,7 @@ class _RefreshAwareExecutionAdapter implements ExecutionAdapter {
           ? AdapterCapabilityLevel.available
           : AdapterCapabilityLevel.partial,
       detail: projectGraph.compilePlanConsumerAdvertised
-          ? 'Project execution is live through compile-plan v1.'
+          ? 'Project execution is live through published compile-plan support.'
           : 'Project execution is blocked until compile-plan support is advertised.',
     ),
     runtimeEvents: const AdapterEndpointCapability(
@@ -1332,7 +1342,7 @@ class _SuccessfulExecutionAdapter implements ExecutionAdapter {
         ),
         execution: AdapterEndpointCapability(
           level: AdapterCapabilityLevel.available,
-          detail: 'Project execution is live through compile-plan v1.',
+          detail: 'Project execution is live through published compile-plan support.',
         ),
         runtimeEvents: AdapterEndpointCapability(
           level: AdapterCapabilityLevel.partial,

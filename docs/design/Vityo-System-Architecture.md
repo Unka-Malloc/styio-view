@@ -76,8 +76,8 @@ flowchart TB
 
 关键原则：
 
-1. 当前会话中的模块版本保持稳定。
-2. 新版本只进入 staged 状态，重启后激活。
+1. 当前会话中的已挂载模块保持稳定。
+2. 待更新的 module package 只进入 staged 状态，重启后激活。
 3. iOS 不挂载本地编译模块。
 
 ### 2.3 Custom Editor Engine

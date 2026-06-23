@@ -640,8 +640,8 @@ function syncRestartBanner() {
   const platformLabel = getProfile().label;
   platformRuntimeTag.textContent = `platform: ${platformLabel}`;
   restartBannerText.textContent = modules.graphRuntime
-    ? `${platformLabel} keeps the current graph runtime alive until restart. after relaunch, graphRuntime v0.3.2 replaces the mounted entry.`
-    : `${platformLabel} has no graph runtime mounted right now. restart will still attach the staged graphRuntime v0.3.2 module.`;
+    ? `${platformLabel} keeps the current graph runtime alive until restart. after relaunch, the staged graphRuntime package replaces the mounted entry.`
+    : `${platformLabel} has no graph runtime mounted right now. restart will still attach the staged graphRuntime package.`;
   restartBanner.hidden = !restartQueued || restartBannerDismissed;
   updateState.textContent = restartQueued ? "queued for restart" : "staged";
   stagedButton.textContent = restartQueued ? "Restart queued" : "Staged: 1";

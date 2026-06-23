@@ -2,11 +2,12 @@
 
 **Purpose:** Make `toolchain/` the repo-local home for backend-owned toolchain assets, handoff notes, and mockable examples used by `Vityo`.
 
-**Last updated:** 2026-04-21
+**Last updated:** 2026-06-19
 
 ## What This Directory Owns
 
 - stable profile tables consumed by repo bootstrap and verification scripts
+- the current maintenance tool and skill inventory consumed by the release gate
 - backend-side normalization notes for toolchain state, route selection, and management actions
 - frontend handoff guidance for install/use/pin status and capability rendering
 - non-authoritative example payloads that let frontend and backend work in parallel
@@ -17,6 +18,8 @@
   Stable Android profile table. Keep this path stable because scripts, Dockerfiles, and build docs already consume it.
 - `apple-platform-profiles.csv`
   Stable Apple profile table. Keep this path stable for the same reason.
+- `maintenance-tools.json`
+  Current-only inventory for release, health, docs, platform, prototype, language, and environment maintenance tools and skills. `scripts/release-readiness-gate.py` validates it before release.
 - `backend/`
   Backend-owned notes about the toolchain lane that `Vityo` owns inside this repo.
 - `handoff/`

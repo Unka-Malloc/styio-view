@@ -33,7 +33,7 @@ The protocol contract consumed by this service is defined in `docs/design/servic
 | Internal module | Responsibility |
 |---|---|
 | `styio-service-connector` | Connects to StyioService through CLI, LSP, daemon, or future embedded API. No separate README until the connector design becomes complex. |
-| `styio-cli-jsonl-protocol` | Versioned protocol parser for `styio --parser-engine nightly --error-format jsonl --file <file>` style output. It uses Toolchain payload decoding for JSON/JSONL bytes and only interprets Styio language records inside this service. Plain AST text is not requested by default. It accepts both individual JSONL records and a versioned `record: facts` envelope carrying diagnostics, completions, hovers, semantic spans, document symbols, references, explicit capability states, and other language facts. |
+| `styio-cli-jsonl-protocol` | Contract-aware protocol parser for `styio --parser-engine nightly --error-format jsonl --file <file>` style output. It uses Toolchain payload decoding for JSON/JSONL bytes and only interprets Styio language records inside this service. Plain AST text is not requested by default. It accepts both individual JSONL records and a published `record: facts` envelope carrying diagnostics, completions, hovers, semantic spans, document symbols, references, explicit capability states, and other language facts. |
 | `styio-service-response-envelope` | Stable status projection from `StyioServiceResponse`. It exposes status, document id, revision, protocol version, toolchain id, payload counts, stdout/stderr byte counts, and success flags without exposing raw language payloads or raw tool output. |
 | `styio-result-adapter/` | Converts StyioService protocol results into Vityo diagnostics, completions, hover payloads, semantic spans, semantic blocks, formatting edits, inlay hints, parameter info, document symbols, references, code actions, rename plans, and refactoring plans. |
 | `styio-service-capability-detector` | Observes fresh, empty, unavailable, failed, protocol-error, or stale capability states from StyioService responses without inferring unsupported capabilities from empty payloads. |
@@ -97,7 +97,7 @@ status=3
 stderr includes one JSONL ParseError diagnostic.
 ```
 
-This means the current Vityo protocol decoder is ahead of the current CLI output contract. It can consume completion, hover, semantic, symbol, reference, code action, rename, and refactor JSONL records once StyioService produces them, either as individual JSONL records or as a versioned `record: facts` envelope. The same envelope can also declare capability states such as `available`, `empty`, or `unsupported`, so Vityo does not have to guess support from missing payloads. The current CLI should still only be treated as a reliable syntax diagnostics source.
+This means the current Vityo protocol decoder is ahead of the current CLI output contract. It can consume completion, hover, semantic, symbol, reference, code action, rename, and refactor JSONL records once StyioService produces them, either as individual JSONL records or as a published `record: facts` envelope. The same envelope can also declare capability states such as `available`, `empty`, or `unsupported`, so Vityo does not have to guess support from missing payloads. The current CLI should still only be treated as a reliable syntax diagnostics source.
 
 Because `--styio-ast` currently emits plain text AST instead of Vityo JSONL language facts, Vityo's default CLI request must not pass `--styio-ast`. It may only be enabled explicitly for debugging or future protocol modes that define a structured AST contract.
 
@@ -285,7 +285,7 @@ language truth, capability freshness, retry policy, or toolchain recovery.
 
 `LanguageProviderRegistry.manifest(...)` exposes a metadata-only manifest for
 status surfaces, extension loading, and review tooling. The manifest contains
-schema version, language id, provider id, display name, priority, and advertised
+schema state, language id, provider id, display name, priority, and advertised
 capability ids. It must not contain provider runtime instances, service objects,
 closures, cached language payloads, diagnostics, completion labels, hover
 markdown, or raw StyioService output.
@@ -363,7 +363,7 @@ Platform discovery currently checks `VITYO_STYIO_BIN`, common local binary paths
 
 `LocalStyioLanguageService` is not the correct direct replacement for project-level language behavior. It remains an interactive local fallback for document-level responsiveness. Project-level diagnostics, imported symbol behavior, workspace reference facts, cleanup fixes, and project expression simplification must continue to flow through `ProjectDocumentRuleProvider` until those facts are supplied by StyioService protocol records.
 
-This means the remaining architecture gap is not a default legacy dependency. The remaining gap is that Vityo still owns local fallback and project-rule heuristics while StyioService protocol facts are incomplete. The migration must be completed by moving project diagnostics, import graph rules, symbol resolution, task/resource type checks, and project quick fixes behind current StyioService facts or a versioned StyioService contract.
+This means the remaining architecture gap is not a default legacy dependency. The remaining gap is that Vityo still owns local fallback and project-rule heuristics while StyioService protocol facts are incomplete. The migration must be completed by moving project diagnostics, import graph rules, symbol resolution, task/resource type checks, and project quick fixes behind current StyioService facts or a published StyioService contract.
 
 Current evidence:
 
@@ -419,7 +419,7 @@ StyioCliJsonlProtocol.protocolVersion
         -> selected Styio language-service executable
 ```
 
-The default protocol version is `styio-cli-jsonl-v1`. A discovered Styio language-service descriptor must advertise the same `contract` metadata before the connector runs it.
+The default protocol contract token is `styio-cli-jsonl-v1`. A discovered Styio language-service descriptor must advertise the same `contract` metadata before the connector runs it.
 
 This keeps Styio protocol compatibility in Toolchain resolution instead of letting Language Service execute whichever active binary happens to be selected.
 

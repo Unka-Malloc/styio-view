@@ -13,7 +13,7 @@
 5. 风险、冲突和待裁决问题放在 `docs/review/`。
 6. 可复用测试/交付资产放在 `docs/assets/`。
 7. 当前状态和活跃缺口摘要放在 `docs/rollups/`。
-8. 按日记录的演进历史放在 `docs/history/`。
+8. 按主题记录的演进历史放在 `docs/history/`，日期只作为正文元数据。
 9. 已归档 provenance 与 lifecycle 元数据放在 `docs/archive/`。
 10. `Vityo` 产品拥有的 adapter 合同放在 `docs/contracts/`。
 11. 与上游 `styio` 的对接边界、接口合同和阻塞项放在 `docs/external/for-styio/`。

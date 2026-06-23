@@ -1,4 +1,4 @@
-# M1 — Foundation And Desktop Shell
+# Foundation And Desktop Shell
 
 **Purpose:** 冻结仓库骨架、Flutter 桌面应用壳、模块宿主基础、导航结构和最小开发循环，为后续自研编辑器与桥接层提供稳定落点。
 
@@ -14,18 +14,18 @@
 
 ## 2. 任务
 
-| Task ID | Deliverable | Dependency | Exit |
-|---------|-------------|------------|------|
-| M1-T01 | 建立 Flutter 工程骨架与模块目录 | none | 能在桌面启动空应用 |
-| M1-T02 | 定义 `app/`, `editor/`, `runtime/`, `agent/`, `theme/` 模块边界 | M1-T01 | 目录与入口冻结 |
-| M1-T03 | 建立主窗口布局：编辑区、底部区、侧栏、状态栏 | M1-T01 | UI 壳可见 |
-| M1-T04 | 建立全局快捷键与命令路由骨架 | M1-T03 | 可注册命令但行为可为空 |
-| M1-T05 | 建立基础状态管理和工作区路由骨架 | M1-T02 | 允许打开单工作区 |
-| M1-T06 | 建立桌面开发模式的日志与调试面板骨架 | M1-T03 | 调试输出可见 |
-| M1-T07 | 为后续 `dart:ffi` 预留原生模块加载层 | M1-T02 | 入口与目录固定 |
-| M1-T08 | 建立 module host、module slot 和 manifest 加载骨架 | M1-T02 | 模块宿主存在 |
-| M1-T09 | 建立平台 capability matrix 基础配置 | M1-T08 | 不同平台可决定模块可见性 |
-| M1-T10 | 冻结统一视窗族：桌面端与 Web 桌面布局对齐，移动端与 Web 手机布局对齐 | M1-T03 | 各平台不再各自发散布局语义 |
+| Workstream | Deliverable | Dependency | Exit |
+|------------|-------------|------------|------|
+| Flutter project scaffold | 建立 Flutter 工程骨架与模块目录 | none | 能在桌面启动空应用 |
+| Functional module boundaries | 定义 `app/`, `editor/`, `runtime/`, `agent/`, `theme/` 模块边界 | Flutter project scaffold | 目录与入口冻结 |
+| Shell layout | 建立主窗口布局：编辑区、底部区、侧栏、状态栏 | Flutter project scaffold | UI 壳可见 |
+| Command routing | 建立全局快捷键与命令路由骨架 | Shell layout | 可注册命令但行为可为空 |
+| Workspace state route | 建立基础状态管理和工作区路由骨架 | Functional module boundaries | 允许打开单工作区 |
+| Debug panel | 建立桌面开发模式的日志与调试面板骨架 | Shell layout | 调试输出可见 |
+| Native bridge boundary | 为后续 `dart:ffi` 预留原生模块加载层 | Functional module boundaries | 入口与目录固定 |
+| Module host | 建立 module host、module slot 和 manifest 加载骨架 | Functional module boundaries | 模块宿主存在 |
+| Platform capability matrix | 建立平台 capability matrix 基础配置 | Module host | 不同平台可决定模块可见性 |
+| Viewport families | 冻结统一视窗族：桌面端与 Web 桌面布局对齐，移动端与 Web 手机布局对齐 | Shell layout | 各平台不再各自发散布局语义 |
 
 ## 3. 门禁
 

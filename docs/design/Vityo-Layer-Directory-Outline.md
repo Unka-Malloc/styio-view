@@ -429,7 +429,7 @@ Ownership:
 
 | Module | Owns |
 |---|---|
-| datastore | Shared persistence mechanics, schema versions, migrations, and atomic record writes through File System Manager. |
+| datastore | Shared persistence mechanics, schema states, migrations, and atomic record writes through File System Manager. |
 | data-store-owner | Contract for layer-local state ownership, mutation authority, persistence policy, and subscription policy. |
 | registry | Generic register/unregister/lookup/list mechanics and manifest index mechanics. |
 | workspace | Workspace identity, root, scope, lifecycle, and scoped foundation service container. |

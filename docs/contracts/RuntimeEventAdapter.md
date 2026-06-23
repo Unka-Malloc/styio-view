@@ -18,7 +18,7 @@
 
 ## 2. First Required Event Families
 
-当前已发布并接入 IDE adapter 的最小 v1 family：
+当前已发布并接入 IDE adapter 的最小 published family：
 
 1. `compile.*`
 2. `run.*`
@@ -51,4 +51,4 @@
 1. 事件必须有稳定顺序。
 2. 未识别 event kind 只能降级显示，不能把 UI 打崩。
 3. runtime graph、thread lanes、debug console 必须都来自同一条 event stream，而不是多条彼此不一致的输出。
-4. 当前 v1 先通过 compile-plan artifact 回放，不要求实时流式 transport。
+4. 当前 published family 先通过 compile-plan artifact 回放，不要求实时流式 transport。

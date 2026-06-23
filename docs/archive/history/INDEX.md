@@ -1,6 +1,6 @@
 # Archive History Index
 
-**Purpose:** Provide the generated inventory for `docs/archive/history/`; archived daily provenance snapshots live in [README.md](./README.md).
+**Purpose:** Provide the generated inventory for `docs/archive/history/`; archived topic provenance snapshots live in [README.md](./README.md).
 
 **Last updated:** 2026-04-17
 

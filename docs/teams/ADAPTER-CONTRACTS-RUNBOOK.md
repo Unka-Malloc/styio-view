@@ -38,7 +38,7 @@ Key SSOTs:
 6. integration 层的卫生修复如果改变了 workflow selection、runtime event replay、hosted payload 解码、overlay 文件系统枚举覆盖或 Web-only hosted shim，也要同步记录到本 runbook 或对应合同文档，避免代码表面和交接说明漂移。
 7. 对 manifest section、target kind、dependency source kind、toolchain source 这类离散 wire value，优先使用共享映射表或 enum helper，不要在多个 parser/adapter 里复制字符串判断。
 8. 对 blocked-result、missing-binary、cloud-only fallback 这类 adapter 返回值，优先收成共享 helper，避免 execution / toolchain / runtime adapters 各自维护一份近似但会漂移的消息和状态。
-9. hosted execution、hosted workspace、project graph、dependency source、deployment 和 toolchain state 都必须通过 versioned payload / adapter contract 进入前端，不允许读 `spio` 私有目录或解析 human stderr。
+9. hosted execution、hosted workspace、project graph、dependency source、deployment 和 toolchain state 都必须通过 published payload / adapter contract 进入前端，不允许读 `spio` 私有目录或解析 human stderr。
 10. `LanguageServiceAdapter` 的 symbol / reference / definition / rename 字段属于编辑器核心合同；本地 token-derived fallback 可以先实现体验，但 adapter handoff 必须保留 declaration range、usage range、declaration-vs-usage 标记、`unresolved-reference` range 和 rename `TextEdit` 计划，不能退化成纯字符串搜索或前端静默改写。
 
 ## Change Classes

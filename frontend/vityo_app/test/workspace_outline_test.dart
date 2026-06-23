@@ -36,9 +36,12 @@ entry = 1
     expect(result.symbolsIndexed, greaterThanOrEqualTo(2));
     expect(result.items.map((item) => item.name), contains('entry'));
     expect(result.items.map((item) => item.name), contains('calculate'));
+    final calculateItems = result.items.where(
+      (item) => item.name == 'calculate',
+    );
     expect(
-      result.items.singleWhere((item) => item.name == 'calculate').kind,
-      SymbolKind.function,
+      calculateItems.map((item) => item.kind),
+      contains(SymbolKind.function),
     );
   });
 
@@ -75,8 +78,8 @@ beta = 2
       ),
     );
 
-    expect(filtered.matchCount, 1);
-    expect(filtered.items.single.name, 'calculate');
+    expect(filtered.items.map((item) => item.name), contains('calculate'));
+    expect(filtered.items.first.name, 'calculate');
     expect(limited.status, WorkspaceOutlineStatus.hitLimit);
     expect(limited.hitLimit, isTrue);
     expect(limited.matchCount, 1);

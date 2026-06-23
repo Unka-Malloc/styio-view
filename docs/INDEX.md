@@ -17,8 +17,8 @@
 | `contracts/` | [Contracts Index](./contracts/INDEX.md) | 冻结 Vityo 产品拥有的 adapter 合同；这些合同定义前端需要什么，而不是上游当前碰巧提供什么。 |
 | `design/` | [Design Index](./design/INDEX.md) | 定义 docs/design/ 作为产品、系统架构、已交付设计基线和活跃缺口登记的 SSOT 范围；具体文件见 INDEX.md。 |
 | `external/` | [External Docs Index](./external/INDEX.md) | 集中维护 Vityo 与外部上游仓库之间的 handoff 文档入口。 |
-| `history/` | [History Index](./history/INDEX.md) | 定义 docs/history/ 的按日记录范围；具体日期索引见 INDEX.md。 |
-| `milestones/` | [Milestones Index](./milestones/INDEX.md) | 定义 docs/milestones/ 中冻结里程碑文档的范围；具体批次索引见 INDEX.md。 |
+| `history/` | [History Index](./history/INDEX.md) | 定义 docs/history/ 的主题化恢复记录范围；具体主题索引见 INDEX.md。 |
+| `milestones/` | [Milestones Index](./milestones/INDEX.md) | 定义 docs/milestones/ 中按功能主题组织的里程碑文档范围；主题索引见 INDEX.md。 |
 | `plans/` | [Plans Index](./plans/INDEX.md) | Track implementation plans, future work ledgers, and planning-only material that must not be mistaken for delivered product behavior. |
 | `review/` | [Review Index](./review/INDEX.md) | 定义 docs/review/ 中风险、冲突与待裁决问题的范围；索引见 INDEX.md。 |
 | `rollups/` | [Rollups Index](./rollups/INDEX.md) | 提供 Vityo 的压缩活跃摘要与默认阅读入口，让当前状态和活跃缺口能在不先通读 raw history 的前提下被快速定位。 |

@@ -157,7 +157,7 @@ Foundation is the shared mechanics layer. It does not own settings, tools, platf
 
 | Module | Delivered design boundary |
 |---|---|
-| DataStore API | Shared persistence mechanics, schema versions, migrations, and record writes through File System Manager. |
+| DataStore API | Shared persistence mechanics, schema states, migrations, and record writes through File System Manager. |
 | DataStore Owner | Layer-local state ownership with Foundation DataStore API below it and File System Manager below DataStore. |
 | Registry | Shared registration mechanics without owning feature semantics. |
 | Workspace | Workspace identity, scope, lifecycle, and scoped service references. |

@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-04-17
 
-## 1. Versioned Project Execution Success Payloads
+## 1. Published Project Execution Success Payloads
 
 当前项目执行主线使用这些 canonical CLI forms：
 
@@ -16,9 +16,9 @@ spio --json test --manifest-path <path> ...
 
 当前 published payload family：
 
-1. `workflow_success_payloads v1`
+1. `workflow_success_payloads` published family
 
-`workflow_success_payloads v1` 至少需要：
+`workflow_success_payloads` 至少需要：
 
 1. command metadata
 2. `build_root`
@@ -47,7 +47,7 @@ spio --json test --manifest-path <path> ...
 
 ## 2. Stable JSON Success For Supporting Commands
 
-除 `workflow_success_payloads v1` 外，`Vityo` 当前还依赖这些 canonical CLI forms 的成功 JSON：
+除 `workflow_success_payloads` 外，`Vityo` 当前还依赖这些 canonical CLI forms 的成功 JSON：
 
 ```text
 spio --json fetch --manifest-path <path> ...
@@ -60,7 +60,7 @@ spio --json tool use --version <compiler-version> [--channel <channel>]
 spio --json tool pin (--version <compiler-version> [--channel <channel>] | --clear) [--manifest-path <path>]
 ```
 
-这些 supporting commands 当前可以不是共享 versioned family，但成功时仍必须：
+这些 supporting commands 当前可以不是共享 published family，但成功时仍必须：
 
 1. 向 stdout 写一个稳定 JSON object
 2. 至少包含 `command`
@@ -70,6 +70,6 @@ spio --json tool pin (--version <compiler-version> [--channel <channel>] | --cle
 ## 3. Rules
 
 1. 不能只有 failure JSON；成功也必须有稳定机器输出。
-2. `build/run/test` 使用 `workflow_success_payloads v1`，并作为 IDE 项目执行主线。
+2. `build/run/test` 使用 `workflow_success_payloads`，并作为 IDE 项目执行主线。
 3. supporting commands 的成功 JSON 也必须稳定，因为 `Vityo` 已通过这些命令驱动 fetch/vendor、pack/publish 和 toolchain lifecycle。
 4. `Vityo` 不解析 prose stderr 来判断 workflow 是否成功。

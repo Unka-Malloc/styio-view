@@ -10,7 +10,7 @@ Active audit records live under ignored `docs/audit/defects/` so large explorato
 
 Generated inventory: [INDEX.md](./INDEX.md).
 
-External audit writeups for a specific date can be stored alongside the queue as `docs/audit/EXTERNAL-AUDIT-YYYY-MM-DD.md`.
+External audit writeups are stored alongside the queue with descriptive topic filenames and `Date` metadata in the file body.
 
 External `styio-audit` runs outside this repository and enforces this rule when an audit is performed:
 

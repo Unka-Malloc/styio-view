@@ -99,7 +99,7 @@ Detailed detector contract: [platform-detector/README.md](./platform-detector/RE
 
 `createDetectedPlatformManagerBundle` is the default top-of-stack construction path. It runs a `Platform Detector`, receives a `Platform Context`, adapts compatibility through `Platform Adapter`, and then creates the concrete managers from that context.
 
-`PlatformManagerBundle.snapshot()` exposes a top-level status projection for upper layers and tests. It includes target id, context source, schema version, aggregate Linux/Debian/ARM compatibility, and the manager keys present in the bundle. It does not expose or reimplement manager behavior.
+`PlatformManagerBundle.snapshot()` exposes a top-level status projection for upper layers and tests. It includes target id, context source, schema state, aggregate Linux/Debian/ARM compatibility, and the manager keys present in the bundle. It does not expose or reimplement manager behavior.
 
 | Manager interface | Owns |
 |---|---|

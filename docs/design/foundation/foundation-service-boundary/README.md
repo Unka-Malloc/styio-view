@@ -66,7 +66,7 @@ foundation/
 
 | Service | Admitted because | Boundary |
 |---|---|---|
-| `datastore` | Cross-layer persistence, schema-version mechanics, migrations, atomic record updates, edit decisions, and scoped subscriptions. | It persists records; it does not know settings, toolchains, editor state, or service result meaning. |
+| `datastore` | Cross-layer persistence, schema-state mechanics, migrations, atomic record updates, edit decisions, and scoped subscriptions. | It persists records; it does not know settings, toolchains, editor state, or service result meaning. |
 | `data-store-owner` | Each state family needs an owning layer boundary before it can mutate shared persistence. | The owner contract is Foundation; concrete owners live in Configuration, Toolchain, Service, Interaction, Appearance, Extension, or User Service. |
 | `registry` | Multiple layers need registration, lookup, lifecycle state, and manifest projection mechanics. | It never executes registered behavior and never exposes runtime values through manifests. |
 | `workspace` | Multiple layers need the same workspace identity, scope, root, lifecycle, and scoped service container. | It is not an editor document model and not a project language graph. |
@@ -86,7 +86,7 @@ Foundation must not grow upward into `Configuration` or `Toolchain`.
 
 | Concern | Foundation may own | Configuration / Toolchain must own |
 |---|---|---|
-| Settings | Record IO, schema-version mechanics, migration execution, locks, subscriptions. | Setting keys, defaults, validation, profiles, environment overlay rules, user/workspace policy. |
+| Settings | Record IO, schema-state mechanics, migration execution, locks, subscriptions. | Setting keys, defaults, validation, profiles, environment overlay rules, user/workspace policy. |
 | Credentials | Generic storage mechanics through the credential owner. | Secret classification, credential backend policy, token lifecycle, redaction policy. |
 | Environment variables | Generic record persistence when called by Configuration. | Overlay semantics, merge order, launch-time injection policy, system-env write policy. |
 | Toolchain catalog | Persisted records, registry descriptors, workspace scope, cache namespace routing. | Discovery, install, version resolution, selection policy, executable resolution, runtime health meaning. |
@@ -167,7 +167,7 @@ Foundation services are grouped by shared mechanism, not by product domain.
 
 | Family | Foundation modules | Why this is Foundation | What it must not absorb |
 |---|---|---|---|
-| Persistence | `datastore`, `data-store-owner` contract. | Many layers need consistent record IO, schema versions, migrations, atomic writes, and mutation ownership. | Setting meaning, credential policy, service truth, editor behavior. |
+| Persistence | `datastore`, `data-store-owner` contract. | Many layers need consistent record IO, schema states, migrations, atomic writes, and mutation ownership. | Setting meaning, credential policy, service truth, editor behavior. |
 | Registration | `registry`, manifest index mechanics. | Many layers need register/unregister/lookup/list and durable manifest references. | Extension activation, tool command semantics, service protocol meaning. |
 | Workspace scope | `workspace`. | Many layers need the same workspace identity, root, scope, lifecycle, and scoped service container. | Editor document mutation, file binding, project language semantics. |
 | Resource coordination | `resource-coordinator`. | Many layers need namespace-to-location routing and budget handoff. | OS resource probing, directory creation, cleanup execution, cache eviction policy. |
@@ -243,7 +243,7 @@ Foundation can still provide the shared mechanics for these owners:
 
 | Foundation primitive | What it can provide | What stays above it |
 |---|---|---|
-| DataStore | record IO, schema version mechanics, atomic write mechanics, subscriptions | record meaning, validation, migration policy |
+| DataStore | record IO, schema state mechanics, atomic write mechanics, subscriptions | record meaning, validation, migration policy |
 | Registry | register, unregister, lookup, list, lifecycle state, manifest projection | provider semantics, activation rules, execution behavior |
 | Workspace | workspace identity, scope, root, scoped service container | editor behavior, project semantics, tool execution policy |
 | Resource Coordinator | namespace routing and budget handoff | OS probing, cleanup execution, cache eviction policy |
@@ -297,7 +297,7 @@ foundation/
 
 | Foundation service | Reason to exist | Primary upper-layer users |
 |---|---|---|
-| `datastore` | Persist scoped IDE-owned records with schema versions, migrations, and atomic writes. | Configuration, Toolchain, Extension, Service, Interaction, Appearance. |
+| `datastore` | Persist scoped IDE-owned records with schema states, migrations, and atomic writes. | Configuration, Toolchain, Extension, Service, Interaction, Appearance. |
 | `data-store-owner` | Define how each layer owns state families above the generic DataStore. | Every stateful layer. |
 | `registry` | Register, unregister, look up, and list providers or manifests without owning their domain meaning. This is the implementation module for the broader Registration capability. | Configuration, Toolchain, Extension, Service, Interaction. |
 | `workspace` | Provide workspace identity, root, scope, lifecycle, and scoped service references. | Service, Interaction, Toolchain, Configuration, Extension. |

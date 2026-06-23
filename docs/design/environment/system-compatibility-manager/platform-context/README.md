@@ -117,7 +117,7 @@ PlatformContext
 
 | Section | Contains |
 |---|---|
-| `metadata` | context version, schema version, loaded source files, generated time, freshness policy. |
+| `metadata` | context version, schema state, loaded source files, generated time, freshness policy. |
 | `host` | OS, architecture, runtime mode, app host, CI/test hints. |
 | `fileSystem` | `File System Facts`, including path style, case sensitivity, watcher support, provider kind, permission hints. |
 | `shell` | `Shell Facts`, including available shells, shell family hints, PTY support, login-shell support. |

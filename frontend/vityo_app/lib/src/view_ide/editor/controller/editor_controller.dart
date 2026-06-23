@@ -6,6 +6,7 @@ import '../document/document_state.dart';
 import '../render_plan/editor_render_layers.dart';
 import '../selection/selection_state.dart';
 import '../session/editor_session_data_store.dart';
+import '../transactions/transactions.dart';
 
 class EditorSessionController extends ChangeNotifier {
   EditorSessionController({
@@ -13,8 +14,11 @@ class EditorSessionController extends ChangeNotifier {
     required StyioLanguageService languageService,
     SelectionState? initialSelection,
     EditorRenderPlan? renderPlan,
+    EditorTransactionService transactionService =
+        const EditorTransactionService(),
   }) : _document = initialDocument,
        _languageService = languageService,
+       _transactionService = transactionService,
        _selection =
            initialSelection ?? SelectionState.collapsed(initialDocument.length),
        _renderPlan = renderPlan ?? EditorRenderPlan.foundation(),
@@ -26,6 +30,7 @@ class EditorSessionController extends ChangeNotifier {
 
   DocumentState _document;
   final StyioLanguageService _languageService;
+  final EditorTransactionService _transactionService;
   SelectionState _selection;
   final EditorRenderPlan _renderPlan;
   StyioDocumentAnalysis _analysis;
@@ -389,7 +394,7 @@ class EditorSessionController extends ChangeNotifier {
 
     _structuredSelectionStack.clear();
     _pushUndoSnapshot();
-    _document = _document.replaceRange(
+    _replaceDocumentRange(
       start: startOffset,
       end: endOffset,
       replacement: '',
@@ -417,7 +422,7 @@ class EditorSessionController extends ChangeNotifier {
 
       _pushUndoSnapshot();
       final insertOffset = _selection.end;
-      _document = _document.replaceRange(
+      _replaceDocumentRange(
         start: insertOffset,
         end: insertOffset,
         replacement: selectedText,
@@ -452,7 +457,7 @@ class EditorSessionController extends ChangeNotifier {
     final duplicateColumn = position.column.clamp(0, lineText.length).toInt();
 
     _pushUndoSnapshot();
-    _document = _document.replaceRange(
+    _replaceDocumentRange(
       start: insertOffset,
       end: insertOffset,
       replacement: duplicateText,
@@ -518,7 +523,7 @@ class EditorSessionController extends ChangeNotifier {
 
     _structuredSelectionStack.clear();
     _pushUndoSnapshot();
-    _document = _document.replaceRange(
+    _replaceDocumentRange(
       start: 0,
       end: _document.length,
       replacement: nextText,
@@ -593,7 +598,7 @@ class EditorSessionController extends ChangeNotifier {
 
     _structuredSelectionStack.clear();
     _pushUndoSnapshot();
-    _document = _document.replaceRange(
+    _replaceDocumentRange(
       start: startOffset,
       end: endOffset,
       replacement: replacement,
@@ -765,7 +770,7 @@ class EditorSessionController extends ChangeNotifier {
 
     _structuredSelectionStack.clear();
     _pushUndoSnapshot();
-    _document = _document.replaceRange(
+    _replaceDocumentRange(
       start: range.start,
       end: range.end,
       replacement: replacement.text,
@@ -789,7 +794,11 @@ class EditorSessionController extends ChangeNotifier {
     return true;
   }
 
-  void applyFormattingEdits(Iterable<FormattingEdit> edits) {
+  void applyFormattingEdits(
+    Iterable<FormattingEdit> edits, {
+    WorkspaceEditSource source = WorkspaceEditSource.formatting,
+    String? label,
+  }) {
     final normalizedEdits = normalizeFormattingEditsForDocument(
       documentLength: _document.length,
       edits: edits,
@@ -801,7 +810,6 @@ class EditorSessionController extends ChangeNotifier {
     _structuredSelectionStack.clear();
     final editsAscending = normalizedEdits.toList(growable: false)
       ..sort((left, right) => left.range.start.compareTo(right.range.start));
-    final editsDescending = editsAscending.reversed.toList(growable: false);
     final nextBaseOffset = _transformOffsetWithEdits(
       _selection.baseOffset,
       editsAscending,
@@ -810,19 +818,31 @@ class EditorSessionController extends ChangeNotifier {
       _selection.extentOffset,
       editsAscending,
     );
+    final workspaceEdit = WorkspaceEdit.fromFormattingEdits(
+      document: _document,
+      source: source,
+      edits: editsAscending,
+      label: label,
+    );
+    final validation = _transactionService.validateForDocument(
+      document: _document,
+      edit: workspaceEdit,
+    );
+    if (!validation.isValid) {
+      return;
+    }
 
     _pushUndoSnapshot();
 
-    var nextDocument = _document;
-    for (final edit in editsDescending) {
-      nextDocument = nextDocument.replaceRange(
-        start: edit.range.start,
-        end: edit.range.end,
-        replacement: edit.newText,
-      );
+    final result = _transactionService.applyToDocument(
+      document: _document,
+      edit: workspaceEdit,
+    );
+    if (!result.isApplied) {
+      return;
     }
 
-    _document = nextDocument;
+    _document = result.document;
     _selection = SelectionState(
       baseOffset: nextBaseOffset.clamp(0, _document.length),
       extentOffset: nextExtentOffset.clamp(0, _document.length),
@@ -833,7 +853,11 @@ class EditorSessionController extends ChangeNotifier {
   }
 
   void applyDiagnosticQuickFix(DiagnosticQuickFix fix) {
-    applyFormattingEdits(fix.edits);
+    applyFormattingEdits(
+      fix.edits,
+      source: WorkspaceEditSource.codeAction,
+      label: fix.label,
+    );
   }
 
   bool applyFirstQuickFixAtSelection() {
@@ -850,7 +874,11 @@ class EditorSessionController extends ChangeNotifier {
     if (plan == null || plan.hasConflicts) {
       return false;
     }
-    applyFormattingEdits(plan.edits);
+    applyFormattingEdits(
+      plan.edits,
+      source: WorkspaceEditSource.rename,
+      label: 'Rename symbol',
+    );
     return true;
   }
 
@@ -859,7 +887,11 @@ class EditorSessionController extends ChangeNotifier {
     if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
       return false;
     }
-    applyFormattingEdits(plan.edits);
+    applyFormattingEdits(
+      plan.edits,
+      source: WorkspaceEditSource.refactor,
+      label: 'Safe delete',
+    );
     return true;
   }
 
@@ -868,7 +900,11 @@ class EditorSessionController extends ChangeNotifier {
     if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
       return false;
     }
-    applyFormattingEdits(plan.edits);
+    applyFormattingEdits(
+      plan.edits,
+      source: WorkspaceEditSource.refactor,
+      label: 'Inline variable',
+    );
     return true;
   }
 
@@ -877,7 +913,11 @@ class EditorSessionController extends ChangeNotifier {
     if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
       return false;
     }
-    applyFormattingEdits(plan.edits);
+    applyFormattingEdits(
+      plan.edits,
+      source: WorkspaceEditSource.refactor,
+      label: 'Introduce variable',
+    );
     return true;
   }
 
@@ -886,7 +926,11 @@ class EditorSessionController extends ChangeNotifier {
     if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
       return false;
     }
-    applyFormattingEdits(plan.edits);
+    applyFormattingEdits(
+      plan.edits,
+      source: WorkspaceEditSource.refactor,
+      label: 'Extract function',
+    );
     return true;
   }
 
@@ -901,7 +945,11 @@ class EditorSessionController extends ChangeNotifier {
     if (plan == null || plan.hasConflicts || plan.edits.isEmpty) {
       return false;
     }
-    applyFormattingEdits(plan.edits);
+    applyFormattingEdits(
+      plan.edits,
+      source: WorkspaceEditSource.refactor,
+      label: 'Change signature',
+    );
     return true;
   }
 
@@ -1099,13 +1147,43 @@ class EditorSessionController extends ChangeNotifier {
     required String replacement,
     required int selectionOffset,
   }) {
-    _document = _document.replaceRange(
+    _replaceDocumentRange(
       start: start,
       end: end,
       replacement: replacement,
     );
     _selection = SelectionState.collapsed(selectionOffset);
+  }
+
+  bool _replaceDocumentRange({
+    required int start,
+    required int end,
+    required String replacement,
+    WorkspaceEditSource source = WorkspaceEditSource.userInput,
+    String? label,
+  }) {
+    final workspaceEdit = WorkspaceEdit.singleDocument(
+      document: _document,
+      source: source,
+      label: label,
+      edits: <WorkspaceTextEdit>[
+        WorkspaceTextEdit(
+          documentId: _document.documentId,
+          range: SourceRange(start: start, end: end),
+          newText: replacement,
+        ),
+      ],
+    );
+    final result = _transactionService.applyToDocument(
+      document: _document,
+      edit: workspaceEdit,
+    );
+    if (!result.isApplied) {
+      return false;
+    }
+    _document = result.document;
     _refreshAnalysis();
+    return true;
   }
 
   bool _insertSmartPairCharacter(String character) {
@@ -1121,7 +1199,7 @@ class EditorSessionController extends ChangeNotifier {
       final selectionOffset = _selection.isCollapsed
           ? _selection.start + 1
           : _selection.start + replacement.length;
-      _document = _document.replaceRange(
+      _replaceDocumentRange(
         start: _selection.start,
         end: _selection.end,
         replacement: replacement,
@@ -1165,7 +1243,7 @@ class EditorSessionController extends ChangeNotifier {
     _structuredSelectionStack.clear();
     _pushUndoSnapshot();
     final selectionOffset = _selection.end - 1;
-    _document = _document.replaceRange(
+    _replaceDocumentRange(
       start: selectionOffset,
       end: _selection.end + 1,
       replacement: '',
@@ -1278,7 +1356,6 @@ class EditorSessionController extends ChangeNotifier {
   void _applyLineIndentEdits(List<FormattingEdit> edits) {
     final editsAscending = edits.toList(growable: false)
       ..sort((left, right) => left.range.start.compareTo(right.range.start));
-    final editsDescending = editsAscending.reversed.toList(growable: false);
     final moveAtInsertion = _selection.isCollapsed;
     final nextBaseOffset = _transformLineIndentOffset(
       _selection.baseOffset,
@@ -1292,18 +1369,31 @@ class EditorSessionController extends ChangeNotifier {
     );
 
     _structuredSelectionStack.clear();
-    _pushUndoSnapshot();
-
-    var nextDocument = _document;
-    for (final edit in editsDescending) {
-      nextDocument = nextDocument.replaceRange(
-        start: edit.range.start,
-        end: edit.range.end,
-        replacement: edit.newText,
-      );
+    final workspaceEdit = WorkspaceEdit.fromFormattingEdits(
+      document: _document,
+      source: WorkspaceEditSource.userInput,
+      edits: editsAscending,
+      label: 'Indent lines',
+    );
+    final validation = _transactionService.validateForDocument(
+      document: _document,
+      edit: workspaceEdit,
+    );
+    if (!validation.isValid) {
+      return;
     }
 
-    _document = nextDocument;
+    _pushUndoSnapshot();
+
+    final result = _transactionService.applyToDocument(
+      document: _document,
+      edit: workspaceEdit,
+    );
+    if (!result.isApplied) {
+      return;
+    }
+
+    _document = result.document;
     _selection = SelectionState(
       baseOffset: nextBaseOffset.clamp(0, _document.length),
       extentOffset: nextExtentOffset.clamp(0, _document.length),

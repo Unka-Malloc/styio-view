@@ -12,6 +12,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
         AppCommandId.showWorkspaceDocumentHighlights,
+        AppCommandId.showWorkspaceCodeLenses,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -52,6 +53,9 @@ void main() {
       );
       final documentHighlights = StyioCommandRegistry.descriptorFor(
         AppCommandId.showWorkspaceDocumentHighlights,
+      );
+      final codeLens = StyioCommandRegistry.descriptorFor(
+        AppCommandId.showWorkspaceCodeLenses,
       );
       final declaration = StyioCommandRegistry.descriptorFor(
         AppCommandId.goToWorkspaceDeclaration,
@@ -131,6 +135,11 @@ void main() {
       expect(documentHighlights.shortcutHint, 'Route');
       expect(documentHighlights.primary, isTrue);
       expect(documentHighlights.shortcuts, isEmpty);
+
+      expect(codeLens.label, 'Code Lens');
+      expect(codeLens.shortcutHint, 'Route');
+      expect(codeLens.primary, isTrue);
+      expect(codeLens.shortcuts, isEmpty);
 
       expect(declaration.label, 'Go to Declaration');
       expect(declaration.shortcutHint, 'Ctrl+B');
@@ -225,6 +234,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
         AppCommandId.showWorkspaceDocumentHighlights,
+        AppCommandId.showWorkspaceCodeLenses,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -247,6 +257,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
         AppCommandId.showWorkspaceDocumentHighlights,
+        AppCommandId.showWorkspaceCodeLenses,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -291,6 +302,7 @@ void main() {
         AppCommandId.showRecentLocations,
         AppCommandId.showWorkspaceDocumentLinks,
         AppCommandId.showWorkspaceDocumentHighlights,
+        AppCommandId.showWorkspaceCodeLenses,
         AppCommandId.goToWorkspaceDeclaration,
         AppCommandId.goToWorkspaceDefinition,
         AppCommandId.goToWorkspaceTypeDefinition,
@@ -350,5 +362,51 @@ void main() {
     expect(intents, contains(AppCommandId.showWorkspaceCodeActions));
     expect(intents, contains(AppCommandId.save));
     expect(intents, contains(AppCommandId.refreshModules));
+  });
+
+  test('ide command registry supports dynamic registration boundaries', () {
+    final registry = IdeCommandRegistry();
+    const descriptor = AppCommandDescriptor(
+      id: AppCommandId.showRuntime,
+      label: 'Runtime',
+      shortcutHint: 'Route',
+      description: 'Focus runtime.',
+    );
+
+    registry.register(descriptor);
+
+    expect(registry.contains(AppCommandId.showRuntime), isTrue);
+    expect(registry.descriptorFor(AppCommandId.showRuntime).label, 'Runtime');
+    expect(() => registry.register(descriptor), throwsStateError);
+    expect(registry.unregister(AppCommandId.showRuntime), isTrue);
+    expect(registry.contains(AppCommandId.showRuntime), isFalse);
+  });
+
+  test('command permission service separates allowed, approval, and denied', () {
+    const service = CommandPermissionService();
+    final quickOpen = StyioCommandRegistry.descriptorFor(
+      AppCommandId.quickOpen,
+    );
+    final run = StyioCommandRegistry.descriptorFor(AppCommandId.run);
+    const fullAccessCommand = AppCommandDescriptor(
+      id: AppCommandId.openSettings,
+      label: 'Full Access',
+      shortcutHint: 'Route',
+      description: 'Exercise policy denial.',
+      permissionRequirement: AppCommandPermissionRequirement.fullAccess,
+    );
+
+    expect(
+      service.evaluate(quickOpen).decision,
+      CommandPermissionDecision.allowed,
+    );
+    expect(
+      service.evaluate(run).decision,
+      CommandPermissionDecision.requiresApproval,
+    );
+    expect(
+      service.evaluate(fullAccessCommand).decision,
+      CommandPermissionDecision.denied,
+    );
   });
 }

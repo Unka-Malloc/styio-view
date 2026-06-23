@@ -23,5 +23,5 @@
 
 1. 本目录只提 `Vityo` 需要的 machine handoff，不替 `spio` 规划内部实现。
 2. 文档聚焦输入输出、稳定字段、能力等级和失败语义。
-3. API 路由、request/response shape 和 examples 一旦版本化发布，就必须由合同包冻结，前端不能靠口头约定对接。
+3. API 路由、request/response shape 和 examples 一旦以 published contract 发布，就必须由合同包冻结，前端不能靠口头约定对接。
 4. 只要 `spio` 能满足这里的 machine contract，具体内部设计由 `spio` 自己决定。

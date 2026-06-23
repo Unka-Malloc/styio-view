@@ -1,8 +1,10 @@
-# 开发记录 — 2026-04-12
+# Initial Documentation And Architecture Freeze
 
 **Purpose:** 记录 `Vityo` 初始化文档树、首批产品边界、实现计划和 ADR 冻结过程。
 
 **Last updated:** 2026-04-12
+
+**Date:** 2026-04-12
 
 ## 摘要
 
@@ -38,7 +40,7 @@
 
 ## 下一步
 
-1. 冻结 2026-04-12 里程碑批次。
+1. 冻结初始实施里程碑主题集合。
 2. 冻结模块 manifest、distribution policy 与 capability matrix。
 3. 开始桌面优先的工程脚手架设计。
 4. 为 `RuntimeEvent` 协议与 provider adapter 补充实际 schema。

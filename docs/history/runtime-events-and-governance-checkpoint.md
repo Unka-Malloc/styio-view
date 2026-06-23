@@ -1,8 +1,10 @@
-# 开发记录 — 2026-04-17
+# Runtime Events And Governance Checkpoint
 
 **Purpose:** 记录 2026-04-17 在 `Vityo` 侧确认的主线缺陷、维护风险与 `FG2` 文件治理补齐 checkpoint，作为执行层和文档治理的共同恢复入口。
 
 **Last updated:** 2026-04-17
+
+**Date:** 2026-04-17
 
 ## 摘要
 
@@ -71,11 +73,11 @@ python3 scripts/check_repo_hygiene.py
 1. 目前冻结的显式 negate 只覆盖 `docs/**` 与 `frontend/vityo_app/test/**`；未来若新增其它 tracked repro 根，还需要继续扩 gate。
 2. 这轮仍然只收文件治理，不替代前端页面与产品交互层的后续收口。
 
-## Runtime Events v1 Surface Checkpoint
+## Runtime Events Surface Checkpoint
 
 ### 当前状态
 
-1. `runtime_events v1` 已从 `styio-spio` workflow payload 进入 `Vityo` 的 `ExecutionSession` 生命周期。
+1. `runtime_events` published family 已从 `styio-spio` workflow payload 进入 `Vityo` 的 `ExecutionSession` 生命周期。
 2. shell state 现在会保留最近一次运行会话的 runtime event replay，并把 session-level 摘要写进 debug log。
 3. runtime surface 与 debug console 已不再只显示占位文案，而是会消费并展示已发布的 runtime replay。
 

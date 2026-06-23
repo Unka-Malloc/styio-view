@@ -11,4 +11,5 @@ export 'platform/platform.dart';
 export 'runtime/runtime.dart';
 export 'shell_runtime/shell_runtime.dart';
 export 'toolchain/toolchain.dart' hide ToolchainRecoveryAction;
+export 'workbench/workbench.dart';
 export 'workspace/workspace.dart';

@@ -357,7 +357,7 @@ AdapterCapabilitySnapshot _localCliExecutionCapabilitySnapshot({
       projectGraph.hasManifest && compiler.supportsContract('compile_plan');
   final hasRuntimeEvents = compiler.supportsContract('runtime_events');
   final executionDetail = hasProjectExecution
-      ? 'Project execution routes through spio build/run/test with live compile-plan v1 handoff.'
+      ? 'Project execution routes through spio build/run/test with a live published compile-plan handoff.'
       : projectGraph.hasManifest
       ? 'Project execution remains blocked until the active compiler advertises compile-plan support.'
       : 'CLI execution is available through published single-file entry plus jsonl diagnostics.';

@@ -122,7 +122,7 @@ ExecutionRouteSummary summarizeExecutionRoute({
     return ExecutionRouteSummary(
       title: 'Project route live through spio',
       body:
-          'The active compiler advertises compile-plan support, so project build/run/test can execute through spio with live compile-plan v1 handoff.',
+          'The active compiler advertises compile-plan support, so project build/run/test can execute through spio with a live published handoff.',
       primaryAdapterKind: AdapterKind.cli,
       previewOnly: false,
       jitRoute: jitRoute,

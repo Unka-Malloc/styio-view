@@ -79,7 +79,7 @@ frontend/vityo_app/lib/src/view_ide/foundation/
 
 | Service | Owns | Must not own |
 |---|---|---|
-| `datastore` | Record IO, schema-version storage, migration execution, atomic writes, subscriptions. | Setting meaning, credential policy, tool behavior, language truth, editor behavior. |
+| `datastore` | Record IO, schema-state storage, migration execution, atomic writes, subscriptions. | Setting meaning, credential policy, tool behavior, language truth, editor behavior. |
 | `data-store-owner` | Layer-local mutation authority, namespace ownership, state-family ownership. | A global state model or feature behavior. |
 | `registry` | Register, unregister, lookup, list, lifecycle state, and manifest projection mechanics. | Provider execution, extension activation, setting validation, tool launch. |
 | `workspace` | Workspace identity, root, scope, lifecycle, and scoped service container. | Editor document mutation, project language semantics, tool execution policy. |
@@ -99,7 +99,7 @@ registration, locking, scope, lifecycle, and resource-routing mechanics.
 
 | Configuration concern | Foundation may provide | Must stay in Configuration |
 |---|---|---|
-| Settings | Versioned record IO and migration execution. | Setting keys, defaults, validation, profiles, migration policy, UI grouping. |
+| Settings | Schema-state record IO and migration execution. | Setting keys, defaults, validation, profiles, migration policy, UI grouping. |
 | Environment variables | Generic record persistence when called by a Configuration owner. | Overlay precedence, merge order, process/shell injection policy, system-env write policy. |
 | Credentials | Generic persistence mechanics through a credential owner. | Secret classification, backend selection, redaction policy, token lifecycle. |
 | Cache policy | Namespace routing and persistence mechanics. | Eviction policy, freshness policy, user-visible cleanup policy. |
@@ -197,7 +197,7 @@ upper-layer meaning.
 
 | Foundation service | Required proof style |
 |---|---|
-| DataStore | Record IO, schema versions, migrations, atomic updates, namespace isolation. |
+| DataStore | Record IO, schema states, migrations, atomic updates, namespace isolation. |
 | DataStore Owner | Owner metadata, namespace access control, state-family boundaries. |
 | Registry | Registration, lookup, filtered listing, lifecycle state, manifest projection without runtime values. |
 | Workspace | Workspace identity, lifecycle sequencing, scoped service container boundaries. |

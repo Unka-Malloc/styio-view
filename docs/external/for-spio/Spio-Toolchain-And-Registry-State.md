@@ -14,7 +14,7 @@
 4. `spio project-graph --json [--manifest-path <path>] [--styio-bin <path>]`
 5. `spio tool status --json [--manifest-path <path>] [--styio-bin <path>]`
 
-当前 `toolchain_state v1` 至少包含：
+当前 `toolchain_state` published family 至少包含：
 
 1. `toolchain`
 2. `project_pin`
@@ -47,7 +47,7 @@
 4. fetch/vendor result
 5. pack/publish result summary
 
-当前 `project_graph v1` 已发布的最小 deployment handoff：
+当前 `project_graph` published family 已发布的最小 deployment handoff：
 
 1. package records 上的 `publish_enabled`
 2. dependency records 上的 `source_kind / package / path / git / rev / registry / version / publish_blocking`
@@ -81,4 +81,4 @@
 1. `Vityo` 不通过私有目录推断 toolchain 或 registry 状态。
 2. publish preflight 必须可单独消费，用于在 UI 中提前显示阻塞项。
 3. package/registry contract 最终也必须能落到 `CLI / FFI / Cloud` 三类 adapter 之一。
-4. 如果 `spio` 已广告 `toolchain_state v1` 但 `tool status --json` 退出失败、返回非法 JSON 或 payload 解析失败，`Vityo` 必须把它显示为 published contract failure，并把 project/toolchain 能力降到 `partial`；不能静默回退得像状态合同正常。
+4. 如果 `spio` 已广告 `toolchain_state` published family 但 `tool status --json` 退出失败、返回非法 JSON 或 payload 解析失败，`Vityo` 必须把它显示为 published contract failure，并把 project/toolchain 能力降到 `partial`；不能静默回退得像状态合同正常。

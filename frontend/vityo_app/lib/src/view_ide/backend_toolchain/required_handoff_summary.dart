@@ -65,7 +65,7 @@ List<RequiredHandoff> summarizeRequiredHandoffs({
         owner: HandoffOwner.styio,
         title: 'Publish compile-plan consumer and live execution contract',
         detail:
-            'Project build/run/test remains preview-only until styio accepts versioned compile-plan input and returns machine-readable compile/run results.',
+            'Project build/run/test remains preview-only until styio accepts published compile-plan input and returns machine-readable compile/run results.',
         docPath: 'docs/for-styio/Styio-Compile-Run-Contract.md',
         blocking: true,
       ),

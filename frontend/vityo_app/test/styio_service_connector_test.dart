@@ -260,7 +260,7 @@ void main() {
     expect(envelope.containsKey('stdout'), isFalse);
   });
 
-  test('JSONL protocol decodes versioned Styio facts envelope', () {
+  test('JSONL protocol decodes published Styio facts envelope', () {
     const protocol = StyioCliJsonlProtocol();
     const document = StyioServiceDocument(
       documentId: 'fixture://facts-envelope',

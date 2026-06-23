@@ -8,6 +8,7 @@ enum AppCommandId {
   showRecentLocations,
   showWorkspaceDocumentLinks,
   showWorkspaceDocumentHighlights,
+  showWorkspaceCodeLenses,
   goToWorkspaceDeclaration,
   goToWorkspaceDefinition,
   goToWorkspaceTypeDefinition,
@@ -35,6 +36,17 @@ enum AppCommandId {
   openSettings,
 }
 
+enum AppCommandPermissionRequirement {
+  none,
+  readOnly,
+  workspaceWrite,
+  toolchainManaged,
+  externalResource,
+  fullAccess,
+}
+
+enum CommandPermissionDecision { allowed, requiresApproval, denied }
+
 class AppCommandShortcutSpec {
   const AppCommandShortcutSpec(
     this.key, {
@@ -59,6 +71,7 @@ class AppCommandDescriptor {
     required this.description,
     this.primary = false,
     this.shortcuts = const <AppCommandShortcutSpec>[],
+    this.permissionRequirement = AppCommandPermissionRequirement.none,
   });
 
   final AppCommandId id;
@@ -67,15 +80,119 @@ class AppCommandDescriptor {
   final String description;
   final bool primary;
   final List<AppCommandShortcutSpec> shortcuts;
+  final AppCommandPermissionRequirement permissionRequirement;
+}
+
+class IdeCommandRegistry {
+  IdeCommandRegistry({Iterable<AppCommandDescriptor> descriptors = const []}) {
+    for (final descriptor in descriptors) {
+      register(descriptor);
+    }
+  }
+
+  final Map<AppCommandId, AppCommandDescriptor> _descriptors =
+      <AppCommandId, AppCommandDescriptor>{};
+
+  List<AppCommandDescriptor> get commands =>
+      List<AppCommandDescriptor>.unmodifiable(_descriptors.values);
+
+  bool contains(AppCommandId id) => _descriptors.containsKey(id);
+
+  AppCommandDescriptor descriptorFor(AppCommandId id) {
+    final descriptor = _descriptors[id];
+    if (descriptor == null) {
+      throw StateError('Command `$id` is not registered.');
+    }
+    return descriptor;
+  }
+
+  void register(AppCommandDescriptor descriptor) {
+    if (_descriptors.containsKey(descriptor.id)) {
+      throw StateError('Command `${descriptor.id}` is already registered.');
+    }
+    _descriptors[descriptor.id] = descriptor;
+  }
+
+  bool unregister(AppCommandId id) {
+    return _descriptors.remove(id) != null;
+  }
+
+  Iterable<AppCommandDescriptor> where(
+    bool Function(AppCommandDescriptor command) test,
+  ) {
+    return _descriptors.values.where(test);
+  }
+}
+
+class CommandPermissionPolicy {
+  const CommandPermissionPolicy({
+    this.allowedWithoutApproval = const <AppCommandPermissionRequirement>{
+      AppCommandPermissionRequirement.none,
+      AppCommandPermissionRequirement.readOnly,
+    },
+    this.denied = const <AppCommandPermissionRequirement>{
+      AppCommandPermissionRequirement.fullAccess,
+    },
+  });
+
+  final Set<AppCommandPermissionRequirement> allowedWithoutApproval;
+  final Set<AppCommandPermissionRequirement> denied;
+}
+
+class CommandPermissionEvaluation {
+  const CommandPermissionEvaluation({
+    required this.decision,
+    required this.reason,
+  });
+
+  final CommandPermissionDecision decision;
+  final String reason;
+
+  bool get isAllowed => decision == CommandPermissionDecision.allowed;
+}
+
+class CommandPermissionService {
+  const CommandPermissionService({
+    this.policy = const CommandPermissionPolicy(),
+  });
+
+  final CommandPermissionPolicy policy;
+
+  CommandPermissionEvaluation evaluate(AppCommandDescriptor descriptor) {
+    final requirement = descriptor.permissionRequirement;
+    if (policy.denied.contains(requirement)) {
+      return CommandPermissionEvaluation(
+        decision: CommandPermissionDecision.denied,
+        reason:
+            '`${descriptor.label}` requires ${requirement.name}, which is disabled by policy.',
+      );
+    }
+    if (policy.allowedWithoutApproval.contains(requirement)) {
+      return CommandPermissionEvaluation(
+        decision: CommandPermissionDecision.allowed,
+        reason: '`${descriptor.label}` is allowed by command policy.',
+      );
+    }
+    return CommandPermissionEvaluation(
+      decision: CommandPermissionDecision.requiresApproval,
+      reason:
+          '`${descriptor.label}` requires ${requirement.name} approval before execution.',
+    );
+  }
 }
 
 class StyioCommandRegistry {
+  static final IdeCommandRegistry defaultRegistry = IdeCommandRegistry(
+    descriptors: commands,
+  );
+
   static const List<AppCommandDescriptor> commands = [
     AppCommandDescriptor(
       id: AppCommandId.save,
       label: 'Save',
       shortcutHint: 'Cmd/Ctrl+S',
       description: 'Persist the current workspace target.',
+      permissionRequirement: AppCommandPermissionRequirement.workspaceWrite,
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('keyS', control: true),
         AppCommandShortcutSpec('keyS', meta: true),
@@ -87,6 +204,7 @@ class StyioCommandRegistry {
       shortcutHint: 'Cmd/Ctrl+Enter',
       description: 'Run the active minimal compilable unit.',
       primary: true,
+      permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('enter', control: true),
         AppCommandShortcutSpec('enter', meta: true),
@@ -155,6 +273,13 @@ class StyioCommandRegistry {
       label: 'Document Highlights',
       shortcutHint: 'Route',
       description: 'Show current-file highlights for the active symbol.',
+      primary: true,
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.showWorkspaceCodeLenses,
+      label: 'Code Lens',
+      shortcutHint: 'Route',
+      description: 'Show symbol lenses for the active workspace document.',
       primary: true,
     ),
     AppCommandDescriptor(
@@ -295,6 +420,7 @@ class StyioCommandRegistry {
       shortcutHint: 'Route',
       description: 'Materialize dependency sources into the local spio cache.',
       primary: true,
+      permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
     ),
     AppCommandDescriptor(
       id: AppCommandId.vendorDependencies,
@@ -302,6 +428,7 @@ class StyioCommandRegistry {
       shortcutHint: 'Cmd/Ctrl+Shift+V',
       description: 'Materialize project-local vendored dependency snapshots.',
       primary: true,
+      permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
       shortcuts: <AppCommandShortcutSpec>[
         AppCommandShortcutSpec('keyV', control: true, shift: true),
         AppCommandShortcutSpec('keyV', meta: true, shift: true),
@@ -313,6 +440,7 @@ class StyioCommandRegistry {
       shortcutHint: 'Route',
       description:
           'Use the currently resolved compiler version as the managed spio compiler.',
+      permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
     ),
     AppCommandDescriptor(
       id: AppCommandId.pinActiveCompiler,
@@ -320,24 +448,28 @@ class StyioCommandRegistry {
       shortcutHint: 'Route',
       description:
           'Pin the currently resolved compiler version into spio-toolchain.toml.',
+      permissionRequirement: AppCommandPermissionRequirement.workspaceWrite,
     ),
     AppCommandDescriptor(
       id: AppCommandId.clearPinnedCompiler,
       label: 'Clear Pin',
       shortcutHint: 'Route',
       description: 'Clear the current project toolchain pin.',
+      permissionRequirement: AppCommandPermissionRequirement.workspaceWrite,
     ),
     AppCommandDescriptor(
       id: AppCommandId.packProject,
       label: 'Pack',
       shortcutHint: 'Route',
       description: 'Create a package archive for the active project.',
+      permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
     ),
     AppCommandDescriptor(
       id: AppCommandId.preparePublish,
       label: 'Preflight',
       shortcutHint: 'Route',
       description: 'Run publish preflight for the active project.',
+      permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
     ),
     AppCommandDescriptor(
       id: AppCommandId.showRuntime,
@@ -407,6 +539,7 @@ class StyioCommandRegistry {
       AppCommandId.showWorkspaceCallHierarchy ||
       AppCommandId.showWorkspaceDocumentLinks ||
       AppCommandId.showWorkspaceDocumentHighlights ||
+      AppCommandId.showWorkspaceCodeLenses ||
       AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||
@@ -429,6 +562,7 @@ class StyioCommandRegistry {
           AppCommandId.showRecentLocations ||
           AppCommandId.showWorkspaceDocumentLinks ||
           AppCommandId.showWorkspaceDocumentHighlights ||
+          AppCommandId.showWorkspaceCodeLenses ||
           AppCommandId.goToWorkspaceDeclaration ||
           AppCommandId.goToWorkspaceDefinition ||
           AppCommandId.goToWorkspaceTypeDefinition ||
@@ -473,6 +607,7 @@ class StyioCommandRegistry {
       AppCommandId.showRecentLocations ||
       AppCommandId.showWorkspaceDocumentLinks ||
       AppCommandId.showWorkspaceDocumentHighlights ||
+      AppCommandId.showWorkspaceCodeLenses ||
       AppCommandId.goToWorkspaceDeclaration ||
       AppCommandId.goToWorkspaceDefinition ||
       AppCommandId.goToWorkspaceTypeDefinition ||
@@ -506,5 +641,5 @@ class StyioCommandRegistry {
       );
 
   static AppCommandDescriptor descriptorFor(AppCommandId id) =>
-      commands.firstWhere((command) => command.id == id);
+      defaultRegistry.descriptorFor(id);
 }

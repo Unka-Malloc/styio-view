@@ -219,7 +219,7 @@ Foundation is intentionally below `Configuration` and `Toolchain`, but it is not
 
 | Concern | Foundation may own | Must stay outside Foundation |
 |---|---|---|
-| Settings persistence | Record IO, schema-version storage mechanics, atomic writes, locks. | Setting keys, defaults, value semantics, validation rules, migration policy, UI grouping. |
+| Settings persistence | Record IO, schema-state storage mechanics, atomic writes, locks. | Setting keys, defaults, value semantics, validation rules, migration policy, UI grouping. |
 | Environment variables | Generic record storage when requested by a DataStore Owner. | Environment-variable overlay meaning, merge policy, shell injection policy. |
 | Credentials | Generic storage mechanics only when called by the credential owner. | Secret classification, encryption policy, credential lookup semantics, token lifecycle. |
 | Toolchain records | Persisting records and routing cache/state paths. | Tool discovery, install, version selection, executable resolution, protocol semantics. |
@@ -370,7 +370,7 @@ The first stable Foundation service set is:
 
 | Service | Primary role | Upper-layer contract |
 |---|---|---|
-| `datastore` | Versioned record persistence, atomic writes, migration execution, transactional JSON updates, explicit write/delete/keep edit decisions, scoped change subscriptions, and record serialization. | Upper layers define state meaning through DataStore Owners. |
+| `datastore` | Schema-state record persistence, atomic writes, migration execution, transactional JSON updates, explicit write/delete/keep edit decisions, scoped change subscriptions, and record serialization. | Upper layers define state meaning through DataStore Owners. |
 | `data-store-owner` | Mutation authority contract for one state family. | Owners live with the layer that owns the state. |
 | `registry` | Register, unregister, lookup, list, lifecycle state, and manifest projection mechanics. | Domain layers interpret registered values. |
 | `workspace` | Workspace identity, root, scope, lifecycle, and scoped service container. | Editor, service, toolchain, and configuration behavior remain above it. |
@@ -390,7 +390,7 @@ Foundation may provide the mechanics they use, but it must not absorb their deci
 
 | Concern | Foundation can provide | Must remain outside Foundation |
 |---|---|---|
-| Configuration records | DataStore IO, owner boundary, locks, schema-version mechanics. | Setting keys, defaults, validation, environment-variable overlay semantics, credential policy. |
+| Configuration records | DataStore IO, owner boundary, locks, schema-state mechanics. | Setting keys, defaults, validation, environment-variable overlay semantics, credential policy. |
 | Toolchain records | DataStore IO, registry metadata, workspace scope, resource namespace routing. | Tool discovery, installation, version selection, executable resolution, payload codecs, Shell Runtime, Terminal Runtime. |
 | Shared manifests | Registry storage and manifest projection. | Extension activation, tool execution, configuration validation, service protocol interpretation. |
 | Shared resources | Resource Coordinator request routing. | OS facts, directory creation, cleanup, quota enforcement, cache eviction policy. |
@@ -475,7 +475,7 @@ Module summary:
 
 | Module | Owns | Must not own |
 |---|---|---|
-| `datastore` | Storage mechanics, schema versioning, migration runner, atomic record writes. | Settings meaning, secrets, toolchain behavior. |
+| `datastore` | Storage mechanics, schema-state tracking, migration runner, atomic record writes. | Settings meaning, secrets, toolchain behavior. |
 | `data-store-owner` | Layer-local state ownership rules above DataStore. | A global state model or feature behavior. |
 | `registry` | Shared registration, lookup, lifecycle state, manifest index mechanics. | Extension activation, toolchain commands, service truth, provider protocol meaning. |
 | `workspace` | Workspace identity, scope, root, lifecycle, and scoped service container. | Editor document model or project language semantics. |
@@ -571,9 +571,9 @@ It may provide:
 | Capability | Meaning |
 |---|---|
 | Namespace | Data ownership boundary. |
-| Schema version | Data shape versioning. |
+| Schema state | Data shape state. |
 | Codec | JSON/binary encoding and decoding. |
-| Migration runner | Upgrade data across schema versions. |
+| Migration runner | Upgrade data across schema states. |
 | Atomic record write | Safe write mechanics through FileSystem Manager. |
 | Lock integration | Prevent conflicting writes. |
 

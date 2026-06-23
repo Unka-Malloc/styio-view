@@ -159,6 +159,11 @@ class VityoShellScaffold extends StatelessWidget {
           shell: shell,
           viewportProfile: viewportProfile,
         );
+      case BottomSurfaceTab.codeLenses:
+        return _WorkspaceCodeLensSurface(
+          shell: shell,
+          viewportProfile: viewportProfile,
+        );
       case BottomSurfaceTab.declarations:
         return _WorkspaceDeclarationSurface(
           shell: shell,
@@ -2975,6 +2980,301 @@ class _WorkspaceDocumentHighlightItemTile extends StatelessWidget {
                   const SizedBox(width: 8),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 240),
+                    child: badges,
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceCodeLensSurface extends StatefulWidget {
+  const _WorkspaceCodeLensSurface({
+    required this.shell,
+    required this.viewportProfile,
+  });
+
+  final ShellModel shell;
+  final ViewportProfile viewportProfile;
+
+  @override
+  State<_WorkspaceCodeLensSurface> createState() =>
+      _WorkspaceCodeLensSurfaceState();
+}
+
+class _WorkspaceCodeLensSurfaceState extends State<_WorkspaceCodeLensSurface> {
+  WorkspaceCodeLensResult? _result;
+  bool _collecting = false;
+  int _collectGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _collectCodeLenses();
+  }
+
+  Future<void> _collectCodeLenses() async {
+    final generation = _collectGeneration + 1;
+    _collectGeneration = generation;
+    setState(() {
+      _collecting = true;
+    });
+    final result = await widget.shell.collectWorkspaceCodeLenses(
+      WorkspaceCodeLensQuery(
+        targetFilePath: widget.shell.workspaceCodeLensTargetFilePath,
+        maxResults: 120,
+      ),
+    );
+    if (!mounted || generation != _collectGeneration) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _collecting = false;
+    });
+  }
+
+  Future<void> _openItem(WorkspaceCodeLensItem item) async {
+    await widget.shell.openWorkspaceCodeLens(item);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = widget.shell.lastWorkspaceCodeLens;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = widget.viewportProfile.isMobile;
+    final result = _result ?? widget.shell.lastWorkspaceCodeLens;
+    final headerChips = <Widget>[
+      Chip(label: Text(widget.shell.workspaceCodeLensTargetFilePath)),
+      if (_collecting) const Chip(label: Text('indexing')),
+    ];
+
+    return Card(
+      key: const ValueKey('workspace-code-lens-surface'),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Code Lens', style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Code Lens',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        Wrap(spacing: 8, children: headerChips),
+                      ],
+                    ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                key: const ValueKey('workspace-code-lens-refresh'),
+                onPressed: _collecting
+                    ? null
+                    : () {
+                        _collectCodeLenses();
+                      },
+                icon: Icon(
+                  _collecting
+                      ? Icons.hourglass_top_rounded
+                      : Icons.refresh_rounded,
+                ),
+                label: Text(_collecting ? 'Collecting' : 'Refresh'),
+              ),
+              const SizedBox(height: 14),
+              _WorkspaceCodeLensResultView(
+                result: result,
+                onOpenItem: _openItem,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceCodeLensResultView extends StatelessWidget {
+  const _WorkspaceCodeLensResultView({
+    required this.result,
+    required this.onOpenItem,
+  });
+
+  final WorkspaceCodeLensResult? result;
+  final Future<void> Function(WorkspaceCodeLensItem item) onOpenItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final codeLensResult = result;
+    if (codeLensResult == null) {
+      return Text(
+        'No code lenses collected yet.',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final statusColor = switch (codeLensResult.status) {
+      WorkspaceCodeLensStatus.completed => const Color(0xFFE3F1E1),
+      WorkspaceCodeLensStatus.hitLimit => const Color(0xFFF6E9D7),
+      WorkspaceCodeLensStatus.emptyWorkspace ||
+      WorkspaceCodeLensStatus.noLenses => const Color(0xFFF5E1DE),
+    };
+    final statusLabel = switch (codeLensResult.status) {
+      WorkspaceCodeLensStatus.completed => 'completed',
+      WorkspaceCodeLensStatus.hitLimit => 'limited',
+      WorkspaceCodeLensStatus.emptyWorkspace => 'empty',
+      WorkspaceCodeLensStatus.noLenses => 'no lenses',
+    };
+
+    return Column(
+      key: const ValueKey('workspace-code-lens-results'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _WorkflowStatusChip(label: statusLabel, color: statusColor),
+            Chip(label: Text('${codeLensResult.lensCount} lenses')),
+            Chip(
+              label: Text(
+                '${codeLensResult.referencedSymbolCount} referenced',
+              ),
+            ),
+            Chip(label: Text('${codeLensResult.symbolsIndexed} symbols')),
+            Chip(label: Text('${codeLensResult.filesSearched} files')),
+          ],
+        ),
+        if (codeLensResult.message case final message?) ...[
+          const SizedBox(height: 10),
+          Text(message, style: theme.textTheme.bodySmall),
+        ],
+        if (codeLensResult.lenses.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final item in codeLensResult.lenses.take(80)) ...[
+            _WorkspaceCodeLensItemTile(
+              item: item,
+              onTap: () {
+                onOpenItem(item);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkspaceCodeLensItemTile extends StatelessWidget {
+  const _WorkspaceCodeLensItemTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final WorkspaceCodeLensItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey(
+        'workspace-code-lens-item-${item.filePath}-${item.range.start}',
+      ),
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F4ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 560;
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${item.commandTitle} · ${item.symbolName}',
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (item.previewText.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.previewText,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            );
+            final badges = Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Chip(label: Text(item.kindLabel)),
+                Chip(label: Text(item.symbolKindLabel)),
+                Chip(label: Text('${item.usageCount} usages')),
+                Chip(label: Text('${item.referenceCount} refs')),
+                if (item.type case final type?) Chip(label: Text(type)),
+              ],
+            );
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(_workspaceReferenceKindIcon(item.symbolKind), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            details,
+                            const SizedBox(height: 8),
+                            badges,
+                          ],
+                        )
+                      : details,
+                ),
+                if (!compact) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 260),
                     child: badges,
                   ),
                 ],
@@ -8039,6 +8339,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.documentHighlights),
       ),
       _SurfaceTabChip(
+        label: 'Lenses',
+        active: shell.activeBottomTab == BottomSurfaceTab.codeLenses,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.codeLenses),
+      ),
+      _SurfaceTabChip(
         label: 'Decls',
         active: shell.activeBottomTab == BottomSurfaceTab.declarations,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.declarations),
@@ -8129,9 +8434,9 @@ class _BottomSurfaceTabs extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Mobile shell keeps runtime, commands, navigate, locations, links, '
-            'highlights, declarations, definitions, outline, rename, symbols, '
-            'usages, calls, search, problems, actions, agent, debug, and '
-            'settings on one vertical route.',
+            'highlights, lenses, declarations, definitions, outline, rename, '
+            'symbols, usages, calls, search, problems, actions, agent, debug, '
+            'and settings on one vertical route.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -8211,6 +8516,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.link_rounded;
     case AppCommandId.showWorkspaceDocumentHighlights:
       return Icons.highlight_alt_rounded;
+    case AppCommandId.showWorkspaceCodeLenses:
+      return Icons.visibility_rounded;
     case AppCommandId.goToWorkspaceDeclaration:
       return Icons.subdirectory_arrow_left_rounded;
     case AppCommandId.goToWorkspaceDefinition:

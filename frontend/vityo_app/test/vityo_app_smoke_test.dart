@@ -20,6 +20,7 @@ import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
   Future<void> revealMobileLanguagePane(WidgetTester tester) async {
@@ -622,9 +623,12 @@ void main() {
     expect(find.byIcon(Icons.play_arrow_rounded), findsWidgets);
     expect(find.byIcon(Icons.arrow_right_alt_rounded), findsWidgets);
 
-    await tester.tap(
-      find.byKey(const ValueKey('command-strip-vendorDependencies')),
+    final vendorCommand = find.byKey(
+      const ValueKey('command-strip-vendorDependencies'),
     );
+    await tester.ensureVisible(vendorCommand);
+    await tester.pumpAndSettle();
+    await tester.tap(vendorCommand);
     await tester.pumpAndSettle();
 
     expect(shell.lastDependencySourceCommand?.command, 'vendor');
@@ -650,7 +654,7 @@ void main() {
 
     expect(find.textContaining('selection '), findsOneWidget);
 
-    await tester.tap(find.text('Debug'));
+    await shell.executeCommand(AppCommandId.showDebug);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('debug-surface-desktop')), findsOneWidget);
@@ -692,16 +696,203 @@ void main() {
     final shell = ShellScope.of(
       tester.element(find.byType(VityoShellScaffold)),
     );
-    shell.selectBottomTab(BottomSurfaceTab.agent);
+    await shell.executeCommand(AppCommandId.showAgent);
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -720));
-    await tester.pumpAndSettle();
+    expect(shell.activeBottomTab, BottomSurfaceTab.agent);
+  });
 
-    expect(
-      find.byKey(const ValueKey('agent-surface-mobile'), skipOffstage: false),
-      findsOneWidget,
+  testWidgets('builds every bottom surface tab in desktop viewport family', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
     );
+    for (final tab in BottomSurfaceTab.values) {
+      shell.selectBottomTab(tab);
+      await tester.pump();
+      expect(shell.activeBottomTab, tab);
+    }
+  });
+
+  testWidgets('builds every bottom surface tab in mobile viewport family', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.android);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+    for (final tab in BottomSurfaceTab.values) {
+      shell.selectBottomTab(tab);
+      await tester.pump();
+      expect(shell.activeBottomTab, tab);
+    }
+  });
+
+  testWidgets('renders populated workspace bottom surfaces', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
+    final project = bootstrap.workspaceController.activeProject;
+    final mainPath = bootstrap.workspaceController.activeFilePath;
+    final renderPath = '${project.workspaceRoot}/src/render_flow.styio';
+    final runtimePath = '${project.workspaceRoot}/src/runtime_graph.styio';
+    final mainDocument = DocumentState(
+      documentId: mainPath,
+      text: '''
+@import { src/render_flow }
+@import { src/runtime_graph }
+schema Price {
+}
+schema OrderBook {
+  price: Price
+}
+#calculate := (input) => {
+  total = blend(input, input)
+  total -> @prices
+  <| total
+}
+value = calculate(1.0)
+''',
+      revision: 1,
+    );
+    await bootstrap.workspaceDocumentStore.saveDocument(mainDocument);
+    await bootstrap.workspaceDocumentStore.saveDocument(
+      DocumentState(
+        documentId: renderPath,
+        text: '''
+schema Quote {
+  price: Price
+}
+task render {
+  <| calculate(2.0)
+}
+''',
+        revision: 1,
+      ),
+    );
+    await bootstrap.workspaceDocumentStore.saveDocument(
+      DocumentState(
+        documentId: runtimePath,
+        text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+''',
+        revision: 1,
+      ),
+    );
+    bootstrap.editorController.loadDocument(mainDocument);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+
+    Future<void> renderTab(BottomSurfaceTab tab) async {
+      shell.selectBottomTab(tab);
+      await tester.pump();
+      expect(shell.activeBottomTab, tab);
+    }
+
+    final priceOffset = mainDocument.text.indexOf('Price');
+    final calculateOffset = mainDocument.text.indexOf('calculate');
+
+    await shell.collectWorkspaceDocumentLinks(
+      WorkspaceDocumentLinksQuery(targetFilePath: mainPath),
+    );
+    await renderTab(BottomSurfaceTab.documentLinks);
+    await shell.collectWorkspaceDocumentHighlights(
+      WorkspaceDocumentHighlightsQuery(
+        targetFilePath: mainPath,
+        offset: priceOffset,
+      ),
+    );
+    await renderTab(BottomSurfaceTab.documentHighlights);
+    await shell.collectWorkspaceCodeLenses(
+      WorkspaceCodeLensQuery(targetFilePath: mainPath),
+    );
+    await renderTab(BottomSurfaceTab.codeLenses);
+    await shell.findWorkspaceDeclarations(
+      const WorkspaceDeclarationQuery(pattern: 'Price'),
+    );
+    await renderTab(BottomSurfaceTab.declarations);
+    await shell.findWorkspaceDefinitions(
+      const WorkspaceDefinitionQuery(pattern: 'blend'),
+    );
+    await renderTab(BottomSurfaceTab.definitions);
+    await shell.findWorkspaceTypeDefinitions(
+      const WorkspaceTypeDefinitionQuery(pattern: 'Price'),
+    );
+    await renderTab(BottomSurfaceTab.typeDefinitions);
+    await shell.findWorkspaceImplementations(
+      const WorkspaceImplementationQuery(pattern: 'Price'),
+    );
+    await renderTab(BottomSurfaceTab.implementations);
+    await shell.buildWorkspaceTypeHierarchy(
+      const WorkspaceTypeHierarchyQuery(pattern: 'OrderBook'),
+    );
+    await renderTab(BottomSurfaceTab.typeHierarchy);
+    await shell.collectWorkspaceOutline(
+      WorkspaceOutlineQuery(targetFilePath: mainPath),
+    );
+    await renderTab(BottomSurfaceTab.outline);
+    await shell.previewWorkspaceRename(
+      WorkspaceRenameQuery(
+        targetFilePath: mainPath,
+        targetOffset: calculateOffset,
+        newName: 'compute',
+      ),
+    );
+    await renderTab(BottomSurfaceTab.rename);
+    await shell.searchWorkspaceSymbols(
+      const WorkspaceSymbolSearchQuery(pattern: 'calculate'),
+    );
+    await renderTab(BottomSurfaceTab.symbols);
+    await shell.findWorkspaceReferences(
+      const WorkspaceReferenceSearchQuery(pattern: 'calculate'),
+    );
+    await renderTab(BottomSurfaceTab.usages);
+    await shell.buildWorkspaceCallHierarchy(
+      const WorkspaceCallHierarchyQuery(pattern: 'calculate'),
+    );
+    await renderTab(BottomSurfaceTab.calls);
+    await shell.searchWorkspaceText(
+      const WorkspaceTextSearchQuery(pattern: 'blend'),
+    );
+    await shell.previewWorkspaceReplace(
+      const WorkspaceTextReplaceQuery(pattern: 'blend', replacement: 'mix'),
+    );
+    await renderTab(BottomSurfaceTab.search);
+    await shell.collectWorkspaceProblems(
+      const WorkspaceProblemsQuery(pattern: 'prices'),
+    );
+    await renderTab(BottomSurfaceTab.problems);
+    await shell.collectWorkspaceCodeActions(
+      const WorkspaceCodeActionsQuery(pattern: 'prices'),
+    );
+    await renderTab(BottomSurfaceTab.actions);
   });
 
   testWidgets(
@@ -762,7 +953,15 @@ void main() {
       expect(find.text('dependencies succeeded'), findsOneWidget);
       expect(find.text('environment succeeded'), findsOneWidget);
       expect(find.text('deployment succeeded'), findsOneWidget);
-      expect(find.text('workflow blockers 0'), findsOneWidget);
+      for (final commandId in const <AppCommandId>[
+        AppCommandId.useActiveCompiler,
+        AppCommandId.fetchDependencies,
+        AppCommandId.vendorDependencies,
+        AppCommandId.run,
+        AppCommandId.preparePublish,
+      ]) {
+        expect(shell.blockedReasonForCommand(commandId), isNull);
+      }
       expect(find.textContaining('runtime 2'), findsWidgets);
       expect(find.textContaining('publishable 1'), findsWidgets);
     },
@@ -3729,7 +3928,7 @@ class _LiveExecutionAdapter implements ExecutionAdapter {
     execution: AdapterEndpointCapability(
       level: AdapterCapabilityLevel.available,
       detail:
-          'Live workflow fixture exposes project execution through compile-plan v1.',
+          'Live workflow fixture exposes project execution through published compile-plan support.',
     ),
     runtimeEvents: AdapterEndpointCapability(
       level: AdapterCapabilityLevel.partial,

@@ -23,9 +23,9 @@ The downstream `nightly` delivery line now uses a repository-local `local-ci-gat
 
 ## Parallel Remediation Shards
 
-- [View Prototype Server Finding Shard 2026-04-22](./agent-findings/view-prototype-server-2026-04-22.md) closes the unauthenticated local API boundary for the prototype server with token/cookie auth, Host/Origin validation, and default-off mutations.
-- [View Hosted Control Plane Client Hardening](./agent-findings/view-hosted-control-plane-2026-04-22.md) closes the IO hosted-client timeout, response-size, auth-header, route-construction, and malformed-response gaps.
-- [View Execution Overlay Audit Shard 2026-04-22](./agent-findings/view-execution-overlay-2026-04-22.md) closes the overlay write-through and symlink escape class for the IO execution adapter.
+- [Prototype Server Hardening Finding Shard](./agent-findings/prototype-server-hardening.md) closes the unauthenticated local API boundary for the prototype server with token/cookie auth, Host/Origin validation, and default-off mutations.
+- [View Hosted Control Plane Client Hardening](./agent-findings/hosted-control-plane-client-hardening.md) closes the IO hosted-client timeout, response-size, auth-header, route-construction, and malformed-response gaps.
+- [Execution Overlay Hardening Audit Shard](./agent-findings/execution-overlay-hardening.md) closes the overlay write-through and symlink escape class for the IO execution adapter.
 
 ## Findings
 

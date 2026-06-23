@@ -15,7 +15,7 @@
 | DOC-001 | docs 树存在且索引一致 | docs | all | `gap` | planned |
 | MOD-001 | 模块 manifest 与 capability matrix 可正确解析 | unit | all | `gap` | planned |
 | MOD-002 | 用户可按设备安装与卸载 optional module | integration | desktop / android | `gap` | planned |
-| MOD-003 | staged update 下载后旧模块保持运行，重启后切换新版本 | integration | all | `gap` | planned |
+| MOD-003 | staged update 下载后当前已挂载模块保持运行，重启后切换 staged package | integration | all | `gap` | planned |
 | MOD-004 | 平台不支持模块时入口自动隐藏 | integration | all | `gap` | planned |
 | EDIT-001 | `->` 显示替换不改写源码 | unit / golden | desktop | `gap` | planned |
 | EDIT-002 | `|>` 显示替换与光标映射正确 | unit / golden | desktop | `gap` | planned |

@@ -33,7 +33,7 @@
 | 第三方依赖清单 | `THIRD-PARTY.md` | 与实现同步更新 |
 | `styio` 对接边界与接口合同 | `../external/for-styio/` | 链接 |
 | `spio` 对接边界与接口合同 | `../external/for-spio/` | 链接 |
-| 冻结里程碑与任务清单 | `../milestones/<YYYY-MM-DD>/00-Milestone-Index.md` | 链接 |
+| 冻结里程碑与任务清单 | `../milestones/INITIAL-IMPLEMENTATION-MILESTONES.md` | 链接 |
 | 测试与验收映射 | `../assets/workflow/TEST-CATALOG.md` | 链接 |
 | 架构裁决 | `../adr/` | 只保留决策摘要 |
 | 未决风险与冲突 | `../review/Logic-Conflicts.md` | 链接 |
@@ -45,7 +45,7 @@
 3. `docs/rollups/` 负责压缩当前状态和活跃缺口，不替代 owner 文档。
 4. `docs/history/` 负责活跃恢复记录；原始历史一旦退役，应迁入 `docs/archive/`。
 5. `docs/archive/` 负责归档 provenance 与 lifecycle 元数据，不用来隐藏仍活跃的 owner 文档。
-6. `docs/milestones/` 是冻结批次；后续若要变更，新增日期目录，不覆盖原批次结论。
+6. `docs/milestones/` 按功能主题保存冻结目标和任务清单；日期和版本号只能作为状态字段出现在正文，不能作为目录、入口或任务身份。
 7. `docs/review/` 中的未决问题一旦裁决，应迁入 ADR 并在 review 文档中回填链接。
 
 ## 1. 目录职责
@@ -59,7 +59,7 @@
 | `docs/review/` | 风险、冲突、待裁决问题 |
 | `docs/assets/` | 测试目录、复用交付资产 |
 | `docs/rollups/` | 当前状态摘要与活跃 gap ledger |
-| `docs/history/` | 按日记录与恢复信息 |
+| `docs/history/` | 按主题命名的恢复记录与历史信息 |
 | `docs/archive/` | 已归档 provenance 与 lifecycle 元数据 |
 | `docs/external/for-styio/` | 与上游 `styio` 的接口、责任边界与对接清单 |
 | `docs/external/for-spio/` | 与上游 `spio` 的接口、责任边界与对接清单 |
@@ -89,9 +89,9 @@
 1. 设计级文档使用稳定主题名，优先 `Vityo-*.md`。
 2. 规范文件使用稳定全大写或描述性短横线命名。
 3. 不再新增本地 `docs/plans/` 计划文件；未完成项进入 `docs/design/Vityo-Implementation-Gaps.md`。
-4. 历史文件严格使用 `YYYY-MM-DD.md`。
+4. 历史、审计和 rollup 文件使用稳定主题名；日期只能写入 `Date`、`Last updated` 或正文状态说明。
 5. ADR 文件严格使用 `ADR-XXXX-<slug>.md`。
-6. 里程碑目录严格使用日期，入口文件为 `00-Milestone-Index.md`。
+6. 里程碑文件使用稳定功能主题名；不得使用日期目录、版本号目录、阶段编号前缀或 `00-` 入口文件组织里程碑。
 
 ## 4. 当前最低维护门禁
 

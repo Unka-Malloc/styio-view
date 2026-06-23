@@ -15,7 +15,7 @@
 1. 不同设备可以挂载不同能力，例如 iOS 不挂载本地编译模块
 2. 用户可以按设备安装、卸载或禁用某些功能模块
 3. 模块更新需要只推给装了该模块的客户端
-4. 更新下载后，当前运行模块应保持稳定，重启后再切到新版本
+4. 更新下载后，当前已挂载模块应保持稳定，重启后再切到 staged package
 
 ## Decision
 
@@ -24,7 +24,7 @@
 1. core module + optional module 的宿主模型
 2. manifest + capability matrix 描述模块能力
 3. 按设备的安装、卸载、禁用能力
-4. staged update：运行中继续使用旧模块，会话结束并重启后激活新模块
+4. staged update：运行中继续使用当前已挂载模块，会话结束并重启后激活 staged package
 
 ## Alternatives
 

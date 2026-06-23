@@ -97,7 +97,7 @@ The Adapter is responsible for:
 | Adapted semantic tokens | Semantic Token Intake | Theme-mappable spans. |
 | Adapted code actions | Code Action Intake | Previewable workspace edits. |
 | Adapted rename result | Rename Intake | Safety result and workspace edit preview. |
-| Bound language snapshot | Language Result Cache | Versioned local cache entry. |
+| Bound language snapshot | Language Result Cache | Schema-state tracked local cache entry. |
 | Capability or error status | App Shell surfaces | User-facing status and recovery guidance. |
 
 ## 8. Binding Decision Table

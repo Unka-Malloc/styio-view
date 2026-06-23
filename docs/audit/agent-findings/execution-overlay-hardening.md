@@ -1,8 +1,10 @@
-# View Execution Overlay Audit Shard 2026-04-22
+# Execution Overlay Hardening Audit Shard
 
 **Purpose:** Record execution overlay isolation findings from the parallel external audit pass.
 
 **Last updated:** 2026-04-22
+
+**Date:** 2026-04-22
 
 **Scope:** `frontend/vityo_app/lib/src/backend_toolchain/execution_adapter_io.dart` execution overlay isolation.
 

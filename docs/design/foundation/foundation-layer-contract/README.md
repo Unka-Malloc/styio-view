@@ -36,7 +36,7 @@ The admitted Foundation shape is deliberately narrow:
 
 | Foundation category | Allowed modules | Reason |
 |---|---|---|
-| Persistence mechanics | `datastore`, `data-store-owner` contract | Multiple layers need scoped record IO, schema-version mechanics, migrations, atomic writes, and mutation ownership. |
+| Persistence mechanics | `datastore`, `data-store-owner` contract | Multiple layers need scoped record IO, schema-state mechanics, migrations, atomic writes, and mutation ownership. |
 | Registration mechanics | `registry` | Multiple layers need register/unregister/lookup/list and manifest projection without executing registered behavior. |
 | Scope mechanics | `workspace` | Multiple layers need the same workspace identity, root, scope, lifecycle, and scoped service container. |
 | Resource routing mechanics | `resource-coordinator` | Multiple layers need namespace-to-location routing and budget handoff without owning OS resources. |
@@ -144,7 +144,7 @@ Design names and responsibilities:
 
 | Foundation service | Owns | Must not own |
 |---|---|---|
-| DataStore API | Record IO, schema-version storage, migration runner, atomic writes, persistence mechanics. | Setting meaning, credential policy, tool behavior, language semantics. |
+| DataStore API | Record IO, schema-state storage, migration runner, atomic writes, persistence mechanics. | Setting meaning, credential policy, tool behavior, language semantics. |
 | DataStore Owner contract | Layer-local mutation authority, namespace ownership, state-family ownership. | A global state model or feature behavior. |
 | Registry | Register, unregister, lookup, list, lifecycle state, manifest projection mechanics. | Extension activation, tool execution, service protocol meaning. |
 | Workspace | Workspace identity, root, scope, lifecycle, and scoped foundation service container. | Editor document mutation, project language semantics. |
@@ -183,7 +183,7 @@ Boundary table:
 
 | Concern | Foundation may do | Upper layer must do |
 |---|---|---|
-| Settings | Persist versioned records when called by Configuration owner. | Define keys, defaults, schemas, validation, migration policy, UI grouping. |
+| Settings | Persist schema-state records when called by Configuration owner. | Define keys, defaults, schemas, validation, migration policy, UI grouping. |
 | Environment variables | Store records as generic DataStore payloads. | Define overlay semantics, merge order, shell/process injection policy. |
 | Credentials | Provide generic storage mechanics only through a credential owner. | Classify secrets, choose secret backend, define lookup and lifecycle. |
 | Toolchain state | Persist records and route cache/state paths. | Discover, install, resolve, select, execute, encode, decode. |
@@ -430,7 +430,7 @@ Foundation tests must prove mechanics without depending on upper-layer meaning.
 
 | Foundation service | Required test style |
 |---|---|
-| DataStore | Record IO, schema version, migration, atomicity, namespace isolation. |
+| DataStore | Record IO, schema state, migration, atomicity, namespace isolation. |
 | DataStore Owner | Namespace access control and owner metadata. |
 | Registry | Register, unregister, lookup, list, manifest projection without exposing runtime value. |
 | Workspace | Scope identity, lifecycle sequencing, service container boundaries. |

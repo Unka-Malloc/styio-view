@@ -1,8 +1,10 @@
-# Vityo Session Report 2026-05-10
+# Vityo Downstream Implementation Session Report
 
 **Purpose:** Summarize the recent downstream `Vityo` implementation session, separate real product progress from preview-only support, and state how far the project remains from a genuinely usable IDE.
 
 **Last updated:** 2026-05-10
+
+**Date:** 2026-05-10
 
 ## Executive Summary
 

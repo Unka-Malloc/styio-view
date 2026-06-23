@@ -10,7 +10,7 @@ The short rule is:
 ```text
 FileSystem Manager = how to operate the file system
 Resource Manager   = where resources should live and how much can be used
-DataStore          = how application data is structured, versioned, and persisted
+DataStore          = how application data is structured, schema-state tracked, and persisted
 ```
 
 ## 1. Position

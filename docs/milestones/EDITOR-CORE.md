@@ -1,4 +1,4 @@
-# M2 — Editor Core
+# Editor Core
 
 **Purpose:** 交付自研编辑器的最小核心，包括文档模型、光标、选择、撤销与基础文本渲染。
 
@@ -13,16 +13,16 @@
 
 ## 2. 任务
 
-| Task ID | Deliverable | Dependency | Exit |
-|---------|-------------|------------|------|
-| M2-T01 | 定义 `DocumentState`、`SelectionState`、撤销/重做模型 | M1 | 可表达单文档编辑状态 |
-| M2-T02 | 实现基础文本输入、删除、换行、选择 | M2-T01 | 可完成基础录入 |
-| M2-T03 | 实现多行布局与滚动模型 | M2-T01 | 文本可正确滚动 |
-| M2-T04 | 实现桌面快捷键：保存、运行、导航基础骨架 | M1-T04 | 快捷键可被分发 |
-| M2-T05 | 实现鼠标/键盘光标移动和选择扩展 | M2-T02 | 光标语义稳定 |
-| M2-T06 | 定义编辑器渲染层：文本层、装饰层、overlay 层 | M2-T03 | 后续装饰可插入 |
-| M2-T07 | 建立 source buffer fidelity 测试基线 | M2-T02 | 文本操作不破坏源码 |
-| M2-T08 | 明确共享核心框架与分端渲染/交互调优分层 | M1 | 桌面与移动共享核心模型 |
+| Workstream | Deliverable | Dependency | Exit |
+|------------|-------------|------------|------|
+| Document and selection model | 定义 `DocumentState`、`SelectionState`、撤销/重做模型 | Foundation and desktop shell | 可表达单文档编辑状态 |
+| Text editing operations | 实现基础文本输入、删除、换行、选择 | Document and selection model | 可完成基础录入 |
+| Multiline layout and scrolling | 实现多行布局与滚动模型 | Document and selection model | 文本可正确滚动 |
+| Desktop editor commands | 实现桌面快捷键：保存、运行、导航基础骨架 | Command routing | 快捷键可被分发 |
+| Cursor and selection movement | 实现鼠标/键盘光标移动和选择扩展 | Text editing operations | 光标语义稳定 |
+| Editor render layers | 定义编辑器渲染层：文本层、装饰层、overlay 层 | Multiline layout and scrolling | 后续装饰可插入 |
+| Source buffer fidelity tests | 建立 source buffer fidelity 测试基线 | Text editing operations | 文本操作不破坏源码 |
+| Shared editor core boundary | 明确共享核心框架与分端渲染/交互调优分层 | Foundation and desktop shell | 桌面与移动共享核心模型 |
 
 ## 3. 门禁
 

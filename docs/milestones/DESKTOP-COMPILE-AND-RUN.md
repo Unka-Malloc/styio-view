@@ -1,4 +1,4 @@
-# M4 — Desktop Compile And Run
+# Desktop Compile And Run
 
 **Purpose:** 在桌面端交付保存编译、快捷键运行、诊断回指和最小运行闭环。
 
@@ -13,17 +13,17 @@
 
 ## 2. 任务
 
-| Task ID | Deliverable | Dependency | Exit |
-|---------|-------------|------------|------|
-| M4-T01 | 定义保存后自动编译策略与配置项 | M3-T07 | 行为可配置 |
-| M4-T02 | 接入 `Ctrl + Enter` 或平台等效运行命令 | M1-T04 | 快捷键能触发运行 |
-| M4-T03 | 打通桌面本地 compile API | M3 | 能返回编译成功/失败 |
-| M4-T04 | 打通桌面本地 run API | M4-T03 | 能运行最小示例 |
-| M4-T05 | 把 diagnostics 显示回编辑器与底部面板 | M3-T02 | 错误可定位 |
-| M4-T06 | 定义 compile / run session 状态模型 | M4-T03 | UI 能跟踪执行状态 |
-| M4-T07 | 建立日志与 stdout/stderr 面板 | M4-T04 | 运行输出可见 |
-| M4-T08 | 建立 scratch single-file route 与 project preview-only route 分流 | M3 | capability gap 清晰可见 |
-| M4-T09 | 在工作区与 runtime 面板展示 workflow / compiler handshake / route summary | M4-T06 | 用户能直接看到当前路由与限制 |
+| Workstream | Deliverable | Dependency | Exit |
+|------------|-------------|------------|------|
+| Save-triggered compile policy | 定义保存后自动编译策略与配置项 | Pipeline visual substitution | 行为可配置 |
+| Run command | 接入 `Ctrl + Enter` 或平台等效运行命令 | Command routing | 快捷键能触发运行 |
+| Desktop compile API | 打通桌面本地 compile API | Semantic surfaces and adapter contracts | 能返回编译成功/失败 |
+| Desktop run API | 打通桌面本地 run API | Desktop compile API | 能运行最小示例 |
+| Diagnostic feedback route | 把 diagnostics 显示回编辑器与底部面板 | Language payload contracts | 错误可定位 |
+| Execution session model | 定义 compile / run session 状态模型 | Desktop compile API | UI 能跟踪执行状态 |
+| Output panel | 建立日志与 stdout/stderr 面板 | Desktop run API | 运行输出可见 |
+| Execution route split | 建立 scratch single-file route 与 project preview-only route 分流 | Semantic surfaces and adapter contracts | capability gap 清晰可见 |
+| Workflow route summary | 在工作区与 runtime 面板展示 workflow / compiler handshake / route summary | Execution session model | 用户能直接看到当前路由与限制 |
 
 ## 3. 门禁
 

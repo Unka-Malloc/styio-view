@@ -27,6 +27,6 @@
 
 ## 4. 当前最关键的三项 handoff
 
-1. `project_graph v1` 所需字段的正式 machine contract
-2. `workflow_success_payloads v1` 与 supporting command success JSON，而不是只有 failure JSON
+1. `project_graph` published family 所需字段的正式 machine contract
+2. `workflow_success_payloads` 与 supporting command success JSON，而不是只有 failure JSON
 3. toolchain / registry / publish preflight / source-state 的 machine contract

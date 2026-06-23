@@ -65,7 +65,7 @@ Unknown record kinds are currently interpreted as diagnostics for backwards comp
 
 ## 3. Facts Envelope
 
-Preferred future output is a versioned facts envelope. This lets StyioService emit a coherent snapshot in one JSONL record.
+Preferred future output is a published facts envelope. This lets StyioService emit a coherent snapshot in one JSONL record.
 
 Example:
 

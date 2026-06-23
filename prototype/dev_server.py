@@ -202,6 +202,7 @@ def resolve_workspace_path(relative_path: str, *, require_exists: bool = False) 
 
         current = current / part
 
+    current = current.resolve()
     if root not in current.parents and current != root:
         raise ValueError("path escapes workspace root")
 
@@ -488,14 +489,14 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     self.end_json({"error": "file reads are limited to the current workspace"}, HTTPStatus.FORBIDDEN)
                     return
                 content = target.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                self.end_json({"error": "file is not utf-8 text"}, HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
+                return
             except ValueError as error:
                 self.end_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
                 return
             except FileNotFoundError:
                 self.end_json({"error": "file not found"}, HTTPStatus.NOT_FOUND)
-                return
-            except UnicodeDecodeError:
-                self.end_json({"error": "file is not utf-8 text"}, HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
                 return
 
             self.end_json({"ok": True, "path": str(target), "content": content})
@@ -506,14 +507,14 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             try:
                 target = resolve_workspace_path(relative_path, require_exists=True)
                 content = target.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                self.end_json({"error": "file is not utf-8 text"}, HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
+                return
             except ValueError as error:
                 self.end_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
                 return
             except FileNotFoundError:
                 self.end_json({"error": "file not found"}, HTTPStatus.NOT_FOUND)
-                return
-            except UnicodeDecodeError:
-                self.end_json({"error": "file is not utf-8 text"}, HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
                 return
 
             self.end_json(

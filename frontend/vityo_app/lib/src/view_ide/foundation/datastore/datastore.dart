@@ -242,6 +242,33 @@ typedef FoundationDataMigration = Map<String, Object?> Function(
   Map<String, Object?> value,
 );
 
+class FoundationDataMigrationStep {
+  const FoundationDataMigrationStep({
+    required this.name,
+    required this.namespace,
+    required this.sourceSchemaState,
+    required this.targetSchemaState,
+    required this.migrate,
+  });
+
+  final String name;
+  final String namespace;
+  final int sourceSchemaState;
+  final int targetSchemaState;
+  final FoundationDataMigration migrate;
+
+  bool appliesTo({
+    required String namespace,
+    required int schemaState,
+    required int targetSchemaState,
+  }) {
+    return this.namespace == namespace &&
+        sourceSchemaState == schemaState &&
+        this.targetSchemaState > schemaState &&
+        this.targetSchemaState <= targetSchemaState;
+  }
+}
+
 typedef FoundationDataStoreUpdater = FutureOr<Map<String, Object?>?> Function(
   Map<String, Object?>? current,
 );
@@ -332,7 +359,7 @@ class FoundationDataStore {
   FoundationDataStore({
     required FoundationResourceCoordinator resourceCoordinator,
     required FileSystemManager fileSystemManager,
-    this.migrations = const <String, FoundationDataMigration>{},
+    this.migrations = const <FoundationDataMigrationStep>[],
     FoundationLockService? lockService,
   }) : _resourceCoordinator = resourceCoordinator,
        _fileSystemManager = fileSystemManager,
@@ -343,7 +370,7 @@ class FoundationDataStore {
   final FoundationLockService _lockService;
   final StreamController<FoundationDataStoreChange> _changes =
       StreamController<FoundationDataStoreChange>.broadcast(sync: true);
-  final Map<String, FoundationDataMigration> migrations;
+  final List<FoundationDataMigrationStep> migrations;
 
   Future<void> writeJson({
     required FoundationDataStoreNamespace namespace,
@@ -413,16 +440,16 @@ class FoundationDataStore {
     );
     final originalSchemaVersion = record.schemaVersion;
     while (record.schemaVersion < namespace.schemaVersion) {
-      final migrationKey = '${namespace.name}:${record.schemaVersion}->${record.schemaVersion + 1}';
-      final migration = migrations[migrationKey];
-      if (migration == null) {
-        throw StateError('Missing DataStore migration $migrationKey.');
-      }
+      final migration = _migrationStepFor(
+        namespace: namespace.name,
+        schemaState: record.schemaVersion,
+        targetSchemaState: namespace.schemaVersion,
+      );
       record = FoundationDataRecord(
         namespace: record.namespace,
         key: record.key,
-        schemaVersion: record.schemaVersion + 1,
-        value: migration(record.value),
+        schemaVersion: migration.targetSchemaState,
+        value: migration.migrate(record.value),
         updatedAt: DateTime.now().toUtc(),
       );
     }
@@ -439,6 +466,35 @@ class FoundationDataStore {
       );
     }
     return record.value;
+  }
+
+  FoundationDataMigrationStep _migrationStepFor({
+    required String namespace,
+    required int schemaState,
+    required int targetSchemaState,
+  }) {
+    final matches = migrations
+        .where(
+          (migration) => migration.appliesTo(
+            namespace: namespace,
+            schemaState: schemaState,
+            targetSchemaState: targetSchemaState,
+          ),
+        )
+        .toList(growable: false);
+    if (matches.length == 1) {
+      return matches.single;
+    }
+    if (matches.isEmpty) {
+      throw StateError(
+        'Missing DataStore migration for `$namespace` from schema state '
+        '$schemaState toward schema state $targetSchemaState.',
+      );
+    }
+    throw StateError(
+      'Ambiguous DataStore migrations for `$namespace` from schema state '
+      '$schemaState: ${matches.map((migration) => migration.name).join(', ')}.',
+    );
   }
 
   Future<bool> delete({

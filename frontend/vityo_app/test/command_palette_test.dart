@@ -145,6 +145,16 @@ void main() {
     );
     expect(documentHighlightsResult.items.first.category, 'Navigation');
 
+    final codeLensResult = service.findCommands(
+      commands: StyioCommandRegistry.commands,
+      query: const CommandPaletteQuery(pattern: 'code lens'),
+    );
+    expect(
+      codeLensResult.items.first.commandId,
+      AppCommandId.showWorkspaceCodeLenses,
+    );
+    expect(codeLensResult.items.first.category, 'Navigation');
+
     final renameResult = service.findCommands(
       commands: StyioCommandRegistry.commands,
       query: const CommandPaletteQuery(pattern: 'rename symbol'),

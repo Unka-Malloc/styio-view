@@ -1,4 +1,4 @@
-# M3 — Semantic Surfaces And Adapter Contracts
+# Semantic Surfaces And Adapter Contracts
 
 **Purpose:** 冻结语言层产品合同、adapter 槽位和语义表面；先让编辑器围绕产品合同稳定，再替换真实上游实现。
 
@@ -15,19 +15,19 @@
 
 ## 2. 任务
 
-| Task ID | Deliverable | Dependency | Exit |
-|---------|-------------|------------|------|
-| M3-T01 | 冻结 `LanguageServiceAdapter` 产品合同 | M1 | 合同 SSOT 冻结 |
-| M3-T02 | 定义 `TokenSpan / SemanticSpan / Diagnostic / TextEdit / CompletionItem / HoverPayload` 合同 | M3-T01 | 语言服务协议冻结 |
-| M3-T03 | 建立 `CLI / FFI / Cloud` 三类 adapter 的能力快照 | M3-T01 | capability gap 统一表达 |
-| M3-T04 | 建立 Flutter adapter 消费层 | M3-T01 | Flutter 主线不依赖上游内部实现 |
-| M3-T05 | 确立 `linter` 只负责 diagnostics / fix，不负责基础高亮 | M3-T02 | 编辑器文本层不依赖 linter 才能着色 |
-| M3-T06 | 实现 `->` 的 visual substitution | M2 | 显示替换不改写源码 |
-| M3-T07 | 实现 `|>` 的 visual substitution | M2 | 显示与光标映射正确 |
-| M3-T08 | 以 block ranges 实现函数体灰底圆角块 | M3-T02 | 块表面与语义边界一致 |
-| M3-T09 | 定义最小可编译单元计算接口 | M3-T04 | 后续编译触发可消费 |
-| M3-T10 | 实现 substitution 用户开关 | M2 / M3-T06 | 关闭后恢复原始文本显示 |
-| M3-T11 | 建立 substitution 开/关性能对比基线 | M3-T10 | 可比较两种模式性能 |
+| Workstream | Deliverable | Dependency | Exit |
+|------------|-------------|------------|------|
+| Language service product contract | 冻结 `LanguageServiceAdapter` 产品合同 | Foundation and desktop shell | 合同 SSOT 冻结 |
+| Language payload contracts | 定义 `TokenSpan / SemanticSpan / Diagnostic / TextEdit / CompletionItem / HoverPayload` 合同 | Language service product contract | 语言服务协议冻结 |
+| Adapter capability snapshots | 建立 `CLI / FFI / Cloud` 三类 adapter 的能力快照 | Language service product contract | capability gap 统一表达 |
+| Flutter adapter consumer | 建立 Flutter adapter 消费层 | Language service product contract | Flutter 主线不依赖上游内部实现 |
+| Diagnostic ownership boundary | 确立 `linter` 只负责 diagnostics / fix，不负责基础高亮 | Language payload contracts | 编辑器文本层不依赖 linter 才能着色 |
+| Arrow visual substitution | 实现 `->` 的 visual substitution | Editor core | 显示替换不改写源码 |
+| Pipeline visual substitution | 实现 `|>` 的 visual substitution | Editor core | 显示与光标映射正确 |
+| Semantic block surface | 以 block ranges 实现函数体灰底圆角块 | Language payload contracts | 块表面与语义边界一致 |
+| Compilable unit calculation | 定义最小可编译单元计算接口 | Flutter adapter consumer | 后续编译触发可消费 |
+| Substitution preference | 实现 substitution 用户开关 | Editor core and arrow visual substitution | 关闭后恢复原始文本显示 |
+| Substitution performance baseline | 建立 substitution 开/关性能对比基线 | Substitution preference | 可比较两种模式性能 |
 
 ## 3. 门禁
 

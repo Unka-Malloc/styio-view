@@ -28,7 +28,8 @@ python3 scripts/release-readiness-gate.py
 1. 检查 `frontend/vityo_app/pubspec.yaml` 的 Vityo IDE editor 元数据。
 2. 检查关键 IDE 能力是否都有测试入口，包括 editor binding、language service、runtime/toolchain、environment/data persistence。
 3. 检查本 README 是否记录正式发布命令。
-4. 执行 `flutter build web --release`，确认 Web release artifact 可生成。
+4. 检查 `toolchain/maintenance-tools.json` 中的维护工具和技能均为 current，且每条业务线至少有一个可用维护工具。
+5. 执行 `flutter build web --release`，确认 Web release artifact 可生成。
 
 如果只需要快速检查发布元数据和测试入口，可以执行：
 

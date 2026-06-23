@@ -14,7 +14,7 @@ The backend-owned machine contract lives in `styio-spio`:
 - `contracts/hosted-control-plane/v1/hosted-control-plane.examples.json`
 - `contracts/hosted-control-plane/v1/redocly.yaml`
 
-`Vityo` consumes that versioned package. This document is the consumer-side handoff note, not a second source of truth.
+`Vityo` consumes that published package. This document is the consumer-side handoff note, not a second source of truth.
 
 ## Fixed Base Path
 
@@ -22,7 +22,7 @@ The backend-owned machine contract lives in `styio-spio`:
 
 `/api/styio-hosted/v1`
 
-The base URL may change per environment, but the versioned path family and operation spellings are fixed by contract.
+The base URL may change per environment, but the hosted path family and operation spellings are fixed by contract.
 
 ## Fixed Route Set
 
@@ -62,7 +62,7 @@ Every frontend/backend interaction now has a fixed contract entrypoint:
 | publish preflight | `DeploymentAdapter.preparePublish()` | `preparePublish` | `POST /workspaces/{workspace_id}/deployment/preflight` |
 | publish artifact | `DeploymentAdapter.publishToRegistry()` | `publishToRegistry` | `POST /workspaces/{workspace_id}/deployment/publish` |
 
-`RuntimeEventAdapter` does not call a separate hosted route in `v1`; it consumes `runtime_events` emitted by the execution envelopes documented in `runWorkflow`, `buildWorkflow`, and `testWorkflow`.
+`RuntimeEventAdapter` does not call a separate hosted route; it consumes `runtime_events` emitted by the execution envelopes documented in `runWorkflow`, `buildWorkflow`, and `testWorkflow`.
 
 ## Frontend Request Body Summary
 
@@ -108,7 +108,7 @@ These fields are part of the hosted consumer contract even when some deployments
 
 ## Execution Envelope Fields Consumed By Frontend
 
-Hosted execution is a single response-envelope contract. `Vityo` does not rely on a separate event stream route in `v1`.
+Hosted execution is a single response-envelope contract. `Vityo` does not rely on a separate event stream route.
 
 The frontend consumes:
 

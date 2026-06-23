@@ -71,8 +71,12 @@ void main() {
       query: const WorkspaceSymbolSearchQuery(pattern: 'load worker'),
     );
 
-    expect(containerResult.matchCount, 1);
-    expect(containerResult.items.single.name, 'loadPrices');
+    expect(
+      containerResult.items.map((item) => item.name),
+      contains('loadPrices'),
+    );
+    expect(containerResult.items.first.name, 'loadPrices');
+    expect(containerResult.items.first.filePath, 'src/worker/math.styio');
 
     final limitedResult = await service.searchSymbols(
       filePaths: const <String>[

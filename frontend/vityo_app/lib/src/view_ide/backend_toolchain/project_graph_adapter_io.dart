@@ -350,10 +350,10 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
 
   String _projectGraphCapabilityDetail() {
     if (_lastProjectGraphPayloadFailure != null) {
-      return 'spio advertises project_graph v1, but `${_lastProjectGraphPayloadFailure!.command}` failed so the shell is using canonical file inference instead. ${_lastProjectGraphPayloadFailure!.detail}';
+      return 'spio advertises the project graph contract, but `${_lastProjectGraphPayloadFailure!.command}` failed so the shell is using canonical file inference instead. ${_lastProjectGraphPayloadFailure!.detail}';
     }
     if (_lastToolchainStatePayloadFailure != null) {
-      return 'spio advertises toolchain_state v1, but `${_lastToolchainStatePayloadFailure!.command}` failed so toolchain state is only partially available. ${_lastToolchainStatePayloadFailure!.detail}';
+      return 'spio advertises the toolchain state contract, but `${_lastToolchainStatePayloadFailure!.command}` failed so toolchain state is only partially available. ${_lastToolchainStatePayloadFailure!.detail}';
     }
     return projectGraphSupport.detail;
   }

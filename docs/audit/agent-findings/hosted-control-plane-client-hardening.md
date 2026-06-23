@@ -5,6 +5,8 @@
 **Last updated:** 2026-04-22
 
 **Date:** 2026-04-22
+
+**Date:** 2026-04-22
 **Scope owner:** hosted control-plane IO client
 **Status:** Remediated for `frontend/vityo_app/lib/src/backend_toolchain/hosted_control_plane_io.dart`
 

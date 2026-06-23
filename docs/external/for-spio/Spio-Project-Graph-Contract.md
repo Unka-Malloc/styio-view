@@ -17,7 +17,7 @@ spio project-graph --manifest-path <path> --json [--styio-bin <path>]
 
 当前 published payload family：
 
-1. `project_graph v1`
+1. `project_graph` published family
 
 ## 2. Required Published Keys
 
@@ -68,7 +68,7 @@ spio project-graph --manifest-path <path> --json [--styio-bin <path>]
 
 ## 4. Frontend Consumption Rules
 
-1. `Vityo` 主线优先消费 `project_graph v1`。
+1. `Vityo` 主线优先消费 `project_graph` published family。
 2. canonical files inference 只允许作为 fallback，不再是 project route 的真相源。
 3. 一旦 published payload 可用，前端不得继续通过 `spio.toml`、`spio.lock`、`spio-toolchain.toml`、`.spio/vendor/`、`.spio/build/` 重建 project graph 真相。
-4. 如果 `spio` 已广告 `project_graph v1` 但 `project-graph --json` 退出失败、返回非法 JSON 或 payload 解析失败，`Vityo` 必须把它显示为 published contract failure，并把 adapter capability 降到 `partial`；不能静默表现得像合同正常。
+4. 如果 `spio` 已广告 `project_graph` published family 但 `project-graph --json` 退出失败、返回非法 JSON 或 payload 解析失败，`Vityo` 必须把它显示为 published contract failure，并把 adapter capability 降到 `partial`；不能静默表现得像合同正常。

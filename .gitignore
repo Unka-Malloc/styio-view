@@ -24,6 +24,9 @@ venv/
 **/node_modules/
 node_modules/
 
+# Local upstream source checkouts
+/sources/
+
 # Generated artifacts and build outputs
 **/.artifacts/
 **/.dart_tool/

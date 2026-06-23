@@ -188,6 +188,7 @@ class WorkspaceBreadcrumbsService {
       return containing;
     }
 
+    DocumentSymbol? previousContainer;
     DocumentSymbol? previous;
     for (final symbol in symbols) {
       final anchor = symbol.nameRange.start;
@@ -197,8 +198,26 @@ class WorkspaceBreadcrumbsService {
       if (previous == null || anchor > previous.nameRange.start) {
         previous = symbol;
       }
+      if (!_isContainerSymbol(symbol.kind)) {
+        continue;
+      }
+      if (previousContainer == null ||
+          anchor > previousContainer.nameRange.start) {
+        previousContainer = symbol;
+      }
     }
-    return previous;
+    return previousContainer ?? previous;
+  }
+
+  static bool _isContainerSymbol(SymbolKind kind) {
+    return switch (kind) {
+      SymbolKind.function ||
+      SymbolKind.pipeline ||
+      SymbolKind.state ||
+      SymbolKind.resource ||
+      SymbolKind.task => true,
+      SymbolKind.variable || SymbolKind.parameter => false,
+    };
   }
 
   static List<WorkspaceBreadcrumbItem> _pathItems(String filePath) {

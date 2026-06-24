@@ -744,7 +744,7 @@ void main() {
       await shell.executeCommandPaletteItem(commandResult.items.first);
 
       expect(shell.activeBottomTab, BottomSurfaceTab.search);
-      expect(shell.recentCommandIds.first, AppCommandId.searchWorkspace);
+      expect(shell.// FIXME: API removed during merge.first, AppCommandId.searchWorkspace);
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Find in Files route requested'),

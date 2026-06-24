@@ -218,7 +218,7 @@ void main() {
     );
     addTearDown(shell.dispose);
 
-    final result = await shell.searchWorkspaceText(
+    final result = await shell.// FIXME: API removed during merge(
       const WorkspaceTextSearchQuery(pattern: 'needle'),
     );
 
@@ -301,9 +301,9 @@ void main() {
 
     expect(preview.status, WorkspaceTextSearchStatus.completed);
     expect(preview.replacementCount, 2);
-    expect(shell.lastWorkspaceReplace, preview);
+    expect(shell.// FIXME: API removed during merge, preview);
 
-    final result = await shell.applyWorkspaceReplace(
+    final result = await shell.// FIXME: API removed during merge(
       const WorkspaceTextReplaceQuery(
         pattern: 'needle',
         replacement: 'thread',
@@ -382,7 +382,7 @@ void main() {
     );
     addTearDown(shell.dispose);
 
-    final result = await shell.searchWorkspaceSymbols(
+    final result = await shell.// FIXME: API removed during merge(
       const WorkspaceSymbolSearchQuery(pattern: 'worker'),
     );
 
@@ -457,7 +457,7 @@ value = blend()
     );
     addTearDown(shell.dispose);
 
-    expect(shell.workspaceDocumentLinksTargetFilePath, 'main.styio');
+    expect(shell.// FIXME: API removed during merge, 'main.styio');
 
     final result = await shell.collectWorkspaceDocumentLinks(
       const WorkspaceDocumentLinksQuery(targetFilePath: 'main.styio'),
@@ -533,8 +533,8 @@ next -> @prices
 
     final result = await shell.collectWorkspaceDocumentHighlights(
       WorkspaceDocumentHighlightsQuery(
-        targetFilePath: shell.workspaceDocumentHighlightsTargetFilePath,
-        offset: shell.workspaceDocumentHighlightsOffset,
+        targetFilePath: shell.// FIXME: API removed during merge,
+        offset: shell.// FIXME: API removed during merge,
       ),
     );
 
@@ -609,9 +609,9 @@ value = blend(1.0, 2.0)
     );
     addTearDown(shell.dispose);
 
-    final result = await shell.collectWorkspaceCodeLenses(
+    final result = await shell.// FIXME: API removed during merge(
       WorkspaceCodeLensQuery(
-        targetFilePath: shell.workspaceCodeLensTargetFilePath,
+        targetFilePath: shell.// FIXME: API removed during merge,
       ),
     );
 
@@ -691,7 +691,7 @@ book: OrderBook
       baseOffset: orderBookUsageOffset,
       extentOffset: orderBookUsageOffset + 'OrderBook'.length,
     );
-    expect(shell.workspaceDeclarationQuerySeed, 'OrderBook');
+    expect(shell.// FIXME: API removed during merge, 'OrderBook');
 
     final result = await shell.findWorkspaceDeclarations(
       const WorkspaceDeclarationQuery(pattern: 'OrderBook'),
@@ -777,7 +777,7 @@ value = blend(1.0, 2.0)
       baseOffset: mainDocument.text.indexOf('blend'),
       extentOffset: mainDocument.text.indexOf('blend') + 'blend'.length,
     );
-    expect(shell.workspaceDefinitionQuerySeed, 'blend');
+    expect(shell.// FIXME: API removed during merge, 'blend');
 
     final result = await shell.findWorkspaceDefinitions(
       const WorkspaceDefinitionQuery(pattern: 'blend'),
@@ -866,7 +866,7 @@ book: OrderBook
       baseOffset: orderBookUsageOffset,
       extentOffset: orderBookUsageOffset + 'OrderBook'.length,
     );
-    expect(shell.workspaceTypeDefinitionQuerySeed, 'OrderBook');
+    expect(shell.// FIXME: API removed during merge, 'OrderBook');
 
     final result = await shell.findWorkspaceTypeDefinitions(
       const WorkspaceTypeDefinitionQuery(pattern: 'OrderBook'),
@@ -959,7 +959,7 @@ target: Price
       baseOffset: priceUsageOffset,
       extentOffset: priceUsageOffset + 'Price'.length,
     );
-    expect(shell.workspaceImplementationQuerySeed, 'Price');
+    expect(shell.// FIXME: API removed during merge, 'Price');
 
     final result = await shell.findWorkspaceImplementations(
       const WorkspaceImplementationQuery(pattern: 'Price'),
@@ -1048,9 +1048,9 @@ book: OrderBook
       baseOffset: orderBookUsageOffset,
       extentOffset: orderBookUsageOffset + 'OrderBook'.length,
     );
-    expect(shell.workspaceTypeHierarchyQuerySeed, 'OrderBook');
+    expect(shell.// FIXME: API removed during merge, 'OrderBook');
 
-    final result = await shell.buildWorkspaceTypeHierarchy(
+    final result = await shell.// FIXME: API removed during merge(
       const WorkspaceTypeHierarchyQuery(pattern: 'OrderBook'),
     );
 
@@ -1136,9 +1136,9 @@ value = blend(1.0, 2.0)
       baseOffset: targetOffset,
       extentOffset: targetOffset + 'blend'.length,
     );
-    expect(shell.workspaceRenameQuerySeed, 'blend');
+    expect(shell.// FIXME: API removed during merge, 'blend');
 
-    final preview = await shell.previewWorkspaceRename(
+    final preview = await shell.// FIXME: API removed during merge(
       WorkspaceRenameQuery(
         targetFilePath: 'main.styio',
         targetOffset: targetOffset,
@@ -1149,7 +1149,7 @@ value = blend(1.0, 2.0)
     expect(preview.status, WorkspaceRenameStatus.ready);
     expect(preview.editCount, 2);
 
-    final apply = await shell.applyWorkspaceRename(preview.query);
+    final apply = await shell.// FIXME: API removed during merge(preview.query);
 
     expect(apply.applied, isTrue);
     expect(apply.documentsChanged, 2);
@@ -1216,7 +1216,7 @@ entry = 1
     );
     addTearDown(shell.dispose);
 
-    final result = await shell.collectWorkspaceOutline(
+    final result = await shell.// FIXME: API removed during merge(
       const WorkspaceOutlineQuery(targetFilePath: 'src/main.styio'),
     );
     final item = result.items.firstWhere(
@@ -1290,7 +1290,7 @@ entry = 1
       initialDocument.text.indexOf('<| input'),
     );
 
-    final breadcrumbs = shell.currentWorkspaceBreadcrumbs;
+    final breadcrumbs = shell.// FIXME: API removed during merge;
     final symbol = breadcrumbs.activeSymbol;
 
     expect(breadcrumbs.status, WorkspaceBreadcrumbsStatus.ready);
@@ -1371,7 +1371,7 @@ value = blend(1.0, 2.0)
     );
     addTearDown(shell.dispose);
 
-    final result = await shell.findWorkspaceReferences(
+    final result = await shell.// FIXME: API removed during merge(
       const WorkspaceReferenceSearchQuery(
         pattern: 'blend',
         includeDefinitions: false,
@@ -1457,7 +1457,7 @@ fn run(): f64 {
     );
     addTearDown(shell.dispose);
 
-    final result = await shell.buildWorkspaceCallHierarchy(
+    final result = await shell.// FIXME: API removed during merge(
       const WorkspaceCallHierarchyQuery(pattern: 'blend'),
     );
 
@@ -1530,7 +1530,7 @@ price -> @prices
     );
     addTearDown(shell.dispose);
 
-    final result = await shell.collectWorkspaceProblems(
+    final result = await shell.// FIXME: API removed during merge(
       const WorkspaceProblemsQuery(pattern: 'prices'),
     );
     final problem = result.problems.singleWhere(
@@ -1600,13 +1600,13 @@ value = 1
     );
     addTearDown(shell.dispose);
 
-    final preview = await shell.collectWorkspaceCodeActions(
+    final preview = await shell.// FIXME: API removed during merge(
       const WorkspaceCodeActionsQuery(),
     );
     final action = preview.actions.singleWhere(
       (action) => action.id == 'clean-up-project-imports',
     );
-    final apply = await shell.applyWorkspaceCodeAction(
+    final apply = await shell.// FIXME: API removed during merge(
       query: preview.query,
       actionId: action.id,
     );
@@ -1701,7 +1701,7 @@ value = 1
     );
     expect(recentResult.items.first.filePath, 'src/worker.styio');
 
-    final history = shell.workspaceNavigationHistory;
+    final history = shell.// FIXME: API removed during merge;
     expect(history.canGoBack, isTrue);
     expect(history.canGoForward, isFalse);
     expect(history.recentLocations.first.filePath, 'src/worker.styio');
@@ -1714,7 +1714,7 @@ value = 1
 
     expect(shell.workspaceController.activeFilePath, 'src/main.styio');
     expect(shell.editorController.document.documentId, 'src/main.styio');
-    expect(shell.workspaceNavigationHistory.canGoForward, isTrue);
+    expect(shell.// FIXME: API removed during merge.canGoForward, isTrue);
     expect(
       shell.debugLog.any((entry) => entry.contains('Go Back opened')),
       isTrue,
@@ -1729,7 +1729,7 @@ value = 1
       isTrue,
     );
 
-    final mainLocation = shell.workspaceNavigationHistory.recentLocations
+    final mainLocation = shell.// FIXME: API removed during merge.recentLocations
         .singleWhere((location) => location.filePath == 'src/main.styio');
 
     await shell.openWorkspaceNavigationLocation(mainLocation);
@@ -2298,26 +2298,26 @@ value = 1
     await shell.executeCommand(AppCommandId.refreshModules);
     await shell.executeCommand(AppCommandId.openSettings);
 
-    final hierarchy = await shell.buildWorkspaceTypeHierarchy(
+    final hierarchy = await shell.// FIXME: API removed during merge(
       const WorkspaceTypeHierarchyQuery(pattern: 'MissingType'),
     );
     final implementations = await shell.findWorkspaceImplementations(
       const WorkspaceImplementationQuery(pattern: 'MissingType'),
     );
-    final calls = await shell.buildWorkspaceCallHierarchy(
+    final calls = await shell.// FIXME: API removed during merge(
       const WorkspaceCallHierarchyQuery(pattern: 'missingCall'),
     );
-    final replace = await shell.applyWorkspaceReplace(
+    final replace = await shell.// FIXME: API removed during merge(
       const WorkspaceTextReplaceQuery(pattern: 'absent', replacement: 'next'),
     );
-    final rename = await shell.applyWorkspaceRename(
+    final rename = await shell.// FIXME: API removed during merge(
       const WorkspaceRenameQuery(
         targetFilePath: 'src/main.styio',
         targetOffset: 0,
         newName: 'renamed',
       ),
     );
-    final action = await shell.applyWorkspaceCodeAction(
+    final action = await shell.// FIXME: API removed during merge(
       query: const WorkspaceCodeActionsQuery(pattern: 'none'),
       actionId: 'missing-action',
     );
@@ -2381,10 +2381,10 @@ value = 1
         const WorkspaceQuickOpenQuery(pattern: 'worker'),
       );
 
-      expect(shell.lastCommandPalette, same(palette));
-      expect(shell.lastWorkspaceQuickOpen, same(quickOpen));
+      expect(shell.// FIXME: API removed during merge, same(palette));
+      expect(shell.// FIXME: API removed during merge, same(quickOpen));
       expect(quickOpen.items.single.filePath, 'src/worker.styio');
-      expect(shell.lastWorkspaceRename, isNull);
+      expect(shell.// FIXME: API removed during merge, isNull);
       expect(shell.lastToolchainInstallExecutionResult, isNull);
 
       expect(await shell.selectToolchainCandidate('styio-service'), isNull);
@@ -2637,8 +2637,8 @@ value = 1
       AppCommandId.showWorkspaceTypeHierarchy,
       AppCommandId.showWorkspaceOutline,
       AppCommandId.renameWorkspaceSymbol,
-      AppCommandId.searchWorkspaceSymbols,
-      AppCommandId.findWorkspaceReferences,
+      AppCommandId.// FIXME: API removed during merge,
+      AppCommandId.// FIXME: API removed during merge,
       AppCommandId.showWorkspaceCallHierarchy,
       AppCommandId.searchWorkspace,
       AppCommandId.showWorkspaceProblems,
@@ -2652,8 +2652,8 @@ value = 1
       await shell.executeCommandPaletteItem(_paletteItem(commandId));
     }
 
-    expect(shell.recentCommandIds.length, 20);
-    expect(shell.recentCommandIds.first, AppCommandId.openSettings);
+    expect(shell.// FIXME: API removed during merge.length, 20);
+    expect(shell.// FIXME: API removed during merge.first, AppCommandId.openSettings);
     expect(
       shell.debugLog.any((entry) => entry.contains('Fetch blocked')),
       isTrue,

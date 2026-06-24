@@ -273,7 +273,7 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
         : ProjectKind.package;
     final editorFiles = <String>{
       for (final target in targets) target.filePath,
-    }.toList(growable: false);
+    }.toList();
     if (editorFiles.isEmpty) {
       editorFiles.add(
         _joinPath(_joinPath(rootDirectory.path, 'src'), 'main.styio'),

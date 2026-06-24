@@ -94,6 +94,24 @@ void main() {
     );
   }
 
+  PlatformContextSnapshot createLinuxPlatformContext(String targetId) {
+    return PlatformContextSnapshot.compose(
+      targetId: targetId,
+      fileSystem: FileSystemFacts.linuxDebianArm(targetId: targetId),
+      shell: ShellFacts.linuxDebianArm(
+        targetId: targetId,
+        defaultShellPath: '/bin/sh',
+      ),
+      process: ProcessFacts.linuxDebianArm(targetId: targetId),
+      resource: ResourceFacts.linuxDebianArm(targetId: targetId),
+      network: NetworkFacts.linuxDebianArm(targetId: targetId),
+      clipboard: ClipboardFacts.linuxDebianArm(targetId: targetId),
+      notification: NotificationFacts.linuxDebianArm(targetId: targetId),
+      localService: LocalServiceFacts.linuxDebianArm(targetId: targetId),
+      pty: PtyFacts.linuxDebianArm(targetId: targetId),
+    );
+  }
+
   test(
     'configuration store persists ordinary settings through foundation datastore',
     () async {
@@ -371,6 +389,70 @@ void main() {
     },
   );
 
+  test('shell configuration parses facts and permissive JSON payloads', () {
+    final unsupported = ShellConfiguration.fromFacts(
+      ShellFacts.linuxDebianArm(availableShells: const <ShellExecutableFact>[]),
+    );
+    final fromFacts = ShellConfiguration.fromFacts(
+      ShellFacts.linuxDebianArm(
+        defaultShellPath: '/bin/zsh',
+        availableShells: const <ShellExecutableFact>[
+          ShellExecutableFact(path: '/bin/sh', family: ShellFamily.sh),
+          ShellExecutableFact(
+            path: '/bin/zsh',
+            family: ShellFamily.zsh,
+            isDefault: true,
+          ),
+        ],
+      ),
+    );
+    final parsed = ShellConfiguration.fromJson(
+      <String, Object?>{
+        'defaultProfileId': 'missing',
+        'profiles': <Object?>[
+          <Object?, Object?>{
+            'id': 'pwsh',
+            'executablePath': r'C:\PowerShell\pwsh.exe',
+            'family': 'powershell',
+            'arguments': <Object?>['-NoProfile', 42],
+            'environment': <Object?, Object?>{'PSModulePath': r'C:\Modules'},
+          },
+          'ignored',
+        ],
+        'environmentOverlay': <Object?, Object?>{'LANG': 'C.UTF-8', 1: 2},
+        'loginShell': true,
+        'interactive': true,
+        'timeoutMs': 1250,
+      },
+    );
+    final copied = parsed.copyWith(
+      defaultProfileId: 'pwsh',
+      loginShell: false,
+      interactive: false,
+      timeout: const Duration(seconds: 2),
+    );
+
+    expect(unsupported.defaultProfileId, 'unsupported');
+    expect(unsupported.defaultProfile, isNull);
+    expect(fromFacts.defaultProfileId, 'default');
+    expect(parsed.defaultProfile!.id, 'pwsh');
+    expect(parsed.defaultProfile!.arguments, <String>['-NoProfile', '42']);
+    expect(parsed.defaultProfile!.environment['PSModulePath'], r'C:\Modules');
+    expect(parsed.environmentOverlay, <String, String>{
+      'LANG': 'C.UTF-8',
+      '1': '2',
+    });
+    expect(parsed.loginShell, isTrue);
+    expect(parsed.interactive, isTrue);
+    expect(parsed.timeout, const Duration(milliseconds: 1250));
+    expect(copied.defaultProfileId, 'pwsh');
+    expect(copied.loginShell, isFalse);
+    expect(copied.interactive, isFalse);
+    expect(copied.timeout, const Duration(seconds: 2));
+    expect(shellFamilyFromWireValue('cmd'), ShellFamily.cmd);
+    expect(shellFamilyFromWireValue('unknown-shell'), ShellFamily.unknown);
+  });
+
   test('language service configuration persists fallback mode', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_language_service_configuration_test_',
@@ -454,6 +536,85 @@ void main() {
       expect(resolved.containsKey('REMOVE_ME'), isFalse);
     },
   );
+
+  test('environment variable configuration parses scopes and loose JSON', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_env_configuration_edges_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final firstEnv = fileSystemManager.joinPath(<String>[tempRoot.path, '.env']);
+    final secondEnv = fileSystemManager.joinPath(<String>[
+      tempRoot.path,
+      '.env.local',
+    ]);
+    await fileSystemManager.writeText(firstEnv, "A='one'\n");
+    await fileSystemManager.writeText(secondEnv, 'B=two\n');
+
+    final overlay = EnvironmentVariableOverlay.fromJson(
+      <String, Object?>{
+        'id': 'loose',
+        'scope': 'debug',
+        'target': 'launch',
+        'workspaceId': 'demo',
+        'variables': <Object?, Object?>{'A': 1, 'REMOVE_ME': null},
+        'pathPrepend': <Object?>['/opt/styio/bin', 7],
+        'pathAppend': <Object?>['/workspace/bin'],
+        'envFiles': <Object?>['.env', 3],
+      },
+    );
+    final loaded = await EnvironmentVariableFileLoader(
+      fileSystemManager: fileSystemManager,
+    ).loadAll(<String>[firstEnv, secondEnv]);
+    final resolved = const EnvironmentVariableResolver(
+      pathVariableName: 'Path',
+    ).resolve(
+      inherited: const <String, String>{'Path': r'C:\Windows', 'REMOVE_ME': 'x'},
+      envFileVariables: loaded.map((file) => file.variables),
+      overlays: <EnvironmentVariableOverlay>[overlay],
+      pathSeparator: ';',
+    );
+
+    expect(
+      EnvironmentVariableOverlayScope.values.map((scope) => scope.wireValue),
+      <String>[
+        'user',
+        'workspace',
+        'profile',
+        'task',
+        'debug',
+        'toolchain',
+        'extension',
+      ],
+    );
+    expect(
+      environmentVariableOverlayScopeFromWireValue('profile'),
+      EnvironmentVariableOverlayScope.profile,
+    );
+    expect(
+      environmentVariableOverlayScopeFromWireValue('extension'),
+      EnvironmentVariableOverlayScope.extension,
+    );
+    expect(
+      environmentVariableOverlayScopeFromWireValue('unknown'),
+      EnvironmentVariableOverlayScope.user,
+    );
+    expect(overlay.scope, EnvironmentVariableOverlayScope.debug);
+    expect(overlay.variables, <String, String?>{'A': '1', 'REMOVE_ME': null});
+    expect(overlay.pathPrepend, <String>['/opt/styio/bin', '7']);
+    expect(overlay.envFiles, <String>['.env', '3']);
+    expect(resolved['Path'], r'/opt/styio/bin;7;C:\Windows;/workspace/bin');
+    expect(resolved['A'], '1');
+    expect(resolved['B'], 'two');
+    expect(resolved.containsKey('REMOVE_ME'), isFalse);
+    expect(
+      () => const EnvironmentVariableFileParser().parse(
+        sourcePath: '.env',
+        text: 'MISSING_SEPARATOR',
+      ),
+      throwsFormatException,
+    );
+  });
 
   test('environment variable file parser feeds launch resolver', () {
     final parsed = const EnvironmentVariableFileParser().parse(
@@ -1086,6 +1247,10 @@ REMOVE_ME=from-file
       artifactBytes: artifactBytes,
       expectedSha256: 'not-the-real-checksum',
     );
+    final sizeFailed = const ToolchainArtifactVerifier().verify(
+      artifactBytes: artifactBytes,
+      expectedSizeBytes: artifactBytes.length + 1,
+    );
 
     expect(verified.status, ToolchainArtifactVerificationStatus.verified);
     expect(verified.succeeded, isTrue);
@@ -1096,6 +1261,8 @@ REMOVE_ME=from-file
     );
     expect(failed.status, ToolchainArtifactVerificationStatus.failed);
     expect(failed.message, contains('SHA-256 mismatch'));
+    expect(sizeFailed.status, ToolchainArtifactVerificationStatus.failed);
+    expect(sizeFailed.toJson()['message'], contains('size mismatch'));
   });
 
   test('toolchain install policy blocks untrusted downloads', () {
@@ -1380,6 +1547,124 @@ REMOVE_ME=from-file
     },
   );
 
+  test(
+    'toolchain install executor reports blocked plan and command boundaries',
+    () async {
+      final executor = ToolchainInstallExecutor(
+        platformManagers: await createPlatformManagerBundle(
+          platformContext: createLinuxPlatformContext(
+            'toolchain-install-blocked',
+          ),
+        ),
+      );
+
+      final blocked = await executor.execute(
+        const ToolchainInstallPlan(
+          status: ToolchainInstallPlanStatus.blocked,
+          mode: ToolchainInstallMode.managedDownload,
+          requirement: ToolchainRequirement(kind: ToolchainKind.compiler),
+          message: 'blocked by policy',
+        ),
+      );
+      final disabled = await executor.execute(
+        const ToolchainInstallPlan(
+          status: ToolchainInstallPlanStatus.planned,
+          mode: ToolchainInstallMode.disabled,
+          requirement: ToolchainRequirement(kind: ToolchainKind.compiler),
+        ),
+      );
+      final missingCommand = await executor.execute(
+        const ToolchainInstallPlan(
+          status: ToolchainInstallPlanStatus.planned,
+          mode: ToolchainInstallMode.externalCommand,
+          requirement: ToolchainRequirement(kind: ToolchainKind.compiler),
+          externalCommand: '',
+        ),
+      );
+
+      expect(blocked.status, ToolchainInstallExecutionStatus.blocked);
+      expect(blocked.message, 'blocked by policy');
+      expect(
+        blocked.recoveryActions.map((action) => action.id),
+        contains('configure-managed-download'),
+      );
+      expect(disabled.status, ToolchainInstallExecutionStatus.blocked);
+      expect(disabled.recoveryActions.single.id, 'enable-toolchain-installation');
+      expect(
+        disabled.recoveryActions.single.toJson()['detail'],
+        contains('allow a toolchain installation mode'),
+      );
+      expect(missingCommand.status, ToolchainInstallExecutionStatus.blocked);
+      expect(missingCommand.message, contains('command is missing'));
+      expect(
+        missingCommand.recoveryActions.map((action) => action.id),
+        contains('retry-external-installer'),
+      );
+    },
+  );
+
+  test(
+    'toolchain install executor handles empty artifacts and provenance setup',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) {
+        if (request.uri.path.endsWith('/empty')) {
+          request.response.close();
+          return;
+        }
+        request.response.write('artifact-without-signature');
+        request.response.close();
+      });
+      final executor = ToolchainInstallExecutor(
+        platformManagers: await createPlatformManagerBundle(
+          platformContext: createLinuxPlatformContext(
+            'toolchain-install-provenance',
+          ),
+        ),
+      );
+      final baseUri = 'http://${InternetAddress.loopbackIPv4.address}:'
+          '${server.port}';
+
+      final empty = await executor.execute(
+        ToolchainInstallPlan(
+          status: ToolchainInstallPlanStatus.planned,
+          mode: ToolchainInstallMode.managedDownload,
+          requirement: const ToolchainRequirement(
+            kind: ToolchainKind.languageService,
+          ),
+          downloadUri: Uri.parse('$baseUri/empty'),
+        ),
+      );
+      final missingSignatureUri = await executor.execute(
+        ToolchainInstallPlan(
+          status: ToolchainInstallPlanStatus.planned,
+          mode: ToolchainInstallMode.managedDownload,
+          requirement: const ToolchainRequirement(
+            kind: ToolchainKind.languageService,
+          ),
+          downloadUri: Uri.parse('$baseUri/artifact'),
+          trustedProvenanceKeys: <ToolchainProvenanceTrustRoot>[
+            ToolchainProvenanceTrustRoot(
+              keyId: 'styio-nightly',
+              algorithm: ToolchainProvenanceAlgorithm.ed25519,
+              publicKeyBase64: base64.encode(List<int>.filled(32, 1)),
+            ),
+          ],
+        ),
+      );
+
+      expect(empty.status, ToolchainInstallExecutionStatus.failed);
+      expect(empty.message, contains('empty artifact'));
+      expect(missingSignatureUri.status, ToolchainInstallExecutionStatus.failed);
+      expect(
+        missingSignatureUri.provenanceVerificationStatus,
+        ToolchainProvenanceVerificationStatus.failed,
+      );
+      expect(missingSignatureUri.message, contains('signature URI'));
+    },
+  );
+
   test('toolchain install executor stages managed download artifact', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
@@ -1538,6 +1823,123 @@ REMOVE_ME=from-file
       contains('configure-managed-download'),
     );
     expect(result.message, contains('SHA-256 mismatch'));
+  });
+
+  test('toolchain install executor rejects unsafe archive paths', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final archive = createTarArchive(<String, List<int>>{
+      'bin/styio': utf8.encode('#!/bin/sh\nprintf styio\n'),
+      'vityo-toolchain.json': utf8.encode('{}'),
+    });
+    server.listen((request) {
+      request.response.add(archive);
+      request.response.close();
+    });
+    final platformManagers = await createPlatformManagerBundle(
+      platformContext: createLinuxPlatformContext('toolchain-unsafe-archive'),
+    );
+    final executor = ToolchainInstallExecutor(platformManagers: platformManagers);
+    final uri = Uri.parse(
+      'http://${InternetAddress.loopbackIPv4.address}:${server.port}/styio.tar',
+    );
+
+    final absoluteExecutable = await executor.execute(
+      ToolchainInstallPlan(
+        status: ToolchainInstallPlanStatus.planned,
+        mode: ToolchainInstallMode.managedDownload,
+        requirement: const ToolchainRequirement(
+          kind: ToolchainKind.languageService,
+        ),
+        downloadUri: uri,
+        archiveFormat: ToolchainArchiveFormat.tar,
+        archiveExecutablePath: '/bin/styio',
+      ),
+    );
+    final escapingManifest = await executor.execute(
+      ToolchainInstallPlan(
+        status: ToolchainInstallPlanStatus.planned,
+        mode: ToolchainInstallMode.managedDownload,
+        requirement: const ToolchainRequirement(
+          kind: ToolchainKind.languageService,
+        ),
+        downloadUri: uri,
+        archiveFormat: ToolchainArchiveFormat.tar,
+        archiveExecutablePath: 'bin/styio',
+        archiveManifestPath: '../vityo-toolchain.json',
+      ),
+    );
+    addTearDown(() async {
+      for (final path in <String?>[
+        absoluteExecutable.stagingDirectory,
+        absoluteExecutable.extractionDirectory,
+        escapingManifest.stagingDirectory,
+        escapingManifest.extractionDirectory,
+      ]) {
+        if (path != null && await platformManagers.fileSystem.exists(path)) {
+          await platformManagers.fileSystem.delete(path, recursive: true);
+        }
+      }
+    });
+
+    expect(absoluteExecutable.status, ToolchainInstallExecutionStatus.failed);
+    expect(absoluteExecutable.message, contains('is absolute'));
+    expect(escapingManifest.status, ToolchainInstallExecutionStatus.failed);
+    expect(escapingManifest.extractedExecutablePath, isNotNull);
+    expect(escapingManifest.message, contains('escapes the extraction directory'));
+  });
+
+  test('toolchain install executor rejects archive executable directories', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final archive = createTarArchive(<String, List<int>>{
+      'bin/styio': utf8.encode('#!/bin/sh\nprintf styio\n'),
+    });
+    final archiveSha256 = sha256.convert(archive).toString();
+    server.listen((request) {
+      request.response.add(archive);
+      request.response.close();
+    });
+    final platformManagers = await createPlatformManagerBundle(
+      platformContext: createLinuxPlatformContext(
+        'toolchain-directory-executable',
+      ),
+    );
+    final executor = ToolchainInstallExecutor(platformManagers: platformManagers);
+    final uri = Uri.parse(
+      'http://${InternetAddress.loopbackIPv4.address}:${server.port}/styio.tar',
+    );
+
+    final result = await executor.execute(
+      ToolchainInstallPlan(
+        status: ToolchainInstallPlanStatus.planned,
+        mode: ToolchainInstallMode.managedDownload,
+        requirement: const ToolchainRequirement(
+          kind: ToolchainKind.languageService,
+        ),
+        downloadUri: uri,
+        expectedSha256: archiveSha256,
+        expectedSizeBytes: archive.length,
+        archiveFormat: ToolchainArchiveFormat.tar,
+        archiveExecutablePath: 'bin',
+        markExecutable: true,
+      ),
+    );
+    addTearDown(() async {
+      for (final path in <String?>[
+        result.stagingDirectory,
+        result.extractionDirectory,
+      ]) {
+        if (path != null && await platformManagers.fileSystem.exists(path)) {
+          await platformManagers.fileSystem.delete(path, recursive: true);
+        }
+      }
+    });
+
+    expect(result.status, ToolchainInstallExecutionStatus.failed);
+    expect(result.extractedExecutablePath, endsWith('bin'));
+    expect(result.executablePermissionApplied, isFalse);
+    expect(result.message, contains('not executable'));
   });
 
   test(
@@ -2093,6 +2495,118 @@ REMOVE_ME=from-file
       expect(historyReport.installHistory?.entries.single.succeeded, isTrue);
     },
   );
+
+  test('toolchain manager reports install and recovery edge states', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_toolchain_manager_edge_state_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((request) {
+      request.response.write('plain artifact without manifest');
+      request.response.close();
+    });
+    final configurationStore = await createConfigurationStore(tempRoot);
+    final platformManagers = await createPlatformManagerBundle(
+      platformContext: createLinuxPlatformContext('toolchain-manager-edges'),
+    );
+    final manager = ToolchainManager(
+      configurationStore: ToolchainConfigurationStore(
+        configurationStore: configurationStore,
+      ),
+      platformManagers: platformManagers,
+      workspaceId: 'demo',
+      environmentBuilder: const ToolchainEnvironmentBuilder(
+        inheritedEnvironment: <String, String>{'PATH': '/usr/bin'},
+      ),
+    );
+
+    final notStaged = await manager.installAndRegisterStagedToolchain(
+      const ToolchainInstallPlan(
+        status: ToolchainInstallPlanStatus.planned,
+        mode: ToolchainInstallMode.externalCommand,
+        requirement: ToolchainRequirement(kind: ToolchainKind.runner),
+        externalCommand: '/usr/bin/true',
+      ),
+      toolchainId: 'external-success',
+      displayName: 'External Success',
+    );
+    await manager.registerToolchain(
+      const ToolchainDescriptor(
+        id: 'printf-runner',
+        kind: ToolchainKind.runner,
+        displayName: 'printf',
+        executablePath: '/usr/bin/printf',
+      ),
+      activate: true,
+    );
+    final failedInstall = await manager.executeInstallPlan(
+      const ToolchainInstallPlan(
+        status: ToolchainInstallPlanStatus.planned,
+        mode: ToolchainInstallMode.externalCommand,
+        requirement: ToolchainRequirement(kind: ToolchainKind.runner),
+        externalCommand: '/usr/bin/false',
+      ),
+    );
+    final retryReport = await manager.statusReport(kind: ToolchainKind.runner);
+    await manager.registerToolchain(
+      const ToolchainDescriptor(
+        id: 'false-runner',
+        kind: ToolchainKind.runner,
+        displayName: 'false',
+        executablePath: '/usr/bin/false',
+      ),
+      activate: true,
+    );
+    final unhealthyReport = await manager.statusReport(
+      kind: ToolchainKind.runner,
+      includeHealth: true,
+      probeArguments: const <String>[],
+    );
+    final missingClear = await manager.clearActiveToolchain(
+      ToolchainKind.compiler,
+    );
+    final manifestMissing = await manager.installAndRegisterArchiveManifestToolchain(
+      ToolchainInstallPlan(
+        status: ToolchainInstallPlanStatus.planned,
+        mode: ToolchainInstallMode.managedDownload,
+        requirement: const ToolchainRequirement(
+          kind: ToolchainKind.languageService,
+        ),
+        downloadUri: Uri.parse(
+          'http://${InternetAddress.loopbackIPv4.address}:${server.port}/styio',
+        ),
+        stagedFileName: 'styio',
+      ),
+    );
+    final cleared = await manager.clearCatalog();
+
+    expect(notStaged.status, ToolchainInstallRegistrationStatus.notStaged);
+    expect(notStaged.message, contains('did not produce'));
+    expect(failedInstall.status, ToolchainInstallExecutionStatus.failed);
+    expect(retryReport.recoveryState.kind, ToolchainRecoveryStateKind.retryAvailable);
+    expect(
+      retryReport.recoveryState.actionIds,
+      contains('retry-install-toolchain'),
+    );
+    expect(unhealthyReport.status, ToolchainManagerStatus.unhealthy);
+    expect(
+      unhealthyReport.capability(ToolchainKind.runner)?.state,
+      ToolchainCapabilityState.unhealthy,
+    );
+    expect(
+      unhealthyReport.recoveryState.actionIds,
+      contains('retry-toolchain-health-check'),
+    );
+    expect(missingClear.message, contains('No active compiler toolchain'));
+    expect(
+      manifestMissing.status,
+      ToolchainInstallRegistrationStatus.invalidManifest,
+    );
+    expect(manifestMissing.rolledBack, isTrue);
+    expect(cleared, isTrue);
+  });
 
   test('toolchain manager registers staged managed artifact', () async {
     final tempRoot = await Directory.systemTemp.createTemp(

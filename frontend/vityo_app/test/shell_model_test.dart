@@ -24,6 +24,7 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_executor.dart
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_policy.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/module_host/module_registry.dart';
@@ -1176,6 +1177,472 @@ void main() {
       );
     },
   );
+
+  test(
+    'toolchain command variants and recovery actions dispatch through shell flow',
+    () async {
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final refreshedGraph = _projectGraph(
+        compilerVersion: '0.0.6',
+        compilePlanReady: true,
+      );
+      final shell = _createShell(
+        initialGraph: initialGraph,
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: List<ProjectGraphSnapshot>.filled(6, refreshedGraph),
+        ),
+      );
+      addTearDown(shell.dispose);
+
+      await shell.executeCommand(AppCommandId.pinActiveCompiler);
+      await shell.executeCommand(AppCommandId.clearPinnedCompiler);
+      await shell.executeCommand(AppCommandId.packProject);
+      await shell.executeCommand(AppCommandId.refreshModules);
+      await shell.installManagedCompiler(styioBinaryPath: '/opt/styio/bin/styio');
+      await shell.handleToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
+          id: 'select-existing-toolchain',
+          label: 'Select toolchain',
+          description: 'Open toolchain selection.',
+        ),
+      );
+      await shell.handleToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
+          id: 'use-degraded-mode',
+          label: 'Use degraded mode',
+          description: 'Continue without a managed toolchain.',
+        ),
+      );
+      await shell.handleToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
+          id: 'fix-toolchain-precondition',
+          label: 'Fix precondition',
+          description: 'Resolve missing manifest state.',
+        ),
+      );
+      await shell.handleToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
+          id: 'retry-tool-use',
+          label: 'Retry use',
+          description: 'Retry tool use command.',
+        ),
+      );
+      await shell.handleToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
+          id: 'retry-tool-pin',
+          label: 'Retry pin',
+          description: 'Retry tool pin command.',
+        ),
+      );
+      await shell.handleToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
+          id: 'unknown-recovery-action',
+          label: 'Unknown',
+          description: 'Exercise unknown recovery branch.',
+        ),
+      );
+
+      expect(shell.lastToolchainCommand?.succeeded, isTrue);
+      expect(shell.lastDeploymentCommand?.command, 'pack');
+      expect(
+        shell.debugLog.any((entry) => entry.contains('tool install succeeded')),
+        isTrue,
+      );
+      expect(
+        shell.debugLog.any((entry) => entry.contains('Native bridge')),
+        isTrue,
+      );
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Toolchain selection route requested'),
+        ),
+        isTrue,
+      );
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Toolchain recovery action is not wired'),
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('shell session and file binding edge states log unavailable paths', () async {
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+    );
+    final shell = _createShell(initialGraph: initialGraph);
+    addTearDown(shell.dispose);
+
+    final acceptedSnapshot = shell.acceptEditorExternalChange();
+    await shell.persistEditorSession();
+    final restoredSnapshot = await shell.restoreEditorSession();
+
+    expect(acceptedSnapshot.document, shell.editorController.document);
+    expect(restoredSnapshot, isNull);
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Editor session persistence unavailable'),
+      ),
+      isTrue,
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Editor session restore unavailable'),
+      ),
+      isTrue,
+    );
+  });
+
+  test('save command logs blocked resource-store failures', () async {
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+    );
+    final shell = _createShell(
+      initialGraph: initialGraph,
+      workspaceDocumentStore: const _FailingSaveWorkspaceDocumentStore(),
+    );
+    addTearDown(shell.dispose);
+
+    shell.editorController.insertText('changed');
+    await shell.executeCommand(AppCommandId.save);
+
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Save blocked for')),
+      isTrue,
+    );
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Unable to save')),
+      isTrue,
+    );
+  });
+
+  test('deployment and toolchain command blockers report platform and package state', () {
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+    );
+    final iosShell = _createShell(
+      platformTarget: PlatformTarget.ios,
+      initialGraph: initialGraph,
+    );
+    addTearDown(iosShell.dispose);
+
+    expect(
+      iosShell.blockedReasonForCommand(AppCommandId.useActiveCompiler),
+      contains('does not expose local spio toolchain management'),
+    );
+    expect(
+      iosShell.blockedReasonForCommand(AppCommandId.preparePublish),
+      contains('does not expose local spio deployment commands'),
+    );
+
+    final blockedDistributionShell = _createShell(
+      initialGraph: initialGraph.copyWith(
+        packageDistribution: const PackageDistributionSnapshot(
+          schemaVersion: 1,
+          packages: <PackageDistributionPackageSnapshot>[
+            PackageDistributionPackageSnapshot(
+              packageName: 'demo/core',
+              manifestPath: '/workspace/demo/spio.toml',
+              publishEnabled: false,
+              publishReady: false,
+              blockingReasons: <String>['publish disabled'],
+            ),
+            PackageDistributionPackageSnapshot(
+              packageName: 'demo/cli',
+              manifestPath: '/workspace/demo/cli/spio.toml',
+              publishEnabled: true,
+              publishReady: false,
+            ),
+          ],
+        ),
+      ),
+    );
+    addTearDown(blockedDistributionShell.dispose);
+
+    expect(
+      blockedDistributionShell.blockedReasonForCommand(
+        AppCommandId.preparePublish,
+      ),
+      allOf(contains('No publish-ready package'), contains('demo/core')),
+    );
+
+    final ambiguousDistributionShell = _createShell(
+      initialGraph: initialGraph.copyWith(
+        packageDistribution: const PackageDistributionSnapshot(
+          schemaVersion: 1,
+          packages: <PackageDistributionPackageSnapshot>[
+            PackageDistributionPackageSnapshot(
+              packageName: 'demo/core',
+              manifestPath: '/workspace/demo/spio.toml',
+              publishEnabled: true,
+              publishReady: true,
+            ),
+            PackageDistributionPackageSnapshot(
+              packageName: 'demo/cli',
+              manifestPath: '/workspace/demo/cli/spio.toml',
+              publishEnabled: true,
+              publishReady: true,
+            ),
+          ],
+        ),
+      ),
+    );
+    addTearDown(ambiguousDistributionShell.dispose);
+
+    expect(
+      ambiguousDistributionShell.blockedReasonForCommand(
+        AppCommandId.preparePublish,
+      ),
+      contains('Multiple publish-ready packages'),
+    );
+  });
+
+  test('editor session restore handles empty, missing, and cursor-only snapshots', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_shell_editor_session_edges_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final store = EditorSessionDataStore.fromDataStore(
+      dataStore: FoundationDataStore(
+        resourceCoordinator: FoundationResourceCoordinator(
+          resourceManager: LocalResourceManager(
+            facts: ResourceFacts.linuxDebianArm(
+              systemTempPath: tempRoot.path,
+              homePath: tempRoot.path,
+            ),
+          ),
+          fileSystemManager: fileSystemManager,
+        ),
+        fileSystemManager: fileSystemManager,
+      ),
+    );
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+    );
+    final shell = _createShell(
+      initialGraph: initialGraph,
+      editorSessionDataStore: store,
+      editorSessionWorkspaceId: 'session-edge',
+    );
+    addTearDown(shell.dispose);
+
+    expect(await shell.restoreEditorSession(), isNull);
+    expect(
+      shell.debugLog.any((entry) => entry.contains('No editor session snapshot')),
+      isTrue,
+    );
+
+    await store.saveSession(
+      workspaceId: 'session-edge',
+      snapshot: const EditorSessionSnapshot(
+        activeDocumentId: '/workspace/demo/src/missing.styio',
+        openDocumentIds: <String>['/workspace/demo/src/missing.styio'],
+      ),
+    );
+
+    final missingSnapshot = await shell.restoreEditorSession();
+
+    expect(
+      missingSnapshot?.activeDocumentId,
+      '/workspace/demo/src/missing.styio',
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('document is not available in the workspace'),
+      ),
+      isTrue,
+    );
+
+    await store.saveSession(
+      workspaceId: 'session-edge',
+      snapshot: const EditorSessionSnapshot(
+        activeDocumentId: '/workspace/demo/src/main.styio',
+        openDocumentIds: <String>['/workspace/demo/src/main.styio'],
+        cursorOffsets: <String, int>{'/workspace/demo/src/main.styio': 3},
+      ),
+    );
+
+    final cursorOnlySnapshot = await shell.restoreEditorSession();
+
+    expect(cursorOnlySnapshot?.activeDocumentId, initialGraph.editorFiles.first);
+    expect(shell.editorController.selection.start, 3);
+    expect(shell.editorController.selection.end, 3);
+  });
+
+  test('workspace navigation history trims, forks, and restores ranges', () async {
+    const firstDocumentPath = '/workspace/demo/src/main.styio';
+    const secondDocumentPath = '/workspace/demo/src/feature.styio';
+    const firstDocumentText =
+        '01234567890123456789012345678901234567890123456789'
+        '01234567890123456789012345678901234567890123456789\n';
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+      editorFiles: const <String>[firstDocumentPath, secondDocumentPath],
+    );
+    final shell = _createShell(
+      initialGraph: initialGraph,
+      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          firstDocumentPath: DocumentState(
+            documentId: firstDocumentPath,
+            text: firstDocumentText,
+            revision: 0,
+          ),
+          secondDocumentPath: DocumentState(
+            documentId: secondDocumentPath,
+            text: 'feature document\n',
+            revision: 0,
+          ),
+        },
+      ),
+    );
+    addTearDown(shell.dispose);
+
+    await shell.openWorkspaceNavigationLocation(
+      const WorkspaceNavigationLocation(
+        filePath: secondDocumentPath,
+        range: SourceRange(start: 1, end: 8),
+        line: 0,
+        column: 1,
+        previewText: 'feature document',
+        label: 'Feature range',
+        kind: WorkspaceNavigationLocationKind.symbol,
+      ),
+    );
+    await shell.executeCommand(AppCommandId.navigateBack);
+    await shell.executeCommand(AppCommandId.navigateForward);
+
+    expect(shell.workspaceController.activeFilePath, secondDocumentPath);
+    expect(shell.editorController.selection.start, 1);
+    expect(shell.editorController.selection.end, 8);
+
+    await shell.executeCommand(AppCommandId.navigateBack);
+    expect(shell.workspaceNavigationHistory.canGoForward, isTrue);
+
+    await shell.openWorkspaceNavigationLocation(
+      const WorkspaceNavigationLocation(
+        filePath: firstDocumentPath,
+        range: SourceRange(start: 3, end: 3),
+        line: 0,
+        column: 3,
+        previewText: '0123456789',
+        label: 'Forked range',
+      ),
+    );
+    expect(shell.workspaceNavigationHistory.canGoForward, isFalse);
+
+    for (var index = 0; index < 85; index += 1) {
+      await shell.openWorkspaceNavigationLocation(
+        WorkspaceNavigationLocation(
+          filePath: firstDocumentPath,
+          range: SourceRange(start: index, end: index),
+          line: 0,
+          column: index,
+          previewText: '0123456789',
+          label: 'Trim $index',
+        ),
+      );
+    }
+
+    expect(shell.workspaceNavigationHistory.entries.length, 80);
+  });
+
+  test('shell relays language service status changes', () {
+    final status = ValueNotifier<LanguageServiceStatusSurface>(
+      LanguageServiceStatusSurface.refreshing(),
+    );
+    addTearDown(status.dispose);
+    final initialGraph = _projectGraph(
+      compilerVersion: '0.0.5',
+      compilePlanReady: true,
+    );
+    final shell = _createShell(
+      initialGraph: initialGraph,
+      languageServiceStatus: status,
+    );
+    addTearDown(shell.dispose);
+    var notifications = 0;
+    shell.addListener(() {
+      notifications += 1;
+    });
+
+    status.value = LanguageServiceStatusSurface.unavailable();
+
+    expect(notifications, greaterThan(0));
+  });
+}
+
+ShellModel _createShell({
+  required ProjectGraphSnapshot initialGraph,
+  PlatformTarget platformTarget = PlatformTarget.macos,
+  ProjectGraphAdapter? projectGraphAdapter,
+  WorkspaceDocumentStore? workspaceDocumentStore,
+  WorkspaceController? workspaceController,
+  ToolchainManagementAdapter toolchainManagementAdapter =
+      const _SuccessfulToolchainManagementAdapter(),
+  DependencySourceAdapter dependencySourceAdapter =
+      const _SuccessfulDependencySourceAdapter(),
+  DeploymentAdapter deploymentAdapter = const _SuccessfulDeploymentAdapter(),
+  ExecutionAdapter? executionAdapter,
+  ExecutionAdapterFactory? executionAdapterFactory,
+  ToolchainManager? toolchainManager,
+  ValueNotifier<LanguageServiceStatusSurface>? languageServiceStatus,
+  ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport,
+  EditorSessionDataStore? editorSessionDataStore,
+  String editorSessionWorkspaceId = 'demo',
+}) {
+  final resolvedWorkspaceController =
+      workspaceController ?? WorkspaceController(projectSnapshot: initialGraph);
+  final resolvedExecutionAdapter =
+      executionAdapter ??
+      _RefreshAwareExecutionAdapter(projectGraph: initialGraph);
+  return ShellModel(
+    platformTarget: platformTarget,
+    supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+    projectGraphAdapter:
+        projectGraphAdapter ??
+        _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[initialGraph],
+        ),
+    workspaceController: resolvedWorkspaceController,
+    workspaceDocumentStore:
+        workspaceDocumentStore ?? InMemoryWorkspaceDocumentStore(),
+    moduleRegistry: ModuleRegistry(
+      platformTarget: platformTarget,
+      definitions: const [],
+    ),
+    nativeModuleLoader: NoopNativeModuleLoader(platformTarget: platformTarget),
+    editorController: EditorSessionController(
+      initialDocument: EditorSessionController.seedDocumentForPath(
+        resolvedWorkspaceController.activeFilePath,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    ),
+    executionAdapter: resolvedExecutionAdapter,
+    executionAdapterFactory:
+        executionAdapterFactory ??
+        ((ProjectGraphSnapshot projectGraph) async =>
+            _RefreshAwareExecutionAdapter(projectGraph: projectGraph)),
+    runtimeEventAdapter: createRuntimeEventAdapter(platformTarget: platformTarget),
+    dependencySourceAdapter: dependencySourceAdapter,
+    deploymentAdapter: deploymentAdapter,
+    toolchainManagementAdapter: toolchainManagementAdapter,
+    toolchainManager: toolchainManager,
+    languageServiceStatus: languageServiceStatus,
+    toolchainStatusReport: toolchainStatusReport,
+    editorSessionDataStore: editorSessionDataStore,
+    editorSessionWorkspaceId: editorSessionWorkspaceId,
+  );
 }
 
 ProjectGraphSnapshot _projectGraph({
@@ -1193,6 +1660,7 @@ ProjectGraphSnapshot _projectGraph({
     workspaceRoot: '/workspace/demo',
     workspaceMembers: const <String>[],
     manifestPath: '/workspace/demo/spio.toml',
+    toolchainPinPath: '/workspace/demo/spio-toolchain.toml',
     packages: const <ProjectPackageSnapshot>[],
     dependencies: const <ProjectDependencySnapshot>[],
     targets: <ProjectTargetDescriptor>[
@@ -1235,6 +1703,23 @@ ProjectGraphSnapshot _projectGraph({
     ),
     notes: const <String>[],
   );
+}
+
+class _FailingSaveWorkspaceDocumentStore implements WorkspaceDocumentStore {
+  const _FailingSaveWorkspaceDocumentStore();
+
+  @override
+  Future<DocumentState> loadDocument(String path) async {
+    return EditorSessionController.seedDocumentForPath(path);
+  }
+
+  @override
+  Future<void> saveDocument(DocumentState document) async {
+    throw StateError('Unable to save test document.');
+  }
+
+  @override
+  String? filePathForDocumentId(String documentId) => null;
 }
 
 class _SequenceProjectGraphAdapter implements ProjectGraphAdapter {

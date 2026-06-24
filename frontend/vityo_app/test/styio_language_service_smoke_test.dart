@@ -1784,6 +1784,33 @@ when ready -> state dynamic
 ''');
   });
 
+  test('reports constant boolean equality and numeric comparison conditions', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'constant-comparison-condition.styio',
+      text: '''
+when true == false -> state impossible
+when 3 >= 2 -> state numeric
+''',
+      revision: 0,
+    );
+
+    final diagnostics = service
+        .analyzeDocument(document)
+        .diagnostics
+        .where((diagnostic) => diagnostic.code == 'constant-condition')
+        .toList(growable: false);
+
+    expect(diagnostics.map((diagnostic) => diagnostic.message), [
+      'Styio `when` condition is always false.',
+      'Styio `when` condition is always true.',
+    ]);
+    expect(
+      service.quickFixesForDiagnostic(document, diagnostics[1]).first.label,
+      'Replace condition with true',
+    );
+  });
+
   test('reports constant division by zero in numeric expressions', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(
@@ -4458,6 +4485,28 @@ ready.no
     );
   });
 
+  test('postfix completions scan quoted and nested operands', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'postfix-nested-completion.styio',
+      text: '''
+"ready.value".no
+call("a.b", nested(value)).no
+''',
+      revision: 0,
+    );
+
+    final stringNot = service
+        .completeAt(document, document.text.indexOf('no') + 2)
+        .singleWhere((item) => item.label == '.not');
+    final callNot = service
+        .completeAt(document, document.text.lastIndexOf('no') + 2)
+        .singleWhere((item) => item.label == '.not');
+
+    expect(stringNot.insertText, '!("ready.value")');
+    expect(callNot.insertText, '!(call("a.b", nested(value)))');
+  });
+
   test('matches completion items by contained text and symbol initials', () {
     const service = SimpleStyioLanguageService();
     const document = DocumentState(
@@ -4496,5 +4545,67 @@ rs
         .toSet();
 
     expect(initialsLabels, contains('resource_sink'));
+  });
+
+  test('describes type names and standard resources in hover payloads', () {
+    const service = SimpleStyioLanguageService();
+    const document = DocumentState(
+      documentId: 'hover-type-resource.styio',
+      text: 'price: f64 = 1\nstdout\n',
+      revision: 0,
+    );
+
+    final typeHover = service.hoverAt(document, document.text.indexOf('f64'));
+    final resourceHover = service.hoverAt(
+      document,
+      document.text.indexOf('stdout'),
+    );
+
+    expect(typeHover?.markdown, contains('Type `f64`'));
+    expect(resourceHover?.markdown, contains('Resource identifier `stdout`'));
+  });
+
+  test('removes unreachable last-line and single-line ranges', () {
+    const service = SimpleStyioLanguageService();
+    const lastLineDocument = DocumentState(
+      documentId: 'unreachable-last-line.styio',
+      text: 'value = 1\nstale = 2',
+      revision: 0,
+    );
+    const singleLineDocument = DocumentState(
+      documentId: 'unreachable-single-line.styio',
+      text: 'stale = 2',
+      revision: 0,
+    );
+    final lastLineStart = lastLineDocument.text.indexOf('stale');
+
+    final lastLineFix = service
+        .quickFixesForDiagnostic(
+          lastLineDocument,
+          Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'unreachable-code',
+            message: 'Unreachable last line.',
+            range: SourceRange(
+              start: lastLineStart,
+              end: lastLineDocument.length,
+            ),
+          ),
+        )
+        .single;
+    final singleLineFix = service
+        .quickFixesForDiagnostic(
+          singleLineDocument,
+          const Diagnostic(
+            severity: DiagnosticSeverity.warning,
+            code: 'unreachable-code',
+            message: 'Unreachable only line.',
+            range: SourceRange(start: 0, end: 9),
+          ),
+        )
+        .single;
+
+    expect(applyEdits(lastLineDocument.text, lastLineFix.edits), 'value = 1');
+    expect(applyEdits(singleLineDocument.text, singleLineFix.edits), '');
   });
 }

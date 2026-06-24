@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -355,6 +356,317 @@ void main() {
           .wireValue],
       'signature help unavailable',
     );
+  });
+
+  test('JSONL protocol decodes alias wrappers and conflict payloads', () {
+    const protocol = StyioCliJsonlProtocol();
+    const document = StyioServiceDocument(
+      documentId: 'fixture://alias-facts',
+      text: 'value = 1\nvalue\n',
+      revision: 2,
+      filePath: '/workspace/alias.styio',
+    );
+
+    Map<String, Object?> range(int start, int end) {
+      return <String, Object?>{'start': start, 'end': end};
+    }
+
+    Map<String, Object?> symbol(String name) {
+      return <String, Object?>{
+        'name': name,
+        'kind': 'variable',
+        'nameRange': range(0, 5),
+        'declarationRange': range(0, 9),
+      };
+    }
+
+    final response = protocol.decode(
+      document: document,
+      stdout: <String>[
+        jsonEncode(<String, Object?>{
+          'record': 'facts',
+          'semanticSnapshot': <String, Object?>{
+            'errors': <Object?>[
+              <String, Object?>{
+                'error': <String, Object?>{
+                  'severity': 'warn',
+                  'code': 'styio.alias.warning',
+                  'message': 'alias diagnostic',
+                  'location': <String, Object?>{'offset': '0', 'length': '5'},
+                },
+              },
+            ],
+            'completionItems': <Object?>[
+              <String, Object?>{
+                'item': <String, Object?>{
+                  'name': 'aliasCompletion',
+                  'kind': 'function',
+                },
+              },
+            ],
+            'capabilities': <Object?>[
+              <String, Object?>{
+                'name': 'hover',
+                'status': 'available',
+                'message': 'hover alias available',
+              },
+              <String, Object?>{
+                'formatting': <String, Object?>{
+                  'state': 'available',
+                  'message': 'formatting alias available',
+                },
+              },
+              <String, Object?>{'surround': 'available'},
+            ],
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'type': 'facts',
+          'snapshot': <String, Object?>{
+            'symbols': <Object?>[
+              <String, Object?>{
+                'symbol': <String, Object?>{
+                  'name': 'snapshotValue',
+                  'kind': 'task',
+                  'span': <String, Object?>{
+                    'startOffset': 0,
+                    'endOffset': 5,
+                  },
+                },
+              },
+            ],
+            'referenceSpans': <Object?>[
+              <String, Object?>{
+                'reference': <String, Object?>{
+                  'name': 'snapshotValue',
+                  'kind': 'task',
+                  'span': range(10, 15),
+                  'targetRange': range(0, 5),
+                  'access': 'declaration',
+                },
+              },
+            ],
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'definitionTarget',
+          'definitionTarget': <String, Object?>{
+            'origin': range(10, 15),
+            'symbol': symbol('value'),
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'quickFix',
+          'quickFix': <String, Object?>{
+            'title': 'Quick fix alias',
+            'edits': <Object?>[
+              1,
+              <String, Object?>{
+                'edit': <String, Object?>{
+                  'offset': 10,
+                  'length': 5,
+                  'replacement': 'nextValue',
+                },
+              },
+            ],
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'intention',
+          'intention': <String, Object?>{'label': 'Intention alias'},
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'surroundTemplateItem',
+          'template': <String, Object?>{
+            'key': 'alias-surround',
+            'title': 'Alias surround',
+            'open': '{',
+            'close': '}',
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'renamePlan',
+          'renamePlan': <String, Object?>{
+            'newName': 'nextValue',
+            'target': symbol('value'),
+            'references': <Object?>[
+              <String, Object?>{
+                'name': 'value',
+                'kind': 'variable',
+                'range': range(10, 15),
+                'targetRange': range(0, 5),
+              },
+            ],
+            'conflicts': <Object?>[
+              'invalid',
+              <String, Object?>{
+                'span': range(0, 5),
+                'message': 'rename conflict',
+              },
+            ],
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'safeDeletePlan',
+          'safeDeletePlan': <String, Object?>{
+            'target': symbol('value'),
+            'references': <Object?>[],
+            'conflicts': <Object?>[
+              'invalid',
+              <String, Object?>{
+                'location': range(0, 5),
+                'message': 'delete conflict',
+              },
+            ],
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'inlineVariablePlan',
+          'inlineVariablePlan': <String, Object?>{
+            'target': symbol('value'),
+            'initializerRange': range(8, 9),
+            'initializerText': '1',
+            'references': <Object?>[],
+            'conflicts': <Object?>[
+              'invalid',
+              <String, Object?>{
+                'range': range(0, 5),
+                'message': 'inline conflict',
+              },
+            ],
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'introduceVariablePlan',
+          'introduceVariablePlan': <String, Object?>{
+            'name': 'introduced',
+            'expressionRange': range(10, 15),
+            'expressionText': 'value',
+            'conflicts': <Object?>[
+              'invalid',
+              <String, Object?>{
+                'range': range(10, 15),
+                'message': 'introduce conflict',
+              },
+            ],
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'extractFunctionPlan',
+          'extractFunctionPlan': <String, Object?>{
+            'name': 'readValue',
+            'selectionRange': range(10, 15),
+            'selectedText': 'value',
+            'callText': 'readValue()',
+            'functionText': 'fn readValue() => value',
+            'duplicateOccurrences': <Object?>[
+              'invalid',
+              <String, Object?>{'span': range(10, 15)},
+            ],
+            'conflicts': <Object?>[
+              'invalid',
+              <String, Object?>{
+                'range': range(10, 15),
+                'message': 'extract conflict',
+              },
+            ],
+          },
+        }),
+        jsonEncode(<String, Object?>{
+          'kind': 'changeSignaturePlan',
+          'changeSignaturePlan': <String, Object?>{
+            'target': symbol('value'),
+            'originalName': 'value',
+            'newName': 'nextValue',
+            'newParameters': <Object?>[
+              'invalid',
+              <String, Object?>{'name': 'renamed'},
+            ],
+            'conflicts': <Object?>[
+              'invalid',
+              <String, Object?>{
+                'range': range(0, 5),
+                'message': 'signature conflict',
+              },
+            ],
+          },
+        }),
+      ].join('\n'),
+      stderr: '{not json}\n',
+      exitCode: 0,
+      toolchainSucceeded: true,
+    );
+
+    expect(response.status, StyioServiceStatus.succeeded);
+    expect(response.diagnostics.single.severity, DiagnosticSeverity.warning);
+    expect(response.completions.single.label, 'aliasCompletion');
+    expect(response.documentSymbols.single.kind, SymbolKind.task);
+    expect(response.referenceSpans.single.access, ReferenceAccess.declaration);
+    expect(response.definitionTargets.single.originRange.start, 10);
+    expect(
+      response.codeActions.map((action) => action.label),
+      containsAll(<String>['Quick fix alias', 'Intention alias']),
+    );
+    expect(response.surroundTemplates.single.id, 'alias-surround');
+    expect(
+      response.renamePlans.single.conflicts.single.message,
+      'rename conflict',
+    );
+    expect(
+      response.safeDeletePlans.single.conflicts.single.message,
+      'delete conflict',
+    );
+    expect(
+      response.inlineVariablePlans.single.conflicts.single.message,
+      'inline conflict',
+    );
+    expect(
+      response.introduceVariablePlans.single.conflicts.single.message,
+      'introduce conflict',
+    );
+    expect(
+      response.extractFunctionPlans.single.duplicateOccurrences.single.start,
+      10,
+    );
+    expect(
+      response.changeSignaturePlans.single.newParameters.single.name,
+      'renamed',
+    );
+    expect(response.capabilityStates['hover'], 'available');
+    expect(
+      response.capabilityMessages['formatting'],
+      'formatting alias available',
+    );
+    expect(response.capabilityStates['surround'], 'available');
+  });
+
+  test('document materializer preserves already materialized files', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_styio_materializer_existing_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final materializer = StyioServiceDocumentMaterializer(
+      fileSystemManager: LocalFileSystemManager.linuxDebianArmForTest(),
+      resourceManager: LocalResourceManager(
+        facts: ResourceFacts.linuxDebianArm(
+          systemTempPath: tempRoot.path,
+          homePath: tempRoot.path,
+        ),
+      ),
+    );
+    const document = StyioServiceDocument(
+      documentId: 'fixture://materialized',
+      text: 'value = 1\n',
+      revision: 1,
+      filePath: '/workspace/materialized.styio',
+    );
+
+    final result = await materializer.materialize<String>(
+      document,
+      (materialized) async => materialized.filePath!,
+    );
+
+    expect(result, '/workspace/materialized.styio');
   });
 
   test('JSONL protocol accepts compact parameter info payloads', () {
@@ -1327,6 +1639,274 @@ void main() {
       snapshot.capabilitiesWithUsableResult,
       isNot(contains(StyioServiceCapability.hover)),
     );
+  });
+
+  test('capability detector maps explicit failure and stale state aliases', () {
+    const detector = StyioServiceCapabilityDetector();
+    const response = StyioServiceResponse(
+      status: StyioServiceStatus.succeeded,
+      documentId: 'fixture://explicit-capability-aliases',
+      revision: 1,
+      capabilityStates: <String, String>{
+        'completion': 'supported',
+        'hover': 'unavailable',
+        'semantic_tokens': 'derived',
+        'code_actions': 'error',
+        'rename': 'protocol-error',
+        'safe_delete': 'protocolerror',
+        'inline-variable': 'stale',
+        'formatting': '  ',
+      },
+    );
+
+    final snapshot = detector.detect(
+      response,
+      expectedCapabilities: const <StyioServiceCapability>[
+        StyioServiceCapability.completion,
+        StyioServiceCapability.hover,
+        StyioServiceCapability.semanticTokens,
+        StyioServiceCapability.codeActions,
+        StyioServiceCapability.rename,
+        StyioServiceCapability.safeDelete,
+        StyioServiceCapability.inlineVariable,
+        StyioServiceCapability.formatting,
+      ],
+    );
+
+    expect(
+      snapshot.stateOf(StyioServiceCapability.completion),
+      StyioServiceCapabilityState.available,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.hover),
+      StyioServiceCapabilityState.unavailable,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.semanticTokens),
+      StyioServiceCapabilityState.derived,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.codeActions),
+      StyioServiceCapabilityState.failed,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.rename),
+      StyioServiceCapabilityState.protocolError,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.safeDelete),
+      StyioServiceCapabilityState.protocolError,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.inlineVariable),
+      StyioServiceCapabilityState.stale,
+    );
+    expect(
+      snapshot.stateOf(StyioServiceCapability.formatting),
+      StyioServiceCapabilityState.empty,
+    );
+
+    for (final status in const <StyioServiceStatus>[
+      StyioServiceStatus.unavailable,
+      StyioServiceStatus.failed,
+      StyioServiceStatus.protocolError,
+    ]) {
+      final fallback = detector.detect(
+        StyioServiceResponse(
+          status: status,
+          documentId: 'fixture://fallback-capability-status',
+          revision: 1,
+        ),
+        expectedCapabilities: const <StyioServiceCapability>[
+          StyioServiceCapability.hover,
+        ],
+      );
+      expect(
+        fallback.stateOf(StyioServiceCapability.hover),
+        switch (status) {
+          StyioServiceStatus.unavailable =>
+            StyioServiceCapabilityState.unavailable,
+          StyioServiceStatus.failed => StyioServiceCapabilityState.failed,
+          StyioServiceStatus.protocolError =>
+            StyioServiceCapabilityState.protocolError,
+          StyioServiceStatus.succeeded => StyioServiceCapabilityState.empty,
+          StyioServiceStatus.stale => StyioServiceCapabilityState.stale,
+        },
+      );
+    }
+  });
+
+  test('capability detector marks safe refactor payloads available', () {
+    const detector = StyioServiceCapabilityDetector();
+    const document = DocumentState(
+      documentId: 'fixture://safe-refactor-capabilities',
+      text: 'value := 1\nvalue()\n',
+      revision: 1,
+    );
+    const symbol = DocumentSymbol(
+      name: 'value',
+      kind: SymbolKind.function,
+      nameRange: SourceRange(start: 0, end: 5),
+      declarationRange: SourceRange(start: 0, end: 10),
+    );
+    const reference = ReferenceSpan(
+      name: 'value',
+      kind: SymbolKind.function,
+      range: SourceRange(start: 11, end: 16),
+      targetRange: SourceRange(start: 0, end: 5),
+    );
+    const edit = FormattingEdit(
+      range: SourceRange(start: 11, end: 16),
+      newText: 'nextValue',
+    );
+    const response = StyioServiceResponse(
+      status: StyioServiceStatus.succeeded,
+      documentId: 'fixture://safe-refactor-capabilities',
+      revision: 1,
+      formattingEdits: <FormattingEdit>[
+        FormattingEdit(range: SourceRange(start: 5, end: 5), newText: ' '),
+      ],
+      semanticBlocks: <SemanticBlockRange>[
+        SemanticBlockRange(
+          range: SourceRange(start: 0, end: 18),
+          label: 'function-call',
+        ),
+      ],
+      inlayHints: <InlayHint>[
+        InlayHint(
+          label: ': i64',
+          kind: InlayHintKind.type,
+          position: 5,
+          range: SourceRange(start: 0, end: 5),
+        ),
+      ],
+      definitionTargets: <DefinitionTarget>[
+        DefinitionTarget(
+          symbol: symbol,
+          originRange: SourceRange(start: 11, end: 16),
+        ),
+      ],
+      renamePlans: <RenamePlan>[
+        RenamePlan(
+          target: symbol,
+          newName: 'nextValue',
+          references: <ReferenceSpan>[reference],
+          edits: <FormattingEdit>[edit],
+        ),
+      ],
+      safeDeletePlans: <SafeDeletePlan>[
+        SafeDeletePlan(
+          target: symbol,
+          references: <ReferenceSpan>[reference],
+          edits: <FormattingEdit>[
+            FormattingEdit(range: SourceRange(start: 0, end: 10), newText: ''),
+          ],
+        ),
+      ],
+      inlineVariablePlans: <InlineVariablePlan>[
+        InlineVariablePlan(
+          target: symbol,
+          initializerRange: SourceRange(start: 9, end: 10),
+          initializerText: '1',
+          references: <ReferenceSpan>[reference],
+          edits: <FormattingEdit>[
+            FormattingEdit(
+              range: SourceRange(start: 11, end: 16),
+              newText: '1',
+            ),
+          ],
+        ),
+      ],
+      introduceVariablePlans: <IntroduceVariablePlan>[
+        IntroduceVariablePlan(
+          variableName: 'nextValue',
+          expressionRange: SourceRange(start: 11, end: 16),
+          expressionText: 'value',
+          edits: <FormattingEdit>[edit],
+        ),
+      ],
+      extractFunctionPlans: <ExtractFunctionPlan>[
+        ExtractFunctionPlan(
+          functionName: 'extractValue',
+          selectionRange: SourceRange(start: 11, end: 18),
+          selectedText: 'value()',
+          parameters: <String>[],
+          callText: 'extractValue()',
+          functionText: '#extractValue := () => value()\n',
+          edits: <FormattingEdit>[edit],
+        ),
+      ],
+      changeSignaturePlans: <ChangeSignaturePlan>[
+        ChangeSignaturePlan(
+          target: symbol,
+          originalName: 'value',
+          newName: 'nextValue',
+          originalParameters: <ParameterInfoParameter>[
+            ParameterInfoParameter(
+              name: 'x',
+              range: SourceRange(start: 16, end: 16),
+            ),
+          ],
+          newParameters: <ChangeSignatureParameterUpdate>[
+            ChangeSignatureParameterUpdate(originalName: 'x', name: 'nextX'),
+          ],
+          references: <ReferenceSpan>[reference],
+          edits: <FormattingEdit>[edit],
+        ),
+      ],
+      parameterInfos: <ParameterInfoPayload>[
+        ParameterInfoPayload(
+          callableName: 'value',
+          signature: 'value(x: i64)',
+          parameters: <ParameterInfoParameter>[
+            ParameterInfoParameter(
+              name: 'x',
+              type: 'i64',
+              range: SourceRange(start: 16, end: 16),
+            ),
+          ],
+          activeParameterIndex: 0,
+          invocationRange: SourceRange(start: 11, end: 18),
+          callableRange: SourceRange(start: 11, end: 16),
+        ),
+      ],
+    );
+    const expected = <StyioServiceCapability>[
+      StyioServiceCapability.formatting,
+      StyioServiceCapability.semanticBlocks,
+      StyioServiceCapability.inlayHints,
+      StyioServiceCapability.definition,
+      StyioServiceCapability.rename,
+      StyioServiceCapability.safeDelete,
+      StyioServiceCapability.inlineVariable,
+      StyioServiceCapability.introduceVariable,
+      StyioServiceCapability.extractFunction,
+      StyioServiceCapability.changeSignature,
+      StyioServiceCapability.parameterInfo,
+    ];
+
+    final snapshot = detector.detect(
+      response,
+      document: document,
+      expectedCapabilities: expected,
+    );
+    final rawSnapshot = detector.detect(
+      response,
+      expectedCapabilities: expected,
+    );
+
+    for (final capability in expected) {
+      expect(
+        snapshot.stateOf(capability),
+        StyioServiceCapabilityState.available,
+        reason: capability.wireValue,
+      );
+      expect(
+        rawSnapshot.stateOf(capability),
+        StyioServiceCapabilityState.available,
+        reason: 'raw ${capability.wireValue}',
+      );
+    }
   });
 
   test(

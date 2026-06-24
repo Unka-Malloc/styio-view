@@ -93,4 +93,117 @@ void main() {
       );
     },
   );
+
+  test('hosted execution codec decodes diagnostic fallbacks and logs', () {
+    const activeFilePath =
+        '/tmp/styio-hosted/workspaces/demo-workspace/src/main.styio';
+    final result = executionSessionFromHostedResponse(
+      response: <String, dynamic>{
+        'returncode': 0,
+        'payload': <String, dynamic>{
+          'stdout': ' first line\n\nsecond line ',
+          'stderr': ' warning line\n ',
+          'runtime_events': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'schemaVersion': 2,
+              'sessionId': 'runtime-session',
+              'sequence': 7,
+              'timestamp': 'not-a-date',
+              'event_kind': 'run.started',
+              'payload': <Object?, Object?>{
+                'ok': true,
+                3: 'ignored',
+              },
+            },
+          ],
+          'diagnostics': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'category': 'warning',
+              'text': 'warning text',
+              'code': 'W',
+              'subcode': '001',
+              'span': <String, dynamic>{
+                'start': <String, dynamic>{'offset': 9},
+                'end': <String, dynamic>{'value': 3},
+              },
+            },
+            <String, dynamic>{
+              'category': 'type',
+              'detail': 'type text',
+              'location': <String, dynamic>{'offset': 4, 'length': -9},
+            },
+            <String, dynamic>{
+              'severity': 'runtime',
+              'reason': 'workspace suffix text',
+              'file': '/tmp/hosted-run/workspace/src/main.styio',
+              'range': <String, dynamic>{'startOffset': '1', 'endOffset': '2'},
+            },
+            <String, dynamic>{
+              'raw': 'other file text',
+              'file': '/tmp/hosted-run/workspace/src/other.styio',
+              'range': <String, dynamic>{'start': 0, 'end': 1},
+            },
+            <String, dynamic>{'message': ''},
+          ],
+        },
+      },
+      workflowKind: 'run',
+      successMessage: 'run completed through hosted control plane',
+      documentText: '>_("demo")\n',
+      activeFilePath: activeFilePath,
+    );
+
+    expect(result.session.status, ExecutionSessionStatus.succeeded);
+    expect(result.session.sessionId, isNotEmpty);
+    expect(result.session.statusMessage, contains('completed'));
+    expect(result.session.stdoutEvents.map((event) => event.message), <String>[
+      'first line',
+      'second line',
+    ]);
+    final stderrMessages = result.session.stderrEvents
+        .map((event) => event.message)
+        .toList(growable: false);
+    expect(stderrMessages, contains('warning line'));
+    expect(stderrMessages, contains(contains('other.styio')));
+    expect(result.session.diagnostics, hasLength(3));
+    expect(result.session.diagnostics[0].severity.name, 'warning');
+    expect(result.session.diagnostics[0].code, 'W:001');
+    expect(result.session.diagnostics[0].range.start, 3);
+    expect(result.session.diagnostics[0].range.end, 9);
+    expect(result.session.diagnostics[1].severity.name, 'error');
+    expect(result.session.diagnostics[1].range.start, 4);
+    expect(result.session.diagnostics[1].range.end, 4);
+    expect(result.session.diagnostics[2].message, 'workspace suffix text');
+    expect(result.session.diagnostics[2].range.start, 1);
+    expect(result.session.diagnostics[2].range.end, 2);
+    expect(result.runtimeEvents.single.schemaVersion, 2);
+    expect(result.runtimeEvents.single.sessionId, 'runtime-session');
+    expect(
+      result.runtimeEvents.single.timestamp,
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+    expect(result.runtimeEvents.single.payload, <String, Object?>{'ok': true});
+  });
+
+  test('hosted execution codec uses top level fallback payload fields', () {
+    final result = executionSessionFromHostedResponse(
+      response: <String, dynamic>{
+        'returncode': 1,
+        'stdout': 'top stdout',
+        'stderr': 'top stderr',
+      },
+      workflowKind: 'check',
+      successMessage: 'check completed',
+      documentText: 'abc',
+      activeFilePath: '',
+    );
+
+    expect(result.session.status, ExecutionSessionStatus.failed);
+    expect(result.session.statusMessage, contains('check failed'));
+    expect(result.session.sessionId, isNotEmpty);
+    expect(result.session.stdoutEvents.single.message, 'top stdout');
+    expect(result.session.stderrEvents.single.message, 'top stderr');
+    expect(result.runtimeEvents, isEmpty);
+    expect(result.session.unitRange!.end, 3);
+  });
 }

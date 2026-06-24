@@ -178,4 +178,73 @@ loadPrices = ||> {
     expect(functionResult.definitions.single.name, 'calculate');
     expect(resourceResult.definitions.single.name, 'values');
   });
+
+  test('workspace definition covers empty, no-match, and query helpers', () async {
+    final copied = const WorkspaceDefinitionQuery(
+      pattern: '@old',
+      maxResults: 1,
+    ).copyWith(
+      pattern: r'lib\blend',
+      includeGlobs: const <String>['*.styio'],
+      excludeGlobs: const <String>['skip?.styio'],
+      maxResults: 2,
+    );
+    expect(copied.pattern, r'lib\blend');
+    expect(copied.includeGlobs, const <String>['*.styio']);
+    expect(copied.excludeGlobs, const <String>['skip?.styio']);
+    expect(copied.maxResults, 2);
+
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'main.styio': DocumentState(
+          documentId: 'main.styio',
+          text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+''',
+          revision: 0,
+        ),
+        'skip1.styio': DocumentState(
+          documentId: 'skip1.styio',
+          text: '#skip := () => {}\n',
+          revision: 0,
+        ),
+        'README.md': DocumentState(
+          documentId: 'README.md',
+          text: 'blend docs\n',
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceDefinitionService(documentStore: store);
+
+    final emptyPattern = await service.findDefinitions(
+      filePaths: const <String>['main.styio'],
+      query: const WorkspaceDefinitionQuery(pattern: '   '),
+    );
+    expect(emptyPattern.status, WorkspaceDefinitionStatus.emptyPattern);
+    expect(emptyPattern.message, contains('requires a symbol name'));
+
+    final emptyWorkspace = await service.findDefinitions(
+      filePaths: const <String>['README.md'],
+      query: const WorkspaceDefinitionQuery(pattern: 'blend'),
+    );
+    expect(emptyWorkspace.status, WorkspaceDefinitionStatus.emptyWorkspace);
+
+    final noDefinitions = await service.findDefinitions(
+      filePaths: const <String>['main.styio', 'skip1.styio', 'README.md'],
+      query: copied.copyWith(pattern: 'missing'),
+    );
+    expect(noDefinitions.status, WorkspaceDefinitionStatus.noDefinitions);
+    expect(noDefinitions.message, contains('No workspace definitions'));
+
+    final result = await service.findDefinitions(
+      filePaths: const <String>['main.styio', 'skip1.styio', 'main.styio'],
+      query: copied.copyWith(pattern: 'blend'),
+    );
+    expect(result.status, WorkspaceDefinitionStatus.completed);
+    expect(result.matchedFileCount, 1);
+    expect(result.definitions.single.kindLabel, 'function');
+  });
 }

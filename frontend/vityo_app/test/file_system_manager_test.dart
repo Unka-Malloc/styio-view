@@ -69,6 +69,68 @@ void main() {
     );
   });
 
+  test('file system compatibility handles windows paths and uri support', () {
+    const windows = FileSystemCompatibility(
+      targetId: 'win-test',
+      compatibilityTarget: 'windows-x64',
+      pathStyle: FileSystemPathStyle.windows,
+      pathSeparator: r'\',
+      caseSensitive: false,
+      providerKind: FileSystemProviderKind.local,
+      watchSupport: FileSystemWatchSupport.recursive,
+      supportsFileUri: true,
+      supportsSymbolicLinks: true,
+      supportsAtomicWrite: false,
+    );
+    const noFileUri = FileSystemCompatibility(
+      targetId: 'virtual-test',
+      compatibilityTarget: 'unsupported',
+      pathStyle: FileSystemPathStyle.posix,
+      pathSeparator: '/',
+      caseSensitive: true,
+      providerKind: FileSystemProviderKind.virtual,
+      watchSupport: FileSystemWatchSupport.none,
+      supportsFileUri: false,
+      supportsSymbolicLinks: false,
+      supportsAtomicWrite: false,
+    );
+
+    expect(windows.supportsDirectoryWatch, isTrue);
+    expect(windows.supportsRecursiveWatch, isTrue);
+    expect(windows.isAbsolutePath(r'C:\Project\main.styio'), isTrue);
+    expect(windows.isAbsolutePath(r'\\server\share\main.styio'), isTrue);
+    expect(windows.isAbsolutePath(r'Project\main.styio'), isFalse);
+    expect(
+      windows.normalizePath(r'C:/workspace/../Project/./main.styio'),
+      r'C:\Project\main.styio',
+    );
+    expect(windows.normalizePath(r'.\src\..\main.styio'), 'main.styio');
+    expect(
+      windows.joinPath(<String>[r'C:\Project', 'src', 'main.styio']),
+      r'C:\Project\src\main.styio',
+    );
+    expect(
+      windows.isWithin(r'C:\PROJECT\src\main.styio', r'c:\project'),
+      isTrue,
+    );
+
+    final uri = windows.toFileUri(r'C:\Project\src\main.styio');
+    expect(uri.scheme, 'file');
+    expect(windows.pathFromFileUri(uri), r'C:\Project\src\main.styio');
+    expect(
+      () => windows.pathFromFileUri(Uri.parse('vityo://workspace/main.styio')),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      () => noFileUri.toFileUri('/workspace/main.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    expect(
+      () => noFileUri.pathFromFileUri(Uri.file('/workspace/main.styio')),
+      throwsA(isA<UnsupportedError>()),
+    );
+  });
+
   test('local file system manager reads writes stats and lists files', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_fs_manager_test_',
@@ -92,6 +154,30 @@ void main() {
       manager.joinPath(<String>[tempRoot.path, 'workspace']),
     );
     expect(entries.map((entry) => entry.normalizedPath), contains(filePath));
+
+    final bytesPath = manager.joinPath(<String>[
+      tempRoot.path,
+      'workspace',
+      'bytes.bin',
+    ]);
+    await manager.writeBytes(bytesPath, <int>[1, 2, 3], atomic: false);
+    expect(await manager.readBytes(bytesPath), <int>[1, 2, 3]);
+    await manager.writeText(filePath, 'non-atomic', atomic: false);
+    expect(await manager.readText(filePath), 'non-atomic');
+    await manager.delete(bytesPath);
+    expect((await manager.stat(bytesPath)).exists, isFalse);
+    await manager.delete(bytesPath);
+  });
+
+  test('platform file system manager can be created from a prober', () async {
+    final manager = await createPlatformFileSystemManager(
+      prober: StaticFileSystemProber(
+        FileSystemFacts.linuxDebianArm(targetId: 'probe-fs'),
+      ),
+    );
+
+    expect(manager.facts.targetId, 'probe-fs');
+    expect(manager.compatibility.isLinuxDebianArm, isTrue);
   });
 
   test('file system manager classifies operation failures structurally', () {
@@ -113,6 +199,47 @@ void main() {
       operation: 'watch',
       target: '/workspace',
     );
+    final notFoundFailure = manager.classifyFailure(
+      const FileSystemException(
+        'No such file or directory',
+        '/workspace/missing.styio',
+        OSError('No such file or directory', 2),
+      ),
+      operation: 'readText',
+      target: '/workspace/missing.styio',
+    );
+    final conflictFailure = manager.classifyFailure(
+      const FileSystemException(
+        'File exists',
+        '/workspace/existing.styio',
+        OSError('File exists', 17),
+      ),
+      operation: 'copy',
+      target: '/workspace/existing.styio',
+    );
+    final resourceLimitFailure = manager.classifyFailure(
+      const FileSystemException(
+        'No space left on device',
+        '/workspace/full.styio',
+        OSError('No space left on device', 28),
+      ),
+      operation: 'writeText',
+      target: '/workspace/full.styio',
+    );
+    final readOnlyFailure = manager.classifyFailure(
+      const FileSystemException(
+        'Read-only file system',
+        '/workspace/readonly.styio',
+        OSError('Read-only file system', 30),
+      ),
+      operation: 'writeText',
+      target: '/workspace/readonly.styio',
+    );
+    final unknownFailure = manager.classifyFailure(
+      StateError('not a file system error'),
+      operation: 'readText',
+      target: '/workspace/state.styio',
+    );
 
     expect(permissionFailure.kind, FileSystemFailureKind.permissionDenied);
     expect(permissionFailure.sourceManager, 'LocalFileSystemManager');
@@ -125,6 +252,82 @@ void main() {
     expect(
       unsupportedFailure.toJson()['sourceManager'],
       'UnsupportedFileSystemManager',
+    );
+    expect(notFoundFailure.kind, FileSystemFailureKind.notFound);
+    expect(conflictFailure.kind, FileSystemFailureKind.conflict);
+    expect(
+      resourceLimitFailure.kind,
+      FileSystemFailureKind.resourceLimitReached,
+    );
+    expect(readOnlyFailure.kind, FileSystemFailureKind.readOnlyTarget);
+    expect(unknownFailure.kind, FileSystemFailureKind.unknownFailure);
+  });
+
+  test('unsupported file system manager exposes compatibility only', () async {
+    final manager = UnsupportedFileSystemManager(
+      facts: FileSystemFacts.linuxDebianArm(),
+    );
+
+    expect(
+      manager.normalizePath('/tmp/../workspace/main.styio'),
+      '/workspace/main.styio',
+    );
+    expect(
+      manager.joinPath(<String>['/workspace', 'src', 'main.styio']),
+      '/workspace/src/main.styio',
+    );
+    expect(
+      manager.pathFromFileUri(manager.toFileUri('/workspace/src/main.styio')),
+      '/workspace/src/main.styio',
+    );
+    expect(manager.isWithin('/workspace/src/main.styio', '/workspace'), isTrue);
+    expect(await manager.exists('/workspace/src/main.styio'), isFalse);
+    expect(await manager.isExecutable('/workspace/src/main.styio'), isFalse);
+    expect(await manager.list('/workspace'), isEmpty);
+    final missing = await manager.stat('/workspace/src/main.styio');
+    expect(missing.exists, isFalse);
+    expect(missing.normalizedPath, '/workspace/src/main.styio');
+    expect(await manager.watch('/workspace').toList(), isEmpty);
+
+    await expectLater(
+      manager.createDirectory('/workspace/src'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.delete('/workspace/src/main.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.copy('/workspace/a.styio', '/workspace/b.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.move('/workspace/a.styio', '/workspace/b.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.rename('/workspace/a.styio', '/workspace/b.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.setExecutable('/workspace/tool'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.readText('/workspace/src/main.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.readBytes('/workspace/src/main.styio'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.writeText('/workspace/src/main.styio', 'text'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    await expectLater(
+      manager.writeBytes('/workspace/src/main.styio', <int>[1, 2, 3]),
+      throwsA(isA<UnsupportedError>()),
     );
   });
 
@@ -225,6 +428,113 @@ void main() {
     );
     await manager.copy(source, renamed, overwrite: true);
     expect(await manager.readText(renamed), 'copy-move-ok');
+
+    if (!Platform.isWindows) {
+      await expectLater(
+        manager.setExecutable(
+          manager.joinPath(<String>[tempRoot.path, 'missing-executable']),
+        ),
+        throwsA(isA<FileSystemException>()),
+      );
+
+      final sourceLink = manager.joinPath(<String>[
+        tempRoot.path,
+        'source-link',
+      ]);
+      final copiedLink = manager.joinPath(<String>[
+        tempRoot.path,
+        'copied-link',
+      ]);
+      final movedLink = manager.joinPath(<String>[
+        tempRoot.path,
+        'moved-link',
+      ]);
+      await Link(sourceLink).create(source);
+      expect(
+        (await manager.stat(sourceLink)).type,
+        VityoFileSystemEntityType.link,
+      );
+      await manager.copy(sourceLink, copiedLink);
+      await manager.move(sourceLink, movedLink);
+      expect(await manager.readText(copiedLink), 'copy-move-ok');
+      expect((await manager.stat(movedLink)).exists, isTrue);
+      expect(await manager.exists(sourceLink), isFalse);
+
+      final pipePath = manager.joinPath(<String>[tempRoot.path, 'source-pipe']);
+      final pipeResult = await Process.run('mkfifo', <String>[pipePath]);
+      if (pipeResult.exitCode == 0) {
+        expect(
+          (await manager.stat(pipePath)).type,
+          VityoFileSystemEntityType.other,
+        );
+        await expectLater(
+          manager.copy(
+            pipePath,
+            manager.joinPath(<String>[tempRoot.path, 'copied-pipe']),
+          ),
+          throwsA(isA<FileSystemException>()),
+        );
+        await expectLater(
+          manager.move(
+            pipePath,
+            manager.joinPath(<String>[tempRoot.path, 'moved-pipe']),
+          ),
+          throwsA(isA<FileSystemException>()),
+        );
+      }
+    }
+
+    final sourceDirectory = manager.joinPath(<String>[
+      tempRoot.path,
+      'source-directory',
+    ]);
+    final nestedFile = manager.joinPath(<String>[
+      sourceDirectory,
+      'nested',
+      'child.txt',
+    ]);
+    final copiedDirectory = manager.joinPath(<String>[
+      tempRoot.path,
+      'copied-directory',
+    ]);
+    final movedDirectory = manager.joinPath(<String>[
+      tempRoot.path,
+      'moved-directory',
+    ]);
+    await manager.writeText(nestedFile, 'directory-copy');
+    await manager.copy(sourceDirectory, copiedDirectory);
+    expect(
+      await manager.readText(
+        manager.joinPath(<String>[
+          copiedDirectory,
+          'nested',
+          'child.txt',
+        ]),
+      ),
+      'directory-copy',
+    );
+    await manager.move(copiedDirectory, movedDirectory);
+    expect(await manager.exists(copiedDirectory), isFalse);
+    expect(await manager.exists(movedDirectory), isTrue);
+    await manager.copy(sourceDirectory, movedDirectory, overwrite: true);
+    expect(await manager.exists(movedDirectory), isTrue);
+    await manager.delete(movedDirectory, recursive: true);
+    expect(await manager.exists(movedDirectory), isFalse);
+
+    await expectLater(
+      manager.copy(
+        manager.joinPath(<String>[tempRoot.path, 'missing.txt']),
+        manager.joinPath(<String>[tempRoot.path, 'missing-copy.txt']),
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    await expectLater(
+      manager.move(
+        manager.joinPath(<String>[tempRoot.path, 'missing.txt']),
+        manager.joinPath(<String>[tempRoot.path, 'missing-move.txt']),
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
   });
 
   test('workspace document store uses file system manager route', () async {

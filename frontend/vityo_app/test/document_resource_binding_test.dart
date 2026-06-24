@@ -6,6 +6,54 @@ import 'package:vityo_app/src/interaction/document_resource_binding.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store_types.dart';
 
 void main() {
+  test('binds loaded and untitled documents with snapshot helpers', () {
+    const loaded = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value := 1\n',
+      revision: 2,
+    );
+    const untitled = DocumentState(
+      documentId: 'untitled://scratch',
+      text: 'scratch',
+      revision: 0,
+    );
+    final binding = EditorDocumentResourceBinding.withResourceStore(
+      resourceStore: _WatchingDocumentResourceStore(),
+    );
+
+    final loadedSnapshot = binding.bindLoadedDocument(loaded);
+    expect(loadedSnapshot.canSave, isTrue);
+    expect(binding.isBound, isTrue);
+    expect(binding.isDirty, isFalse);
+
+    final dirty = loaded.replaceRange(
+      start: loaded.text.indexOf('1'),
+      end: loaded.text.indexOf('1') + 1,
+      replacement: '2',
+    );
+    final dirtySnapshot = binding.markDocumentChanged(dirty);
+    expect(dirtySnapshot.canSave, isTrue);
+    expect(binding.isDirty, isTrue);
+
+    final failedSnapshot = dirtySnapshot.copyWith(
+      failureKind: DocumentResourceBindingFailureKind.conflict,
+      failureMessage: 'conflict',
+      externalDocument: loaded,
+    );
+    expect(failedSnapshot.hasFailure, isTrue);
+    expect(failedSnapshot.hasExternalChange, isTrue);
+    final cleared = failedSnapshot.copyWith(
+      clearFailure: true,
+      clearExternalDocument: true,
+    );
+    expect(cleared.hasFailure, isFalse);
+    expect(cleared.hasExternalChange, isFalse);
+
+    final untitledSnapshot = binding.bindUntitled(untitled);
+    expect(untitledSnapshot.canSave, isFalse);
+    expect(binding.isBound, isFalse);
+  });
+
   test('opens a workspace document and saves dirty editor content', () async {
     const initial = DocumentState(
       documentId: 'src/main.styio',
@@ -136,6 +184,85 @@ void main() {
     );
   });
 
+  test('reports open and save preflight failures', () async {
+    const initial = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value := 1\n',
+      revision: 0,
+    );
+    final binding = EditorDocumentResourceBinding.withResourceStore(
+      resourceStore: _FailingDocumentResourceStore(loadFails: true),
+    );
+
+    final openResult = await binding.open(initial.documentId);
+    expect(openResult.opened, isFalse);
+    expect(
+      openResult.failureKind,
+      DocumentResourceBindingFailureKind.loadFailed,
+    );
+    expect(openResult.error, isA<StateError>());
+
+    final unboundBinding = EditorDocumentResourceBinding.withResourceStore(
+      resourceStore: _WatchingDocumentResourceStore(),
+    );
+    final unboundSave = await unboundBinding.save(initial);
+    expect(unboundSave.failureKind, DocumentResourceBindingFailureKind.unbound);
+
+    final store = _WatchingDocumentResourceStore(
+      seededDocuments: <String, DocumentState>{initial.documentId: initial},
+    );
+    final openedBinding = EditorDocumentResourceBinding.withResourceStore(
+      resourceStore: store,
+    );
+    await openedBinding.open(initial.documentId);
+    final mismatchSave = await openedBinding.save(
+      const DocumentState(
+        documentId: 'src/other.styio',
+        text: 'other',
+        revision: 0,
+      ),
+    );
+    expect(
+      mismatchSave.failureKind,
+      DocumentResourceBindingFailureKind.resourceMismatch,
+    );
+    expect(
+      () => openedBinding.markDocumentChanged(
+        const DocumentState(
+          documentId: 'src/other.styio',
+          text: 'other',
+          revision: 1,
+        ),
+      ),
+      throwsArgumentError,
+    );
+
+    final pendingStore = _PendingDocumentResourceStore(initial);
+    final pendingBinding = EditorDocumentResourceBinding.withResourceStore(
+      resourceStore: pendingStore,
+    );
+    final pendingOpen = pendingBinding.open(initial.documentId);
+    final bindingSave = await pendingBinding.save(initial);
+    expect(bindingSave.failureKind, DocumentResourceBindingFailureKind.binding);
+    pendingStore.complete();
+    await pendingOpen;
+
+    final saveFailingBinding = EditorDocumentResourceBinding.withResourceStore(
+      resourceStore: _FailingDocumentResourceStore(
+        seededDocuments: <String, DocumentState>{initial.documentId: initial},
+        saveFails: true,
+      ),
+    );
+    await saveFailingBinding.open(initial.documentId);
+    final failedSave = await saveFailingBinding.save(initial);
+    expect(failedSave.saved, isFalse);
+    expect(
+      failedSave.failureKind,
+      DocumentResourceBindingFailureKind.saveFailed,
+    );
+    expect(failedSave.error, isA<StateError>());
+  });
+
   test('resource watch events update binding state', () async {
     const initial = DocumentState(
       documentId: 'src/main.styio',
@@ -176,6 +303,18 @@ void main() {
       binding.snapshot.state,
       DocumentResourceBindingState.providerUnavailable,
     );
+
+    store.emit(const DocumentResourceEvent.providerAvailable());
+    expect(binding.snapshot.state, DocumentResourceBindingState.boundDirty);
+
+    store.emit(const DocumentResourceEvent.readonly());
+    expect(binding.snapshot.state, DocumentResourceBindingState.readonly);
+
+    store.emit(const DocumentResourceEvent.writable());
+    expect(binding.snapshot.state, DocumentResourceBindingState.boundDirty);
+
+    store.emit(const DocumentResourceEvent.deletedOnDisk());
+    expect(binding.snapshot.state, DocumentResourceBindingState.deletedOnDisk);
   });
 }
 
@@ -208,5 +347,48 @@ class _WatchingDocumentResourceStore implements DocumentResourceStore {
   @override
   Stream<DocumentResourceEvent> watchResource(String resourceId) {
     return _events.stream;
+  }
+}
+
+class _FailingDocumentResourceStore extends _WatchingDocumentResourceStore {
+  _FailingDocumentResourceStore({
+    super.seededDocuments,
+    this.loadFails = false,
+    this.saveFails = false,
+  });
+
+  final bool loadFails;
+  final bool saveFails;
+
+  @override
+  Future<DocumentState> loadDocument(String resourceId) async {
+    if (loadFails) {
+      throw StateError('load failed');
+    }
+    return super.loadDocument(resourceId);
+  }
+
+  @override
+  Future<void> saveDocument(DocumentState document) async {
+    if (saveFails) {
+      throw StateError('save failed');
+    }
+    await super.saveDocument(document);
+  }
+}
+
+class _PendingDocumentResourceStore extends _WatchingDocumentResourceStore {
+  _PendingDocumentResourceStore(this.document);
+
+  final DocumentState document;
+  final Completer<DocumentState> _loadCompleter = Completer<DocumentState>();
+
+  void complete() {
+    _loadCompleter.complete(document);
+  }
+
+  @override
+  Future<DocumentState> loadDocument(String resourceId) {
+    return _loadCompleter.future;
   }
 }

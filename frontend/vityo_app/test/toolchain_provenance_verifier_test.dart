@@ -67,6 +67,60 @@ void main() {
   );
 
   test(
+    'toolchain provenance verifier reports malformed payload boundaries',
+    () async {
+      const verifier = ToolchainProvenanceVerifier();
+      final noRoots = await verifier.verify(
+        artifactBytes: utf8.encode('styio artifact'),
+        signaturePayload: '{}',
+        trustRoots: const <ToolchainProvenanceTrustRoot>[],
+      );
+      final unsupportedAlgorithm = await verifier.verify(
+        artifactBytes: utf8.encode('styio artifact'),
+        signaturePayload: jsonEncode(<String, Object?>{
+          'version': 1,
+          'algorithm': 'rsa',
+          'keyId': 'styio-nightly-test',
+          'signature': base64.encode(List<int>.filled(64, 1)),
+        }),
+        trustRoots: <ToolchainProvenanceTrustRoot>[
+          ToolchainProvenanceTrustRoot(
+            keyId: 'styio-nightly-test',
+            algorithm: ToolchainProvenanceAlgorithm.ed25519,
+            publicKeyBase64: base64.encode(List<int>.filled(32, 1)),
+          ),
+        ],
+      );
+      final malformedSignature = await verifier.verify(
+        artifactBytes: utf8.encode('styio artifact'),
+        signaturePayload: jsonEncode(<String, Object?>{
+          'version': 1,
+          'algorithm': 'ed25519',
+          'keyId': 'styio-nightly-test',
+          'signature': 'not base64',
+        }),
+        trustRoots: <ToolchainProvenanceTrustRoot>[
+          ToolchainProvenanceTrustRoot(
+            keyId: 'styio-nightly-test',
+            algorithm: ToolchainProvenanceAlgorithm.ed25519,
+            publicKeyBase64: base64.encode(List<int>.filled(32, 1)),
+          ),
+        ],
+      );
+
+      expect(noRoots.status, ToolchainProvenanceVerificationStatus.failed);
+      expect(noRoots.toJson()['succeeded'], isFalse);
+      expect(noRoots.toJson()['message'], contains('no trusted keys'));
+      expect(
+        unsupportedAlgorithm.message,
+        contains('Unsupported toolchain provenance signature algorithm'),
+      );
+      expect(malformedSignature.status, ToolchainProvenanceVerificationStatus.failed);
+      expect(malformedSignature.message, contains('Invalid character'));
+    },
+  );
+
+  test(
     'toolchain install policy blocks required provenance without trust roots',
     () {
       const policy = ToolchainInstallPolicy(
@@ -158,6 +212,114 @@ void main() {
       expect(result.provenanceKeyId, 'styio-nightly-test');
       expect(result.stagedPath, isNotNull);
       expect(await File(result.stagedPath!).readAsString(), 'styio artifact');
+    },
+  );
+
+  test(
+    'toolchain install executor reports provenance signature fetch failures',
+    () async {
+      final platformManagers = await createDetectedPlatformManagerBundle(
+        targetId: 'toolchain-provenance-fetch-failure',
+      );
+      final artifactBytes = utf8.encode('styio artifact');
+      final artifactUri = Uri.parse('https://downloads.vityo.dev/styio');
+      final signatureUri = Uri.parse('https://downloads.vityo.dev/styio.sig');
+      final executor = ToolchainInstallExecutor(
+        platformManagers: platformManagers.copyWithNetwork(
+          _MemoryNetworkManager(
+            delegate: platformManagers.network,
+            responses: <Uri, List<int>>{artifactUri: artifactBytes},
+          ),
+        ),
+      );
+
+      final result = await executor.execute(
+        ToolchainInstallPlan(
+          status: ToolchainInstallPlanStatus.planned,
+          mode: ToolchainInstallMode.managedDownload,
+          requirement: const ToolchainRequirement(
+            kind: ToolchainKind.languageService,
+          ),
+          downloadUri: artifactUri,
+          expectedSha256: sha256.convert(artifactBytes).toString(),
+          expectedSizeBytes: artifactBytes.length,
+          provenanceSignatureUri: signatureUri,
+          trustedProvenanceKeys: <ToolchainProvenanceTrustRoot>[
+            ToolchainProvenanceTrustRoot(
+              keyId: 'styio-nightly-test',
+              algorithm: ToolchainProvenanceAlgorithm.ed25519,
+              publicKeyBase64: base64.encode(List<int>.filled(32, 1)),
+            ),
+          ],
+        ),
+      );
+
+      expect(result.status, ToolchainInstallExecutionStatus.failed);
+      expect(
+        result.provenanceVerificationStatus,
+        ToolchainProvenanceVerificationStatus.failed,
+      );
+      expect(result.provenanceResponse?.statusCode, 404);
+      expect(result.platformFailure?['kind'], 'httpStatus');
+      expect(result.message, contains('Missing memory network response'));
+    },
+  );
+
+  test(
+    'toolchain install executor reports untrusted provenance signatures',
+    () async {
+      final platformManagers = await createDetectedPlatformManagerBundle(
+        targetId: 'toolchain-provenance-untrusted',
+      );
+      final artifactBytes = utf8.encode('styio artifact');
+      final artifactUri = Uri.parse('https://downloads.vityo.dev/styio');
+      final signatureUri = Uri.parse('https://downloads.vityo.dev/styio.sig');
+      final signaturePayload = jsonEncode(<String, Object?>{
+        'version': 1,
+        'algorithm': 'ed25519',
+        'keyId': 'untrusted-key',
+        'signature': base64.encode(List<int>.filled(64, 2)),
+      });
+      final executor = ToolchainInstallExecutor(
+        platformManagers: platformManagers.copyWithNetwork(
+          _MemoryNetworkManager(
+            delegate: platformManagers.network,
+            responses: <Uri, List<int>>{
+              artifactUri: artifactBytes,
+              signatureUri: utf8.encode(signaturePayload),
+            },
+          ),
+        ),
+      );
+
+      final result = await executor.execute(
+        ToolchainInstallPlan(
+          status: ToolchainInstallPlanStatus.planned,
+          mode: ToolchainInstallMode.managedDownload,
+          requirement: const ToolchainRequirement(
+            kind: ToolchainKind.languageService,
+          ),
+          downloadUri: artifactUri,
+          expectedSha256: sha256.convert(artifactBytes).toString(),
+          expectedSizeBytes: artifactBytes.length,
+          provenanceSignatureUri: signatureUri,
+          trustedProvenanceKeys: <ToolchainProvenanceTrustRoot>[
+            ToolchainProvenanceTrustRoot(
+              keyId: 'styio-nightly-test',
+              algorithm: ToolchainProvenanceAlgorithm.ed25519,
+              publicKeyBase64: base64.encode(List<int>.filled(32, 1)),
+            ),
+          ],
+        ),
+      );
+
+      expect(result.status, ToolchainInstallExecutionStatus.failed);
+      expect(
+        result.provenanceVerificationStatus,
+        ToolchainProvenanceVerificationStatus.failed,
+      );
+      expect(result.message, contains('is not trusted'));
+      expect(result.stagedPath, isNull);
     },
   );
 }

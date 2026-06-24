@@ -14,6 +14,9 @@ import 'package:vityo_app/src/backend_toolchain/runtime_event_adapter.dart';
 import 'package:vityo_app/src/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
+import 'package:vityo_app/src/module_host/module_capability_matrix.dart';
+import 'package:vityo_app/src/module_host/module_definition.dart';
+import 'package:vityo_app/src/module_host/module_manifest.dart';
 import 'package:vityo_app/src/module_host/module_registry.dart';
 import 'package:vityo_app/src/platform/native_module_loader.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
@@ -34,6 +37,62 @@ void main() {
         await tester.pumpAndSettle();
       }
     }
+  }
+
+  Future<void> revealMobileBottomSurface(WidgetTester tester) async {
+    final mobileScroll = find.byKey(const ValueKey('shell-mobile-scroll'));
+    expect(mobileScroll, findsOneWidget);
+    final scrollable = find.descendant(
+      of: mobileScroll,
+      matching: find.byType(Scrollable),
+    );
+    final scrollableState = tester.state<ScrollableState>(scrollable.first);
+    scrollableState.position.jumpTo(scrollableState.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> focusSourceBuffer(WidgetTester tester) async {
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-surface')),
+        matching: find.text('Source Buffer'),
+      ),
+    );
+    await tester.pump();
+  }
+
+  Future<void> sendShortcut(
+    WidgetTester tester,
+    LogicalKeyboardKey key, {
+    bool control = false,
+    bool alt = false,
+    bool shift = false,
+  }) async {
+    if (control) {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    }
+    if (alt) {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    }
+    if (shift) {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    }
+    await tester.sendKeyEvent(key);
+    if (shift) {
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    }
+    if (alt) {
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    }
+    if (control) {
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    }
+    await tester.pump();
+  }
+
+  Future<void> pumpKeyboardSurface(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
   }
 
   List<Color?> backgroundsForTextOnLine(
@@ -208,12 +267,40 @@ void main() {
     );
   }
 
-  Future<AppBootstrap> createBootstrap(PlatformTarget target) async {
-    final projectSnapshot = createProjectSnapshot(target);
-    final workspaceController = WorkspaceController(
-      projectSnapshot: projectSnapshot,
+  ProjectGraphSnapshot createReadmeOnlyProjectSnapshot() {
+    const root = '/workspace/readme-only';
+    const activeFile = '$root/README.md';
+    return const ProjectGraphSnapshot(
+      id: '$root/spio.toml',
+      title: 'Readme Only Project',
+      kind: ProjectKind.scratch,
+      workspaceRoot: root,
+      workspaceMembers: <String>[],
+      packages: <ProjectPackageSnapshot>[],
+      dependencies: <ProjectDependencySnapshot>[],
+      targets: <ProjectTargetDescriptor>[],
+      editorFiles: <String>[activeFile],
+      toolchain: ToolchainStatusSnapshot(
+        source: ToolchainResolutionSource.unavailable,
+        detail: 'No Styio files are present in this smoke fixture.',
+      ),
+      lockState: ProjectLockState.missing,
+      vendorState: ProjectVendorState.missing,
+      notes: <String>['Fixture intentionally contains no Styio files.'],
     );
-    final projectGraphAdapter = _FakeProjectGraphAdapter(projectSnapshot);
+  }
+
+  Future<AppBootstrap> createBootstrap(
+    PlatformTarget target, {
+    ProjectGraphSnapshot? projectSnapshot,
+    List<AdapterCapabilitySnapshot>? supplementalCapabilities,
+    List<ModuleDefinition> moduleDefinitions = const <ModuleDefinition>[],
+  }) async {
+    final project = projectSnapshot ?? createProjectSnapshot(target);
+    final workspaceController = WorkspaceController(
+      projectSnapshot: project,
+    );
+    final projectGraphAdapter = _FakeProjectGraphAdapter(project);
     final toolchainStatusReport = ValueNotifier<ToolchainManagerStatusReport>(
       const ToolchainManagerStatusReport(
         status: ToolchainManagerStatus.ready,
@@ -254,25 +341,30 @@ void main() {
       platformTarget: target,
       moduleRegistry: ModuleRegistry(
         platformTarget: target,
-        definitions: const [],
+        definitions: moduleDefinitions,
       ),
       nativeModuleLoader: NoopNativeModuleLoader(platformTarget: target),
       projectGraphAdapter: projectGraphAdapter,
-      supplementalAdapterCapabilities: normalizeCapabilitySnapshots([
-        buildFfiAdapterCapability(
-          visible: target != PlatformTarget.ios && target != PlatformTarget.web,
-          executionSlotVisible:
-              target != PlatformTarget.ios && target != PlatformTarget.web,
-          detail: 'Smoke test FFI slot stays deferred.',
-        ),
-        buildCloudAdapterCapability(
-          supportsCloudExecution:
-              target == PlatformTarget.ios || target == PlatformTarget.android,
-          supportsHostedProjectGraph:
-              target == PlatformTarget.ios || target == PlatformTarget.web,
-          detail: 'Smoke test cloud route remains illustrative.',
-        ),
-      ]),
+      supplementalAdapterCapabilities:
+          supplementalCapabilities ??
+          normalizeCapabilitySnapshots([
+            buildFfiAdapterCapability(
+              visible:
+                  target != PlatformTarget.ios && target != PlatformTarget.web,
+              executionSlotVisible:
+                  target != PlatformTarget.ios &&
+                  target != PlatformTarget.web,
+              detail: 'Smoke test FFI slot stays deferred.',
+            ),
+            buildCloudAdapterCapability(
+              supportsCloudExecution:
+                  target == PlatformTarget.ios ||
+                  target == PlatformTarget.android,
+              supportsHostedProjectGraph:
+                  target == PlatformTarget.ios || target == PlatformTarget.web,
+              detail: 'Smoke test cloud route remains illustrative.',
+            ),
+          ]),
       workspaceController: workspaceController,
       workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
       editorController: EditorSessionController(
@@ -290,6 +382,81 @@ void main() {
       toolchainManagementAdapter: const _FakeToolchainManagementAdapter(),
       toolchainStatusReport: toolchainStatusReport,
     );
+  }
+
+  List<ModuleDefinition> createSmokeModuleDefinitions() {
+    const desktopMountedRule = ModuleCapabilityRule(
+      supported: true,
+      visible: true,
+      installable: true,
+      mountedByDefault: true,
+      iosSafe: false,
+      distributionChannel: 'nightly',
+      note: 'Desktop runtime bridge is mounted for smoke coverage.',
+    );
+    const desktopVisibleRule = ModuleCapabilityRule(
+      supported: true,
+      visible: true,
+      installable: true,
+      mountedByDefault: false,
+      iosSafe: false,
+      distributionChannel: 'preview',
+      note: 'Agent prompt kit is visible but left unmounted by default.',
+    );
+    const hiddenMobileRule = ModuleCapabilityRule(
+      supported: false,
+      visible: false,
+      installable: false,
+      mountedByDefault: false,
+      iosSafe: true,
+      distributionChannel: 'blocked',
+      note: 'Desktop-only smoke module stays hidden on mobile targets.',
+    );
+
+    return const <ModuleDefinition>[
+      ModuleDefinition(
+        manifest: ModuleManifest(
+          moduleId: 'smoke.runtime.bridge',
+          displayName: 'Smoke Runtime Bridge',
+          version: '0.0.1',
+          kind: ModuleKind.core,
+          slot: ModuleSlot.localRuntime,
+          description: 'Provides a local runtime bridge for smoke coverage.',
+          enabledByDefault: true,
+          entrypoint: 'package:smoke/runtime_bridge.dart',
+          distributionPolicyRef: 'desktop-nightly',
+          capabilityFlags: <String, bool>{'runtime': true},
+        ),
+        matrix: ModuleCapabilityMatrix(
+          moduleId: 'smoke.runtime.bridge',
+          platforms: <PlatformTarget, ModuleCapabilityRule>{
+            PlatformTarget.macos: desktopMountedRule,
+            PlatformTarget.android: hiddenMobileRule,
+          },
+        ),
+      ),
+      ModuleDefinition(
+        manifest: ModuleManifest(
+          moduleId: 'smoke.agent.prompts',
+          displayName: 'Smoke Agent Prompts',
+          version: '0.0.1',
+          kind: ModuleKind.optional,
+          slot: ModuleSlot.agentSurface,
+          description: 'Provides prompt routing slots for smoke coverage.',
+          enabledByDefault: false,
+          entrypoint: 'package:smoke/agent_prompts.dart',
+          distributionPolicyRef: 'desktop-preview',
+          capabilityFlags: <String, bool>{'agent': true},
+        ),
+        matrix: ModuleCapabilityMatrix(
+          moduleId: 'smoke.agent.prompts',
+          platforms: <PlatformTarget, ModuleCapabilityRule>{
+            PlatformTarget.macos: desktopVisibleRule,
+            PlatformTarget.android: hiddenMobileRule,
+          },
+        ),
+      ),
+    ];
   }
 
   Future<AppBootstrap> createLiveWorkflowBootstrap(
@@ -498,6 +665,62 @@ void main() {
     );
   }
 
+  Future<DocumentState> seedWorkspaceSurfaceFixture(
+    AppBootstrap bootstrap,
+  ) async {
+    final project = bootstrap.workspaceController.activeProject;
+    final mainPath = bootstrap.workspaceController.activeFilePath;
+    final renderPath = '${project.workspaceRoot}/src/render_flow.styio';
+    final runtimePath = '${project.workspaceRoot}/src/runtime_graph.styio';
+    final mainDocument = DocumentState(
+      documentId: mainPath,
+      text: '''
+@import { src/render_flow }
+@import { src/runtime_graph }
+schema Price {
+}
+schema OrderBook {
+  price: Price
+}
+#calculate := (input) => {
+  total = blend(input, input)
+  total -> @prices
+  <| total
+}
+value = calculate(1.0)
+''',
+      revision: 1,
+    );
+    await bootstrap.workspaceDocumentStore.saveDocument(mainDocument);
+    await bootstrap.workspaceDocumentStore.saveDocument(
+      DocumentState(
+        documentId: renderPath,
+        text: '''
+schema Quote {
+  price: Price
+}
+task render {
+  <| calculate(2.0)
+}
+''',
+        revision: 1,
+      ),
+    );
+    await bootstrap.workspaceDocumentStore.saveDocument(
+      DocumentState(
+        documentId: runtimePath,
+        text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+''',
+        revision: 1,
+      ),
+    );
+    bootstrap.editorController.loadDocument(mainDocument);
+    return mainDocument;
+  }
+
   testWidgets('builds shared shell scaffold in desktop viewport family', (
     tester,
   ) async {
@@ -660,6 +883,94 @@ void main() {
     expect(find.byKey(const ValueKey('debug-surface-desktop')), findsOneWidget);
   });
 
+  testWidgets('renders scratch shell fallback project cards', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const toolchain = ToolchainStatusSnapshot(
+      source: ToolchainResolutionSource.managedCurrent,
+      detail: 'Scratch project uses published managed toolchain state.',
+    );
+    final scratchProject = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/scratch',
+      activeFilePath: '/workspace/scratch/main.styio',
+      title: 'Scratch Coverage Project',
+      toolchain: toolchain,
+      toolchainEnvironment: const ToolchainEnvironmentSnapshot(
+        schemaVersion: 1,
+        toolchain: toolchain,
+        managedToolchains: ManagedToolchainStateSnapshot(),
+      ),
+      notes: const <String>['Scratch fallback card coverage.'],
+    );
+    final bootstrap = await createBootstrap(
+      PlatformTarget.macos,
+      projectSnapshot: scratchProject,
+      supplementalCapabilities: const <AdapterCapabilitySnapshot>[
+        AdapterCapabilitySnapshot(
+          adapterKind: AdapterKind.cloud,
+          languageService: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'language service available for fallback smoke',
+          ),
+          projectGraph: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'project graph available for fallback smoke',
+          ),
+          execution: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'execution available for fallback smoke',
+          ),
+          runtimeEvents: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.available,
+            detail: 'runtime events available for fallback smoke',
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    expect(find.text('Scratch Coverage Project'), findsWidgets);
+    expect(find.text('scratch'), findsWidgets);
+    expect(find.text('0 package'), findsOneWidget);
+    expect(find.text('0 target'), findsOneWidget);
+    expect(find.text('1 file'), findsOneWidget);
+
+    final workspaceSidebarScrollable = find.descendant(
+      of: find.byKey(const ValueKey('workspace-sidebar-scroll')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('compiler-handshake-card')),
+      120,
+      scrollable: workspaceSidebarScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No local styio machine-info handshake has been resolved yet.'),
+      findsOneWidget,
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('required-handoffs-card')),
+      120,
+      scrollable: workspaceSidebarScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('0 blocking'), findsOneWidget);
+    expect(find.text('0 styio'), findsOneWidget);
+    expect(find.text('0 spio'), findsOneWidget);
+    expect(
+      find.text(
+        'No product-side handoffs are currently outstanding for this route.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('builds shared shell scaffold in mobile viewport family', (
     tester,
   ) async {
@@ -739,11 +1050,318 @@ void main() {
     final shell = ShellScope.of(
       tester.element(find.byType(VityoShellScaffold)),
     );
-    for (final tab in BottomSurfaceTab.values) {
+    final scrollableTabs = BottomSurfaceTab.values.where(
+      (tab) =>
+          tab != BottomSurfaceTab.runtime && tab != BottomSurfaceTab.debug,
+    );
+    for (final tab in scrollableTabs) {
       shell.selectBottomTab(tab);
       await tester.pump();
+      await revealMobileBottomSurface(tester);
       expect(shell.activeBottomTab, tab);
     }
+  });
+
+  testWidgets('activates desktop bottom surface tabs from tab chips', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+
+    Future<void> tapTab(String label, BottomSurfaceTab expectedTab) async {
+      final chipText = find.text(label);
+      expect(chipText, findsWidgets);
+      final tab = find.ancestor(
+        of: chipText.first,
+        matching: find.byType(InkWell),
+      );
+      expect(tab, findsWidgets);
+      await tester.ensureVisible(tab.first);
+      await tester.pumpAndSettle();
+      await tester.tap(tab.first);
+      await tester.pumpAndSettle();
+      expect(shell.activeBottomTab, expectedTab);
+    }
+
+    await tapTab('Runtime', BottomSurfaceTab.runtime);
+    await tapTab('Commands', BottomSurfaceTab.commands);
+    await tapTab('Navigate', BottomSurfaceTab.navigate);
+    await tapTab('Locations', BottomSurfaceTab.locations);
+    await tapTab('Links', BottomSurfaceTab.documentLinks);
+    await tapTab('Highlights', BottomSurfaceTab.documentHighlights);
+    await tapTab('Lenses', BottomSurfaceTab.codeLenses);
+    await tapTab('Decls', BottomSurfaceTab.declarations);
+    await tapTab('Definitions', BottomSurfaceTab.definitions);
+    await tapTab('Types', BottomSurfaceTab.typeDefinitions);
+    await tapTab('Impls', BottomSurfaceTab.implementations);
+    await tapTab('Type Tree', BottomSurfaceTab.typeHierarchy);
+    await tapTab('Outline', BottomSurfaceTab.outline);
+    await tapTab('Rename', BottomSurfaceTab.rename);
+    await tapTab('Symbols', BottomSurfaceTab.symbols);
+    await tapTab('Usages', BottomSurfaceTab.usages);
+    await tapTab('Calls', BottomSurfaceTab.calls);
+    await tapTab('Search', BottomSurfaceTab.search);
+    await tapTab('Problems', BottomSurfaceTab.problems);
+    await tapTab('Actions', BottomSurfaceTab.actions);
+    await tapTab('Agent', BottomSurfaceTab.agent);
+    await tapTab('Debug', BottomSurfaceTab.debug);
+  });
+
+  testWidgets('activates mobile settings tab from tab chip', (tester) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.android);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+    await revealMobileBottomSurface(tester);
+    final tab = find.ancestor(
+      of: find.text('Settings', skipOffstage: false).first,
+      matching: find.byType(InkWell, skipOffstage: false),
+    );
+    expect(tab, findsWidgets);
+    await tester.ensureVisible(tab.first);
+    await tester.pumpAndSettle();
+    await tester.tap(tab.first);
+    await tester.pumpAndSettle();
+
+    expect(shell.activeBottomTab, BottomSurfaceTab.settings);
+    expect(
+      find.byKey(
+        const ValueKey('settings-surface'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('renders module sidebar and module-aware surfaces', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(
+      PlatformTarget.macos,
+      moduleDefinitions: createSmokeModuleDefinitions(),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    expect(find.text('Mounted 1/2 modules'), findsWidgets);
+    expect(find.text('Smoke Runtime Bridge'), findsWidgets);
+    expect(find.text('Mounted'), findsWidgets);
+    expect(find.text('nightly'), findsOneWidget);
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+
+    shell.selectBottomTab(BottomSurfaceTab.runtime);
+    await tester.pumpAndSettle();
+    expect(find.text('Mounted Runtime Modules'), findsOneWidget);
+    expect(find.text('Smoke Runtime Bridge'), findsWidgets);
+
+    shell.selectBottomTab(BottomSurfaceTab.agent);
+    await tester.pumpAndSettle();
+    final agentSurfaceScrollable = find.descendant(
+      of: find.byKey(const ValueKey('agent-surface-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Mounted Adapters And Slots'),
+      120,
+      scrollable: agentSurfaceScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Mounted Adapters And Slots'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Smoke Agent Prompts'),
+      120,
+      scrollable: agentSurfaceScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Smoke Agent Prompts'), findsWidgets);
+  });
+
+  testWidgets('renders empty workspace bottom surface states', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const readmePath = '/workspace/readme-only/README.md';
+    const readmeDocument = DocumentState(
+      documentId: readmePath,
+      text: '# Readme only\nNo Styio symbols live here.\n',
+      revision: 1,
+    );
+    final bootstrap = await createBootstrap(
+      PlatformTarget.macos,
+      projectSnapshot: createReadmeOnlyProjectSnapshot(),
+    );
+    await bootstrap.workspaceDocumentStore.saveDocument(readmeDocument);
+    bootstrap.editorController.loadDocument(readmeDocument);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+
+    Future<void> showTab(BottomSurfaceTab tab, String resultKey) async {
+      shell.selectBottomTab(tab);
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey<String>(resultKey)), findsOneWidget);
+    }
+
+    shell.quickOpenWorkspace(
+      const WorkspaceQuickOpenQuery(pattern: 'missing.styio'),
+    );
+    await showTab(
+      BottomSurfaceTab.navigate,
+      'workspace-quick-open-results',
+    );
+
+    await shell.collectWorkspaceDocumentLinks(
+      const WorkspaceDocumentLinksQuery(targetFilePath: readmePath),
+    );
+    await showTab(
+      BottomSurfaceTab.documentLinks,
+      'workspace-document-links-results',
+    );
+
+    await shell.collectWorkspaceDocumentHighlights(
+      const WorkspaceDocumentHighlightsQuery(
+        targetFilePath: readmePath,
+        offset: 0,
+      ),
+    );
+    await showTab(
+      BottomSurfaceTab.documentHighlights,
+      'workspace-document-highlights-results',
+    );
+
+    await shell.collectWorkspaceCodeLenses(
+      const WorkspaceCodeLensQuery(targetFilePath: readmePath),
+    );
+    await showTab(BottomSurfaceTab.codeLenses, 'workspace-code-lens-results');
+
+    await shell.findWorkspaceDeclarations(
+      const WorkspaceDeclarationQuery(pattern: 'MissingSymbol'),
+    );
+    await showTab(
+      BottomSurfaceTab.declarations,
+      'workspace-declaration-results',
+    );
+
+    await shell.findWorkspaceDefinitions(
+      const WorkspaceDefinitionQuery(pattern: 'MissingSymbol'),
+    );
+    await showTab(BottomSurfaceTab.definitions, 'workspace-definition-results');
+
+    await shell.findWorkspaceTypeDefinitions(
+      const WorkspaceTypeDefinitionQuery(pattern: 'MissingType'),
+    );
+    await showTab(
+      BottomSurfaceTab.typeDefinitions,
+      'workspace-type-definition-results',
+    );
+
+    await shell.findWorkspaceImplementations(
+      const WorkspaceImplementationQuery(pattern: 'MissingType'),
+    );
+    await showTab(
+      BottomSurfaceTab.implementations,
+      'workspace-implementation-results',
+    );
+
+    await shell.buildWorkspaceTypeHierarchy(
+      const WorkspaceTypeHierarchyQuery(pattern: 'MissingType'),
+    );
+    await showTab(
+      BottomSurfaceTab.typeHierarchy,
+      'workspace-type-hierarchy-results',
+    );
+
+    await shell.collectWorkspaceOutline(
+      const WorkspaceOutlineQuery(targetFilePath: readmePath),
+    );
+    await showTab(BottomSurfaceTab.outline, 'workspace-outline-results');
+
+    await shell.previewWorkspaceRename(
+      const WorkspaceRenameQuery(
+        targetFilePath: readmePath,
+        targetOffset: 0,
+        newName: 'renamed',
+      ),
+    );
+    await showTab(BottomSurfaceTab.rename, 'workspace-rename-surface');
+
+    await shell.searchWorkspaceSymbols(
+      const WorkspaceSymbolSearchQuery(pattern: 'MissingSymbol'),
+    );
+    await showTab(
+      BottomSurfaceTab.symbols,
+      'workspace-symbol-search-results',
+    );
+
+    await shell.findWorkspaceReferences(
+      const WorkspaceReferenceSearchQuery(pattern: 'MissingSymbol'),
+    );
+    await showTab(
+      BottomSurfaceTab.usages,
+      'workspace-reference-search-results',
+    );
+
+    await shell.buildWorkspaceCallHierarchy(
+      const WorkspaceCallHierarchyQuery(pattern: 'MissingCall'),
+    );
+    await showTab(
+      BottomSurfaceTab.calls,
+      'workspace-call-hierarchy-results',
+    );
+
+    await shell.searchWorkspaceText(
+      const WorkspaceTextSearchQuery(pattern: 'MissingText'),
+    );
+    await showTab(BottomSurfaceTab.search, 'workspace-search-results');
+
+    await shell.previewWorkspaceReplace(
+      const WorkspaceTextReplaceQuery(
+        pattern: 'MissingText',
+        replacement: 'Replacement',
+      ),
+    );
+    await showTab(BottomSurfaceTab.search, 'workspace-replace-results');
+
+    await shell.collectWorkspaceProblems(
+      const WorkspaceProblemsQuery(pattern: 'Missing'),
+    );
+    await showTab(BottomSurfaceTab.problems, 'workspace-problems-results');
+
+    await shell.collectWorkspaceCodeActions(
+      const WorkspaceCodeActionsQuery(pattern: 'Missing'),
+    );
+    await showTab(BottomSurfaceTab.actions, 'workspace-code-actions-results');
   });
 
   testWidgets('renders populated workspace bottom surfaces', (tester) async {
@@ -893,6 +1511,327 @@ fn blend(left: f64, right: f64): f64 {
       const WorkspaceCodeActionsQuery(pattern: 'prices'),
     );
     await renderTab(BottomSurfaceTab.actions);
+  });
+
+  testWidgets('drives workspace bottom surface controls and result selections', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
+    final mainDocument = await seedWorkspaceSurfaceFixture(bootstrap);
+    final mainPath = bootstrap.workspaceController.activeFilePath;
+    final priceOffset = mainDocument.text.indexOf('Price');
+    final calculateOffset = mainDocument.text.indexOf('calculate');
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+
+    Finder keyPrefix(String prefix) {
+      return find.byWidgetPredicate(
+        (widget) {
+          final key = widget.key;
+          return key is ValueKey<String> && key.value.startsWith(prefix);
+        },
+        description: 'key prefix $prefix',
+      );
+    }
+
+    Future<void> showTab(BottomSurfaceTab tab) async {
+      shell.selectBottomTab(tab);
+      await tester.pumpAndSettle();
+      expect(shell.activeBottomTab, tab);
+    }
+
+    Future<void> tapKey(String keyValue) async {
+      final target = find.byKey(ValueKey<String>(keyValue));
+      expect(target, findsOneWidget);
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapKeyIfPresent(String keyValue) async {
+      final target = find.byKey(ValueKey<String>(keyValue));
+      if (target.evaluate().isEmpty) {
+        return;
+      }
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapFirstKeyPrefixIfPresent(String prefix) async {
+      final target = keyPrefix(prefix);
+      if (target.evaluate().isEmpty) {
+        return;
+      }
+      await tester.ensureVisible(target.first);
+      await tester.pumpAndSettle();
+      await tester.tap(target.first);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapTextIfPresent(String value) async {
+      final target = find.text(value);
+      if (target.evaluate().isEmpty) {
+        return;
+      }
+      await tester.ensureVisible(target.last);
+      await tester.pumpAndSettle();
+      await tester.tap(target.last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> submitField(String keyValue, String value) async {
+      final target = find.byKey(ValueKey<String>(keyValue));
+      expect(target, findsOneWidget);
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      await tester.enterText(target, value);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+    }
+
+    await showTab(BottomSurfaceTab.commands);
+    await submitField('command-palette-query-field', 'run');
+    await tapFirstKeyPrefixIfPresent('command-palette-item-');
+
+    await showTab(BottomSurfaceTab.navigate);
+    await submitField('workspace-quick-open-query-field', 'render');
+    await tapFirstKeyPrefixIfPresent('workspace-quick-open-item-');
+
+    await showTab(BottomSurfaceTab.locations);
+    await submitField('workspace-recent-locations-query-field', 'render');
+    await tapKeyIfPresent('workspace-navigation-back');
+    await tapKeyIfPresent('workspace-navigation-forward');
+    await tapFirstKeyPrefixIfPresent('workspace-recent-location-');
+
+    await shell.collectWorkspaceDocumentLinks(
+      WorkspaceDocumentLinksQuery(targetFilePath: mainPath),
+    );
+    await showTab(BottomSurfaceTab.documentLinks);
+    await tapFirstKeyPrefixIfPresent('workspace-document-link-item-');
+    await submitField('workspace-document-links-query-field', 'src');
+    await tapKey('workspace-document-links-include-external');
+    await tapKey('workspace-document-links-include-unresolved');
+    await tapKeyIfPresent('workspace-document-links-refresh');
+
+    await shell.collectWorkspaceDocumentHighlights(
+      WorkspaceDocumentHighlightsQuery(
+        targetFilePath: mainPath,
+        offset: priceOffset,
+      ),
+    );
+    await showTab(BottomSurfaceTab.documentHighlights);
+    await tapFirstKeyPrefixIfPresent('workspace-document-highlight-item-');
+    await tapKey('workspace-document-highlights-include-text');
+    await tapKey('workspace-document-highlights-include-declarations');
+    await tapKey('workspace-document-highlights-include-read');
+    await tapKey('workspace-document-highlights-include-write');
+    await tapKeyIfPresent('workspace-document-highlights-refresh');
+
+    await shell.collectWorkspaceCodeLenses(
+      WorkspaceCodeLensQuery(targetFilePath: mainPath),
+    );
+    await showTab(BottomSurfaceTab.codeLenses);
+    await tapFirstKeyPrefixIfPresent('workspace-code-lens-item-');
+    await tapKeyIfPresent('workspace-code-lens-refresh');
+
+    await shell.findWorkspaceDeclarations(
+      const WorkspaceDeclarationQuery(pattern: 'Price'),
+    );
+    await showTab(BottomSurfaceTab.declarations);
+    await tapFirstKeyPrefixIfPresent('workspace-declaration-item-');
+    await submitField('workspace-declaration-query-field', 'OrderBook');
+    await tapKeyIfPresent('workspace-declaration-search-run');
+
+    await shell.findWorkspaceDefinitions(
+      const WorkspaceDefinitionQuery(pattern: 'blend'),
+    );
+    await showTab(BottomSurfaceTab.definitions);
+    await tapFirstKeyPrefixIfPresent('workspace-definition-item-');
+    await submitField('workspace-definition-query-field', 'calculate');
+    await tapKeyIfPresent('workspace-definition-search-run');
+
+    await shell.findWorkspaceTypeDefinitions(
+      const WorkspaceTypeDefinitionQuery(pattern: 'Price'),
+    );
+    await showTab(BottomSurfaceTab.typeDefinitions);
+    await tapFirstKeyPrefixIfPresent('workspace-type-definition-item-');
+    await submitField('workspace-type-definition-query-field', 'OrderBook');
+    await tapKeyIfPresent('workspace-type-definition-search-run');
+
+    await shell.findWorkspaceImplementations(
+      const WorkspaceImplementationQuery(pattern: 'Price'),
+    );
+    await showTab(BottomSurfaceTab.implementations);
+    await tapFirstKeyPrefixIfPresent('workspace-implementation-item-');
+    await submitField('workspace-implementation-query-field', 'Price');
+    await tapKeyIfPresent('workspace-implementation-run');
+
+    await shell.buildWorkspaceTypeHierarchy(
+      const WorkspaceTypeHierarchyQuery(pattern: 'OrderBook'),
+    );
+    await showTab(BottomSurfaceTab.typeHierarchy);
+    await tapFirstKeyPrefixIfPresent('workspace-type-hierarchy-item-');
+    await tapTextIfPresent('Subtypes');
+    await tapKeyIfPresent('workspace-type-hierarchy-run');
+
+    await shell.collectWorkspaceOutline(
+      WorkspaceOutlineQuery(targetFilePath: mainPath),
+    );
+    await showTab(BottomSurfaceTab.outline);
+    await tapFirstKeyPrefixIfPresent('workspace-outline-item-');
+    await submitField('workspace-outline-filter-field', 'calculate');
+    await tapKeyIfPresent('workspace-outline-refresh');
+
+    await shell.searchWorkspaceSymbols(
+      const WorkspaceSymbolSearchQuery(pattern: 'calculate'),
+    );
+    await showTab(BottomSurfaceTab.symbols);
+    await submitField('workspace-symbol-search-query-field', 'Price');
+    await tapFirstKeyPrefixIfPresent('workspace-symbol-search-item-');
+
+    await shell.findWorkspaceReferences(
+      const WorkspaceReferenceSearchQuery(pattern: 'calculate'),
+    );
+    await showTab(BottomSurfaceTab.usages);
+    await submitField('workspace-reference-search-query-field', 'calculate');
+    await tapFirstKeyPrefixIfPresent('workspace-reference-search-item-');
+    await tapKey('workspace-reference-search-include-definitions');
+    await tapKey('workspace-reference-search-include-reads');
+    await tapKey('workspace-reference-search-include-writes');
+    await tapKeyIfPresent('workspace-reference-search-run');
+
+    await shell.buildWorkspaceCallHierarchy(
+      const WorkspaceCallHierarchyQuery(pattern: 'calculate'),
+    );
+    await showTab(BottomSurfaceTab.calls);
+    await submitField('workspace-call-hierarchy-query-field', 'calculate');
+    await tapTextIfPresent('Outgoing');
+    await tapKeyIfPresent('workspace-call-hierarchy-run');
+    await tapFirstKeyPrefixIfPresent('workspace-call-hierarchy-item-');
+
+    await shell.searchWorkspaceText(
+      const WorkspaceTextSearchQuery(pattern: 'blend'),
+    );
+    await showTab(BottomSurfaceTab.search);
+    await submitField('workspace-search-query-field', 'blend');
+    await tapFirstKeyPrefixIfPresent('workspace-search-match-');
+    await tester.enterText(
+      find.byKey(const ValueKey('workspace-replace-field')),
+      'mix',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    await tapKey('workspace-search-case-sensitive');
+    await tapKey('workspace-search-regex-mode');
+    await tapKey('workspace-search-literal-mode');
+    await tapKeyIfPresent('workspace-replace-preview');
+    await tapFirstKeyPrefixIfPresent('workspace-replace-match-');
+    await tapKeyIfPresent('workspace-search-run');
+
+    await shell.collectWorkspaceProblems(
+      const WorkspaceProblemsQuery(pattern: 'prices'),
+    );
+    await showTab(BottomSurfaceTab.problems);
+    await submitField('workspace-problems-filter-field', 'prices');
+    await tapFirstKeyPrefixIfPresent('workspace-problem-');
+    await tapKey('workspace-problems-errors');
+    await tapKey('workspace-problems-warnings');
+    await tapKey('workspace-problems-hints');
+    await tapKeyIfPresent('workspace-problems-refresh');
+
+    await shell.collectWorkspaceCodeActions(
+      const WorkspaceCodeActionsQuery(pattern: 'prices'),
+    );
+    await showTab(BottomSurfaceTab.actions);
+    await submitField('workspace-code-actions-filter-field', 'prices');
+    await tapFirstKeyPrefixIfPresent('workspace-code-action-apply-');
+    await tapKeyIfPresent('workspace-code-actions-refresh');
+
+    await shell.previewWorkspaceRename(
+      WorkspaceRenameQuery(
+        targetFilePath: mainPath,
+        targetOffset: calculateOffset,
+        newName: 'compute',
+      ),
+    );
+    await showTab(BottomSurfaceTab.rename);
+    await submitField('workspace-rename-name-field', 'compute');
+    await tapKeyIfPresent('workspace-rename-preview-run');
+    await tapKeyIfPresent('workspace-rename-apply-run');
+  });
+
+  testWidgets('renders compact command and quick open empty states', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.android);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final shell = ShellScope.of(
+      tester.element(find.byType(VityoShellScaffold)),
+    );
+    expect(find.byKey(const ValueKey('shell-viewport-mobile')), findsOneWidget);
+
+    shell.selectBottomTab(BottomSurfaceTab.commands);
+    await tester.pumpAndSettle();
+    await revealMobileBottomSurface(tester);
+    expect(
+      find.byKey(
+        const ValueKey('command-palette-surface'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    final commandField = find.byKey(
+      const ValueKey('command-palette-query-field'),
+      skipOffstage: false,
+    );
+    await tester.ensureVisible(commandField);
+    await tester.enterText(commandField, 'no-such-command');
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No matching commands.', skipOffstage: false),
+      findsOneWidget,
+    );
+
+    shell.selectBottomTab(BottomSurfaceTab.navigate);
+    await tester.pumpAndSettle();
+    await revealMobileBottomSurface(tester);
+    expect(
+      find.byKey(
+        const ValueKey('workspace-quick-open-surface'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    final quickOpenField = find.byKey(
+      const ValueKey('workspace-quick-open-query-field'),
+      skipOffstage: false,
+    );
+    await tester.ensureVisible(quickOpenField);
+    await tester.enterText(quickOpenField, 'no-such-file');
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No matching files.', skipOffstage: false),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -2727,6 +3666,210 @@ value -> @stdout
     );
   });
 
+  testWidgets('dismisses completion lookup from keyboard paths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'completion-dismiss-keymap.styio',
+        text: '',
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await focusSourceBuffer(tester);
+
+    await sendShortcut(tester, LogicalKeyboardKey.space, control: true);
+    await pumpKeyboardSurface(tester);
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsNothing,
+    );
+
+    await sendShortcut(tester, LogicalKeyboardKey.space, control: true);
+    await pumpKeyboardSurface(tester);
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.semicolon, character: ';');
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-completion-lookup')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('updates and dismisses symbol and surround lookups', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text =
+        'fn buildPipe(user) {\n'
+        '  value = user\n'
+        '}\n'
+        'fn renderPipe() {\n'
+        '}\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'lookup-dismiss-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await focusSourceBuffer(tester);
+
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyN,
+      control: true,
+      alt: true,
+      shift: true,
+    );
+    await pumpKeyboardSurface(tester);
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyR, character: 'r');
+    await tester.pump();
+    expect(find.text('renderPipe · function · 4:4'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+    expect(find.text('buildPipe · function · 1:4'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('source-symbol-lookup')), findsNothing);
+
+    bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
+    await tester.pump();
+    await focusSourceBuffer(tester);
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyT,
+      control: true,
+      alt: true,
+    );
+    await pumpKeyboardSurface(tester);
+    expect(
+      find.byKey(const ValueKey('source-surround-lookup')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-surround-lookup')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-surround-lookup')),
+      findsNothing,
+    );
+
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyT,
+      control: true,
+      alt: true,
+    );
+    await pumpKeyboardSurface(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.semicolon, character: ';');
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-surround-lookup')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('dismisses quick fix lookup from keyboard paths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'let stream\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'quickfix-dismiss-keymap.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('stream') + 2);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await focusSourceBuffer(tester);
+
+    await sendShortcut(tester, LogicalKeyboardKey.enter, alt: true);
+    await pumpKeyboardSurface(tester);
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsNothing,
+    );
+
+    await sendShortcut(tester, LogicalKeyboardKey.enter, alt: true);
+    await pumpKeyboardSurface(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.semicolon, character: ';');
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-quick-fix-lookup')),
+      findsNothing,
+    );
+  });
+
   testWidgets('opens quick fix lookup from editor keymap', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
@@ -3469,6 +4612,202 @@ blend(left: price, right: tax) -> @stdout
     );
   });
 
+  testWidgets('dismisses editor refactor panels from keyboard', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Future<void> pumpDocument(
+      DocumentState document,
+      void Function(AppBootstrap bootstrap) configureSelection,
+    ) async {
+      final bootstrap = await createBootstrap(PlatformTarget.macos);
+      bootstrap.editorController.loadDocument(document);
+      configureSelection(bootstrap);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+      await pumpKeyboardSurface(tester);
+      await focusSourceBuffer(tester);
+    }
+
+    const renameText = 'value = value\n';
+    await pumpDocument(
+      const DocumentState(
+        documentId: 'panel-inline-rename.styio',
+        text: renameText,
+        revision: 0,
+      ),
+      (bootstrap) {
+        bootstrap.editorController.selectCollapsed(
+          renameText.indexOf('value') + 2,
+        );
+      },
+    );
+    await sendShortcut(tester, LogicalKeyboardKey.f6, shift: true);
+    await pumpKeyboardSurface(tester);
+    expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-inline-rename-panel')),
+      findsNothing,
+    );
+
+    const safeDeleteText = 'used = 1\nunused = 2\nused -> @stdout\n';
+    await pumpDocument(
+      const DocumentState(
+        documentId: 'panel-safe-delete.styio',
+        text: safeDeleteText,
+        revision: 0,
+      ),
+      (bootstrap) {
+        bootstrap.editorController.selectCollapsed(
+          safeDeleteText.indexOf('unused') + 2,
+        );
+      },
+    );
+    await sendShortcut(tester, LogicalKeyboardKey.delete, alt: true);
+    await pumpKeyboardSurface(tester);
+    expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsOne);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-safe-delete-panel')),
+      findsNothing,
+    );
+
+    const inlineText = 'seed = 40 + 2\nvalue = seed\n';
+    await pumpDocument(
+      const DocumentState(
+        documentId: 'panel-inline-variable.styio',
+        text: inlineText,
+        revision: 0,
+      ),
+      (bootstrap) {
+        bootstrap.editorController.selectCollapsed(
+          inlineText.indexOf('seed') + 2,
+        );
+      },
+    );
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyN,
+      control: true,
+      alt: true,
+    );
+    await pumpKeyboardSurface(tester);
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-inline-variable-panel')),
+      findsNothing,
+    );
+
+    const introduceText = 'value = 40 + 2\n';
+    final introduceStart = introduceText.indexOf('40 + 2');
+    await pumpDocument(
+      const DocumentState(
+        documentId: 'panel-introduce-variable.styio',
+        text: introduceText,
+        revision: 0,
+      ),
+      (bootstrap) {
+        bootstrap.editorController.selectRange(
+          baseOffset: introduceStart,
+          extentOffset: introduceStart + '40 + 2'.length,
+        );
+      },
+    );
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyV,
+      control: true,
+      alt: true,
+    );
+    await pumpKeyboardSurface(tester);
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-introduce-variable-panel')),
+      findsNothing,
+    );
+
+    const extractText = 'fn main(user) {\n  first = user + 1\n}\n';
+    final extractStart = extractText.indexOf('user + 1');
+    await pumpDocument(
+      const DocumentState(
+        documentId: 'panel-extract-function.styio',
+        text: extractText,
+        revision: 0,
+      ),
+      (bootstrap) {
+        bootstrap.editorController.selectRange(
+          baseOffset: extractStart,
+          extentOffset: extractStart + 'user + 1'.length,
+        );
+      },
+    );
+    await sendShortcut(
+      tester,
+      LogicalKeyboardKey.keyM,
+      control: true,
+      alt: true,
+    );
+    await pumpKeyboardSurface(tester);
+    expect(
+      find.byKey(const ValueKey('source-extract-function-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-extract-function-panel')),
+      findsNothing,
+    );
+
+    const signatureText =
+        'fn blend(left: f64, right: f64) {\n'
+        '  result = left + right\n'
+        '}\n'
+        'value = blend(price, tax)\n';
+    await pumpDocument(
+      const DocumentState(
+        documentId: 'panel-change-signature.styio',
+        text: signatureText,
+        revision: 0,
+      ),
+      (bootstrap) {
+        bootstrap.editorController.selectCollapsed(
+          signatureText.indexOf('blend') + 1,
+        );
+      },
+    );
+    await sendShortcut(tester, LogicalKeyboardKey.f6, control: true);
+    await pumpKeyboardSurface(tester);
+    expect(
+      find.byKey(const ValueKey('source-change-signature-panel')),
+      findsOne,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('source-change-signature-panel')),
+      findsNothing,
+    );
+  });
+
   testWidgets('applies rename edits from language pane', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
@@ -3686,6 +5025,210 @@ blend(left: price, right: tax) -> @stdout
       isEmpty,
     );
   });
+
+  testWidgets('cycles mobile language inspector sections', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.ios);
+    const text =
+        'fn blend(left: f64, right: f64): f64 {\n'
+        '  emit left + right\n'
+        '}\n'
+        'price: f64 = 12.5  \n'
+        'tax = 0.5\n'
+        'value = blend(price, tax)\n'
+        'missingPrice -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'mobile-language-tabs.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('price, tax') + 2);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+    await revealMobileLanguagePane(tester);
+
+    expect(
+      find.byKey(
+        const ValueKey('language-mobile-section-diagnostics'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    final mobilePane = find.byKey(
+      const ValueKey('language-pane-mobile'),
+      skipOffstage: false,
+    );
+    final tabScrollable = find
+        .descendant(
+          of: mobilePane,
+          matching: find.byType(Scrollable, skipOffstage: false),
+          skipOffstage: false,
+        )
+        .first;
+    final sections = <String, String>{
+      'Blocks': 'blocks',
+      'Inlays': 'inlays',
+      'Symbols': 'symbols',
+      'Resolve': 'resolve',
+      'Token': 'token',
+      'Hover': 'hover',
+      'Complete': 'completions',
+      'Format': 'formatting',
+    };
+
+    for (final section in sections.entries) {
+      final tabLabel = find.descendant(
+        of: tabScrollable,
+        matching: find.text(section.key, skipOffstage: false),
+        skipOffstage: false,
+      );
+      final tab = find.ancestor(
+        of: tabLabel.first,
+        matching: find.byType(InkWell, skipOffstage: false),
+      );
+      expect(tab, findsOneWidget);
+      tester.widget<InkWell>(tab).onTap!();
+      await tester.pump();
+
+      expect(
+        find.byKey(
+          ValueKey('language-mobile-section-${section.value}'),
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+    }
+  });
+
+  testWidgets('applies language pane diagnostic and formatting actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'fn broken() {\n  emit stream  \n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'language-pane-actions.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-diagnostic-fix-0-0')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-diagnostic-fix-0-0')));
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text.endsWith('}'), isTrue);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-apply-formatting')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-apply-formatting')));
+    await tester.pump();
+
+    expect(bootstrap.editorController.document.text.contains('  \n'), isFalse);
+  });
+
+  testWidgets('applies completion from language pane preview', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'language-pane-completion.styio',
+        text: '',
+        revision: 0,
+      ),
+    );
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-apply-completion-@import')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('language-apply-completion-@import')),
+    );
+    await tester.pump();
+
+    expect(
+      bootstrap.editorController.document.text,
+      startsWith('@import { styio/core }'),
+    );
+  });
+
+  testWidgets('shows language pane rename conflicts', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+    const text = 'price = 1\ntotal = price\ntotal -> @stdout\n';
+    bootstrap.editorController.loadDocument(
+      const DocumentState(
+        documentId: 'language-pane-rename-conflict.styio',
+        text: text,
+        revision: 0,
+      ),
+    );
+    bootstrap.editorController.selectCollapsed(text.indexOf('price'));
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-rename-input')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('language-rename-input')),
+      'total',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('language-rename-conflict')), findsOne);
+  });
+
 }
 
 class _FakeProjectGraphAdapter implements ProjectGraphAdapter {

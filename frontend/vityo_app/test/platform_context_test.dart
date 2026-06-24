@@ -219,6 +219,88 @@ void main() {
     expect(updated.overrides['shell.defaultProfileId'], 'bash');
   });
 
+  test('platform context applies every mutable fact section', () async {
+    final controller = createController();
+
+    await controller.refresh();
+    await controller.applyFileSystemFacts(
+      FileSystemFacts.linuxDebianArm(
+        targetId: 'foreign-fs',
+        architecture: 'armv7l',
+      ),
+    );
+    await controller.applyProcessFacts(
+      ProcessFacts.linuxDebianArm(
+        targetId: 'foreign-process',
+        architecture: 'armv7l',
+      ),
+    );
+    await controller.applyResourceFacts(
+      ResourceFacts.linuxDebianArm(
+        targetId: 'foreign-resource',
+        processorCount: 8,
+      ),
+    );
+    await controller.applyClipboardFacts(
+      ClipboardFacts.linuxDebianArm(
+        targetId: 'foreign-clipboard',
+        supportsSystemClipboard: false,
+      ),
+    );
+    await controller.applyNotificationFacts(
+      NotificationFacts.linuxDebianArm(
+        targetId: 'foreign-notification',
+        supportsDesktopNotifications: false,
+      ),
+    );
+    await controller.applyLocalServiceFacts(
+      LocalServiceFacts.linuxDebianArm(
+        targetId: 'foreign-local-service',
+        architecture: 'armv7l',
+      ),
+    );
+    final updated = await controller.applyPtyFacts(
+      PtyFacts.linuxDebianArm(
+        targetId: 'foreign-pty',
+        scriptUtilityPath: null,
+      ),
+    );
+
+    expect(updated.fileSystem.targetId, 'ctx');
+    expect(updated.fileSystem.architecture, 'armv7l');
+    expect(updated.process.targetId, 'ctx');
+    expect(updated.process.architecture, 'armv7l');
+    expect(updated.resource.processorCount, 8);
+    expect(updated.clipboard.supportsSystemClipboard, isFalse);
+    expect(updated.notification.supportsDesktopNotifications, isFalse);
+    expect(updated.localService.architecture, 'armv7l');
+    expect(updated.pty.supportsRawMode, isFalse);
+    expect(controller.currentSnapshot, same(updated));
+  });
+
+  test('platform context controller reports missing context and probers', () async {
+    final controller = PlatformContextController(
+      store: InMemoryPlatformContextStore(),
+      detector: StaticPlatformDetector(
+        PlatformContextSnapshot.compose(
+          targetId: 'missing-load',
+          fileSystem: FileSystemFacts.linuxDebianArm(targetId: 'missing-load'),
+          shell: ShellFacts.linuxDebianArm(targetId: 'missing-load'),
+        ),
+      ),
+      targetId: 'missing-load',
+    );
+
+    await expectLater(
+      controller.load(refreshIfMissing: false),
+      throwsStateError,
+    );
+    expect(
+      () => PlatformContextController(store: InMemoryPlatformContextStore()),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
   test('platform context file store persists and reloads all facts', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_platform_context_test_',
@@ -269,6 +351,153 @@ void main() {
     expect(loaded.localService.supportsLoopbackHttpServer, isTrue);
     expect(loaded.pty.supportsScriptUtility, isTrue);
     expect(loaded.overrides['scope'], 'test');
+  });
+
+  test('platform context restores loose JSON provider variants', () {
+    final snapshot = PlatformContextSnapshot.fromJson(<String, Object?>{
+      'targetId': 'json-context',
+      'loadedAt': '2026-06-01T00:00:00Z',
+      'refreshedAt': '2026-06-01T01:00:00Z',
+      'source': 'fixture',
+      'fileSystem': <Object, Object?>{
+        'targetId': 'foreign-file-system',
+        'operatingSystem': 'windows',
+        'distributionId': 'windows',
+        'distributionName': 'Windows',
+        'architecture': 'x64',
+        'pathStyle': 'windows',
+        'pathSeparator': r'\',
+        'providerKind': 'hosted',
+        'watchSupport': 'recursive',
+        'caseSensitive': false,
+        'supportsFileUri': true,
+        'supportsSymbolicLinks': true,
+        'supportsAtomicWrite': true,
+      },
+      'shell': <String, Object?>{
+        'providerKind': 'hosted',
+        'availableShells': <Object?>[
+          <String, Object?>{
+            'path': r'C:\Windows\System32\cmd.exe',
+            'family': 'cmd',
+            'isDefault': true,
+          },
+          <String, Object?>{'path': '', 'family': 'fish'},
+        ],
+        'defaultShellPath': r'C:\Windows\System32\cmd.exe',
+        'supportsPty': true,
+        'supportsLoginShell': true,
+      },
+      'process': <String, Object?>{
+        'providerKind': 'hosted',
+        'supportsSpawn': true,
+        'supportsSignals': true,
+        'supportsProcessGroups': true,
+        'supportsEnvironmentOverlay': true,
+        'supportsWorkingDirectory': true,
+      },
+      'resource': <String, Object?>{
+        'providerKind': 'virtual',
+        'processorCount': 4.8,
+        'systemTempPath': r'C:\Temp',
+        'homePath': r'C:\Users\Vityo',
+        'supportsTempDirectory': true,
+        'supportsHomeDirectory': true,
+        'supportsStorageProbe': true,
+      },
+      'network': <String, Object?>{
+        'providerKind': 'virtual',
+        'supportsHttpClient': true,
+        'supportsLoopback': true,
+        'proxyEnvironment': <Object, Object?>{1: 'http://proxy.example'},
+      },
+      'clipboard': <String, Object?>{
+        'providerKind': 'memory-fallback',
+        'supportsText': true,
+        'supportsMemoryFallback': true,
+      },
+      'notification': <String, Object?>{
+        'providerKind': 'in-app-fallback',
+        'supportsInAppFallback': true,
+      },
+      'localService': <String, Object?>{
+        'providerKind': 'hosted',
+        'supportsLoopbackHttpServer': true,
+        'supportsEphemeralPort': true,
+      },
+      'pty': <String, Object?>{
+        'providerKind': 'conpty',
+        'supportsPty': true,
+        'supportsResize': true,
+        'supportsRawMode': true,
+        'supportsSignals': true,
+        'supportsProcessGroup': true,
+        'defaultShellPath': r'C:\Windows\System32\cmd.exe',
+      },
+      'overrides': <Object, Object?>{1: 'one'},
+    });
+    final alternate = PlatformContextSnapshot.fromJson(<String, Object?>{
+      'targetId': 'alternate-context',
+      'fileSystem': <String, Object?>{
+        'pathStyle': 'posix',
+        'providerKind': 'browser-sandbox',
+        'watchSupport': 'polling',
+      },
+      'shell': <String, Object?>{
+        'providerKind': 'virtual',
+        'availableShells': <Object?>[
+          <String, Object?>{'path': '/bin/zsh', 'family': 'zsh'},
+          <String, Object?>{'path': '/usr/bin/fish', 'family': 'fish'},
+          <String, Object?>{'path': '/usr/bin/pwsh', 'family': 'powershell'},
+        ],
+      },
+      'process': <String, Object?>{'providerKind': 'virtual'},
+      'resource': <String, Object?>{'providerKind': 'hosted'},
+      'network': <String, Object?>{'providerKind': 'hosted'},
+      'pty': <String, Object?>{'providerKind': 'script-utility'},
+    });
+    final remote = PlatformContextSnapshot.fromJson(<String, Object?>{
+      'targetId': 'remote-context',
+      'fileSystem': <String, Object?>{
+        'providerKind': 'remote',
+        'watchSupport': 'directory',
+      },
+      'pty': <String, Object?>{'providerKind': 'hosted'},
+    });
+
+    expect(snapshot.targetId, 'json-context');
+    expect(snapshot.fileSystem.targetId, 'json-context');
+    expect(snapshot.fileSystem.pathStyle, FileSystemPathStyle.windows);
+    expect(snapshot.fileSystem.providerKind, FileSystemProviderKind.hosted);
+    expect(snapshot.fileSystem.watchSupport, FileSystemWatchSupport.recursive);
+    expect(snapshot.shell.providerKind, ShellProviderKind.hosted);
+    expect(snapshot.shell.availableShells.single.family, ShellFamily.cmd);
+    expect(snapshot.process.providerKind, ProcessProviderKind.hosted);
+    expect(snapshot.resource.providerKind, ResourceProviderKind.virtual);
+    expect(snapshot.resource.processorCount, 4);
+    expect(snapshot.network.providerKind, NetworkProviderKind.virtual);
+    expect(snapshot.network.proxyEnvironment['1'], 'http://proxy.example');
+    expect(snapshot.clipboard.providerKind, ClipboardProviderKind.memoryFallback);
+    expect(
+      snapshot.notification.providerKind,
+      NotificationProviderKind.inAppFallback,
+    );
+    expect(snapshot.localService.providerKind, LocalServiceProviderKind.hosted);
+    expect(snapshot.pty.providerKind, PtyProviderKind.conPty);
+    expect(snapshot.overrides['1'], 'one');
+    expect(alternate.fileSystem.providerKind, FileSystemProviderKind.browserSandbox);
+    expect(alternate.fileSystem.watchSupport, FileSystemWatchSupport.polling);
+    expect(alternate.shell.providerKind, ShellProviderKind.virtual);
+    expect(
+      alternate.shell.availableShells.map((shell) => shell.family),
+      <ShellFamily>[ShellFamily.zsh, ShellFamily.fish, ShellFamily.powershell],
+    );
+    expect(alternate.process.providerKind, ProcessProviderKind.virtual);
+    expect(alternate.resource.providerKind, ResourceProviderKind.hosted);
+    expect(alternate.network.providerKind, NetworkProviderKind.hosted);
+    expect(alternate.pty.providerKind, PtyProviderKind.scriptUtility);
+    expect(remote.fileSystem.providerKind, FileSystemProviderKind.remote);
+    expect(remote.pty.providerKind, PtyProviderKind.hosted);
   });
 
   test('platform context feeds all platform managers', () async {

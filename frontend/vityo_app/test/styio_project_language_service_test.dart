@@ -3198,6 +3198,186 @@ load = ||> {
       expect(mainCodes, isNot(contains('await-result-type-mismatch')));
     },
   );
+
+  test('handles zero-parameter project calls in parameter info', () {
+    const service = ProjectStyioLanguageService();
+    const documents = [
+      DocumentState(
+        documentId: 'lib/runtime.styio',
+        text: '''
+fn tick(): i64 {
+  emit 1
+}
+''',
+        revision: 0,
+      ),
+      DocumentState(
+        documentId: 'main.styio',
+        text: '''
+@import { lib/runtime }
+value = tick()
+''',
+        revision: 0,
+      ),
+    ];
+    final source = documents.last.text;
+
+    final info = service.parameterInfoAt(
+      documents: documents,
+      documentId: 'main.styio',
+      offset: source.indexOf('tick()') + 'tick('.length,
+    );
+
+    expect(info!.callableName, 'tick');
+    expect(info.parameters, isEmpty);
+    expect(info.activeParameterIndex, -1);
+    expect(info.activeParameter, isNull);
+  });
+
+  test('parses nested and quoted project named argument completion segments', () {
+    const service = ProjectStyioLanguageService();
+    const documents = [
+      DocumentState(
+        documentId: 'lib/math.styio',
+        text: '''
+fn blend(left: f64, right: f64, scale: string = "1"): f64 {
+  emit left + right
+}
+''',
+        revision: 0,
+      ),
+      DocumentState(
+        documentId: 'main.styio',
+        text: '''
+@import { lib/math }
+value = blend(left: (1.0 + 2.0), scale: "fast,slow", ri)
+''',
+        revision: 0,
+      ),
+    ];
+    final source = documents.last.text;
+
+    final items = service.namedArgumentCompletionsAt(
+      documents: documents,
+      documentId: 'main.styio',
+      offset: source.indexOf('ri)') + 2,
+    );
+
+    expect(items.map((item) => item.label), ['right:']);
+    expect(items.single.replacementRange!.start, source.indexOf('ri)'));
+  });
+
+  test('orders tied imported argument and import target suggestions', () {
+    const service = ProjectStyioLanguageService();
+    const argumentDocuments = [
+      DocumentState(
+        documentId: 'lib/math.styio',
+        text: '''
+fn blend(abc: f64, abd: f64): f64 {
+  emit abc + abd
+}
+''',
+        revision: 0,
+      ),
+      DocumentState(
+        documentId: 'main.styio',
+        text: '''
+@import { lib/math }
+value = blend(abe: 1.0, abd: 2.0)
+''',
+        revision: 0,
+      ),
+    ];
+    final argumentAnalysis = service.analyzeProject(argumentDocuments);
+    final unknownArgument = argumentAnalysis
+        .diagnosticsFor('main.styio')
+        .singleWhere(
+          (diagnostic) => diagnostic.diagnostic.code == 'unknown-named-argument',
+        );
+
+    final argumentFix = service
+        .quickFixesForProjectDiagnostic(
+          documents: argumentDocuments,
+          diagnostic: unknownArgument,
+          analysis: argumentAnalysis,
+        )
+        .singleWhere((fix) => fix.label.startsWith('Change argument name'));
+
+    expect(argumentFix.label, 'Change argument name to `abc`');
+
+    const importDocuments = [
+      DocumentState(
+        documentId: 'lib/bat.styio',
+        text: 'value = 1\n',
+        revision: 0,
+      ),
+      DocumentState(
+        documentId: 'lib/cat.styio',
+        text: 'value = 2\n',
+        revision: 0,
+      ),
+      DocumentState(
+        documentId: 'main.styio',
+        text: '''
+@import { lib/mat }
+value = 1
+''',
+        revision: 0,
+      ),
+    ];
+    final importAnalysis = service.analyzeProject(importDocuments);
+    final unresolvedImport = importAnalysis
+        .diagnosticsFor('main.styio')
+        .singleWhere(
+          (diagnostic) => diagnostic.diagnostic.code == 'unresolved-import',
+        );
+
+    final importFixLabels = service
+        .quickFixesForProjectDiagnostic(
+          documents: importDocuments,
+          diagnostic: unresolvedImport,
+          analysis: importAnalysis,
+        )
+        .map((fix) => fix.label)
+        .where((label) => label.startsWith('Change import'))
+        .toList(growable: false);
+
+    expect(importFixLabels, [
+      'Change import to `lib/bat`',
+      'Change import to `lib/cat`',
+    ]);
+  });
+
+  test('project analysis cache clears document and project index entries', () {
+    final cache = StyioProjectAnalysisCache();
+    final service = ProjectStyioLanguageService(analysisCache: cache);
+    const documents = [
+      DocumentState(
+        documentId: 'main.styio',
+        text: '''
+fn blend(left: f64, right: f64): f64 {
+  emit left + right
+}
+value = blend(1.0, 2.0)
+''',
+        revision: 0,
+      ),
+    ];
+
+    service.analyzeProject(documents);
+    service.analyzeProject(documents);
+
+    expect(cache.documentCount, 1);
+    expect(cache.projectIndexCount, 1);
+    expect(cache.projectIndexCacheHits, greaterThan(0));
+
+    cache.clear();
+
+    expect(cache.documentCount, 0);
+    expect(cache.projectIndexCount, 0);
+    expect(cache.projectIndexCacheHits, 0);
+    expect(cache.projectIndexCacheMisses, 0);
+  });
 }
 
 class _CountingStyioLanguageService extends SimpleStyioLanguageService {

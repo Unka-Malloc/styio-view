@@ -117,6 +117,90 @@ schema UnsavedShape {}
     expect(result.declarations.single.previewText, contains('unsaved'));
   });
 
+  test('workspace declaration exposes helpers and scores fallback matches', () async {
+    const query = WorkspaceDeclarationQuery(pattern: 'prices');
+    final copied = query.copyWith(
+      pattern: 'load',
+      includeGlobs: const <String>['lib/*.styio'],
+      excludeGlobs: const <String>['lib/generated/**'],
+      maxResults: 3,
+    );
+
+    expect(copied.pattern, 'load');
+    expect(copied.includeGlobs, const <String>['lib/*.styio']);
+    expect(copied.excludeGlobs, const <String>['lib/generated/**']);
+    expect(copied.maxResults, 3);
+
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'lib/main.styio': DocumentState(
+          documentId: 'lib/main.styio',
+          text: '''
+@prices: f64 := {}
+loadPrices = ||> {
+  <| 1
+}
+''',
+          revision: 0,
+        ),
+        'lib/types.styio': DocumentState(
+          documentId: 'lib/types.styio',
+          text: '''
+schema OrderBook {}
+state OrderFilled {}
+''',
+          revision: 0,
+        ),
+        'lib/generated/skip.styio': DocumentState(
+          documentId: 'lib/generated/skip.styio',
+          text: '#generated := () => {}\n',
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceDeclarationService(documentStore: store);
+    const files = <String>[
+      'lib/main.styio',
+      'lib/types.styio',
+      'lib/generated/skip.styio',
+    ];
+
+    final typeMatch = await service.findDeclarations(
+      filePaths: files,
+      query: const WorkspaceDeclarationQuery(
+        pattern: 'f64',
+        includeGlobs: <String>['lib/*.styio'],
+        excludeGlobs: <String>['lib/generated/**'],
+      ),
+    );
+    final taskKindMatch = await service.findDeclarations(
+      filePaths: files,
+      query: const WorkspaceDeclarationQuery(pattern: 'task'),
+    );
+    final fuzzyTaskMatch = await service.findDeclarations(
+      filePaths: files,
+      query: const WorkspaceDeclarationQuery(pattern: 'lp'),
+    );
+    final pathMatch = await service.findDeclarations(
+      filePaths: files,
+      query: const WorkspaceDeclarationQuery(pattern: 'types'),
+    );
+
+    expect(typeMatch.declarations.single.name, 'prices');
+    expect(typeMatch.declarations.single.kindLabel, 'resource');
+    expect(taskKindMatch.declarations.single.name, 'loadPrices');
+    expect(taskKindMatch.declarations.single.kindLabel, 'task');
+    expect(
+      fuzzyTaskMatch.declarations.map((declaration) => declaration.name),
+      contains('loadPrices'),
+    );
+    expect(
+      pathMatch.declarations.map((declaration) => declaration.kindLabel).toSet(),
+      <String>{'schema', 'state'},
+    );
+    expect(pathMatch.matchedFileCount, 1);
+  });
+
   test('workspace declaration reports empty, empty workspace, and misses', () async {
     final store = InMemoryWorkspaceDocumentStore(
       seededDocuments: const <String, DocumentState>{

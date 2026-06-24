@@ -4,6 +4,80 @@ import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
+  test('workspace reference search exposes query and result helpers', () {
+    final copied = const WorkspaceReferenceSearchQuery(
+      pattern: '  Blend  ',
+      includeDefinitions: false,
+      accessKinds: <ReferenceAccess>{ReferenceAccess.read},
+      includeGlobs: <String>['src/*.styio'],
+      excludeGlobs: <String>['*.generated.styio'],
+      maxResults: 4,
+    ).copyWith(
+      pattern: 'Task',
+      includeDefinitions: true,
+      accessKinds: const <ReferenceAccess>{ReferenceAccess.write},
+      includeGlobs: const <String>['**/*.styio'],
+      excludeGlobs: const <String>[],
+      maxResults: 8,
+    );
+    const definition = WorkspaceReferenceDefinition(
+      filePath: 'src/main.styio',
+      name: 'publish',
+      kind: StyioProjectSymbolKind.task,
+      range: SourceRange(start: 0, end: 7),
+      line: 0,
+      column: 0,
+      referenceCount: 2,
+      type: 'i64',
+    );
+    const declaration = WorkspaceReferenceSearchItem(
+      filePath: 'src/main.styio',
+      name: 'publish',
+      kind: StyioProjectSymbolKind.task,
+      range: SourceRange(start: 0, end: 7),
+      line: 0,
+      column: 0,
+      previewText: 'task publish',
+      isDefinition: true,
+      access: ReferenceAccess.declaration,
+      definition: definition,
+    );
+    const write = WorkspaceReferenceSearchItem(
+      filePath: 'src/main.styio',
+      name: 'publish',
+      kind: StyioProjectSymbolKind.task,
+      range: SourceRange(start: 20, end: 27),
+      line: 1,
+      column: 2,
+      previewText: 'value -> @publish',
+      isDefinition: false,
+      access: ReferenceAccess.write,
+      definition: definition,
+    );
+    final result = WorkspaceReferenceSearchResult(
+      query: copied,
+      status: WorkspaceReferenceSearchStatus.completed,
+      filesSearched: 1,
+      definitionsSearched: 1,
+      definitions: <WorkspaceReferenceDefinition>[definition],
+      references: <WorkspaceReferenceSearchItem>[declaration, write],
+    );
+
+    expect(copied.pattern, 'Task');
+    expect(copied.includeDefinitions, isTrue);
+    expect(copied.accessKinds, {ReferenceAccess.write});
+    expect(copied.maxResults, 8);
+    expect(definition.kindLabel, 'task');
+    expect(declaration.accessLabel, 'declaration');
+    expect(write.accessLabel, 'write');
+    expect(result.hitLimit, isFalse);
+    expect(result.matchCount, 2);
+    expect(result.matchedFileCount, 1);
+    expect(result.declarationCount, 1);
+    expect(result.writeCount, 1);
+    expect(result.readCount, 0);
+  });
+
   test('workspace reference search groups usages by project symbol', () async {
     final store = InMemoryWorkspaceDocumentStore(
       seededDocuments: const <String, DocumentState>{
@@ -222,5 +296,78 @@ value = blend(1.0, 2.0)
           .previewText,
       'value = blend(1.0, 2.0)',
     );
+  });
+
+  test('workspace reference search reports empty and unmatched queries', () async {
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': DocumentState(
+          documentId: 'src/main.styio',
+          text: 'value = 1\n',
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceReferenceSearchService(documentStore: store);
+
+    final emptyPattern = await service.findReferences(
+      filePaths: const <String>['src/main.styio'],
+      query: const WorkspaceReferenceSearchQuery(pattern: '   '),
+    );
+    final emptyWorkspace = await service.findReferences(
+      filePaths: const <String>['README.md'],
+      query: const WorkspaceReferenceSearchQuery(pattern: 'value'),
+    );
+    final noDefinitions = await service.findReferences(
+      filePaths: const <String>['src/main.styio'],
+      query: const WorkspaceReferenceSearchQuery(pattern: 'missing'),
+    );
+
+    expect(emptyPattern.status, WorkspaceReferenceSearchStatus.emptyPattern);
+    expect(emptyPattern.message, contains('symbol name'));
+    expect(emptyWorkspace.status, WorkspaceReferenceSearchStatus.emptyWorkspace);
+    expect(noDefinitions.status, WorkspaceReferenceSearchStatus.noDefinitions);
+    expect(noDefinitions.message, contains('missing'));
+  });
+
+  test('workspace reference search honors globs and fuzzy task matches', () async {
+    final store = InMemoryWorkspaceDocumentStore(
+      seededDocuments: const <String, DocumentState>{
+        'src/main.styio': DocumentState(
+          documentId: 'src/main.styio',
+          text: '''
+buildData = ||> {
+  <| 1
+}
+''',
+          revision: 0,
+        ),
+        'src/skip.generated.styio': DocumentState(
+          documentId: 'src/skip.generated.styio',
+          text: 'buildSkipped = ||> { <| 1 }\n',
+          revision: 0,
+        ),
+      },
+    );
+    final service = WorkspaceReferenceSearchService(documentStore: store);
+
+    final result = await service.findReferences(
+      filePaths: const <String>[
+        'src/main.styio',
+        'src/main.styio',
+        'src/skip.generated.styio',
+      ],
+      query: const WorkspaceReferenceSearchQuery(
+        pattern: 'bd',
+        includeGlobs: <String>['*.styio'],
+        excludeGlobs: <String>['*.generated.styio'],
+      ),
+    );
+
+    expect(result.status, WorkspaceReferenceSearchStatus.completed);
+    expect(result.filesSearched, 1);
+    expect(result.definitions.single.name, 'buildData');
+    expect(result.definitions.single.kindLabel, 'task');
+    expect(result.references.single.previewText, 'buildData = ||> {');
   });
 }

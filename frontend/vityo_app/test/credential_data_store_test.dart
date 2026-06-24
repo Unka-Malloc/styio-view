@@ -72,6 +72,73 @@ void main() {
     expect(jsonText, isNot(contains('secret')));
   });
 
+  test('credential models parse loose JSON and scoped metadata', () async {
+    final reference = CredentialReference.fromJson(<String, Object?>{
+      'key': <Object, Object?>{
+        'namespace': 'registry',
+        'name': 'nightly',
+        'scope': 'workspace',
+        'targetId': 'demo',
+      },
+      'kind': 'remote-service-credential',
+      'displayName': 'Nightly',
+    });
+    final fallbackReference = CredentialReference.fromJson(<String, Object?>{
+      'namespace': 'fallback',
+      'name': 'secret',
+      'scope': 'service',
+      'kind': 'unknown',
+    });
+    final expired = CredentialSecretRecord.fromJson(<String, Object?>{
+      'namespace': 'registry',
+      'name': 'expired',
+      'scope': 'toolchain',
+      'kind': 'registry-credential',
+      'secretValue': 'tok',
+      'createdAt': '2026-06-01T00:00:00Z',
+      'updatedAt': '2026-06-01T00:00:01Z',
+      'expiresAt': '2000-01-01T00:00:00Z',
+      'attributes': <Object, Object?>{1: 2},
+    });
+    final tinySecret = CredentialSecretRecord(
+      key: const CredentialDataStoreKey(
+        namespace: 'user',
+        name: 'tiny',
+        scope: CredentialScope.user,
+      ),
+      kind: CredentialKind.token,
+      secretValue: 'abc',
+    );
+    final store = InMemoryCredentialDataStore();
+
+    await store.write(expired);
+    await store.write(tinySecret);
+
+    expect(
+      CredentialKind.values.map((kind) => kind.wireValue),
+      <String>[
+        'token',
+        'registry-credential',
+        'remote-service-credential',
+        'generic-secret',
+      ],
+    );
+    expect(
+      CredentialScope.values.map((scope) => scope.wireValue),
+      <String>['user', 'workspace', 'toolchain', 'service'],
+    );
+    expect(reference.key.stableId, 'workspace:registry:demo:nightly');
+    expect(reference.kind, CredentialKind.remoteServiceCredential);
+    expect(fallbackReference.key.scope, CredentialScope.service);
+    expect(fallbackReference.kind, CredentialKind.genericSecret);
+    expect(expired.attributes, <String, String>{'1': '2'});
+    expect(expired.toMetadata().redactedValue, '****');
+    expect(await store.read(expired.key), isNull);
+    expect(await store.list(scope: CredentialScope.toolchain), hasLength(1));
+    expect(await store.delete(expired.key), isTrue);
+    expect(await store.delete(expired.key), isFalse);
+  });
+
   test('credential data store deletes credentials by stable key', () async {
     final store = InMemoryCredentialDataStore();
     const key = CredentialDataStoreKey(

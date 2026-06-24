@@ -288,6 +288,10 @@ void main() {
           ),
         ),
         _RouteCase(
+          capability: StyioServiceCapability.formatting,
+          invoke: (service) => service.formatDocument(document),
+        ),
+        _RouteCase(
           capability: StyioServiceCapability.changeSignature,
           invoke: (service) => service.changeSignatureAt(
             document,
@@ -295,6 +299,38 @@ void main() {
             newName: 'nextValue',
             parameters: const <ChangeSignatureParameterUpdate>[],
           ),
+        ),
+        _RouteCase(
+          capability: StyioServiceCapability.inlayHints,
+          invoke: (service) => service.inlayHints(document),
+        ),
+        _RouteCase(
+          capability: StyioServiceCapability.codeActions,
+          invoke: (service) => service.intentionsAt(document, 0),
+        ),
+        _RouteCase(
+          capability: StyioServiceCapability.parameterInfo,
+          invoke: (service) => service.parameterInfoAt(document, 0),
+        ),
+        _RouteCase(
+          capability: StyioServiceCapability.codeActions,
+          invoke: (service) => service.quickFixesForDiagnostic(
+            document,
+            const Diagnostic(
+              severity: DiagnosticSeverity.warning,
+              code: 'route.diagnostic',
+              message: 'Route diagnostic',
+              range: SourceRange(start: 0, end: 1),
+            ),
+          ),
+        ),
+        _RouteCase(
+          capability: StyioServiceCapability.rename,
+          invoke: (service) => service.renameAt(document, 0, 'renamedValue'),
+        ),
+        _RouteCase(
+          capability: StyioServiceCapability.safeDelete,
+          invoke: (service) => service.safeDeleteAt(document, 0),
         ),
         _RouteCase(
           capability: StyioServiceCapability.surround,
@@ -619,6 +655,12 @@ class _CapabilityTraceService extends _FallbackService {
   }
 
   @override
+  List<FormattingEdit> formatDocument(DocumentState document) {
+    calls.add(StyioServiceCapability.formatting.wireValue);
+    return super.formatDocument(document);
+  }
+
+  @override
   ChangeSignaturePlan? changeSignatureAt(
     DocumentState document,
     int offset, {
@@ -632,6 +674,45 @@ class _CapabilityTraceService extends _FallbackService {
       newName: newName,
       parameters: parameters,
     );
+  }
+
+  @override
+  List<InlayHint> inlayHints(DocumentState document) {
+    calls.add(StyioServiceCapability.inlayHints.wireValue);
+    return super.inlayHints(document);
+  }
+
+  @override
+  List<DiagnosticQuickFix> intentionsAt(DocumentState document, int offset) {
+    calls.add(StyioServiceCapability.codeActions.wireValue);
+    return super.intentionsAt(document, offset);
+  }
+
+  @override
+  ParameterInfoPayload? parameterInfoAt(DocumentState document, int offset) {
+    calls.add(StyioServiceCapability.parameterInfo.wireValue);
+    return super.parameterInfoAt(document, offset);
+  }
+
+  @override
+  List<DiagnosticQuickFix> quickFixesForDiagnostic(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    calls.add(StyioServiceCapability.codeActions.wireValue);
+    return super.quickFixesForDiagnostic(document, diagnostic);
+  }
+
+  @override
+  RenamePlan? renameAt(DocumentState document, int offset, String newName) {
+    calls.add(StyioServiceCapability.rename.wireValue);
+    return super.renameAt(document, offset, newName);
+  }
+
+  @override
+  SafeDeletePlan? safeDeleteAt(DocumentState document, int offset) {
+    calls.add(StyioServiceCapability.safeDelete.wireValue);
+    return super.safeDeleteAt(document, offset);
   }
 
   @override

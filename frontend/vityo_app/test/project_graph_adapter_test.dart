@@ -181,6 +181,171 @@ path = "src/lib.styio"
   );
 
   test(
+    'project graph adapter applies project pin metadata in scratch mode',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_project_graph_scratch_pin_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+
+      final previousCurrentDirectory = Directory.current;
+      addTearDown(() => Directory.current = previousCurrentDirectory);
+
+      Directory('${tempRoot.path}${Platform.pathSeparator}.git').createSync();
+      File('${tempRoot.path}${Platform.pathSeparator}spio-toolchain.toml')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
+[toolchain]
+channel = "nightly"
+version = "2026.6.19"
+''');
+      final nested = Directory(
+        '${tempRoot.path}${Platform.pathSeparator}tools${Platform.pathSeparator}scratch',
+      )..createSync(recursive: true);
+
+      Directory.current = nested;
+
+      final adapter = await createProjectGraphAdapter(
+        platformTarget: PlatformTarget.linux,
+      );
+      final graph = await adapter.loadProjectGraph();
+
+      expect(graph.kind, ProjectKind.scratch);
+      expect(graph.workspaceRoot, tempRoot.absolute.path);
+      expect(graph.toolchain.source, ToolchainResolutionSource.projectPin);
+      expect(
+        graph.toolchain.detail,
+        contains('Project toolchain pin is present'),
+      );
+      expect(
+        graph.toolchain.pinPath,
+        endsWith('${Platform.pathSeparator}spio-toolchain.toml'),
+      );
+    },
+  );
+
+  test(
+    'project graph adapter infers workspace packages and dependency sources',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_project_graph_workspace_sources_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+
+      final previousCurrentDirectory = Directory.current;
+      addTearDown(() => Directory.current = previousCurrentDirectory);
+
+      File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
+[workspace]
+members = ["packages/core", "packages/missing"]
+
+[toolchain]
+channel = "preview"
+version = "0.9.0"
+''');
+      File(
+          '${tempRoot.path}${Platform.pathSeparator}packages${Platform.pathSeparator}core${Platform.pathSeparator}spio.toml',
+        )
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
+[package]
+name = "demo/core"
+version = "1.2.3"
+publish = true
+
+[dependencies]
+workspace-kit = { workspace = true, package = "demo/workspace-kit" }
+remote = { registry: "file:///registry", package = "demo/remote", version = "1.0.0" }
+incomplete = { registry = "mirror" }
+fallback = "^1.0.0"
+
+[dev-dependencies]
+tooling = { git: "https://git.example/demo/tooling.git", rev = "abc123", package = "demo/tooling" }
+pinned = { version = "2.0.0" }
+''');
+
+      Directory.current = tempRoot;
+
+      final adapter = await createProjectGraphAdapter(
+        platformTarget: PlatformTarget.macos,
+      );
+      final graph = await adapter.loadProjectGraph();
+
+      expect(graph.kind, ProjectKind.workspace);
+      expect(graph.title, 'Workspace Project');
+      expect(graph.workspaceMembers, ['packages/core', 'packages/missing']);
+      expect(graph.packages.single.packageName, 'demo/core');
+      expect(graph.packages.single.publishEnabled, isTrue);
+      expect(graph.targets, isEmpty);
+      expect(
+        graph.editorFiles.single,
+        endsWith('src${Platform.pathSeparator}main.styio'),
+      );
+      expect(graph.toolchain.source, ToolchainResolutionSource.unknown);
+      expect(graph.toolchain.channel, 'preview');
+      expect(graph.toolchain.version, '0.9.0');
+      expect(graph.lockState, ProjectLockState.missing);
+      expect(graph.vendorState, ProjectVendorState.missing);
+      expect(graph.dependencyCount, 6);
+
+      final dependenciesByName = {
+        for (final dependency in graph.dependencies)
+          dependency.dependencyName: dependency,
+      };
+      expect(
+        dependenciesByName['workspace-kit']?.sourceKind,
+        ProjectDependencySourceKind.path,
+      );
+      expect(dependenciesByName['workspace-kit']?.isWorkspaceReference, isTrue);
+      expect(dependenciesByName['workspace-kit']?.requirement, 'workspace');
+      expect(
+        dependenciesByName['remote']?.sourceKind,
+        ProjectDependencySourceKind.registry,
+      );
+      expect(dependenciesByName['remote']?.registryRoot, 'file:///registry');
+      expect(dependenciesByName['remote']?.publishBlocking, isFalse);
+      expect(dependenciesByName['incomplete']?.publishBlocking, isTrue);
+      expect(
+        dependenciesByName['tooling']?.sourceKind,
+        ProjectDependencySourceKind.git,
+      );
+      expect(
+        dependenciesByName['tooling']?.gitSource,
+        'https://git.example/demo/tooling.git',
+      );
+      expect(dependenciesByName['tooling']?.gitRevision, 'abc123');
+      expect(
+        dependenciesByName['pinned']?.sourceKind,
+        ProjectDependencySourceKind.unknown,
+      );
+      expect(dependenciesByName['pinned']?.requestedVersion, '2.0.0');
+
+      final distribution = graph.packageDistribution;
+      expect(distribution, isNotNull);
+      expect(distribution?.publishablePackages, 0);
+      expect(distribution?.blockedPackages, 1);
+      final packageDistribution = distribution!.packages.single;
+      expect(packageDistribution.runtimeRegistryDependencies, 2);
+      expect(packageDistribution.runtimePathDependencies, 1);
+      expect(packageDistribution.devGitDependencies, 1);
+      expect(
+        packageDistribution.blockingReasons.where(
+          (reason) => reason.contains('workspace-kit'),
+        ),
+        isNotEmpty,
+      );
+      expect(
+        distribution.registrySources
+            .firstWhere((source) => source.registryRoot == 'file:///registry')
+            .transport,
+        'file',
+      );
+    },
+  );
+
+  test(
     'project graph adapter prefers published spio payload when available',
     () async {
       final tempRoot = await Directory.systemTemp.createTemp(
@@ -935,6 +1100,373 @@ raise SystemExit(64)
         ToolchainResolutionSource.environment,
       );
       expect(graph.notes.any((note) => note.contains('override')), isTrue);
+    },
+  );
+
+  test(
+    'project graph adapter merges toolchain-state without project graph contract',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_project_graph_toolchain_only_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+
+      final previousCurrentDirectory = Directory.current;
+      addTearDown(() => Directory.current = previousCurrentDirectory);
+
+      File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
+[package]
+name = "demo/toolchain-only"
+version = "0.1.0"
+
+[toolchain]
+channel = "stable"
+
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+      Directory(
+        '${tempRoot.path}${Platform.pathSeparator}src',
+      ).createSync(recursive: true);
+
+      final spioBinary = File(
+        '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
+      );
+      spioBinary.createSync(recursive: true);
+      spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+import json, sys
+
+if sys.argv[1:] == ['machine-info', '--json']:
+    print(json.dumps({
+        'tool': 'spio',
+        'supported_contract_versions': {
+            'project_graph': [],
+            'toolchain_state': [1],
+        },
+    }))
+    raise SystemExit(0)
+
+args = sys.argv[1:]
+if len(args) >= 3 and args[0] == 'tool' and args[1] == 'status':
+    print(json.dumps({
+        'command': 'tool status',
+        'schema_version': 1,
+        'toolchain': {
+            'source': 'managed-current',
+            'detail': 'Current managed styio selected through spio.',
+            'channel': 'nightly',
+            'version': '2026.6.19',
+            'candidate_binary_path': '/workspace/.spio/tools/styio/current/bin/styio',
+        },
+        'active_compiler': {
+            'binary_path': '/workspace/.spio/tools/styio/current/bin/styio',
+            'tool': 'styio',
+            'compiler_version': '2026.6.19',
+            'channel': 'nightly',
+            'variant': 'full',
+            'capabilities': ['machine_info_json'],
+            'supported_contract_versions': {'machine_info': [1]},
+            'active_integration_phase': 'bootstrap-single-file',
+            'supported_adapter_modes': ['cli'],
+            'feature_flags': {'compile_plan_consumer': False},
+        },
+        'current_compiler_error': 'current compiler probe stayed cached',
+        'managed_toolchains': {
+            'spio_home': '/workspace/.spio',
+            'current_binary': '/workspace/.spio/tools/styio/current/bin/styio',
+            'installed': [],
+        },
+        'notes': ['Toolchain-only payload merged with inferred project graph.'],
+    }))
+    raise SystemExit(0)
+
+raise SystemExit(64)
+''');
+      Process.runSync('chmod', <String>['+x', spioBinary.path]);
+
+      Directory.current = tempRoot;
+
+      final adapter = await createProjectGraphAdapter(
+        platformTarget: PlatformTarget.linux,
+      );
+      final graph = await adapter.loadProjectGraph();
+
+      expect(
+        adapter.capabilitySnapshot.projectGraph.level,
+        AdapterCapabilityLevel.partial,
+      );
+      expect(
+        adapter.capabilitySnapshot.projectGraph.detail,
+        contains('does not advertise the project_graph contract'),
+      );
+      expect(graph.kind, ProjectKind.package);
+      expect(graph.toolchain.source, ToolchainResolutionSource.managedCurrent);
+      expect(graph.toolchain.channel, 'nightly');
+      expect(graph.activeCompiler?.compilerVersion, '2026.6.19');
+      expect(graph.toolchainEnvironment?.currentCompilerError, contains('cached'));
+      expect(
+        graph.notes.any((note) => note.contains('Toolchain-only payload')),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'project graph adapter records published payload command and schema failures',
+    () async {
+      final originalCurrentDirectory = Directory.current;
+      addTearDown(() => Directory.current = originalCurrentDirectory);
+
+      Future<ProjectGraphSnapshot> loadGraphWithSpio({
+        required String tempPrefix,
+        required String projectGraphBody,
+      }) async {
+        final tempRoot = await Directory.systemTemp.createTemp(tempPrefix);
+        addTearDown(() => tempRoot.delete(recursive: true));
+
+        File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
+          ..createSync(recursive: true)
+          ..writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+        Directory(
+          '${tempRoot.path}${Platform.pathSeparator}src',
+        ).createSync(recursive: true);
+
+        final spioBinary = File(
+          '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
+        );
+        spioBinary.createSync(recursive: true);
+        spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+import json, sys
+
+if sys.argv[1:] == ['machine-info', '--json']:
+    print(json.dumps({
+        'tool': 'spio',
+        'supported_contract_versions': {'project_graph': [1]},
+    }))
+    raise SystemExit(0)
+
+args = sys.argv[1:]
+if len(args) >= 2 and args[0] == 'project-graph' and args[1] == '--json':
+$projectGraphBody
+
+raise SystemExit(64)
+''');
+        Process.runSync('chmod', <String>['+x', spioBinary.path]);
+        Directory.current = tempRoot;
+
+        final adapter = await createProjectGraphAdapter(
+          platformTarget: PlatformTarget.linux,
+        );
+        return adapter.loadProjectGraph();
+      }
+
+      final commandFailure = await loadGraphWithSpio(
+        tempPrefix: 'vityo_project_graph_command_failure_test_',
+        projectGraphBody: '''
+    sys.stderr.write('project graph exploded\\n')
+    raise SystemExit(42)
+''',
+      );
+      final schemaFailure = await loadGraphWithSpio(
+        tempPrefix: 'vityo_project_graph_schema_failure_test_',
+        projectGraphBody: '''
+    print(json.dumps({'schema_version': 2, 'kind': 'package'}))
+    raise SystemExit(0)
+''',
+      );
+
+      expect(commandFailure.hasProjectGraphPayloadFailure, isTrue);
+      expect(
+        commandFailure.projectGraphPayloadFailure?.detail,
+        contains('stderr: project graph exploded'),
+      );
+      expect(
+        commandFailure.notes.any((note) => note.contains('spio project-graph')),
+        isTrue,
+      );
+      expect(schemaFailure.hasProjectGraphPayloadFailure, isTrue);
+      expect(
+        schemaFailure.projectGraphPayloadFailure?.detail,
+        contains('unsupported schema_version `2`'),
+      );
+    },
+  );
+
+  test(
+    'project graph adapter derives distribution from sparse published payloads',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_project_graph_derived_distribution_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+
+      final previousCurrentDirectory = Directory.current;
+      addTearDown(() => Directory.current = previousCurrentDirectory);
+
+      final manifestPath = '${tempRoot.path}${Platform.pathSeparator}spio.toml';
+      final rootJson = jsonEncode(tempRoot.path);
+      final manifestJson = jsonEncode(manifestPath);
+      final srcPath =
+          '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio';
+      final srcJson = jsonEncode(srcPath);
+      File(manifestPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
+[package]
+name = "demo/sparse"
+version = "0.1.0"
+
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+      Directory(
+        '${tempRoot.path}${Platform.pathSeparator}src',
+      ).createSync(recursive: true);
+
+      final spioBinary = File(
+        '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
+      );
+      spioBinary.createSync(recursive: true);
+      spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+import json, sys
+
+if sys.argv[1:] == ['machine-info', '--json']:
+    print(json.dumps({
+        'tool': 'spio',
+        'supported_contract_versions': {'project_graph': [1]},
+    }))
+    raise SystemExit(0)
+
+args = sys.argv[1:]
+if len(args) >= 2 and args[0] == 'project-graph' and args[1] == '--json':
+    runtime_registry = {
+        'source_package_name': 'demo/sparse',
+        'dependency_name': 'runtime-registry',
+        'kind': 'runtime',
+        'requirement': 'registry:https://packages.example.test@1.0.0',
+        'source_kind': 'registry',
+        'package': 'demo/runtime-registry',
+        'registry': 'https://packages.example.test',
+        'version': '1.0.0',
+    }
+    dev_registry = {
+        'source_package_name': 'demo/sparse',
+        'dependency_name': 'dev-registry',
+        'kind': 'dev',
+        'requirement': 'registry:file:///registry@2.0.0',
+        'source_kind': 'registry',
+        'package': 'demo/dev-registry',
+        'registry': 'file:///registry',
+        'version': '2.0.0',
+    }
+    runtime_path = {
+        'source_package_name': 'demo/sparse',
+        'dependency_name': 'local-kit',
+        'kind': 'runtime',
+        'requirement': 'path:../local-kit',
+        'source_kind': 'path',
+        'path': '../local-kit',
+    }
+    dev_git = {
+        'source_package_name': 'demo/sparse',
+        'dependency_name': 'dev-tool',
+        'kind': 'dev',
+        'requirement': 'git:https://git.example/tool.git#abc123',
+        'source_kind': 'git',
+        'git': 'https://git.example/tool.git',
+        'rev': 'abc123',
+    }
+    unknown = {
+        'source_package_name': 'demo/sparse',
+        'dependency_name': 'mystery',
+        'kind': 'runtime',
+        'requirement': '^0.1.0',
+        'source_kind': 'unknown',
+    }
+    dependencies = [runtime_registry, dev_registry, runtime_path, dev_git, unknown]
+    print(json.dumps({
+        'schema_version': 1,
+        'id': $manifestJson,
+        'title': 'demo/sparse',
+        'kind': 'package',
+        'workspace_root': $rootJson,
+        'workspace_members': [],
+        'manifest_path': $manifestJson,
+        'packages': [{
+            'package_name': 'demo/sparse',
+            'version': '0.1.0',
+            'root_path': $rootJson,
+            'manifest_path': $manifestJson,
+            'publish_enabled': True,
+            'targets': [{
+                'id': 'demo/sparse:bin:demo',
+                'package_name': 'demo/sparse',
+                'kind': 'bin',
+                'name': 'demo',
+                'file_path': $srcJson,
+            }],
+            'dependencies': dependencies,
+            'is_workspace_member': False,
+        }],
+        'dependencies': dependencies,
+        'targets': [{
+            'id': 'demo/sparse:bin:demo',
+            'package_name': 'demo/sparse',
+            'kind': 'bin',
+            'name': 'demo',
+            'file_path': $srcJson,
+        }],
+        'editor_files': [$srcJson],
+    }))
+    raise SystemExit(0)
+
+raise SystemExit(64)
+''');
+      Process.runSync('chmod', <String>['+x', spioBinary.path]);
+      Directory.current = tempRoot;
+
+      final adapter = await createProjectGraphAdapter(
+        platformTarget: PlatformTarget.linux,
+      );
+      final graph = await adapter.loadProjectGraph();
+
+      expect(graph.kind, ProjectKind.package);
+      expect(graph.toolchain.source, ToolchainResolutionSource.unavailable);
+      expect(graph.notes, [
+        'Project graph loaded through published spio machine payload.',
+      ]);
+      final distribution = graph.packageDistribution!;
+      expect(distribution.publishablePackages, 0);
+      expect(distribution.blockedPackages, 1);
+      expect(
+        distribution.registrySources.map((source) => source.transport).toSet(),
+        {'file', 'https'},
+      );
+      final packageDistribution = distribution.packages.single;
+      expect(packageDistribution.runtimeRegistryDependencies, 1);
+      expect(packageDistribution.devRegistryDependencies, 1);
+      expect(packageDistribution.runtimePathDependencies, 1);
+      expect(packageDistribution.devGitDependencies, 1);
+      expect(
+        packageDistribution.blockingReasons,
+        containsAll(<String>[
+          'dependency in [dependencies] uses a local path or workspace source: local-kit',
+          'dependency in [dev-dependencies] uses a git source: dev-tool',
+          'dependency in [dependencies] is not registry-addressable: mystery',
+        ]),
+      );
     },
   );
 }

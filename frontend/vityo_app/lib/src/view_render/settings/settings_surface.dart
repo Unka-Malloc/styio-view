@@ -487,7 +487,7 @@ class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
               if (widget.themeOverride.accent != null)
                 Chip(
                   label: Text(
-                    'accent ${_colorToHex(widget.themeOverride.accent)}',
+                    'accent ${_colorToHex(widget.themeOverride.accent != null ? Color(widget.themeOverride.accent!) : null)}',
                   ),
                 ),
             ],

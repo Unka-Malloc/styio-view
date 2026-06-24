@@ -1,0 +1,65 @@
+< c7484c9b (HEAD -> integration/nightly-all-subbranches-20260624, origin/nightly, origin/HEAD, nightly) feat: add agent session, code lens, workbench, coverage gates, and release readiness
+> 2e1558c2 (origin/coverage/project-coverage-gate-20260619205915, coverage/project-coverage-gate-20260619205915) test: broaden coverage edge cases
+> 78c53d5c test: cover coverage gate edge branches
+> e93df544 test: fix coverage edge test assumptions
+> 90ce8d9d test: cover editor assistance and workspace edges
+> 01199346 test: stabilize inspector and extend coverage
+> 4bf35b20 test: cover shell and language inspector edges
+> e90ba46b test: stabilize readme workspace shell smoke
+> d5213a4c test: cover workspace empty edge states
+> c3f4ee95 test: reveal agent module smoke section
+> 0b1055be test: keep module smoke stable
+> 6469eec7 test: scroll module sidebar smoke fixture
+> c14b0bbb test: cover shell module tabs
+> 5351e82c test: cover styio connector alias payloads
+> 7a29f967 test: cover shell runtime edge routes
+> ee4fcf22 test: allow repeated scratch title in shell smoke
+> e6b8c8c4 test: cover scratch shell fallback cards
+> e90e7c32 test: align completion edge assertion
+> a13690fe test: cover editor controller edge cases
+> d9f9a991 test: initialize refactor keyboard selection before mount
+> b9199c0e test: isolate editor refactor keyboard coverage
+> 759e084a test: stabilize editor keyboard coverage
+> afaec28d test: cover editor keyboard dismiss paths
+> 7ef99015 test: cover platform and resource edge cases
+> 59015698 test: skip overflowing mobile bottom surfaces
+> 5973af5b test: restrict mobile surface scroll to mobile
+> 8eda1a2e test: build mobile bottom surfaces
+> 34dad74a test: scroll mobile shell surface deterministically
+> 1f7e81ea test: stabilize compact shell surface smoke
+> 64f889ed test: cover compact shell command surfaces
+> aaa148e8 test: import command palette query in shell runtime coverage
+> da4123e6 test: cover shell and model edge branches
+> 53456a77 test: cover styio capability detector payload edges
+> 3ff19f33 test: cover configuration and workflow edge branches
+> 4268df10 test: relax workspace helper coverage assertions
+> d7c1cd80 test: cover workspace navigation helper branches
+> ed160599 test: import simple language service in legacy coverage
+> 5e4cd940 test: cover legacy rules and reference search edges
+> 643deb4f test: cover language service forwarding routes
+> 0a9bc5bb test: align project graph edge assertions
+> fc3276a9 fix: allow inferred project graph editor fallback
+> 3a9330af test: cover project graph and task return edge cases
+> 9f884b3c test: stabilize editor overlay coverage tests
+> 8c4aedb8 test: cover editor overlay keyboard branches
+> bb0b1517 test: cover styio symbol index edge branches
+> 6efbf8cb test: relax workspace hierarchy branch assertions
+> 9910ebe9 test: align workspace hierarchy boundary fixtures
+> eb786297 test: cover workspace hierarchy boundary branches
+> e6581ea1 test: cover execution adapter fallback branches
+> 1fa9649a test: assert shell fetch blocked route
+> 9ad97014 test: align shell runtime blocked command expectation
+> ce7221c3 test: import project symbol kind in shell runtime tests
+> 438f5837 test: cover shell runtime fallback branches
+> 7fe7b9c9 test: fix hosted graph environment assertions
+> 2b799194 test: cover hosted codecs and filesystem fallbacks
+> ed4513b3 test: drive workspace surface interactions
+> 9f90a0c0 test: render populated workspace surfaces
+> 5042a5e5 test: sweep shell bottom surfaces
+> d4e249c2 test: keep workflow blocker assertion on mainline
+> 1a224eb0 test: settle remaining flutter smoke assertions
+> a08ba6bb test: stabilize flutter coverage gate
+> 13635d8e fix: escape workspace code lens glob anchor
+> e1f2bfdb test: include current flutter coverage surface
+> 1d5868ab fix: escape workspace glob regex anchors
+> 5b6eb79f ci: add project coverage gate

@@ -1,0 +1,977 @@
+< c7484c9b (HEAD -> integration/nightly-all-subbranches-20260624, origin/nightly, origin/HEAD, nightly) feat: add agent session, code lens, workbench, coverage gates, and release readiness
+< d3e5d475 feat: add workspace document highlights
+< 543597de feat: add workspace document links
+< 18253ba9 feat: add workspace declaration navigation
+< d7701ffb feat: add reference access filters
+< 568c14ca feat: add workspace implementation navigation
+< b3423c28 feat: add workspace type hierarchy
+< 5a3082fd feat: add workspace type definition navigation
+< a03be9a8 feat: add workspace replace in files
+< b4948304 feat: add workspace navigation history
+< 6903e9bc feat: add workspace breadcrumbs
+< ebc588b0 feat: add workspace outline
+< b207d41b feat: add workspace code actions
+< bfcb607e feat: add workspace rename symbol
+< ad7e4ba2 feat: add workspace go to definition
+< 153aacc4 feat: add workspace problems
+< 3068d97d feat: add workspace call hierarchy
+< cdba2d70 feat: add workspace find usages
+< 1404cd3a feat: add workspace symbol search
+< e6c17d81 feat: add command palette
+< 328fee8a feat: add workspace quick open
+< b087a089 feat: surface workspace search
+< 7a07fe38 feat: add workspace text search
+> a3d43eef (origin/codex/styio-view-delivery-closure) Draft audit fix prompts from recovery
+> 2579326a Gate recovery actions with agent audit
+> 00ec53a3 Surface agent recovery audit summary
+> 4dffc860 Summarize durable agent session audit
+> 35c13268 Record agent tool execution evidence
+> 8b80425f Enforce agent runtime step limits
+> 1acf230f Enforce active agent permission rules
+> bb391f4a Expose active agent runtime in surface
+> 98c568bf Add active agent runtime selection
+> b4006987 Validate replayed agent tool results
+> 074ea53b Support extension agent tool result schemas
+> 6109cd88 Expose agent tool result contracts to providers
+> 61da8161 Validate agent tool result schemas
+> f59529bb Add agent tool result schemas
+> fa6e5c0c Add agent runtime registry context
+> 293ef031 Ground provider adapter in OpenCode agent contracts
+> f419d709 Clarify agent profile OpenCode guidance
+> de1184de Clarify agent coding skill boundaries
+> 7ddc89c5 Clarify agent plan schema followups
+> c17421a8 Split agent patch schema requirements
+> 67fe16f2 Expose agent compaction strategy facts
+> 610523ef Structure agent loop followups
+> 9d57cb46 Structure agent tool registry boundaries
+> a669cabb Structure agent validation followups
+> 00661a51 Structure agent autonomy policy followups
+> 88fa34e9 Structure agent change review remediation
+> 4cb609e6 Structure provider credential remediation
+> b7641113 Structure agent readiness remediation items
+> 99d57f4f Persist agent validation command chains
+> 7a5a13b9 Structure agent recovery history facts
+> 2c1e7236 Structure recovery context fallback facts
+> 35de3dc5 Structure agent stream fallback metadata
+> cf3b6fa6 Drop stale tool lifecycle recovery TODO
+> 2f9ef21d Gate agent tool replay plans
+> ab29c753 Structure agent recovery confirmation state
+> 57237d8a Require review for blocked agent loops
+> 231540d7 Update agent recovery tool manifest
+> f3bca761 Preserve streamed tool call order
+> d017b62f Cover streamed agent tool dispatch
+> a18fc7b3 Deduplicate streamed agent tool events
+> acac73c7 Collect streamed agent tool calls
+> 99157d1c Stream provider tool calls into agent events
+> 6f5ae9aa Add network SSE agent provider streaming
+> d0f524e5 Show tool session transcripts in activity history
+> e5418f5e Persist agent tool session transcripts
+> 37661bb4 Bridge provider stream events in session processor
+> b0ef20e9 Build denied tool feedback in session processor
+> bd709e35 Plan tool result continuations in session processor
+> 55da3cbb Move tool replay into session processor
+> fb972e0d Move tool dispatch gating into session processor
+> 979a529b Extract agent tool session processor
+> 8614f396 Send agent tool session transcripts
+> 5fc64d1a Add agent tool session transcript
+> 09ad611b Show agent tool result summaries
+> 58e95506 Show extension agent tool registry on surface
+> 4068e6b8 Handle built-in agent surface extension RPC
+> a1b4543c Load extension contributions from module manifests
+> 9fc35df3 Initialize extension startup plan in bootstrap
+> c571b444 Wire extension RPC transports through bootstrap
+> da4db408 Build extension agent RPC transport catalog
+> 833b03a8 Add extension agent RPC transport registry
+> d2373421 Clear stale extension tool executor todo
+> 6b4a7d72 Add extension agent host invoker registry
+> 91c92382 Bridge extension agent tools to active hosts
+> 0fd79f57 Render agent tool progress details
+> 017e6486 Clarify extension agent host bridge gap
+> c0e1d6ec Add extension agent tool host bridge
+> 7fdcd394 Thread extension agent tool execution registry
+> a185ace5 Add denied tool recovery actions
+> 2b46c97a Remove stale provider fallback health TODO
+> 3bc5d319 Bind agent provider selection at bootstrap
+> 0c657eac Remove stale agent dispatch UI TODO
+> 6f6ff5a5 Remove stale workspace snapshot TODOs
+> 2e13300a Clarify semantic snapshot fallback status
+> df011496 Add recovery action for denied agent tools
+> 4f28a0a6 Remove stale validation surface TODO
+> 12088407 Remove stale autonomy surface TODO
+> b22c2c7f Remove stale agent tool dispatch TODO
+> 80c89d13 Stream agent provider events live
+> be57d8b1 Preserve streaming adapters through retry
+> 58bbb02d Move agent tool schema contract to registry
+> 72772bd4 Route agent provider requests through stream runtime
+> d27aa65d Add agent provider streaming runtime
+> b7f8e5f8 Show agent loop guard warnings
+> e19b2242 Show agent tool continuations in history
+> 3d9936f5 Tag agent tool continuations in history
+> 1daaf20c Send confirmed agent tool continuations
+> fad42f3a Draft agent continuation from tool results
+> c9b4204f Add agent tool loop continuation hook
+> 9eec3b21 Show agent tool loop runtime status
+> 9d8741e2 Route agent surface tools through loop runtime
+> 458142d2 Add agent coding tool loop runtime
+> 91479129 Restore prompts from agent history
+> 885fdd0c Show agent tool history evidence
+> e08cbdb2 Surface restored agent workspace snapshots
+> b56fc273 Restore agent workspace revert plans
+> 6d2259e3 Persist agent workspace snapshots
+> a331521a Route extension agent tool execution registry
+> 50a1cc22 Wire extension agent tools into bootstrap
+> 6eafbbe1 Add agent tool output budgets
+> ddf4d89f Expose project agent tool policy cleanup
+> b3c4e95e Expose project agent tool permission actions
+> f30a578f Persist project agent tool permission policy
+> a04cfe99 Add corrective feedback for denied agent tools
+> f7c316db Tighten agent loop capability TODOs
+> 633fce81 Redact persisted agent tool journals
+> c7fdcece Persist agent tool journals after dispatch
+> f7f7023b Expose session agent tool permission actions
+> bf6e2a0f Record agent tool patch recovery plans
+> b2263834 Wire agent tool snapshots into surface
+> 02fb9be9 Capture snapshots before agent patch tools
+> 55a01eac Add session agent tool permission rules
+> 5ab29fd4 Add agent conversation compaction summary
+> 434bc3df Expose agent conversation compaction context
+> 23081ba7 Expose agent tool lifecycle context
+> 5ef6c311 Expose agent tool catalog context
+> 9734fb97 Expose agent tool permission context
+> fc330abb Expose truncated agent tool result facts
+> 95f480ac Expose agent workspace checkpoint context
+> 54c1062c Expose agent loop guard context
+> 27dc8604 Add agent coding loop guard
+> 3178a770 Add provider replay follow-up summary
+> 0e624501 Forward agent replay metadata to provider
+> 7d7d6690 Persist agent tool replay reports
+> c9f28b06 Add agent tool journal replay surface
+> 42fe1da0 Add agent tool journal replay flow
+> 0084b539 Wire agent recovery context into surface tools
+> 79bcdeef Persist agent tool execution journal in history
+> e0a3acd8 Track agent tool execution journal in controller
+> 94f70cdb Add replayable agent tool execution journal
+> d4403b88 Expose agent recovery context tool
+> a20f5870 Wire extension agent tools into surface dispatch
+> 688533c0 Add extension agent tool execution registry
+> 340a89e1 Delegate extension agent tools through executor
+> 5af6027d Add extension agent tool contributions
+> 7076e17b Inject agent tool registry into responses adapter
+> 8fca6356 Derive provider tool schemas from registry
+> d2b63245 Feed invalid agent tool input back to providers
+> 0b36f540 Validate agent tool inputs against schemas
+> db6fbaf3 Expose agent validation context tool
+> f0fbc16c Add agent Styio language context tool
+> 658d48f0 Expose agent workspace patch apply tool
+> 479c991c Bind agent workspace patch runner to surface
+> dde36dfc Expose agent workspace edit preview tool
+> 848ed2cb Add agent workspace patch tool runners
+> cb6118be Preserve provider agent tool calls
+> c0694c69 Expose executable agent tools to providers
+> 186f86ec Send agent tool results to providers
+> 63e5746e Feed agent tool results into provider context
+> cc1bddde Run approved agent tools from surface
+> 071613d2 Bind agent IDE command tool execution
+> 4feef44f Execute safe builtin agent tools
+> deb57091 Dispatch approved agent tool calls
+> 6cbddd8a Bind agent tool call review decisions
+> ae677266 Apply agent workspace revert from surface
+> 12838129 Apply agent workspace revert plans
+> 426f960b Expose agent execution review surface
+> 79fb3136 Capture agent patch snapshots before apply
+> bb941209 Bridge streamed agent tool call events
+> ff972b6f Expose agent tool call execution plan
+> d79a11ef Add agent tool call execution planning
+> 1de92f0e Add agent tool call lifecycle tracking
+> 189f65c5 Add agent workspace snapshot planning
+> 18359a92 Add agent tool permission planning
+> 8a6591d0 Add agent tool registry selection
+> 57f19344 Add OpenCode-informed agent coding loop plan
+> aa7a12e5 Expose Styio capability profile to agent context
+> 2dc303a3 Add StyioService capability tier profile
+> 745e6941 Add agent coding dispatch plan
+> bbd590de Add PTY native operation backend registry
+> 4a1f92a1 Add StyioService local process launcher
+> 4e4129dc Propagate shell runtime process identities
+> a042c842 Propagate toolchain process identities
+> c2f76157 Bind extension task process identities
+> 5cb293c8 Bind failed-test debug process identities
+> e60717a1 Bind diagnostics producer process identities
+> 39bc5784 Add StyioService daemon launcher registry
+> a29560cf Expose runtime process handle identity
+> 55db84d7 Add shell panel contribution registry
+> f1f35a7d Add extension marketplace IO bridge
+> 1405c43f Add extension host sandbox launcher bridge
+> 428a25f7 Add platform live operation probe registry
+> d9224388 Add secure credential backend registry
+> bc04b72e Add toolchain bootstrap execution bridge
+> 0017ac55 Add source control conflict operation bridge
+> 885253cd Bind failed-test debug process handles
+> cac9b8e9 Bind diagnostics producer process handles
+> 718b1f3a Bind runtime task process handles
+> 759349e6 Add Styio service daemon process adapter
+> 7b3e9cbb Add hosted backend retry endpoints
+> 6ffa4b96 Add platform command shortcut policies
+> 2c086bb6 Add runtime task termination adapters
+> d8e8c28d Batch file explorer watcher events
+> 4ae675dc Batch workspace search watcher events
+> 5f35cdac Add agent provider credential lookup plans
+> 8e70350d Plan source control merge workflows
+> 74421856 Register failed-test debug cancellation handles
+> d921c183 Persist search watcher recovery state
+> 06bd92af Filter file explorer watcher events
+> dd9b67be Register diagnostics producer process handles
+> acfdb59e Add StyioService daemon supervisor controls
+> b6615feb Gate command shortcut capture policy
+> f1b9d803 Bind editor viewport scroll facts
+> c882c590 Wire terminal signal recovery controls
+> e3c3957e Execute debug session termination plans
+> c1fdda40 Dispatch extension task cancellations
+> c7481835 Confirm source control hunk discard
+> db202240 Restore source control diff sessions
+> 2d4f84fc Persist source control diff sessions
+> cfb6360f Show language cache telemetry in editor
+> 6a730dad Expose language cache telemetry to agents
+> e4516b3b Surface language cache telemetry status
+> 5aaad033 Expose language cache telemetry snapshots
+> c009649e Track language result cache telemetry
+> 74f3ab25 Add StyioService process supervisor restart hook
+> ca391b0f Publish patch application activity
+> 97cd96d7 Draft repair prompts for failed patches
+> 5a314011 Show blocked validation activity
+> cb6d4c65 Show agent autonomy policy
+> 9ed4b90b Record blocked agent dispatch activity
+> 743c8f63 Enforce agent provider readiness gate
+> 5fe57eda Surface agent readiness blockers
+> a4dd16bc Gate agent readiness on provider health
+> 0ba6da56 Stabilize toolchain bootstrap refresh
+> 995fd295 Show workspace file confirmation controls
+> a3a814f6 Wire diagnostics producer cancellation to shell
+> 20d9ebab Bridge StyioService restart to language refresh
+> c7db3b2d Wire StyioService restart dispatch through shell
+> f0d89ec4 Add StyioService restart dispatch contract
+> 733f36de Persist agent validation snapshots immediately
+> 8a6170cd Bind agent validation snapshots to patches
+> 926182b3 Clarify agent validation command routing
+> 2de8bb84 Expose agent review gate actions
+> f2d88765 Route toolchain install recovery actions
+> 59198f42 Show toolchain install recovery actions
+> cb0a24ce Register toolchain install execution command
+> 8cd8f287 Plan Styio install from project bootstrap command
+> a3293edd Suggest Styio bootstrap command to agents
+> 7f3dd1b1 Register Styio toolchain bootstrap command
+> 4b3c108d Expose toolchain bootstrap facts to agent context
+> a812c252 Show toolchain bootstrap dispatch results
+> 1ab34834 Wire toolchain bootstrap actions through shell
+> 593ec914 Add toolchain bootstrap action router
+> b0915b12 Document recovery validation evidence prompt draft
+> 7a0f618a Include validation evidence in recovery fix draft
+> 37c1ba29 Document activity validation failure evidence
+> 5487f8e8 Show validation failure evidence in activity history
+> 404fc9df Document validation failure evidence persistence
+> aee7f3bc Persist validation failure command evidence
+> ee25edaf Document recovery validation failure draft
+> 0912bb7b Add recovery validation failure draft
+> d0b1f3ea Document recovery validation continuation
+> 14ad583a Add recovery continue validation action
+> 35a57a05 Document agent recovery validation visibility
+> 50aa644b Show validation summary in agent recovery
+> cec50c22 Document agent activity validation visibility
+> be45a9bf Show agent validation summary in activity history
+> a19972e2 Document agent validation history persistence
+> 09a44682 Persist agent validation summaries in history
+> 56629db7 Add agent validation continue action
+> c8e75da6 Document agent validation pipeline capability
+> 545414c6 Add agent validation pipeline state
+> 3b7597e7 Document agent validation result capability
+> 76fc676c Summarize agent coding validation results
+> e10087ea Surface agent validation plan actions
+> 824efd95 Add agent checkpoint action to patch review
+> 3da78d50 Surface agent coding loop gates
+> 64459c13 Document agent coding gates in capability framework
+> 95a74600 Summarize agent coding gates in provider metadata
+> 63628961 Collect language context during agent validation
+> f048c728 Teach provider adapter coding gates
+> 38ae57cb Teach agent profile new coding gates
+> abc1e6eb Add agent validation command plans
+> 0ee5d929 Use registered commands in agent validation plan
+> a9f85f44 Suggest checkpoint before agent patch apply
+> ce558c36 Add agent coding validation plan
+> 66fa8c2e Add agent coding autonomy policy
+> 3ba457e4 Send agent change review gate in context
+> 3539c03f Add agent change review gate
+> f1e353c6 Add agent coding readiness gate
+> b9245b8a Mark presentation TODOs nonblocking
+> 9188ad31 Expose extension activation and update plans
+> da1a736a Expose toolchain bootstrap execution plans
+> dcb99aab Expose debug session termination plans
+> 982aad82 Expose terminal session recovery plans
+> 54da0b35 Expose file explorer batch action plans
+> 638393c3 Expose editor render viewport contracts
+> b8c137c1 Expose workspace search watcher safeguards
+> 01b6b2e3 Expose source control hunk discard confirmations
+> 6bc6d7a2 Expose failed test debug cancellation handles
+> 6cbc9a24 Expose diagnostics producer cancellation routes
+> 1fd96756 Expose hosted retry endpoint plans
+> a39d2bc4 Expose credential secure storage health contracts
+> ef203ab2 Refine platform manager health probes
+> 36049e76 Add Styio service daemon restart plans
+> c9bf085d Classify IDE capability maturity blockers
+> 175b36c1 Add extension runtime cancellation handles
+> b248cf3d Add extension runtime task retry plans
+> 768b9258 Persist extension runtime task telemetry
+> 109fb2e5 Suggest IDE maturity checkpoints to agents
+> a6d9d035 Include IDE maturity in agent checkpoints
+> f264a747 Teach agents IDE maturity blocker context
+> cdade59d Expose IDE capability maturity blockers
+> 95a00168 Constrain agent plan diagnostic tool schema
+> 8271eff0 Constrain agent code patch tool schema
+> 2306bd3d Constrain agent IDE command tool schema
+> 03520fdd Guard agent IDE commands with registry lookup
+> 12ba7841 Expose agent command catalog manifest
+> d2cdfde0 Bind provider ide commands to catalog
+> 47c15106 Bind pending agent commands to input contracts
+> 8ad38586 Aggregate agent coding command suggestions
+> 631b62d8 Suggest workspace edit followups to agents
+> b0203da8 Suggest source control commands to agents
+> 31ca238e Expose debug command suggestions to agents
+> a2f9a587 Teach agents testing command suggestions
+> 071d9f90 Expose testing command suggestions to agents
+> 0ec5b0b9 Teach agents checkpoint language fact policy
+> f69ff24d Teach agents project language semantic policy
+> b6a696e9 Return semantic authority in project language context
+> 2c5e0333 Teach agents semantic fact authority policy
+> 20ebda30 Expose semantic fact authority to agents
+> 0d525c35 Teach agents syntax validation authority policy
+> fa01a754 Expose syntax validation authority to agents
+> d2255bc7 Teach agents to inspect syntax validation reports
+> f68b1d6e Include syntax validation reports in agent language context
+> 00360dc2 Add serializable Styio syntax validation reports
+> 7915cd05 Activate Styio agent command skill
+> 44a5a180 Teach agents to consume project diagnostics facts
+> e7fc3ea1 Include diagnostics in agent project language context
+> b065ae45 Teach agents to consume project language command facts
+> 662f57ed Return agent project language command suggestions
+> 2b9870cb Add Styio agent command loop skill
+> 19f7fe88 Expose agent language service refresh suggestions
+> c2fbfa11 Expose agent diagnostic command suggestions
+> f2d6fc1d Expose agent navigation command facts
+> 17cd0d96 Expose agent refactor command previews
+> 148ec92c Record applied agent quick fix metadata
+> 8b970dcf Expose agent quick fix command inputs
+> 98da6888 Show command palette input contracts
+> 9f08cba9 Return agent command input metadata
+> 8ee25117 Show agent command input recovery hints
+> bc4b722e Prompt agents to use command input contracts
+> 7204f2e5 Complete agent command input contracts
+> c7901fbb Expose agent command input contracts
+> b5d1fff8 Block unmatched agent quick fix input
+> 713a7d28 Allow agents to select quick fixes
+> 7bf8de2d Include semantic action facts in agent checkpoint
+> 859bfb76 Prompt agents to inspect code action facts
+> f1fcc051 Feed semantic code action support into agent context
+> 8d7ca2b4 Expose semantic snapshot code action support
+> 7bf8052b Clean up agent failover key guidance
+> 737fa21a Route agent recovery failover through profile keys
+> 312e2400 Use provider profile keys for failover input
+> 087b2175 Document agent provider profile key capability
+> 7ffe3a48 Track agent provider failover profile keys
+> c3214780 Expose saved agent provider profiles in surface
+> d32405f1 Expose saved agent provider profiles
+> 516731d2 Expose agent recovery plans in context
+> f55bf672 Add agent provider profile manifest
+> 3e015389 Wire host environment into agent providers
+> f83045d9 Add agent provider environment credentials
+> 01c64071 Guard agent command catalog coverage
+> 5815e425 Add agent surface focus commands
+> 0b0ebc9a Add agent module refresh command
+> b3d83bdc Add agent toolchain lifecycle commands
+> 2d7b824a Add agent project lifecycle commands
+> 6ec225bf Add agent runtime run command
+> 0dbdf334 Cover agent persistence commands
+> a67d3bf6 Add agent test configuration commands
+> f1cf3e46 Add agent failed test debug command
+> 8e0e60d4 Add agent failed test rerun command
+> 1e1da9c9 Add agent source control commit draft planning
+> 2408672b Add agent source control branch planning
+> d67b5c59 Add agent workspace replace commands
+> 4a94aa6f Expose workspace file commands to agents
+> 5cbe21c1 Route agent workspace file commands
+> 7fe245f7 Add agent source control index commands
+> 4df98c92 Expose source control actions to agents
+> 80ee0fb1 Report stale workspace apply failures to agents
+> 2e1d0736 Stabilize agent workspace fix previews
+> 2211b392 Gate agent workspace quick fixes on preview
+> f8e22c8e Expose workspace edit context to agents
+> f49e8400 Document agent workspace edit risk prompt
+> 90778b0c Prompt agents to inspect workspace edit risk
+> dbc48135 Document workspace edit risk signals
+> ed27c5df Add workspace edit confirmation risk signals
+> ed1e9db4 Document agent semantic prompt guidance
+> c8fb4849 Prompt agents to read semantic confidence matrix
+> b449b878 Document agent semantic confidence context
+> e51d6811 Expose semantic confidence matrix to agent context
+> 059f9956 Document agent language readiness context
+> 29b5c7be Expose language provider readiness to agent context
+> 8eeb7546 Document semantic snapshot confidence counts
+> 30e4e910 Add semantic snapshot confidence counts
+> 6d668b7c Document derived language provider readiness
+> de7aa265 Derive language provider readiness from StyioService
+> cda0164c Document language provider readiness status
+> 4a213915 Surface Styio language provider readiness
+> accf6ebb Document Styio language provider readiness
+> 78deb1cc Add Styio language provider readiness report
+> a62a515f Document runtime output producer coverage
+> e1543c21 Register core runtime output producers
+> 4e6a390b Expose testing provider retry actions
+> 35a668bb Document testing provider health capability
+> f99f03af Add testing provider health retry plan
+> 527058ab Update agent recovery capability manifest
+> ccdfc065 Narrow agent recovery picker TODO
+> ca5fca85 Surface agent recovery command actions
+> a48e7d9a Dispatch agent recovery commands
+> 809f973c Wire agent provider failover command
+> 2ae0b8a7 Cover language service refresh shell route
+> ed518265 Add language service refresh action
+> 317886ff Teach agent loop Styio health context
+> fbadeddc Publish Styio capability health to runtime output
+> a5858d26 Render Styio capability health in editor
+> 964b541e Expose Styio capability health to status surfaces
+> 2e3a9232 Summarize Styio service capability health
+> fa1d676e Structure missing Styio provider capabilities
+> ff441fd7 Surface semantic confidence in symbol search
+> 40758522 Propagate semantic confidence to symbol search
+> 85fd5d37 Add semantic snapshot feature confidence
+> d0e5c062 Bind agent surface to controller activity history
+> 05c06e1a Surface agent activity failure details
+> 0c5be5cd Show agent recovery dispatch status
+> 65ed804f Cover agent recovery dispatch from surface
+> 0578cbd6 Expose agent recovery actions in surface
+> 48d83f36 Wire agent retry telemetry through shell runtime
+> 73d378d1 Propagate agent retry telemetry sink
+> a8cc8e18 Bind agent retry telemetry to runtime output
+> 16a5fee9 Add agent provider retry telemetry
+> 499ec6be Allow explicit retrying agent providers
+> 91592272 Add confirmed agent recovery dispatch
+> 259544d1 Add agent recovery request drafts
+> 5c22ae5e Register agent recovery commands
+> 9deb9c94 Add agent recovery command plans
+> 67e4c513 Add agent coding recovery plans
+> e0cb4c20 Add agent coding session checkpoints
+> 79fd4f01 Add PTY signal interaction contract
+> 2d628d31 Add debug runtime cancellation telemetry
+> 1abe488c Capture command palette keybindings physically
+> 20d6f1ef Add StyioService daemon stream binding
+> a337fd73 Wire workspace file explorer watcher binding
+> 290d5aeb Wire workspace search index watcher binding
+> 3af54958 Add extension runtime task telemetry sink
+> 424c356b Add failed test debug cancellation adapter
+> bbd820d2 Add source control hunk selection contract
+> e6032e5b Add diagnostics process cancellation adapter
+> 34ef088c Cover streaming agent cancellation telemetry
+> e14d9f79 Fix mobile shell smoke stability
+> 05d41f08 Wire StyioService subscription controls into shell
+> 684e36e9 Stage destructive workspace file commands
+> e08a2229 Add agent provider streaming transport contract
+> cfced5f8 Route command palette file input through shell
+> 99414b34 Record agent streaming session wiring
+> 0eb6905d Route agent streaming through session controller
+> 66169d1a Bind agent stream events to runtime output
+> 9ac23b65 Add agent provider streaming contract
+> 5dffe5a6 Add Styio service subscription controller
+> 81a57611 Route command palette file actions
+> eef3610e Render source control hunk action results
+> bbc4226e Add source control partial patch provider
+> 4bd06e22 Add diagnostics producer cancellation adapter
+> 20528332 Add agent credential source policy
+> 39e985c4 Bridge Styio service response telemetry
+> 15f1cda9 Record semantic diagnostics telemetry
+> 79ec9bd0 Enrich command keybinding conflict previews
+> 1129a356 Route failed test debug cancellation
+> d716f488 Add source control hunk action selection
+> c7838a53 Hydrate quick fix telemetry in shell
+> d2ceed30 Render quick fix telemetry rows
+> fcd6bda8 Expand source control history rows
+> 3b047267 Record semantic panel command telemetry
+> e0654ea8 Wire semantic panel shell lifecycle
+> 54fe5093 Retain semantic panel telemetry
+> 7bc9cf61 Add semantic refactor surface
+> 26c0f0fb Render semantic problem events
+> de5cabed Route per-fix problem actions
+> cfbe585e Persist failed test retry history
+> 4b2ef2fe Add source control diff confirmation
+> 5481ce14 Add command palette keybinding editor
+> eae9180d Persist workspace replace expansion state
+> aa446cb1 Add source control branch actions
+> 21e792a5 Route test debug configurations
+> 631144b3 Show debug output in runtime panel
+> 7ddc390f Bind debug runtime execution results
+> 07d8cfb1 Show diagnostics producer lifecycle
+> 26a772b5 Render workspace edit apply results
+> c2cd8d47 Show agent credential reference
+> 834a9f0c Bind Codex preset credentials in agent UI
+> 03f11363 Surface agent history failures
+> 575233c2 Route provider tokens to preferred credentials
+> 1cc644fc Gate Codex profiles on user credentials
+> 6e3bf278 Publish hosted retry output
+> 107c227a Project workspace edit results
+> 1b492f1c Expose semantic panels to agents
+> 795ef82c Project semantic panel view models
+> 3fb82977 Route extension host supervision
+> 36acc580 Route extension runtime tasks
+> 24bcc61b Bridge toolchain install execution
+> efe994e4 Route debug execution telemetry
+> fdfc2fac Track diagnostics producer lifecycle
+> 71465541 Plan diagnostics producer handoffs
+> a6a4e302 Bind terminal output snapshots
+> 714bc1c6 Bind language service status to runtime output
+> 75065142 Bind debug telemetry to runtime output
+> 1e67afbd Bind diagnostics to runtime output
+> 622b43a9 Execute hosted runtime handoffs
+> 8f1661f1 Execute toolchain runtime handoffs
+> afb7a99a Show live runtime output events
+> e04fac17 Execute shell runtime handoffs
+> 7062abe8 Plan terminal PTY startup
+> 3176ad01 Show extension install execution
+> 93ced669 Render debug launch telemetry
+> 1b875e48 Surface agent provider readiness
+> 387a5a70 Resolve agent provider readiness
+> e47958bc Catalog testing providers
+> b090f25b Bind editor semantic text styles
+> 5394a955 Window workspace replace previews
+> d88242a9 Bind source control diff windows
+> 82ac2863 Document editor semantic theme binding
+> 89996d25 Bind editor semantic theme styles
+> d3820b51 Document agent provider selection capability
+> 7c76f61d Render agent provider selection status
+> c92918a9 Expose agent provider selection context
+> d9648f3e Retain agent provider selection state
+> cdfd2b67 Expose agent provider selection plans
+> c7eb0e8c Plan agent provider selection
+> 0adb32dc Stage workspace file explorer actions
+> 95f82fc3 Map StyioService capabilities to providers
+> a0afe12f Manage output producer bindings
+> 5a99efbc Bind shell layout preferences live
+> 96687fdf Persist debug launch telemetry
+> 935f19e5 Bind terminal output producer emissions
+> 0f54454d Adapt runtime output producers
+> 51ec2006 Persist workspace edit diff pagination
+> e3ac9d1b Persist quick fix review telemetry
+> 9494141f Route platform recovery actions
+> fbc29b7e Persist semantic panel events
+> ef10fb45 Wire hosted backend retry executor
+> 3c2ffc4d Persist command keybinding overrides
+> cb45713b Hydrate command palette preferences on app startup
+> b7b1bad7 Persist shell command palette preferences
+> 366eceaa Persist workspace search filters
+> 717ada33 Add workspace search index refresh controller
+> 2654fef2 Publish diagnostic action telemetry
+> 0b6525f2 Publish agent activity to runtime output
+> 31d4c7e1 Wire shell command palette settings
+> a116b0e8 Bridge failed test debug routes
+> 80684b72 Distinguish mature IDE closure from TODO scaffolds
+> 4d77570f Cover agent checkpoint prompt context
+> 191b9605 Teach agent prompts checkpoint context
+> 2026c43b Replay checkpoint summaries in agent prompts
+> 5e1f10be Enrich agent coding checkpoints
+> 0efb289b Expose StyioService readiness to agents
+> d708dd70 Expose failed test rerun context to agents
+> a871859d Bridge SCM context into agent sessions
+> 68d24f16 Expose source control agent context
+> a53d996b Publish testing results to runtime output
+> 47fea20c Chunk shell runtime output events
+> a901bc96 Merge PTY stderr into terminal output
+> 28cd28db Cover Codex Spark local provider e2e
+> 7671ddab Register Codex agent provider capabilities
+> 2186407a Add agent structured response tools
+> 404d3a48 Add Codex Spark agent provider preset
+> 3a5a27af Surface agent workspace edit previews
+> e026925a Convert agent file ops to workspace edits
+> 72e356ed Expose agent skill activation reasons
+> 6067acd6 Narrow agent skill matching signals
+> 7d7c5ada Activate Styio agent skills from service status
+> f2844ded Prioritize Styio agent skills over native defaults
+> a511777f Wire language status controller into bootstrap
+> 51000631 Bind language service status events
+> a1550eb0 Add extension marketplace install executor
+> a2e7393d Bind ShellManager output to runtime buffer
+> c1e3bc61 Stream terminal events to runtime output
+> 82dc4bd3 Bind live output snapshots to Terminal
+> 7437b960 Add live command palette preferences
+> 9590bf26 Dispatch semantic snapshot panel events
+> 9952581c Render workspace edit diff windows in Problems
+> 39d1fd1e Bind Problems quick fix review controls
+> ff45b517 Add hosted backend retry action plans
+> 74300741 Add OpenAI Codex agent provider route
+> 53962b3d Add secure credential storage adapter contracts
+> c49cc4e1 Add platform manager health probes
+> 24a2446c Add DAP debug adapter execution plans
+> 85e2e313 Bridge diagnostic quick fixes to workspace edits
+> 1e026150 Add semantic snapshot event bridge
+> 97ba2a62 Add runtime output producer registry
+> 61868397 Add workspace edit review telemetry
+> 9b6f420e Add command palette settings controls
+> 3b78d2db Persist shell layout preferences
+> 4cfdd724 Add extension marketplace execution plans
+> 3dc5b956 Add extension host supervisor framework
+> 161ea734 Add source control diff windows
+> 3dc9b466 Add source control provider adapter registry
+> 3a76f514 Add source control diff review summaries
+> 71898c2d Add source control commit dialog state
+> ea5fb7e0 Add source control branch switch contracts
+> fbf6a033 Add debug launch route failure navigation
+> f74dae78 Bind terminal and shell output events
+> 7faa84b9 Bind runtime execution dispatch to live output
+> 91333359 Add semantic rename and code action telemetry facts
+> 5fb02192 Add workspace file explorer watch snapshots
+> 2f478c37 Persist command palette display preferences
+> 74c7ec6b Route diagnostics quick fixes and native tool snapshots
+> 9ba82474 Add runtime output live buffer
+> fd8d8222 Add command palette category filters
+> fec90fe4 Add workspace search index invalidation
+> c9295952 Expose toolchain bootstrap settings actions
+> b89d40cc Add terminal session lifecycle controls
+> 39c1b58b Render extension marketplace install plans
+> 9391571f Restore diagnostics panel state in problems
+> c44f3292 Bind command palette recent ranking
+> e5e956ba Expose testing run configuration controls
+> 42662442 Bind workspace edit review controls
+> 429e5367 Show source control draft summaries
+> 34069b3a Show per-diagnostic quick fixes
+> 4b2c80c8 Wire command palette keyboard navigation
+> 24ecc94c Bind shell layout plan to scaffold
+> 9e4f63bb Add runtime execution manager registry
+> a1911819 Attach testing output streams
+> b49b5ced Add command palette overlay state
+> c787ad12 Expose editor code action widget state
+> 403b8006 Unify workspace diagnostic streams
+> 5693bf53 Expose semantic service action facts
+> 701a6b53 Add runtime output subscription plan
+> 602fcd95 Bind runtime execution handoffs
+> d7a3bb67 Add file explorer confirmation plans
+> b04226d9 Add workspace file command contributions
+> d078e2c9 Add workspace file discovery snapshot
+> a14d1695 Show problems quick fix diff summary
+> a7629a10 Expose editor code action widget state
+> 8976bd14 Add editor semantic theme contract
+> ef4266e2 Add editor virtual row window
+> 332dcfd7 Persist diagnostics panel state
+> c522dd73 Add problems keyboard navigation
+> 5b0940a5 Show workspace replace diff summary
+> f847b2b1 Confirm workspace replace previews
+> e79b7c70 Add workspace search index
+> d8bb3a00 Persist command palette recents
+> 0ea9e846 Add workspace edit rollback
+> 2db9ae57 Add workspace edit file operations
+> 8e04ef76 Add runtime output panel events
+> a32fd359 Add toolchain bootstrap summary
+> 01f59bdd Add diagnostics interaction model
+> 9e18450d Add agent provider retry policy
+> 013d8719 Add semantic snapshot feature coverage
+> d08c6f84 Connect debug launch to runtime handoff
+> cac5fd3d Add runtime execution handoff contract
+> ecf3ca56 Add terminal interaction event snapshots
+> 642c1ce0 Add credential access audit trail
+> 8f644862 Add workspace edit confirmation plans
+> b3dca5d1 Add platform manager health snapshot
+> 9c26139a Persist test run configurations
+> 1646230b Persist source control commit drafts
+> cf0d3065 Add diagnostics source grouping
+> ffa496a7 Persist agent provider health history
+> 29978503 Add editor render snapshots
+> 670e76f7 Persist workspace file explorer state
+> 8a464a77 Add shell layout planning
+> b0a24a07 Add runtime execution planning
+> ec6be8b5 Add extension marketplace index
+> 65182399 Persist debugger breakpoints
+> a206a6b4 Persist testing run history
+> fa8377ee Add source control action planning
+> 5dfc1cfe Add credential storage policy gate
+> 043ae8dd Persist workspace search history
+> 8c83dce4 Persist runtime output channel history
+> 099a299d Persist workspace diagnostics filters
+> d8d2bd3c Expose capability closure to agent context
+> 6db403ac Activate Styio-first agent skills
+> f9808802 Add Styio-first agent skill registry
+> d3361405 Add IDE capability closure gate
+> 50070db8 Wire agent activity history into shell
+> 6e4a9af6 Embed agent activity history in surface
+> 8abe593b Add agent activity history surface
+> 15a63250 Add extension host isolation plans
+> d1f553ca Add extension lifecycle hook runner
+> b14b06ea Record agent coding session history
+> 4e635af5 Persist agent coding session history
+> 4415f83f Add extension lifecycle scaffold
+> 8cf48fb1 Persist extension activation history
+> d78b9d85 Consume extension view routes
+> 58ae7127 Consume extension theme routes
+> 06865d7d Consume extension agent provider routes
+> 74c494ff Consume extension runtime task routes
+> 29d6f69d Add extension activation scaffold
+> b7b03f4e Append debug runtime history from shell
+> 1c20f8cf Bind debug snapshots to runtime history
+> cdb97680 Consume extension debug routes
+> cc7d6d2d Consume extension language routes
+> 818eb72f Consume extension toolchain routes
+> 11d9f123 Persist terminal runtime task history
+> 1b31c552 Persist testing runtime task history
+> a9c952c7 Persist runtime task history
+> 54335c55 Consume extension command routes
+> 1b3e2dcd Route extension contributions to registries
+> 4c824c50 Project debug launches into runtime tasks
+> b9740da9 Bind testing runs to runtime tasks
+> 67d58e84 Persist extension manifest registry
+> 47d6bda6 Bind terminal runtime to task lifecycle
+> 9d9323f9 Add extension contribution manifests
+> e72761ad Add Styio toolchain lifecycle reports
+> ef703c20 Add runtime task lifecycle contract
+> 00d35a03 Persist debug launch configurations
+> b3216b1c Add execution result contracts
+> e48ac4a8 Add command palette query model
+> 5e994c09 Add runtime output channel model
+> cbc8a012 Add workspace diagnostics filter view
+> efb7c9ca Add workspace file explorer controller
+> 3a3e7486 Add agent provider health reports
+> f51ce5a2 Add credential store health contract
+> f9d4a2b2 Add testing run configuration framework
+> 291a0a53 Wire source control providers
+> 4becd976 Surface workspace symbol search
+> 3d24f2bf Expose workspace symbols to agent context
+> cd554d5c Add workspace symbol search
+> 29839735 Add semantic snapshot provider
+> 9356c86c Wire debug session controls
+> 1df5d653 Add terminal interaction controller
+> ff2a16bd Surface extension lifecycle states
+> 3f4854c6 Surface runtime output channels
+> e2531b7b Add workspace file operation service
+> 1fbbb4b4 Track test run history and failures
+> 3711d9a0 Group and filter workspace problems
+> c61881a1 Add source control action contracts
+> 87d0b41a Wire workspace replace previews
+> ecdbbcdd Wire workspace quick open search
+> 443f606d Add command contribution manifest categories
+> 3263ef47 Pass full search matches through navigation
+> 04671a67 Surface command palette availability states
+> 3218dd3b Show skipped no-op patch files in agent UI
+> 324bc7cb Expose skipped no-op patches to agents
+> 49c0c162 Skip no-op agent code patches
+> 280b494b Report skipped no-op workspace edits
+> 4e40d1dd Skip no-op workspace edits
+> 6fecbd33 Mark unsafe edit previews before apply
+> 42460249 Add source positions to edit previews
+> c4d23c05 Report missing documents in edit previews
+> 8c37dc58 Guide agents to preview quick fixes
+> 3f7ab063 Update capability manifest for edit previews
+> 432a3866 Route quick fix previews through commands
+> 73dd1368 Serialize workspace edit preview edits
+> a5e6d59f Expose workspace edit previews to agent checkpoints
+> 6d1981ae Preview project fixes from problems panel
+> 98572c72 Preview workspace edits before project fixes
+> 299b4d3c Connect problems diagnostics to editor fixes
+> 5bca7ca6 Apply project workspace quick fixes from shell
+> 382fc02e Render project language context in editor
+> 806122f8 Include project language facts in agent checkpoint
+> 6bfca934 Expose project language context to agent commands
+> 73912fea Apply project rename across workspace documents
+> cff09df9 Navigate project references from editor commands
+> e0bddbf8 Open project definitions from editor navigation
+> 5782ebb0 Show agent coding checkpoint summaries
+> 70080e09 Add agent coding checkpoint command
+> 2c3cd50d Add source control diff preview
+> 0a8cc308 Add workspace diagnostics refresh command
+> 388c419c Add source control refresh command
+> 6447e701 Connect source control status to process manager
+> 6e773bac Expose source control facts to agents
+> 1c5da386 Sync native test results into testing state
+> fd261286 Add testing session state controller
+> b9f319a1 Wire workspace diagnostics into app shell
+> 201e017a Bridge workspace diagnostics into shell
+> c505bf78 Add Styio workspace diagnostics provider
+> 916fded1 Expose diagnostics and testing facts to agents
+> 47898519 Register testing discovery capability
+> 550bcab0 Add testing discovery provider contract
+> 1175d4c7 Wire problems surface to workspace diagnostics
+> 86b4d18a Register workspace diagnostics capability
+> ec4cc51f Add workspace diagnostics provider contract
+> e126f3f3 Register testing provider capability
+> 79076a66 Add testing provider contract
+> 73c7e1ed Add language action workspace edit factories
+> 2cebd9fd Register workspace edit capability
+> 6dd5c5c0 Bridge agent patches to workspace edits
+> c03a2007 Add workspace edit application framework
+> c1f868df Register Styio language service providers
+> b6bf6ba0 Add foundation provider registry
+> d88385f0 Add source control provider contract
+> e2de46ef Add Git status model for source control
+> 47b151be Add command palette surface
+> 98df21e6 Add extensions surface
+> 2fde6d3f Add source control surface
+> 88ab81c8 Add testing surface
+> 817a5c36 Add terminal surface
+> b1328586 Add problems surface
+> aeab994f Add workspace search surface
+> aca81c74 Show IDE capability coverage in settings
+> 51bbf0c0 Cover IDE capabilities in agent provider requests
+> c2b3623a Expand IDE capability closure manifest
+> 9f268e30 Surface IDE capability framework in settings
+> afe69f43 Expose IDE capability framework to agents
+> a01edb6d Add IDE capability closure framework
+> 044e9f99 Expose provider execution to agent context
+> bd71a512 Report Styio grammar facts after refresh
+> 5ac50bc2 Expose Styio service facts in negotiation JSON
+> 9ded2b40 Explain missing agent provider credentials
+> 103b9a36 Preserve agent credential requirements in profile UI
+> 05848aa6 Prefer Styio facts in agent profiles
+> b3048d46 Require credentials for cloud agent providers
+> 59eed9b7 Surface Styio grammar facts to agents
+> 281f6fd8 Persist Styio grammar facts in cache manifests
+> 7f5abd25 Expose Styio parser grammar versions
+> 7d2859a7 Track Styio service facts protocol versions
+> c292585e Recognize C++ module files for coding skills
+> b11b2ad7 Activate clang tooling skill for underscore format configs
+> 1aa28326 Guide agents with toolchain selection messages
+> bc68a01f Expose toolchain failure message to providers
+> e7a4eec6 Expose toolchain selection failure metadata
+> a68ff3c6 Add Clang format tidy coding skill
+> 176abb9b Reject unsupported Clang C++ standards
+> 10a3b214 Validate Clang C++ version selections
+> 07a0effe Summarize command metadata in agent feedback
+> 07f1600b Expose retained patch state to agents
+> 83f6fe34 Separate settings recovery metadata
+> 221c8eb3 Do not auto-retry after settings recovery
+> e6006911 Activate C++ skills for Ninja build files
+> c096e638 Add Clang C++ handoff coding skill
+> 2f393884 Summarize targeted settings recovery
+> 320d903a Target settings recovery from agent commands
+> 75389297 Guide agents through toolchain selection recovery
+> e9cb58dd Show Clang C++ handoff in command summaries
+> 42dfbebe Expose Clang C++ handoff to agents
+> 4ed1eeb0 Offer settings recovery for toolchain selection
+> 9990acc0 Summarize agent toolchain selections
+> d67c6f86 Explain recent agent command input gaps
+> da3c3811 Show agent command input labels
+> 5383df78 Require agent command inputs in prompts
+> 61658526 Block agent commands missing required input
+> b055289d Allow agent toolchain commands in surface
+> 26354de9 Let agents select Clang C++ versions
+> 03251655 Guide agents to settings for missing tools
+> 8a3836e9 Offer settings recovery for missing native tools
+> 38100acf Guide agents to settings for blocked routes
+> 778e68ee Verify agent settings route opens settings tab
+> 1f2b02d0 Handle agent settings command in shell
+> 45a6a5f2 Offer settings recovery for blocked agent routes
+> 3b9efac9 Expose settings commands to agents
+> d9cfd225 Summarize agent command route metadata
+> 9039f106 Block retry for route-blocked agent commands
+> 30f2edf0 Share agent command metadata parsing
+> a0d8a82a Prioritize recent required agent commands
+> 4e093504 Apply required commands from recent metadata
+> 97eac1da Assert backend route in product workflows
+> 038cc4b0 Extend backend route product gate
+> ada683aa Render backend route in native summaries
+> c700c10e Teach agents backend route metadata
+> 79d7dd96 Add backend route metadata to native tools
+> b3751865 Add backend route product gate matrix
+> 88819c16 Render normalized backend route selection
+> 4c51cef6 Route shell run through backend selection
+> 91db803b Normalize backend execution route selection
+> f1a3ac9a Add agent provider fallback recovery action
+> 209cb4fc Add agent provider endpoint probe resolution
+> 60237b2b Add agent provider fallback profile fields
+> 228b9f21 Mount agent provider execution resolution
+> fb048555 Render agent provider execution status
+> 8c0d8d28 Add agent provider execution health resolution
+> d6b97921 Add agent provider fallback execution
+> b6385d98 Add agent provider route execution planner
+> 5a2a6743 Add credential secret injection foundation
+> fad1494a Restore checkpoint health gates
+> f5745ef0 Sync delivery docs with mainline IDE work
+> 3250fc6f Route prototype preview to editor
+> 6af196b9 Route web preview to editor
+> 27aa1635 Harden app shell and theme configuration
+> 7341430f Add cancellable network managers
+> 8b5b7cf2 Expand command and module foundations
+> 44229a2e Harden workspace document binding
+> a4ea82ae Harden runtime execution surfaces
+> e5c1206e Harden language service foundation
+> 1788d4a4 Harden editor interaction surface
+> 72c0265d Cover local agent provider e2e route
+> 5e3b71af Add interaction pipeline and run unit selection
+> 77b727cb Add configuration theme override store
+> d171ff59 Add native compiler discovery facade
+> 0f6c0568 Add module runtime package budget checks
+> 4952f373 Add editor edit performance budget
+> 97047bc7 Add runtime surface feature registry
+> a7cf156a Add workspace lifecycle and search services
+> acfe8963 Add DAP debugger foundation
+> 53880a4d Cover agent bootstrap provider fallback
+> cdec5bbe Add agent coding skill catalog
+> b63ac30c Summarize required native command metadata
+> 46fd0787 Guide agents to qualify clangd facts
+> d70a1915 Guide agents to inspect Clang vendor facts
+> 37f06bbf Show Clang vendor in toolchain settings
+> 40a3404a Expose Clang version facts to agents
+> e1fc8844 Detect native Clang version facts
+> a36acf0a Guide agents to run required IDE commands first
+> b3e9ada9 Show required IDE command labels in agent surface
+> ad425672 Gate CMake tool commands on build artifacts
+> dfa6680f Require build before clang-tidy without compile commands
+> 6d3334b9 Verify CMake configure feeds clang-tidy
+> f8ce583c Register generated CMake build artifacts
+> 2556aede Export compile commands for CMake handoff
+> 196cbd32 Require build before CTest when missing build dir
+> 66a3b1b7 Verify native output reaches agent context
+> cb14cced Expose native tool output previews
+> 7440033b Run clang-tidy with compile commands
+> a4864e41 Run CTest from CMake build directory
+> c95861e5 Run Ninja builds without CMake
+> 8bca1da0 Configure CMake builds from Clang C++ handoff
+> bd6f33f4 Allow selecting C++ standard preference
+> 9e4fdbc5 Persist Clang C++ version preference
+> 18d137b2 Expose Clang C++ versions in settings
+> 7f9d9db3 Gate provider profile changes during agent actions
+> 97885704 Track IDE command execution in agent controller
+> a5a63941 Gate provider retry during agent command execution
+> 65cb108d Gate agent prompts during command execution
+> 93c289e8 Summarize agent command result metadata
+> 2598afd6 Preserve structured agent command results
+> 84f6cb56 Record agent command results from surface
+> 172a0b4d Feed IDE command results into agent loop
+> 92e0b73d Bump agent context schema for handoff facts
+> 825a4871 Expose build engine handoff to agents
+> 2b5338e3 Add Clang C++ build engine handoff
+> 1163b94c Prompt agents to use CMake Ninja handoff
+> 5e4d4ae7 Add CMake Ninja handoff arguments
+> 641dddbe Summarize native tool families in metadata
+> c99cfa15 Cover build engine paths in provider context
+> 8f09ad57 Bump agent context schema for build facts
+> 485faf64 Align default profile with tool readiness
+> c34edc9f Align default agent profile with build engines
+> 2d5f0ad4 Prompt agents to use build engine paths
+> cc007d7f Expose native build engine handoff paths
+> 3deef104 Prompt agents to read tool family
+> 6586c2e1 Expose selected native tool family
+> 25d47de5 Teach agents multi-family tool readiness
+> 314cc964 Allow Ninja build readiness for agents
+> 1a733f6d Clarify native build facts for agents
+> dbbe89d7 Expose Ninja build facts to agents
+> 1fe0a112 Report Clang C++ preference resolution
+> a0f4dc18 Persist Clang C++ version preferences
+> c719e6f3 Expose Clang C++ toolchain facts to agents
+> 117d55ee Add Clang C++ version manager
+> 9e9b83d4 Route agent providers through registry
+> 727e5ab2 Add agent provider registry
+> c0829459 Add structured agent diagnostic summaries
+> f47c9a28 Keep agent coding plans in context
+> f3ae599b Add structured agent coding plans
+> a1c80715 Show active agent coding skills
+> fbd6cb4d Add agent surface interaction controls
+> 8cea5ea3 Add agent provider credential resolver
+> a71038db Add agent provider network transport
+> 70842781 Add agent provider configurator
+> 7515091f Add agent prompt profile store
+> 35673dd8 Add agent coding session controller
+> 19247f49 Add agent code patch applier
+> 003fae27 Add agent language evidence coordinates
+> 1ad0536e Add agent IDE context contract
+< 280221dc (tag: v0.1.0) Merge pull request #1 from Unka-Malloc/codex/styio-view-delivery-closure

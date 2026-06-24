@@ -11,9 +11,12 @@
 | Path | Entry | Summary |
 |------|-------|---------|
 | `ADAPTER-CONTRACTS-RUNBOOK.md` | [Adapter / Contracts Runbook](./ADAPTER-CONTRACTS-RUNBOOK.md) | 提供 adapter 合同、integration 层以及上游 styio / spio handoff 文档的日常维护入口。 |
+| `AGENT-RUNTIME-RUNBOOK.md` | [Agent Runtime Runbook](./AGENT-RUNTIME-RUNBOOK.md) | Define the agent domain owner's responsibilities, owned paths, review checklist, and required gates for Vityo's agent runtime system. Enforce credential safety, permission audit, patch workflow, and journal/audit compliance. |
+| `ARCHITECTURE-RUNBOOK.md` | [Architecture Runbook](./ARCHITECTURE-RUNBOOK.md) | Define the architecture domain owner's responsibilities, owned paths, review checklist, and required gates for Vityo system architecture governance. |
 | `COORDINATION-RUNBOOK.md` | [Coordination Runbook](./COORDINATION-RUNBOOK.md) | 提供 Vityo 的日常协调入口；显式维护团队 ownership、review routing、升级路径和 checkpoint 纪律，但不替代产品规格、系统架构或 adapter 合同 SSOT。 |
 | `DOC-STATS.md` | [Team Runbook Document Stats](./DOC-STATS.md) | Record the current size of each docs/teams/ runbook using the repository-local docs audit counting rules; this is a maintenance snapshot, not a quality target. |
 | `DOCS-DELIVERY-RUNBOOK.md` | [Docs / Delivery Runbook](./DOCS-DELIVERY-RUNBOOK.md) | 提供 Vityo 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。 |
+| `EXTENSION-MODULE-RUNBOOK.md` | [Extension Module Runbook](./EXTENSION-MODULE-RUNBOOK.md) | Define the extension/module domain owner's responsibilities, owned paths, review checklist, and required gates for Vityo's extension and contribution system. Enforce manifest schema validation, contribution routing, activation lifecycle, and extension isolation. |
 | `MODULE-PLATFORM-RUNBOOK.md` | [Module / Platform Runbook](./MODULE-PLATFORM-RUNBOOK.md) | 提供 module host、platform capability、六端 runner 与分发路径的日常维护入口。 |
 | `RUNTIME-AGENT-RUNBOOK.md` | [Runtime / Agent Runbook](./RUNTIME-AGENT-RUNBOOK.md) | 提供 runtime surface、debug/agent 面板、prompt/profile 入口与执行态 UI 的日常维护入口。 |
 | `SHELL-EDITOR-RUNBOOK.md` | [Shell / Editor Runbook](./SHELL-EDITOR-RUNBOOK.md) | 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。 |

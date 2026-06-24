@@ -115,8 +115,11 @@ TEAM_RULES: tuple[TeamRule, ...] = (
 
 TEAM_RUNBOOKS = {
     Path("docs/teams/ADAPTER-CONTRACTS-RUNBOOK.md"),
+    Path("docs/teams/AGENT-RUNTIME-RUNBOOK.md"),
+    Path("docs/teams/ARCHITECTURE-RUNBOOK.md"),
     Path("docs/teams/COORDINATION-RUNBOOK.md"),
     Path("docs/teams/DOCS-DELIVERY-RUNBOOK.md"),
+    Path("docs/teams/EXTENSION-MODULE-RUNBOOK.md"),
     Path("docs/teams/MODULE-PLATFORM-RUNBOOK.md"),
     Path("docs/teams/RUNTIME-AGENT-RUNBOOK.md"),
     Path("docs/teams/SHELL-EDITOR-RUNBOOK.md"),

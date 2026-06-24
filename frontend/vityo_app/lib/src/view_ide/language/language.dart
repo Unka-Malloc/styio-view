@@ -1,5 +1,4 @@
 export 'contract/language_contract.dart';
-export 'diagnostic_revision_gate.dart';
 export 'diagnostics/diagnostics.dart';
 export 'features/features.dart';
 export 'semantic/styio_symbol_index.dart';
@@ -18,5 +17,6 @@ export 'service/styio_service_connector.dart';
 export 'service/styio_service_project_document_rule_provider.dart';
 export 'service/styio_service_runtime.dart';
 export 'service/styio_language_service.dart';
+export 'diagnostic_revision_gate.dart';
 export 'syntax/styio_syntax_highlighter.dart';
 export 'syntax_validation/syntax_validation.dart';

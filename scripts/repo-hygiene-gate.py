@@ -269,6 +269,7 @@ VIEW_IDE_LANGUAGE_FACADES = {
     "styio_language_service.dart": "service/styio_language_service.dart",
     "simple_styio_language_service.dart": "service/simple_styio_language_service.dart",
     "local_styio_language_service.dart": "service/local_styio_language_service.dart",
+    "diagnostic_revision_gate.dart": "service/diagnostic_revision_gate.dart",
 }
 VIEW_IDE_LANGUAGE_BARREL = (
     "export 'contract/language_contract.dart';",
@@ -290,6 +291,7 @@ VIEW_IDE_LANGUAGE_BARREL = (
     "export 'service/styio_service_project_document_rule_provider.dart';",
     "export 'service/styio_service_runtime.dart';",
     "export 'service/styio_language_service.dart';",
+    "export 'diagnostic_revision_gate.dart';",
     "export 'syntax/styio_syntax_highlighter.dart';",
     "export 'syntax_validation/syntax_validation.dart';",
 )

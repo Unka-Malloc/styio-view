@@ -62,7 +62,7 @@ void main() {
       final withSelection = AgentContextSnapshot(
         snapshotId: 'snap-1',
         scope: AgentContextScope.full,
-        documentContext: AgentDocumentContext(
+        documentContext: AgentActiveDocumentContext(
           selectionStartOffset: 10,
           selectionEndOffset: 20,
           selectionText: 'hello',
@@ -73,14 +73,14 @@ void main() {
       final withoutSelection = AgentContextSnapshot(
         snapshotId: 'snap-2',
         scope: AgentContextScope.full,
-        documentContext: AgentDocumentContext(),
+        documentContext: AgentActiveDocumentContext(),
       );
       expect(withoutSelection.hasSelection, isFalse);
 
       final scopedOut = AgentContextSnapshot(
         snapshotId: 'snap-3',
         scope: AgentContextScope(minimal: true, includeSelection: false),
-        documentContext: AgentDocumentContext(
+        documentContext: AgentActiveDocumentContext(
           selectionStartOffset: 10,
           selectionEndOffset: 20,
           selectionText: 'hello',
@@ -110,10 +110,10 @@ void main() {
         snapshotId: 'snap-5',
         createdAtIso8601: '2026-06-24T00:00:00Z',
         scope: AgentContextScope.full,
-        workspaceContext: AgentWorkspaceContext(
+        workspaceContext: AgentWorkspaceSummaryContext(
           workspaceRoot: '/home/user/project',
         ),
-        documentContext: AgentDocumentContext(
+        documentContext: AgentActiveDocumentContext(
           filePath: 'main.styio',
           language: 'styio',
           lineCount: 42,
@@ -146,11 +146,11 @@ void main() {
           includeSettings: true,
           includeProfile: true,
         ),
-        workspaceContext: AgentWorkspaceContext(
+        workspaceContext: AgentWorkspaceSummaryContext(
           workspaceRoot: '/test',
           activeFilePath: 'main.styio',
         ),
-        documentContext: AgentDocumentContext(
+        documentContext: AgentActiveDocumentContext(
           filePath: 'main.styio',
           lineCount: 100,
           selectionStartOffset: 0,
@@ -165,7 +165,7 @@ void main() {
           projectTitle: 'my-project',
           graphSource: 'canonical-file',
         ),
-        runtimeContext: AgentRuntimeContext(
+        runtimeContext: AgentRuntimeSummaryContext(
           lastRunStatus: 'succeeded',
           laneStatuses: {'execution': 'succeeded'},
         ),
@@ -196,8 +196,8 @@ void main() {
     test('toDisplaySummary produces correct summary', () {
       final snapshot = AgentContextSnapshot(
         snapshotId: 'snap-7',
-        workspaceContext: AgentWorkspaceContext(workspaceRoot: '/ws'),
-        documentContext: AgentDocumentContext(
+        workspaceContext: AgentWorkspaceSummaryContext(workspaceRoot: '/ws'),
+        documentContext: AgentActiveDocumentContext(
           filePath: 'main.styio',
           selectionStartOffset: 5,
           selectionEndOffset: 15,
@@ -208,8 +208,8 @@ void main() {
           warningCount: 1,
         ),
         projectGraphContext: AgentProjectGraphContext(projectTitle: 'MyProj'),
-        runtimeContext: AgentRuntimeContext(lastRunStatus: 'succeeded'),
-        commandCatalogContext: AgentCommandCatalogContext(
+        runtimeContext: AgentRuntimeSummaryContext(lastRunStatus: 'succeeded'),
+        commandCatalogContext: AgentCommandSummaryContext(
           availableCommandCount: 25,
           blockedCommandCount: 3,
         ),

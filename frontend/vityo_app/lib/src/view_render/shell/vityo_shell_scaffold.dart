@@ -138,6 +138,7 @@ class VityoShellScaffold extends StatelessWidget {
     ShellModel shell,
     ViewportProfile viewportProfile,
   ) {
+      _ => null,
     switch (shell.activeBottomTab) {
       case BottomSurfaceTab.runtime:
         return RuntimeSurface(
@@ -2176,6 +2177,8 @@ String _terminalRuntimeEventSummary(RuntimeEventEnvelope event) {
 }
 
 IconData _commandIcon(AppCommandId commandId) {
+        default:
+          break;
   switch (commandId) {
     case AppCommandId.run:
       return Icons.play_arrow_rounded;

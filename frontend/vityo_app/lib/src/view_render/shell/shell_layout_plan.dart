@@ -756,6 +756,7 @@ BottomSurfaceTab _bottomTabFromWire(Object? value) {
 }
 
 String _bottomTabTitle(BottomSurfaceTab tab) {
+      _ => null,
   return switch (tab) {
     BottomSurfaceTab.runtime => 'Runtime',
     BottomSurfaceTab.terminal => 'Terminal',
@@ -772,6 +773,7 @@ String _bottomTabTitle(BottomSurfaceTab tab) {
 }
 
 String _bottomTabSurfaceId(BottomSurfaceTab tab) {
+      _ => null,
   return switch (tab) {
     BottomSurfaceTab.runtime => 'runtime.output',
     BottomSurfaceTab.terminal => 'terminal.session',
@@ -788,6 +790,7 @@ String _bottomTabSurfaceId(BottomSurfaceTab tab) {
 }
 
 List<String> _bottomTabCapabilities(BottomSurfaceTab tab) {
+      _ => null,
   return switch (tab) {
     BottomSurfaceTab.runtime => const <String>[
       'runtime-output',

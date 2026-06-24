@@ -15,11 +15,13 @@ export 'workspace_outline.dart';
 export 'workspace_implementation.dart';
 export 'workspace_document_store_types.dart';
 export 'workspace_problems.dart';
-export 'workspace_quick_open.dart';
+// workspace_quick_open.dart — excluded from barrel: duplicate WorkspaceQuickOpenService
+//   (canonical version in workspace_search_service.dart); import directly if needed.
+// workspace_symbol_search.dart — excluded from barrel: duplicate WorkspaceSymbolSearchService
+//   (canonical version in workspace_search_service.dart); import directly if needed.
 export 'workspace_reference_search.dart';
 export 'workspace_rename.dart';
 export 'workspace_search.dart';
-export 'workspace_symbol_search.dart';
 export 'workspace_type_definition.dart';
 export 'workspace_type_hierarchy.dart';
 export 'workspace_search_service.dart';

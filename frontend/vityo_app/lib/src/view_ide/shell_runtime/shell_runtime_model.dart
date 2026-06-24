@@ -4702,6 +4702,8 @@ class ShellRuntimeModel extends ChangeNotifier {
         appendLog(message);
         notifyListeners();
         return commandResult;
+          default:
+            throw UnimplementedError('AppCommandId.$commandId not implemented');
     }
   }
 
@@ -4779,6 +4781,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshModules:
       case AppCommandId.openSettings:
         return const <String, Object?>{};
+          default:
+            throw UnimplementedError('AppCommandId.$commandId not implemented');
     }
   }
 
@@ -7816,6 +7820,8 @@ class ShellRuntimeModel extends ChangeNotifier {
           '${StyioCommandRegistry.descriptorFor(commandId).label} requires a File Explorer dialog route.',
         );
         return;
+          default:
+            throw UnimplementedError('AppCommandId.$commandId not implemented');
     }
   }
 
@@ -7940,6 +7946,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.debugFailedTests:
         await executeCommand(commandId);
         return;
+          default:
+            throw UnimplementedError('AppCommandId.$commandId not implemented');
     }
   }
 
@@ -8177,6 +8185,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.selectClangCppVersion:
       case AppCommandId.openSettings:
         return null;
+          default:
+            throw UnimplementedError('AppCommandId.$commandId not implemented');
     }
   }
 

@@ -407,14 +407,14 @@ class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
   void initState() {
     super.initState();
     _accentController = TextEditingController(
-      text: _colorToHex(widget.themeOverride.accent),
+      text: _colorToHex(widget.themeOverride.accent != null ? Color(widget.themeOverride.accent!) : null),
     );
   }
 
   @override
   void didUpdateWidget(covariant _ThemeSettingsCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final nextText = _colorToHex(widget.themeOverride.accent);
+    final nextText = _colorToHex(widget.themeOverride.accent != null ? Color(widget.themeOverride.accent!) : null);
     if (_accentController.text != nextText) {
       _accentController.text = nextText;
     }
@@ -470,7 +470,7 @@ class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
                           return;
                         }
                         widget.onSaveThemeOverride!(
-                          widget.themeOverride.copyWith(accent: accent),
+                          widget.themeOverride.copyWith(accent: accent?.value),
                         );
                       },
                 child: const Text('Save theme override'),

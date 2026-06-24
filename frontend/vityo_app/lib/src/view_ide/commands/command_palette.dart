@@ -421,7 +421,8 @@ class CommandPaletteService {
       AppCommandId.refreshModules => 'Modules',
       AppCommandId.save ||
       AppCommandId.saveAll ||
-      AppCommandId.openFile => 'Editor',
+      AppCommandId.openFile ||
+      AppCommandId.reloadFile => 'Editor',
     };
   }
 

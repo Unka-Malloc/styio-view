@@ -275,8 +275,7 @@ class ExtensionManifestRegistry {
   final int schemaVersion;
   final Map<String, Object?> extensions;
 
-  final Map<String, ExtensionManifest> _manifests =
-      <String, ExtensionManifest>{};
+  final Map<String, ExtensionManifest> _manifests;
 
   void register(ExtensionManifest manifest) {
     if (!manifest.valid) {

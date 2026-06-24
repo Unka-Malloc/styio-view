@@ -161,8 +161,8 @@ class AgentRedactionPolicy {
 // ── Context Channel Payloads ──────────────────────────────────────
 
 /// Summary of the active workspace for agent context.
-class AgentWorkspaceContext {
-  const AgentWorkspaceContext({
+class AgentWorkspaceSummaryContext {
+  const AgentWorkspaceSummaryContext({
     this.workspaceRoot = '',
     this.memberCount = 0,
     this.activeFilePath = '',
@@ -186,8 +186,8 @@ class AgentWorkspaceContext {
 }
 
 /// Active document context (redacted Source Buffer excerpt).
-class AgentDocumentContext {
-  const AgentDocumentContext({
+class AgentActiveDocumentContext {
+  const AgentActiveDocumentContext({
     this.filePath = '',
     this.language = 'styio',
     this.lineCount = 0,
@@ -287,8 +287,8 @@ class AgentProjectGraphContext {
 }
 
 /// Runtime event summary for agent context.
-class AgentRuntimeContext {
-  const AgentRuntimeContext({
+class AgentRuntimeSummaryContext {
+  const AgentRuntimeSummaryContext({
     this.lastRunStatus = '',
     this.lastRunUnitRange = '',
     this.lastRunSessionId = '',
@@ -391,11 +391,11 @@ class AgentContextSnapshot {
   final String snapshotId;
   final String createdAtIso8601;
   final AgentContextScope scope;
-  final AgentWorkspaceContext? workspaceContext;
-  final AgentDocumentContext? documentContext;
+  final AgentWorkspaceSummaryContext? workspaceContext;
+  final AgentActiveDocumentContext? documentContext;
   final AgentDiagnosticsContext? diagnosticsContext;
   final AgentProjectGraphContext? projectGraphContext;
-  final AgentRuntimeContext? runtimeContext;
+  final AgentRuntimeSummaryContext? runtimeContext;
   final AgentCommandSummaryContext? commandCatalogContext;
   final AgentCapabilityGapContext? capabilityGapContext;
   final Map<String, String> settingsSummary;
@@ -484,7 +484,7 @@ class AgentContextSnapshot {
               Map<String, Object?>.from(json['scope'] as Map))
           : AgentContextScope.full,
       workspaceContext: json['workspaceContext'] != null
-          ? AgentWorkspaceContext(
+          ? AgentWorkspaceSummaryContext(
               workspaceRoot:
                   (json['workspaceContext'] as Map)['workspaceRoot'] as String? ??
                       '',
@@ -507,7 +507,7 @@ class AgentContextSnapshot {
             )
           : null,
       documentContext: json['documentContext'] != null
-          ? AgentDocumentContext(
+          ? AgentActiveDocumentContext(
               filePath:
                   (json['documentContext'] as Map)['filePath'] as String? ??
                       '',
@@ -603,7 +603,7 @@ class AgentContextSnapshot {
             )
           : null,
       runtimeContext: json['runtimeContext'] != null
-          ? AgentRuntimeContext(
+          ? AgentRuntimeSummaryContext(
               lastRunStatus:
                   (json['runtimeContext'] as Map)['lastRunStatus'] as String? ??
                       '',

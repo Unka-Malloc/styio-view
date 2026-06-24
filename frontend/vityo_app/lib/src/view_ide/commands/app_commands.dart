@@ -210,6 +210,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.showDebug ||
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
+      AppCommandId.navigateBack ||
       AppCommandId.toggleVisualSubstitution => AppCommandCategory.surface,
       AppCommandId.nextDiagnostic ||
       AppCommandId.previousDiagnostic ||

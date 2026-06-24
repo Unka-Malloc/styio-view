@@ -43,6 +43,8 @@ class VityoSettingsSchema {
   /// is needed.
   bool needsMigration(int fromVersion) =>
       fromVersion < currentSchemaVersion;
+
+  static const VityoSettingsSchema defaults = VityoSettingsSchema();
 }
 
 // ── IDE Settings ──────────────────────────────────────────────────
@@ -241,7 +243,7 @@ class AgentSettings {
 /// Complete Vityo settings snapshot.
 class VityoSettingsSnapshot {
   const VityoSettingsSnapshot({
-    this.schema = VityoSettingsSchema(),
+    this.schema = VityoSettingsSchema.defaults,
     this.editor = EditorSettings.defaults,
     this.theme = ThemeSettings.defaults,
     this.agent = AgentSettings.localOnly,

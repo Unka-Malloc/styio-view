@@ -7,7 +7,7 @@
 /// - Missing upstream capabilities return structured blocked reasons.
 /// - Capability gaps never cause crashes or fake results.
 
-import 'language_contract.dart';
+import '../contract/language_contract.dart';
 
 // ── Revision-Bound Diagnostic ─────────────────────────────────────
 

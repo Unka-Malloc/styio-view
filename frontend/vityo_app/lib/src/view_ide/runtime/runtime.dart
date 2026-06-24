@@ -6,3 +6,5 @@ export 'runtime_output_channel_history_store.dart';
 export 'runtime_task_history_store.dart';
 export 'runtime_task_lifecycle.dart';
 export 'runtime_execution_plan.dart';
+export 'debug_workbench_contract.dart';
+export 'runtime_surface_feature_registry.dart';

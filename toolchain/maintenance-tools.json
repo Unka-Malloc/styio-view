@@ -35,6 +35,22 @@
       "scope": ["product", "ide-quality", "parity"]
     },
     {
+      "id": "architecture-boundary-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/architecture_boundary_gate_test.py",
+      "command": "python3 scripts/architecture_boundary_gate_test.py",
+      "scope": ["architecture", "boundary", "dart-layers"]
+    },
+    {
+      "id": "public-contract-schema-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/public-contract-schema-gate.py",
+      "command": "python3 scripts/public-contract-schema-gate.py",
+      "scope": ["schema", "public-contract", "dart-models"]
+    },
+    {
       "id": "delivery-gate",
       "kind": "gate",
       "status": "current",
@@ -254,7 +270,9 @@
         "project-coverage-workflow",
         "release-readiness-gate",
         "vityo-ide-product-gate",
-        "ide-product-parity-gate"
+        "ide-product-parity-gate",
+        "architecture-boundary-gate",
+        "public-contract-schema-gate"
       ]
     },
     {

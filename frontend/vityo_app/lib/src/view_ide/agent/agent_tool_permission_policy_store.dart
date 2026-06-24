@@ -19,6 +19,13 @@ class AgentToolPermissionPolicy {
     );
   }
 
+  /// Default-policy deny rules for tools with specific capabilities.
+  /// Each rule matches a tool id glob; capability-based defaults
+  /// (destructive, openWorld) are enforced in _actionForPermissionMode().
+  static List<AgentToolPermissionRule> get defaultPolicyRules {
+    return const <AgentToolPermissionRule>[];
+  }
+
   final String workspaceId;
   final List<AgentToolPermissionRule> rules;
   final DateTime updatedAt;

@@ -110,6 +110,9 @@ enum AppCommandPermissionRequirement {
   readOnly,
   workspaceWrite,
   toolchainManaged,
+  network,
+  destructive,
+  openWorld,
   externalResource,
   fullAccess,
 }

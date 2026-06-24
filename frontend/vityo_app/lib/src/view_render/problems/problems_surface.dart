@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../view_ide/language/language_contract.dart';
-import '../../view_ide/language/service/semantic_snapshot_event_bridge.dart';
+import '../../view_ide/language/semantic_snapshot_panel.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/workspace/workspace.dart';
 import '../platform/viewport_profile.dart';

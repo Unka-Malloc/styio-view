@@ -6,6 +6,7 @@ export 'agent/agent.dart'
         HostedControlPlaneRetryTransport;
 export 'backend_toolchain/backend_toolchain.dart';
 export 'commands/commands.dart';
+export 'debugger/debugger.dart';
 export 'editor/editor.dart';
 export 'environment/environment.dart';
 export 'foundation/foundation.dart';

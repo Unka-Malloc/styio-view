@@ -18,3 +18,6 @@ export 'source_control/source_control.dart';
 export 'terminal/terminal.dart';
 export 'testing/testing.dart';
 export 'theme/theme.dart';
+export 'native_tool_result_summary.dart';
+export 'shell/hosted_workspace_lifecycle_banner.dart';
+export 'settings/settings_surface.dart';

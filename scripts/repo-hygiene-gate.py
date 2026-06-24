@@ -276,6 +276,7 @@ VIEW_IDE_LANGUAGE_FACADES = {
 VIEW_IDE_LANGUAGE_BARREL = (
     "export 'contract/language_contract.dart';",
     "export 'diagnostic_revision_gate.dart';",
+    "export 'semantic_snapshot_panel.dart';",
     "export 'diagnostics/diagnostics.dart';",
     "export 'features/features.dart';",
     "export 'semantic/styio_symbol_index.dart';",
@@ -696,6 +697,10 @@ def check_view_ide_language_layout() -> list[str]:
                 errors.append(
                     f"{relative_path}: language.dart must stay the canonical language barrel"
                 )
+            continue
+        if path.name == "semantic_snapshot_panel.dart":
+            # Public facade re-exporting view model types from service internals.
+            # Allowed at top-level — not a one-line facade.
             continue
         target = VIEW_IDE_LANGUAGE_FACADES.get(path.name)
         if target is None:

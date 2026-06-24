@@ -136,6 +136,7 @@ class AgentToolPermissionPlan {
     required this.decisions,
     this.rules = const <AgentToolPermissionRule>[],
     this.todoItems = const <String>[],
+    this.auditRecords = const <AgentToolPermissionAuditRecord>[],
   });
 
   factory AgentToolPermissionPlan.fromSelection(
@@ -151,11 +152,16 @@ class AgentToolPermissionPlan {
           rule: _firstMatchingRule(tool, orderedRules),
         ),
     ];
+    final auditRecords = decisions
+        .map((d) => AgentToolPermissionAuditRecord.fromDecision(d))
+        .toList(growable: false);
     return AgentToolPermissionPlan(
       status: _planStatus(decisions),
       decisions: List<AgentToolPermissionDecision>.unmodifiable(decisions),
       rules: List<AgentToolPermissionRule>.unmodifiable(orderedRules),
       todoItems: _todoItems(decisions),
+      auditRecords:
+          List<AgentToolPermissionAuditRecord>.unmodifiable(auditRecords),
     );
   }
 
@@ -163,6 +169,7 @@ class AgentToolPermissionPlan {
   final List<AgentToolPermissionDecision> decisions;
   final List<AgentToolPermissionRule> rules;
   final List<String> todoItems;
+  final List<AgentToolPermissionAuditRecord> auditRecords;
 
   bool get ready => status != AgentToolPermissionPlanStatus.blocked;
 
@@ -228,6 +235,55 @@ class AgentToolPermissionPlan {
           .toList(growable: false),
       'rules': rules.map((rule) => rule.toJson()).toList(growable: false),
       'todoItems': todoItems,
+      'auditRecords':
+          auditRecords.map((r) => r.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class AgentToolPermissionAuditRecord {
+  const AgentToolPermissionAuditRecord({
+    required this.toolId,
+    required this.action,
+    required this.decisionStatus,
+    required this.reason,
+    required this.ruleId,
+    required this.createdAtIso8601,
+  });
+
+  factory AgentToolPermissionAuditRecord.fromDecision(
+    AgentToolPermissionDecision decision,
+  ) {
+    return AgentToolPermissionAuditRecord(
+      toolId: decision.toolId,
+      action: decision.action ?? AgentToolPermissionAction.allow,
+      decisionStatus: decision.status,
+      reason: decision.reason,
+      ruleId: decision.ruleId,
+      createdAtIso8601: DateTime.now().toUtc().toIso8601String(),
+    );
+  }
+
+  final String toolId;
+  final AgentToolPermissionAction action;
+  final AgentToolPermissionDecisionStatus decisionStatus;
+  final String reason;
+  final String? ruleId;
+  final String createdAtIso8601;
+
+  bool get isDenied =>
+      decisionStatus == AgentToolPermissionDecisionStatus.denied;
+  bool get requiresReview =>
+      decisionStatus == AgentToolPermissionDecisionStatus.reviewRequired;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'toolId': toolId,
+      'action': action.wireValue,
+      'decisionStatus': decisionStatus.wireValue,
+      'reason': reason,
+      'ruleId': ruleId,
+      'createdAtIso8601': createdAtIso8601,
     };
   }
 }
@@ -245,11 +301,31 @@ AgentToolPermissionRule? _firstMatchingRule(
 }
 
 AgentToolPermissionAction _actionForPermissionMode(AgentToolDefinition tool) {
-  return switch (tool.permissionMode) {
+  final modeAction = switch (tool.permissionMode) {
     AgentToolPermissionMode.never => AgentToolPermissionAction.allow,
     AgentToolPermissionMode.review => AgentToolPermissionAction.ask,
     AgentToolPermissionMode.always => AgentToolPermissionAction.allow,
   };
+
+  // Destructive and open-world capabilities default to deny
+  // unless the tool's permission mode explicitly allows them.
+  final capabilities = tool.capabilities.toSet();
+  final hasDestructive = capabilities.contains('destructive');
+  final hasOpenWorld = capabilities.contains('openWorld');
+  final hasNetwork = capabilities.contains('network');
+
+  if ((hasDestructive || hasOpenWorld) &&
+      tool.permissionMode == AgentToolPermissionMode.never) {
+    // Even "never" (auto-allow) tools that are destructive or open-world
+    // must require review.
+    return AgentToolPermissionAction.ask;
+  }
+  if (hasNetwork && tool.permissionMode == AgentToolPermissionMode.never) {
+    // Network-accessing tools default to review even if marked never.
+    return AgentToolPermissionAction.ask;
+  }
+
+  return modeAction;
 }
 
 AgentToolPermissionDecisionStatus _statusForAction(

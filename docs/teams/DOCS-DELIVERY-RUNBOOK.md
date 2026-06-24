@@ -43,6 +43,10 @@ Primary paths:
 29. `toolchain/apple-platform-profiles.csv`
 30. `prototype/README.md`
 31. `frontend/vityo_app/README.md`
+32. `scripts/architecture_boundary_gate_test.py`
+33. `scripts/public-contract-schema-gate.py`
+34. `docs/governance/CODEOWNERS-POLICY.md`
+35. `docs/rollups/nightly-subbranch-merge-report-20260624.md`
 
 Key SSOTs:
 
@@ -58,6 +62,9 @@ Key SSOTs:
 10. `IDE 交互质量基线 -> ../design/Vityo-IDE-Interaction-Quality-Bar.md`
 11. `IDE 能力基线 JSON -> ../../toolchain/vityo-ide-capability-baseline.json`
 12. `IDE 产品对标门禁 -> ../../scripts/ide-product-parity-gate.py`
+13. `架构边界门禁 -> ../../scripts/architecture_boundary_gate_test.py`
+14. `公共合同 schema 门禁 -> ../../scripts/public-contract-schema-gate.py`
+15. `CODEOWNERS 治理策略 -> ../../docs/governance/CODEOWNERS-POLICY.md`
 
 ## Daily Workflow
 

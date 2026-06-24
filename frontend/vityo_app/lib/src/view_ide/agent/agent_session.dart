@@ -30,6 +30,9 @@ enum PermissionRequestScope {
   readOnly,
   workspaceWrite,
   toolchainManaged,
+  network,
+  destructive,
+  openWorld,
   fullAccessDisabledByDefault,
 }
 

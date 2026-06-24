@@ -439,7 +439,11 @@ class AgentToolRegistry {
         AgentProviderKind.localBridge,
       ],
       permissionMode: AgentToolPermissionMode.review,
-      capabilities: <String>['runtime.shell'],
+      capabilities: <String>[
+        'runtime.shell',
+        'network',
+        'destructive',
+      ],
       schema: <AgentToolSchemaProperty>[
         AgentToolSchemaProperty(
           name: 'command',

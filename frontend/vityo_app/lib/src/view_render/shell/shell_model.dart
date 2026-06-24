@@ -280,8 +280,6 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.refreshModules:
         await super.executeCommand(commandId);
         return;
-      default:
-        break;
     }
   }
 }

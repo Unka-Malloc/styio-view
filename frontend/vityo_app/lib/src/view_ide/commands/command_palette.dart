@@ -420,7 +420,8 @@ class CommandPaletteService {
       AppCommandId.preparePublish => 'Deployment',
       AppCommandId.refreshModules => 'Modules',
       AppCommandId.save ||
-      AppCommandId.saveAll => 'Editor',
+      AppCommandId.saveAll ||
+      AppCommandId.openFile => 'Editor',
     };
   }
 

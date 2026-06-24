@@ -241,7 +241,7 @@ class AgentSettings {
 /// Complete Vityo settings snapshot.
 class VityoSettingsSnapshot {
   const VityoSettingsSnapshot({
-    this.schema = VityoSettingsSchema.defaults,
+    this.schema = VityoSettingsSchema(),
     this.editor = EditorSettings.defaults,
     this.theme = ThemeSettings.defaults,
     this.agent = AgentSettings.localOnly,
@@ -254,7 +254,7 @@ class VityoSettingsSnapshot {
   final AgentSettings agent;
   final String lastModifiedIso8601;
 
-  static const VityoSettingsSchema defaults = VityoSettingsSchema();
+  static const VityoSettingsSnapshot defaults = VityoSettingsSnapshot();
 
   VityoSettingsSnapshot copyWith({
     VityoSettingsSchema? schema,
@@ -295,7 +295,7 @@ class VityoSettingsSnapshot {
       schema: json['schema'] != null
           ? VityoSettingsSchema.fromJson(
               Map<String, Object?>.from(json['schema'] as Map))
-          : VityoSettingsSchema.defaults,
+          : VityoSettingsSchema(),
       editor: json['editor'] != null
           ? EditorSettings.fromJson(
               Map<String, Object?>.from(json['editor'] as Map))

@@ -83,7 +83,6 @@ enum AppCommandId {
   renameWorkspaceFile,
   deleteWorkspaceFile,
   revealWorkspaceFile,
-  searchWorkspace,
   previewWorkspaceReplace,
   applyWorkspaceReplace,
   runBuild,
@@ -210,6 +209,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.showAgent ||
       AppCommandId.showDebug ||
       AppCommandId.commandPalette ||
+      AppCommandId.quickOpen ||
       AppCommandId.toggleVisualSubstitution => AppCommandCategory.surface,
       AppCommandId.nextDiagnostic ||
       AppCommandId.previousDiagnostic ||

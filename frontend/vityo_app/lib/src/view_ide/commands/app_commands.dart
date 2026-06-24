@@ -213,6 +213,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.navigateBack ||
       AppCommandId.navigateForward ||
       AppCommandId.showRecentLocations ||
+      AppCommandId.showWorkspaceDocumentLinks ||
       AppCommandId.toggleVisualSubstitution => AppCommandCategory.surface,
       AppCommandId.nextDiagnostic ||
       AppCommandId.previousDiagnostic ||

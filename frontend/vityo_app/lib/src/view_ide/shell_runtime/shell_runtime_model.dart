@@ -11,7 +11,7 @@ import '../debugger/debug_adapter_session.dart';
 import '../debugger/debug_launch_contract.dart';
 import '../debugger/debug_launch_telemetry_store.dart';
 import '../debugger/debug_runtime_task_history.dart';
-import '../editor/editor.dart';
+import '../editor/editor.dart' hide WorkspaceEditSource;
 import '../environment/configuration/configuration.dart';
 import '../interaction/interaction.dart';
 import '../language/language_contract.dart';
@@ -33,7 +33,7 @@ import '../toolchain/toolchain_manager.dart';
 import '../toolchain/toolchain_resolver.dart';
 import '../toolchain/toolchain_runtime.dart';
 import '../testing/testing.dart';
-import '../workspace/workspace.dart' hide WorkspaceEditSource;
+import '../workspace/workspace.dart';
 import '../environment/configuration/vityo_theme_override.dart';
 
 const int _maxNativeToolResultRecords = 24;
@@ -4281,8 +4281,6 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
 
     switch (commandId) {
-          case AppCommandId.openFile:
-            break;
       case AppCommandId.runBuild:
         final needsConfigure =
             _hasWorkspaceFile('CMakeLists.txt') && !_hasConfiguredCMakeBuild();
@@ -4709,8 +4707,6 @@ class ShellRuntimeModel extends ChangeNotifier {
 
   Map<String, Object?> _nativeToolBackendRouteMetadata(AppCommandId commandId) {
     switch (commandId) {
-          case AppCommandId.openFile:
-            break;
       case AppCommandId.runBuild:
       case AppCommandId.runTests:
         return <String, Object?>{
@@ -7339,8 +7335,6 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
 
     switch (commandId) {
-          case AppCommandId.openFile:
-            break;
       case AppCommandId.save:
         _cacheDocument(_activeDocumentPath, editorController.document);
         _editorFileBinding.markDocumentChanged(editorController.document);
@@ -7838,8 +7832,6 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
     switch (commandId) {
-          case AppCommandId.openFile:
-            break;
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.previewWorkspaceReplace:
@@ -8089,8 +8081,6 @@ class ShellRuntimeModel extends ChangeNotifier {
   String? blockedReasonForCommand(AppCommandId commandId) {
     final projectGraph = workspaceController.activeProject;
     switch (commandId) {
-          case AppCommandId.openFile:
-            break;
       case AppCommandId.fetchDependencies:
         return blockedDependencySourceCommandReason(
           platformTarget: platformTarget,

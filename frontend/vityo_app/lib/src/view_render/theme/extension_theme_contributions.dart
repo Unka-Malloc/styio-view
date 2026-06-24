@@ -1,4 +1,5 @@
 import '../../view_ide/module_host/module_host.dart';
+import '../../view_ide/environment/configuration/vityo_theme_override.dart';
 import 'vityo_theme.dart';
 
 enum ExtensionThemeContributionStatus { ready, invalidRoute, missingPalette }

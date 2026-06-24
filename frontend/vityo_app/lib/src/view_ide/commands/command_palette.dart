@@ -385,7 +385,8 @@ class CommandPaletteService {
 
   static String _categoryFor(AppCommandId commandId) {
     return switch (commandId) {
-      AppCommandId.run => 'Execution',
+      AppCommandId.run ||
+      AppCommandId.runSelectedTarget => 'Execution',
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
       AppCommandId.navigateBack ||

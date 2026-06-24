@@ -16,7 +16,7 @@ export 'language/language.dart';
 export 'module_host/module_host.dart';
 export 'platform/platform.dart';
 export 'runtime/runtime.dart'
-    hide DebugSessionStatus; // duplicated in shell_runtime/shell_runtime.dart
+    hide DebugSessionStatus, DebugSessionSnapshot; // duplicated in shell_runtime
 export 'shell_runtime/shell_runtime.dart';
 export 'testing/testing.dart';
 export 'toolchain/toolchain.dart' hide ToolchainRecoveryAction;

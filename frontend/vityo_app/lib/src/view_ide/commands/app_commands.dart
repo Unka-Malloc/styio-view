@@ -212,6 +212,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.quickOpen ||
       AppCommandId.navigateBack ||
       AppCommandId.navigateForward ||
+      AppCommandId.showRecentLocations ||
       AppCommandId.toggleVisualSubstitution => AppCommandCategory.surface,
       AppCommandId.nextDiagnostic ||
       AppCommandId.previousDiagnostic ||

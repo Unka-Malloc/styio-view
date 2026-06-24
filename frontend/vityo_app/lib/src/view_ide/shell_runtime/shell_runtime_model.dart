@@ -4281,6 +4281,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
 
     switch (commandId) {
+          case AppCommandId.openFile:
+            break;
       case AppCommandId.runBuild:
         final needsConfigure =
             _hasWorkspaceFile('CMakeLists.txt') && !_hasConfiguredCMakeBuild();
@@ -4707,6 +4709,8 @@ class ShellRuntimeModel extends ChangeNotifier {
 
   Map<String, Object?> _nativeToolBackendRouteMetadata(AppCommandId commandId) {
     switch (commandId) {
+          case AppCommandId.openFile:
+            break;
       case AppCommandId.runBuild:
       case AppCommandId.runTests:
         return <String, Object?>{
@@ -7335,6 +7339,8 @@ class ShellRuntimeModel extends ChangeNotifier {
     }
 
     switch (commandId) {
+          case AppCommandId.openFile:
+            break;
       case AppCommandId.save:
         _cacheDocument(_activeDocumentPath, editorController.document);
         _editorFileBinding.markDocumentChanged(editorController.document);
@@ -7832,6 +7838,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       return;
     }
     switch (commandId) {
+          case AppCommandId.openFile:
+            break;
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.searchWorkspace:
       case AppCommandId.previewWorkspaceReplace:
@@ -8081,6 +8089,8 @@ class ShellRuntimeModel extends ChangeNotifier {
   String? blockedReasonForCommand(AppCommandId commandId) {
     final projectGraph = workspaceController.activeProject;
     switch (commandId) {
+          case AppCommandId.openFile:
+            break;
       case AppCommandId.fetchDependencies:
         return blockedDependencySourceCommandReason(
           platformTarget: platformTarget,

@@ -234,7 +234,9 @@ class ExtensionManifest {
 class ExtensionManifestRegistry {
   ExtensionManifestRegistry([
     Iterable<ExtensionManifest> manifests = const <ExtensionManifest>[],
-  ]) {
+  ])  : schemaVersion = 1,
+        extensions = const <String, Object?>{},
+        _manifests = <String, ExtensionManifest>{} {
     for (final manifest in manifests) {
       register(manifest);
     }
@@ -254,7 +256,7 @@ class ExtensionManifestRegistry {
   ExtensionManifestRegistry._blank({
     required this.schemaVersion,
     required this.extensions,
-  });
+  }) : _manifests = <String, ExtensionManifest>{};
 
   static const Set<String> _knownKeys = <String>{
     'schemaVersion',
@@ -270,8 +272,8 @@ class ExtensionManifestRegistry {
     };
   }
 
-  final int schemaVersion = 1;
-  final Map<String, Object?> extensions = const <String, Object?>{};
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
 
   final Map<String, ExtensionManifest> _manifests =
       <String, ExtensionManifest>{};

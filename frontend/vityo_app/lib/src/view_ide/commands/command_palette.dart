@@ -419,7 +419,8 @@ class CommandPaletteService {
       AppCommandId.packProject ||
       AppCommandId.preparePublish => 'Deployment',
       AppCommandId.refreshModules => 'Modules',
-      AppCommandId.save => 'Editor',
+      AppCommandId.save ||
+      AppCommandId.saveAll => 'Editor',
     };
   }
 

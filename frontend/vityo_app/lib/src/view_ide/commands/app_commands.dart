@@ -209,6 +209,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.showRuntime ||
       AppCommandId.showAgent ||
       AppCommandId.showDebug ||
+      AppCommandId.commandPalette ||
       AppCommandId.toggleVisualSubstitution => AppCommandCategory.surface,
       AppCommandId.nextDiagnostic ||
       AppCommandId.previousDiagnostic ||

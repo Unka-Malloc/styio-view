@@ -1719,6 +1719,12 @@ class _FailingSaveWorkspaceDocumentStore implements WorkspaceDocumentStore {
   }
 
   @override
+  Future<bool> deleteDocument(String path) async => false;
+
+  @override
+  Future<bool> documentExists(String path) async => false;
+
+  @override
   String? filePathForDocumentId(String documentId) => null;
 }
 

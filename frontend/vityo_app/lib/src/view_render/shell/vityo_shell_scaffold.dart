@@ -165,6 +165,7 @@ class VityoShellScaffold extends StatelessWidget {
             return shell.executeCommand(AppCommandId.run);
           },
         );
+      case BottomSurfaceTab.commands:
       case BottomSurfaceTab.commandPalette:
         return CommandPaletteSurface(
           viewportProfile: viewportProfile,
@@ -2303,6 +2304,8 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.delete_sweep_outlined;
     case AppCommandId.inlineVariable:
       return Icons.merge_type_rounded;
+    case AppCommandId.openFile:
+      return Icons.folder_open_rounded;
     case AppCommandId.openSettings:
       return Icons.settings_outlined;
   }

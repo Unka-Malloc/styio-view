@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/theme/vityo_theme.dart';
+import 'package:vityo_app/src/view_ide/environment/configuration/vityo_theme_override.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';

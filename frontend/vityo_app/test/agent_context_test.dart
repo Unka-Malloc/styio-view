@@ -79,7 +79,14 @@ void main() {
 
       final scopedOut = AgentContextSnapshot(
         snapshotId: 'snap-3',
-        scope: AgentContextScope(minimal: true, includeSelection: false),
+        scope: const AgentContextScope(
+          includeDiagnostics: false,
+          includeProjectGraph: false,
+          includeRuntimeEvents: false,
+          includeCommands: false,
+          includeCapabilityGaps: false,
+          includeSelection: false,
+        ),
         documentContext: AgentActiveDocumentContext(
           selectionStartOffset: 10,
           selectionEndOffset: 20,

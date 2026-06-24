@@ -317,4 +317,12 @@ class _RecordedPtySession implements PtySession {
   Future<void> write(String input) async {
     _output.add(input);
   }
+
+  @override
+  Future<PtySignalResult> sendSignal(PtySignal signal) async {
+    return PtySignalResult(
+      signal: signal,
+      status: PtySignalStatus.sent,
+    );
+  }
 }

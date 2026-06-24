@@ -65,7 +65,7 @@ void main() {
 // FIXME: WorkspaceController.recentFiles was removed during the subbranch merge.
 // The recent-files tracking was refactored into WorkspaceQuickOpenService.
 // This test needs to be rewritten against the new API.
-// test('workspace controller tracks recent opened files across project refreshes', ...
+// FIXME: test('workspace controller tracks recent opened files across project refreshes', ...
 }
 
 // FIXME: _projectGraph helper was removed along with the recentFiles test.

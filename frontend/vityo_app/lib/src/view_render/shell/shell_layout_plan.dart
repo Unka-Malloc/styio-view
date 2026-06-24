@@ -767,6 +767,7 @@ String _bottomTabTitle(BottomSurfaceTab tab) {
     BottomSurfaceTab.testing => 'Testing',
     BottomSurfaceTab.extensions => 'Extensions',
     BottomSurfaceTab.debug => 'Debug',
+    BottomSurfaceTab.navigate => 'Navigate',
     BottomSurfaceTab.settings => 'Settings',
   };
 }
@@ -783,6 +784,7 @@ String _bottomTabSurfaceId(BottomSurfaceTab tab) {
     BottomSurfaceTab.testing => 'testing.results',
     BottomSurfaceTab.extensions => 'extensions.marketplace',
     BottomSurfaceTab.debug => 'debug.console',
+    BottomSurfaceTab.navigate => 'navigate.quick',
     BottomSurfaceTab.settings => 'settings.workspace',
   };
 }
@@ -820,6 +822,10 @@ List<String> _bottomTabCapabilities(BottomSurfaceTab tab) {
       'marketplace',
     ],
     BottomSurfaceTab.debug => const <String>['debug-console', 'debug-session'],
+    BottomSurfaceTab.navigate => const <String>[
+      'quick-navigate',
+      'fuzzy-file-search',
+    ],
     BottomSurfaceTab.settings => const <String>[
       'settings',
       'toolchain-configuration',

@@ -9,7 +9,7 @@ import 'package:vityo_app/src/view_ide/language/service/language_service_foundat
 import 'package:vityo_app/src/view_ide/language/service/local_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provider.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
-import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_search_service.dart';
 
 void main() {
   test(

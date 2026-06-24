@@ -135,6 +135,7 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.openFile:
       case AppCommandId.reloadFile:
       case AppCommandId.commandPalette:
+      case AppCommandId.acceptExternalChange:
         await super.executeCommand(commandId);
         selectBottomTab(BottomSurfaceTab.commands);
         return;

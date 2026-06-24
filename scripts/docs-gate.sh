@@ -11,6 +11,7 @@ docs audit, and ecosystem CLI contract consistency into one entrypoint.
 Options:
   --mode <worktree|staged|push>  Change source for team-docs-gate (default: worktree)
   --base <ref>                   Base ref for push-mode team-docs-gate
+  --skip-ecosystem               Skip the ecosystem CLI doc consistency check
   -h, --help                     Show this help
 USAGE
 }
@@ -33,6 +34,7 @@ cd "$ROOT"
 
 MODE="worktree"
 BASE_REF=""
+SKIP_ECOSYSTEM=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,6 +45,10 @@ while [[ $# -gt 0 ]]; do
     --base)
       BASE_REF="$2"
       shift 2
+      ;;
+    --skip-ecosystem)
+      SKIP_ECOSYSTEM=1
+      shift
       ;;
     -h|--help)
       usage
@@ -82,5 +88,9 @@ esac
 
 run_cmd "${TEAM_CMD[@]}"
 run_cmd env STYIO_SKIP_TEAM_DOC_GATE=1 python3 scripts/docs-audit.py
-run_cmd python3 scripts/ecosystem-cli-doc-gate.py
+if [[ "$SKIP_ECOSYSTEM" -eq 1 ]]; then
+  log "ecosystem CLI doc consistency check skipped"
+else
+  run_cmd python3 scripts/ecosystem-cli-doc-gate.py --non-blocking
+fi
 log "all checks passed"

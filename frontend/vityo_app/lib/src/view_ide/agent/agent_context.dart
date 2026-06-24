@@ -14,6 +14,8 @@ import '../commands/app_commands.dart';
 /// Controls which context channels the agent receives.
 class AgentContextScope {
   const AgentContextScope({
+    this.schemaVersion = 1,
+    this.extensions = const <String, Object?>{},
     this.includeWorkspace = true,
     this.includeActiveDocument = true,
     this.includeSelection = true,
@@ -26,6 +28,8 @@ class AgentContextScope {
     this.includeProfile = false,
   });
 
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
   final bool includeWorkspace;
   final bool includeActiveDocument;
   final bool includeSelection;
@@ -46,7 +50,22 @@ class AgentContextScope {
     includeCapabilityGaps: false,
   );
 
+  static const Set<String> _knownKeys = <String>{
+    'schemaVersion',
+    'includeWorkspace',
+    'includeActiveDocument',
+    'includeSelection',
+    'includeDiagnostics',
+    'includeProjectGraph',
+    'includeRuntimeEvents',
+    'includeCommands',
+    'includeCapabilityGaps',
+    'includeSettings',
+    'includeProfile',
+  };
+
   Map<String, Object?> toJson() => <String, Object?>{
+        'schemaVersion': schemaVersion,
         'includeWorkspace': includeWorkspace,
         'includeActiveDocument': includeActiveDocument,
         'includeSelection': includeSelection,
@@ -57,21 +76,32 @@ class AgentContextScope {
         'includeCapabilityGaps': includeCapabilityGaps,
         'includeSettings': includeSettings,
         'includeProfile': includeProfile,
+        ...extensions,
       };
 
-  factory AgentContextScope.fromJson(Map<String, Object?> json) =>
-      AgentContextScope(
-        includeWorkspace: json['includeWorkspace'] as bool? ?? true,
-        includeActiveDocument: json['includeActiveDocument'] as bool? ?? true,
-        includeSelection: json['includeSelection'] as bool? ?? true,
-        includeDiagnostics: json['includeDiagnostics'] as bool? ?? true,
-        includeProjectGraph: json['includeProjectGraph'] as bool? ?? true,
-        includeRuntimeEvents: json['includeRuntimeEvents'] as bool? ?? true,
-        includeCommands: json['includeCommands'] as bool? ?? true,
-        includeCapabilityGaps: json['includeCapabilityGaps'] as bool? ?? true,
-        includeSettings: json['includeSettings'] as bool? ?? false,
-        includeProfile: json['includeProfile'] as bool? ?? false,
-      );
+  factory AgentContextScope.fromJson(Map<String, Object?> json) {
+    return AgentContextScope(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extensions: _collectUnknown(json),
+      includeWorkspace: json['includeWorkspace'] as bool? ?? true,
+      includeActiveDocument: json['includeActiveDocument'] as bool? ?? true,
+      includeSelection: json['includeSelection'] as bool? ?? true,
+      includeDiagnostics: json['includeDiagnostics'] as bool? ?? true,
+      includeProjectGraph: json['includeProjectGraph'] as bool? ?? true,
+      includeRuntimeEvents: json['includeRuntimeEvents'] as bool? ?? true,
+      includeCommands: json['includeCommands'] as bool? ?? true,
+      includeCapabilityGaps: json['includeCapabilityGaps'] as bool? ?? true,
+      includeSettings: json['includeSettings'] as bool? ?? false,
+      includeProfile: json['includeProfile'] as bool? ?? false,
+    );
+  }
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
+    };
+  }
 }
 
 // ── Redaction ─────────────────────────────────────────────────────
@@ -338,6 +368,8 @@ class AgentCommandCatalogContext {
 /// Serializable, redactable, and scope-filterable.
 class AgentContextSnapshot {
   const AgentContextSnapshot({
+    this.schemaVersion = 1,
+    this.extensions = const <String, Object?>{},
     this.snapshotId = '',
     this.createdAtIso8601 = '',
     this.scope = AgentContextScope.full,
@@ -353,6 +385,8 @@ class AgentContextSnapshot {
     this.redactionPolicy = AgentRedactionPolicy.defaultPolicy,
   });
 
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
   final String snapshotId;
   final String createdAtIso8601;
   final AgentContextScope scope;
@@ -403,7 +437,25 @@ class AgentContextSnapshot {
     );
   }
 
+  static const Set<String> _knownKeys = <String>{
+    'schemaVersion',
+    'snapshotId',
+    'createdAtIso8601',
+    'scope',
+    'workspaceContext',
+    'documentContext',
+    'diagnosticsContext',
+    'projectGraphContext',
+    'runtimeContext',
+    'commandCatalogContext',
+    'capabilityGapContext',
+    'settingsSummary',
+    'profileId',
+    'redactionPolicy',
+  };
+
   Map<String, Object?> toJson() => <String, Object?>{
+        'schemaVersion': schemaVersion,
         'snapshotId': snapshotId,
         'createdAtIso8601': createdAtIso8601,
         'scope': scope.toJson(),
@@ -417,10 +469,13 @@ class AgentContextSnapshot {
         'settingsSummary': settingsSummary,
         'profileId': profileId,
         'redactionPolicy': redactionPolicy.toJson(),
+        ...extensions,
       };
 
   factory AgentContextSnapshot.fromJson(Map<String, Object?> json) {
     return AgentContextSnapshot(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extensions: _collectUnknown(json),
       snapshotId: json['snapshotId'] as String? ?? '',
       createdAtIso8601: json['createdAtIso8601'] as String? ?? '',
       scope: json['scope'] != null
@@ -464,6 +519,13 @@ class AgentContextSnapshot {
               Map<String, Object?>.from(json['redactionPolicy'] as Map))
           : AgentRedactionPolicy.defaultPolicy,
     );
+  }
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
+    };
   }
 }
 

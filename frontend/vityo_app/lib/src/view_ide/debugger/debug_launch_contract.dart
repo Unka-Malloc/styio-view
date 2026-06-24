@@ -52,25 +52,47 @@ class DebugLaunchBreakpoint {
     required this.filePath,
     required this.line,
     this.enabled = true,
+    this.schemaVersion = 1,
+    this.extensions = const <String, Object?>{},
   });
 
   final String filePath;
   final int line;
   final bool enabled;
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
+
+  static const Set<String> _knownKeys = {
+    'schemaVersion',
+    'filePath',
+    'line',
+    'enabled',
+  };
 
   factory DebugLaunchBreakpoint.fromJson(Map<String, Object?> json) {
     return DebugLaunchBreakpoint(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
       filePath: json['filePath'] as String? ?? '',
       line: json['line'] as int? ?? 0,
       enabled: json['enabled'] as bool? ?? true,
+      extensions: _collectUnknown(json),
     );
   }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'filePath': filePath,
       'line': line,
       'enabled': enabled,
+      ...extensions,
+    };
+  }
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
     };
   }
 }
@@ -90,10 +112,13 @@ class DebugLaunchConfiguration {
     this.environment = const <String, String>{},
     this.stopOnEntry = false,
     this.breakpoints = const <DebugLaunchBreakpoint>[],
+    this.schemaVersion = 1,
+    this.extensions = const <String, Object?>{},
   });
 
   factory DebugLaunchConfiguration.fromJson(Map<String, Object?> json) {
     return DebugLaunchConfiguration(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
       readiness: _debugLaunchReadinessFromWire(json['readiness']),
       reason: json['reason'] as String? ?? '',
       debuggerId: json['debuggerId'] as String? ?? '',
@@ -107,6 +132,7 @@ class DebugLaunchConfiguration {
       environment: _jsonStringMap(json['environment']),
       stopOnEntry: json['stopOnEntry'] as bool? ?? false,
       breakpoints: _jsonBreakpoints(json['breakpoints']),
+      extensions: _collectUnknown(json),
     );
   }
 
@@ -213,8 +239,30 @@ class DebugLaunchConfiguration {
   final Map<String, String> environment;
   final bool stopOnEntry;
   final List<DebugLaunchBreakpoint> breakpoints;
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
 
   bool get ready => readiness == DebugLaunchReadiness.ready;
+
+  static const Set<String> _knownKeys = {
+    'schemaVersion',
+    'readiness',
+    'ready',
+    'reason',
+    'debuggerId',
+    'debuggerLabel',
+    'debuggerExecutablePath',
+    'debuggerArguments',
+    'adapterProtocol',
+    'programPath',
+    'cwd',
+    'arguments',
+    'environment',
+    'stopOnEntry',
+    'breakpointCount',
+    'failureNavigationActions',
+    'breakpoints',
+  };
 
   List<DebugLaunchFailureNavigationAction> get failureNavigationActions {
     if (ready) {
@@ -258,6 +306,7 @@ class DebugLaunchConfiguration {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'readiness': readiness.wireValue,
       'ready': ready,
       'reason': reason,
@@ -278,6 +327,7 @@ class DebugLaunchConfiguration {
       'breakpoints': breakpoints
           .map((breakpoint) => breakpoint.toJson())
           .toList(growable: false),
+      ...extensions,
     };
   }
 
@@ -364,6 +414,13 @@ class DebugLaunchConfiguration {
       taskId: taskId,
       label: label,
     );
+  }
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
+    };
   }
 }
 
@@ -461,6 +518,8 @@ class DebugLaunchProfile {
     this.isDefault = false,
     this.preLaunchTaskId,
     this.metadata = const <String, Object?>{},
+    this.schemaVersion = 1,
+    this.extensions = const <String, Object?>{},
   });
 
   factory DebugLaunchProfile.fromConfiguration({
@@ -484,6 +543,7 @@ class DebugLaunchProfile {
   factory DebugLaunchProfile.fromJson(Map<String, Object?> json) {
     final configuration = json['configuration'];
     return DebugLaunchProfile(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
       id: json['id'] as String? ?? '',
       displayName: json['displayName'] as String? ?? '',
       configuration: configuration is Map<String, Object?>
@@ -508,6 +568,7 @@ class DebugLaunchProfile {
       isDefault: json['isDefault'] as bool? ?? false,
       preLaunchTaskId: _jsonNullableString(json['preLaunchTaskId']),
       metadata: _jsonObjectMap(json['metadata']),
+      extensions: _collectUnknown(json),
     );
   }
 
@@ -517,6 +578,18 @@ class DebugLaunchProfile {
   final bool isDefault;
   final String? preLaunchTaskId;
   final Map<String, Object?> metadata;
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
+
+  static const Set<String> _knownKeys = {
+    'schemaVersion',
+    'id',
+    'displayName',
+    'configuration',
+    'isDefault',
+    'preLaunchTaskId',
+    'metadata',
+  };
 
   DebugLaunchProfile copyWith({
     String? id,
@@ -543,12 +616,21 @@ class DebugLaunchProfile {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'id': id,
       'displayName': displayName,
       'configuration': configuration.toJson(),
       'isDefault': isDefault,
       if (preLaunchTaskId != null) 'preLaunchTaskId': preLaunchTaskId,
       'metadata': metadata,
+      ...extensions,
+    };
+  }
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
     };
   }
 }
@@ -559,14 +641,18 @@ class DebugLaunchConfigurationSet {
     this.selectedProfileId,
     this.profiles = const <DebugLaunchProfile>[],
     this.updatedAt,
+    this.schemaVersion = 1,
+    this.extensions = const <String, Object?>{},
   });
 
   factory DebugLaunchConfigurationSet.fromJson(Map<String, Object?> json) {
     return DebugLaunchConfigurationSet(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
       workspaceId: json['workspaceId'] as String? ?? '',
       selectedProfileId: _jsonNullableString(json['selectedProfileId']),
       profiles: _jsonProfiles(json['profiles']),
       updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+      extensions: _collectUnknown(json),
     );
   }
 
@@ -574,6 +660,18 @@ class DebugLaunchConfigurationSet {
   final String? selectedProfileId;
   final List<DebugLaunchProfile> profiles;
   final DateTime? updatedAt;
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
+
+  static const Set<String> _knownKeys = {
+    'schemaVersion',
+    'workspaceId',
+    'selectedProfileId',
+    'profiles',
+    'updatedAt',
+    'hasRunnableProfile',
+    'selectedProfileReady',
+  };
 
   DebugLaunchProfile? get selectedProfile {
     final selectedId = selectedProfileId;
@@ -661,6 +759,7 @@ class DebugLaunchConfigurationSet {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'workspaceId': workspaceId,
       if (selectedProfileId != null) 'selectedProfileId': selectedProfileId,
       'profiles': profiles
@@ -669,6 +768,14 @@ class DebugLaunchConfigurationSet {
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
       'hasRunnableProfile': hasRunnableProfile,
       'selectedProfileReady': selectedProfile?.configuration.ready ?? false,
+      ...extensions,
+    };
+  }
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
     };
   }
 }

@@ -1,3 +1,4 @@
+export 'contracts/contracts.dart';
 export 'ide_capability_framework.dart';
 export 'ide_capability_closure_gate.dart';
 export 'datastore/datastore.dart';

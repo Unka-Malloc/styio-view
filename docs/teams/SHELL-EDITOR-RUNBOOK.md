@@ -92,3 +92,4 @@ Record:
 2. 已跑的自测命令与失败截图或失败场景。
 3. 当前是否仍满足 source buffer fidelity。
 4. 下一步要改的 surface、回滚点和对应 history 记录。
+5. prototype/dev_server.py rejects removed legacy entrypoint assets (`/app.js`, `/styles.css`); the test `test_removed_legacy_entrypoint_assets_are_not_served` validates 404 responses.

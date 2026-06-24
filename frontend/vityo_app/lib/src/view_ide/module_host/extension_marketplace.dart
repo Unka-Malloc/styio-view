@@ -26,6 +26,8 @@ class ExtensionMarketplaceListing {
     this.downloadSizeBytes,
     this.verified = false,
     this.metadata = const <String, Object?>{},
+    this.schemaVersion = 1,
+    this.extensions = const {},
   });
 
   factory ExtensionMarketplaceListing.fromJson(Map<String, Object?> json) {
@@ -53,6 +55,26 @@ class ExtensionMarketplaceListing {
       downloadSizeBytes: json['downloadSizeBytes'] as int?,
       verified: json['verified'] as bool? ?? false,
       metadata: _jsonObjectMap(json['metadata']),
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extensions: _collectUnknown(json),
+    );
+  }
+
+  static const Set<String> _knownKeys = <String>{
+    'manifest',
+    'sourceUri',
+    'summary',
+    'categories',
+    'downloadSizeBytes',
+    'verified',
+    'metadata',
+    'valid',
+    'schemaVersion',
+  };
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return Map<String, Object?>.fromEntries(
+      json.entries.where((entry) => !_knownKeys.contains(entry.key)),
     );
   }
 
@@ -63,6 +85,8 @@ class ExtensionMarketplaceListing {
   final int? downloadSizeBytes;
   final bool verified;
   final Map<String, Object?> metadata;
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
 
   String get extensionId => manifest.extensionId;
 
@@ -86,6 +110,7 @@ class ExtensionMarketplaceListing {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'manifest': manifest.toJson(),
       'sourceUri': sourceUri,
       'summary': summary,
@@ -94,6 +119,7 @@ class ExtensionMarketplaceListing {
       'verified': verified,
       if (metadata.isNotEmpty) 'metadata': metadata,
       'valid': valid,
+      ...extensions,
     };
   }
 }
@@ -1104,6 +1130,8 @@ class ExtensionMarketplaceIndex {
     required this.workspaceId,
     this.listings = const <ExtensionMarketplaceListing>[],
     this.updatedAt,
+    this.schemaVersion = 1,
+    this.extensions = const {},
   });
 
   factory ExtensionMarketplaceIndex.fromJson(Map<String, Object?> json) {
@@ -1111,12 +1139,31 @@ class ExtensionMarketplaceIndex {
       workspaceId: json['workspaceId'] as String? ?? '',
       listings: _jsonMarketplaceListings(json['listings']),
       updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '')?.toUtc(),
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extensions: _collectUnknown(json),
+    );
+  }
+
+  static const Set<String> _knownKeys = <String>{
+    'workspaceId',
+    'listingCount',
+    'installableCount',
+    'listings',
+    'updatedAt',
+    'schemaVersion',
+  };
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return Map<String, Object?>.fromEntries(
+      json.entries.where((entry) => !_knownKeys.contains(entry.key)),
     );
   }
 
   final String workspaceId;
   final List<ExtensionMarketplaceListing> listings;
   final DateTime? updatedAt;
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
 
   ExtensionMarketplaceListing? lookup(String extensionId) {
     final normalizedId = extensionId.trim();
@@ -1191,6 +1238,7 @@ class ExtensionMarketplaceIndex {
   Map<String, Object?> toJson() {
     final listings = sortedListings;
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'workspaceId': workspaceId,
       'listingCount': listings.length,
       'installableCount': listings.where((listing) => listing.valid).length,
@@ -1198,6 +1246,7 @@ class ExtensionMarketplaceIndex {
           .map((listing) => listing.toJson())
           .toList(growable: false),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+      ...extensions,
     };
   }
 }

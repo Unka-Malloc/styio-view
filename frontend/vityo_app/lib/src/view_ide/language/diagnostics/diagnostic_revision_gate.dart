@@ -20,6 +20,8 @@ class RevisionBoundDiagnostic {
     required this.revision,
     required this.source,
     this.confidence = DiagnosticConfidence.authoritative,
+    this.schemaVersion = 1,
+    this.extensions = const <String, Object?>{},
   });
 
   final Diagnostic diagnostic;
@@ -27,16 +29,29 @@ class RevisionBoundDiagnostic {
   final int revision;
   final DiagnosticSource source;
   final DiagnosticConfidence confidence;
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
+
+  static const Set<String> _knownKeys = <String>{
+    'schemaVersion',
+    'diagnostic',
+    'documentId',
+    'revision',
+    'source',
+    'confidence',
+  };
 
   /// Whether this diagnostic applies to the given document revision.
   bool isStaleForRevision(int currentRevision) => revision != currentRevision;
 
   Map<String, Object?> toJson() => <String, Object?>{
+        'schemaVersion': schemaVersion,
         'diagnostic': diagnostic.toJson(),
         'documentId': documentId,
         'revision': revision,
         'source': source.name,
         'confidence': confidence.name,
+        ...extensions,
       };
 
   factory RevisionBoundDiagnostic.fromJson(Map<String, Object?> json) {
@@ -47,9 +62,17 @@ class RevisionBoundDiagnostic {
       documentId: json['documentId'] as String? ?? '',
       revision: json['revision'] as int? ?? -1,
       source: _parseSource(json['source'] as String?),
-      confidence:
-          _parseConfidence(json['confidence'] as String?),
+      confidence: _parseConfidence(json['confidence'] as String?),
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extensions: _collectUnknown(json),
     );
+  }
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
+    };
   }
 }
 

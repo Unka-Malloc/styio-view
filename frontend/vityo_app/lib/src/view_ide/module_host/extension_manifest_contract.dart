@@ -32,34 +32,59 @@ class ExtensionContributionPoint {
     required this.target,
     this.title,
     this.metadata = const <String, Object?>{},
+    this.schemaVersion = 1,
+    this.extensions = const <String, Object?>{},
   });
 
   factory ExtensionContributionPoint.fromJson(Map<String, Object?> json) {
     return ExtensionContributionPoint(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
       kind: _contributionKindFromWire(json['kind']),
       id: json['id'] as String? ?? '',
       target: json['target'] as String? ?? '',
       title: _jsonNullableString(json['title']),
       metadata: _jsonObjectMap(json['metadata']),
+      extensions: _collectUnknown(json),
     );
   }
 
+  static const Set<String> _knownKeys = <String>{
+    'schemaVersion',
+    'kind',
+    'id',
+    'target',
+    'title',
+    'metadata',
+    'valid',
+  };
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
+    };
+  }
+
+  final int schemaVersion;
   final ExtensionContributionKind kind;
   final String id;
   final String target;
   final String? title;
   final Map<String, Object?> metadata;
+  final Map<String, Object?> extensions;
 
   bool get valid => id.trim().isNotEmpty && target.trim().isNotEmpty;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'kind': kind.wireValue,
       'id': id,
       'target': target,
       if (title != null) 'title': title,
       if (metadata.isNotEmpty) 'metadata': metadata,
       'valid': valid,
+      ...extensions,
     };
   }
 }
@@ -78,10 +103,13 @@ class ExtensionManifest {
     this.capabilities = const <String, bool>{},
     this.trustedByDefault = false,
     this.metadata = const <String, Object?>{},
+    this.schemaVersion = 1,
+    this.extensions = const <String, Object?>{},
   });
 
   factory ExtensionManifest.fromJson(Map<String, Object?> json) {
     return ExtensionManifest(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
       extensionId: json['extensionId'] as String? ?? '',
       displayName: json['displayName'] as String? ?? '',
       version: json['version'] as String? ?? '',
@@ -94,6 +122,7 @@ class ExtensionManifest {
       capabilities: _jsonBoolMap(json['capabilities']),
       trustedByDefault: json['trustedByDefault'] as bool? ?? false,
       metadata: _jsonObjectMap(json['metadata']),
+      extensions: _collectUnknown(json),
     );
   }
 
@@ -122,6 +151,31 @@ class ExtensionManifest {
     );
   }
 
+  static const Set<String> _knownKeys = <String>{
+    'schemaVersion',
+    'extensionId',
+    'displayName',
+    'version',
+    'publisher',
+    'entrypoint',
+    'moduleId',
+    'description',
+    'activationEvents',
+    'contributions',
+    'capabilities',
+    'trustedByDefault',
+    'metadata',
+    'valid',
+  };
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
+    };
+  }
+
+  final int schemaVersion;
   final String extensionId;
   final String displayName;
   final String version;
@@ -134,6 +188,7 @@ class ExtensionManifest {
   final Map<String, bool> capabilities;
   final bool trustedByDefault;
   final Map<String, Object?> metadata;
+  final Map<String, Object?> extensions;
 
   bool get valid {
     return extensionId.trim().isNotEmpty &&
@@ -155,6 +210,7 @@ class ExtensionManifest {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'extensionId': extensionId,
       'displayName': displayName,
       'version': version,
@@ -170,6 +226,7 @@ class ExtensionManifest {
       'trustedByDefault': trustedByDefault,
       if (metadata.isNotEmpty) 'metadata': metadata,
       'valid': valid,
+      ...extensions,
     };
   }
 }
@@ -184,10 +241,37 @@ class ExtensionManifestRegistry {
   }
 
   factory ExtensionManifestRegistry.fromJson(Map<String, Object?> json) {
-    return ExtensionManifestRegistry(
-      _jsonExtensionManifests(json['manifests']),
+    final registry = ExtensionManifestRegistry._blank(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extensions: _collectUnknown(json),
     );
+    for (final manifest in _jsonExtensionManifests(json['manifests'])) {
+      registry.register(manifest);
+    }
+    return registry;
   }
+
+  ExtensionManifestRegistry._blank({
+    required this.schemaVersion,
+    required this.extensions,
+  });
+
+  static const Set<String> _knownKeys = <String>{
+    'schemaVersion',
+    'manifests',
+    'extensionCount',
+    'validExtensionCount',
+  };
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    return {
+      for (final e in json.entries)
+        if (!_knownKeys.contains(e.key)) e.key: e.value,
+    };
+  }
+
+  final int schemaVersion = 1;
+  final Map<String, Object?> extensions = const <String, Object?>{};
 
   final Map<String, ExtensionManifest> _manifests =
       <String, ExtensionManifest>{};
@@ -237,6 +321,7 @@ class ExtensionManifestRegistry {
   Map<String, Object?> toJson() {
     final manifests = list();
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'extensionCount': manifests.length,
       'validExtensionCount': manifests
           .where((manifest) => manifest.valid)
@@ -244,6 +329,7 @@ class ExtensionManifestRegistry {
       'manifests': manifests
           .map((manifest) => manifest.toJson())
           .toList(growable: false),
+      ...extensions,
     };
   }
 }

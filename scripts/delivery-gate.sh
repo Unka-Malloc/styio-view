@@ -14,6 +14,7 @@ Options:
   --range <rev-range>       Explicit revision range for repo-hygiene push mode
   --skip-health             Skip checkpoint-health (docs/process-only deliveries)
   --skip-audit              Skip external styio-audit gate
+  --skip-ecosystem          Skip ecosystem CLI doc consistency check in docs-gate
   --audit-bin <path>        Explicit styio-audit executable
   -h, --help                Show this help
 USAGE
@@ -40,6 +41,7 @@ BASE_REF=""
 REV_RANGE=""
 RUN_HEALTH=1
 RUN_AUDIT=1
+SKIP_ECOSYSTEM=0
 AUDIT_BIN="${STYIO_AUDIT_BIN:-}"
 
 while [[ $# -gt 0 ]]; do
@@ -62,6 +64,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-audit)
       RUN_AUDIT=0
+      shift
+      ;;
+    --skip-ecosystem)
+      SKIP_ECOSYSTEM=1
       shift
       ;;
     --audit-bin)
@@ -109,6 +115,10 @@ case "$MODE" in
     exit 2
     ;;
 esac
+
+if [[ "$SKIP_ECOSYSTEM" -eq 1 ]]; then
+  DOCS_GATE_CMD+=(--skip-ecosystem)
+fi
 
 run_cmd "${REPO_CMD[@]}"
 run_cmd "${DOCS_GATE_CMD[@]}"

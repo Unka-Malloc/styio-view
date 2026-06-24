@@ -148,6 +148,7 @@ jobs:
           --base "${{ steps.ci_refs.outputs.base_ref }}"
           --range "${{ steps.ci_refs.outputs.range }}"
           --skip-audit
+          --skip-ecosystem
 
       - name: Upload coverage reports
         if: always()

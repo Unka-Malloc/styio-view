@@ -455,6 +455,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         if parsed.path in ("/index", "/index.html"):
             self.reject_removed_entrypoint()
             return
+        if parsed.path in ("/app.js", "/styles.css"):
+            self.reject_removed_entrypoint()
+            return
         if parsed.path in ("/editor", "/editor/"):
             self.path = "/editor.html"
         super().do_HEAD()
@@ -473,6 +476,10 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             return
 
         if parsed.path in ("/index", "/index.html"):
+            self.reject_removed_entrypoint()
+            return
+
+        if parsed.path in ("/app.js", "/styles.css"):
             self.reject_removed_entrypoint()
             return
 

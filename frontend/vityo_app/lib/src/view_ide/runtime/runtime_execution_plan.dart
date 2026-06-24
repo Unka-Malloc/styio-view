@@ -130,11 +130,15 @@ class RuntimeExecutionPlan {
     this.missingDependencies = const <String>[],
     this.metadata = const <String, Object?>{},
     this.todo = '',
+    this.schemaVersion = 1,
+    this.extensions = const {},
   });
 
   factory RuntimeExecutionPlan.fromJson(Map<String, Object?> json) {
     final definition = json['definition'];
     return RuntimeExecutionPlan(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extensions: _collectUnknown(json),
       definition: definition is Map<String, Object?>
           ? RuntimeTaskDefinition.fromJson(definition)
           : definition is Map
@@ -159,6 +163,28 @@ class RuntimeExecutionPlan {
     );
   }
 
+  static const Set<String> _knownKeys = <String>{
+    'schemaVersion',
+    'definition',
+    'status',
+    'message',
+    'ready',
+    'executionOrder',
+    'missingDependencies',
+    'metadata',
+    'todo',
+  };
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    final result = <String, Object?>{};
+    for (final entry in json.entries) {
+      if (!_knownKeys.contains(entry.key)) {
+        result[entry.key] = entry.value;
+      }
+    }
+    return Map<String, Object?>.unmodifiable(result);
+  }
+
   final RuntimeTaskDefinition definition;
   final RuntimeExecutionPlanStatus status;
   final String message;
@@ -166,6 +192,8 @@ class RuntimeExecutionPlan {
   final List<String> missingDependencies;
   final Map<String, Object?> metadata;
   final String todo;
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
 
   bool get ready => status == RuntimeExecutionPlanStatus.ready;
 
@@ -201,6 +229,7 @@ class RuntimeExecutionPlan {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'definition': definition.toJson(),
       'status': status.wireValue,
       'message': message,
@@ -209,6 +238,7 @@ class RuntimeExecutionPlan {
       'missingDependencies': missingDependencies,
       if (metadata.isNotEmpty) 'metadata': metadata,
       if (todo.isNotEmpty) 'todo': todo,
+      ...extensions,
     };
   }
 }
@@ -225,6 +255,8 @@ class RuntimeExecutionHandoff {
     this.environment = const <String, String>{},
     this.outputChannelId,
     this.metadata = const <String, Object?>{},
+    this.schemaVersion = 1,
+    this.extensions = const {},
   });
 
   factory RuntimeExecutionHandoff.fromPlan({
@@ -259,6 +291,8 @@ class RuntimeExecutionHandoff {
   factory RuntimeExecutionHandoff.fromJson(Map<String, Object?> json) {
     final plan = json['plan'];
     return RuntimeExecutionHandoff(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extensions: _collectUnknown(json),
       plan: plan is Map<String, Object?>
           ? RuntimeExecutionPlan.fromJson(plan)
           : plan is Map
@@ -290,6 +324,31 @@ class RuntimeExecutionHandoff {
     );
   }
 
+  static const Set<String> _knownKeys = <String>{
+    'schemaVersion',
+    'plan',
+    'status',
+    'ready',
+    'target',
+    'taskId',
+    'command',
+    'arguments',
+    'workingDirectory',
+    'environment',
+    'outputChannelId',
+    'metadata',
+  };
+
+  static Map<String, Object?> _collectUnknown(Map<String, Object?> json) {
+    final result = <String, Object?>{};
+    for (final entry in json.entries) {
+      if (!_knownKeys.contains(entry.key)) {
+        result[entry.key] = entry.value;
+      }
+    }
+    return Map<String, Object?>.unmodifiable(result);
+  }
+
   final RuntimeExecutionPlan plan;
   final RuntimeExecutionHandoffStatus status;
   final RuntimeExecutionHandoffTarget target;
@@ -300,6 +359,8 @@ class RuntimeExecutionHandoff {
   final Map<String, String> environment;
   final String? outputChannelId;
   final Map<String, Object?> metadata;
+  final int schemaVersion;
+  final Map<String, Object?> extensions;
 
   bool get ready => status == RuntimeExecutionHandoffStatus.ready;
 
@@ -316,6 +377,7 @@ class RuntimeExecutionHandoff {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'plan': plan.toJson(),
       'status': status.wireValue,
       'ready': ready,
@@ -327,6 +389,7 @@ class RuntimeExecutionHandoff {
       'environment': environment,
       if (outputChannelId != null) 'outputChannelId': outputChannelId,
       if (metadata.isNotEmpty) 'metadata': metadata,
+      ...extensions,
     };
   }
 }

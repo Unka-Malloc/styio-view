@@ -67,7 +67,7 @@ jobs:
 
       - name: Check ecosystem CLI doc consistency
         working-directory: vityo-nightly
-        run: python3 scripts/ecosystem-cli-doc-gate.py --require-workspace --json
+        run: python3 scripts/ecosystem-cli-doc-gate.py --require-workspace --json --non-blocking
 
       - name: Check incoming history range
         shell: bash

@@ -7,3 +7,4 @@ export 'language_service_configuration_store.dart';
 export 'shell_configuration.dart';
 export 'shell_configuration_store.dart';
 export 'theme_override_store.dart';
+export 'vityo_theme_override.dart';

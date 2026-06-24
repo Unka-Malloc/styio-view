@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "project": "Vityo",
-  "last_updated": "2026-06-19",
+  "last_updated": "2026-06-24",
   "release_gate": "scripts/release-readiness-gate.py",
   "policy": {
     "current_state": "current-only",
@@ -17,6 +17,22 @@
       "path": "scripts/release-readiness-gate.py",
       "command": "python3 scripts/release-readiness-gate.py --skip-build",
       "scope": ["release", "tooling"]
+    },
+    {
+      "id": "vityo-ide-product-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/vityo-ide-product-gate.py",
+      "command": "python3 scripts/vityo-ide-product-gate.py",
+      "scope": ["product", "ide-quality", "checkpoint"]
+    },
+    {
+      "id": "ide-product-parity-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/ide-product-parity-gate.py",
+      "command": "python3 scripts/ide-product-parity-gate.py",
+      "scope": ["product", "ide-quality", "parity"]
     },
     {
       "id": "delivery-gate",
@@ -236,7 +252,9 @@
         "checkpoint-health",
         "project-coverage-gate",
         "project-coverage-workflow",
-        "release-readiness-gate"
+        "release-readiness-gate",
+        "vityo-ide-product-gate",
+        "ide-product-parity-gate"
       ]
     },
     {

@@ -266,6 +266,7 @@ VIEW_IDE_EDITOR_BARREL = (
 )
 VIEW_IDE_LANGUAGE_FACADES = {
     "language_contract.dart": "contract/language_contract.dart",
+    "diagnostic_revision_gate.dart": "diagnostics/diagnostic_revision_gate.dart",
     "styio_syntax_highlighter.dart": "syntax/styio_syntax_highlighter.dart",
     "styio_symbol_index.dart": "semantic/styio_symbol_index.dart",
     "styio_language_service.dart": "service/styio_language_service.dart",
@@ -274,6 +275,7 @@ VIEW_IDE_LANGUAGE_FACADES = {
 }
 VIEW_IDE_LANGUAGE_BARREL = (
     "export 'contract/language_contract.dart';",
+    "export 'diagnostic_revision_gate.dart';",
     "export 'diagnostics/diagnostics.dart';",
     "export 'features/features.dart';",
     "export 'semantic/styio_symbol_index.dart';",
@@ -284,15 +286,22 @@ VIEW_IDE_LANGUAGE_BARREL = (
     "export 'service/project_document_rule_provider.dart';",
     "export 'service/project_styio_language_service.dart';",
     "export 'service/project_styio_document_service.dart';",
+    "export 'service/semantic_snapshot_event_bridge.dart';",
+    "export 'service/semantic_snapshot_provider.dart';",
     "export 'service/language_service_foundation.dart';",
     "export 'service/local_styio_language_service.dart';",
     "export 'service/styio_service_capability.dart';",
     "export 'service/styio_service_capability_detector.dart';",
+    "export 'service/styio_service_capability_profile.dart';",
     "export 'service/styio_service_connector.dart';",
+    "export 'service/styio_service_daemon_process_adapter.dart';",
     "export 'service/styio_service_manager_connector.dart';",
     "export 'service/styio_service_project_document_rule_provider.dart';",
     "export 'service/styio_service_runtime.dart';",
+    "export 'service/styio_service_subscription.dart';",
     "export 'service/styio_language_service.dart';",
+    "export 'service/styio_language_provider_registry.dart';",
+    "export 'service/styio_workspace_diagnostics_provider.dart';",
     "export 'syntax/styio_syntax_highlighter.dart';",
     "export 'syntax_validation/syntax_validation.dart';",
 )

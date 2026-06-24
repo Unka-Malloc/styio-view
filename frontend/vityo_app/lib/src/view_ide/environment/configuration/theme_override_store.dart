@@ -1,5 +1,5 @@
 import '../../foundation/foundation.dart';
-import '../../../view_render/theme/vityo_theme.dart';
+import 'vityo_theme_override.dart';
 
 class VityoThemeOverrideStore {
   VityoThemeOverrideStore.fromDataStore({

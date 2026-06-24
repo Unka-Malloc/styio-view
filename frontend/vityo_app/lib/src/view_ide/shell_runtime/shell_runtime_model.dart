@@ -34,7 +34,7 @@ import '../toolchain/toolchain_resolver.dart';
 import '../toolchain/toolchain_runtime.dart';
 import '../testing/testing.dart';
 import '../workspace/workspace.dart';
-import '../../view_render/theme/vityo_theme.dart';
+import '../environment/configuration/vityo_theme_override.dart';
 
 const int _maxNativeToolResultRecords = 24;
 const int _maxAgentIdeCommandResultRecords = 12;

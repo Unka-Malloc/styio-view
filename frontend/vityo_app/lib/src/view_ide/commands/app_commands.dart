@@ -1,7 +1,14 @@
 enum AppCommandId {
   save,
   saveAll,
+  openFile,
+  reloadFile,
+  acceptExternalChange,
+
   run,
+  runSelectedTarget,
+  runMinimalCompilableUnit,
+
   commandPalette,
   quickOpen,
   navigateBack,
@@ -30,11 +37,22 @@ enum AppCommandId {
   clearPinnedCompiler,
   bootstrapStyioToolchain,
   executeToolchainInstallPlan,
+  toggleVisualSubstitution,
+
   packProject,
   preparePublish,
+  environmentPreflight,
+  deployPreflight,
+
   showRuntime,
   showAgent,
   showDebug,
+
+  openAgentPanelWithContext,
+  previewAgentPatch,
+  applyAgentPatch,
+  rollbackLastWorkspaceEdit,
+
   toggleBreakpoint,
   startDebugging,
   stopDebugging,
@@ -45,6 +63,7 @@ enum AppCommandId {
   nextDiagnostic,
   previousDiagnostic,
   applyQuickFix,
+  applyFormattingEdit,
   previewQuickFix,
   refreshLanguageService,
   refreshWorkspaceDiagnostics,
@@ -97,6 +116,26 @@ enum AppCommandPermissionRequirement {
 
 enum CommandPermissionDecision { allowed, requiresApproval, denied }
 
+enum AppCommandSideEffect {
+  none,
+  readExternal,
+  documentEdit,
+  workspaceEdit,
+  toolchainExecution,
+  externalMutation,
+}
+
+enum AppCommandTargetSurface {
+  editor,
+  commandOverlay,
+  workspaceSidebar,
+  bottomPanel,
+  settingsPanel,
+  statusBar,
+  modalDialog,
+  background,
+}
+
 enum AppCommandCategory {
   persistence,
   execution,
@@ -145,8 +184,13 @@ extension AppCommandIdX on AppCommandId {
   AppCommandCategory get category {
     return switch (this) {
       AppCommandId.save ||
-      AppCommandId.saveAll => AppCommandCategory.persistence,
-      AppCommandId.run => AppCommandCategory.execution,
+      AppCommandId.saveAll ||
+      AppCommandId.openFile ||
+      AppCommandId.reloadFile ||
+      AppCommandId.acceptExternalChange => AppCommandCategory.persistence,
+      AppCommandId.run ||
+      AppCommandId.runSelectedTarget ||
+      AppCommandId.runMinimalCompilableUnit => AppCommandCategory.execution,
       AppCommandId.fetchDependencies ||
       AppCommandId.vendorDependencies => AppCommandCategory.dependency,
       AppCommandId.useActiveCompiler ||
@@ -156,13 +200,17 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.executeToolchainInstallPlan ||
       AppCommandId.selectClangCppVersion => AppCommandCategory.toolchain,
       AppCommandId.packProject ||
-      AppCommandId.preparePublish => AppCommandCategory.deployment,
+      AppCommandId.preparePublish ||
+      AppCommandId.environmentPreflight ||
+      AppCommandId.deployPreflight => AppCommandCategory.deployment,
       AppCommandId.showRuntime ||
       AppCommandId.showAgent ||
-      AppCommandId.showDebug => AppCommandCategory.surface,
+      AppCommandId.showDebug ||
+      AppCommandId.toggleVisualSubstitution => AppCommandCategory.surface,
       AppCommandId.nextDiagnostic ||
       AppCommandId.previousDiagnostic ||
       AppCommandId.applyQuickFix ||
+      AppCommandId.applyFormattingEdit ||
       AppCommandId.previewQuickFix ||
       AppCommandId.refreshWorkspaceDiagnostics =>
         AppCommandCategory.diagnostics,
@@ -178,7 +226,11 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.collectProjectLanguageContext ||
       AppCommandId.retryAgentProvider ||
       AppCommandId.failoverAgentProvider ||
-      AppCommandId.replayAgentPrompt => AppCommandCategory.agentCoding,
+      AppCommandId.replayAgentPrompt ||
+      AppCommandId.openAgentPanelWithContext ||
+      AppCommandId.previewAgentPatch ||
+      AppCommandId.applyAgentPatch ||
+      AppCommandId.rollbackLastWorkspaceEdit => AppCommandCategory.agentCoding,
       AppCommandId.openWorkspaceFile ||
       AppCommandId.searchWorkspace ||
       AppCommandId.previewWorkspaceReplace ||

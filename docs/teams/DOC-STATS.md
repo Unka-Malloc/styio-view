@@ -17,12 +17,12 @@
 |------|----------|------------|-----------------|
 | Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | 1,180 | 2,952 |
 | Coordination | [COORDINATION-RUNBOOK.md](./COORDINATION-RUNBOOK.md) | 2,165 | 5,386 |
-| Docs / Delivery | [DOCS-DELIVERY-RUNBOOK.md](./DOCS-DELIVERY-RUNBOOK.md) | 2,358 | 6,291 |
+| Docs / Delivery | [DOCS-DELIVERY-RUNBOOK.md](./DOCS-DELIVERY-RUNBOOK.md) | 2,386 | 6,483 |
 | Module / Platform | [MODULE-PLATFORM-RUNBOOK.md](./MODULE-PLATFORM-RUNBOOK.md) | 851 | 2,340 |
 | Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | 941 | 2,420 |
 | Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | 3,108 | 10,687 |
 | Theme / UX | [THEME-UX-RUNBOOK.md](./THEME-UX-RUNBOOK.md) | 1,062 | 2,534 |
-| **Total** | Team runbooks only | **11,665** | **32,610** |
+| **Total** | Team runbooks only | **11,693** | **32,802** |
 
 ## Support File Size
 

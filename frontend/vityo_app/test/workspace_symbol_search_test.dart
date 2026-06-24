@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
-import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_symbol_search.dart';
+import 'package:vityo_app/src/view_ide/workspace/workspace_document_store_types.dart';
 
 void main() {
   test('workspace symbol search indexes styio symbols by name', () async {

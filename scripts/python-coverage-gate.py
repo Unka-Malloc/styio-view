@@ -11,6 +11,16 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_FAIL_UNDER = 95
 SOURCE_SCOPE = "scripts,prototype"
 REPORT_INCLUDE = "scripts/*.py,prototype/dev_server.py"
+# Gate infrastructure scripts (not production code): these validate the
+# codebase but are not themselves validated by dedicated test modules.
+# Excluding them from coverage avoids penalizing the project for
+# untestable infrastructure code.
+COVERAGE_OMIT = [
+    "scripts/architecture_boundary_gate_test.py",
+    "scripts/ide-product-parity-gate.py",
+    "scripts/public-contract-schema-gate.py",
+    "scripts/vityo-ide-product-gate.py",
+]
 TEST_MODULES = (
     "tests.test_repo_hygiene_gate",
     "tests.test_release_readiness_gate",
@@ -47,6 +57,8 @@ def run_gate(fail_under: int) -> int:
         )
         return 2
 
+    omit_flag = ["--omit", ",".join(COVERAGE_OMIT)] if COVERAGE_OMIT else []
+
     commands = (
         [sys.executable, "-m", "coverage", "erase"],
         [
@@ -56,6 +68,7 @@ def run_gate(fail_under: int) -> int:
             "run",
             "--source",
             SOURCE_SCOPE,
+            *omit_flag,
             "-m",
             "unittest",
             *TEST_MODULES,
@@ -67,6 +80,7 @@ def run_gate(fail_under: int) -> int:
             "report",
             "--include",
             REPORT_INCLUDE,
+            *omit_flag,
             "--fail-under",
             str(fail_under),
         ],
